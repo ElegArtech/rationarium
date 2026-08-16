@@ -16,6 +16,7 @@ import { Coquille } from "../coquille/Coquille.js";
 import { FournisseurSession, useSession, CLE_SESSION } from "../session/session.js";
 import { Chargement, RouteIntrouvable } from "../composants/etats.js";
 import { deconnexion } from "../api/session.js";
+import { appeler } from "../api/client.js";
 import { notifications as notificationsApi } from "../api/notifications.js";
 import { reglages as reglagesApi } from "../api/administration.js";
 import { appliquerReglages } from "../formats.js";
@@ -95,9 +96,17 @@ const routeConnexion = createRoute({
     const navigate = useNavigate();
     const client = useQueryClient();
     const { suite } = useSearch({ from: "/connexion" });
+    // `design/etats.json`, vue 01, axe « Inscription autonome ». Le réglage
+    // vient du serveur : le passer en dur rendait la variante inatteignable.
+    const { data: acces } = useQuery({
+      queryKey: ["auth", "acces"],
+      queryFn: () => appeler<{ inscriptionAutonome: boolean }>("/auth/acces"),
+      retry: false,
+    });
 
     return (
       <Connexion
+        inscriptionOuverte={acces?.inscriptionAutonome ?? false}
         surSucces={(motDePasseAChanger) => {
           void client.invalidateQueries({ queryKey: CLE_SESSION }).then(() =>
             navigate({ to: motDePasseAChanger ? "/mot-de-passe-impose" : (suite ?? "/") }),

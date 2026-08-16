@@ -24,6 +24,7 @@ export function MotDePasseOublie({
   disponible?: boolean;
 } = {}) {
   const { t } = useTranslation("auth");
+  const { t: tAcces } = useTranslation("acces");
   const [email, setEmail] = useState("");
   const [envoye, setEnvoye] = useState(false);
   const [enCours, setEnCours] = useState(false);
@@ -42,7 +43,11 @@ export function MotDePasseOublie({
 
   if (!disponible) {
     return (
-      <GabaritAcces titre={t("oubli.titre")}>
+      <GabaritAcces
+      chapeau={tAcces("oubli.chapeau")}
+      titre={t("oubli.titre")}
+      intro={t("oubli.intro")}
+    >
         <div className="alert alert-warn" role="status">
           {t("oubli.indisponible")}
         </div>
@@ -54,7 +59,11 @@ export function MotDePasseOublie({
   }
 
   return (
-    <GabaritAcces titre={t("oubli.titre")}>
+    <GabaritAcces
+      chapeau={tAcces("oubli.chapeau")}
+      titre={t("oubli.titre")}
+      intro={t("oubli.intro")}
+    >
       {envoye ? (
         <div className="alert alert-neutral" role="status">
           {t("oubli.envoye")}

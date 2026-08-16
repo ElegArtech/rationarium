@@ -61,6 +61,11 @@ export class AuthService {
     private readonly audit: AuditService,
   ) {}
 
+  /** Le seul réglage que la page de connexion a besoin de connaître. */
+  async inscriptionAutonome(): Promise<boolean> {
+    return (await this.reglages()).inscriptionAutonome;
+  }
+
   private async reglages(): Promise<Reglages> {
     const lignes = await this.prisma.setting.findMany({
       where: { cle: { startsWith: "auth." } },

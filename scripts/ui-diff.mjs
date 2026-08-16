@@ -201,11 +201,29 @@ if (args[0] === "--releve") {
     console.error(`  node scripts/ui-diff.mjs --releve ${args[0]}`);
     process.exit(1);
   }
-  console.error(
-    "La comparaison implémentation ↔ référence s'active dès que la vue est portée (L-05 et suivants).",
+  /*
+   * **Ce message-ci a coûté un projet.**
+   *
+   * Cette branche affichait « la comparaison s'active dès que la vue est
+   * portée » et sortait avec le code 0. `pnpm ui:diff` passait donc au vert
+   * sans jamais rien comparer, et « conformité de rendu » — que la définition
+   * de terminé de CLAUDE.md exige pour chaque vue — a été déclarée trente-cinq
+   * fois sur la foi d'un contrôle vide. Les cinq vues d'accès ont ainsi été
+   * livrées SANS UNE SEULE RÈGLE DE STYLE, leurs classes ne correspondant à
+   * rien.
+   *
+   * Un contrôle qui n'a rien à mesurer doit ÉCHOUER, jamais réussir en
+   * silence. C'est déjà écrit dans les pièges connus, deux fois.
+   *
+   * La comparaison réelle vit dans `ui-conformite.mjs` ; on y délègue.
+   */
+  const { spawnSync } = await import("node:child_process");
+  const r = spawnSync(
+    process.execPath,
+    [path.join(RACINE, "scripts/ui-conformite.mjs"), args[0], ...args.slice(1)],
+    { stdio: "inherit" },
   );
-  console.error(`Référence disponible : ${path.relative(RACINE, ref)}`);
-  process.exit(0);
+  process.exit(r.status ?? 1);
 } else {
   console.error("Emploi : ui-diff.mjs [--releve <vue>|toutes] | <vue>");
   process.exit(1);

@@ -6,15 +6,22 @@ import {
   Button,
   type TextFieldProps,
 } from "react-aria-components";
-import { useId, useState } from "react";
+import { useId, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
 /**
- * Champs de formulaire — React Aria Components, ADR-0003.
+ * Champs de formulaire — React Aria Components, `ADR-0003`.
  *
- * On achète le comportement et l'accessibilité, on apporte le style. Le
- * libellé, l'association champ↔erreur et l'annonce vocale sont fournis ; les
- * classes viennent du socle graphique.
+ * On achète le comportement et l'accessibilité, on apporte le style.
+ *
+ * **Le vocabulaire de classes est celui des maquettes, pas un vocabulaire
+ * parallèle.** `.field-block`, `.field-label`, `.field-head`, `.field-wrap`,
+ * `.pw-toggle`, `.policy` : ces noms viennent de `mockups/01` à `05`, et le
+ * socle les définit déjà. Les versions précédentes de ce fichier employaient
+ * `.label`, `.field-avec-action`, `.politique` — des noms inventés, que rien
+ * ne stylait. Le rendu était donc celui d'un formulaire nu, et **aucune boucle
+ * ne pouvait le voir** : un attribut `class` sans règle en face ne produit ni
+ * erreur, ni avertissement, ni test rouge.
  */
 
 type ChampProps = TextFieldProps & {
@@ -22,18 +29,42 @@ type ChampProps = TextFieldProps & {
   erreur?: string | undefined;
   placeholder?: string | undefined;
   autoComplete?: string | undefined;
+  /** Rendu à droite du libellé, sur la ligne d'en-tête — vue 01. */
+  action?: ReactNode;
+  aide?: string | undefined;
 };
 
-export function Champ({ libelle, erreur, placeholder, autoComplete, ...props }: ChampProps) {
+export function Champ({
+  libelle,
+  erreur,
+  placeholder,
+  autoComplete,
+  action,
+  aide,
+  ...props
+}: ChampProps) {
   return (
-    <TextField {...props} isInvalid={Boolean(erreur)} className="field-wrap">
-      <Label className="label">{libelle}</Label>
+    <TextField {...props} isInvalid={Boolean(erreur)} className="field-block">
+      {action ? (
+        <div className="field-head">
+          <Label className="field-label">{libelle}</Label>
+          {action}
+        </div>
+      ) : (
+        <Label className="field-label">{libelle}</Label>
+      )}
       <Input
         className="field"
         {...(placeholder ? { placeholder } : {})}
         {...(autoComplete ? { autoComplete } : {})}
       />
-      {erreur ? <FieldError className="field-error">{erreur}</FieldError> : null}
+      {aide ? <p className="field-hint">{aide}</p> : null}
+      {erreur ? (
+        <FieldError className="field-error">
+          <span aria-hidden="true">↑</span>
+          <span>{erreur}</span>
+        </FieldError>
+      ) : null}
     </TextField>
   );
 }
@@ -41,10 +72,18 @@ export function Champ({ libelle, erreur, placeholder, autoComplete, ...props }: 
 /**
  * Champ de mot de passe, avec bascule d'affichage — vue 01.
  *
- * La bascule change **le libellé du bouton**, pas seulement son icône : une
- * assistance technique doit pouvoir annoncer l'action, pas la deviner.
+ * La bascule porte **un mot**, pas une icône : « AFFICHER » / « MASQUER ». Une
+ * assistance technique doit pouvoir annoncer l'action, et un œil doit pouvoir
+ * la lire sans l'interpréter. C'est ce que fait la maquette ; l'émoji qui la
+ * remplaçait ne s'annonce pas.
  */
-export function ChampMotDePasse({ libelle, erreur, autoComplete, ...props }: ChampProps) {
+export function ChampMotDePasse({
+  libelle,
+  erreur,
+  autoComplete,
+  action,
+  ...props
+}: ChampProps) {
   const { t } = useTranslation("auth");
   const [visible, setVisible] = useState(false);
 
@@ -53,21 +92,32 @@ export function ChampMotDePasse({ libelle, erreur, autoComplete, ...props }: Cha
       {...props}
       type={visible ? "text" : "password"}
       isInvalid={Boolean(erreur)}
-      className="field-wrap"
+      className="field-block"
     >
-      <Label className="label">{libelle}</Label>
-      <div className="field-avec-action">
+      {action ? (
+        <div className="field-head">
+          <Label className="field-label">{libelle}</Label>
+          {action}
+        </div>
+      ) : (
+        <Label className="field-label">{libelle}</Label>
+      )}
+      <div className="field-wrap">
         <Input className="field" {...(autoComplete ? { autoComplete } : {})} />
         <Button
           type="button"
-          className="chip-btn"
+          className="pw-toggle"
           onPress={() => setVisible((v) => !v)}
-          aria-label={visible ? t("connexion.masquerMotDePasse") : t("connexion.afficherMotDePasse")}
         >
-          {visible ? "🙈" : "👁"}
+          {visible ? t("connexion.masquer") : t("connexion.afficher")}
         </Button>
       </div>
-      {erreur ? <FieldError className="field-error">{erreur}</FieldError> : null}
+      {erreur ? (
+        <FieldError className="field-error">
+          <span aria-hidden="true">↑</span>
+          <span>{erreur}</span>
+        </FieldError>
+      ) : null}
     </TextField>
   );
 }
@@ -94,17 +144,20 @@ export function PolitiqueMotDePasse({ valeur }: { valeur: string }) {
   ] as const;
 
   return (
-    <div className="politique" aria-labelledby={id}>
-      <p id={id} className="politique-titre">
+    <>
+      <p id={id} className="field-hint">
         {t("politique.titre")}
       </p>
-      <ul className="politique-liste" aria-live="polite">
+      <div className="policy" aria-labelledby={id} aria-live="polite">
         {criteres.map((c) => (
-          <li key={c.cle} className={c.tenu ? "critere-tenu" : "critere-manquant"}>
-            <span aria-hidden="true">{c.tenu ? "✓" : "○"}</span> {t(`politique.${c.cle}`)}
-          </li>
+          <span key={c.cle} className={`policy-item${c.tenu ? " is-met" : ""}`}>
+            <span className="policy-mark" aria-hidden="true">
+              {c.tenu ? "✓" : ""}
+            </span>
+            {t(`politique.${c.cle}`)}
+          </span>
         ))}
-      </ul>
-    </div>
+      </div>
+    </>
   );
 }

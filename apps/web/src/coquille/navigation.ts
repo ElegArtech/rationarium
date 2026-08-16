@@ -30,51 +30,51 @@ import type { Permission } from "@trame/contracts";
  * Confondre les deux donnait à Camille et à Fatou des entrées
  * d'administration qu'elles n'ont pas dans la maquette.
  */
-export type EntreeNav = { cle: string; chemin: string; permission: Permission };
+export type EntreeNav = { cle: string; chemin: string; permission: Permission; icone: string };
 export type GroupeNav = { cle: string; entrees: EntreeNav[] };
 
 export const NAVIGATION: GroupeNav[] = [
   {
     cle: "pilotage",
     entrees: [
-      { cle: "tableauDeBord", chemin: "/", permission: "planning:read" },
-      { cle: "planning", chemin: "/planning", permission: "planning:read" },
-      { cle: "rapports", chemin: "/rapports", permission: "reports:read" },
+      { cle: "tableauDeBord", chemin: "/", permission: "planning:read" , icone: "i-dash" },
+      { cle: "planning", chemin: "/planning", permission: "planning:read" , icone: "i-planning" },
+      { cle: "rapports", chemin: "/rapports", permission: "reports:read" , icone: "i-reports" },
     ],
   },
   {
     cle: "projets",
     entrees: [
-      { cle: "projetsListe", chemin: "/projets", permission: "projects:read" },
-      { cle: "taches", chemin: "/taches", permission: "tasks:read" },
-      { cle: "evenements", chemin: "/evenements", permission: "events:read" },
+      { cle: "projetsListe", chemin: "/projets", permission: "projects:read" , icone: "i-projects" },
+      { cle: "taches", chemin: "/taches", permission: "tasks:read" , icone: "i-tasks" },
+      { cle: "evenements", chemin: "/evenements", permission: "events:read" , icone: "i-events" },
     ],
   },
   {
     cle: "rh",
     entrees: [
-      { cle: "conges", chemin: "/conges", permission: "leaves:read" },
-      { cle: "teletravail", chemin: "/teletravail", permission: "telework:read" },
-      { cle: "tempsPasse", chemin: "/temps", permission: "time_tracking:read" },
-      { cle: "competences", chemin: "/competences", permission: "skills:read_team" },
+      { cle: "conges", chemin: "/conges", permission: "leaves:read" , icone: "i-leaves" },
+      { cle: "teletravail", chemin: "/teletravail", permission: "telework:read" , icone: "i-telework" },
+      { cle: "tempsPasse", chemin: "/temps", permission: "time_tracking:read" , icone: "i-time" },
+      { cle: "competences", chemin: "/competences", permission: "skills:read_team" , icone: "i-skills" },
     ],
   },
   {
     cle: "referentiels",
     entrees: [
-      { cle: "utilisateurs", chemin: "/utilisateurs", permission: "users:read" },
-      { cle: "departements", chemin: "/departements", permission: "departments:read" },
-      { cle: "tiers", chemin: "/tiers", permission: "third_parties:read" },
-      { cle: "clients", chemin: "/clients", permission: "clients:read" },
+      { cle: "utilisateurs", chemin: "/utilisateurs", permission: "users:read" , icone: "i-users" },
+      { cle: "departements", chemin: "/departements", permission: "departments:read" , icone: "i-depts" },
+      { cle: "tiers", chemin: "/tiers", permission: "third_parties:read" , icone: "i-third" },
+      { cle: "clients", chemin: "/clients", permission: "clients:read" , icone: "i-clients" },
     ],
   },
   {
     cle: "administration",
     entrees: [
-      { cle: "roles", chemin: "/roles", permission: "users:manage_roles" },
-      { cle: "journalAudit", chemin: "/audit", permission: "audit:read" },
-      { cle: "tachesPredefinies", chemin: "/taches-predefinies", permission: "predefined_tasks:update" },
-      { cle: "parametres", chemin: "/parametres", permission: "settings:update" },
+      { cle: "roles", chemin: "/roles", permission: "users:manage_roles" , icone: "i-roles" },
+      { cle: "journalAudit", chemin: "/audit", permission: "audit:read" , icone: "i-audit" },
+      { cle: "tachesPredefinies", chemin: "/taches-predefinies", permission: "predefined_tasks:update" , icone: "i-predef" },
+      { cle: "parametres", chemin: "/parametres", permission: "settings:update" , icone: "i-settings" },
     ],
   },
 ];

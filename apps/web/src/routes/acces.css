@@ -1,0 +1,487 @@
+/*
+ * Vues 01 à 05 — le gabarit d'accès. Sections 7, 8 et 8 bis des maquettes.
+ *
+ * **Ce fichier répare une absence, pas un écart.** Les cinq vues d'accès ont
+ * été portées avec un balisage inventé — `.acces`, `.acces-marque`,
+ * `.acces-panneau` — et **aucune feuille de style**. Les classes ne
+ * correspondaient à aucune règle : le navigateur rendait un formulaire brut.
+ * Rien ne pouvait le voir, puisque `pnpm ui:diff` ne comparait rien et que ni
+ * `axe` ni les parcours de bout en bout ne regardent la mise en page.
+ *
+ * Les noms de classes sont désormais **ceux de la maquette** — `.split`,
+ * `.brand-panel`, `.form-card` —, et non un vocabulaire parallèle. C'est ce
+ * qui rend la comparaison possible : deux vocabulaires pour un même écran,
+ * c'est un écart qu'aucun outil ne sait mesurer.
+ *
+ * Seule adaptation, et elle est imposée par `DESIGN.md § 4` : les trois
+ * niveaux de texte du panneau signature sont des couleurs pleines et non des
+ * blancs transparents. La maquette atténue par l'opacité ; le contraste tombe
+ * alors sous le seuil AA, et `RGAA` prime.
+ */
+
+/* ── 7. Gabarit ─────────────────────────────────────────────────────────── */
+
+.split {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 1fr minmax(430px, 40%);
+}
+
+.brand-panel {
+  background: var(--brand-panel);
+  color: var(--on-brand);
+  position: relative;
+  overflow: hidden;
+  padding: 44px 48px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+/* La texture : la trame elle-même, très discrète. */
+.brand-panel::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: linear-gradient(to right, var(--brand-trame) 1px, transparent 1px);
+  background-size: 44px 100%;
+}
+
+.brand-panel > * {
+  position: relative;
+  z-index: 1;
+}
+
+.wordmark {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.wordmark-name {
+  font-family: var(--font-display);
+  font-size: 30px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1;
+}
+
+.brand-sub {
+  margin: 12px 0 0;
+  font-size: 15px;
+  line-height: 1.6;
+  max-width: 24rem;
+  color: var(--on-brand-doux);
+}
+
+.brand-foot {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+  max-width: 30rem;
+  color: var(--on-brand-faible);
+}
+
+.on-brand-eyebrow {
+  color: var(--on-brand-faible);
+}
+
+.form-panel {
+  background: var(--paper);
+  display: flex;
+  flex-direction: column;
+}
+
+.service-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  padding: 24px 48px 0;
+}
+
+.form-body {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 48px;
+}
+
+.form-card {
+  width: 100%;
+  max-width: 380px;
+}
+
+.form-card--wide {
+  max-width: 460px;
+}
+
+.form-intro {
+  margin-bottom: 28px;
+}
+
+.form-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 20px;
+  justify-content: center;
+  padding: 0 48px 24px;
+}
+
+.submit-row {
+  margin-top: 24px;
+}
+
+.signup-row {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+  font-size: 13.5px;
+  color: var(--muted);
+}
+
+.signup-row .link {
+  font-weight: 500;
+  margin-left: 4px;
+}
+
+.name-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.redirect {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13.5px;
+  color: var(--muted);
+  margin: 0;
+}
+
+/* ── 8 bis. Portefeuille miniature — l'amont ────────────────────────────── */
+
+.pf {
+  margin-top: 30px;
+}
+
+.pf-caption {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 10px;
+}
+
+.pf-list {
+  border: 1px solid var(--brand-ligne);
+  border-radius: var(--r);
+  background: var(--brand-fond);
+}
+
+.pf-row {
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr) 112px minmax(0, 1.15fr) 76px;
+  gap: 12px;
+  align-items: center;
+  padding: 9px 10px;
+}
+
+.pf-row + .pf-row {
+  border-top: 1px solid var(--brand-ligne-douce);
+}
+
+.pf-name {
+  font-family: var(--font-cond);
+  font-size: 12px;
+  color: var(--on-brand-doux);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pf-prog {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.pf-bar {
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--brand-barre);
+  position: relative;
+}
+
+.pf-bar > i {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  border-radius: 2px;
+  background: var(--brand-barre-pleine);
+}
+
+.pf-pct {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  color: var(--on-brand-faible);
+}
+
+.pf-mile {
+  font-family: var(--font-cond);
+  font-size: 10.5px;
+  color: var(--on-brand-faible);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pf-health {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  justify-content: flex-end;
+  font-family: var(--font-mono);
+  font-size: 8.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.pf-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  flex: none;
+}
+
+/* L'articulation entre les deux moitiés du panneau. */
+.pf-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 16px 0 0;
+}
+
+.pf-link::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--brand-barre);
+}
+
+/*
+ * La pastille de projet porte l'icône du référentiel, jamais une initiale :
+ * deux projets peuvent commencer par la même lettre, pas porter la même icône.
+ */
+.pglyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 14px;
+  height: 14px;
+  border: 1px solid var(--brand-glyphe);
+  border-radius: 2px;
+  font-family: var(--font-mono);
+  font-size: 8px;
+  font-style: normal;
+  font-weight: 500;
+  color: var(--on-brand-doux);
+  background: var(--brand-fond-2);
+}
+
+.pgi {
+  width: 64%;
+  height: 64%;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* ── 8. Grille miniature — le vocabulaire visuel des cellules ───────────── */
+
+.mini-wrap {
+  margin: 14px 0 0;
+}
+
+.mini-caption {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 10px;
+}
+
+.mini {
+  border: 1px solid var(--brand-ligne);
+  border-radius: var(--r);
+  background: var(--brand-fond);
+}
+
+.mini-grid {
+  display: grid;
+  grid-template-columns: 92px repeat(5, 1fr);
+}
+
+.mini-headrow {
+  padding: 6px 0;
+}
+
+.mini-head {
+  font-family: var(--font-cond);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--on-brand-faible);
+  text-align: center;
+}
+
+.mini-head.is-first {
+  text-align: left;
+  padding-left: 10px;
+}
+
+.mini-row {
+  border-top: 1px solid var(--brand-ligne-douce);
+}
+
+.mini-name {
+  font-family: var(--font-cond);
+  font-size: 11.5px;
+  color: var(--on-brand-doux);
+  padding: 10px;
+}
+
+.mini-cell {
+  border-left: 1px solid var(--brand-ligne-douce);
+  padding: 4px;
+  min-height: 38px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.chip {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-cond);
+  font-size: 9.5px;
+  line-height: 1.25;
+  padding: 3px 4px 3px 5px;
+  border-radius: 2px;
+  background: var(--brand-puce);
+  border-left: 2.5px solid currentColor;
+}
+
+.chip > span {
+  color: var(--on-brand-doux);
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chip .pglyph {
+  width: 12px;
+  height: 12px;
+  font-size: 7px;
+}
+
+/* Tâche hors projet : trait interrompu, pas de pastille projet.
+   C'est un cas nominal, pas une anomalie. */
+.chip-indep {
+  border-left-style: dashed;
+}
+
+.chip-flat {
+  border-left: none;
+  padding-left: 5px;
+  background: var(--brand-chip-plat);
+}
+
+.chip-hatch {
+  background-image: repeating-linear-gradient(
+    135deg,
+    var(--brand-hachure) 0 3px,
+    transparent 3px 6px
+  );
+}
+
+.col-ferie {
+  background: var(--brand-ferie);
+}
+
+.mini-foot {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  color: var(--on-brand-faible);
+  text-align: center;
+  padding: 8px 0;
+}
+
+.mini-foot.is-first {
+  text-align: left;
+  padding-left: 10px;
+}
+
+.mini-sum {
+  background: var(--brand-fond);
+}
+
+/* ── Adaptation ─────────────────────────────────────────────────────────── */
+/* Les miniatures ne se dégradent pas : sous 1100 px, on les retire plutôt que
+   de les tasser. C'est le choix de la maquette, pas une simplification. */
+
+@media (max-width: 1100px) {
+  .split {
+    grid-template-columns: 1fr;
+  }
+
+  .brand-panel {
+    padding: 28px;
+  }
+
+  .service-bar {
+    padding: 20px 28px 0;
+  }
+
+  .form-body {
+    padding: 32px 28px 44px;
+  }
+
+  .form-foot {
+    padding: 0 28px 20px;
+  }
+
+  .brand-foot,
+  .mini-wrap,
+  .pf {
+    display: none;
+  }
+}
+
+@media (max-width: 560px) {
+  .brand-panel {
+    padding: 22px 20px;
+  }
+
+  .wordmark-name {
+    font-size: 25px;
+  }
+
+  .brand-sub {
+    font-size: 14px;
+    margin-top: 8px;
+  }
+}

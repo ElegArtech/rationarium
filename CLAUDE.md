@@ -31,7 +31,8 @@ pnpm test               # unitaires (Vitest)
 pnpm test:int           # intégration sur PostgreSQL réel (Testcontainers) — exige Docker
 pnpm e2e                # bout en bout (Playwright)
 pnpm a11y               # axe-core sur chaque vue, deux thèmes
-pnpm ui:diff <vue>      # conformité de rendu contre la maquette gelée
+pnpm ui:diff <vue>      # conformité de rendu contre la maquette gelée — ÉCHOUE au moindre écart
+pnpm conformite         # la même chose sur les 35 vues
 pnpm perf               # budgets de performance, seuil bloquant
 pnpm verif              # la passe rapide : typecheck + lint + stylelint + i18n + test
 pnpm build              # construction
@@ -52,12 +53,13 @@ Ce sont des interdits, pas des recommandations. Plusieurs sont tenus par des hoo
 - **Ne jamais ajouter une dépendance sans ADR.** Confronter à `C1` et à `ADR-0013`.
 - **Ne jamais écrire « dernier arrivé gagne ».** Concurrence détectée, jamais écrasée (`RG-GEN-07`).
 - **Ne jamais définir une énumération locale** pour un vocabulaire de `cadrage/01 § 4.1`. Une seule définition, dans `@trame/contracts`.
+- **Ne jamais inventer un nom de classe.** Le vocabulaire est celui de la maquette — `.side`, `.form-card`, `.field-label`, `.policy` —, pas un synonyme français. Un nom différent est un écart **même à rendu identique** : c'est lui qui rend la vue suivante comparable. `pnpm ui:diff` le refuse.
 
 ## Définition de terminé
 
 Aucune tâche n'est terminée sans **toutes** ces conditions.
 
-**Vue** — tous les états de `design/etats.json` implémentés · conformité de rendu · accessibilité sans violation dans les deux thèmes · aucune chaîne en dur · aucune couleur littérale · crédible en variante « droits minimaux » **et** « administrateur » (`02 § D.3`) · état vide rédigé avec sa sortie · impression traitée si la vue est concernée.
+**Vue** — tous les états de `design/etats.json` implémentés · `pnpm ui:diff <vue>` **à zéro écart, sortie montrée** · les deux captures comparées à l'œil · accessibilité sans violation dans les deux thèmes · aucune chaîne en dur · aucune couleur littérale · crédible en variante « droits minimaux » **et** « administrateur » (`02 § D.3`) · état vide rédigé avec sa sortie · impression traitée si la vue est concernée.
 
 **Module serveur** — une `EX-…`/`RG-…` = un test nommé qui la cite · intégrité doublée en base quand `C15` l'exige · permission **et** périmètre sur chaque lecture et chaque écriture · journal d'audit alimenté pour les actions de `01 § M20` · aucune écriture « dernier arrivé gagne ».
 
@@ -111,6 +113,8 @@ Enrichi à chaque capitalisation. Un piège rencontré deux fois sans être cons
 - **Le compte de tests Playwright se lit à l'état de sortie, pas à la dernière ligne.** Le rapporteur `line` réécrit sa ligne de progression : un `tail -1` peut attraper `[96/100]` sur une suite entièrement verte.
 - **Les tests de bout en bout servent le lot CONSTRUIT, pas le serveur de développement.** Le serveur de développement transforme à la demande : sous onze ouvriers en parallèle et à froid, les dernières vues dépassaient cinq secondes et quatre tests tombaient — reproductible, mais seulement au premier lancement après un redémarrage. Un échec qui n'arrive qu'une fois sur trois apprend à relancer plutôt qu'à chercher.
 - **Une année ne se formate pas comme un nombre.** `{annee, number}` en ICU rend « l'année 2 026 » en français, séparateur de milliers compris. Interpoler la chaîne telle quelle.
+- **`pnpm ui:diff` a passé au vert pendant tout un projet sans rien comparer.** Sa branche de comparaison affichait « la comparaison s'active dès que la vue est portée » et **sortait en 0**. « Conformité de rendu » a donc été déclarée trente-cinq fois sur la foi d'un contrôle vide, et les cinq vues d'accès ont été livrées **sans une seule règle de style**. Troisième occurrence du même piège dans ce dépôt : *un contrôle qui n'a rien à mesurer doit échouer, jamais réussir en silence.* Un contrôle neuf se valide en lui donnant ce qu'il doit refuser.
+- **Une classe posée sans règle en face est inerte, et rien ne le dit.** Le miroir du piège du sélecteur sans correspondance : `className="acces-panneau"` quand aucune feuille ne définit `.acces-panneau` ne produit ni erreur, ni avertissement, ni test rouge — seulement une page nue. Ni `axe`, ni les parcours de bout en bout, ni le typage ne regardent la mise en page. Seul `pnpm ui:diff` le voit.
 - **L'opacité ne sert jamais à atténuer du texte.** Les maquettes le font ; le contraste tombe sous le seuil AA à chaque fois. Employer un jeton, ou laisser le fond porter la distinction. Voir `docs/design/DESIGN.md § 4`.
 
 ## Convention de commit

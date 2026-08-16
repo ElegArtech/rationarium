@@ -1,0 +1,89 @@
+{
+  "panneau": {
+    "organisation": "City of Roqueville",
+    "signature": "Projects, people and time on a single grid.",
+    "portefeuille": "Portfolio · 3 active projects",
+    "colonnes": "Progress · next milestone · health",
+    "pourcent": "{n}%",
+    "articulation": "What that takes up, day by day",
+    "semaine": "Week of 17–21 November",
+    "service": "IT department · 5 people",
+    "ressource": "Resource",
+    "horsPresentiel": "Off site",
+    "ferie": "Holiday",
+    "legende": "Above, where projects stand. Below, what they actually take up — alongside leave, remote work, on-call duties and meetings.",
+    "jours": {
+      "0": "Mon 17",
+      "1": "Tue 18",
+      "2": "Wed 19",
+      "3": "Thu 20",
+      "4": "Fri 21"
+    },
+    "sante": {
+      "done": "Good",
+      "review": "At risk",
+      "blocked": "Critical"
+    },
+    "projets": {
+      "portail": {
+        "nom": "Citizen portal redesign",
+        "jalon": "User testing · 28 Nov"
+      },
+      "sirh": {
+        "nom": "HRIS migration",
+        "jalon": "Data migration · 5 Dec"
+      },
+      "schema": {
+        "nom": "Digital master plan",
+        "jalon": "Steering committee · 15 Dec"
+      }
+    },
+    "personnes": {
+      "durand": "C. Durand",
+      "amrani": "D. Amrani",
+      "berthier": "F. Berthier",
+      "nguyen": "H. Nguyen",
+      "rocher": "I. Rocher"
+    },
+    "occupations": {
+      "maquettes": "Portal mockups",
+      "recette": "Portal testing",
+      "congeAnnuel": "Annual leave",
+      "congeAttente": "Leave · pending",
+      "teletravail": "Remote work",
+      "cahierCharges": "Requirements",
+      "comite": "Committee · EXT",
+      "accueil": "Front desk · morning",
+      "reprise": "Data migration",
+      "astreinte": "On call",
+      "noteCadrage": "Scoping note",
+      "bureau": "Municipal office",
+      "reunion": "Team meeting"
+    }
+  },
+  "theme": {
+    "sombre": "Dark theme",
+    "clair": "Light theme"
+  },
+  "pied": {
+    "version": "Trame v1.0",
+    "accessibilite": "Accessibility: RGAA compliant",
+    "aide": "Help"
+  },
+  "connexion": {
+    "chapeau": "Application access"
+  },
+  "inscription": {
+    "chapeau": "New account"
+  },
+  "oubli": {
+    "chapeau": "Account recovery"
+  },
+  "reinitialisation": {
+    "chapeau": "Account recovery"
+  },
+  "impose": {
+    "chapeau": "Account security"
+  },
+  "skip": "Skip to main content"
+}

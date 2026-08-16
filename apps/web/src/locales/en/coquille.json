@@ -4,7 +4,8 @@
     "replier": "Collapse the sidebar",
     "deplier": "Expand the sidebar",
     "principale": "Main navigation",
-    "allerAuContenu": "Skip to main content"
+    "allerAuContenu": "Skip to main content",
+    "entrees": "{n, plural, =0 {no entries} one {# entry} other {# entries}}"
   },
   "groupes": {
     "pilotage": "Steering",
@@ -34,7 +35,6 @@
     "parametres": "Settings"
   },
   "entete": {
-    "filAriane": "Breadcrumb",
     "rechercheGlobale": "Global search",
     "langue": "Language",
     "theme": "Theme",

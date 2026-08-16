@@ -54,6 +54,24 @@ const traduire = (e: unknown): never => {
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
 
+  /**
+   * Ce que la page de connexion doit savoir **avant** toute session.
+   *
+   * `design/etats.json` déclare pour la vue 01 un axe « Inscription autonome :
+   * activée · désactivée ». Sans ce point d'entrée, le client ne pouvait pas
+   * connaître le réglage : il passait `false` en dur, et la variante activée
+   * était **inatteignable** — un état spécifié, maquetté, et impossible à
+   * produire. Trouvé par le comparateur de conformité, pas par une boucle.
+   *
+   * Il ne rend que ce qui est nécessaire à l'affichage, et rien d'autre : une
+   * route publique n'est pas une fenêtre sur le paramétrage.
+   */
+  @Public()
+  @Get("acces")
+  async acces() {
+    return { inscriptionAutonome: await this.auth.inscriptionAutonome() };
+  }
+
   /** EX-AUTH-01 — se connecter par identifiant ou email. */
   @Public()
   @Post("login")

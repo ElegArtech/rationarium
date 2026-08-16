@@ -1,32 +1,44 @@
-import { useState, type ReactNode } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { useEffect } from "react";
 import { useRouterState } from "@tanstack/react-router";
-import { PanneauNotifications } from "./Notifications.js";
 import {
   Button,
   Menu,
   MenuItem,
   MenuTrigger,
   Popover,
-  Breadcrumbs,
-  Breadcrumb,
-  Link,
   Dialog,
   DialogTrigger,
   SearchField,
   Input,
 } from "react-aria-components";
+import { PanneauNotifications } from "./Notifications.js";
+import { BibliothequeIcones, Icone } from "./icones.js";
 import { navigationVisible } from "./navigation.js";
 import { changerLangue, LANGUES } from "../i18n/index.js";
 import { definirTheme, themeCourant, THEMES, type Theme } from "../theme/index.js";
 import "./coquille.css";
 
 /**
- * Coquille applicative — `cadrage/02 § B`.
+ * Coquille applicative — `cadrage/02 § B`, section 2 des maquettes.
  *
  * Le cadre permanent dans lequel s'affiche chaque vue : barre latérale
  * repliable, en-tête, zone de contenu.
+ *
+ * **Le vocabulaire de classes est celui de la maquette.** `.side`,
+ * `.side-head`, `.side-mark`, `.side-nav`, `.side-foot`, `.main`, `.topbar`,
+ * `.crumb`, `.search`, `.topbar-right`, `.usermenu-btn`, `.page`. La version
+ * précédente en avait inventé un autre — `.sidebar`, `.zone`, `.fil-ariane`,
+ * `.recherche-globale`, `.topbar-actions` —, et comme la coquille enveloppe
+ * les trente-cinq vues, l'écart se répétait sur chacune. C'est aussi ce qui a
+ * rendu inertes les feuilles d'impression recopiées des maquettes, défaut
+ * corrigé au L-27 **au symptôme** et non à la cause.
+ *
+ * Une seule dérogation, imposée par RGAA sur `DESIGN.md § 4` : la maquette
+ * n'a **aucun élément `<main>`** — sa zone de contenu est un `<div class=
+ * "page">`. Une page sans point de repère principal est un défaut
+ * d'accessibilité, et l'accessibilité prime. La zone porte donc la classe de
+ * la maquette **et** l'élément que la norme demande.
  *
  * **Attention (brief)** : la barre latérale doit rester lisible à 8 entrées
  * comme à 20, et il faut prévoir le cas où un groupe entier disparaît. C'est
@@ -68,24 +80,21 @@ export function Coquille({
 
   const groupes = navigationVisible(permissions);
   const initiales = `${utilisateur.prenom[0] ?? ""}${utilisateur.nom[0] ?? ""}`.toUpperCase();
+  const entrees = groupes.reduce((n, g) => n + g.entrees.length, 0);
 
   const appliquerTheme = (nouveau: Theme) => {
     definirTheme(nouveau);
     setThemeEtat(nouveau);
   };
 
-  /*
-   * RGAA 8.6 — **le titre de page doit être pertinent**, et il ne l'était pas :
-   * toutes les vues s'appelaient « Trame ». Un utilisateur de lecteur d'écran
-   * qui passe d'une vue à l'autre n'entendait donc rien qui les distingue, et
-   * l'historique du navigateur affichait trente-cinq entrées identiques.
-   *
-   * Le titre est **dérivé du `h1` affiché** plutôt que déclaré vue par vue :
-   * une liste parallèle finirait par diverger, et une vue nouvelle
-   * l'oublierait. Ce qui est à l'écran est ce qui est annoncé.
-   */
   const chemin = useRouterState({ select: (etat) => etat.location.pathname });
 
+  /*
+   * RGAA 8.6 — **le titre de page doit être pertinent**, et il ne l'était pas :
+   * toutes les vues s'appelaient « Trame ». Le titre est **dérivé du `h1`
+   * affiché** plutôt que déclaré vue par vue : une liste parallèle finirait par
+   * diverger, et une vue nouvelle l'oublierait.
+   */
   useEffect(() => {
     const image = requestAnimationFrame(() => {
       const titre = document.querySelector("main h1")?.textContent?.trim();
@@ -95,143 +104,194 @@ export function Coquille({
   }, [chemin]);
 
   return (
-    <div className={`app ${repliee ? "sidebar-repliee" : ""} ${tiroirOuvert ? "tiroir-ouvert" : ""}`}>
-      {/*
-        RGAA 12.7 — le lien d'évitement. Il était **stylé dans le socle et
-        jamais rendu** : la classe existait, l'élément non. L'audit L-25 l'a
-        trouvé, et c'est exactement le genre de manque qu'`axe` ne voit pas —
-        rien n'est incorrect dans une page qui n'a pas de lien d'évitement,
-        elle est seulement plus longue à traverser pour qui n'a pas de souris.
+    <>
+      <BibliothequeIcones />
+      <div
+        className={`app${repliee ? " is-collapsed" : ""}${tiroirOuvert ? " is-open" : ""}`}
+      >
+        {/*
+          RGAA 12.7 — le lien d'évitement. Il est le **premier enfant** : un
+          lien d'évitement atteint après la navigation ne sert à rien, on l'a
+          déjà traversée.
+        */}
+        <a className="skip" href="#contenu">
+          {t("navigation.allerAuContenu")}
+        </a>
 
-        Il est le **premier enfant** : un lien d'évitement atteint après la
-        navigation ne sert à rien, on l'a déjà traversée.
-      */}
-      <a className="skip" href="#contenu">
-        {t("navigation.allerAuContenu")}
-      </a>
-      <nav className="sidebar" aria-label={t("navigation.principale")}>
-        <div className="sidebar-tete">
-          <span className="marque-nom">Trame</span>
-          <Button
-            className="icon-btn"
-            onPress={() => setRepliee((r) => !r)}
-            aria-label={repliee ? t("navigation.deplier") : t("navigation.replier")}
-            aria-expanded={!repliee}
-          >
-            <span aria-hidden="true">{repliee ? "»" : "«"}</span>
-          </Button>
-        </div>
+        {/* Le voile du tiroir mobile. Cliquer dessus referme. */}
+        <div
+          className="scrim"
+          onClick={() => setTiroirOuvert(false)}
+          aria-hidden="true"
+        />
 
-        {groupes.map((groupe) => (
-          <div key={groupe.cle} className="nav-group">
-            {/* Le titre de groupe n'apparaît que si le groupe a des entrées. */}
-            <p className="nav-legend">{t(`groupes.${groupe.cle}`)}</p>
-            {groupe.entrees.map((entree) => (
-              <a key={entree.cle} className="nav-item" href={entree.chemin}>
-                {t(`entrees.${entree.cle}`)}
-              </a>
-            ))}
+        {/* ══════════ Barre latérale ══════════ */}
+        <aside className="side">
+          <div className="side-head">
+            <span className="side-mark">Trame</span>
+            <Button
+              className="icon-btn"
+              onPress={() => setRepliee((r) => !r)}
+              aria-label={repliee ? t("navigation.deplier") : t("navigation.replier")}
+              aria-expanded={!repliee}
+            >
+              <Icone nom="i-collapse" petite />
+            </Button>
           </div>
-        ))}
-      </nav>
 
-      <div className="zone">
-        <header className="topbar">
-          {/* Visible en mobile seulement : la barre latérale y est un tiroir. */}
-          <Button
-            className="icon-btn ouvre-tiroir"
-            onPress={() => setTiroirOuvert((o) => !o)}
-            aria-label={t("navigation.ouvrir")}
-            aria-expanded={tiroirOuvert}
-          >
-            <span aria-hidden="true">☰</span>
-          </Button>
-
-          <Breadcrumbs className="fil-ariane" aria-label={t("entete.filAriane")}>
-            {filAriane.map((etape) => (
-              <Breadcrumb key={etape.libelle}>
-                {etape.chemin ? <Link href={etape.chemin}>{etape.libelle}</Link> : etape.libelle}
-              </Breadcrumb>
+          <nav className="side-nav" aria-label={t("navigation.principale")}>
+            {groupes.map((groupe) => (
+              <div key={groupe.cle} className="nav-group">
+                {/* Le titre de groupe n'apparaît que si le groupe a des entrées. */}
+                <p className="nav-legend">{t(`groupes.${groupe.cle}`)}</p>
+                {groupe.entrees.map((entree) => (
+                  <a
+                    key={entree.cle}
+                    className={`nav-item${chemin === entree.chemin ? " is-active" : ""}`}
+                    href={entree.chemin}
+                    title={t(`entrees.${entree.cle}`)}
+                    {...(chemin === entree.chemin ? { "aria-current": "page" as const } : {})}
+                  >
+                    <Icone nom={entree.icone} />
+                    <span>{t(`entrees.${entree.cle}`)}</span>
+                  </a>
+                ))}
+              </div>
             ))}
-          </Breadcrumbs>
+          </nav>
 
-          <SearchField className="recherche-globale" aria-label={t("entete.rechercheGlobale")}>
-            <Input className="field" placeholder={t("entete.rechercheGlobale")} />
-          </SearchField>
+          {/* Le pied compte les entrées : c'est ce que la maquette y met, et
+              c'est ce qui rend lisible la variation de droits (§ D.3). */}
+          <div className="side-foot">
+            <span className="eyebrow">{t("navigation.entrees", { n: entrees })}</span>
+          </div>
+        </aside>
 
-          <div className="topbar-actions">
-            <div role="group" aria-label={t("entete.langue")} className="lang-switch">
-              {LANGUES.map((l) => (
-                <Button key={l} className="chip-btn" onPress={() => void changerLangue(l)}>
-                  {l.toUpperCase()}
-                </Button>
+        {/* ══════════ Zone principale ══════════ */}
+        <div className="main">
+          <header className="topbar">
+            <Button
+              className="icon-btn burger"
+              onPress={() => setTiroirOuvert((o) => !o)}
+              aria-label={t("navigation.ouvrir")}
+              aria-expanded={tiroirOuvert}
+            >
+              <Icone nom="i-burger" petite />
+            </Button>
+
+            <p className="crumb">
+              <a href="/">Trame</a>
+              {filAriane.map((etape) => (
+                <span key={etape.libelle}>
+                  <span aria-hidden="true"> / </span>
+                  {etape.chemin ? (
+                    <a href={etape.chemin}>{etape.libelle}</a>
+                  ) : (
+                    <b>{etape.libelle}</b>
+                  )}
+                </span>
               ))}
+            </p>
+
+            <SearchField className="search" aria-label={t("entete.rechercheGlobale")}>
+              <Icone nom="i-search" petite />
+              <Input placeholder={t("entete.rechercheGlobale")} />
+            </SearchField>
+
+            <div className="topbar-right">
+              <div className="seg" role="group" aria-label={t("entete.langue")}>
+                {LANGUES.map((l) => (
+                  <Button
+                    key={l}
+                    aria-pressed={document.documentElement.lang.startsWith(l)}
+                    onPress={() => void changerLangue(l)}
+                  >
+                    {l.toUpperCase()}
+                  </Button>
+                ))}
+              </div>
+
+              <MenuTrigger>
+                <Button className="chip-btn">{t("entete.theme")}</Button>
+                <Popover>
+                  <Menu
+                    onAction={(cle) => appliquerTheme(cle as Theme)}
+                    selectionMode="single"
+                    selectedKeys={[theme]}
+                  >
+                    {THEMES.map((mode) => (
+                      <MenuItem key={mode} id={mode}>
+                        {t(
+                          mode === "clair"
+                            ? "entete.themeClair"
+                            : mode === "sombre"
+                              ? "entete.themeSombre"
+                              : "entete.themeAuto",
+                        )}
+                      </MenuItem>
+                    ))}
+                  </Menu>
+                </Popover>
+              </MenuTrigger>
+
+              <div className="has-pop">
+                <DialogTrigger>
+                  {/* Le compteur est annoncé en toutes lettres : une pastille
+                      colorée seule ne dit rien à une assistance technique. */}
+                  <Button
+                    className="icon-btn"
+                    aria-label={t("entete.notificationsNonLues", { n: notificationsNonLues })}
+                  >
+                    <Icone nom="i-bell" petite />
+                    {notificationsNonLues > 0 ? (
+                      <span className="dot-badge" aria-hidden="true">
+                        {notificationsNonLues}
+                      </span>
+                    ) : null}
+                  </Button>
+                  <Popover className="pop">
+                    <Dialog aria-label={t("notifications.titre")}>
+                      <PanneauNotifications />
+                    </Dialog>
+                  </Popover>
+                </DialogTrigger>
+              </div>
+
+              <div className="has-pop">
+                <MenuTrigger>
+                  <Button className="usermenu-btn" aria-label={t("entete.menuUtilisateur")}>
+                    <span className="avatar" aria-hidden="true">
+                      {initiales}
+                    </span>
+                    <span>
+                      <span className="um-name">
+                        {utilisateur.prenom} {utilisateur.nom}
+                      </span>
+                      <span className="um-role">{utilisateur.role}</span>
+                    </span>
+                  </Button>
+                  <Popover className="pop pop-sm">
+                    <Menu>
+                      <MenuItem href="/profil" className="pop-action">
+                        {t("entete.monProfil")}
+                      </MenuItem>
+                      <MenuItem onAction={surDeconnexion} className="pop-action">
+                        {t("entete.deconnexion")}
+                      </MenuItem>
+                    </Menu>
+                  </Popover>
+                </MenuTrigger>
+              </div>
             </div>
+          </header>
 
-            <MenuTrigger>
-              <Button className="icon-btn" aria-label={t("entete.theme")}>
-                <span aria-hidden="true">◐</span>
-              </Button>
-              <Popover>
-                <Menu
-                  onAction={(cle) => appliquerTheme(cle as Theme)}
-                  selectionMode="single"
-                  selectedKeys={[theme]}
-                >
-                  {THEMES.map((mode) => (
-                    <MenuItem key={mode} id={mode}>
-                      {t(
-                        mode === "clair"
-                          ? "entete.themeClair"
-                          : mode === "sombre"
-                            ? "entete.themeSombre"
-                            : "entete.themeAuto",
-                      )}
-                    </MenuItem>
-                  ))}
-                </Menu>
-              </Popover>
-            </MenuTrigger>
-
-            <DialogTrigger>
-              {/* Le compteur est annoncé en toutes lettres : une pastille
-                  colorée seule ne dit rien à une assistance technique. */}
-              <Button
-                className="icon-btn"
-                aria-label={t("entete.notificationsNonLues", { n: notificationsNonLues })}
-              >
-                <span aria-hidden="true">🔔</span>
-                {notificationsNonLues > 0 ? (
-                  <span className="dot-badge" aria-hidden="true">
-                    {notificationsNonLues}
-                  </span>
-                ) : null}
-              </Button>
-              <Popover>
-                <Dialog aria-label={t("notifications.titre")}>
-                  <PanneauNotifications />
-                </Dialog>
-              </Popover>
-            </DialogTrigger>
-
-            <MenuTrigger>
-              <Button className="avatar" aria-label={t("entete.menuUtilisateur")}>
-                <span aria-hidden="true">{initiales}</span>
-              </Button>
-              <Popover>
-                <Menu>
-                  <MenuItem href="/profil">{t("entete.monProfil")}</MenuItem>
-                  <MenuItem onAction={surDeconnexion}>{t("entete.deconnexion")}</MenuItem>
-                </Menu>
-              </Popover>
-            </MenuTrigger>
-          </div>
-        </header>
-
-        <main className="contenu" id="contenu">
-          {children}
-        </main>
+          {/* `.page` est la classe de la maquette ; `<main>` est le point de
+              repère que la maquette omet et que RGAA exige. */}
+          <main className="page" id="contenu" tabIndex={-1}>
+            {children}
+          </main>
+        </div>
       </div>
-    </div>
+    </>
   );
 }
