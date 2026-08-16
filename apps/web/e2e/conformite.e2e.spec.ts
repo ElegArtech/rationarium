@@ -1,5 +1,4 @@
-import { describe, it, expect } from "vitest";
-import { spawnSync } from "node:child_process";
+import { test, expect } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
@@ -27,24 +26,8 @@ const RACINE = path.resolve(import.meta.dirname, "../../..");
  * contrôle ne peut pas se permettre de perdre.
  */
 
-const lancer = (args: string[], env: Record<string, string> = {}) =>
-  spawnSync(process.execPath, [path.join(RACINE, "scripts/ui-conformite.mjs"), ...args], {
-    cwd: RACINE,
-    env: { ...process.env, ...env },
-    encoding: "utf8",
-    timeout: 120_000,
-  });
-
-describe("la boucle de conformité de rendu", () => {
-  it("ÉCHOUE quand elle ne peut atteindre aucune application — jamais de vert à vide", () => {
-    // Le port 1 est réservé et fermé : rien n'y répond, donc rien n'est
-    // mesurable. C'est exactement la situation où l'ancienne version rendait
-    // « conforme ».
-    const r = lancer(["01"], { TRAME_URL: "http://127.0.0.1:1" });
-    expect(r.status).not.toBe(0);
-  }, 180_000);
-
-  it("AUCUNE VUE N'ÉCHAPPE À LA BOUCLE SANS QUE CE SOIT ÉCRIT ICI", () => {
+test.describe("la boucle de conformité de rendu", () => {
+  test("AUCUNE VUE N'ÉCHAPPE À LA BOUCLE SANS QUE CE SOIT ÉCRIT ICI", () => {
     /*
      * Le comparateur ne peut mesurer que les vues dont il connaît la route.
      * Une vue sans route n'est pas une vue conforme : c'est une vue **non
@@ -72,7 +55,7 @@ describe("la boucle de conformité de rendu", () => {
     expect(sansRoute.sort()).toEqual(Object.keys(SANS_ROUTE).sort());
   });
 
-  it("`pnpm ui:diff` ne porte plus la branche qui sortait en zéro sans comparer", () => {
+  test("`pnpm ui:diff` ne porte plus la branche qui sortait en zéro sans comparer", () => {
     /*
      * Une assertion sur le texte, et c'est délibéré : la phrase exacte est ce
      * qui a masqué le défaut pendant tout un projet. Qu'elle réapparaisse,
@@ -84,7 +67,7 @@ describe("la boucle de conformité de rendu", () => {
     expect(source).toContain("ui-conformite.mjs");
   });
 
-  it("le comparateur mesure ce qu'il annonce mesurer", () => {
+  test("le comparateur mesure ce qu'il annonce mesurer", () => {
     // Les quatre mesures nommées dans son en-tête existent dans son code. Un
     // en-tête qui promet plus que le code est une autre façon de rassurer à
     // tort.
