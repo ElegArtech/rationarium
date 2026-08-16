@@ -268,7 +268,11 @@ test.describe("Vue 08 — planning, mois", () => {
     await serveur(page, { session: SESSION_PLANNING, reponses: reponsesMois });
     await page.goto("/planning/mois");
 
-    await expect(page.getByText("Ressource").first()).toBeVisible();
+    // `exact` : sans lui, « Ressource » correspond aussi à « Planning des
+    // ressources » — la correspondance de Playwright est insensible à la
+    // casse —, et depuis L-27 ce titre existe aussi dans l'en-tête
+    // d'impression, masqué à l'écran.
+    await expect(page.getByText("Ressource", { exact: true }).first()).toBeVisible();
     await expect(page.getByText("Ana Berger")).toBeVisible();
     await expect(page.getByText("Hors présentiel")).toBeVisible();
   });

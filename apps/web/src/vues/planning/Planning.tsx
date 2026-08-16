@@ -191,6 +191,22 @@ export function Planning({ mode }: { mode: Mode }) {
 
   return (
     <div className="page">
+      {/*
+        `cadrage/01 § 7` — le planning dispose d'une mise en page imprimable.
+        L'en-tête n'existe qu'à l'impression : à l'écran, la barre d'outils dit
+        déjà la période. Sur papier, une feuille sans date ni périmètre est
+        inexploitable dès qu'elle a quitté la main de qui l'a imprimée.
+      */}
+      <div className="print-head">
+        <p className="print-title">{t("titre")}</p>
+        <p className="print-meta">
+          {t(`navigation.libelle_${mode}`, {
+            debut: formaterDate(periode.debut),
+            fin: formaterDate(periode.fin),
+          })}
+        </p>
+      </div>
+
       <BarreOutils
         mode={mode}
         periode={periode}
@@ -438,6 +454,12 @@ function BarreOutils({
       <div className="ligne-actions-fin">
         {/* L'export part par le navigateur, pas par la mémoire : un fichier
             d'agenda se télécharge, il ne se lit pas dans une variable. */}
+        {/* L'impression passe par le navigateur : c'est lui qui produit le
+            PDF, et un second chemin de mise en page ferait diverger deux
+            rendus du même contenu (décision de L-22, refermée en L-27). */}
+        <Button className="chip-btn no-print" onPress={() => window.print()}>
+          {t("actions.imprimer")}
+        </Button>
         {peut("planning:export_ics") ? (
           <a className="chip-btn" href={api.adresseExportIcs(filtresExport)} download>
             {t("actions.exporterIcs")}

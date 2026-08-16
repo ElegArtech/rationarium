@@ -45,6 +45,14 @@ export function Rapports() {
 
   return (
     <div className="page">
+      {/* `EX-RPT-03` — l'export PDF passe par l'impression du navigateur.
+          L'en-tête porte la période : un rapport imprimé sans sa période est
+          un tableau de chiffres dont personne ne sait de quoi il parle. */}
+      <div className="print-head">
+        <p className="print-title">{t("titre")}</p>
+        <p className="print-meta">{t(`periode.${periode}`)}</p>
+      </div>
+
       <div className="pl-toolbar">
         <div>
           <span className="eyebrow">{t("surtitre")}</span>

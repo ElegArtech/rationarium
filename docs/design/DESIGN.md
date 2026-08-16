@@ -199,4 +199,8 @@ Chaque maquette introduit **exactement une** section CSS, qui devient le module 
 
 > **Septième écart, relevé au portage de L-22 — le libellé posé sur une barre de Gantt.** La section 19 pose `.g-bar-lab` en `--ink` directement sur la barre, dont la couleur varie avec le statut **et** avec le taux de remplissage. Le contraste y tombe sous AA sur plusieurs statuts. Le libellé porte donc son propre fond de surface — le même dispositif que l'étiquette « AUJ. » de la même section, qui, elle, l'avait déjà. La maquette se contredisait ; on suit celle de ses deux règles qui satisfait `C5`.
 
+> **Huitième écart, relevé au portage de L-27 — les feuilles d'impression visaient des classes inexistantes.** Les maquettes nomment `.side` et `.main` ; la coquille portée au L-05 les a nommées `.sidebar` et `.contenu`. Les blocs `@media print` recopiés depuis les maquettes visaient donc le vide : la barre latérale s'imprimait. Rien ne pouvait le voir — un sélecteur qui ne correspond à rien ne produit ni erreur ni avertissement. C'est l'émulation du média d'impression (`emulateMedia`) qui l'a montrée, et c'est la raison d'être de `impression.e2e.spec.ts` : sans elle, on vérifie que le CSS existe, pas qu'il s'applique.
+>
+> Par ailleurs, la maquette 07 ne porte **aucune** feuille d'impression propre — seulement le bloc du socle. La mise en page imprimable du planning exigée par `cadrage/01 § 7` est donc construite par analogie avec celle de la vue 09, et `.print-head` remonte au socle, où trois vues l'emploient.
+
 **Ce qui ne se porte jamais** : la section « PANNEAU DE REVUE », explicitement marquée *hors produit* dans les maquettes. C'est l'outil qui pilote les états pour la vérification (`design/etats.json`), pas une partie de l'application.

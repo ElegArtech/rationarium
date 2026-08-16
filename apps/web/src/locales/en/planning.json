@@ -54,7 +54,8 @@
     "deplacerVers": "Move to…",
     "reassignerA": "Reassign to…",
     "dateVerrouillee": "Date cannot be moved: task has several assignees",
-    "basculerTeletravail": "{nom}, {date} — currently {etat}. Switch to {suivant}"
+    "basculerTeletravail": "{nom}, {date} — currently {etat}. Switch to {suivant}",
+    "imprimer": "Print"
   },
   "groupe": {
     "effectif": "{n, plural, one {# person} other {# people}}",
