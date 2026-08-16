@@ -5,6 +5,7 @@ import {
   Outlet,
   redirect,
   useNavigate,
+  useParams,
   useSearch,
 } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
@@ -22,6 +23,10 @@ import { MotDePasseOublie } from "../routes/mot-de-passe-oublie.js";
 import { Reinitialisation } from "../routes/reinitialisation.js";
 import { MotDePasseImpose } from "../routes/mot-de-passe-impose.js";
 import { Profil } from "../routes/profil.js";
+import { Portefeuille } from "../vues/projets/Portefeuille.js";
+import { VueEnsemble } from "../vues/projets/VueEnsemble.js";
+import { Jalons } from "../vues/projets/Jalons.js";
+import { Equipe } from "../vues/projets/Equipe.js";
 
 /**
  * L'arborescence des routes.
@@ -238,13 +243,62 @@ const routeProfil = createRoute({
   },
 });
 
+// ── Projets — vues 10, 11, 13, 14 (L-32) ────────────────────────────────────
+
+const routeProjets = createRoute({
+  getParentRoute: () => routeApplication,
+  path: "/projets",
+  component: Portefeuille,
+});
+
+/**
+ * La fiche projet et ses onglets.
+ *
+ * Chaque onglet est une route à part entière, et non un état interne : une
+ * fiche projet se partage par lien, et un onglet qui ne s'inscrit pas dans
+ * l'adresse renvoie le destinataire sur la vue d'ensemble.
+ */
+const routeProjet = createRoute({
+  getParentRoute: () => routeApplication,
+  path: "/projets/$id",
+  component: function PageProjet() {
+    const { id } = useParams({ from: "/application/projets/$id" });
+    return <VueEnsemble projetId={id} />;
+  },
+});
+
+const routeProjetJalons = createRoute({
+  getParentRoute: () => routeApplication,
+  path: "/projets/$id/jalons",
+  component: function PageJalons() {
+    const { id } = useParams({ from: "/application/projets/$id/jalons" });
+    return <Jalons projetId={id} />;
+  },
+});
+
+const routeProjetEquipe = createRoute({
+  getParentRoute: () => routeApplication,
+  path: "/projets/$id/equipe",
+  component: function PageEquipe() {
+    const { id } = useParams({ from: "/application/projets/$id/equipe" });
+    return <Equipe projetId={id} />;
+  },
+});
+
 const arbre = racine.addChildren([
   routeConnexion,
   routeInscription,
   routeMotDePasseOublie,
   routeReinitialisation,
   routeMotDePasseImpose,
-  routeApplication.addChildren([routeAccueil, routeProfil]),
+  routeApplication.addChildren([
+    routeAccueil,
+    routeProfil,
+    routeProjets,
+    routeProjet,
+    routeProjetJalons,
+    routeProjetEquipe,
+  ]),
 ]);
 
 export const routeur = createRouter({

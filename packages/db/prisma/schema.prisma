@@ -406,7 +406,8 @@ model Milestone {
   id          String      @id @default(uuid()) @db.Uuid
   nom         String
   description String?
-  dateEcheance DateTime   @db.Date
+  /// Facultative : un jalon sans date reste en fin de chronologie (vue 13).
+  dateEcheance DateTime?  @db.Date
   statut      StatutJalon @default(pending)
   projectId   String      @db.Uuid
   project     Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)

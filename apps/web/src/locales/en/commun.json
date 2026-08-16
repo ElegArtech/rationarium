@@ -14,5 +14,9 @@
     "retourAccueil": "Back to home",
     "introuvableTitre": "This address does not match any page",
     "introuvableExplication": "The link may be incomplete, or the page was renamed."
+  },
+  "calcule": "Computed",
+  "fenetre": {
+    "fermer": "Close"
   }
 }

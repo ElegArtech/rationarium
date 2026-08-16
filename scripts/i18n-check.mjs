@@ -77,6 +77,16 @@ function clesEmployees() {
   // ternaire : `t(sombre ? "entete.themeSombre" : "entete.themeClair")`.
   const motifAppel = /\bt\(([^()]*(?:\([^()]*\)[^()]*)*)\)/g;
   const motifChaine = /["']([A-Za-z0-9_]+(?:[.:][A-Za-z0-9_]+)+)["']/g;
+  /**
+   * Les clés **plates** — `t("annuler")` — sont invisibles au motif ci-dessus,
+   * qui exige un point ou un deux-points. Une première version du contrôle les
+   * déclarait donc orphelines alors qu'elles étaient employées partout.
+   *
+   * Elles ne sont cherchées que dans le **premier argument** de l'appel : une
+   * chaîne quelconque plus loin — `t("x", { defaut: "annuler" })` — n'est pas
+   * une clé, et l'accepter rendrait le contrôle plus large que juste.
+   */
+  const motifPremierArgument = /^\s*["']([A-Za-z0-9_]+)["']\s*(?:,|$)/;
   const motifNs = /useTranslation\(\s*["'`]([^"'`]+)["'`]/g;
   // Gabarit dont le préfixe est littéral et la fin interpolée.
   const motifGabarit = /\bt\(\s*`([^`$]*)\$\{/g;
@@ -97,6 +107,8 @@ function clesEmployees() {
       for (const c of appel[1].matchAll(motifChaine)) {
         cles.add(c[1].includes(":") ? c[1] : `${parDefaut}:${c[1]}`);
       }
+      const plate = motifPremierArgument.exec(appel[1]);
+      if (plate) cles.add(`${parDefaut}:${plate[1]}`);
     }
     for (const m of src.matchAll(motifGabarit)) {
       const prefixe = m[1];

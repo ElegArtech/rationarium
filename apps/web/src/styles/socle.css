@@ -161,6 +161,10 @@ a.eyebrow:hover{ color:var(--ink); }
 .field-error{ font-size:12.5px; color:var(--st-blocked); margin:5px 0 0; display:flex; gap:5px; align-items:flex-start; line-height:1.4; }
 /* Le message garde sa place quand il est muet : le formulaire ne saute jamais. */
 .field-error.is-quiet{ visibility:hidden; }
+/* Repris de la section 4 des maquettes, omis au portage de L-00 : la vue 13
+   l'emploie pour dire ce que devient un jalon sans date. Une aide de champ
+   n'est pas un ornement — c'est souvent la seule explication d'un choix. */
+.field-hint{ font-size:11.5px; color:var(--muted); margin:5px 0 0; line-height:1.4; }
 /* Indicateur de politique de mot de passe (vues 02 · 04 · 05) */
 .policy{ margin-top:9px; display:grid; grid-template-columns:1fr 1fr; gap:5px 14px; }
 .policy-item{ display:flex; align-items:center; gap:7px; font-size:11.5px; color:var(--muted); transition:color .15s ease; }

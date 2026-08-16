@@ -1,0 +1,266 @@
+/*
+ * Vue 11 — Fiche projet : en-tête, onglets, indicateurs, informations,
+ * feuille de route en aperçu. Section 15 des maquettes, reprise verbatim.
+ */
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  text-decoration: none;
+  margin-bottom: 12px;
+}
+.back-link:hover {
+  color: var(--accent);
+}
+
+.proj-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 15px;
+  margin-bottom: 16px;
+}
+.proj-icon {
+  width: 54px;
+  height: 54px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+  background: var(--accent-soft);
+  flex: none;
+}
+.proj-icon .picon-glyphe {
+  font-size: 26px;
+}
+.proj-name {
+  font-family: var(--font-display);
+  font-size: 25px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin: 2px 0 7px;
+  line-height: 1.15;
+}
+.proj-acts {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+  flex: none;
+}
+.is-dim {
+  opacity: 0.62;
+}
+
+/* Onglets de la fiche */
+.tabbar {
+  display: flex;
+  gap: 2px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 18px;
+  overflow-x: auto;
+}
+.tabbar a {
+  padding: 9px 14px;
+  font-size: 13px;
+  color: var(--muted);
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  white-space: nowrap;
+}
+.tabbar a:hover {
+  color: var(--ink);
+}
+.tabbar a.is-active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+  font-weight: 600;
+}
+.tabbar .n {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--muted);
+  margin-left: 5px;
+}
+.tabbar a.is-active .n {
+  color: var(--accent);
+}
+
+/* Indicateurs — le calcul est signalé, la valeur n'est pas saisissable */
+.kpi-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.kpi-bar {
+  margin-top: 9px;
+}
+
+/* Informations */
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(168px, 1fr));
+  gap: 15px 20px;
+}
+.info-k {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 8.5px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+.info-v {
+  font-size: 13px;
+}
+.info-v.is-none {
+  color: var(--muted);
+  font-style: italic;
+}
+
+/* Feuille de route, en aperçu */
+.rmap {
+  position: relative;
+  padding-left: 26px;
+}
+.rmap::before {
+  content: "";
+  position: absolute;
+  left: 6px;
+  top: 8px;
+  bottom: 14px;
+  width: 1px;
+  background: var(--line);
+}
+.rm {
+  position: relative;
+  padding-bottom: 17px;
+}
+.rm:last-child {
+  padding-bottom: 0;
+}
+.rm-dot {
+  position: absolute;
+  left: -26px;
+  top: 2px;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  border: 2px solid var(--line-strong);
+  background: var(--surface);
+}
+.rm-dot.is-done {
+  border-color: var(--st-done);
+  background: var(--st-done);
+}
+.rm-dot.is-doing {
+  border-color: var(--st-doing);
+  background: var(--surface);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.rm-top {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.rm-name {
+  font-size: 13.5px;
+  font-weight: 600;
+}
+.rm-date {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--muted);
+}
+.rm-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 6px;
+}
+.rm-line .bar {
+  width: 180px;
+  margin: 0;
+}
+.rm-meta {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  color: var(--muted);
+}
+.rm.is-late .rm-date {
+  color: var(--st-blocked);
+}
+
+.two-col {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+  margin-top: 16px;
+}
+@media (max-width: 1100px) {
+  .two-col {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Suppression définitive */
+.danger-box {
+  border: 1px solid var(--st-blocked);
+  background: var(--danger-soft);
+  border-radius: var(--r);
+  padding: 12px 13px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--st-blocked);
+}
+.danger-box ul {
+  margin: 8px 0 0;
+  padding-left: 18px;
+}
+.btn-danger {
+  background: var(--st-blocked);
+  color: var(--on-status);
+  border-color: var(--st-blocked);
+}
+.btn-danger:hover:not(:disabled) {
+  filter: brightness(0.9);
+}
+.quoted {
+  font-weight: 600;
+}
+.phrase-confirmation {
+  margin: 0 0 14px;
+  font-size: 13.5px;
+  line-height: 1.55;
+}
+.bandeau-etat {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.bandeau-etat > span:first-of-type {
+  flex: 1;
+}
+
+/* Un onglet dont la vue n'est pas encore portée : présent, inerte, et dit
+   comme tel. Le masquer ferait croire que la section n'existe pas. */
+.tabbar .onglet-inerte {
+  padding: 9px 14px;
+  font-size: 13px;
+  color: var(--placeholder);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  white-space: nowrap;
+  cursor: not-allowed;
+}

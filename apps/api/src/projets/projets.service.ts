@@ -96,6 +96,68 @@ export class ProjetsService {
   }
 
   /**
+   * `EX-PRJ-02` — la fiche d'un projet : ce que la vue 11 affiche en une page.
+   *
+   * Tout y est **rassemblé côté serveur**. Laisser le client composer six
+   * appels — projet, progression, budget, compte de tâches, compte d'équipe,
+   * jalons — l'obligerait à gérer six états de chargement pour une seule page,
+   * et à afficher des indicateurs qui arrivent les uns après les autres.
+   *
+   * `RG-PRJ-07` : progression et budget consommé sont **calculés**. Ils
+   * ressortent d'ici, pas d'une colonne, et la vue les marque comme tels.
+   */
+  async fiche(projectId: string) {
+    const projet = await this.prisma.project.findUnique({
+      where: { id: projectId },
+      include: {
+        chef: { select: { id: true, prenom: true, nom: true } },
+        sponsor: { select: { id: true, prenom: true, nom: true } },
+        createur: { select: { id: true, prenom: true, nom: true } },
+        clients: { include: { client: { select: { id: true, nom: true } } } },
+        _count: {
+          select: { taches: true, jalons: true, epopees: true, membres: true, tiers: true },
+        },
+      },
+    });
+    if (!projet) throw new ErreurProjet("introuvable");
+
+    const [progression, budget, parStatut, dernier] = await Promise.all([
+      this.progression(projectId),
+      this.budget(projectId),
+      this.prisma.task.groupBy({
+        by: ["statut"],
+        where: { projectId },
+        _count: true,
+      }),
+      this.prisma.projectSnapshot.findFirst({
+        where: { projectId },
+        orderBy: { date: "desc" },
+        select: { date: true, progression: true },
+      }),
+    ]);
+
+    const compte = (statut: string) =>
+      parStatut.find((l) => l.statut === statut)?._count ?? 0;
+
+    const { clients, _count, ...reste } = projet;
+    return {
+      ...reste,
+      progression,
+      budget,
+      taches: {
+        total: _count.taches,
+        enCours: compte("doing"),
+        bloquees: compte("blocked"),
+      },
+      equipe: { agents: _count.membres, tiers: _count.tiers, clients: clients.length },
+      jalons: _count.jalons,
+      epopees: _count.epopees,
+      clients: clients.map((c) => c.client),
+      dernierInstantane: dernier,
+    };
+  }
+
+  /**
    * `RG-PRJ-07` — la progression est calculée à partir de l'avancement des
    * tâches, jamais saisie.
    *
@@ -268,6 +330,58 @@ export class ProjetsService {
 
   // ── Équipe — EX-PRJ-09, vue 14 ───────────────────────────────────────────
 
+  /**
+   * `EX-PRJ-09` — l'équipe du projet : **trois populations distinctes**.
+   *
+   * Agents, intervenants extérieurs et bénéficiaires cohabitent sur la vue 14,
+   * et le brief impose de les distinguer : « un prestataire n'est pas un
+   * agent ». Les renvoyer dans une liste unique obligerait le client à
+   * reconstituer la distinction depuis la forme des données, ce qui la rendrait
+   * fragile au premier champ ajouté.
+   *
+   * L'allocation cumulée n'est calculée que sur les agents : un tiers ne
+   * consomme pas la charge des services, un bénéficiaire ne contribue pas.
+   */
+  async equipe(projectId: string) {
+    const [agents, tiers, clients] = await Promise.all([
+      this.prisma.projectMember.findMany({
+        where: { projectId },
+        include: {
+          user: {
+            select: {
+              id: true, prenom: true, nom: true, email: true,
+              departement: { select: { nom: true } },
+            },
+          },
+        },
+      }),
+      this.prisma.projectThirdParty.findMany({
+        where: { projectId },
+        include: {
+          thirdParty: {
+            select: { id: true, type: true, organisation: true, contactNom: true },
+          },
+        },
+      }),
+      this.prisma.projectClient.findMany({
+        where: { projectId },
+        include: { client: { select: { id: true, nom: true, contactNom: true } } },
+      }),
+    ]);
+
+    return {
+      agents: agents.map((m) => ({
+        userId: m.userId,
+        roleProjet: m.roleProjet,
+        tauxAllocation: m.tauxAllocation,
+        utilisateur: m.user,
+      })),
+      tiers: tiers.map((x) => x.thirdParty),
+      clients: clients.map((x) => x.client),
+      allocationCumulee: agents.reduce((n, m) => n + (m.tauxAllocation ?? 0), 0),
+    };
+  }
+
   /** `RG-PRJ-06` — un utilisateur ne peut être membre du même projet deux fois. */
   async ajouterMembre(
     projectId: string,
@@ -297,9 +411,27 @@ export class ProjetsService {
 
   // ── Jalons — M5, vue 13 ──────────────────────────────────────────────────
 
+  /**
+   * `EX-PRJ-09` — retirer un membre de l'équipe.
+   *
+   * **Le retrait n'efface rien** : ni le temps déclaré, ni les tâches
+   * assignées, ni l'historique. C'est un lien qu'on défait, pas une donnée
+   * qu'on supprime — et l'interface le dit, parce que la confusion entre les
+   * deux est la première raison qu'on a de ne pas oser cliquer.
+   */
+  async retirerMembre(projectId: string, userId: string, acteurId: string) {
+    await this.prisma.projectMember.delete({
+      where: { projectId_userId: { projectId, userId } },
+    });
+    await this.audit.tracer({
+      action: "project.member_remove", typeEntite: "Project", entiteId: projectId, acteurId,
+      detail: { userId },
+    });
+  }
+
   /** `RG-JAL-02` — un jalon appartient à un et un seul projet. */
   async creerJalon(
-    donnees: { nom: string; description?: string; dateEcheance: Date; projectId: string },
+    donnees: { nom: string; description?: string; dateEcheance?: Date; projectId: string },
     acteurId: string,
   ) {
     await this.refuserSiAnnule(donnees.projectId);
@@ -307,7 +439,8 @@ export class ProjetsService {
       data: {
         nom: donnees.nom,
         description: donnees.description ?? null,
-        dateEcheance: donnees.dateEcheance,
+        // Facultative : sans date, le jalon reste en fin de chronologie (vue 13).
+        dateEcheance: donnees.dateEcheance ?? null,
         projectId: donnees.projectId,
       },
     });

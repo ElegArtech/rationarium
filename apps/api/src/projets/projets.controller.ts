@@ -27,6 +27,13 @@ export class ProjetsController {
     return this.projets.portefeuille(d.perimetre, d.permissions, filtres);
   }
 
+  /** `EX-PRJ-02` — la fiche complète. Vue 11. */
+  @Get(":id")
+  @RequiertPermission("projects:read")
+  fiche(@Param("id") id: string) {
+    return this.projets.fiche(id);
+  }
+
   @Get(":id/budget")
   @RequiertPermission("projects:read")
   budget(@Param("id") id: string) {
@@ -100,6 +107,12 @@ export class ProjetsController {
 
   // ── Équipe — vue 14 ──────────────────────────────────────────────────────
 
+  @Get(":id/equipe")
+  @RequiertPermission("projects:read")
+  equipe(@Param("id") id: string) {
+    return this.projets.equipe(id);
+  }
+
   @Post(":id/membres")
   @RequiertPermission("projects:manage_members")
   ajouterMembre(@Param("id") id: string, @Body() corps: unknown, @Demande() d: ContexteDemande) {
@@ -112,6 +125,16 @@ export class ProjetsController {
       corps,
     );
     return this.projets.ajouterMembre(id, donnees, d.userId);
+  }
+
+  @Delete(":id/membres/:userId")
+  @RequiertPermission("projects:manage_members")
+  retirerMembre(
+    @Param("id") id: string,
+    @Param("userId") userId: string,
+    @Demande() d: ContexteDemande,
+  ) {
+    return this.projets.retirerMembre(id, userId, d.userId);
   }
 
   // ── Jalons — vue 13 ──────────────────────────────────────────────────────

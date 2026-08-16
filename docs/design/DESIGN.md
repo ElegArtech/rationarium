@@ -166,6 +166,7 @@ Chaque maquette introduit **exactement une** section CSS, qui devient le module 
 | 7 GABARIT DE LA VUE CONNEXION · 8 GRILLE MINIATURE · 8 bis PORTEFEUILLE MINIATURE · 10 RESPONSIVE | vue 01 | L-04 — gabarit des vues 01 à 05 |
 | 7 COQUILLE APPLICATIVE · 8 GABARIT DE PAGE · 9 VOCABULAIRE DES OCCUPATIONS | vue 06 | L-05 — coquille |
 | 11 PLANNING GRILLE · 12 VUE MOIS · 13 VUE ACTIVITÉ · feuille d'impression | vues 07, 08, 09 | L-20 |
+| *extraites de 11–13* : `.filters` · `.f-input` · `.pl-toolbar` · `.scrim-modal` · `.modal*` · `.toasts` · `.pill` · `.agent-av` · `.calc-tag` | — | **`composants/partages.css`** — transverse (L-32) |
 | 14 PORTEFEUILLE · 15 FICHE PROJET · 17 FEUILLE DE ROUTE · 18 ÉQUIPE | vues 10, 11, 13, 14 | L-10 |
 | 16 KANBAN · fenêtre d'import · 20 TÂCHES VUE GLOBALE · 21 FICHE TÂCHE | vues 12, 16, 17 | L-11 |
 | 19 GANTT · 34 RAPPORTS & ANALYTICS | vues 15, 30 | L-22 |
@@ -181,5 +182,9 @@ Chaque maquette introduit **exactement une** section CSS, qui devient le module 
 | 36 RÔLES & PERMISSIONS · 37 JOURNAL D'AUDIT | vues 32, 33 | L-08 |
 | 38 TÂCHES PRÉDÉFINIES | vue 34 | L-17 |
 | 39 MON PROFIL | vue 35 | L-05 |
+
+> **Correction du 2026-08-16, au portage de L-32.** Les sections 11 à 13 introduisent des règles qui n'ont rien de planificatoire : la fenêtre modale, la file de messages, la barre de filtres, la pastille de vocabulaire, l'avatar d'agent, le marqueur de valeur calculée. Elles apparaissent d'abord dans le planning parce que c'est la première vue de la lignée qui en avait besoin, **pas parce qu'elles lui appartiennent**. Les laisser dans L-20 obligerait les vues 10 à 14 à les redéfinir, donc à les faire diverger. Elles vivent désormais dans `composants/partages.css`, reprises verbatim.
+>
+> Deuxième écart, même origine : `.field-hint` appartient à la section 4 (FORMULAIRES), donc au socle, et avait été **omis** au portage de L-00. La vue 13 l'emploie pour dire ce que devient un jalon sans date. Ajouté à `socle.css`.
 
 **Ce qui ne se porte jamais** : la section « PANNEAU DE REVUE », explicitement marquée *hors produit* dans les maquettes. C'est l'outil qui pilote les états pour la vérification (`design/etats.json`), pas une partie de l'application.
