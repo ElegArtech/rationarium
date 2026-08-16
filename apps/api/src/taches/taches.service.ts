@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma.service.js";
 import { AuditService } from "../commun/audit.service.js";
 import { PerimetreService, type Perimetre } from "../commun/perimetre.service.js";
+import { NotificationsService } from "../notifications/notifications.service.js";
 import type { StatutTache, Priorite, RoleRaci } from "@trame/contracts";
 
 /**
@@ -46,6 +47,7 @@ export class TachesService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly perimetres: PerimetreService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   // ── Lecture ──────────────────────────────────────────────────────────────
@@ -172,6 +174,19 @@ export class TachesService {
       action: "task.create", typeEntite: "Task", entiteId: tache.id, acteurId,
       detail: { horsProjet: !donnees.projectId, assignes: assignes.length },
     });
+
+    // `cadrage/01 § M18` — « Nouvelle tâche assignée ». On ne se notifie pas
+    // soi-même : celui qui crée la tâche vient de la voir.
+    await this.notifications.notifierPlusieurs(
+      assignes.filter((id) => id !== acteurId),
+      {
+        type: "tache_assignee",
+        titre: `Nouvelle tâche : ${tache.titre}`,
+        contenu: `La tâche « ${tache.titre} » vous a été assignée.`,
+        lien: `/taches/${tache.id}`,
+      },
+    );
+
     return tache;
   }
 

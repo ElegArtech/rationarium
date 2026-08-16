@@ -5,6 +5,8 @@ import path from "node:path";
 import { creerClient, type PrismaClient } from "@trame/db";
 import { TachesService, ErreurTache } from "./taches.service.js";
 import { AuditService } from "../commun/audit.service.js";
+import { NotificationsService } from "../notifications/notifications.service.js";
+import { FileService } from "../notifications/file.service.js";
 import { PerimetreService } from "../commun/perimetre.service.js";
 
 /** L-11 — tâches, dépendances, RACI, cascade. Criticité haute. */
@@ -52,8 +54,16 @@ beforeAll(async () => {
     stdio: "pipe",
   });
   prisma = creerClient(pg.getConnectionUri());
+  // `RG-NTF-04` — la file n'est PAS démarrée ici. C'est délibéré : ces suites
+  // prouvent au passage que les actions métier aboutissent sans elle.
+  const notifications = new NotificationsService(prisma as never, new FileService());
   perimetres = new PerimetreService(prisma as never);
-  taches = new TachesService(prisma as never, new AuditService(prisma as never), perimetres);
+  taches = new TachesService(
+    prisma as never,
+    new AuditService(prisma as never),
+    perimetres,
+    notifications,
+  );
   acteur = await agent();
   projetA = await projet();
   projetB = await projet();

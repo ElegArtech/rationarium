@@ -5,6 +5,8 @@ import path from "node:path";
 import { creerClient, type PrismaClient } from "@trame/db";
 import { ProjetsService, ErreurProjet } from "./projets.service.js";
 import { AuditService } from "../commun/audit.service.js";
+import { NotificationsService } from "../notifications/notifications.service.js";
+import { FileService } from "../notifications/file.service.js";
 import { PerimetreService } from "../commun/perimetre.service.js";
 
 /** L-10 — projets, jalons, épopées, équipe. */
@@ -46,8 +48,16 @@ beforeAll(async () => {
     stdio: "pipe",
   });
   prisma = creerClient(pg.getConnectionUri());
+  // `RG-NTF-04` — la file n'est PAS démarrée ici. C'est délibéré : ces suites
+  // prouvent au passage que les actions métier aboutissent sans elle.
+  const notifications = new NotificationsService(prisma as never, new FileService());
   perimetres = new PerimetreService(prisma as never);
-  projets = new ProjetsService(prisma as never, new AuditService(prisma as never), perimetres);
+  projets = new ProjetsService(
+    prisma as never,
+    new AuditService(prisma as never),
+    perimetres,
+    notifications,
+  );
   chef = await agent("Driss");
 }, 240_000);
 

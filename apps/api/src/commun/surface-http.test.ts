@@ -22,6 +22,7 @@ import { TiersController, ClientsController } from "../tiers/tiers.controller.js
 import { PlanningController } from "../planning/planning.controller.js";
 import { TableauController } from "../tableau/tableau.controller.js";
 import { RapportsController } from "../rapports/rapports.controller.js";
+import { NotificationsController } from "../notifications/notifications.controller.js";
 
 /**
  * `RG-DROITS-03` — **aucun point d'entrée n'est ouvert par inadvertance.**
@@ -58,6 +59,7 @@ const CONTROLEURS = [
   PlanningController,
   TableauController,
   RapportsController,
+  NotificationsController,
 ];
 
 /** Les seules routes autorisées à se passer de permission. */
@@ -84,6 +86,10 @@ const PERSONNELLES_ATTENDUES = new Set([
   "TableauController.ajouter",
   "TableauController.modifier",
   "TableauController.supprimer",
+  // `cadrage/01 § M18` — une notification appartient à son destinataire.
+  "NotificationsController.lister",
+  "NotificationsController.marquerLue",
+  "NotificationsController.toutMarquerLu",
 ]);
 
 type Route = {
