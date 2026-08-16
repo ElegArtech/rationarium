@@ -210,13 +210,30 @@ function LigneClient({ client }: { client: api.Client }) {
 /** Vue 26 — Fiche client : son portefeuille de projets. */
 export function FicheClient({ clientId }: { clientId: string }) {
   const { t } = useTranslation("referentiels");
+  const { t: tErreurs } = useTranslation("erreurs");
   const peut = usePeut();
   const [suppressionOuverte, setSuppressionOuverte] = useState(false);
   const [rattachementOuvert, setRattachementOuvert] = useState(false);
+  const [editionOuverte, setEditionOuverte] = useState(false);
+  const annoncer = useMessages();
+  const cache = useQueryClient();
 
   const requete = useQuery({
     queryKey: ["clients", clientId],
     queryFn: () => api.ficheClient(clientId),
+  });
+
+  /*
+   * `EX-CLI-02` — l'inactivation est réversible. La valeur envoyée se lit sur
+   * la donnée servie, jamais sur un état local qui pourrait la contredire.
+   */
+  const bascule = useMutation({
+    mutationFn: () => api.modifierClient(clientId, { actif: !requete.data?.actif }),
+    onSuccess: () => {
+      annoncer("ok", requete.data?.actif ? t("clients.renduInactif") : t("clients.reactive"));
+      void cache.invalidateQueries({ queryKey: ["clients"] });
+    },
+    onError: (e) => annoncer("err", messageErreur(e, tErreurs, t("clients.echecAction"))),
   });
 
   /*
@@ -287,8 +304,27 @@ export function FicheClient({ clientId }: { clientId: string }) {
             </span>
           </div>
         </div>
-        {peut("clients:delete") ? (
-          <div className="proj-acts">
+        <div className="proj-acts">
+          {peut("clients:update") ? (
+            <Button className="chip-btn" onPress={() => setEditionOuverte(true)}>
+              {t("modifier")}
+            </Button>
+          ) : null}
+          {peut("clients:update") ? (
+            /*
+             * `EX-CLI-02` — rendre inactif est RÉVERSIBLE, et c'est ce qui le
+             * distingue de la suppression : le libellé bascule avec l'état
+             * plutôt que d'offrir deux boutons dont un serait toujours inutile.
+             */
+            <Button
+              className="chip-btn"
+              isPending={bascule.isPending}
+              onPress={() => bascule.mutate()}
+            >
+              {client.actif ? t("clients.rendreInactif") : t("clients.reactiver")}
+            </Button>
+          ) : null}
+          {peut("clients:delete") ? (
             <Button
               className="chip-btn"
               style={{ color: "var(--st-blocked)", borderColor: "var(--st-blocked)" }}
@@ -296,8 +332,8 @@ export function FicheClient({ clientId }: { clientId: string }) {
             >
               {t("supprimer")}
             </Button>
-          </div>
-        ) : null}
+          ) : null}
+        </div>
       </div>
 
       <div className="kpi-grid">
@@ -450,6 +486,12 @@ export function FicheClient({ clientId }: { clientId: string }) {
         </div>
       </div>
 
+      <FenetreCreation
+        ouverte={editionOuverte}
+        existant={client}
+        surFermeture={() => setEditionOuverte(false)}
+      />
+
       <FenetreSuppression
         id={client.id}
         nom={client.nom}
@@ -565,11 +607,20 @@ function FenetreSuppression({
   );
 }
 
+/**
+ * Créer **ou** modifier un bénéficiaire — la même fenêtre.
+ *
+ * `existant` vaut `null` en création. Deux fenêtres pour les mêmes champs
+ * finiraient par diverger : une règle ajoutée d'un côté manquerait de l'autre,
+ * et rien ne le dirait.
+ */
 function FenetreCreation({
   ouverte,
+  existant = null,
   surFermeture,
 }: {
   ouverte: boolean;
+  existant?: api.FicheClient | null;
   surFermeture: () => void;
 }) {
   const { t } = useTranslation("referentiels");
@@ -582,25 +633,46 @@ function FenetreCreation({
   const [contactEmail, setContactEmail] = useState("");
   const [adresse, setAdresse] = useState("");
   const [erreur, setErreur] = useState<string | null>(null);
+  /*
+   * On ne recharge les champs qu'à l'OUVERTURE : sans cette clé, chaque rendu
+   * écraserait la saisie en cours par la valeur d'origine, et le champ
+   * paraîtrait refuser la frappe.
+   */
+  const [ouvertSur, setOuvertSur] = useState<string | null>(null);
+  const cle = ouverte ? (existant?.id ?? "nouveau") : null;
+  if (cle !== ouvertSur) {
+    setOuvertSur(cle);
+    setNom(existant?.nom ?? "");
+    setContactNom(existant?.contactNom ?? "");
+    setContactEmail(existant?.contactEmail ?? "");
+    setAdresse(existant?.adresse ?? "");
+    setErreur(null);
+  }
 
   const creation = useMutation({
     mutationFn: () =>
-      api.creerClient({
-        nom,
-        contactNom: contactNom || null,
-        contactEmail: contactEmail || null,
-        adresse: adresse || null,
-      }),
+      existant
+        ? api.modifierClient(existant.id, {
+            nom,
+            contactNom: contactNom || null,
+            contactEmail: contactEmail || null,
+            adresse: adresse || null,
+          })
+        : api.creerClient({
+            nom,
+            contactNom: contactNom || null,
+            contactEmail: contactEmail || null,
+            adresse: adresse || null,
+          }),
     onSuccess: () => {
-      annoncer("ok", t("clients.cree"));
-      setNom("");
-      setContactNom("");
-      setContactEmail("");
-      setAdresse("");
+      annoncer("ok", existant ? t("clients.modifie") : t("clients.cree"));
       surFermeture();
       void client.invalidateQueries({ queryKey: ["clients"] });
     },
-    onError: (e) => setErreur(messageErreur(e, tErreurs, t("clients.echecCreation"))),
+    onError: (e) =>
+      setErreur(
+        messageErreur(e, tErreurs, existant ? t("clients.echecAction") : t("clients.echecCreation")),
+      ),
   });
 
   const valider = () => {
@@ -617,7 +689,7 @@ function FenetreCreation({
       ouverte={ouverte}
       surFermeture={surFermeture}
       categorie={t("clients.categorie")}
-      titre={t("clients.nouveau")}
+      titre={existant ? t("clients.modifierTitre") : t("clients.nouveau")}
       mention={t("champObligatoire")}
       actions={
         <>

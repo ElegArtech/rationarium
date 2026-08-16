@@ -1,4 +1,5 @@
 {
+  "modifier": "Edit",
   "annuler": "Cancel",
   "supprimer": "Delete",
   "confirmation": "Confirmation",
@@ -215,7 +216,18 @@
     "departementObligatoire": "A team must belong to a department.",
     "creee": "Created.",
     "echecCreation": "Creation failed.",
-    "suppressionBloquee": "Not possible: {n, plural, one {# department attached} other {# departments attached}}. Detach them first."
+    "suppressionBloquee": "Not possible: {n, plural, one {# department attached} other {# departments attached}}. Detach them first.",
+    "modifier_direction": "Edit — Division",
+    "modifier_departement": "Edit — Department",
+    "modifier_service": "Edit — Team",
+    "modifiee": "Saved.",
+    "responsable": "Head",
+    "managerDuService": "Team manager",
+    "aucunResponsableDesigne": "No manager assigned",
+    "responsableValidateur": "The head becomes the natural leave approver for their scope.",
+    "horsDirectionPossible": "A department may exist without a division.",
+    "horsDepartementImpossible": "A team cannot exist outside a department.",
+    "rattachementFige": "Attachment cannot be changed here: correct it by moving the members."
   },
   "parametres": {
     "surtitre": "Administration",

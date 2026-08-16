@@ -37,3 +37,6 @@ apps/web/.playwright/
 # est un signal de dérive.
 design/conformite.json
 design/captures/
+
+# Arbres de travail des agents — jamais versionnés.
+.claude/worktrees/

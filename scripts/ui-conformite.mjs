@@ -19,6 +19,8 @@
  *   2. **Les classes inertes.** Une classe portée par le balisage sans aucune
  *      règle en face ne produit ni erreur, ni avertissement, ni test rouge.
  *      Elle ne se voit qu'à l'œil, sur la page, et seulement si on la regarde.
+ *      Exception : celles que la maquette pose sans les styler non plus — le
+ *      produit les recopie par fidélité de vocabulaire, il ne les invente pas.
  *   3. **Les textes contractuels.** `cadrage/02` donne des textes à la lettre.
  *      Un texte de la maquette absent du rendu est un manque de contenu, pas
  *      une variation de style.
@@ -207,9 +209,21 @@ function comparer(vue, maquette, rendu) {
   const manquantes = [...employeesMaquette].filter((c) => !employeesRendu.has(c));
 
   // 2. Les classes inertes du rendu : posées, mais stylées par rien.
+  //
+  // Une classe que la maquette pose SANS la styler non plus n'est pas un défaut
+  // du produit : c'est l'inertie de la maquette, reproduite fidèlement. Le cas :
+  // `row-more` en vue 27, construite en script (`el('button','ms-toggle row-more')`)
+  // et jamais définie — elle n'y sert que de crochet à `closest()`. Sans cette
+  // exclusion, le vocabulaire et l'inertie se contredisent : la retirer la fait
+  // manquer, la garder la fait crier. Ce qu'on cherche ici, ce sont les classes
+  // que le PRODUIT invente sans règle derrière.
+  const inertesMaquette = new Set(
+    utiles(maquette.classes).filter((c) => !maquette.definies.includes(c)),
+  );
   const inertes = [...employeesRendu]
     .filter((c) => !HORS_AUTEUR.test(c))
-    .filter((c) => !rendu.definies.includes(c));
+    .filter((c) => !rendu.definies.includes(c))
+    .filter((c) => !inertesMaquette.has(c));
 
   // 3. Les textes de la maquette absents du rendu.
   const normaliser = (t) => t.toLowerCase().replace(/[\s ]+/g, " ").trim();
