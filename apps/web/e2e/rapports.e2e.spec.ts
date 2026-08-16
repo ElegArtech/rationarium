@@ -319,7 +319,10 @@ test.describe("Vue 15 — projet, onglet Gantt", () => {
     await serveur(page, { session: SESSION_RAPPORTS, reponses: reponsesProjet });
     await page.goto("/projets/p1/gantt");
 
-    await expect(page.getByText("Lancement")).toBeVisible();
+    // Depuis que la frise porte ses jalons (`g-mile-lab`), « Lancement »
+    // figure deux fois : dans le groupe et sur la graduation. On vise le
+    // groupe, qui est ce que la règle demande.
+    await expect(page.locator(".g-grp-name", { hasText: /^Lancement$/ })).toBeVisible();
     // Une tâche sans jalon ne flotte pas en tête sans explication.
     await expect(page.getByText("Sans jalon")).toBeVisible();
     await expect(page.getByText("Veille").first()).toBeVisible();
@@ -359,7 +362,10 @@ test.describe("Vue 15 — projet, onglet Gantt", () => {
     });
 
     await page.goto("/projets/p1/gantt");
-    await expect(page.getByText("Lancement")).toBeVisible();
+    // Depuis que la frise porte ses jalons (`g-mile-lab`), « Lancement »
+    // figure deux fois : dans le groupe et sur la graduation. On vise le
+    // groupe, qui est ce que la règle demande.
+    await expect(page.locator(".g-grp-name", { hasText: /^Lancement$/ })).toBeVisible();
     // Rien tant qu'on n'a rien choisi : le graphe entier n'est pas rapporté
     // pour n'en dessiner qu'une branche.
     expect(appels).toHaveLength(0);
