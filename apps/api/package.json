@@ -10,9 +10,10 @@
     "lint": "eslint src",
     "test": "vitest run --passWithNoTests",
     "test:int": "vitest run --config vitest.int.config.ts --passWithNoTests",
-    "dev": "node --watch dist/main.js",
+    "dev": "tsc -p tsconfig.json --watch --preserveWatchOutput & node --watch dist/main.js",
     "start": "node dist/main.js",
-    "perf": "vitest run --config vitest.int.config.ts src/perf"
+    "perf": "vitest run --config vitest.int.config.ts src/perf",
+    "amorcer": "node dist/exploitation/amorcage.js"
   },
   "dependencies": {
     "@fastify/cookie": "11.1.2",

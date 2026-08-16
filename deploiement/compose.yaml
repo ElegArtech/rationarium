@@ -67,6 +67,34 @@ services:
     # une raison d'échouer de plus le jour du déploiement.
     command: ["/trame/packages/db/node_modules/.bin/prisma", "migrate", "deploy"]
 
+  # L'amorçage : le référentiel des 26 rôles, et le premier administrateur.
+  #
+  # Sans lui, une instance fraîchement déployée démarre, répond, passe sa sonde
+  # de disponibilité — et personne ne peut y entrer. La base migrée est vide, et
+  # le produit ne permet pas d'en sortir seul : la création de compte autonome
+  # est désactivée, et l'initialisation du référentiel exige une session qui
+  # exige un rôle qui n'existe pas encore.
+  #
+  # Rejoué à chaque `up`, et sans effet dès qu'un compte existe : ni mot de
+  # passe réinitialisé, ni rôle personnalisé réécrit.
+  amorcage:
+    build:
+      context: ..
+      dockerfile: deploiement/Dockerfile.api
+    restart: "no"
+    depends_on:
+      migrations:
+        condition: service_completed_successfully
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_UTILISATEUR}:${POSTGRES_MOTDEPASSE}@base:5432/${POSTGRES_BASE:-trame}
+      COOKIE_SECRET: ${COOKIE_SECRET}
+      TRAME_ADMIN_LOGIN: ${TRAME_ADMIN_LOGIN:-admin}
+      TRAME_ADMIN_EMAIL: ${TRAME_ADMIN_EMAIL:-admin@localhost}
+      # Absent : un mot de passe est engendré et affiché une fois dans le
+      # journal du service. `docker compose logs amorcage` pour le relire.
+      TRAME_ADMIN_MOTDEPASSE: ${TRAME_ADMIN_MOTDEPASSE:-}
+    command: ["node", "dist/exploitation/amorcage.js"]
+
   api:
     build:
       context: ..
@@ -76,6 +104,8 @@ services:
       base:
         condition: service_healthy
       migrations:
+        condition: service_completed_successfully
+      amorcage:
         condition: service_completed_successfully
     environment:
       DATABASE_URL: postgres://${POSTGRES_UTILISATEUR}:${POSTGRES_MOTDEPASSE}@base:5432/${POSTGRES_BASE:-trame}
