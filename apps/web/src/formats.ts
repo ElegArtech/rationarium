@@ -131,6 +131,21 @@ export const formaterDate = (valeur: string | Date | null | undefined): string =
 };
 
 /**
+ * Le mois d'une frise — « mars 26 ».
+ *
+ * La bande de mois du Gantt (section 19 des maquettes) nomme chaque mois
+ * traversé, suivi des deux derniers chiffres de l'année. `formaterDate` ne sait
+ * pas le rendre : il produit une date complète, jour compris.
+ *
+ * L'année est interpolée **en chaîne**. Un `{annee, number}` la rendrait
+ * « 2 026 » en français, séparateur de milliers compris — le piège consigné.
+ */
+export const formaterMoisCourt = (valeur: Date): string => {
+  const mois = new Intl.DateTimeFormat(locale(), { month: "short", timeZone: "UTC" }).format(valeur);
+  return `${mois} ${String(valeur.getUTCFullYear()).slice(2)}`;
+};
+
+/**
  * Une heure `HH:MM`, selon le format global — 24 h, 24 h avec secondes, 12 h.
  *
  * Les horaires métier arrivent en chaîne `HH:MM` : ils n'ont ni date ni

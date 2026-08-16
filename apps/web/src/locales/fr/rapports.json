@@ -131,7 +131,8 @@
     "aujourdhui": "Aujourd'hui",
     "videTitre": "Aucune tâche avec des dates",
     "videAide": "Ajoutez des dates de début et de fin aux tâches pour les voir dans le Gantt.",
-    "libelleBarre": "{titre} — {statut}, du {debut} au {fin}, {avancement, number} %"
+    "libelleBarre": "{titre} — {statut}, du {debut} au {fin}, {avancement, number} %",
+    "libelleJalon": "Jalon {nom}, échéance {date}"
   },
   "santes": {
     "good": "Bon",

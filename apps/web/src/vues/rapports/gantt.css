@@ -93,5 +93,8 @@
 .conf-list li{ display:flex; gap:10px; align-items:baseline; font-size:12.5px; }
 .conf-k{ font-family:var(--font-mono); font-size:9px; color:var(--st-blocked); flex:none; }
 
-.g-echelle{ display:flex; align-items:center; gap:10px; margin-bottom:11px; flex-wrap:wrap; }
-.g-indice{ font-size:12px; color:var(--muted); }
+/* `.g-echelle` et `.g-indice` vivaient ici : deux noms qu'aucune des trente-cinq
+   maquettes ne porte. La section 19 met la barre d'échelle dans `.filters`, avec
+   `.panel-title`, `.vsep` et `.field-hint` — tous portés par le socle et par
+   `partages.css`. Un nom propre à la vue l'aurait aussi privée de la règle
+   d'impression `.filters{ display:none }`. */

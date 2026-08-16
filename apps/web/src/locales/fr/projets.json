@@ -102,6 +102,7 @@
     "titre": "Feuille de route",
     "chapeau": "Vue chronologique des jalons et des tâches du projet.",
     "nouveau": "+ Nouveau jalon",
+    "nouvelleTache": "+ Nouvelle tâche",
     "nouveauTitre": "Nouveau jalon",
     "categorie": "Jalon",
     "termines": "Terminés",
