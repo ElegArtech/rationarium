@@ -229,6 +229,78 @@ export async function peuplerMaquette(
     });
   }
 
+  // ── Le calendrier — sans lui, `col-ferie` et `is-vac` sont inatteignables ─
+  await prisma.holiday.upsert({
+    where: { id: idStable("h", 0) },
+    create: { id: idStable("h", 0), date: jour(3), libelle: "Jour férié", type: "legal" },
+    update: { date: jour(3) },
+  });
+  await prisma.schoolVacation.upsert({
+    where: { id: idStable("v", 0) },
+    create: {
+      id: idStable("v", 0),
+      libelle: "Vacances de la Toussaint",
+      dateDebut: jour(2),
+      dateFin: jour(6),
+      zone: "A",
+      anneeScolaire: `${lundi.getUTCFullYear()}-${lundi.getUTCFullYear() + 1}`,
+    },
+    update: { dateDebut: jour(2), dateFin: jour(6) },
+  });
+
+  // ── Les permanences — la vue 09 est vide sans tâche prédéfinie ──────────
+  for (const [i, p] of PERMANENCES.entries()) {
+    const predefinie = await prisma.predefinedTask.upsert({
+      where: { id: idStable("q", i) },
+      create: {
+        id: idStable("q", i),
+        nom: p.nom,
+        dureeParDefaut: p.duree,
+        heureDebut: p.debut,
+        heureFin: p.fin,
+        poids: p.poids,
+      },
+      update: { nom: p.nom },
+    });
+    for (const [j, a] of agents.slice(0, 3).entries()) {
+      await prisma.predefinedTaskAssignment.upsert({
+        where: { id: idStable(String.fromCharCode(97 + i), 40 + j) },
+        create: {
+          id: idStable(String.fromCharCode(97 + i), 40 + j),
+          predefinedTaskId: predefinie.id,
+          userId: a.id,
+          date: jour(j),
+          periode: p.duree === "half_day" ? "morning" : "full_day",
+          realisee: j === 0,
+        },
+        update: {},
+      });
+    }
+  }
+
+  // ── Les congés — dont une DEMI-JOURNÉE, que rien d'autre ne produit ─────
+  const typeConge = await prisma.leaveType.upsert({
+    where: { code: "CA" },
+    create: { code: "CA", nom: "Congé annuel", couleur: "#6A4BA6", ordre: 1 },
+    update: {},
+  });
+  for (const [i, c] of CONGES.entries()) {
+    await prisma.leave.upsert({
+      where: { id: idStable("c", i) },
+      create: {
+        id: idStable("c", i),
+        userId: agents[c.agent]!.id,
+        typeId: typeConge.id,
+        dateDebut: jour(c.debut),
+        dateFin: jour(c.fin),
+        joursOuvres: c.jours,
+        statut: c.statut,
+        ...("demiDebut" in c ? { demiJourneeDebut: c.demiDebut } : {}),
+      },
+      update: { dateDebut: jour(c.debut), dateFin: jour(c.fin), statut: c.statut },
+    });
+  }
+
   return {
     agents: agents.length,
     projets: projets.length,
@@ -236,6 +308,8 @@ export async function peuplerMaquette(
     todos: TODOS.length,
     evenements: EVENEMENTS.length,
     notifications: NOTIFICATIONS.length,
+    permanences: PERMANENCES.length,
+    conges: CONGES.length,
   };
 }
 
@@ -276,6 +350,18 @@ const EVENEMENTS = [
   { titre: "Comité · EXT", jour: 2, debut: "14:00", fin: "16:00", externe: true },
   { titre: "Bureau municipal", jour: 1, debut: "09:00", fin: "10:30" },
   { titre: "Réunion de service", jour: 4, debut: "11:00", fin: "12:00" },
+] as const;
+
+const PERMANENCES = [
+  { nom: "Accueil du public", duree: "half_day", debut: "09:00", fin: "12:00", poids: 3 },
+  { nom: "Astreinte technique", duree: "full_day", debut: null, fin: null, poids: 5 },
+] as const;
+
+const CONGES = [
+  { agent: 2, debut: 1, fin: 2, jours: 2, statut: "pending" },
+  // Demi-journée : `is-half`, `is-am`, `is-pm` n'ont aucune autre source.
+  { agent: 4, debut: 3, fin: 3, jours: 0.5, statut: "approved", demiDebut: "afternoon" },
+  { agent: 1, debut: 4, fin: 4, jours: 1, statut: "approved" },
 ] as const;
 
 const NOTIFICATIONS = [
