@@ -51,6 +51,18 @@ import {
 } from "./fixtures/parametrage.js";
 import { SEMAINE, GRILLE_ACTIVITE, ELIGIBILITE as ELIGIBILITE_A11Y } from "./fixtures/planning.js";
 import { TABLEAU } from "./fixtures/tableau.js";
+
+/** M18 — la cloche est présente sur toutes les vues de la coquille. */
+const NOTIFICATIONS_A11Y = {
+  entrees: [
+    {
+      id: "n1", type: "conge_a_valider", titre: "Demande de congé à valider",
+      contenu: "Une demande attend votre décision.", lien: "/conges",
+      lue: false, creeLe: "2026-08-11T08:30:00.000Z",
+    },
+  ],
+  nonLues: 1,
+};
 import {
   VUE_ENSEMBLE,
   GANTT,
@@ -162,6 +174,12 @@ const VUES: {
   { nom: "28 — suivi individuel", chemin: "/utilisateurs/u-autre/suivi", session: "valide" },
   { nom: "29 — départements et services", chemin: "/departements", session: "valide" },
   { nom: "06 — tableau de bord", chemin: "/", session: "valide" },
+  {
+    nom: "M18 — panneau de notifications ouvert",
+    chemin: "/profil",
+    session: "valide",
+    apres: (page) => page.getByRole("button", { name: /notification/ }).click(),
+  },
   { nom: "30 — rapports, vue d'ensemble", chemin: "/rapports", session: "valide" },
   {
     nom: "30 — rapports, analytics avancés",
@@ -254,6 +272,7 @@ async function preparer(page: Page, session: "valide" | "absente", theme: "clair
         "/api/planning": { corps: SEMAINE },
         "/api/tableau-de-bord": { corps: TABLEAU },
         "/api/rapports": { corps: VUE_ENSEMBLE },
+        "/api/notifications": { corps: NOTIFICATIONS_A11Y },
         "/api/rapports/gantt": { corps: GANTT },
         [`/api/projets/${PROJET_GANTT.id}`]: { corps: PROJET_GANTT },
         [`/api/projets/${PROJET_GANTT.id}/feuille-de-route`]: { corps: ROUTE_GANTT },

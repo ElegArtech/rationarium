@@ -3,6 +3,7 @@ import { PrismaService } from "../prisma.service.js";
 import { AuditService } from "../commun/audit.service.js";
 import { PerimetreService, type Perimetre } from "../commun/perimetre.service.js";
 import { CalendrierService } from "../parametrage/calendrier.service.js";
+import { NotificationsService } from "../notifications/notifications.service.js";
 import type { DemiJournee } from "@trame/contracts";
 
 /**
@@ -61,6 +62,7 @@ export class CongesService {
     private readonly audit: AuditService,
     private readonly perimetres: PerimetreService,
     private readonly calendrier: CalendrierService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   // ── Soldes — RG-CNG-20, RG-CNG-24 ────────────────────────────────────────
@@ -318,6 +320,26 @@ export class CongesService {
         pourAutrui, autoApprouve: !type.validationRequise,
       },
     });
+
+    /*
+     * `RG-NTF-03` — **un congé auto-approuvé ne déclenche pas de notification
+     * de validation.** Il n'y a personne à prévenir : la décision est déjà
+     * prise. Envoyer quand même produirait une demande de validation pour un
+     * congé validé, et le validateur chercherait ce qu'il doit faire.
+     *
+     * L'envoi est APRÈS la transaction, et il ne peut pas la faire échouer :
+     * `notifier` écrit en base puis met le courriel en file (`RG-NTF-04`).
+     */
+    if (!approuveDirectement && validateur) {
+      await this.notifications.notifier({
+        userId: validateur,
+        type: "conge_a_valider",
+        titre: "Demande de congé à valider",
+        contenu: `Une demande de congé de ${joursOuvres} jour(s) attend votre décision.`,
+        lien: "/conges",
+      });
+    }
+
     return conge;
   }
 
@@ -423,6 +445,17 @@ export class CongesService {
       action: "leave.approve", typeEntite: "Leave", entiteId: congeId, acteurId,
       detail: { agent: conge.userId, autoValide: sienne },
     });
+
+    // `RG-NTF-03`, seconde face : s'auto-approuver ne s'annonce pas à soi-même.
+    if (!sienne) {
+      await this.notifications.notifier({
+        userId: conge.userId,
+        type: "conge_decide",
+        titre: "Votre demande de congé est approuvée",
+        contenu: "Votre demande de congé a été approuvée.",
+        lien: "/conges",
+      });
+    }
   }
 
   /** `EX-CNG-05` — refuser, **avec motif**. */
@@ -440,6 +473,16 @@ export class CongesService {
     await this.audit.tracer({
       action: "leave.refuse", typeEntite: "Leave", entiteId: congeId, acteurId,
       detail: { agent: conge.userId },
+    });
+
+    // Le motif voyage avec la notification : « refusée » sans raison oblige à
+    // aller la chercher, et c'est la première question qu'on se pose.
+    await this.notifications.notifier({
+      userId: conge.userId,
+      type: "conge_decide",
+      titre: "Votre demande de congé est refusée",
+      contenu: `Votre demande de congé a été refusée. Motif : ${motifRefus}`,
+      lien: "/conges",
     });
   }
 

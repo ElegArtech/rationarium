@@ -48,7 +48,10 @@
   "notifications": {
     "titre": "Notifications",
     "aucune": "No notifications",
-    "toutMarquerLu": "Mark all as read"
+    "toutMarquerLu": "Mark all as read",
+    "chargement": "Loading…",
+    "aucuneAide": "You will be notified here about the tasks, leave and projects that concern you.",
+    "marquerLue": "Mark “{titre}” as read"
   },
   "profil": {
     "titre": "My profile",

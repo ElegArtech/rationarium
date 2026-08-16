@@ -6,6 +6,8 @@ import { creerClient, type PrismaClient } from "@trame/db";
 import { CongesService, ErreurConge } from "./conges.service.js";
 import { CalendrierService } from "../parametrage/calendrier.service.js";
 import { AuditService } from "../commun/audit.service.js";
+import { NotificationsService } from "../notifications/notifications.service.js";
+import { FileService } from "../notifications/file.service.js";
 import { PerimetreService } from "../commun/perimetre.service.js";
 
 /**
@@ -57,6 +59,9 @@ beforeAll(async () => {
     stdio: "pipe",
   });
   prisma = creerClient(pg.getConnectionUri());
+  // `RG-NTF-04` — la file n'est PAS démarrée ici. C'est délibéré : ces suites
+  // prouvent au passage que les actions métier aboutissent sans elle.
+  const notifications = new NotificationsService(prisma as never, new FileService());
   const audit = new AuditService(prisma as never);
   perimetres = new PerimetreService(prisma as never);
   conges = new CongesService(
@@ -64,6 +69,7 @@ beforeAll(async () => {
     audit,
     perimetres,
     new CalendrierService(prisma as never, audit),
+    notifications,
   );
 
   const t1 = uuid();

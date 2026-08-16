@@ -8,7 +8,7 @@ Forme opérationnelle du § 5 de `cadrage/04`. C'est le document qu'on ouvre pou
 
 Plus aucun lot ne porte la mention « livré (serveur) » : **L-08** (vues 32, 33), **L-09** (vue 31) et **L-17** (vue 34) repassent en **« livré »** tout court avec la clôture de L-37. La mention ne se justifiait que par des vues manquantes ; elles sont portées.
 
-Il ne reste aucune vue à porter. Reste le travail sans vue : **L-23** (notifications et travaux planifiés), **L-24** (imports et exports), puis la vague 6 de durcissement. Vague 1 ouvrable dès la clôture de la vague 0 : l'arbitrage bloquant B1 est rendu, les prérequis T1 à T6 sont levés.
+Il ne reste aucune vue à porter. Reste **L-24** (imports et exports), puis la vague 6 de durcissement. Vague 1 ouvrable dès la clôture de la vague 0 : l'arbitrage bloquant B1 est rendu, les prérequis T1 à T6 sont levés.
 
 ---
 
@@ -139,11 +139,13 @@ Aucun parallélisme. **Vague close.**
 | --- | --- | --- | --- | --- | --- | --- |
 | ~~**L-21**~~ | Tableau de bord | M16 | 06 | Moyenne | L-11, L-18, L-20 | **livré** |
 | ~~**L-22**~~ | Rapports, analytics, Gantt de projet et de portefeuille, instantanés | M17 | 15, 30 | Moyenne | L-10, L-11, L-18 | **livré** |
-| **L-23** | Notifications, courriel, traitements planifiés à instance unique | M18 | — | **Haute** | L-15, L-11 | pair |
+| ~~**L-23**~~ | Notifications, courriel, traitements planifiés à instance unique | M18 | — | **Haute** | L-15, L-11 | **livré** |
 | **L-24** | Imports et exports : six formats CSV, ICS, Excel, PDF | M21 | — | **Haute** | L-07, L-10, L-11, L-15, L-13 | pair |
 
 `L-21 ∥ L-22 ∥ L-24`, `L-23` en pair. **B3 doit être rendu avant l'ouverture** : quels modules dans la première livraison.
 
+> **Ce que L-23 a révélé — un démarrage qui réussit puis échoue ailleurs.** `pg-boss` 12 a `createSchema: false` par défaut : `start()` migre mais refuse de créer le schéma. Le démarrage réussissait, et la **première file** échouait sur « schema "pgboss" does not exist » — dans un `onModuleInit`, donc en faisant tomber le serveur entier. C'est le contrôle d'intégration de la surface HTTP qui l'a vu, pas les tests du module : ceux-ci n'assemblent pas l'application. Deux corrections, pas une : le drapeau, et un `try` autour de l'abonnement — **`RG-NTF-04` vaut aussi un cran plus haut**, une file en panne ne doit pas empêcher le serveur de servir.
+>
 > **Ce que L-22 a laissé ouvert — deux questions, pas deux décisions silencieuses.**
 >
 > `EX-RPT-03` demande « PDF, Excel ou JSON ». Deux des trois posent une question que le cadrage ne tranche pas. **Excel** : un vrai classeur `.xlsx` exige une bibliothèque, donc un ADR au titre de `C1` et d'`ADR-0013` ; le lot rend du **CSV**, qu'Excel ouvre, et l'interface le nomme « CSV (tableur) » plutôt que « Excel ». **PDF** : le produit possède déjà des feuilles d'impression et L-27 porte le sujet ; générer ici un second chemin ferait diverger deux mises en page du même contenu, donc l'export PDF passe par l'impression du navigateur. Les deux points remontent comme **questions**, et l'interface ne promet que ce qu'elle livre.

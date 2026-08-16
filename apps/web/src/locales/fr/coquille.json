@@ -48,7 +48,10 @@
   "notifications": {
     "titre": "Notifications",
     "aucune": "Aucune notification",
-    "toutMarquerLu": "Tout marquer comme lu"
+    "toutMarquerLu": "Tout marquer comme lu",
+    "chargement": "Chargement…",
+    "aucuneAide": "Vous serez prévenu ici des tâches, congés et projets qui vous concernent.",
+    "marquerLue": "Marquer « {titre} » comme lue"
   },
   "profil": {
     "titre": "Mon profil",

@@ -8,7 +8,7 @@ import {
   useParams,
   useSearch,
 } from "@tanstack/react-router";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { z } from "zod";
 
@@ -16,6 +16,8 @@ import { Coquille } from "../coquille/Coquille.js";
 import { FournisseurSession, useSession, CLE_SESSION } from "../session/session.js";
 import { Chargement, RouteIntrouvable } from "../composants/etats.js";
 import { deconnexion } from "../api/session.js";
+import { notifications as notificationsApi } from "../api/notifications.js";
+import { CLE_NOTIFICATIONS } from "../coquille/Notifications.js";
 
 import { Connexion } from "../routes/connexion.js";
 import { Inscription } from "../routes/inscription.js";
@@ -225,8 +227,24 @@ function RedirectionMotDePasse() {
 
 function CoquilleDeSession({ surDeconnexion }: { surDeconnexion: () => void }) {
   const { session, permissions } = useSession();
+
+  /**
+   * Le compteur de la cloche — `EX-NTF-01`.
+   *
+   * Interrogé à l'ouverture puis toutes les deux minutes. `C1` : réseau fermé,
+   * donc pas de canal poussé ; et quelques centaines de notifications par jour
+   * ne justifient pas une interrogation plus serrée — elle coûterait plus
+   * qu'elle ne rapporterait.
+   */
+  const cloche = useQuery({
+    queryKey: CLE_NOTIFICATIONS,
+    queryFn: () => notificationsApi({ limite: 20 }),
+    refetchInterval: 120_000,
+  });
+
   return (
     <Coquille
+      notificationsNonLues={cloche.data?.nonLues ?? 0}
       utilisateur={{
         id: session.id,
         prenom: session.prenom,

@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
+import { PanneauNotifications } from "./Notifications.js";
 import {
   Button,
   Menu,
@@ -173,12 +174,7 @@ export function Coquille({
               </Button>
               <Popover>
                 <Dialog aria-label={t("notifications.titre")}>
-                  <p className="panel-title">{t("notifications.titre")}</p>
-                  {notificationsNonLues === 0 ? (
-                    <p className="empty">{t("notifications.aucune")}</p>
-                  ) : (
-                    <Button className="chip-btn">{t("notifications.toutMarquerLu")}</Button>
-                  )}
+                  <PanneauNotifications />
                 </Dialog>
               </Popover>
             </DialogTrigger>

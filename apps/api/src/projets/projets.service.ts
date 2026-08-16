@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma.service.js";
 import { AuditService } from "../commun/audit.service.js";
 import { PerimetreService, type Perimetre } from "../commun/perimetre.service.js";
+import { NotificationsService } from "../notifications/notifications.service.js";
 import type { StatutProjet, Priorite } from "@trame/contracts";
 
 /**
@@ -44,6 +45,7 @@ export class ProjetsService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly perimetres: PerimetreService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   // ── Portefeuille — EX-PRJ-01, EX-PRJ-02 ──────────────────────────────────
@@ -406,6 +408,23 @@ export class ProjetsService {
       action: "project.member_add", typeEntite: "Project", entiteId: projectId, acteurId,
       detail: { userId: donnees.userId, role: donnees.roleProjet },
     });
+
+    // `cadrage/01 § M18` — « Ajout à un projet ». Le lien mène au projet :
+    // une notification qui ne mène nulle part oblige à le retrouver.
+    if (donnees.userId !== acteurId) {
+      const projet = await this.prisma.project.findUnique({
+        where: { id: projectId },
+        select: { nom: true },
+      });
+      await this.notifications.notifier({
+        userId: donnees.userId,
+        type: "ajout_projet",
+        titre: `Ajout au projet ${projet?.nom ?? ""}`.trim(),
+        contenu: `Vous avez été ajouté au projet « ${projet?.nom ?? ""} ».`,
+        lien: `/projets/${projectId}`,
+      });
+    }
+
     return membre;
   }
 

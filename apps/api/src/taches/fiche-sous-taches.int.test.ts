@@ -5,6 +5,8 @@ import path from "node:path";
 import { creerClient, type PrismaClient } from "@trame/db";
 import { TachesService } from "./taches.service.js";
 import { AuditService } from "../commun/audit.service.js";
+import { NotificationsService } from "../notifications/notifications.service.js";
+import { FileService } from "../notifications/file.service.js";
 import { PerimetreService } from "../commun/perimetre.service.js";
 
 /**
@@ -43,10 +45,14 @@ beforeAll(async () => {
     stdio: "pipe",
   });
   prisma = creerClient(pg.getConnectionUri());
+  // `RG-NTF-04` — la file n'est PAS démarrée ici. C'est délibéré : ces suites
+  // prouvent au passage que les actions métier aboutissent sans elle.
+  const notifications = new NotificationsService(prisma as never, new FileService());
   taches = new TachesService(
     prisma as never,
     new AuditService(prisma as never),
     new PerimetreService(prisma as never),
+    notifications,
   );
   acteur = await agent("Acteur", "Test");
   const p = await prisma.project.create({

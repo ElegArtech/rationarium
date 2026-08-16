@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { NotificationsModule } from "../notifications/notifications.module.js";
 import { ParametrageModule } from "../parametrage/parametrage.module.js";
 import { CongesService } from "./conges.service.js";
 import { CongesController } from "./conges.controller.js";
@@ -8,7 +9,7 @@ import { CongesController } from "./conges.controller.js";
  * savoir ce qu'est un jour ouvré, et cette notion préexiste au module congés.
  */
 @Module({
-  imports: [ParametrageModule],
+  imports: [NotificationsModule, ParametrageModule],
   controllers: [CongesController],
   providers: [CongesService],
   exports: [CongesService],
