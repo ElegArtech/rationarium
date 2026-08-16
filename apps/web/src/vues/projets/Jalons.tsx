@@ -30,6 +30,51 @@ import "./jalons.css";
  * hors chronologie. Les taire ferait croire que le projet n'a que ce que la
  * feuille de route affiche.
  */
+/**
+ * La pile d'avatars d'une ligne de tâche — `avs`, maquette 13.
+ *
+ * Trois visages au plus, puis un compte. Au-delà, la pile cesse d'informer et
+ * commence à occuper : « +4 » se lit, quatre pastilles de 18 px ne se lisent
+ * pas.
+ */
+function Assignes({ tache }: { tache: api.TacheDeJalon }) {
+  const { t } = useTranslation("projets");
+  if (tache.assignes.length === 0) {
+    return <span className="tk-sub is-none">{t("jalons.sansAssigne")}</span>;
+  }
+  const montres = tache.assignes.slice(0, 3);
+  // Le libellé est calculé AVANT le rendu : le contrôle i18n lit les appels à
+  // `t` par expression régulière et ne suit pas une fonction imbriquée à deux
+  // niveaux de parenthèses. Une clé qu'il ne voit pas est déclarée orpheline.
+  const gens = tache.assignes.map((a) => `${a.user.prenom} ${a.user.nom}`).join(", ");
+  const libelle = t("jalons.assignesDe", { nom: tache.titre, gens });
+  return (
+    <span className="avs" aria-label={libelle}>
+      {montres.map((a) => (
+        <span className="agent-av" key={a.user.id} aria-hidden="true">
+          {`${a.user.prenom[0] ?? ""}${a.user.nom[0] ?? ""}`.toUpperCase()}
+        </span>
+      ))}
+      {tache.assignes.length > montres.length ? (
+        <span className="avs-more" aria-hidden="true">
+          +{tache.assignes.length - montres.length}
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
+/** La charge estimée, ou un tiret cadratin : l'absence se lit aussi. */
+function Charge({ tache }: { tache: api.TacheDeJalon }) {
+  const { t } = useTranslation("projets");
+  const h = tache.estimationHeures;
+  return (
+    <span className="tk-est">
+      {h === null || h === undefined ? "—" : t("jalons.heures", { n: Number(h) })}
+    </span>
+  );
+}
+
 export function Jalons({ projetId }: { projetId: string }) {
   const { t } = useTranslation("projets");
   const { t: tImports } = useTranslation("imports");
@@ -37,6 +82,8 @@ export function Jalons({ projetId }: { projetId: string }) {
   const [creationOuverte, setCreationOuverte] = useState(false);
   const [tacheOuverte, setTacheOuverte] = useState(false);
   const [deplies, setDeplies] = useState<ReadonlySet<string>>(new Set());
+  // Replié par défaut, comme la maquette : le bloc signale, il n'encombre pas.
+  const [orphelinesOuvertes, setOrphelinesOuvertes] = useState(false);
 
   const projet = useQuery({ queryKey: ["projet", projetId], queryFn: () => api.fiche(projetId) });
   const route = useQuery({
@@ -50,7 +97,7 @@ export function Jalons({ projetId }: { projetId: string }) {
   if (route.isError)
     return <ErreurDeChargement erreur={route.error} surReessai={() => void route.refetch()} />;
 
-  const { jalons, indicateurs } = route.data;
+  const { jalons, sansJalon, indicateurs } = route.data;
   const sansDate = jalons.filter((j) => !j.dateEcheance).length;
   const enRetard = jalons.filter(
     (j) => j.statut !== "done" && (joursAvant(j.dateEcheance) ?? 1) < 0,
@@ -149,6 +196,47 @@ export function Jalons({ projetId }: { projetId: string }) {
           ) : null}
         </div>
       )}
+
+      {/*
+        `RG-JAL-05` — les tâches détachées d'un jalon supprimé existent encore,
+        et elles ne figuraient nulle part. La maquette leur réserve ce bloc,
+        **hors de la chronologie** : une tâche rattachée à rien n'a pas de
+        place sur une frise, mais elle a une place à l'écran. C'est même celle
+        qu'on oublie le plus sûrement.
+      */}
+      {sansJalon.length > 0 ? (
+        <div className="orphan">
+          <div className="orphan-head">
+            <span className="panel-title">{t("jalons.sansJalonTitre")}</span>
+            <span className="kcol-n">{sansJalon.length}</span>
+            <Button
+              className="ms-toggle"
+              style={{ marginLeft: "auto" }}
+              aria-expanded={orphelinesOuvertes}
+              onPress={() => setOrphelinesOuvertes((o) => !o)}
+            >
+              {t(orphelinesOuvertes ? "jalons.masquer" : "jalons.afficher")}
+            </Button>
+          </div>
+          {orphelinesOuvertes ? (
+            <div className="ms-tasks">
+              {sansJalon.map((tache) => (
+                <div className="tk" key={tache.id}>
+                  <div className="bloc-etroit">
+                    <span className="tk-name">{tache.titre}</span>
+                    <span className="tk-sub">
+                      {tache.dateFin ? formaterDate(tache.dateFin) : t("jalons.sansDate")}
+                    </span>
+                  </div>
+                  <Pastille code={tache.statut} vocabulaire={STATUTS_TACHE} />
+                  <Assignes tache={tache} />
+                  <Charge tache={tache} />
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
 
       <FenetreCreationTache
         ouverte={tacheOuverte}
@@ -269,11 +357,8 @@ function LigneJalon({
                     </span>
                   </div>
                   <Pastille code={tache.statut} vocabulaire={STATUTS_TACHE} />
-                  <Barre
-                    valeur={tache.avancement}
-                    libelle={t("jalons.avancementDe", { nom: tache.titre })}
-                  />
-                  <span className="tk-est">{tache.avancement} %</span>
+                  <Assignes tache={tache} />
+                  <Charge tache={tache} />
                 </div>
               ))
             ) : (

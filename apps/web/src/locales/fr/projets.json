@@ -142,7 +142,11 @@
     "regle_doing": "En cours — au moins une tâche commencée",
     "regle_done": "Terminé — toutes les tâches sont terminées",
     "regleDone": "Un jalon est terminé quand toutes ses tâches le sont.",
-    "regleDoing": "Au moins une tâche commencée, toutes ne sont pas terminées."
+    "regleDoing": "Au moins une tâche commencée, toutes ne sont pas terminées.",
+    "sansAssigne": "Personne",
+    "assignesDe": "Assignés de {nom} : {gens}",
+    "heures": "{n} h",
+    "sansJalonTitre": "Tâches sans jalon"
   },
   "equipe": {
     "lEquipe": "l'équipe",
