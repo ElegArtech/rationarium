@@ -305,6 +305,9 @@ textarea.field {
 
 .pl-toolbar-fin {
   margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 .titre-vue {
   margin: 5px 0 0;
@@ -372,4 +375,9 @@ textarea.field {
 }
 .pill-muted {
   color: var(--muted);
+}
+/* La marque « EXT » d'une intervention extérieure — vues 16, 18 et 21. La
+   maquette pose la couleur en style en ligne ; elle vient d'un jeton. */
+.pill-ext {
+  color: var(--event);
 }

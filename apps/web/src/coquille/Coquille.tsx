@@ -144,18 +144,32 @@ export function Coquille({
               <div key={groupe.cle} className="nav-group">
                 {/* Le titre de groupe n'apparaît que si le groupe a des entrées. */}
                 <p className="nav-legend">{t(`groupes.${groupe.cle}`)}</p>
-                {groupe.entrees.map((entree) => (
+                {groupe.entrees.map((entree) => {
+                  /*
+                   * Une fiche appartient à sa section. `/taches/<id>` doit
+                   * garder « Tâches » allumé : la comparaison stricte
+                   * éteignait la barre latérale sur toutes les vues de détail,
+                   * et l'utilisateur perdait le repère de l'endroit où il est.
+                   * Le séparateur est exigé — sans lui, `/taches` allumerait
+                   * aussi `/taches-predefinies` —, et la racine est exclue,
+                   * qui préfixe tout.
+                   */
+                  const courante =
+                    chemin === entree.chemin ||
+                    (entree.chemin !== "/" && chemin.startsWith(`${entree.chemin}/`));
+                  return (
                   <a
                     key={entree.cle}
-                    className={`nav-item${chemin === entree.chemin ? " is-active" : ""}`}
+                    className={`nav-item${courante ? " is-active" : ""}`}
                     href={entree.chemin}
                     title={t(`entrees.${entree.cle}`)}
-                    {...(chemin === entree.chemin ? { "aria-current": "page" as const } : {})}
+                    {...(courante ? { "aria-current": "page" as const } : {})}
                   >
                     <Icone nom={entree.icone} />
                     <span>{t(`entrees.${entree.cle}`)}</span>
                   </a>
-                ))}
+                  );
+                })}
               </div>
             ))}
           </nav>

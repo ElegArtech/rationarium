@@ -185,6 +185,13 @@ export const formaterMois = (annee: number, mois: number): string => {
   return rendu.charAt(0).toUpperCase() + rendu.slice(1);
 };
 
+/** Le seul nom du mois d'une date : `août`. */
+export const formaterMoisSeul = (valeur: string | Date | null | undefined): string => {
+  const d = instant(valeur);
+  if (!d) return "—";
+  return new Intl.DateTimeFormat(locale(), { month: "long", timeZone: "UTC" }).format(d);
+};
+
 /**
  * Un nombre, avec le séparateur de milliers de la langue.
  *

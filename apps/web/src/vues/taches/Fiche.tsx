@@ -5,14 +5,19 @@ import { Link } from "@tanstack/react-router";
 import { Button } from "react-aria-components";
 import { STATUTS_TACHE, PRIORITES, ROLES_RACI } from "@trame/contracts";
 import * as api from "../../api/taches.js";
+import * as apiTemps from "../../api/occupations.js";
 import { messageErreur } from "../../api/erreurs.js";
 import { usePeut, useSession } from "../../session/session.js";
 import { Chargement, ErreurDeChargement } from "../../composants/etats.js";
 import { Fenetre } from "../../composants/fenetre.js";
 import { useMessages } from "../../composants/messages.js";
 import { Pastille, AvatarAgent, useLibelle } from "../../composants/pastilles.js";
+import { PastilleRattachement } from "./Liste.js";
 import { formaterDate, formaterDateLongue, formaterNombre, formaterHeure } from "../../formats.js";
 import "../../composants/partages.css";
+/* `.conf-list` et `.conf-k` viennent de la section 19 ; la maquette 17 —
+   cumulative — les emploie telles quelles pour l'incohérence de dates. */
+import "../rapports/gantt.css";
 import "./liste.css";
 import "./fiche.css";
 
@@ -41,6 +46,11 @@ export function FicheTache({ tacheId }: { tacheId: string }) {
   const [suppressionOuverte, setSuppressionOuverte] = useState(false);
 
   const requete = useQuery({ queryKey: ["tache", tacheId], queryFn: () => api.fiche(tacheId) });
+  const contexteTemps = useQuery({
+    queryKey: ["temps", "contexte", tacheId],
+    queryFn: () => apiTemps.contexteTemps(tacheId),
+    enabled: peut("time_tracking:read"),
+  });
   const modifiable = peut("tasks:update");
 
   const modifier = useMutation({
@@ -57,51 +67,86 @@ export function FicheTache({ tacheId }: { tacheId: string }) {
     return <ErreurDeChargement erreur={requete.error} surReessai={() => void requete.refetch()} />;
 
   const tache = requete.data;
-  const incoherentes = Array.isArray(tache.incoherences)
-    ? tache.incoherences
-    : (tache.incoherences.taches ?? []);
+  const incoherentes = tache.incoherences;
 
   return (
     <div className="page">
-      <Link to="/taches" className="back-link">
+      {/*
+        `activeProps` est vidé : le routeur ajoute par défaut une classe
+        `active` sur tout lien dont la route est un ANCÊTRE de la route
+        courante — ici `/taches`. Une classe que rien ne définit, donc invisible
+        et inerte, et qui n'existe pas dans la maquette.
+      */}
+      <Link to="/taches" className="back-link" activeProps={{}}>
         <span aria-hidden="true">←</span> <span>{t("fiche.retour")}</span>
       </Link>
 
+      {/*
+        `EX-TSK-12` — l'incohérence de dates se dit AVANT d'être découverte, et
+        elle nomme la tâche en cause avec sa date. « Attention, incohérence »
+        sans le détail oblige à chercher ce qui cloche.
+      */}
       {incoherentes.length > 0 ? (
-        <div className="alert alert-warn" role="status">
-          <span className="alert-icon" aria-hidden="true">
-            ⚠
-          </span>
-          <span>{t("fiche.incoherencesDates")}</span>
+        <div className="alert alert-warn conf-alerte" role="status">
+          <div className="conf-corps">
+            <span className="alert-icon" aria-hidden="true">
+              !
+            </span>
+            <div className="conf-texte">
+              <strong>{t("fiche.incoherencesDates")}</strong>
+              <ul className="conf-list">
+                {incoherentes.map((x) => (
+                  <li key={x.prerequis.id}>
+                    <span className="conf-k">
+                      {x.prerequis.dateFin ? formaterDate(x.prerequis.dateFin) : "—"}
+                    </span>
+                    <span>{t("fiche.incoherenceDetail", { titre: x.prerequis.titre })}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
         </div>
       ) : null}
 
-      <div className="proj-head">
-        <div className="bloc-etroit">
-          <span className="eyebrow">
-            {tache.project ? tache.project.nom : t("tacheIndependante")}
-          </span>
+      <div className="proj-head proj-head-fiche">
+        <div className="bloc-etroit proj-head-titre">
+          <div className="pills">
+            <PastilleRattachement projet={tache.project} />
+            <Pastille code={tache.priorite} vocabulaire={PRIORITES} />
+            <span className="pill pill-muted">
+              {tache.milestone?.nom ?? t("liste.sansJalon")}
+            </span>
+            {tache.enRetard ? <span className="pill badge-late">{t("enRetard")}</span> : null}
+            {tache.interventionExterieure ? (
+              <span className="pill pill-ext">{t("fiche.interventionExterieure")}</span>
+            ) : null}
+          </div>
           <TitreEditable
             titre={tache.titre}
             modifiable={modifiable}
             surEnregistrement={(titre) => modifier.mutate({ version: tache.version, titre })}
           />
-          <div className="pills">
-            <Pastille code={tache.statut} vocabulaire={STATUTS_TACHE} />
-            <Pastille code={tache.priorite} vocabulaire={PRIORITES} />
-            {tache.enRetard ? <span className="badge badge-late">{t("enRetard")}</span> : null}
-            {tache.interventionExterieure ? (
-              <span className="badge badge-indep">{t("fiche.interventionExterieure")}</span>
-            ) : null}
-          </div>
         </div>
-        {peut("tasks:delete") ? (
-          <div className="proj-acts">
+        <div className="proj-acts">
+          {/*
+            « Modifier » ouvre, dans la maquette, un formulaire complet de
+            tâche. Le serveur sait modifier (`PATCH /taches/:id`) et la fiche
+            édite déjà en place titre, statut et avancement ; le formulaire
+            complet — dates, estimation, jalon, confidentialité — reste à
+            porter. Question remontée.
+          */}
+          {modifiable ? (
+            <Button className="chip-btn" isDisabled aria-description={t("fiche.modifierIndisponible")}>
+              {t("fiche.modifier")}
+            </Button>
+          ) : null}
+          {peut("tasks:delete") ? (
             <Button className="chip-btn chip-danger" onPress={() => setSuppressionOuverte(true)}>
               {t("fiche.supprimer")}
             </Button>
-          </div>
-        ) : null}
+          ) : null}
+        </div>
       </div>
 
       {/* La barre du quotidien : statut, assignés, avancement. Elle ne défile pas. */}
@@ -124,20 +169,31 @@ export function FicheTache({ tacheId }: { tacheId: string }) {
         </div>
 
         <div className="day-block">
-          <span className="eyebrow">{t("liste.assignes")}</span>
+          <span className="eyebrow">{t("liste.colAssignes")}</span>
           <div className="day-row">
             {tache.assignes.length > 0 ? (
-              tache.assignes.map((a) => (
-                <span className="raci-tag" key={a.userId}>
-                  <AvatarAgent prenom={a.user.prenom} nom={a.user.nom} />
-                  <span>
-                    {a.user.prenom} {a.user.nom}
-                  </span>
-                </span>
-              ))
+              <span className="avs">
+                {tache.assignes.map((a) => (
+                  <AvatarAgent key={a.userId} prenom={a.user.prenom} nom={a.user.nom} />
+                ))}
+              </span>
             ) : (
               <span className="raci-none">{t("liste.sansAssigne")}</span>
             )}
+            {/*
+              L'ajout d'un assigné n'a pas de point d'entrée : le serveur pose
+              les assignés à la création (`POST /taches`) et sait les DÉPLACER
+              (`POST /taches/:id/deplacer`), mais n'en ajoute pas. Le bouton
+              reste, désactivé et expliqué — le cacher effacerait le manque.
+            */}
+            <Button
+              className="who-add"
+              isDisabled
+              aria-label={t("fiche.ajouterAssigne")}
+              aria-description={t("fiche.ajouterAssigneIndisponible")}
+            >
+              <span aria-hidden="true">+</span>
+            </Button>
           </div>
         </div>
 
@@ -183,53 +239,102 @@ export function FicheTache({ tacheId }: { tacheId: string }) {
           <Documents tache={tache} />
         </div>
 
+        {/*
+          La colonne latérale suit le découpage de la maquette : rattachement,
+          responsabilités, planification, suivi. Un seul bloc « informations »
+          mélangeait quatre questions différentes.
+        */}
         <div>
           <section className="panel">
             <div className="panel-head">
-              <span className="panel-title">{t("fiche.informations")}</span>
+              <span className="panel-title">{t("liste.colRattachement")}</span>
             </div>
             <dl className="side-dl">
               <Ligne libelle={t("liste.projet")} valeur={tache.project?.nom ?? null} />
               <Ligne libelle={t("liste.jalon")} valeur={tache.milestone?.nom ?? null} />
               <Ligne libelle={t("fiche.epopee")} valeur={tache.epic?.nom ?? null} />
+              <dt>{t("fiche.tiersAssignes")}</dt>
+              <dd className={tache.tiers.length > 0 ? "" : "is-none"}>
+                {tache.tiers.length === 0
+                  ? t("nonRenseigne")
+                  : tache.tiers.map((x) => (
+                      <span className="pchip is-indep pchip-tiers" key={x.id}>
+                        <span className="dot-ind" aria-hidden="true" />
+                        <span>{x.organisation ?? x.contactNom ?? "—"}</span>
+                      </span>
+                    ))}
+              </dd>
+            </dl>
+          </section>
+
+          <Raci tache={tache} />
+
+          <section className="panel">
+            <div className="panel-head">
+              <span className="panel-title">{t("fiche.planification")}</span>
+            </div>
+            <dl className="side-dl">
               <Ligne
-                libelle={t("liste.dateDebut")}
-                valeur={tache.dateDebut ? formaterDate(tache.dateDebut) : null}
-              />
-              <Ligne
-                libelle={t("liste.dateFin")}
-                valeur={tache.dateFin ? formaterDate(tache.dateFin) : null}
+                libelle={t("fiche.dates")}
+                valeur={
+                  tache.dateDebut && tache.dateFin
+                    ? t("fiche.deADate", {
+                        debut: formaterDate(tache.dateDebut),
+                        fin: formaterDate(tache.dateFin),
+                      })
+                    : tache.dateFin
+                      ? formaterDate(tache.dateFin)
+                      : null
+                }
               />
               <Ligne
                 libelle={t("fiche.horaires")}
                 valeur={
                   tache.heureDebut && tache.heureFin
-                    ? `${formaterHeure(tache.heureDebut)} – ${formaterHeure(tache.heureFin)}`
+                    ? t("fiche.deAHeure", {
+                        debut: formaterHeure(tache.heureDebut),
+                        fin: formaterHeure(tache.heureFin),
+                      })
                     : null
                 }
               />
               <Ligne
-                libelle={t("liste.estimation")}
+                libelle={t("fiche.estimation")}
                 valeur={
                   tache.estimationHeures
                     ? t("heures", { n: Number(tache.estimationHeures) })
                     : null
                 }
               />
-              <Ligne libelle={t("fiche.creeeLe")} valeur={formaterDateLongue(tache.creeLe)} />
-              <Ligne libelle={t("fiche.miseAJour")} valeur={formaterDateLongue(tache.modifieLe)} />
+              {/* `RG-TMP-07` — le temps déclaré vient du module M12, tous
+                  contributeurs confondus, pas de la tâche elle-même. */}
               <Ligne
-                libelle={t("fiche.tiersAssignes")}
+                libelle={t("fiche.tempsDeclare")}
                 valeur={
-                  tache.tiers.length > 0
-                    ? tache.tiers.map((x) => x.organisation ?? x.contactNom ?? "—").join(", ")
+                  contexteTemps.data
+                    ? t("fiche.heuresEtSaisies", {
+                        heures: contexteTemps.data.heuresDeclarees,
+                        n: contexteTemps.data.entrees,
+                      })
                     : null
                 }
               />
             </dl>
           </section>
 
-          <Raci tache={tache} />
+          <section className="panel">
+            <div className="panel-head">
+              <span className="panel-title">{t("fiche.suivi")}</span>
+            </div>
+            <dl className="side-dl">
+              <Ligne libelle={t("fiche.creeeLe")} valeur={formaterDateLongue(tache.creeLe)} />
+              <Ligne libelle={t("fiche.miseAJour")} valeur={formaterDateLongue(tache.modifieLe)} />
+              <dt>{t("fiche.confidentielle")}</dt>
+              <dd className={tache.confidentielle ? "" : "is-none"}>
+                {tache.confidentielle ? t("fiche.oui") : t("fiche.non")}
+              </dd>
+            </dl>
+          </section>
         </div>
       </div>
 
@@ -277,8 +382,14 @@ function TitreEditable({
   return (
     <>
       <h1>
+        {/*
+          `role="textbox"` est le rôle implicite du champ ; il est écrit parce
+          que la maquette édite le titre sur un `contenteditable` qui le porte
+          explicitement, et que le repère doit se retrouver à l'identique.
+        */}
         <input
           className="task-title"
+          role="textbox"
           value={valeur}
           aria-label={t("fiche.titreDeLaTache")}
           onChange={(e) => setValeur(e.target.value)}
@@ -474,6 +585,20 @@ function Dependances({ tache }: { tache: api.FicheTache }) {
     <section className="panel">
       <div className="panel-head">
         <span className="panel-title">{t("fiche.dependances")}</span>
+        {/*
+          Le serveur pose et retire une dépendance (`POST`/`DELETE
+          /taches/:id/dependances`), mais la maquette ouvre une fenêtre de
+          sélection que rien n'alimente aujourd'hui : la liste des tâches
+          candidates, hors cycle, n'est pas exposée. Le bouton reste et dit
+          pourquoi il n'agit pas.
+        */}
+        <Button
+          className="chip-btn"
+          isDisabled
+          aria-description={t("fiche.dependancesIndisponible")}
+        >
+          {t("fiche.modifierDependances")}
+        </Button>
       </div>
       <div className="dep-cols">
         {colonne(
@@ -510,6 +635,7 @@ function Raci({ tache }: { tache: api.FicheTache }) {
     <section className="panel">
       <div className="panel-head">
         <span className="panel-title">{t("fiche.raci")}</span>
+        <span className="eyebrow">{t("fiche.responsabilites")}</span>
       </div>
       <div className="raci">
         {ROLES_RACI.map((role) => {
@@ -624,6 +750,7 @@ function Commentaires({ tache }: { tache: api.FicheTache }) {
 
 function Documents({ tache }: { tache: api.FicheTache }) {
   const { t } = useTranslation("taches");
+  const peut = usePeut();
 
   return (
     <section className="panel">
@@ -649,10 +776,21 @@ function Documents({ tache }: { tache: api.FicheTache }) {
               </span>
             </div>
             <span className="doc-m">{formaterDate(d.creeLe)}</span>
-            <span />
+            {/* `RG-DOC-02` — télécharger est un geste distinct de consulter,
+                avec sa permission et sa trace. */}
+            {peut("documents:download") ? (
+              <a className="dep-go" href={`/api/documents/${d.id}/telecharger`}>
+                {t("fiche.telecharger")}
+              </a>
+            ) : (
+              <span />
+            )}
           </div>
         ))
       )}
+      {/* La zone de dépôt existe même quand la liste est vide : c'est elle qui
+          dit ce qu'on peut faire, pas le vide. */}
+      <p className="doc-dz">{t("fiche.deposerFichier")}</p>
     </section>
   );
 }

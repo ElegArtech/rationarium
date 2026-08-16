@@ -18,6 +18,8 @@ export type LigneTache = {
   estimationHeures: string | null;
   avancement: number;
   confidentielle: boolean;
+  /** `EX-TSK-14` — la tâche confiée à un prestataire porte sa marque « EXT ». */
+  interventionExterieure: boolean;
   project: { id: string; nom: string; icone: string | null } | null;
   milestone: { id: string; nom: string } | null;
   assignes: Assigne[];
@@ -62,7 +64,17 @@ export type FicheTache = LigneTache & {
     auteur: { prenom: string; nom: string } | null;
   }[];
   dependances: { dependDe: LienDependance[]; bloque: LienDependance[] };
-  incoherences: { taches: { id: string; titre: string }[] } | { id: string; titre: string }[];
+  /**
+   * `EX-TSK-12` — les prérequis qui finissent APRÈS le début de cette tâche.
+   *
+   * Le type déclaré ici disait `{ id, titre }` ; le service rend le prérequis
+   * complet et le nombre de jours de recouvrement. La vue affichait donc une
+   * liste dont elle ne pouvait pas lire les champs.
+   */
+  incoherences: {
+    prerequis: { id: string; titre: string; dateFin: string | null };
+    jours: number;
+  }[];
 };
 
 const params = (filtres: Record<string, string | boolean | undefined>) => {

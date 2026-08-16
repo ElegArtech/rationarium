@@ -39,7 +39,20 @@ const JETON: Record<string, string> = {
   normal: "var(--st-doing)",
   high: "var(--st-review)",
   critical: "var(--st-blocked)",
+  // Types d'activité — vue 21, section 25 des maquettes
+  development: "var(--st-doing)",
+  meeting: "var(--event)",
+  support: "var(--activity)",
+  training: "var(--st-done)",
+  other: "var(--muted)",
 };
+
+/**
+ * Le jeton d'un code, pour les rendus qui ne sont pas des pastilles — une
+ * portion de barre empilée, une puce de légende. La carte reste unique : la
+ * dupliquer dans une vue en ferait une seconde source de vérité.
+ */
+export const jetonDe = (code: string): string => JETON[code] ?? "var(--muted)";
 
 const TOUS: readonly Terme<string>[] = [
   ...STATUTS_PROJET,
