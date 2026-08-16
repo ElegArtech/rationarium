@@ -1,0 +1,447 @@
+/*
+ * Vue 06 — tableau de bord.
+ *
+ * **Porté depuis `mockups/06-tableau-de-bord.html`, règle par règle.** Le
+ * répertoire de la vue ne contenait aucune feuille : ses classes étaient
+ * posées, aucune règle ne les recevait, et la page était nue.
+ *
+ * Ce fichier ne porte QUE ce qui est propre à la vue 06. Le partage a été
+ * tranché sur l'emploi réel dans le balisage des 35 maquettes :
+ *
+ *  - `socle.css` porte les douze primitives employées par six à trente vues —
+ *    `.panel*`, `.empty`, `.kpi*` (et leurs points de rupture), `.check`,
+ *    `.bar`, `.pglyph`, `.pgi`. **Ne pas les redéfinir ici** : une primitive
+ *    employée par trente vues n'appartient à aucune.
+ *  - `coquille/coquille.css` porte `.main`, `.page`, `.ico`, le tiroir mobile.
+ *  - Le reste — trente-six classes — est ici.
+ *
+ * Deux écarts assumés, et deux seulement, tous deux imposés par ailleurs :
+ *
+ *  1. `.trow-title`, `.week-day` et `.prow-name` sont des `<p>` que la maquette
+ *     neutralise par un `style="margin:0"` répété sur chaque occurrence. La
+ *     marge est remise à zéro **dans la règle** : même rendu calculé, sans
+ *     style en ligne recopié vingt fois.
+ *  2. `.todo-del` naît à `opacity:0` et n'apparaît qu'au survol. Un bouton
+ *     invisible mais focalisable est atteignable au clavier sans être visible
+ *     — `C6` l'interdit. La règle de survol est donc doublée d'une règle de
+ *     focus. C'est un ajout strict : rien de ce que la maquette montre ne
+ *     change.
+ *
+ * Aucune couleur littérale : les jetons de `socle.css` font le contrat.
+ */
+
+/* ── 8. Gabarit de page — ce qui reste propre à la vue ──────────────────── */
+
+.greet {
+  margin-bottom: 20px;
+}
+
+.greet .h1 {
+  margin: 6px 0 4px;
+}
+
+.dash-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+/* ── 9. Vocabulaire des occupations sur surface claire ──────────────────── */
+/* Même grammaire que la grille du planning : couleur = statut, pastille = projet. */
+
+.tchip {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-cond);
+  font-size: 11px;
+  line-height: 1.3;
+  padding: 3px 5px;
+  border-radius: 2px;
+  border-left: 3px solid currentcolor;
+  background: var(--surface-2);
+  background: color-mix(in srgb, currentcolor 12%, var(--surface));
+}
+
+.tchip > span {
+  color: var(--ink);
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tchip .pglyph {
+  width: 12px;
+  height: 12px;
+  font-size: 7px;
+  background: transparent;
+}
+
+/* Une tâche hors projet doit être visuellement distincte de la tâche projet. */
+.tchip-indep {
+  border-left-style: dashed;
+}
+
+.tchip-flat {
+  border-left: none;
+  padding-left: 8px;
+}
+
+/* ── Extrait de semaine personnel ───────────────────────────────────────── */
+
+.week {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+}
+
+.week-col + .week-col {
+  border-left: 1px solid var(--line);
+}
+
+.week-day {
+  font-family: var(--font-cond);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 8px 9px 6px;
+  margin: 0;
+}
+
+.week-col.is-today .week-day {
+  color: var(--accent);
+}
+
+.week-col.is-today {
+  background: var(--accent-soft);
+}
+
+.week-cell {
+  padding: 0 6px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-height: 74px;
+}
+
+.week-none {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--muted);
+  padding: 2px 3px;
+}
+
+/* ── Lignes de tâches ───────────────────────────────────────────────────── */
+
+.tabs {
+  display: flex;
+  gap: 2px;
+}
+
+.tab {
+  font-size: 12.5px;
+  padding: 5px 10px;
+  border: 1px solid transparent;
+  border-radius: var(--r);
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.tab[aria-selected="true"] {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.trow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.trow:last-child {
+  border-bottom: none;
+}
+
+.trow:hover {
+  background: var(--surface-2);
+}
+
+.trow-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13.5px;
+  font-weight: 600;
+  min-width: 0;
+  margin: 0;
+}
+
+.trow-title span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trow-meta {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  color: var(--muted);
+  margin-top: 3px;
+  display: block;
+}
+
+/* `RG-DSH-04` — le marqueur est textuel autant que coloré. */
+.badge {
+  font-family: var(--font-mono);
+  font-size: 8.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 2px 5px;
+  border-radius: 2px;
+  border: 1px solid currentcolor;
+  flex: none;
+}
+
+.badge-late {
+  color: var(--st-blocked);
+}
+
+.badge-indep {
+  color: var(--muted);
+}
+
+.mini-select {
+  font-family: var(--font-ui);
+  font-size: 12px;
+  padding: 5px 7px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.mini-select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.hours {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.hours input {
+  width: 52px;
+  text-align: right;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  padding: 5px 7px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.hours input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.hours-unit {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.hours-note {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--muted);
+  margin-top: 3px;
+  text-align: right;
+  display: block;
+}
+
+/* ── To-do ──────────────────────────────────────────────────────────────── */
+
+.todo-add {
+  display: flex;
+  gap: 8px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.todo-add input {
+  flex: 1;
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r);
+  padding: 7px 10px;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  color: var(--ink);
+}
+
+.todo-add input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.todo-add input:disabled {
+  background: var(--surface-2);
+  color: var(--muted);
+  cursor: not-allowed;
+}
+
+/* La maquette pose un `style="padding:7px 13px"` sur le bouton d'ajout : le
+   bouton primaire du socle est calibré pour un formulaire, pas pour une barre
+   d'ajout d'une ligne. La mesure est reprise ici plutôt qu'en ligne. */
+.todo-add .btn {
+  padding: 7px 13px;
+}
+
+.todo-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.todo-item:last-child {
+  border-bottom: none;
+}
+
+.todo-item:hover {
+  background: var(--surface-2);
+}
+
+.todo-label {
+  flex: 1;
+  font-size: 13px;
+  cursor: text;
+  text-align: left;
+}
+
+.todo-item.is-done .todo-label {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.todo-del {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--muted);
+  opacity: 0;
+}
+
+.todo-item:hover .todo-del {
+  opacity: 1;
+}
+
+/* `C6` — la maquette ne fait apparaître la suppression qu'au survol. Un bouton
+   à `opacity:0` reste dans l'ordre de tabulation : au clavier, on atteindrait
+   une cible invisible. Le focus la révèle, exactement comme le survol. */
+.todo-del:focus-visible {
+  opacity: 1;
+}
+
+.todo-del:hover {
+  color: var(--st-blocked);
+}
+
+/* `RG-DSH-03` — les complétées à part, avec leur compte. */
+.todo-sep {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-2);
+}
+
+/* `RG-DSH-01` — la limite est ANNONCÉE, pas découverte sur un champ muet. */
+.todo-limit {
+  padding: 9px 14px;
+  font-size: 11.5px;
+  color: var(--st-review);
+  background: var(--warn-soft);
+  border-bottom: 1px solid var(--line);
+}
+
+/* ── Projets ────────────────────────────────────────────────────────────── */
+
+.prow {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--line);
+  text-decoration: none;
+}
+
+.prow:last-child {
+  border-bottom: none;
+}
+
+.prow:hover {
+  background: var(--surface-2);
+}
+
+.prow-name {
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin: 0;
+}
+
+.prow-role {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.prow-pct {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* ── Responsive — section 10, part de la vue 06 ─────────────────────────── */
+/* Les points de rupture de `.kpi-grid` sont partis au socle avec elle. */
+
+@media (max-width: 1180px) {
+  .dash-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 900px) {
+  .week {
+    grid-template-columns: repeat(5, minmax(120px, 1fr));
+    overflow-x: auto;
+  }
+}
+
+@media (max-width: 520px) {
+  .trow {
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+}
