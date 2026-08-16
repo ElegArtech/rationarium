@@ -9,7 +9,7 @@
   "congeEnAttente": "En attente",
   "interventionExterieure": "EXT",
   "teletravailLectureSeule": "Lecture seule — permission requise",
-  "occupationsSupplementaires": "+{n, number} de plus",
+  "occupationsSupplementaires": "{n, plural, one {+ # autre} other {+ # autres}}",
   "modes": {
     "groupe": "Mode d'affichage",
     "semaine": "Semaine",
@@ -23,7 +23,7 @@
     "suivant_mois": "Mois suivant",
     "aujourdhui": "Aujourd'hui",
     "libelle_semaine": "Semaine du {debut} au {fin}",
-    "libelle_mois": "Du {debut} au {fin}"
+    "libelle_mois": "{mois}"
   },
   "filtres": {
     "tousServices": "Tous les services",
@@ -55,7 +55,8 @@
     "reassignerA": "Réassigner à…",
     "dateVerrouillee": "Date non déplaçable : tâche multi-assignée",
     "basculerTeletravail": "{nom}, {date} — actuellement {etat}. Basculer vers {suivant}",
-    "imprimer": "Imprimer"
+    "imprimer": "Imprimer",
+    "creerIci": "Créer ici — {nom}, {date}"
   },
   "groupe": {
     "effectif": "{n, plural, one {# personne} other {# personnes}}",
@@ -89,13 +90,15 @@
     "typesTache": "Type de tâche",
     "presence": "Présence",
     "absences": "Absences",
-    "evenements": "Événements",
+    "evenements": "Autres occupations",
     "tacheProjet": "Tâche de projet",
     "tacheHorsProjet": "Tâche hors projet",
     "congeValide": "Congé validé",
     "congeAttente": "Congé en attente",
     "evenementInterne": "Événement",
-    "evenementExterne": "Intervention extérieure"
+    "evenementExterne": "Intervention extérieure",
+    "presenceBureau": "Bureau déclaré",
+    "permanence": "Permanence"
   },
   "presence": {
     "office": "Bureau",
@@ -111,8 +114,8 @@
     "todo": "À faire",
     "doing": "En cours",
     "review": "En revue",
-    "done": "Terminée",
-    "blocked": "Bloquée"
+    "done": "Terminé",
+    "blocked": "Bloqué"
   },
   "priorites": {
     "low": "Basse",
@@ -122,7 +125,8 @@
   },
   "mois": {
     "resume": "{nom}, {date} — {n, plural, =0 {aucune occupation} one {# occupation} other {# occupations}}, {lieu}",
-    "resumeConge": "{nom}, {date} — {type}, {statut}"
+    "resumeConge": "{nom}, {date} — {type}, {statut}",
+    "indication": "Survolez une journée — ou parcourez la grille au clavier — pour en lire le détail."
   },
   "detail": {
     "titre": "Détail",
@@ -150,17 +154,24 @@
     "interventionExterieure": "Intervention extérieure",
     "evenementInterne": "Événement interne",
     "participants": "Participants",
-    "nParticipants": "{n, plural, one {# participant} other {# participants}}"
+    "nParticipants": "{n, plural, one {# participant} other {# participants}}",
+    "aucuneSelection": "Aucun élément sélectionné",
+    "taches": "Tâches",
+    "nTaches": "{n, plural, =0 {aucune} one {# tâche} other {# tâches}}",
+    "projets": "Projets",
+    "aucunProjet": "Aucun",
+    "presence": "Présence",
+    "presenceAbsent": "Absent",
+    "conge": "Congé"
   },
   "activite": {
     "titre": "Grille d'activité",
-    "titreImpression": "Grille d'activité",
     "imprimer": "Imprimer",
-    "axeJours": "Jours en lignes",
-    "axeTaches": "Tâches en colonnes",
+    "axeJours": "Jours",
+    "axeTaches": "Tâches",
     "aucunAgent": "Aucun agent affecté",
-    "agentsSupplementaires": "+{n, number} de plus",
-    "ajouter": "Ajouter",
+    "agentsSupplementaires": "{n, plural, one {+ # autre} other {+ # autres}}",
+    "ajouter": "+ Ajouter",
     "ajouterA": "Ajouter des agents à {tache}, le {date}",
     "videTitre": "Aucune tâche prédéfinie active",
     "videExplication": "La grille d'activité se remplit à partir du catalogue des tâches prédéfinies.",
@@ -181,7 +192,14 @@
     "realisationEnregistree": "Statut de réalisation enregistré.",
     "echecRealisation": "Le statut n'a pas pu être enregistré.",
     "marquerTenue": "Marquer la permanence de {nom} comme tenue",
-    "marquerNonTenue": "Marquer la permanence de {nom} comme non tenue"
+    "marquerNonTenue": "Marquer la permanence de {nom} comme non tenue",
+    "grilleRegion": "Grille d'activité — jours en lignes, tâches en colonnes",
+    "axesInverses": "Grille d'activité — les axes sont inversés par rapport aux vues Semaine et Mois : les jours sont en lignes, les tâches prédéfinies en colonnes.",
+    "statutTitre": "Statut de réalisation",
+    "statutIndication": "Cliquez le marqueur pour le faire évoluer",
+    "statutPrevue": "Prévue",
+    "statutRealisee": "Réalisée",
+    "statutNonRealisee": "Non réalisée"
   },
   "jours": {
     "court": {
@@ -211,5 +229,6 @@
       "5": "Vendredi",
       "6": "Samedi"
     }
-  }
+  },
+  "grilleRegion": "Grille du planning — zone défilante, parcourez-la avec les flèches du clavier"
 }

@@ -57,7 +57,7 @@ export function Activite() {
       {/* L'en-tête d'impression n'existe qu'à l'impression : à l'écran, le
           titre de page dit déjà la même chose. */}
       <div className="print-head">
-        <p className="print-title">{t("activite.titreImpression")}</p>
+        <p className="print-title">{t("activite.titre")}</p>
         <p className="print-meta">
           {t("navigation.libelle_semaine", {
             debut: formaterDate(periode.debut),
@@ -67,7 +67,7 @@ export function Activite() {
       </div>
 
       <div className="pl-toolbar">
-        <h1 className="h1 titre-vue">{t("activite.titre")}</h1>
+        <h1 className="h1 titre-vue">{t("titre")}</h1>
 
         <div className="seg" role="group" aria-label={t("modes.groupe")}>
           {(["semaine", "mois", "activite"] as const).map((m) => (
@@ -110,14 +110,27 @@ export function Activite() {
         </span>
 
         <div className="ligne-actions-fin">
-          <Button className="chip-btn no-print" onPress={() => window.print()}>
+          <Button className="btn btn-primary no-print" onPress={() => window.print()}>
             {t("activite.imprimer")}
           </Button>
         </div>
       </div>
 
+      {/*
+        `cadrage/02 § vue 09` — « L'inversion des axes est délibérée mais
+        désorientante. » La cellule d'angle la porte une fois la grille
+        peuplée ; ce bandeau la porte TOUJOURS, y compris sur l'état vide,
+        qui est précisément le moment où l'on cherche à comprendre la vue.
+      */}
+      <div className="alert alert-neutral no-print">
+        <span className="alert-icon" aria-hidden="true">
+          ↻
+        </span>
+        <span>{t("activite.axesInverses")}</span>
+      </div>
+
       {colonnes.length === 0 ? (
-        <div className="pl-wrap">
+        <div className="pl-wrap" role="region" tabIndex={0} aria-label={t("activite.grilleRegion")}>
           <div className="pl-empty">
             <p>{t("activite.videTitre")}</p>
             <small>{t("activite.videExplication")}</small>
@@ -129,7 +142,12 @@ export function Activite() {
           </div>
         </div>
       ) : (
-        <div className="pl-wrap">
+        <div
+          className="pl-wrap"
+          role="region"
+          tabIndex={0}
+          aria-label={t("activite.grilleRegion")}
+        >
           <div className="act" style={style}>
             {/* `EX-PLN-01` — l'inversion des axes est ANNONCÉE ici. */}
             <div className="act-corner">
@@ -138,13 +156,13 @@ export function Activite() {
                   <span className="ax-arrow" aria-hidden="true">
                     ↓
                   </span>
-                  {t("activite.axeJours")}
+                  <span>{t("activite.axeJours")}</span>
                 </span>
                 <span className="ax-line">
                   <span className="ax-arrow" aria-hidden="true">
                     →
                   </span>
-                  {t("activite.axeTaches")}
+                  <span>{t("activite.axeTaches")}</span>
                 </span>
               </div>
             </div>
@@ -161,11 +179,11 @@ export function Activite() {
                   </span>
                   <span className="act-name">{tache.nom}</span>
                 </div>
-                {tache.heureDebut && tache.heureFin ? (
-                  <span className="act-sub">
-                    {formaterHeure(tache.heureDebut)} – {formaterHeure(tache.heureFin)}
-                  </span>
-                ) : null}
+                <span className="act-sub">
+                  {tache.heureDebut && tache.heureFin
+                    ? `${formaterHeure(tache.heureDebut)} – ${formaterHeure(tache.heureFin)}`
+                    : t("detail.journeeEntiere")}
+                </span>
               </div>
             ))}
 
@@ -181,7 +199,7 @@ export function Activite() {
                     }`}
                   >
                     <span className="act-dow">{t(`jours.long.${d.getUTCDay()}`)}</span>
-                    <span className="act-date">{formaterDate(ligne.date)}</span>
+                    <span className="act-date">{ligne.date.slice(8)}</span>
                     {/* `EX-PLN-14` — un férié se voit dans cette grille aussi :
                         c'est le jour où une permanence surprend le plus. */}
                     {ferie ? <span className="act-ferie">{t("bandeauFerie")}</span> : null}
@@ -235,6 +253,35 @@ export function Activite() {
           </div>
         </div>
       )}
+
+      {/* Maquette 09 — les marqueurs de réalisation sont muets sans leur clé
+          de lecture. Le panneau la donne, et dit comment les faire changer. */}
+      <section className="panel matrice-espace no-print">
+        <div className="panel-head">
+          <span className="panel-title">{t("activite.statutTitre")}</span>
+          <span className="eyebrow">{t("activite.statutIndication")}</span>
+        </div>
+        <div className="panel-body legende-statuts">
+          <span className="check">
+            <span className="agent-st" aria-hidden="true">
+              ·
+            </span>
+            <span>{t("activite.statutPrevue")}</span>
+          </span>
+          <span className="check">
+            <span className="agent-st is-done" aria-hidden="true">
+              ✓
+            </span>
+            <span>{t("activite.statutRealisee")}</span>
+          </span>
+          <span className="check">
+            <span className="agent-st is-missed" aria-hidden="true">
+              ✗
+            </span>
+            <span>{t("activite.statutNonRealisee")}</span>
+          </span>
+        </div>
+      </section>
 
       {ajout ? (
         <FenetreAjout
