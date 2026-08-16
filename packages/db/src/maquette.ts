@@ -312,6 +312,34 @@ export async function peuplerMaquette(
     create: { code: "CA", nom: "Congé annuel", couleur: "#6A4BA6", ordre: 1 },
     update: {},
   });
+  /*
+   * Les allocations, sans lesquelles `RG-CNG-20` refuse tout et la vue 19 n'a
+   * rien à montrer. Un défaut global plus une allocation propre : les deux
+   * chemins de `RG-CNG-24` sont exercés par le jeu, pas seulement décrits.
+   */
+  await prisma.leaveBalance.upsert({
+    where: { id: idStable("s", 0) },
+    create: {
+      id: idStable("s", 0),
+      userId: null,
+      typeId: typeConge.id,
+      annee: lundi.getUTCFullYear(),
+      joursAttribues: 25,
+    },
+    update: { joursAttribues: 25 },
+  });
+  await prisma.leaveBalance.upsert({
+    where: { id: idStable("s", 1) },
+    create: {
+      id: idStable("s", 1),
+      userId: moi.id,
+      typeId: typeConge.id,
+      annee: lundi.getUTCFullYear(),
+      joursAttribues: 28,
+    },
+    update: { joursAttribues: 28 },
+  });
+
   for (const [i, c] of CONGES.entries()) {
     await prisma.leave.upsert({
       where: { id: idStable("c", i) },
@@ -325,7 +353,16 @@ export async function peuplerMaquette(
         statut: c.statut,
         ...("demiDebut" in c ? { demiJourneeDebut: c.demiDebut } : {}),
       },
-      update: { dateDebut: jour(c.debut), dateFin: jour(c.fin), statut: c.statut },
+      // Le titulaire fait partie de la reprise : les identifiants sont
+      // stables, donc une entrée qui change de propriétaire garderait l'ancien
+      // si l'`update` l'omettait — et le congé de la personne connectée
+      // resterait celui de quelqu'un d'autre.
+      update: {
+        userId: agents[c.agent]!.id,
+        dateDebut: jour(c.debut),
+        dateFin: jour(c.fin),
+        statut: c.statut,
+      },
     });
   }
 
@@ -396,6 +433,10 @@ const PERMANENCES = [
 ] as const;
 
 const CONGES = [
+  // La vue 19 montre d'abord les congés de la personne connectée : sans l'un
+  // des siens, la liste est vide quoi que contienne la base.
+  { agent: 0, debut: 8, fin: 9, jours: 2, statut: "approved" },
+  { agent: 0, debut: 15, fin: 15, jours: 1, statut: "pending" },
   { agent: 2, debut: 1, fin: 2, jours: 2, statut: "pending" },
   // Demi-journée : `is-half`, `is-am`, `is-pm` n'ont aucune autre source.
   { agent: 4, debut: 3, fin: 3, jours: 0.5, statut: "approved", demiDebut: "afternoon" },
