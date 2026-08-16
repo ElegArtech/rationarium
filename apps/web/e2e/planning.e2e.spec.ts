@@ -197,6 +197,77 @@ test.describe("Vue 07 — planning, semaine", () => {
     await expect(page.getByRole("button", { name: /Ana Berger, 2026-08-13/ })).toHaveCount(0);
   });
 
+  test("le PANNEAU DE DÉTAIL est monté en permanence, et INERTE quand il est fermé", async ({
+    page,
+  }) => {
+    await horlogeFixe(page);
+    await serveur(page, { session: SESSION_PLANNING, reponses });
+    await page.goto("/planning");
+
+    // La charpente est là dès le premier rendu — c'est la translation qui
+    // ouvre, pas le montage. Un panneau monté au clic ferait apparaître et
+    // disparaître un point de repère `dialog` de l'arbre d'accessibilité.
+    const panneau = page.locator(".drawer");
+    await expect(panneau).toHaveAttribute("role", "dialog");
+    await expect(panneau.locator(".drawer-head")).toHaveCount(1);
+    await expect(panneau.locator(".drawer-body .dl")).toHaveCount(1);
+
+    // Fermé, il ne se tabule pas : `aria-hidden` seul laisserait le bouton de
+    // fermeture atteignable, et le clavier repartirait dans l'invisible.
+    await expect(panneau).not.toHaveClass(/is-open/);
+    await expect(panneau.getByRole("button", { name: "Fermer le détail" })).toHaveCount(0);
+
+    // Avec le droit de déplacer, l'occupation ouvre son menu ; c'est
+    // « Voir le détail » qui ouvre le panneau.
+    await page.getByRole("button", { name: /Rédiger la note de cadrage/ }).first().click();
+    await page.getByRole("menuitem", { name: "Voir le détail" }).click();
+    await expect(panneau).toHaveClass(/is-open/);
+    await expect(panneau.getByRole("button", { name: "Fermer le détail" })).toBeVisible();
+  });
+
+  test("le « + » de cellule suit le droit de créer, jamais l'inverse", async ({ page }) => {
+    await horlogeFixe(page);
+    await serveur(page, { session: SESSION_PLANNING, reponses });
+    await page.goto("/planning");
+
+    // `RG-GEN-06` — proposé parce que le droit est là.
+    await expect(
+      page.getByRole("link", { name: /Créer ici — Ana Berger, 2026-08-10/ }),
+    ).toHaveCount(1);
+
+    const sansCreation = {
+      ...SESSION_PLANNING,
+      permissions: SESSION_PLANNING.permissions.filter((p) => p !== "tasks:create"),
+    };
+    await serveur(page, { session: sansCreation, reponses });
+    await page.goto("/planning");
+    await expect(page.locator(".cell-add")).toHaveCount(0);
+  });
+
+  test("LA FEUILLE D'IMPRESSION S'APPLIQUE — elle n'existe pas seulement", async ({ page }) => {
+    await horlogeFixe(page);
+    await serveur(page, { session: SESSION_PLANNING, reponses });
+    await page.goto("/planning");
+
+    // Une `@media print` ne se vérifie qu'en émulant le média : des
+    // sélecteurs qui ne correspondent à rien restent muets, jamais rouges.
+    // Ce défaut-là a déjà traversé deux lots.
+    await page.emulateMedia({ media: "print" });
+
+    await expect(page.locator(".side")).toBeHidden();
+    await expect(page.locator(".topbar")).toBeHidden();
+    await expect(page.locator(".filters")).toBeHidden();
+    await expect(page.locator(".pl-toolbar")).toBeHidden();
+    await expect(page.locator(".drawer")).toBeHidden();
+
+    // L'en-tête d'impression, lui, n'existe QUE sur papier : une feuille sans
+    // période est inexploitable dès qu'elle a quitté la main de qui l'a sortie.
+    await expect(page.locator(".print-head")).toBeVisible();
+    await expect(page.locator(".pl")).toBeVisible();
+
+    await page.emulateMedia({ media: "screen" });
+  });
+
   test("RG-PLN-07 — sans le droit, aucune permanence n'est rendue", async ({ page }) => {
     await horlogeFixe(page);
     await serveur(page, {
@@ -359,8 +430,57 @@ test.describe("Vue 09 — planning, activité", () => {
     await serveur(page, { session: SESSION_PLANNING, reponses });
     await page.goto("/planning/activite");
 
-    await expect(page.getByText("Jours en lignes")).toBeVisible();
-    await expect(page.getByText("Tâches en colonnes")).toBeVisible();
+    // La maquette 09 annonce l'inversion DEUX fois, et ce n'est pas une
+    // redondance : le bandeau la porte hors de la grille — donc y compris
+    // quand la grille est vide, le moment précis où l'on cherche à
+    // comprendre la vue —, la cellule d'angle la rappelle à la lecture.
+    await expect(
+      page.getByText(
+        "les axes sont inversés par rapport aux vues Semaine et Mois",
+        { exact: false },
+      ),
+    ).toBeVisible();
+
+    // Dans l'angle, la maquette dit « Jours » et « Tâches », rien de plus :
+    // les deux flèches portent le sens. `exact` est obligatoire — sans lui,
+    // « Tâches » attraperait « Tâches prédéfinies » de la barre latérale.
+    await expect(page.getByText("Jours", { exact: true })).toBeVisible();
+    await expect(
+      page.locator(".act-corner").getByText("Tâches", { exact: true }),
+    ).toBeVisible();
+  });
+
+  test("le bandeau d'axes reste lisible quand la grille est vide", async ({ page }) => {
+    await horlogeFixe(page);
+    await serveur(page, {
+      session: SESSION_PLANNING,
+      reponses: {
+        ...reponses,
+        "/api/planning/activite": {
+          corps: { colonnes: [], lignes: [], trame: { joursChomes: [], vacances: [] } },
+        },
+      },
+    });
+    await page.goto("/planning/activite");
+
+    await expect(page.getByText("Aucune tâche prédéfinie active")).toBeVisible();
+    await expect(
+      page.getByText("les jours sont en lignes, les tâches prédéfinies en colonnes", {
+        exact: false,
+      }),
+    ).toBeVisible();
+  });
+
+  test("la clé de lecture des marqueurs de réalisation est donnée", async ({ page }) => {
+    await horlogeFixe(page);
+    await serveur(page, { session: SESSION_PLANNING, reponses });
+    await page.goto("/planning/activite");
+
+    // Trois marqueurs — « · », « ✓ », « ✗ » — ne se devinent pas.
+    const cle = page.locator(".legende-statuts");
+    await expect(cle.getByText("Prévue", { exact: true })).toBeVisible();
+    await expect(cle.getByText("Réalisée", { exact: true })).toBeVisible();
+    await expect(cle.getByText("Non réalisée", { exact: true })).toBeVisible();
   });
 
   test("les tâches sont en colonnes, les jours en lignes", async ({ page }) => {
@@ -472,5 +592,94 @@ test.describe("Vue 09 — planning, activité", () => {
 
     await expect(page.getByText("Aucune tâche prédéfinie active")).toBeVisible();
     await expect(page.getByRole("link", { name: "Ouvrir le catalogue" })).toBeVisible();
+  });
+});
+
+// ── Ce que la base de démonstration ne peut pas montrer ─────────────────────
+
+/**
+ * **Le vocabulaire de classes des maquettes, prouvé sur données.**
+ *
+ * `pnpm ui:diff` compare la maquette à l'instance réelle. Or l'instance de
+ * développement porte le jeu de VOLUMÉTRIE — noms neutres, aucun projet
+ * illustré, aucune tâche hors projet, aucun férié, aucune vacance scolaire.
+ * Une dizaine de classes de la maquette y sont donc réputées « absentes »
+ * alors que le code les pose ; sans ce contrôle, rien ne permettrait de
+ * distinguer « la vue ne sait pas les rendre » de « la base n'a pas le cas ».
+ *
+ * C'est exactement la question que le comparateur ne peut pas trancher, et
+ * celle qu'il faut trancher avant de conclure quoi que ce soit sur un écart.
+ */
+test.describe("le vocabulaire de la maquette est posé dès que la donnée existe", () => {
+  test("vue 07 — les classes réputées manquantes apparaissent sur le jeu de démonstration", async ({
+    page,
+  }) => {
+    await horlogeFixe(page);
+    await serveur(page, { session: SESSION_PLANNING, reponses });
+    await page.goto("/planning");
+
+    // Une tâche hors projet : filet interrompu.
+    await expect(page.locator(".occ.is-indep")).not.toHaveCount(0);
+    // Une intervention extérieure : l'étiquette « EXT ».
+    await expect(page.locator(".occ-ext")).not.toHaveCount(0);
+    // Une demi-journée de congé.
+    await expect(page.locator(".leave.is-half")).not.toHaveCount(0);
+    // Le jour courant, l'horloge étant figée au 12 août 2026.
+    await expect(page.locator(".pl-head.is-today")).not.toHaveCount(0);
+    await expect(page.locator(".cell.is-today")).not.toHaveCount(0);
+    // La trame de vacances scolaires.
+    await expect(page.locator(".pl-bandcell.is-vac")).not.toHaveCount(0);
+    // La synthèse au-delà du seuil d'alerte.
+    await expect(page.locator(".sum-cell.is-high")).not.toHaveCount(0);
+    // La pastille de projet, quand le référentiel porte une icône.
+    await expect(page.locator(".pglyph")).not.toHaveCount(0);
+  });
+
+  test("vue 08 — la micro-cellule porte ses états", async ({ page }) => {
+    await horlogeFixe(page);
+    await serveur(page, {
+      session: SESSION_PLANNING,
+      reponses: { ...reponses, "/api/planning": { corps: MOIS } },
+    });
+    await page.goto("/planning/mois");
+
+    await expect(page.locator(".mcell.is-today")).not.toHaveCount(0);
+    await expect(page.locator(".mbar.is-indep")).not.toHaveCount(0);
+    await expect(page.locator(".mo-band.is-vac")).not.toHaveCount(0);
+    // La demi-journée : l'aplat ne couvre que la moitié de la micro-cellule.
+    await expect(page.locator(".mleave.is-am, .mleave.is-pm")).not.toHaveCount(0);
+  });
+
+  test("vue 09 — la grille pose tout son vocabulaire dès qu'une tâche est active", async ({
+    page,
+  }) => {
+    await horlogeFixe(page);
+    await serveur(page, { session: SESSION_PLANNING, reponses });
+    await page.goto("/planning/activite");
+
+    for (const classe of [
+      ".act",
+      ".act-corner",
+      ".act-head",
+      ".act-head-top",
+      ".act-glyph",
+      ".act-name",
+      ".act-sub",
+      ".act-day",
+      ".act-dow",
+      ".act-date",
+      ".acell",
+      ".acell-none",
+      ".acell-add",
+      ".agent",
+      ".agent-av",
+      ".agent-name",
+      ".agent-st",
+      ".ax",
+      ".ax-line",
+      ".ax-arrow",
+    ]) {
+      await expect(page.locator(classe), `classe ${classe}`).not.toHaveCount(0);
+    }
   });
 });

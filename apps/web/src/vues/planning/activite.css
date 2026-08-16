@@ -305,6 +305,16 @@
   color: var(--muted);
 }
 
+/* ── Clé de lecture des marqueurs de réalisation ────────────────────────── */
+/* Les trois marqueurs de cellule — « · », « ✓ », « ✗ » — ne se devinent pas.
+   La maquette range leur légende sur une seule ligne, à plat. */
+
+.legende-statuts {
+  display: flex;
+  gap: 22px;
+  flex-wrap: wrap;
+}
+
 /* ── Impression : affichée en salle de service, en noir et blanc ────────── */
 
 /* `.print-head`, `.print-title` et `.print-meta` vivent dans le socle depuis

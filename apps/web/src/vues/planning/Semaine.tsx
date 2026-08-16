@@ -41,6 +41,7 @@ export function GrilleSemaine({
   personnes,
   teletravailModifiable,
   deplacementPossible,
+  creationPossible,
   surSelection,
   surDeplacer,
   surBasculerTeletravail,
@@ -54,6 +55,8 @@ export function GrilleSemaine({
   personnes: PersonnePlanning[];
   teletravailModifiable: boolean;
   deplacementPossible: boolean;
+  /** `RG-GEN-06` — sans le droit de créer, le « + » de cellule n'est pas proposé. */
+  creationPossible: boolean;
   surSelection: (s: Selection) => void;
   surDeplacer: (d: Deplacement) => void;
   surBasculerTeletravail: (userId: string, date: string, etat: string) => void;
@@ -80,7 +83,10 @@ export function GrilleSemaine({
   };
 
   return (
-    <div className="pl-wrap">
+    // Un cadre défilant dont le contenu n'est ni lien ni bouton est
+    // inatteignable au clavier — `axe` le refuse en « serious »
+    // (`scrollable-region-focusable`). La maquette pose le même repère.
+    <div className="pl-wrap" role="region" tabIndex={0} aria-label={t("grilleRegion")}>
       <div className="pl" style={styleGrille}>
         <div className="pl-corner">
           <span className="eyebrow">{t("colonneRessource")}</span>
@@ -149,6 +155,7 @@ export function GrilleSemaine({
                   personnes={personnes}
                   teletravailModifiable={teletravailModifiable}
                   deplacementPossible={deplacementPossible}
+                  creationPossible={creationPossible}
                   surSelection={surSelection}
                   surDeplacer={surDeplacer}
                   surBasculerTeletravail={surBasculerTeletravail}
@@ -234,6 +241,7 @@ function LignePersonne({
   personnes,
   teletravailModifiable,
   deplacementPossible,
+  creationPossible,
   surSelection,
   surDeplacer,
   surBasculerTeletravail,
@@ -250,6 +258,7 @@ function LignePersonne({
   personnes: PersonnePlanning[];
   teletravailModifiable: boolean;
   deplacementPossible: boolean;
+  creationPossible: boolean;
   surSelection: (s: Selection) => void;
   surDeplacer: (d: Deplacement) => void;
   surBasculerTeletravail: (userId: string, date: string, etat: string) => void;
@@ -356,6 +365,24 @@ function LignePersonne({
                   n: cellule.occupations.length - MAX_VISIBLES,
                 })}
               </Button>
+            ) : null}
+
+            {/* La maquette pose un « + » de création au coin de chaque
+                cellule : créer se fait là où l'on regarde, sans remonter à
+                la barre d'outils. Il n'apparaît qu'au survol et à la prise
+                de focus — un « + » permanent sur cinq cents cellules serait
+                du bruit. Masqué sans le droit (`RG-GEN-06`). */}
+            {creationPossible ? (
+              <a
+                className="cell-add"
+                href="/taches"
+                aria-label={t("actions.creerIci", {
+                  nom: `${personne.prenom} ${personne.nom}`,
+                  date: jour,
+                })}
+              >
+                <span aria-hidden="true">+</span>
+              </a>
             ) : null}
           </div>
         );
@@ -483,9 +510,9 @@ function Occupation({
   const contenu = (
     <>
       {tache.project?.icone ? (
-        <span className="picon-glyphe" aria-hidden="true">
+        <i className="pglyph" aria-hidden="true">
           {tache.project.icone}
-        </span>
+        </i>
       ) : null}
       <span>{tache.titre}</span>
     </>

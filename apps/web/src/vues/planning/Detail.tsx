@@ -31,30 +31,43 @@ export function PanneauDetail({
 }) {
   const { t } = useTranslation("planning");
 
+  const ouvert = selection !== null;
+
+  /*
+   * Le panneau est TOUJOURS monté, comme dans les maquettes 07 et 08 : c'est
+   * la translation qui l'ouvre et le referme, pas un montage. Le monter au
+   * clic ferait sauter l'animation et, surtout, ferait apparaître et
+   * disparaître un point de repère `dialog` de l'arbre d'accessibilité.
+   *
+   * Fermé, il est `inert` : `aria-hidden` seul laisserait le bouton de
+   * fermeture atteignable à la tabulation — c'est exactement la combinaison
+   * qu'`axe` refuse (`aria-hidden-focus`), et le clavier repartirait dans un
+   * panneau invisible.
+   */
   return (
     <aside
-      className={`drawer${selection ? " is-open" : ""}`}
-      aria-hidden={selection ? undefined : true}
+      className={`drawer${ouvert ? " is-open" : ""}`}
+      role="dialog"
+      inert={!ouvert}
+      aria-hidden={ouvert ? undefined : true}
       aria-label={t("detail.titre")}
     >
-      {selection ? (
-        <>
-          <div className="drawer-head">
-            <div>
-              <span className="eyebrow">{t(`detail.genre_${selection.genre}`)}</span>
-              <p className="panel-title modal-titre">
-                <TitreDetail selection={selection} />
-              </p>
-            </div>
-            <Button className="icon-btn" onPress={surFermer} aria-label={t("detail.fermer")}>
-              <span aria-hidden="true">×</span>
-            </Button>
-          </div>
-          <div className="drawer-body">
-            <Corps selection={selection} />
-          </div>
-        </>
-      ) : null}
+      <div className="drawer-head">
+        <div>
+          <span className="eyebrow">
+            {selection ? t(`detail.genre_${selection.genre}`) : t("detail.titre")}
+          </span>
+          <p className="panel-title modal-titre">
+            {selection ? <TitreDetail selection={selection} /> : t("detail.aucuneSelection")}
+          </p>
+        </div>
+        <Button className="icon-btn" onPress={surFermer} aria-label={t("detail.fermer")}>
+          <span aria-hidden="true">×</span>
+        </Button>
+      </div>
+      <div className="drawer-body">
+        <Corps selection={selection} />
+      </div>
     </aside>
   );
 }
@@ -74,8 +87,22 @@ function TitreDetail({ selection }: { selection: Selection }) {
   );
 }
 
-function Corps({ selection }: { selection: Selection }) {
+function Corps({ selection }: { selection: Selection | null }) {
   const { t } = useTranslation("planning");
+
+  /*
+   * Panneau fermé : la charpente reste, vide. Les maquettes 07 et 08 portent
+   * en permanence `.hcard-list` et `.dl` dans le corps du panneau ; les
+   * remplir est le seul rôle de l'ouverture.
+   */
+  if (selection === null) {
+    return (
+      <>
+        <div className="hcard-list" />
+        <dl className="dl" />
+      </>
+    );
+  }
 
   if (selection.genre === "tache") {
     const tache = selection.tache;
@@ -144,8 +171,26 @@ function Corps({ selection }: { selection: Selection }) {
   }
 
   // Une cellule chargée : ce que la grille n'a pas eu la place de montrer.
+  // Les maquettes 07 et 08 rendent la journée en DEUX blocs — la liste des
+  // occupations, puis la synthèse du jour. La liste seule laissait sans
+  // réponse la question que la vue Mois pose le plus : « présent ou pas ? ».
   const { cellule } = selection;
+  const taches = cellule.occupations.filter((o) => o.genre === "tache");
+  const projets = [
+    ...new Set(
+      taches
+        .map((o) => (o.genre === "tache" ? o.tache.project?.nom : undefined))
+        .filter((n): n is string => Boolean(n)),
+    ),
+  ];
+  const presence = cellule.conge
+    ? t("detail.presenceAbsent")
+    : cellule.lieu
+      ? t(`presence.${cellule.lieu.etat}`)
+      : t("presence.nonDeclare");
+
   return (
+    <>
     <div className="hcard-list">
       {cellule.occupations.map((o) => (
         <span
@@ -173,5 +218,21 @@ function Corps({ selection }: { selection: Selection }) {
         <p className="hcard-none">{t("detail.celluleVide")}</p>
       ) : null}
     </div>
+
+    <dl className="dl">
+      <dt>{t("detail.taches")}</dt>
+      <dd>{t("detail.nTaches", { n: taches.length })}</dd>
+      <dt>{t("detail.projets")}</dt>
+      <dd>{projets.length > 0 ? projets.join(", ") : t("detail.aucunProjet")}</dd>
+      <dt>{t("detail.presence")}</dt>
+      <dd>{presence}</dd>
+      {cellule.conge ? (
+        <>
+          <dt>{t("detail.conge")}</dt>
+          <dd>{cellule.conge.type.nom}</dd>
+        </>
+      ) : null}
+    </dl>
+    </>
   );
 }
