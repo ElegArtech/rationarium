@@ -88,7 +88,7 @@ export class CalendrierService {
   async joursOuvres(
     debut: Date,
     fin: Date,
-    options: { demiJourneeDebut?: boolean; demiJourneeFin?: boolean } = {},
+    options: { demiJourneeDebut?: boolean | undefined; demiJourneeFin?: boolean | undefined } = {},
   ): Promise<number> {
     const chomes = await this.joursChomes(debut, fin);
 
@@ -130,7 +130,7 @@ export class CalendrierService {
   async repartitionParAnnee(
     debut: Date,
     fin: Date,
-    options: { demiJourneeDebut?: boolean; demiJourneeFin?: boolean } = {},
+    options: { demiJourneeDebut?: boolean | undefined; demiJourneeFin?: boolean | undefined } = {},
   ): Promise<{ annee: number; jours: number }[]> {
     const premiereAnnee = debut.getUTCFullYear();
     const derniereAnnee = fin.getUTCFullYear();
@@ -143,8 +143,8 @@ export class CalendrierService {
       const borneDebut = annee === premiereAnnee ? debut : new Date(Date.UTC(annee, 0, 1));
       const borneFin = annee === derniereAnnee ? fin : new Date(Date.UTC(annee, 11, 31));
       const jours = await this.joursOuvres(borneDebut, borneFin, {
-        demiJourneeDebut: annee === premiereAnnee ? options.demiJourneeDebut : false,
-        demiJourneeFin: annee === derniereAnnee ? options.demiJourneeFin : false,
+        demiJourneeDebut: annee === premiereAnnee && options.demiJourneeDebut === true,
+        demiJourneeFin: annee === derniereAnnee && options.demiJourneeFin === true,
       });
       if (jours > 0) parts.push({ annee, jours });
     }
