@@ -1,0 +1,1829 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trame — Planning, vue Semaine (Vue 07)</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Serif:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+/* ==========================================================================
+   TRAME — SOCLE GRAPHIQUE
+   Bloc canonique, recopié à l'identique dans chaque vue.
+   Aucune dépendance externe hors polices (substituts système déclarés).
+   Sommaire : 1 tokens · 2 base · 3 typo · 4 formulaires · 5 boutons
+              6 alertes · 7 gabarit connexion · 8 grille miniature
+              9 panneau de revue · 10 responsive
+   ========================================================================== */
+
+/* ── 1. TOKENS ─────────────────────────────────────────────────────────── */
+:root{
+  /* Surfaces & texte */
+  --paper:#F1F2F4;
+  --surface:#FFFFFF;
+  --surface-2:#FAFAFB;
+  --line:#D5D8DE;
+  --line-strong:#7E8698;
+  --ink:#14161C;
+  --muted:#5B6270;
+  --placeholder:#6E7583;
+
+  /* Accent unique */
+  --accent:#1B2A9B;
+  --accent-strong:#121D75;
+  --accent-soft:#E7EAF8;
+  --on-accent:#FFFFFF;
+  --brand-panel:#101A6E;
+
+  /* Statuts de tâche */
+  --st-todo:#5B6270;
+  --st-doing:#1B2A9B;
+  --st-review:#9A5B00;
+  --st-done:#146B3D;
+  --st-blocked:#AF2020;
+
+  /* Présence & absences */
+  --leave:#6A4BA6;
+  --leave-pending:#71609E;
+  --telework:#0C6E86;
+  --office:#5B6270;
+  --event:#B8420B;
+  --activity:#0F6E5C;
+
+  /* Retours d'état */
+  --danger-soft:#FBECEC;
+  --success-soft:#E8F4ED;
+  --warn-soft:#FCF2E2;
+
+  /* Trames de fond */
+  --trame-ferie:rgba(20,22,28,.055);
+  --trame-vacances:rgba(27,42,155,.05);
+
+  /* Chips sur surface de marque (contraste inversé) */
+  --ob-todo:#AEB6C7; --ob-doing:#8FA9FF; --ob-review:#F2C46A;
+  --ob-done:#6FD3A0; --ob-blocked:#FF9A9A; --ob-leave:#C3ABF5;
+  --ob-telework:#7FD7E8; --ob-activity:#6ED6BE; --ob-event:#FFAE7A;
+
+  /* Rythme */
+  --r:3px;                /* rayon standard : net, jamais arrondi mou */
+  --font-ui:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --font-display:'IBM Plex Serif',Georgia,'Times New Roman',serif;
+  --font-cond:'IBM Plex Sans Condensed','IBM Plex Sans',system-ui,sans-serif;
+  --font-mono:'IBM Plex Mono',ui-monospace,'SFMono-Regular',Consolas,monospace;
+}
+html.dark{
+  --paper:#0E1014;
+  --surface:#161922;
+  --surface-2:#1C202A;
+  --line:#2A2F3B;
+  --line-strong:#6B7486;
+  --ink:#E7E9EE;
+  --muted:#98A0AF;
+  --placeholder:#8E96A6;
+
+  --accent:#8093FF;
+  --accent-strong:#A3B0FF;
+  --accent-soft:#1A2044;
+  --on-accent:#0A0F2E;
+  --brand-panel:#0A0F45;
+
+  --st-todo:#98A0AF;
+  --st-doing:#8093FF;
+  --st-review:#E0A64B;
+  --st-done:#5EC48D;
+  --st-blocked:#F08585;
+
+  --leave:#B39BE8;
+  --leave-pending:#8E7FBD;
+  --telework:#5FC3D8;
+  --office:#98A0AF;
+  --event:#F0975E;
+  --activity:#54C7AE;
+
+  --danger-soft:#2C1618;
+  --success-soft:#12271C;
+  --warn-soft:#2A2113;
+
+  --trame-ferie:rgba(255,255,255,.05);
+  --trame-vacances:rgba(128,147,255,.07);
+}
+
+/* ── 2. BASE ───────────────────────────────────────────────────────────── */
+*,*::before,*::after{ box-sizing:border-box; }
+html,body{ margin:0; padding:0; }
+body{
+  background:var(--paper); color:var(--ink);
+  font-family:var(--font-ui); font-size:15px; line-height:1.5;
+  -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+  min-height:100vh;
+}
+[hidden]{ display:none !important; }
+a{ color:inherit; }
+button{ font:inherit; color:inherit; background:none; border:none; padding:0; cursor:pointer; }
+:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+@keyframes spin{ to{ transform:rotate(360deg); } }
+@keyframes rise{ from{ opacity:0; transform:translateY(4px); } to{ opacity:1; transform:none; } }
+
+
+
+/* La pastille de projet porte l'icône du référentiel, jamais une initiale :
+   deux projets peuvent commencer par la même lettre, pas porter la même icône. */
+.pgi{ width:64%; height:64%; fill:none; stroke:currentColor; stroke-width:1.7;
+  stroke-linecap:round; stroke-linejoin:round; }
+
+
+@media print{
+  #review, .toasts, .skip, .hcard, .pop, .scrim-modal{ display:none !important; }
+  body{ background:#fff; }
+  a[href]::after{ content:''; }
+}
+
+/* ── ACCESSIBILITÉ — passe transversale ────────────────────────────────── */
+/* Bordures de contrôle relevées à 3:1, texte d'espace réservé à 4,5:1,
+   mouvement respectant la préférence système, contrastes forcés pris en charge. */
+.skip{ position:absolute; left:12px; top:-64px; z-index:200; background:var(--accent);
+  color:var(--on-accent); padding:11px 17px; border-radius:var(--r);
+  font-size:13px; font-weight:600; text-decoration:none; transition:top .12s ease; }
+.skip:focus{ top:12px; }
+.sr-only{ position:absolute; width:1px; height:1px; padding:0; margin:-1px;
+  overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0; }
+
+/* Toute frontière de contrôle doit être perceptible, pas seulement les champs */
+.chip-btn,.icon-btn,.ms-toggle,.rv-btn,.seg,.nav-sq,.pm-all,.ms-ico,.mdel,
+.day-opt,.svc-chip,.icat,.doc-ic,.sess-ic,.au-sys{ border-color:var(--line-strong); }
+
+/* Micro-typographie relevée : sous 9,5 px, le monospace capitalisé décroche */
+.pill,.tt-mark,.mx-cov-n,.msum-n,.au-code,.us-login,.lock-tag,.tt-ok,
+.occ-ext,.diff-pill,.scope,.tpl-n{ font-size:9.5px; }
+
+[role="region"][tabindex="0"]:focus-visible{ outline:2px solid var(--accent); outline-offset:-2px; }
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{
+    animation-duration:.01ms !important; animation-iteration-count:1 !important;
+    transition-duration:.01ms !important; scroll-behavior:auto !important; }
+}
+@media (forced-colors:active){
+  .btn,.chip-btn,.field,.pm-box,.toggle,.mini-select{ border:1px solid ButtonText; }
+  .pm-box[aria-pressed="true"],.toggle[aria-pressed="true"]{ forced-color-adjust:none; }
+  .bar > i,.mbar,.tchip,.occ,.lvl{ forced-color-adjust:none; }
+}
+
+/* ── 3. TYPOGRAPHIE ────────────────────────────────────────────────────── */
+/* Le libellé mono est le dispositif de repérage récurrent du produit. */
+.eyebrow{
+  font-family:var(--font-mono); font-size:10.5px; font-weight:500;
+  letter-spacing:.14em; text-transform:uppercase; color:var(--muted);
+  text-decoration:none;
+}
+a.eyebrow:hover{ color:var(--ink); }
+.h1{ font-family:var(--font-display); font-size:28px; font-weight:600; letter-spacing:-.01em; margin:8px 0 6px; }
+.lede{ font-size:14px; color:var(--muted); line-height:1.55; margin:0; }
+
+/* ── 4. FORMULAIRES ────────────────────────────────────────────────────── */
+.field-block{ margin-bottom:16px; }
+.field-label{ display:block; font-size:12.5px; font-weight:600; letter-spacing:.01em; margin-bottom:6px; }
+.field-head{ display:flex; align-items:baseline; justify-content:space-between; margin-bottom:6px; }
+.field-head .field-label{ margin-bottom:0; }
+.field{
+  width:100%; display:block;
+  background:var(--surface); color:var(--ink);
+  border:1px solid var(--line-strong); border-radius:var(--r);
+  padding:11px 13px; font-family:var(--font-ui); font-size:14.5px; line-height:1.3;
+  transition:border-color .12s ease, box-shadow .12s ease, background-color .12s ease;
+}
+.field::placeholder{ color:var(--placeholder); opacity:1; }
+.field:focus{ outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
+.field[aria-invalid="true"]{ border-color:var(--st-blocked); }
+.field[aria-invalid="true"]:focus{ box-shadow:0 0 0 3px var(--danger-soft); }
+.field:disabled{ background:var(--surface-2); color:var(--muted); cursor:not-allowed; }
+.field-error{ font-size:12.5px; color:var(--st-blocked); margin:5px 0 0; display:flex; gap:5px; align-items:flex-start; line-height:1.4; }
+/* Le message garde sa place quand il est muet : le formulaire ne saute jamais. */
+.field-error.is-quiet{ visibility:hidden; }
+/* Indicateur de politique de mot de passe (vues 02 · 04 · 05) */
+.policy{ margin-top:9px; display:grid; grid-template-columns:1fr 1fr; gap:5px 14px; }
+.policy-item{ display:flex; align-items:center; gap:7px; font-size:11.5px; color:var(--muted); transition:color .15s ease; }
+.policy-mark{
+  display:inline-flex; align-items:center; justify-content:center; flex:none;
+  width:14px; height:14px; border:1px solid var(--line-strong); border-radius:2px;
+  font-family:var(--font-mono); font-size:9px; color:var(--muted);
+  transition:color .15s ease, border-color .15s ease;
+}
+.policy-item.is-met{ color:var(--st-done); }
+.policy-item.is-met .policy-mark{ color:var(--st-done); border-color:var(--st-done); }
+.btn-stack{ display:grid; gap:8px; }
+.sent-addr{ display:flex; flex-direction:column; gap:3px; margin:0 0 16px;
+  padding:10px 12px; border:1px solid var(--line); border-radius:var(--r); background:var(--surface); }
+.sent-mail{ font-family:var(--font-mono); font-size:12.5px; color:var(--ink); word-break:break-all; }
+.rv-note{ font-family:var(--font-mono); font-size:9px; line-height:1.5; color:var(--muted); margin:6px 0 0; }
+
+.field-wrap{ position:relative; }
+.field-wrap .field{ padding-right:92px; }
+.pw-toggle{
+  position:absolute; right:6px; top:50%; transform:translateY(-50%);
+  font-family:var(--font-mono); font-size:11px; letter-spacing:.06em;
+  color:var(--muted); padding:5px 7px; border-radius:2px;
+}
+.pw-toggle:hover{ color:var(--ink); background:var(--accent-soft); }
+
+/* ── 5. BOUTONS ────────────────────────────────────────────────────────── */
+.btn{
+  display:inline-flex; align-items:center; justify-content:center; gap:8px;
+  border-radius:var(--r); font-size:14px; font-weight:600; letter-spacing:.01em;
+  padding:11px 18px; border:1px solid transparent;
+  transition:background-color .12s ease, border-color .12s ease, color .12s ease;
+}
+.btn-primary{ background:var(--accent); color:var(--on-accent); }
+.btn-primary:hover:not(:disabled){ background:var(--accent-strong); }
+.btn-secondary{ background:var(--surface); color:var(--ink); border-color:var(--line-strong); }
+.btn-secondary:hover:not(:disabled){ border-color:var(--accent); color:var(--accent); }
+.btn-block{ width:100%; }
+.btn:disabled{ opacity:.6; cursor:not-allowed; }
+.link{ color:var(--accent); text-decoration:none; border-bottom:1px solid transparent; }
+.link:hover{ border-bottom-color:currentColor; }
+.link-sm{ font-size:12.5px; }
+
+.spinner{
+  display:inline-block; width:14px; height:14px; border-radius:50%;
+  border:2px solid rgba(255,255,255,.35); border-top-color:#fff;
+  animation:spin .7s linear infinite;
+}
+.spinner-ink{ border-color:var(--line); border-top-color:var(--accent); width:12px; height:12px; }
+
+/* Groupe segmenté (langue) */
+.seg{ display:inline-flex; border:1px solid var(--line); border-radius:var(--r); overflow:hidden; }
+.seg button{
+  font-family:var(--font-mono); font-size:10.5px; letter-spacing:.08em;
+  padding:5px 9px; color:var(--muted); background:var(--surface);
+}
+.seg button + button{ border-left:1px solid var(--line); }
+.seg button[aria-pressed="true"]{ background:var(--accent); color:var(--on-accent); }
+.chip-btn{
+  font-family:var(--font-mono); font-size:10.5px; letter-spacing:.04em;
+  padding:5px 9px; border:1px solid var(--line); border-radius:var(--r);
+  background:var(--surface); color:var(--muted);
+}
+.chip-btn:hover{ color:var(--ink); border-color:var(--line-strong); }
+
+/* ── 6. ALERTES ────────────────────────────────────────────────────────── */
+.alert{
+  display:flex; gap:10px; padding:11px 13px; border-radius:var(--r);
+  border:1px solid; font-size:13.5px; line-height:1.45; margin-bottom:20px;
+}
+.alert-error{ background:var(--danger-soft); border-color:var(--st-blocked); color:var(--st-blocked); }
+.alert-success{ background:var(--success-soft); border-color:var(--st-done); color:var(--st-done); }
+/* Neutre : confirme qu'une action a eu lieu sans rien affirmer sur les données. */
+.alert-neutral{ background:var(--accent-soft); border-color:var(--accent); color:var(--ink); }
+.alert-neutral .alert-icon{ color:var(--accent); }
+.alert-warn{ background:var(--warn-soft); border-color:var(--st-review); color:var(--st-review); }
+.alert-icon{ flex:none; font-weight:700; }
+
+/* ── 7. COQUILLE APPLICATIVE (§ B) ─────────────────────────────────────── */
+.app{ display:grid; grid-template-columns:242px 1fr; min-height:100vh; }
+.app.is-collapsed{ grid-template-columns:62px 1fr; }
+
+/* Barre latérale */
+.side{ background:var(--surface); border-right:1px solid var(--line); display:flex; flex-direction:column;
+  position:sticky; top:0; height:100vh; overflow:hidden; }
+.side-head{ display:flex; align-items:center; justify-content:space-between; gap:8px;
+  padding:15px 16px; border-bottom:1px solid var(--line); min-height:57px; }
+.side-mark{ font-family:var(--font-display); font-size:20px; font-weight:600; letter-spacing:-.01em; }
+.app.is-collapsed .side-mark{ font-size:17px; }
+.side-nav{ flex:1; overflow-y:auto; padding:12px 0 20px; }
+.nav-group{ margin-bottom:16px; }
+.nav-legend{ font-family:var(--font-mono); font-size:9px; font-weight:500; letter-spacing:.16em;
+  text-transform:uppercase; color:var(--muted); margin:0 0 5px; padding:0 16px; }
+.app.is-collapsed .nav-legend{ visibility:hidden; height:9px; margin-bottom:8px; }
+.nav-item{ display:flex; align-items:center; gap:11px; padding:7px 16px; font-size:13.5px;
+  color:var(--ink); text-decoration:none; border-left:2px solid transparent; white-space:nowrap; }
+.nav-item:hover{ background:var(--surface-2); }
+.nav-item.is-active{ border-left-color:var(--accent); color:var(--accent); background:var(--accent-soft); font-weight:600; }
+.nav-item .ico{ flex:none; color:var(--muted); }
+.nav-item.is-active .ico{ color:var(--accent); }
+.app.is-collapsed .nav-item span{ display:none; }
+.app.is-collapsed .nav-item{ justify-content:center; padding:9px 0; }
+.side-foot{ border-top:1px solid var(--line); padding:10px 16px; }
+.app.is-collapsed .side-foot{ padding:10px 8px; }
+
+/* En-tête */
+.topbar{ position:sticky; top:0; z-index:30; background:var(--surface); border-bottom:1px solid var(--line);
+  display:flex; align-items:center; gap:14px; padding:0 20px; min-height:57px; }
+.crumb{ display:flex; align-items:center; gap:7px; font-size:13px; color:var(--muted); white-space:nowrap; }
+.crumb b{ color:var(--ink); font-weight:600; }
+.search{ position:relative; flex:1; max-width:380px; }
+.search .ico{ position:absolute; left:10px; top:50%; transform:translateY(-50%); color:var(--muted); }
+.search input{ width:100%; background:var(--paper); border:1px solid var(--line); border-radius:var(--r);
+  padding:7px 11px 7px 32px; font-family:var(--font-ui); font-size:13px; color:var(--ink); }
+.search input:focus{ outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); background:var(--surface); }
+.topbar-right{ margin-left:auto; display:flex; align-items:center; gap:8px; }
+.icon-btn{ display:inline-flex; align-items:center; justify-content:center; width:31px; height:31px;
+  border:1px solid var(--line); border-radius:var(--r); color:var(--muted); background:var(--surface); position:relative; }
+.icon-btn:hover{ color:var(--ink); border-color:var(--line-strong); }
+.dot-badge{ position:absolute; top:-5px; right:-5px; min-width:16px; height:16px; padding:0 4px;
+  background:var(--st-blocked); color:#fff; border-radius:8px; font-family:var(--font-mono);
+  font-size:9px; display:flex; align-items:center; justify-content:center; }
+.avatar{ width:29px; height:29px; border-radius:50%; background:var(--accent); color:var(--on-accent);
+  display:flex; align-items:center; justify-content:center; font-family:var(--font-mono); font-size:10.5px; flex:none; }
+.usermenu-btn{ display:flex; align-items:center; gap:9px; padding:3px 8px 3px 3px;
+  border:1px solid var(--line); border-radius:20px; background:var(--surface); }
+.usermenu-btn:hover{ border-color:var(--line-strong); }
+.um-name{ font-size:12.5px; font-weight:600; line-height:1.15; }
+.um-role{ font-family:var(--font-mono); font-size:9px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); }
+
+/* Panneaux flottants */
+.pop{ position:absolute; top:46px; right:0; width:330px; background:var(--surface);
+  border:1px solid var(--line-strong); border-radius:var(--r); z-index:40; }
+.pop-sm{ width:190px; }
+.pop-head{ display:flex; align-items:center; justify-content:space-between; gap:10px;
+  padding:10px 13px; border-bottom:1px solid var(--line); }
+.pop-list{ max-height:330px; overflow-y:auto; }
+.pop-item{ display:flex; gap:10px; padding:11px 13px; border-bottom:1px solid var(--line); text-decoration:none; }
+.pop-item:last-child{ border-bottom:none; }
+.pop-item:hover{ background:var(--surface-2); }
+.pop-item.is-unread{ background:var(--accent-soft); }
+.pop-mark{ width:6px; height:6px; border-radius:50%; background:var(--accent); flex:none; margin-top:6px; }
+.pop-item:not(.is-unread) .pop-mark{ background:transparent; }
+.pop-body{ min-width:0; }
+.pop-title{ font-size:12.5px; font-weight:600; line-height:1.35; }
+.pop-meta{ font-family:var(--font-mono); font-size:9.5px; color:var(--muted); margin-top:3px; display:block; }
+.pop-action{ display:block; padding:9px 13px; font-size:12.5px; color:var(--ink); text-decoration:none; }
+.pop-action:hover{ background:var(--surface-2); }
+.pop-action + .pop-action{ border-top:1px solid var(--line); }
+.has-pop{ position:relative; }
+
+/* ── 8. GABARIT DE PAGE ────────────────────────────────────────────────── */
+.main{ min-width:0; display:flex; flex-direction:column; }
+.page{ padding:22px 24px 40px; max-width:1360px; width:100%; }
+.greet{ margin-bottom:20px; }
+.greet .h1{ margin:6px 0 4px; }
+.panel{ background:var(--surface); border:1px solid var(--line); border-radius:var(--r); }
+.panel + .panel{ margin-top:16px; }
+.panel-head{ display:flex; align-items:center; justify-content:space-between; gap:12px;
+  padding:11px 14px; border-bottom:1px solid var(--line); }
+.panel-title{ font-size:13.5px; font-weight:600; }
+.panel-body{ padding:14px; }
+.panel-body.is-flush{ padding:0; }
+.empty{ text-align:center; padding:24px 16px; }
+.empty p{ margin:0 0 4px; font-size:13px; color:var(--ink); }
+.empty small{ font-size:12px; color:var(--muted); display:block; margin-bottom:10px; }
+
+/* Indicateurs */
+.kpi-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:18px; }
+.kpi{ background:var(--surface); border:1px solid var(--line); border-radius:var(--r); padding:13px 14px; }
+.kpi-val{ font-family:var(--font-display); font-size:28px; font-weight:600; line-height:1.1; margin:6px 0 2px; }
+.kpi-sub{ font-size:11.5px; color:var(--muted); }
+.kpi.is-alert .kpi-val{ color:var(--st-blocked); }
+.kpi.is-alert .kpi-sub{ color:var(--st-blocked); }
+
+.dash-grid{ display:grid; grid-template-columns:minmax(0,1.55fr) minmax(0,1fr); gap:16px; align-items:start; }
+
+/* ── 9. VOCABULAIRE DES OCCUPATIONS SUR SURFACE CLAIRE ─────────────────── */
+/* Même grammaire que la grille du planning : couleur = statut, pastille = projet. */
+.pglyph{ display:inline-flex; align-items:center; justify-content:center; flex:none;
+  width:15px; height:15px; border:1px solid var(--line-strong); border-radius:2px;
+  font-family:var(--font-mono); font-size:8px; font-style:normal; color:var(--muted); background:var(--surface); }
+.tchip{ display:flex; align-items:center; gap:5px; font-family:var(--font-cond); font-size:11px;
+  line-height:1.3; padding:3px 5px; border-radius:2px; border-left:3px solid currentColor;
+  background:var(--surface-2); background:color-mix(in srgb, currentColor 12%, var(--surface)); }
+.tchip > span{ color:var(--ink); min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.tchip .pglyph{ width:12px; height:12px; font-size:7px; background:transparent; }
+.tchip-indep{ border-left-style:dashed; }
+.tchip-flat{ border-left:none; padding-left:8px; }
+
+/* Extrait de semaine personnel */
+.week{ display:grid; grid-template-columns:repeat(5,1fr); }
+.week-col + .week-col{ border-left:1px solid var(--line); }
+.week-day{ font-family:var(--font-cond); font-size:10.5px; font-weight:600; letter-spacing:.08em;
+  text-transform:uppercase; color:var(--muted); padding:8px 9px 6px; }
+.week-col.is-today .week-day{ color:var(--accent); }
+.week-col.is-today{ background:var(--accent-soft); }
+.week-cell{ padding:0 6px 10px; display:flex; flex-direction:column; gap:3px; min-height:74px; }
+.week-none{ font-family:var(--font-mono); font-size:10px; color:var(--muted); padding:2px 3px; }
+
+/* Lignes de tâches */
+.tabs{ display:flex; gap:2px; }
+.tab{ font-size:12.5px; padding:5px 10px; border:1px solid transparent; border-radius:var(--r); color:var(--muted); }
+.tab[aria-selected="true"]{ background:var(--accent-soft); color:var(--accent); font-weight:600; }
+.trow{ display:grid; grid-template-columns:minmax(0,1fr) auto auto; gap:12px; align-items:center;
+  padding:10px 14px; border-bottom:1px solid var(--line); }
+.trow:last-child{ border-bottom:none; }
+.trow:hover{ background:var(--surface-2); }
+.trow-title{ display:flex; align-items:center; gap:7px; font-size:13.5px; font-weight:600; min-width:0; }
+.trow-title span{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.trow-meta{ font-family:var(--font-mono); font-size:9.5px; color:var(--muted); margin-top:3px; display:block; }
+.badge{ font-family:var(--font-mono); font-size:8.5px; letter-spacing:.08em; text-transform:uppercase;
+  padding:2px 5px; border-radius:2px; border:1px solid currentColor; flex:none; }
+.badge-late{ color:var(--st-blocked); }
+.badge-indep{ color:var(--muted); }
+.mini-select{ font-family:var(--font-ui); font-size:12px; padding:5px 7px; border:1px solid var(--line-strong);
+  border-radius:var(--r); background:var(--surface); color:var(--ink); }
+.mini-select:focus{ outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
+.hours{ display:flex; align-items:center; gap:5px; }
+.hours input{ width:52px; text-align:right; font-family:var(--font-mono); font-size:12px;
+  padding:5px 7px; border:1px solid var(--line-strong); border-radius:var(--r);
+  background:var(--surface); color:var(--ink); }
+.hours input:focus{ outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
+.hours-unit{ font-family:var(--font-mono); font-size:11px; color:var(--muted); }
+.hours-note{ font-family:var(--font-mono); font-size:9px; color:var(--muted); margin-top:3px; text-align:right; display:block; }
+.check{ display:flex; align-items:center; gap:7px; font-size:12.5px; color:var(--muted); white-space:nowrap; }
+.check input{ accent-color:var(--accent); width:15px; height:15px; }
+
+/* To-do */
+.todo-add{ display:flex; gap:8px; padding:12px 14px; border-bottom:1px solid var(--line); }
+.todo-add input{ flex:1; background:var(--surface); border:1px solid var(--line-strong); border-radius:var(--r);
+  padding:7px 10px; font-family:var(--font-ui); font-size:13px; color:var(--ink); }
+.todo-add input:focus{ outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
+.todo-add input:disabled{ background:var(--surface-2); color:var(--muted); cursor:not-allowed; }
+.todo-item{ display:flex; align-items:center; gap:9px; padding:8px 14px; border-bottom:1px solid var(--line); }
+.todo-item:last-child{ border-bottom:none; }
+.todo-item:hover{ background:var(--surface-2); }
+.todo-label{ flex:1; font-size:13px; cursor:text; }
+.todo-item.is-done .todo-label{ color:var(--muted); text-decoration:line-through; }
+.todo-del{ font-family:var(--font-mono); font-size:12px; color:var(--muted); opacity:0; }
+.todo-item:hover .todo-del{ opacity:1; }
+.todo-del:hover{ color:var(--st-blocked); }
+.todo-sep{ display:flex; align-items:center; gap:8px; padding:8px 14px; border-bottom:1px solid var(--line);
+  background:var(--surface-2); }
+.todo-limit{ padding:9px 14px; font-size:11.5px; color:var(--st-review); background:var(--warn-soft);
+  border-bottom:1px solid var(--line); }
+
+/* Projets */
+.prow{ display:grid; grid-template-columns:auto minmax(0,1fr) auto; gap:10px; align-items:center;
+  padding:10px 14px; border-bottom:1px solid var(--line); text-decoration:none; }
+.prow:last-child{ border-bottom:none; }
+.prow:hover{ background:var(--surface-2); }
+.prow-name{ font-size:13px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.prow-role{ font-family:var(--font-mono); font-size:9px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); }
+.bar{ height:4px; border-radius:2px; background:var(--line); position:relative; margin-top:6px; }
+.bar > i{ position:absolute; top:0; bottom:0; left:0; border-radius:2px; background:var(--accent); }
+.prow-pct{ font-family:var(--font-mono); font-size:11px; color:var(--muted); }
+
+/* Icônes */
+.ico{ width:16px; height:16px; fill:none; stroke:currentColor; stroke-width:1.4;
+  stroke-linecap:round; stroke-linejoin:round; flex:none; }
+.ico-sm{ width:13px; height:13px; }
+
+/* ── 11. PLANNING — GRILLE PERSONNES × JOURS ───────────────────────────── */
+/* Trois strates par cellule : présence · lieu · occupations.
+   La couleur reste au statut, la pastille au projet, le filet interrompu au hors-projet. */
+
+.pl-toolbar{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:11px; }
+.pl-period{ font-size:13.5px; font-weight:600; white-space:nowrap; }
+.pl-nav{ display:flex; align-items:center; gap:4px; }
+.nav-sq{ display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px;
+  border:1px solid var(--line-strong); border-radius:var(--r); color:var(--muted); background:var(--surface);
+  font-family:var(--font-mono); font-size:12px; }
+.nav-sq:hover{ color:var(--accent); border-color:var(--accent); }
+
+.filters{ display:flex; align-items:center; gap:9px; flex-wrap:wrap; padding:9px 11px;
+  background:var(--surface); border:1px solid var(--line); border-radius:var(--r); margin-bottom:11px; }
+.filters .vsep{ width:1px; height:20px; background:var(--line); }
+.f-input{ font-family:var(--font-ui); font-size:12px; padding:5px 8px; border:1px solid var(--line-strong);
+  border-radius:var(--r); background:var(--surface); color:var(--ink); }
+.f-input:focus{ outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
+.layers{ display:flex; align-items:center; gap:11px; flex-wrap:wrap; }
+.layer{ display:inline-flex; align-items:center; gap:6px; font-size:12px; color:var(--muted); white-space:nowrap; }
+.layer input{ accent-color:var(--accent); width:14px; height:14px; }
+.layer.is-on{ color:var(--ink); }
+
+/* Cadre de grille */
+.pl-wrap{ border:1px solid var(--line-strong); border-radius:var(--r); background:var(--surface);
+  overflow:auto; max-height:calc(100vh - 300px); position:relative; }
+.pl{ display:grid; grid-template-columns:var(--cols); min-width:max-content; }
+
+.pl-corner{ position:sticky; top:0; left:0; z-index:6; background:var(--surface-2);
+  border-bottom:1px solid var(--line-strong); border-right:1px solid var(--line-strong); padding:8px 10px; }
+.pl-head{ position:sticky; top:0; z-index:4; background:var(--surface-2); text-align:center;
+  padding:6px 8px; border-bottom:1px solid var(--line-strong); border-left:1px solid var(--line); }
+.pl-dow{ display:block; font-family:var(--font-cond); font-size:9.5px; font-weight:600;
+  letter-spacing:.11em; text-transform:uppercase; color:var(--muted); }
+.pl-dnum{ font-family:var(--font-display); font-size:17px; font-weight:600; line-height:1.15; }
+.pl-head.is-today .pl-dnum,.pl-head.is-today .pl-dow{ color:var(--accent); }
+.pl-head.is-off .pl-dnum{ color:var(--muted); }
+
+/* Bandeau de calendrier : nommé plutôt que deviné */
+.pl-bandcell{ font-family:var(--font-cond); font-size:9.5px; letter-spacing:.06em; text-transform:uppercase;
+  text-align:center; padding:3px 4px; color:var(--muted); border-bottom:1px solid var(--line);
+  border-left:1px solid var(--line); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.pl-bandlab{ position:sticky; left:0; z-index:3; background:var(--surface-2); border-bottom:1px solid var(--line);
+  border-right:1px solid var(--line-strong); padding:3px 10px; }
+.is-vac{ background:var(--trame-vacances); }
+.is-ferie{ background:var(--trame-ferie); }
+
+/* Groupe de service */
+.grp{ grid-column:1/-1; position:sticky; left:0; display:flex; align-items:center; gap:10px;
+  padding:6px 11px; background:var(--surface-2); border-top:1px solid var(--line-strong);
+  border-bottom:1px solid var(--line); z-index:3; }
+.grp-name{ font-size:12.5px; font-weight:600; }
+.grp-caret{ font-family:var(--font-mono); font-size:10px; color:var(--muted); width:12px; }
+.grp-meta{ font-family:var(--font-mono); font-size:9.5px; color:var(--muted); }
+
+/* Ligne ressource */
+.res{ position:sticky; left:0; z-index:2; background:var(--surface); display:flex; align-items:center; gap:8px;
+  padding:7px 11px; border-right:1px solid var(--line-strong); border-bottom:1px solid var(--line); }
+.res-av{ width:24px; height:24px; border-radius:50%; background:var(--accent-soft); color:var(--accent);
+  display:flex; align-items:center; justify-content:center; font-family:var(--font-mono); font-size:9px; flex:none; }
+.res-name{ font-size:12.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+/* Cellule */
+.cell{ border-left:1px solid var(--line); border-bottom:1px solid var(--line);
+  padding:4px; min-height:54px; display:flex; flex-direction:column; gap:3px; position:relative; }
+.cell.is-today{ background:color-mix(in srgb, var(--accent) 5%, var(--surface)); }
+.cell.is-drop{ outline:2px dashed var(--accent); outline-offset:-2px; background:var(--accent-soft); }
+.cell-add{ position:absolute; right:3px; bottom:3px; width:17px; height:17px; border-radius:2px;
+  border:1px solid var(--line-strong); background:var(--surface); color:var(--muted);
+  font-family:var(--font-mono); font-size:11px; line-height:1; opacity:0; }
+.cell:hover .cell-add{ opacity:1; }
+.cell-add:hover{ color:var(--accent); border-color:var(--accent); }
+
+/* Strate 1 — absence : occupe la cellule, rien d'autre à afficher */
+.leave{ flex:1; display:flex; align-items:center; gap:5px; padding:5px 7px; border-radius:2px;
+  font-family:var(--font-cond); font-size:10.5px; color:var(--ink); min-height:28px;
+  background:color-mix(in srgb, var(--leave) 20%, var(--surface)); border-left:3px solid var(--leave); }
+.leave-pending{ background:color-mix(in srgb, var(--leave-pending) 14%, var(--surface));
+  border-left-style:dashed;
+  background-image:repeating-linear-gradient(135deg, rgba(120,110,150,.16) 0 4px, transparent 4px 8px); }
+.leave-tag{ font-family:var(--font-mono); font-size:8px; letter-spacing:.06em; text-transform:uppercase;
+  color:var(--muted); margin-left:auto; }
+.leave.is-half{ flex:0 0 auto; }
+
+/* Strate 2 — lieu : discret, cliquable */
+.pres{ display:flex; align-items:center; gap:5px; font-family:var(--font-cond); font-size:9.5px;
+  letter-spacing:.07em; text-transform:uppercase; padding:2px 5px; border-radius:2px;
+  border:1px dashed var(--line-strong); color:var(--muted); background:transparent; width:100%; }
+.pres:hover{ border-color:var(--accent); color:var(--accent); }
+.pres.is-tt{ border-style:solid; border-color:var(--telework); color:var(--telework);
+  background:color-mix(in srgb, var(--telework) 9%, var(--surface)); }
+.pres.is-office{ border-style:solid; border-color:var(--line-strong); color:var(--muted); }
+.pres.is-locked{ cursor:not-allowed; }
+.pres-dot{ width:5px; height:5px; border-radius:50%; background:currentColor; flex:none; }
+
+/* Strate 3 — occupations */
+.occ{ display:flex; align-items:center; gap:4px; font-family:var(--font-cond); font-size:10.5px;
+  line-height:1.25; padding:3px 5px; border-radius:2px; border-left:3px solid currentColor;
+  background:color-mix(in srgb, currentColor 12%, var(--surface)); cursor:grab; text-align:left; width:100%; }
+.occ:hover{ background:color-mix(in srgb, currentColor 20%, var(--surface)); }
+.occ > span{ color:var(--ink); min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.occ.is-indep{ border-left-style:dashed; }
+.occ.is-flat{ border-left-width:3px; }
+.occ:active{ cursor:grabbing; }
+.occ.is-dragging{ opacity:.4; }
+.occ-ext{ font-family:var(--font-mono); font-size:7.5px; letter-spacing:.06em; color:var(--event);
+  border:1px solid currentColor; border-radius:2px; padding:0 2px; margin-left:auto; flex:none; }
+.occ-more{ font-family:var(--font-mono); font-size:9px; color:var(--muted); padding:1px 4px; text-align:left; }
+
+/* Ligne de synthèse */
+.sum-lab{ position:sticky; left:0; bottom:0; z-index:4; background:var(--surface-2);
+  border-right:1px solid var(--line-strong); border-top:1px solid var(--line-strong); padding:7px 11px; }
+.sum-cell{ position:sticky; bottom:0; z-index:3; background:var(--surface-2); text-align:center;
+  border-left:1px solid var(--line); border-top:1px solid var(--line-strong); padding:7px 4px; }
+.sum-val{ font-family:var(--font-mono); font-size:11px; }
+.sum-pct{ font-family:var(--font-mono); font-size:9px; color:var(--muted); display:block; }
+.sum-cell.is-high .sum-val{ color:var(--st-review); font-weight:600; }
+
+/* Légende filtrante */
+.legend{ display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:0; }
+.legend-sec{ padding:11px 13px; border-left:1px solid var(--line); }
+.legend-sec:first-child{ border-left:none; }
+.legend-list{ display:flex; flex-direction:column; gap:4px; margin-top:7px; }
+.lg{ display:flex; align-items:center; gap:7px; font-size:11.5px; color:var(--ink);
+  padding:2px 4px; border-radius:2px; text-align:left; }
+.lg:hover{ background:var(--surface-2); }
+.lg-sw{ width:11px; height:11px; border-radius:2px; border-left:3px solid currentColor;
+  background:color-mix(in srgb, currentColor 22%, var(--surface)); flex:none; }
+.lg-sw.is-dashed{ border-left-style:dashed; }
+.lg-sw.is-flat{ border-left:none; background:currentColor; }
+.lg[aria-pressed="false"]{ color:var(--muted); opacity:.5; text-decoration:line-through; }
+
+/* Panneau de détail latéral */
+.drawer{ position:fixed; top:0; right:0; width:340px; height:100vh; background:var(--surface);
+  border-left:1px solid var(--line-strong); z-index:55; display:flex; flex-direction:column;
+  transform:translateX(100%); transition:transform .18s ease; }
+.drawer.is-open{ transform:none; }
+.drawer-head{ display:flex; align-items:flex-start; justify-content:space-between; gap:10px;
+  padding:14px; border-bottom:1px solid var(--line); }
+.drawer-body{ padding:14px; overflow-y:auto; flex:1; }
+.dl{ display:grid; grid-template-columns:96px 1fr; gap:7px 12px; font-size:12.5px; }
+.dl dt{ font-family:var(--font-mono); font-size:9.5px; letter-spacing:.08em; text-transform:uppercase;
+  color:var(--muted); padding-top:2px; }
+.dl dd{ margin:0; }
+
+/* Notifications d'action */
+.toasts{ position:fixed; left:50%; bottom:18px; transform:translateX(-50%); z-index:70;
+  display:flex; flex-direction:column; gap:8px; width:min(460px,92vw); }
+.toast{ display:flex; gap:9px; padding:10px 12px; border-radius:var(--r); border:1px solid;
+  font-size:12.5px; line-height:1.45; background:var(--surface); animation:rise .22s ease both; }
+.toast-err{ border-color:var(--st-blocked); color:var(--st-blocked); background:var(--danger-soft); }
+.toast-warn{ border-color:var(--st-review); color:var(--st-review); background:var(--warn-soft); }
+.toast-ok{ border-color:var(--st-done); color:var(--st-done); background:var(--success-soft); }
+
+.pl-empty{ padding:44px 20px; text-align:center; }
+
+@media (max-width:900px){
+  .pl-wrap{ max-height:none; }
+  .drawer{ width:100%; }
+}
+
+/* ── 10. PANNEAU DE REVUE + RESPONSIVE ─────────────────────────────────── */
+#review{ position:fixed; bottom:12px; right:12px; z-index:60; width:230px;
+  background:var(--surface); color:var(--ink); border:1px solid var(--line-strong);
+  border-radius:var(--r); font-family:var(--font-mono); }
+.rv-head{ display:flex; align-items:center; justify-content:space-between; width:100%;
+  padding:8px 12px; border-bottom:1px solid var(--line); }
+.rv-body{ padding:12px; }
+.rv-group + .rv-group{ margin-top:12px; }
+.rv-legend{ font-family:var(--font-mono); font-size:9px; font-weight:500; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--muted); margin:0 0 6px; }
+.rv-grid{ display:grid; grid-template-columns:1fr 1fr; gap:4px; }
+.rv-btn{ font-family:var(--font-mono); font-size:10.5px; text-align:left; padding:5px 8px;
+  border:1px solid var(--line); border-radius:2px; background:var(--surface); color:var(--muted); }
+.rv-btn:hover{ color:var(--ink); }
+.rv-btn[aria-pressed="true"]{ background:var(--accent); border-color:var(--accent); color:var(--on-accent); }
+.rv-note{ font-family:var(--font-mono); font-size:9px; line-height:1.5; color:var(--muted); margin:6px 0 0; }
+
+.burger{ display:none; }
+.scrim{ display:none; }
+@media (max-width:1180px){
+  .kpi-grid{ grid-template-columns:repeat(2,1fr); }
+  .dash-grid{ grid-template-columns:1fr; }
+}
+@media (max-width:900px){
+  .app{ grid-template-columns:1fr; }
+  .side{ position:fixed; left:0; top:0; width:242px; z-index:50; transform:translateX(-100%);
+    transition:transform .18s ease; }
+  .app.is-open .side{ transform:none; }
+  .app.is-open .scrim{ display:block; position:fixed; inset:0; background:rgba(0,0,0,.35); z-index:45; }
+  .burger{ display:inline-flex; }
+  .search{ display:none; }
+  .um-name,.um-role{ display:none; }
+  .usermenu-btn{ border:none; padding:0; }
+  .page{ padding:16px 14px 40px; }
+  .week{ grid-template-columns:repeat(5,minmax(120px,1fr)); overflow-x:auto; }
+  #review{ left:12px; right:12px; width:auto; }
+}
+@media (max-width:520px){
+  .kpi-grid{ grid-template-columns:1fr 1fr; gap:8px; }
+  .trow{ grid-template-columns:1fr; align-items:start; }
+}
+</style>
+</head>
+
+<body>
+<a class="skip" href="#contenu">Aller au contenu principal</a>
+
+<!-- Bibliothèque d'icônes de projet — 44 symboles, 11 catégories, aucune dépendance -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="p-flow" viewBox="0 0 16 16"><rect x="6" y="1.6" width="4" height="3"/><rect x="1.6" y="11" width="4" height="3"/><rect x="10.4" y="11" width="4" height="3"/><path d="M8 4.6v3M3.6 11V7.6h8.8V11"/></symbol>
+  <symbol id="p-screen" viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="8"/><path d="M6 14h4M8 11v3"/></symbol>
+  <symbol id="p-database" viewBox="0 0 16 16"><path d="M13.5 4c0 1.1-2.5 2-5.5 2S2.5 5.1 2.5 4 5 2 8 2s5.5.9 5.5 2z"/><path d="M2.5 4v8c0 1.1 2.5 2 5.5 2s5.5-.9 5.5-2V4M2.5 8c0 1.1 2.5 2 5.5 2s5.5-.9 5.5-2"/></symbol>
+</svg>
+
+<!-- Jeu d'icônes intégré : aucune police externe, cohérent avec le réseau fermé -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-dash" viewBox="0 0 16 16"><rect x="2" y="2" width="5" height="5"/><rect x="9" y="2" width="5" height="5"/><rect x="2" y="9" width="5" height="5"/><rect x="9" y="9" width="5" height="5"/></symbol>
+  <symbol id="i-planning" viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="11"/><path d="M2 6.5h12M6 6.5v7.5M10 6.5v7.5"/></symbol>
+  <symbol id="i-reports" viewBox="0 0 16 16"><path d="M3 13.5V8.5M8 13.5V3M13 13.5v-4"/><path d="M1.5 13.5h13"/></symbol>
+  <symbol id="i-projects" viewBox="0 0 16 16"><path d="M2 4h4l1.4 2H14v7.5H2z"/></symbol>
+  <symbol id="i-tasks" viewBox="0 0 16 16"><rect x="2" y="2.5" width="12" height="11.5" rx="1"/><path d="M5 8.6l2.1 2.1L11.3 6.4"/></symbol>
+  <symbol id="i-events" viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="11"/><path d="M2 6.5h12M5 2v2.5M11 2v2.5"/><circle cx="8" cy="10" r="1.1"/></symbol>
+  <symbol id="i-leaves" viewBox="0 0 16 16"><path d="M8 13.5V7"/><path d="M2 7a6 6 0 0 1 12 0z"/></symbol>
+  <symbol id="i-telework" viewBox="0 0 16 16"><path d="M2 7.2l6-5 6 5"/><path d="M4 7v7h8V7"/></symbol>
+  <symbol id="i-time" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 4.6V8l2.4 1.5"/></symbol>
+  <symbol id="i-skills" viewBox="0 0 16 16"><path d="M8 2.2l1.7 3.7 4 .5-3 2.8.8 4-3.5-2-3.5 2 .8-4-3-2.8 4-.5z"/></symbol>
+  <symbol id="i-users" viewBox="0 0 16 16"><circle cx="8" cy="5.4" r="2.7"/><path d="M2.8 13.8a5.2 5.2 0 0 1 10.4 0"/></symbol>
+  <symbol id="i-depts" viewBox="0 0 16 16"><rect x="6" y="1.6" width="4" height="3.4"/><rect x="1.6" y="10.8" width="4" height="3.4"/><rect x="10.4" y="10.8" width="4" height="3.4"/><path d="M8 5v3M3.6 10.8V8h8.8v2.8"/></symbol>
+  <symbol id="i-third" viewBox="0 0 16 16"><circle cx="5.6" cy="8" r="3.1"/><circle cx="10.4" cy="8" r="3.1"/></symbol>
+  <symbol id="i-clients" viewBox="0 0 16 16"><rect x="3" y="2" width="10" height="12"/><path d="M5.8 5h1.2M9 5h1.2M5.8 8h1.2M9 8h1.2M6 11.5h4"/></symbol>
+  <symbol id="i-roles" viewBox="0 0 16 16"><path d="M8 1.8l5 2v4.3c0 3-2.1 5.1-5 6.1-2.9-1-5-3.1-5-6.1V3.8z"/></symbol>
+  <symbol id="i-audit" viewBox="0 0 16 16"><path d="M3 4h10M3 8h10M3 12h6"/></symbol>
+  <symbol id="i-predef" viewBox="0 0 16 16"><path d="M13.2 8a5.2 5.2 0 1 1-1.7-3.9"/><path d="M13.2 2v3.2H10"/></symbol>
+  <symbol id="i-settings" viewBox="0 0 16 16"><path d="M2 5h12M2 11h12"/><circle cx="6" cy="5" r="1.7"/><circle cx="10.5" cy="11" r="1.7"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 16 16"><path d="M4 7a4 4 0 0 1 8 0v3l1.2 2H2.8L4 10z"/><path d="M6.4 12a1.6 1.6 0 0 0 3.2 0"/></symbol>
+  <symbol id="i-search" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.6"/><path d="M10.4 10.4L14 14"/></symbol>
+  <symbol id="i-collapse" viewBox="0 0 16 16"><path d="M9.5 4L5.5 8l4 4"/></symbol>
+  <symbol id="i-burger" viewBox="0 0 16 16"><path d="M2 4h12M2 8h12M2 12h12"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 16 16"><path d="M3 8h10M9 4l4 4-4 4"/></symbol>
+</svg>
+
+<div class="app" id="app">
+  <div class="scrim" onclick="closeDrawer()"></div>
+
+  <!-- ══════════ BARRE LATÉRALE ══════════ -->
+  <aside class="side">
+    <div class="side-head">
+      <span class="side-mark">Trame</span>
+      <button class="icon-btn" onclick="toggleSide()" id="collapse-btn"
+              title="Replier la barre latérale" aria-label="Replier la barre latérale">
+        <svg class="ico ico-sm"><use href="#i-collapse"/></svg>
+      </button>
+    </div>
+
+    <nav class="side-nav" id="nav">
+      <div class="nav-group">
+        <p class="nav-legend" data-fr="Pilotage" data-en="Steering">Pilotage</p>
+        <a class="nav-item" href="#" data-roles="cfk" title="Tableau de bord">
+          <svg class="ico"><use href="#i-dash"/></svg><span data-fr="Tableau de bord" data-en="Dashboard">Tableau de bord</span></a>
+        <a class="nav-item is-active" href="#" data-roles="cfk" title="Planning">
+          <svg class="ico"><use href="#i-planning"/></svg><span data-fr="Planning" data-en="Schedule">Planning</span></a>
+        <a class="nav-item" href="#" data-roles="fk" title="Rapports">
+          <svg class="ico"><use href="#i-reports"/></svg><span data-fr="Rapports" data-en="Reports">Rapports</span></a>
+      </div>
+
+      <div class="nav-group">
+        <p class="nav-legend" data-fr="Projets" data-en="Projects">Projets</p>
+        <a class="nav-item" href="#" data-roles="cfk" title="Projets">
+          <svg class="ico"><use href="#i-projects"/></svg><span data-fr="Projets" data-en="Projects">Projets</span></a>
+        <a class="nav-item" href="#" data-roles="cfk" title="Tâches">
+          <svg class="ico"><use href="#i-tasks"/></svg><span data-fr="Tâches" data-en="Tasks">Tâches</span></a>
+        <a class="nav-item" href="#" data-roles="cfk" title="Événements">
+          <svg class="ico"><use href="#i-events"/></svg><span data-fr="Événements" data-en="Events">Événements</span></a>
+      </div>
+
+      <div class="nav-group">
+        <p class="nav-legend" data-fr="Ressources humaines" data-en="Human resources">Ressources humaines</p>
+        <a class="nav-item" href="#" data-roles="cfk" title="Congés">
+          <svg class="ico"><use href="#i-leaves"/></svg><span data-fr="Congés" data-en="Leave">Congés</span></a>
+        <a class="nav-item" href="#" data-roles="cfk" title="Télétravail">
+          <svg class="ico"><use href="#i-telework"/></svg><span data-fr="Télétravail" data-en="Remote work">Télétravail</span></a>
+        <a class="nav-item" href="#" data-roles="cfk" title="Temps passé">
+          <svg class="ico"><use href="#i-time"/></svg><span data-fr="Temps passé" data-en="Time spent">Temps passé</span></a>
+        <a class="nav-item" href="#" data-roles="fk" title="Compétences">
+          <svg class="ico"><use href="#i-skills"/></svg><span data-fr="Compétences" data-en="Skills">Compétences</span></a>
+      </div>
+
+      <div class="nav-group">
+        <p class="nav-legend" data-fr="Référentiels" data-en="Reference data">Référentiels</p>
+        <a class="nav-item" href="#" data-roles="fk" title="Utilisateurs">
+          <svg class="ico"><use href="#i-users"/></svg><span data-fr="Utilisateurs" data-en="Users">Utilisateurs</span></a>
+        <a class="nav-item" href="#" data-roles="fk" title="Départements">
+          <svg class="ico"><use href="#i-depts"/></svg><span data-fr="Départements" data-en="Departments">Départements</span></a>
+        <a class="nav-item" href="#" data-roles="k" title="Tiers">
+          <svg class="ico"><use href="#i-third"/></svg><span data-fr="Tiers" data-en="Third parties">Tiers</span></a>
+        <a class="nav-item" href="#" data-roles="k" title="Clients">
+          <svg class="ico"><use href="#i-clients"/></svg><span data-fr="Clients" data-en="Clients">Clients</span></a>
+      </div>
+
+    </nav>
+
+    <div class="side-foot">
+      <span class="eyebrow" id="side-count">14 entrées</span>
+    </div>
+  </aside>
+
+  <!-- ══════════ ZONE PRINCIPALE ══════════ -->
+  <div class="main">
+
+    <header class="topbar">
+      <button class="icon-btn burger" onclick="openDrawer()" aria-label="Ouvrir le menu">
+        <svg class="ico ico-sm"><use href="#i-burger"/></svg>
+      </button>
+      <p class="crumb" style="margin:0">Trame <span aria-hidden="true">/</span>
+        <b data-fr="Planning" data-en="Schedule">Planning</b></p>
+
+      <div class="search">
+        <svg class="ico ico-sm"><use href="#i-search"/></svg>
+        <input type="search" aria-label="Recherche globale"
+               data-ph-fr="Rechercher un projet, une tâche, une personne…"
+               data-ph-en="Search a project, a task, a person…"
+               placeholder="Rechercher un projet, une tâche, une personne…">
+      </div>
+
+      <div class="topbar-right">
+        <div class="seg" role="group" aria-label="Langue">
+          <button id="lang-fr" aria-pressed="true" onclick="setLang('fr')">FR</button>
+          <button id="lang-en" aria-pressed="false" onclick="setLang('en')">EN</button>
+        </div>
+        <button class="chip-btn" id="theme-btn" onclick="toggleTheme()"
+                data-fr="Thème sombre" data-en="Dark theme">Thème sombre</button>
+
+        <div class="has-pop">
+          <button class="icon-btn" onclick="togglePop('notif')" aria-label="Notifications">
+            <svg class="ico ico-sm"><use href="#i-bell"/></svg>
+            <span class="dot-badge" id="notif-count">3</span>
+          </button>
+
+          <div class="pop" id="pop-notif" hidden>
+            <div class="pop-head">
+              <span class="panel-title" data-fr="Notifications" data-en="Notifications">Notifications</span>
+              <button class="link link-sm" onclick="readAll()"
+                      data-fr="Tout marquer comme lu" data-en="Mark all as read">Tout marquer comme lu</button>
+            </div>
+            <div class="pop-list" id="notif-list">
+              <a class="pop-item is-unread" href="#">
+                <span class="pop-mark"></span>
+                <span class="pop-body">
+                  <span class="pop-title" data-fr="Nouvelle tâche assignée — Recette portail"
+                        data-en="New task assigned — Portal testing">Nouvelle tâche assignée — Recette portail</span>
+                  <span class="pop-meta">Il y a 12 min · Refonte du portail citoyen</span>
+                </span>
+              </a>
+              <a class="pop-item is-unread" href="#">
+                <span class="pop-mark"></span>
+                <span class="pop-body">
+                  <span class="pop-title" data-fr="Tâche à échéance proche — Maquettes portail"
+                        data-en="Task due soon — Portal mockups">Tâche à échéance proche — Maquettes portail</span>
+                  <span class="pop-meta">Il y a 2 h · Échéance le 14 août</span>
+                </span>
+              </a>
+              <a class="pop-item is-unread" href="#">
+                <span class="pop-mark"></span>
+                <span class="pop-body">
+                  <span class="pop-title" data-fr="Décision sur votre demande de congé — Approuvée"
+                        data-en="Decision on your leave request — Approved">Décision sur votre demande de congé — Approuvée</span>
+                  <span class="pop-meta">Hier 16:40 · Du 18 au 22 août</span>
+                </span>
+              </a>
+              <a class="pop-item" href="#">
+                <span class="pop-mark"></span>
+                <span class="pop-body">
+                  <span class="pop-title" data-fr="Ajout à un projet — Schéma directeur numérique"
+                        data-en="Added to a project — Digital roadmap">Ajout à un projet — Schéma directeur numérique</span>
+                  <span class="pop-meta">11 août · Par Driss Amrani</span>
+                </span>
+              </a>
+              <a class="pop-item" href="#">
+                <span class="pop-mark"></span>
+                <span class="pop-body">
+                  <span class="pop-title" data-fr="Tâche en retard — Note de cadrage"
+                        data-en="Overdue task — Scoping note">Tâche en retard — Note de cadrage</span>
+                  <span class="pop-meta">8 août · Échéance dépassée de 5 jours</span>
+                </span>
+              </a>
+            </div>
+            <div class="empty" id="notif-empty" hidden>
+              <p data-fr="Aucune notification" data-en="No notifications">Aucune notification</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="has-pop">
+          <button class="usermenu-btn" onclick="togglePop('user')">
+            <span class="avatar" id="uavatar">FB</span>
+            <span style="text-align:left">
+              <span class="um-name" id="uname">Fatou Berthier</span><br>
+              <span class="um-role" id="urole">Manager de service</span>
+            </span>
+          </button>
+          <div class="pop pop-sm" id="pop-user" hidden>
+            <a class="pop-action" href="#" data-fr="Mon profil" data-en="My profile">Mon profil</a>
+            <a class="pop-action" href="#" data-fr="Se déconnecter" data-en="Sign out">Se déconnecter</a>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- ══════════ PLANNING — VUE SEMAINE ══════════ -->
+    <div class="page" id="contenu" tabindex="-1">
+
+      <div class="pl-toolbar">
+        <h1 class="h1" style="margin:0;font-size:22px"
+            data-fr="Planning des ressources" data-en="Resource schedule">Planning des ressources</h1>
+
+        <div class="seg" role="group" aria-label="Mode d'affichage">
+          <button aria-pressed="true" data-fr="Semaine" data-en="Week">Semaine</button>
+          <button aria-pressed="false" data-fr="Mois" data-en="Month">Mois</button>
+          <button aria-pressed="false" data-fr="Activité" data-en="Activity">Activité</button>
+        </div>
+
+        <div class="pl-nav">
+          <button class="nav-sq" aria-label="Semaine précédente">‹</button>
+          <button class="nav-sq" aria-label="Semaine suivante">›</button>
+          <button class="chip-btn" data-fr="Aujourd'hui" data-en="Today">Aujourd'hui</button>
+        </div>
+        <span class="pl-period" id="period">Semaine du 10 au 14 août 2026</span>
+
+        <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+          <button class="chip-btn" onclick="toast('ok','Planning exporté au format ICS.')"
+                  data-fr="Exporter ICS" data-en="Export ICS">Exporter ICS</button>
+          <div class="has-pop">
+            <button class="btn btn-primary" style="padding:7px 14px" onclick="togglePop('create')">
+              <span data-fr="Créer" data-en="Create">Créer</span></button>
+            <div class="pop pop-sm" id="pop-create" hidden>
+              <a class="pop-action" href="#" data-fr="Tâche" data-en="Task">Tâche</a>
+              <a class="pop-action" href="#" data-fr="Événement" data-en="Event">Événement</a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Filtres et couches ── -->
+      <div class="filters">
+        <div class="has-pop">
+          <button class="f-input" onclick="togglePop('svc')" id="svc-label">3 services</button>
+          <div class="pop pop-sm" id="pop-svc" hidden>
+            <div style="padding:9px 12px;border-bottom:1px solid var(--line);display:flex;gap:10px">
+              <button class="link link-sm" onclick="allServices(true)">Tous</button>
+              <button class="link link-sm" onclick="allServices(false)">Aucun</button>
+            </div>
+            <div id="svc-list" style="padding:8px 12px;display:flex;flex-direction:column;gap:6px"></div>
+          </div>
+        </div>
+
+        <select class="f-input" aria-label="Département">
+          <option data-fr="Tous les départements" data-en="All departments">Tous les départements</option>
+          <option>Direction des services numériques</option>
+          <option>Direction des ressources humaines</option>
+        </select>
+
+        <button class="chip-btn" id="scope-btn" onclick="toggleScope()"
+                data-fr="Mon périmètre" data-en="My scope">Mon périmètre</button>
+
+        <input class="f-input" id="res-search" type="search" style="width:150px"
+               data-ph-fr="Ressource…" data-ph-en="Resource…" placeholder="Ressource…"
+               oninput="render()">
+
+        <span class="vsep"></span>
+
+        <div class="layers" id="layers">
+          <label class="layer is-on"><input type="checkbox" checked data-layer="avail" onchange="render()">
+            <span data-fr="Disponibilités" data-en="Availability">Disponibilités</span></label>
+          <label class="layer is-on"><input type="checkbox" checked data-layer="act" onchange="render()">
+            <span data-fr="Activités" data-en="Recurring">Activités</span></label>
+          <label class="layer is-on"><input type="checkbox" checked data-layer="proj" onchange="render()">
+            <span data-fr="Tâches projets" data-en="Project tasks">Tâches projets</span></label>
+          <label class="layer is-on"><input type="checkbox" checked data-layer="indep" onchange="render()">
+            <span data-fr="Tâches hors projets" data-en="Non-project tasks">Tâches hors projets</span></label>
+          <label class="layer is-on"><input type="checkbox" checked data-layer="event" onchange="render()">
+            <span data-fr="Événements" data-en="Events">Événements</span></label>
+        </div>
+
+        <span class="vsep"></span>
+        <button class="chip-btn" onclick="collapseAll(true)"
+                data-fr="Tout replier" data-en="Collapse all">Tout replier</button>
+        <button class="chip-btn" onclick="collapseAll(false)"
+                data-fr="Tout déplier" data-en="Expand all">Tout déplier</button>
+      </div>
+
+      <!-- ── Grille ── -->
+      <div class="pl-wrap">
+        <div class="pl" id="pl"></div>
+        <div class="pl-empty" id="pl-empty" hidden>
+          <p style="margin:0 0 4px;font-size:13.5px"
+             data-fr="Aucune ressource à afficher" data-en="No resource to display">Aucune ressource à afficher</p>
+          <small style="color:var(--muted);font-size:12px"
+                 data-fr="Vos filtres excluent toutes les ressources."
+                 data-en="Your filters exclude every resource.">Vos filtres excluent toutes les ressources.</small>
+          <p style="margin:12px 0 0"><button class="chip-btn" onclick="resetFilters()"
+             data-fr="Réinitialiser les filtres" data-en="Reset filters">Réinitialiser les filtres</button></p>
+        </div>
+        <div class="pl-empty" id="pl-loading" hidden>
+          <p class="redirect" style="justify-content:center">
+            <span class="spinner spinner-ink" aria-hidden="true"></span>
+            <span data-fr="Chargement du planning…" data-en="Loading the schedule…">Chargement du planning…</span>
+          </p>
+        </div>
+      </div>
+
+      <!-- ── Légende filtrante ── -->
+      <div class="panel" style="margin-top:12px">
+        <div class="panel-head">
+          <span class="panel-title" data-fr="Légende" data-en="Legend">Légende</span>
+          <button class="chip-btn" onclick="showAll()"
+                  data-fr="Tout afficher" data-en="Show everything">Tout afficher</button>
+        </div>
+        <div class="legend" id="legend"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ PANNEAU DE DÉTAIL ══════════ -->
+<aside class="drawer" id="drawer" aria-hidden="true">
+  <div class="drawer-head">
+    <div>
+      <span class="eyebrow" id="dr-kind">Tâche de projet</span>
+      <p class="panel-title" id="dr-title" style="margin:5px 0 0;font-size:15px">—</p>
+    </div>
+    <button class="icon-btn" onclick="closeDrawer2()" aria-label="Fermer">×</button>
+  </div>
+  <div class="drawer-body">
+    <dl class="dl" id="dr-list"></dl>
+  </div>
+</aside>
+
+<div class="toasts" id="toasts"></div>
+
+<!-- ══════════ PANNEAU DE REVUE — hors produit ══════════ -->
+<div id="review">
+  <button class="rv-head" onclick="var b=document.getElementById('rv-body'); b.hidden=!b.hidden;">
+    <span class="eyebrow" style="font-size:9.5px">Vue 07 · panneau de revue</span>
+    <span aria-hidden="true" style="color:var(--muted);font-size:11px">▾</span>
+  </button>
+  <div class="rv-body" id="rv-body">
+    <div class="rv-group">
+      <p class="rv-legend">État</p>
+      <div class="rv-grid">
+        <button class="rv-btn" id="rv-normal" aria-pressed="true" onclick="setState('normal')">Nominal</button>
+        <button class="rv-btn" id="rv-loading" aria-pressed="false" onclick="setState('loading')">Chargement</button>
+        <button class="rv-btn" id="rv-none" aria-pressed="false" onclick="setState('none')">Aucune ressource</button>
+        <button class="rv-btn" id="rv-stale" aria-pressed="false" onclick="setState('stale')">Rafraîch. KO</button>
+      </div>
+    </div>
+    <div class="rv-group">
+      <p class="rv-legend">Jours visibles</p>
+      <div class="rv-grid">
+        <button class="rv-btn" id="rv-d5" aria-pressed="true" onclick="setDays(5)">5 colonnes</button>
+        <button class="rv-btn" id="rv-d7" aria-pressed="false" onclick="setDays(7)">7 colonnes</button>
+      </div>
+    </div>
+    <div class="rv-group">
+      <p class="rv-legend">Droits</p>
+      <div class="rv-grid">
+        <button class="rv-btn" id="rv-tt-on" aria-pressed="true" onclick="setTT(true)">TT modifiable</button>
+        <button class="rv-btn" id="rv-tt-off" aria-pressed="false" onclick="setTT(false)">TT lecture seule</button>
+        <button class="rv-btn" id="rv-act-on" aria-pressed="true" onclick="setAct(true)">Permanences</button>
+        <button class="rv-btn" id="rv-act-off" aria-pressed="false" onclick="setAct(false)">Sans droit</button>
+      </div>
+      <p class="rv-note">Glissez une tâche sur un autre jour ou une autre ligne.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ══════════ COQUILLE ══════════ */
+function toggleTheme(){ document.documentElement.classList.toggle('dark'); syncLang(); }
+var lang = 'fr';
+function setLang(l){
+  lang = l; document.documentElement.lang = l;
+  document.getElementById('lang-fr').setAttribute('aria-pressed', l === 'fr');
+  document.getElementById('lang-en').setAttribute('aria-pressed', l === 'en');
+  syncLang();
+}
+function syncLang(){
+  document.querySelectorAll('[data-fr]').forEach(function(el){ el.textContent = el.dataset[lang]; });
+  document.querySelectorAll('[data-ph-fr]').forEach(function(el){
+    el.placeholder = lang === 'fr' ? el.dataset.phFr : el.dataset.phEn;
+  });
+  var dark = document.documentElement.classList.contains('dark');
+  document.getElementById('theme-btn').textContent =
+    dark ? (lang === 'fr' ? 'Thème clair' : 'Light theme')
+         : (lang === 'fr' ? 'Thème sombre' : 'Dark theme');
+  buildLegend(); render();
+}
+function setSide(f){
+  document.getElementById('app').classList.toggle('is-collapsed', f);
+}
+function toggleSide(){ setSide(!document.getElementById('app').classList.contains('is-collapsed')); }
+function openDrawer(){ document.getElementById('app').classList.add('is-open'); }
+function closeDrawer(){ document.getElementById('app').classList.remove('is-open'); }
+function togglePop(which){
+  ['notif','user','create','svc'].forEach(function(k){
+    var el = document.getElementById('pop-' + k);
+    if(el) el.hidden = (k === which) ? !el.hidden : true;
+  });
+}
+document.addEventListener('click', function(e){ if(!e.target.closest('.has-pop')) togglePop(null); });
+function readAll(){
+  document.querySelectorAll('.pop-item').forEach(function(i){ i.classList.remove('is-unread'); });
+  document.getElementById('notif-count').hidden = true;
+}
+
+/* ══════════ NOTIFICATIONS D'ACTION ══════════ */
+function toast(kind, msg){
+  var box = document.getElementById('toasts'), el = document.createElement('div');
+  el.className = 'toast toast-' + kind;
+  el.setAttribute('role', kind === 'ok' ? 'status' : 'alert');
+  el.innerHTML = '<span aria-hidden="true">' + (kind === 'ok' ? '✓' : '!') + '</span><span></span>';
+  el.lastChild.textContent = msg;
+  box.appendChild(el);
+  setTimeout(function(){ el.remove(); }, 6000);
+}
+
+/* ══════════ DONNÉES ══════════ */
+var DAYS = [
+  { dow:'lun', num:'10' }, { dow:'mar', num:'11' }, { dow:'mer', num:'12' },
+  { dow:'jeu', num:'13', today:true }, { dow:'ven', num:'14' },
+  { dow:'sam', num:'15', off:true, ferie:'Assomption' }, { dow:'dim', num:'16', off:true }
+];
+var VAC = 'Vacances d\u2019été · zone C';
+
+var SERVICES = [
+  { id:'si', name:'Systèmes d\u2019information', people:[
+    { id:'cd', name:'Camille Durand', init:'CD' },
+    { id:'da', name:'Driss Amrani', init:'DA' },
+    { id:'tm', name:'Théo Mercier', init:'TM' },
+    { id:'ac', name:'Anaïs Colin', init:'AC' },
+    { id:'rc', name:'Rachid Chevalier', init:'RC' }
+  ]},
+  { id:'rh', name:'Ressources humaines', people:[
+    { id:'hn', name:'Hugo Nguyen', init:'HN' },
+    { id:'lf', name:'Léa Fabre', init:'LF' },
+    { id:'ms', name:'Mamadou Sow', init:'MS' },
+    { id:'nk', name:'Nadia Kaufmann', init:'NK' }
+  ]},
+  { id:'st', name:'Services techniques', people:[
+    { id:'op', name:'Olivier Pereira', init:'OP' },
+    { id:'pl', name:'Paul Lambert', init:'PL' },
+    { id:'sa', name:'Sonia Aouad', init:'SA' }
+  ]}
+];
+
+function tk(id,p,t,s,o){ var x = { k:'task', id:id, p:p, t:t, s:s }; if(o) for(var q in o) x[q] = o[q]; return x; }
+var CELLS = {
+  'cd|0':[{k:'tt'}, tk('T4','P','Maquettes du portail','doing')],
+  'cd|1':[tk('T4','P','Maquettes du portail','doing')],
+  /* Journée à six natures : c'est le cas que la vue doit tenir. */
+  'cd|2':[{k:'lv',t:'RTT',half:'am'}, {k:'tt'},
+          tk('T1','P','Recette du portail','review',{multi:2}),
+          tk('T6','P','Intégration des gabarits','doing'),
+          {k:'ev',t:'Point hebdomadaire'},
+          {k:'act',t:'Permanence téléphonique'}],
+  'cd|3':[tk('T1','P','Recette du portail','review',{multi:2}), {k:'ev',t:'Comité de pilotage',ext:true}],
+  'cd|4':[{k:'lv',t:'Congé annuel'}],
+
+  'da|0':[{k:'off'}, tk('T2','S','Cahier des charges','review')],
+  'da|1':[{k:'off'}, tk('T2','S','Cahier des charges','doing'),
+          tk('T7',null,'Réunion de service','todo'),
+          {k:'ev',t:'Atelier de cadrage',ext:true},
+          {k:'act',t:'Astreinte'}],
+  'da|2':[tk('T2','S','Cahier des charges','doing'), tk('T7',null,'Réunion de service','todo')],
+  'da|3':[{k:'ev',t:'Comité de pilotage',ext:true}, tk('T2','S','Cahier des charges','doing')],
+  'da|4':[{k:'tt'}, tk('T1','P','Recette du portail','done',{multi:2})],
+
+  'tm|0':[tk('T3','S','Reprise des données','blocked')],
+  'tm|1':[tk('T3','S','Reprise des données','doing')],
+  'tm|2':[{k:'lv',t:'RTT',half:'am'}, tk('T3','S','Reprise des données','doing')],
+  'tm|3':[{k:'lv',t:'Congé annuel',half:'pm'}, {k:'tt'},
+          tk('T3','S','Reprise des données','doing'),
+          tk('T7',null,'Réunion de service','todo')],
+  'tm|4':[{k:'act',t:'Astreinte'}],
+
+  'ac|0':[{k:'lv',t:'Congé annuel',pending:true}],
+  'ac|1':[{k:'lv',t:'Congé annuel',pending:true}],
+  'ac|2':[{k:'lv',t:'Congé annuel',pending:true}],
+  'ac|3':[tk('T5','D','Note de cadrage','todo')],
+  'ac|4':[tk('T5','D','Note de cadrage','doing')],
+
+  'rc|0':[{k:'act',t:'Permanence technique'}],
+  'rc|1':[{k:'tt'}, tk('T6','P','Intégration des gabarits','doing')],
+  'rc|2':[{k:'act',t:'Permanence technique'},
+          tk('T6','P','Intégration des gabarits','doing'),
+          tk('T3','S','Reprise des données','blocked'),
+          tk('T8',null,'Point sécurité','todo'),
+          {k:'ev',t:'Recette fournisseur',ext:true}],
+  'rc|3':[tk('T6','P','Intégration des gabarits','review'), tk('T8',null,'Point sécurité','todo')],
+  'rc|4':[tk('T6','P','Intégration des gabarits','done')],
+
+  'hn|0':[tk('T9',null,'Campagne d\u2019entretiens','doing')],
+  'hn|1':[{k:'ev',t:'Réunion RH'}],
+  'hn|2':[tk('T9',null,'Campagne d\u2019entretiens','doing')],
+  'hn|3':[{k:'tt'}, tk('T9',null,'Campagne d\u2019entretiens','doing')],
+  'hn|4':[{k:'lv',t:'Congé annuel',half:'pm'}],
+
+  'lf|0':[{k:'act',t:'Accueil · matin'}],
+  'lf|1':[{k:'act',t:'Accueil · matin'}],
+  'lf|2':[{k:'act',t:'Accueil · matin'}],
+  'lf|3':[{k:'act',t:'Accueil · matin'}],
+  'lf|4':[{k:'act',t:'Accueil · matin'}, {k:'off'},
+          tk('T9',null,'Campagne d\u2019entretiens','doing'),
+          {k:'ev',t:'Réunion RH'}],
+
+  'ms|0':[tk('T3','S','Reprise des données','todo')],
+  'ms|1':[tk('T3','S','Reprise des données','doing')],
+  'ms|2':[{k:'ev',t:'Réunion RH'}],
+  'ms|3':[tk('T3','S','Reprise des données','doing')],
+  'ms|4':[{k:'tt'}],
+
+  'nk|1':[tk('T10',null,'Mise à jour de l\u2019organigramme','todo')],
+  'nk|2':[tk('T10',null,'Mise à jour de l\u2019organigramme','doing')],
+  'nk|4':[{k:'lv',t:'Congé sans solde'}],
+
+  'op|0':[{k:'act',t:'Astreinte'}],
+  'op|1':[tk('T11','D','Diagnostic réseau','doing')],
+  'op|2':[tk('T11','D','Diagnostic réseau','doing')],
+  'op|3':[tk('T11','D','Diagnostic réseau','blocked')],
+  'op|4':[tk('T11','D','Diagnostic réseau','doing')],
+
+  'pl|0':[{k:'off'}],
+  'pl|1':[{k:'ev',t:'Intervention sur site',ext:true}],
+  'pl|2':[tk('T12',null,'Maintenance salle serveurs','todo')],
+  'pl|3':[tk('T12',null,'Maintenance salle serveurs','doing')],
+  'pl|4':[{k:'act',t:'Permanence technique'}],
+
+  'sa|0':[{k:'lv',t:'Congé annuel'}],
+  'sa|1':[{k:'lv',t:'Congé annuel'}],
+  'sa|2':[{k:'lv',t:'Congé annuel'}],
+  'sa|3':[{k:'lv',t:'Congé annuel'}],
+  'sa|4':[{k:'lv',t:'Congé annuel'}]
+};
+
+var PROJETS = { P:'Refonte du portail citoyen', S:'Migration SIRH', D:'Schéma directeur numérique' };
+var STATUS = {
+  todo:{fr:'À faire',en:'To do'}, doing:{fr:'En cours',en:'In progress'},
+  review:{fr:'En revue',en:'In review'}, done:{fr:'Terminé',en:'Done'},
+  blocked:{fr:'Bloqué',en:'Blocked'}
+};
+
+/* ══════════ ÉTAT DE LA VUE ══════════ */
+var nDays = 5, collapsed = {}, offServices = {}, scopeMine = false,
+    ttEditable = true, canSeeAct = true, viewState = 'normal';
+var layerOn = { avail:true, act:true, proj:true, indep:true, event:true };
+var legendOn = {};
+['st-todo','st-doing','st-review','st-done','st-blocked','ty-proj','ty-indep',
+ 'pr-off','pr-tt','ab-ok','ab-wait','ev','ev-ext'].forEach(function(k){ legendOn[k] = true; });
+
+function setDays(n){
+  nDays = n;
+  document.getElementById('rv-d5').setAttribute('aria-pressed', n === 5);
+  document.getElementById('rv-d7').setAttribute('aria-pressed', n === 7);
+  render();
+}
+function setTT(v){
+  ttEditable = v;
+  document.getElementById('rv-tt-on').setAttribute('aria-pressed', v);
+  document.getElementById('rv-tt-off').setAttribute('aria-pressed', !v);
+  render();
+}
+function setAct(v){
+  canSeeAct = v;
+  document.getElementById('rv-act-on').setAttribute('aria-pressed', v);
+  document.getElementById('rv-act-off').setAttribute('aria-pressed', !v);
+  render();
+}
+function setState(s){
+  viewState = s;
+  ['normal','loading','none','stale'].forEach(function(x){
+    document.getElementById('rv-' + x).setAttribute('aria-pressed', x === s);
+  });
+  if(s === 'stale'){
+    viewState = 'normal';
+    toast('warn', lang === 'fr'
+      ? 'Modification enregistrée, mais l\u2019affichage n\u2019a pas pu être actualisé — données possiblement périmées.'
+      : 'Change saved, but the view could not be refreshed — data may be out of date.');
+  }
+  render();
+}
+function toggleScope(){
+  scopeMine = !scopeMine;
+  document.getElementById('scope-btn').style.borderColor = scopeMine ? 'var(--accent)' : '';
+  document.getElementById('scope-btn').style.color = scopeMine ? 'var(--accent)' : '';
+  render();
+}
+function collapseAll(v){ SERVICES.forEach(function(s){ collapsed[s.id] = v; }); render(); }
+function resetFilters(){
+  offServices = {}; scopeMine = false;
+  document.getElementById('res-search').value = '';
+  document.getElementById('scope-btn').style.borderColor = '';
+  document.getElementById('scope-btn').style.color = '';
+  document.querySelectorAll('#layers input').forEach(function(c){ c.checked = true; });
+  showAll();
+}
+function showAll(){
+  Object.keys(legendOn).forEach(function(k){ legendOn[k] = true; });
+  buildLegend(); render();
+}
+function allServices(on){
+  SERVICES.forEach(function(s){ offServices[s.id] = !on; });
+  buildServiceList(); render();
+}
+
+/* ══════════ FILTRES ══════════ */
+function itemVisible(it){
+  if(it.k === 'task'){
+    if(!layerOn[it.p ? 'proj' : 'indep']) return false;
+    if(!legendOn['st-' + it.s]) return false;
+    if(!legendOn['ty-' + (it.p ? 'proj' : 'indep')]) return false;
+    return true;
+  }
+  if(it.k === 'ev'){
+    if(!layerOn.event) return false;
+    if(!legendOn.ev) return false;
+    if(it.ext && !legendOn['ev-ext']) return false;
+    return true;
+  }
+  if(it.k === 'act') return layerOn.act && canSeeAct;
+  if(it.k === 'lv') return layerOn.avail && legendOn[it.pending ? 'ab-wait' : 'ab-ok'];
+  if(it.k === 'tt') return layerOn.avail && legendOn['pr-tt'];
+  if(it.k === 'off') return layerOn.avail && legendOn['pr-off'];
+  return true;
+}
+function readLayers(){
+  document.querySelectorAll('#layers input').forEach(function(c){
+    layerOn[c.dataset.layer] = c.checked;
+    c.closest('.layer').classList.toggle('is-on', c.checked);
+  });
+}
+
+function visiblePeople(){
+  var q = (document.getElementById('res-search').value || '').toLowerCase(), out = [];
+  SERVICES.forEach(function(s){
+    if(offServices[s.id]) return;
+    if(scopeMine && s.id !== 'si') return;
+    var ppl = s.people.filter(function(p){ return p.name.toLowerCase().indexOf(q) !== -1; });
+    if(ppl.length) out.push({ svc:s, people:ppl });
+  });
+  return out;
+}
+
+
+/* La pastille de projet : icône du référentiel, titre au survol */
+var PICON = { P:'p-screen', S:'p-database', D:'p-flow' };
+function pglyph(p){
+  var i = el('i', 'pglyph');
+  var s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  s.setAttribute('class', 'pgi');
+  s.setAttribute('viewBox', '0 0 16 16');
+  s.setAttribute('aria-hidden', 'true');
+  var u = document.createElementNS('http://www.w3.org/2000/svg', 'use');
+  u.setAttribute('href', '#' + PICON[p]);
+  s.appendChild(u); i.appendChild(s);
+  i.title = PROJETS[p] || p;
+  return i;
+}
+
+/* ══════════ RENDU ══════════ */
+function el(tag, cls, txt){
+  var n = document.createElement(tag);
+  if(cls) n.className = cls;
+  if(txt != null) n.textContent = txt;
+  return n;
+}
+
+function render(){
+  readLayers();
+  var pl = document.getElementById('pl'),
+      empty = document.getElementById('pl-empty'),
+      load = document.getElementById('pl-loading');
+
+  pl.innerHTML = '';
+  load.hidden = viewState !== 'loading';
+  var groups = viewState === 'none' ? [] : visiblePeople();
+  empty.hidden = !(viewState === 'normal' && groups.length === 0);
+  pl.hidden = viewState !== 'normal' || groups.length === 0;
+  var nOn = SERVICES.filter(function(s){ return !offServices[s.id]; }).length;
+  document.getElementById('svc-label').textContent =
+    nOn === SERVICES.length ? (lang === 'fr' ? 'Tous les services' : 'All services')
+    : nOn === 0 ? (lang === 'fr' ? 'Aucun service' : 'No service')
+    : nOn + (lang === 'fr' ? ' services' : ' services');
+  if(pl.hidden) return;
+
+  var days = DAYS.slice(0, nDays);
+  pl.style.setProperty('--cols', '182px repeat(' + nDays + ', minmax(' + (nDays > 5 ? 108 : 132) + 'px, 1fr))');
+
+  /* En-tête */
+  var corner = el('div', 'pl-corner');
+  corner.appendChild(el('span', 'eyebrow', lang === 'fr' ? 'Ressource' : 'Resource'));
+  pl.appendChild(corner);
+  days.forEach(function(d, i){
+    var h = el('div', 'pl-head' + (d.today ? ' is-today' : '') + (d.off ? ' is-off' : '') +
+                       (d.ferie ? ' is-ferie' : ' is-vac'));
+    h.appendChild(el('span', 'pl-dow', d.dow));
+    h.appendChild(el('span', 'pl-dnum', d.num));
+    pl.appendChild(h);
+  });
+
+  /* Bandeau de calendrier : le motif de fond est nommé, pas deviné */
+  var bl = el('div', 'pl-bandlab');
+  bl.appendChild(el('span', 'eyebrow', lang === 'fr' ? 'Calendrier' : 'Calendar'));
+  pl.appendChild(bl);
+  days.forEach(function(d){
+    var c = el('div', 'pl-bandcell ' + (d.ferie ? 'is-ferie' : 'is-vac'), d.ferie ? d.ferie : VAC);
+    c.title = d.ferie ? (lang === 'fr' ? 'Jour férié chômé' : 'Public holiday') : VAC;
+    pl.appendChild(c);
+  });
+
+  /* Groupes et lignes */
+  groups.forEach(function(g){
+    var isCol = !!collapsed[g.svc.id];
+    var head = el('div', 'grp');
+    var caret = el('span', 'grp-caret', isCol ? '▸' : '▾');
+    head.appendChild(caret);
+    head.appendChild(el('span', 'grp-name', g.svc.name));
+    var n = g.people.length;
+    head.appendChild(el('span', 'grp-meta', '· ' + n + (lang === 'fr' ? (n > 1 ? ' personnes' : ' personne') : (n > 1 ? ' people' : ' person'))));
+    if(isCol){
+      var count = 0;
+      g.people.forEach(function(p){
+        days.forEach(function(d, i){
+          (CELLS[p.id + '|' + i] || []).forEach(function(it){
+            if(it.k === 'task' && itemVisible(it)) count++;
+          });
+        });
+      });
+      head.appendChild(el('span', 'grp-meta',
+        (lang === 'fr' ? '(replié) · ' + count + ' tâche(s)' : '(collapsed) · ' + count + ' task(s)')));
+    }
+    head.style.cursor = 'pointer';
+    head.onclick = function(){ collapsed[g.svc.id] = !isCol; render(); };
+    pl.appendChild(head);
+
+    if(isCol) return;
+
+    g.people.forEach(function(p){
+      var r = el('div', 'res');
+      r.appendChild(el('span', 'res-av', p.init));
+      r.appendChild(el('span', 'res-name', p.name));
+      pl.appendChild(r);
+
+      days.forEach(function(d, i){
+        pl.appendChild(buildCell(p, i, d));
+      });
+    });
+  });
+
+  /* Synthèse « hors présentiel » */
+  var sl = el('div', 'sum-lab');
+  sl.appendChild(el('span', 'eyebrow', lang === 'fr' ? 'Hors présentiel' : 'Off-site'));
+  pl.appendChild(sl);
+  var all = [];
+  groups.forEach(function(g){ g.people.forEach(function(p){ all.push(p); }); });
+  days.forEach(function(d, i){
+    var away = all.filter(function(p){
+      return (CELLS[p.id + '|' + i] || []).some(function(it){ return it.k === 'lv' || it.k === 'tt'; });
+    }).length;
+    var pct = all.length ? Math.round(away * 100 / all.length) : 0;
+    var c = el('div', 'sum-cell' + (pct >= 40 ? ' is-high' : ''));
+    c.appendChild(el('span', 'sum-val', away + '/' + all.length));
+    c.appendChild(el('span', 'sum-pct', pct + ' %'));
+    pl.appendChild(c);
+  });
+}
+
+function buildCell(p, i, d){
+  var key = p.id + '|' + i;
+  var cell = el('div', 'cell' + (d.today ? ' is-today' : '') + (d.ferie ? ' is-ferie' : ' is-vac'));
+  cell.dataset.cell = p.id + '|' + i;
+  cell.dataset.key = key;
+  var items = (CELLS[key] || []).filter(itemVisible);
+
+  /* Strate 1 — absence */
+  var leave = items.filter(function(x){ return x.k === 'lv'; })[0];
+  if(leave){
+    var lv = el('div', 'leave' + (leave.pending ? ' leave-pending' : '') + (leave.half ? ' is-half' : ''));
+    lv.appendChild(el('span', null, leave.t));
+    if(leave.half) lv.appendChild(el('span', 'leave-tag',
+      leave.half === 'am' ? (lang === 'fr' ? 'Matin' : 'Morning') : (lang === 'fr' ? 'Après-midi' : 'Afternoon')));
+    else if(leave.pending) lv.appendChild(el('span', 'leave-tag', lang === 'fr' ? 'En attente' : 'Pending'));
+    lv.onclick = function(){ openDetail({ k:'lv', t:leave.t, pending:leave.pending, half:leave.half }, p, d); };
+    cell.appendChild(lv);
+    if(!leave.half){ addDrop(cell); return cell; }   /* journée entière : plus rien à afficher */
+  }
+
+  /* Strate 2 — lieu */
+  var tt = items.filter(function(x){ return x.k === 'tt' || x.k === 'off'; })[0];
+  if(layerOn.avail && !leave){
+    var isTT = tt && tt.k === 'tt', isOff = tt && tt.k === 'off';
+    if(tt || ttEditable){
+      var b = el('button', 'pres' + (isTT ? ' is-tt' : isOff ? ' is-office' : '') + (ttEditable ? '' : ' is-locked'));
+      b.appendChild(el('span', 'pres-dot'));
+      b.appendChild(el('span', null,
+        isTT ? (lang === 'fr' ? 'Télétravail' : 'Remote') :
+        isOff ? (lang === 'fr' ? 'Bureau' : 'Office') :
+                (lang === 'fr' ? 'Non déclaré' : 'Not set')));
+      b.title = ttEditable
+        ? (lang === 'fr' ? 'Basculer le télétravail' : 'Toggle remote work')
+        : (lang === 'fr' ? 'Lecture seule — permission requise' : 'Read only — permission required');
+      b.onclick = function(e){
+        e.stopPropagation();
+        if(!ttEditable){
+          toast('warn', lang === 'fr' ? 'Lecture seule — permission requise.' : 'Read only — permission required.');
+          return;
+        }
+        var arr = CELLS[key] || (CELLS[key] = []);
+        var idx = arr.findIndex(function(x){ return x.k === 'tt' || x.k === 'off'; });
+        if(idx === -1) arr.unshift({ k:'tt' });
+        else if(arr[idx].k === 'tt') arr[idx] = { k:'off' };
+        else arr.splice(idx, 1);
+        render();
+      };
+      cell.appendChild(b);
+    }
+  }
+
+  /* Strate 3 — occupations */
+  var occ = items.filter(function(x){ return x.k === 'task' || x.k === 'ev' || x.k === 'act'; });
+  var shown = occ.slice(0, 3);
+  shown.forEach(function(it, idx){
+    cell.appendChild(buildOcc(it, key, p, d));
+  });
+  if(occ.length > 3){
+    var more = el('button', 'occ-more', '+ ' + (occ.length - 3) +
+      (lang === 'fr' ? ' autre(s)' : ' more'));
+    more.title = lang === 'fr' ? 'Voir toute la journée' : 'See the whole day';
+    /* La soupape mène quelque part : le détail de la journée, pas un cul-de-sac. */
+    more.onclick = function(e){ e.stopPropagation(); openDay(items, p, d); };
+    cell.appendChild(more);
+  }
+
+  var add = el('button', 'cell-add', '+');
+  add.title = lang === 'fr' ? 'Créer ici' : 'Create here';
+  add.onclick = function(e){
+    e.stopPropagation();
+    toast('ok', (lang === 'fr' ? 'Création — ' : 'Create — ') + p.name + ' · ' + d.dow + ' ' + d.num);
+  };
+  cell.appendChild(add);
+  addDrop(cell);
+  return cell;
+}
+
+function buildOcc(it, key, p, d){
+  var color = it.k === 'task' ? 'var(--st-' + it.s + ')'
+            : it.k === 'ev' ? 'var(--event)' : 'var(--activity)';
+  var b = el('button', 'occ' + (it.k === 'task' && !it.p ? ' is-indep' : ''));
+  b.style.color = color;
+  if(it.k === 'task' && it.p) b.appendChild(pglyph(it.p));
+  b.appendChild(el('span', null, it.t));
+  if(it.ext) b.appendChild(el('span', 'occ-ext', 'EXT'));
+  b.title = it.t;
+  b.onclick = function(){ openDetail(it, p, d); };
+
+  if(it.k === 'task'){
+    b.draggable = true;
+    b.addEventListener('dragstart', function(e){
+      drag = { key:key, id:it.id, item:it };
+      b.classList.add('is-dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', it.id);
+    });
+    b.addEventListener('dragend', function(){ b.classList.remove('is-dragging'); });
+  }
+  return b;
+}
+
+/* ══════════ GLISSER-DÉPOSER ══════════ */
+var drag = null;
+function addDrop(cell){
+  cell.addEventListener('dragover', function(e){
+    if(!drag) return;
+    e.preventDefault(); cell.classList.add('is-drop');
+  });
+  cell.addEventListener('dragleave', function(){ cell.classList.remove('is-drop'); });
+  cell.addEventListener('drop', function(e){
+    e.preventDefault(); cell.classList.remove('is-drop');
+    if(!drag) return;
+    var from = drag.key, to = cell.dataset.key;
+    if(from === to){ drag = null; return; }
+    var fp = from.split('|')[0], fd = from.split('|')[1],
+        tp = to.split('|')[0], td = to.split('|')[1],
+        it = drag.item;
+
+    /* Changement de date sur une tâche multi-assignée : refusé */
+    if(fp === tp && fd !== td && it.multi){
+      toast('err', lang === 'fr'
+        ? 'Tâche multi-assignée : changement de date impossible. Modifiez les dates via le détail de la tâche.'
+        : 'Task has multiple assignees: the date cannot be changed here. Edit dates from the task details.');
+      drag = null; return;
+    }
+    /* Assigné déjà porteur de la tâche */
+    if(fp !== tp && (CELLS[to] || []).some(function(x){ return x.id === it.id; })){
+      toast('err', lang === 'fr'
+        ? 'Cet utilisateur est déjà assigné à cette tâche.'
+        : 'This user is already assigned to this task.');
+      drag = null; return;
+    }
+
+    CELLS[from] = (CELLS[from] || []).filter(function(x){ return x !== it; });
+    (CELLS[to] = CELLS[to] || []).push(it);
+
+    if(fp !== tp && it.multi){
+      toast('warn', lang === 'fr'
+        ? 'Tâche multi-assignée : seul l\u2019assigné a été modifié. La date reste inchangée pour tous les assignés.'
+        : 'Task has multiple assignees: only the assignee changed. The date is unchanged for everyone.');
+    }else{
+      toast('ok', lang === 'fr' ? 'Modification enregistrée.' : 'Change saved.');
+    }
+    drag = null; render();
+  });
+}
+
+/* ══════════ PANNEAU DE DÉTAIL ══════════ */
+/* Détail d'une journée entière : toutes les natures, dans l'ordre de lecture
+   de la cellule — absence, puis lieu, puis occupations. */
+function openDay(items, p, d){
+  var dr = document.getElementById('drawer'),
+      list = document.getElementById('dr-list');
+  document.getElementById('dr-kind').textContent = lang === 'fr' ? 'Journée' : 'Day';
+  document.getElementById('dr-title').textContent = p.name + ' · ' +
+    d.dow + ' ' + d.num + (lang === 'fr' ? ' août' : ' August');
+  var LAB = { lv:{fr:'Congé',en:'Leave'}, tt:{fr:'Télétravail',en:'Remote work'},
+              off:{fr:'Bureau',en:'Office'}, task:{fr:'Tâche',en:'Task'},
+              ev:{fr:'Événement',en:'Event'}, act:{fr:'Permanence',en:'Duty'} };
+  var ORDER = ['lv','tt','off','act','ev','task'];
+  list.innerHTML = '';
+  ORDER.forEach(function(kind){
+    items.filter(function(x){ return x.k === kind; }).forEach(function(it){
+      var dt = el('dt', null, LAB[kind][lang]);
+      var txt = it.t || (kind === 'tt' ? (lang === 'fr' ? 'Déclaré' : 'Declared')
+                                       : (lang === 'fr' ? 'Sur site' : 'On site'));
+      if(it.half) txt += ' · ' + (it.half === 'am' ? (lang === 'fr' ? 'matin' : 'morning')
+                                                   : (lang === 'fr' ? 'après-midi' : 'afternoon'));
+      if(it.k === 'task') txt += ' · ' + (it.p ? PROJETS[it.p] : (lang === 'fr' ? 'hors projet' : 'no project'));
+      if(it.ext) txt += ' · ' + (lang === 'fr' ? 'intervention extérieure' : 'external');
+      var dd = el('dd', null, txt);
+      list.appendChild(dt); list.appendChild(dd);
+    });
+  });
+  var n = items.length;
+  var note = el('dt', null, lang === 'fr' ? 'Total' : 'Total');
+  var val = el('dd', null, n + (lang === 'fr' ? ' élément(s) sur cette journée' : ' items on this day'));
+  list.appendChild(note); list.appendChild(val);
+  dr.classList.add('is-open');
+  dr.setAttribute('aria-hidden', 'false');
+}
+
+function openDetail(it, p, d){
+  var dr = document.getElementById('drawer'),
+      list = document.getElementById('dr-list');
+  var kindLabel = { task:{fr:'Tâche',en:'Task'}, ev:{fr:'Événement',en:'Event'},
+                    act:{fr:'Activité récurrente',en:'Recurring activity'},
+                    lv:{fr:'Congé',en:'Leave'} }[it.k];
+  document.getElementById('dr-kind').textContent = kindLabel[lang] +
+    (it.k === 'task' ? (it.p ? ' · ' + (lang === 'fr' ? 'projet' : 'project') : ' · ' + (lang === 'fr' ? 'hors projet' : 'no project')) : '');
+  document.getElementById('dr-title').textContent = it.t;
+
+  var rows = [];
+  rows.push([lang === 'fr' ? 'Ressource' : 'Resource', p.name]);
+  rows.push([lang === 'fr' ? 'Date' : 'Date', d.dow + ' ' + d.num + ' août 2026']);
+  if(it.k === 'task'){
+    rows.push([lang === 'fr' ? 'Projet' : 'Project', it.p ? PROJETS[it.p] : (lang === 'fr' ? 'Aucun (tâche indépendante)' : 'None (standalone task)')]);
+    rows.push([lang === 'fr' ? 'Statut' : 'Status', STATUS[it.s][lang]]);
+    rows.push([lang === 'fr' ? 'Priorité' : 'Priority', lang === 'fr' ? 'Haute' : 'High']);
+    rows.push([lang === 'fr' ? 'Estimation' : 'Estimate', '6 h']);
+    rows.push([lang === 'fr' ? 'Avancement' : 'Progress', '40 %']);
+    if(it.multi) rows.push([lang === 'fr' ? 'Assignés' : 'Assignees', it.multi + (lang === 'fr' ? ' personnes' : ' people')]);
+  }
+  if(it.k === 'ev'){
+    rows.push([lang === 'fr' ? 'Horaires' : 'Hours', '14:00 → 16:00']);
+    rows.push([lang === 'fr' ? 'Participants' : 'Attendees', '6']);
+    rows.push([lang === 'fr' ? 'Type' : 'Type', it.ext ? (lang === 'fr' ? 'Intervention extérieure' : 'External') : (lang === 'fr' ? 'Interne' : 'Internal')]);
+    rows.push([lang === 'fr' ? 'Récurrence' : 'Recurrence', lang === 'fr' ? 'Toutes les 2 semaines, le jeudi' : 'Every 2 weeks, on Thursday']);
+  }
+  if(it.k === 'act'){
+    rows.push([lang === 'fr' ? 'Période' : 'Period', lang === 'fr' ? 'Matin' : 'Morning']);
+    rows.push([lang === 'fr' ? 'Poids' : 'Weight', '3 / 5']);
+    rows.push([lang === 'fr' ? 'Télétravail' : 'Remote', lang === 'fr' ? 'Non autorisé' : 'Not allowed']);
+  }
+  if(it.k === 'lv'){
+    rows.push([lang === 'fr' ? 'Statut' : 'Status',
+      it.pending ? (lang === 'fr' ? 'En attente de validation' : 'Awaiting approval') : (lang === 'fr' ? 'Approuvé' : 'Approved')]);
+    rows.push([lang === 'fr' ? 'Durée' : 'Duration', it.half ? '0,5 ' + (lang === 'fr' ? 'jour' : 'day') : '1 ' + (lang === 'fr' ? 'jour' : 'day')]);
+    rows.push([lang === 'fr' ? 'Validateur' : 'Approver', 'Fatou Berthier']);
+  }
+
+  list.innerHTML = '';
+  rows.forEach(function(r){
+    list.appendChild(el('dt', null, r[0]));
+    list.appendChild(el('dd', null, r[1]));
+  });
+  dr.classList.add('is-open'); dr.setAttribute('aria-hidden', 'false');
+}
+function closeDrawer2(){
+  var dr = document.getElementById('drawer');
+  dr.classList.remove('is-open'); dr.setAttribute('aria-hidden', 'true');
+}
+
+/* ══════════ LÉGENDE FILTRANTE ══════════ */
+var LEGEND = [
+  { title:{fr:'Statuts de tâches',en:'Task statuses'}, items:[
+    ['st-todo','var(--st-todo)',{fr:'À faire',en:'To do'}],
+    ['st-doing','var(--st-doing)',{fr:'En cours',en:'In progress'}],
+    ['st-review','var(--st-review)',{fr:'En revue',en:'In review'}],
+    ['st-done','var(--st-done)',{fr:'Terminé',en:'Done'}],
+    ['st-blocked','var(--st-blocked)',{fr:'Bloqué',en:'Blocked'}]
+  ]},
+  { title:{fr:'Type de tâche',en:'Task type'}, items:[
+    ['ty-proj','var(--st-doing)',{fr:'Tâche de projet',en:'Project task'}],
+    ['ty-indep','var(--st-todo)',{fr:'Tâche hors projet',en:'Non-project task'},'dashed']
+  ]},
+  { title:{fr:'Présence',en:'Presence'}, items:[
+    ['pr-off','var(--office)',{fr:'Bureau déclaré',en:'Office'}],
+    ['pr-tt','var(--telework)',{fr:'Télétravail',en:'Remote work'}]
+  ]},
+  { title:{fr:'Absences',en:'Absences'}, items:[
+    ['ab-ok','var(--leave)',{fr:'Congé validé',en:'Approved leave'},'flat'],
+    ['ab-wait','var(--leave-pending)',{fr:'Congé en attente',en:'Pending leave'},'dashed']
+  ]},
+  { title:{fr:'Autres occupations',en:'Other'}, items:[
+    ['ev','var(--event)',{fr:'Événement',en:'Event'}],
+    ['ev-ext','var(--event)',{fr:'Intervention extérieure',en:'External work'}],
+    ['act','var(--activity)',{fr:'Permanence',en:'On-call duty'},'flat']
+  ]}
+];
+function buildLegend(){
+  var box = document.getElementById('legend');
+  box.innerHTML = '';
+  LEGEND.forEach(function(sec){
+    var s = el('div', 'legend-sec');
+    s.appendChild(el('span', 'eyebrow', sec.title[lang]));
+    var list = el('div', 'legend-list');
+    sec.items.forEach(function(it){
+      var b = el('button', 'lg');
+      var isFilter = legendOn.hasOwnProperty(it[0]);
+      b.setAttribute('aria-pressed', isFilter ? String(!!legendOn[it[0]]) : 'true');
+      var sw = el('span', 'lg-sw' + (it[3] === 'dashed' ? ' is-dashed' : it[3] === 'flat' ? ' is-flat' : ''));
+      sw.style.color = it[1];
+      b.appendChild(sw);
+      b.appendChild(el('span', null, it[2][lang]));
+      if(isFilter){
+        b.onclick = function(){ legendOn[it[0]] = !legendOn[it[0]]; buildLegend(); render(); };
+      }else{
+        b.onclick = function(){
+          var c = document.querySelector('#layers input[data-layer="act"]');
+          c.checked = !c.checked; render();
+        };
+      }
+      list.appendChild(b);
+    });
+    s.appendChild(list);
+    box.appendChild(s);
+  });
+}
+
+/* ══════════ SÉLECTEUR DE SERVICES ══════════ */
+function buildServiceList(){
+  var box = document.getElementById('svc-list');
+  box.innerHTML = '';
+  SERVICES.forEach(function(s){
+    var l = el('label', 'layer is-on');
+    var c = document.createElement('input');
+    c.type = 'checkbox'; c.checked = !offServices[s.id];
+    c.onchange = function(){ offServices[s.id] = !c.checked; render(); };
+    l.appendChild(c); l.appendChild(el('span', null, s.name));
+    box.appendChild(l);
+  });
+}
+
+setLang('fr');
+buildServiceList();
+buildLegend();
+render();
+</script>
+
+<script>
+/* ══════════ ACCESSIBILITÉ — comportements transversaux ══════════ */
+(function(){
+  var SEL = 'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),' +
+            'textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
+  var lastFocus = null;
+  function shown(el){ return el.offsetWidth || el.offsetHeight || el.getClientRects().length; }
+  function items(box){ return Array.prototype.filter.call(box.querySelectorAll(SEL), shown); }
+  function openBox(){
+    var m = document.querySelector('.scrim-modal:not([hidden])');
+    if(m) return m.querySelector('.modal') || m;
+    return document.querySelector('.drawer.is-open');
+  }
+
+  /* Le focus ne sort pas d'une fenêtre ouverte */
+  document.addEventListener('keydown', function(e){
+    if(e.key !== 'Tab') return;
+    var box = openBox(); if(!box) return;
+    var f = items(box); if(!f.length) return;
+    var first = f[0], last = f[f.length - 1];
+    if(e.shiftKey && document.activeElement === first){ e.preventDefault(); last.focus(); }
+    else if(!e.shiftKey && document.activeElement === last){ e.preventDefault(); first.focus(); }
+  }, true);
+
+  /* À l'ouverture : focus dans la fenêtre. À la fermeture : retour au déclencheur. */
+  function watch(el, isModal){
+    el.__open = isModal ? !el.hidden : el.classList.contains('is-open');
+    new MutationObserver(function(){
+      var now = isModal ? !el.hidden : el.classList.contains('is-open');
+      if(now === el.__open) return;
+      el.__open = now;
+      if(now){
+        lastFocus = document.activeElement;
+        var box = el.querySelector('.modal') || el;
+        if(!box.hasAttribute('tabindex')) box.setAttribute('tabindex', '-1');
+        setTimeout(function(){ var f = items(box); (f[0] || box).focus(); }, 20);
+      }else if(lastFocus && lastFocus.focus){
+        lastFocus.focus();
+      }
+    }).observe(el, { attributes:true, attributeFilter:['hidden','class'] });
+  }
+  document.querySelectorAll('.scrim-modal').forEach(function(el){
+    var box = el.querySelector('.modal');
+    if(box){
+      if(!box.getAttribute('role')) box.setAttribute('role', 'dialog');
+      box.setAttribute('aria-modal', 'true');
+    }
+    watch(el, true);
+  });
+  document.querySelectorAll('.drawer').forEach(function(el){
+    if(!el.getAttribute('role')) el.setAttribute('role', 'dialog');
+    watch(el, false);
+  });
+
+  /* Un bouton sans texte n'est pas muet : son titre devient son nom accessible */
+  document.querySelectorAll('button,a').forEach(function(b){
+    if(b.getAttribute('aria-label') || (b.textContent || '').trim()) return;
+    if(b.title) b.setAttribute('aria-label', b.title);
+  });
+
+  /* Les zones qui défilent se parcourent au clavier */
+  [['.pl-wrap', 'Grille du planning'], ['.mx-wrap', 'Matrice des compétences'],
+   ['.pm-wrap', 'Matrice des permissions'], ['.gantt', 'Diagramme de Gantt'],
+   ['.pg-wrap', 'Gantt du portefeuille']].forEach(function(p){
+    document.querySelectorAll(p[0]).forEach(function(el){
+      el.tabIndex = 0;
+      el.setAttribute('role', 'region');
+      if(!el.getAttribute('aria-label'))
+        el.setAttribute('aria-label', p[1] + ' — zone défilante, parcourez-la avec les flèches du clavier');
+    });
+  });
+})();
+</script>
+</body>
+</html>

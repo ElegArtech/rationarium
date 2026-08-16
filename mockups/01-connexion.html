@@ -1,0 +1,913 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trame — Connexion (Vue 01)</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Serif:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+/* ==========================================================================
+   TRAME — SOCLE GRAPHIQUE
+   Bloc canonique, recopié à l'identique dans chaque vue.
+   Aucune dépendance externe hors polices (substituts système déclarés).
+   Sommaire : 1 tokens · 2 base · 3 typo · 4 formulaires · 5 boutons
+              6 alertes · 7 gabarit connexion · 8 grille miniature
+              9 panneau de revue · 10 responsive
+   ========================================================================== */
+
+/* ── 1. TOKENS ─────────────────────────────────────────────────────────── */
+:root{
+  /* Surfaces & texte */
+  --paper:#F1F2F4;
+  --surface:#FFFFFF;
+  --surface-2:#FAFAFB;
+  --line:#D5D8DE;
+  --line-strong:#7E8698;
+  --ink:#14161C;
+  --muted:#5B6270;
+  --placeholder:#6E7583;
+
+  /* Accent unique */
+  --accent:#1B2A9B;
+  --accent-strong:#121D75;
+  --accent-soft:#E7EAF8;
+  --on-accent:#FFFFFF;
+  --brand-panel:#101A6E;
+
+  /* Statuts de tâche */
+  --st-todo:#5B6270;
+  --st-doing:#1B2A9B;
+  --st-review:#9A5B00;
+  --st-done:#146B3D;
+  --st-blocked:#AF2020;
+
+  /* Présence & absences */
+  --leave:#6A4BA6;
+  --leave-pending:#71609E;
+  --telework:#0C6E86;
+  --office:#5B6270;
+  --event:#B8420B;
+  --activity:#0F6E5C;
+
+  /* Retours d'état */
+  --danger-soft:#FBECEC;
+  --success-soft:#E8F4ED;
+  --warn-soft:#FCF2E2;
+
+  /* Trames de fond */
+  --trame-ferie:rgba(20,22,28,.055);
+  --trame-vacances:rgba(27,42,155,.05);
+
+  /* Chips sur surface de marque (contraste inversé) */
+  --ob-todo:#AEB6C7; --ob-doing:#8FA9FF; --ob-review:#F2C46A;
+  --ob-done:#6FD3A0; --ob-blocked:#FF9A9A; --ob-leave:#C3ABF5;
+  --ob-telework:#7FD7E8; --ob-activity:#6ED6BE; --ob-event:#FFAE7A;
+
+  /* Rythme */
+  --r:3px;                /* rayon standard : net, jamais arrondi mou */
+  --font-ui:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --font-display:'IBM Plex Serif',Georgia,'Times New Roman',serif;
+  --font-cond:'IBM Plex Sans Condensed','IBM Plex Sans',system-ui,sans-serif;
+  --font-mono:'IBM Plex Mono',ui-monospace,'SFMono-Regular',Consolas,monospace;
+}
+html.dark{
+  --paper:#0E1014;
+  --surface:#161922;
+  --surface-2:#1C202A;
+  --line:#2A2F3B;
+  --line-strong:#6B7486;
+  --ink:#E7E9EE;
+  --muted:#98A0AF;
+  --placeholder:#8E96A6;
+
+  --accent:#8093FF;
+  --accent-strong:#A3B0FF;
+  --accent-soft:#1A2044;
+  --on-accent:#0A0F2E;
+  --brand-panel:#0A0F45;
+
+  --st-todo:#98A0AF;
+  --st-doing:#8093FF;
+  --st-review:#E0A64B;
+  --st-done:#5EC48D;
+  --st-blocked:#F08585;
+
+  --leave:#B39BE8;
+  --leave-pending:#8E7FBD;
+  --telework:#5FC3D8;
+  --office:#98A0AF;
+  --event:#F0975E;
+  --activity:#54C7AE;
+
+  --danger-soft:#2C1618;
+  --success-soft:#12271C;
+  --warn-soft:#2A2113;
+
+  --trame-ferie:rgba(255,255,255,.05);
+  --trame-vacances:rgba(128,147,255,.07);
+}
+
+/* ── 2. BASE ───────────────────────────────────────────────────────────── */
+*,*::before,*::after{ box-sizing:border-box; }
+html,body{ margin:0; padding:0; }
+body{
+  background:var(--paper); color:var(--ink);
+  font-family:var(--font-ui); font-size:15px; line-height:1.5;
+  -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+  min-height:100vh;
+}
+[hidden]{ display:none !important; }
+a{ color:inherit; }
+button{ font:inherit; color:inherit; background:none; border:none; padding:0; cursor:pointer; }
+:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+@keyframes spin{ to{ transform:rotate(360deg); } }
+@keyframes rise{ from{ opacity:0; transform:translateY(4px); } to{ opacity:1; transform:none; } }
+
+
+
+/* La pastille de projet porte l'icône du référentiel, jamais une initiale :
+   deux projets peuvent commencer par la même lettre, pas porter la même icône. */
+.pgi{ width:64%; height:64%; fill:none; stroke:currentColor; stroke-width:1.7;
+  stroke-linecap:round; stroke-linejoin:round; }
+
+
+@media print{
+  #review, .toasts, .skip, .hcard, .pop, .scrim-modal{ display:none !important; }
+  body{ background:#fff; }
+  a[href]::after{ content:''; }
+}
+
+/* ── ACCESSIBILITÉ — passe transversale ────────────────────────────────── */
+/* Bordures de contrôle relevées à 3:1, texte d'espace réservé à 4,5:1,
+   mouvement respectant la préférence système, contrastes forcés pris en charge. */
+.skip{ position:absolute; left:12px; top:-64px; z-index:200; background:var(--accent);
+  color:var(--on-accent); padding:11px 17px; border-radius:var(--r);
+  font-size:13px; font-weight:600; text-decoration:none; transition:top .12s ease; }
+.skip:focus{ top:12px; }
+.sr-only{ position:absolute; width:1px; height:1px; padding:0; margin:-1px;
+  overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0; }
+
+/* Toute frontière de contrôle doit être perceptible, pas seulement les champs */
+.chip-btn,.icon-btn,.ms-toggle,.rv-btn,.seg,.nav-sq,.pm-all,.ms-ico,.mdel,
+.day-opt,.svc-chip,.icat,.doc-ic,.sess-ic,.au-sys{ border-color:var(--line-strong); }
+
+/* Micro-typographie relevée : sous 9,5 px, le monospace capitalisé décroche */
+.pill,.tt-mark,.mx-cov-n,.msum-n,.au-code,.us-login,.lock-tag,.tt-ok,
+.occ-ext,.diff-pill,.scope,.tpl-n{ font-size:9.5px; }
+
+[role="region"][tabindex="0"]:focus-visible{ outline:2px solid var(--accent); outline-offset:-2px; }
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{
+    animation-duration:.01ms !important; animation-iteration-count:1 !important;
+    transition-duration:.01ms !important; scroll-behavior:auto !important; }
+}
+@media (forced-colors:active){
+  .btn,.chip-btn,.field,.pm-box,.toggle,.mini-select{ border:1px solid ButtonText; }
+  .pm-box[aria-pressed="true"],.toggle[aria-pressed="true"]{ forced-color-adjust:none; }
+  .bar > i,.mbar,.tchip,.occ,.lvl{ forced-color-adjust:none; }
+}
+
+/* ── 3. TYPOGRAPHIE ────────────────────────────────────────────────────── */
+/* Le libellé mono est le dispositif de repérage récurrent du produit. */
+.eyebrow{
+  font-family:var(--font-mono); font-size:10.5px; font-weight:500;
+  letter-spacing:.14em; text-transform:uppercase; color:var(--muted);
+  text-decoration:none;
+}
+a.eyebrow:hover{ color:var(--ink); }
+.h1{ font-family:var(--font-display); font-size:28px; font-weight:600; letter-spacing:-.01em; margin:8px 0 6px; }
+.lede{ font-size:14px; color:var(--muted); line-height:1.55; margin:0; }
+
+/* ── 4. FORMULAIRES ────────────────────────────────────────────────────── */
+.field-block{ margin-bottom:16px; }
+.field-label{ display:block; font-size:12.5px; font-weight:600; letter-spacing:.01em; margin-bottom:6px; }
+.field-head{ display:flex; align-items:baseline; justify-content:space-between; margin-bottom:6px; }
+.field-head .field-label{ margin-bottom:0; }
+.field{
+  width:100%; display:block;
+  background:var(--surface); color:var(--ink);
+  border:1px solid var(--line-strong); border-radius:var(--r);
+  padding:11px 13px; font-family:var(--font-ui); font-size:14.5px; line-height:1.3;
+  transition:border-color .12s ease, box-shadow .12s ease, background-color .12s ease;
+}
+.field::placeholder{ color:var(--placeholder); opacity:1; }
+.field:focus{ outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
+.field[aria-invalid="true"]{ border-color:var(--st-blocked); }
+.field[aria-invalid="true"]:focus{ box-shadow:0 0 0 3px var(--danger-soft); }
+.field:disabled{ background:var(--surface-2); color:var(--muted); cursor:not-allowed; }
+
+.field-error{ font-size:12.5px; color:var(--st-blocked); margin:5px 0 0;
+  display:flex; gap:5px; align-items:flex-start; line-height:1.4; }
+/* Le message garde sa place quand il est muet : le formulaire ne saute jamais. */
+.field-error.is-quiet{ visibility:hidden; }
+/* Certains messages tiennent sur deux lignes : on réserve la hauteur en conséquence. */
+.field-error.is-tall{ min-height:35px; }
+.field-hint{ font-size:11.5px; color:var(--muted); margin:5px 0 0; line-height:1.4; }
+
+.field-wrap{ position:relative; }
+.field-wrap .field{ padding-right:92px; }
+.pw-toggle{
+  position:absolute; right:6px; top:50%; transform:translateY(-50%);
+  font-family:var(--font-mono); font-size:11px; letter-spacing:.06em;
+  color:var(--muted); padding:5px 7px; border-radius:2px;
+}
+.pw-toggle:hover{ color:var(--ink); background:var(--accent-soft); }
+
+/* Indicateur de politique de mot de passe (vues 02 · 04 · 05) */
+.policy{ margin-top:9px; display:grid; grid-template-columns:1fr 1fr; gap:5px 14px; }
+.policy-item{ display:flex; align-items:center; gap:7px; font-size:11.5px; color:var(--muted);
+  transition:color .15s ease; }
+.policy-mark{
+  display:inline-flex; align-items:center; justify-content:center; flex:none;
+  width:14px; height:14px; border:1px solid var(--line-strong); border-radius:2px;
+  font-family:var(--font-mono); font-size:9px; color:var(--muted);
+  transition:color .15s ease, border-color .15s ease;
+}
+.policy-item.is-met{ color:var(--st-done); }
+.policy-item.is-met .policy-mark{ color:var(--st-done); border-color:var(--st-done); }
+
+.name-row{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.form-card--wide{ max-width:400px; }
+.btn-stack{ display:grid; gap:8px; }
+
+.sent-addr{ display:flex; flex-direction:column; gap:3px; margin:0 0 16px;
+  padding:10px 12px; border:1px solid var(--line); border-radius:var(--r); background:var(--surface); }
+.sent-mail{ font-family:var(--font-mono); font-size:12.5px; color:var(--ink); word-break:break-all; }
+.rv-note{ font-family:var(--font-mono); font-size:9px; line-height:1.5; color:var(--muted); margin:6px 0 0; }
+
+/* ── 5. BOUTONS ────────────────────────────────────────────────────────── */
+.btn{
+  display:inline-flex; align-items:center; justify-content:center; gap:8px;
+  border-radius:var(--r); font-size:14px; font-weight:600; letter-spacing:.01em;
+  padding:11px 18px; border:1px solid transparent;
+  transition:background-color .12s ease, border-color .12s ease, color .12s ease;
+}
+.btn-primary{ background:var(--accent); color:var(--on-accent); }
+.btn-primary:hover:not(:disabled){ background:var(--accent-strong); }
+.btn-secondary{ background:var(--surface); color:var(--ink); border-color:var(--line-strong); }
+.btn-secondary:hover:not(:disabled){ border-color:var(--accent); color:var(--accent); }
+.btn-block{ width:100%; }
+.btn:disabled{ opacity:.6; cursor:not-allowed; }
+.link{ color:var(--accent); text-decoration:none; border-bottom:1px solid transparent; }
+.link:hover{ border-bottom-color:currentColor; }
+.link-sm{ font-size:12.5px; }
+
+.spinner{
+  display:inline-block; width:14px; height:14px; border-radius:50%;
+  border:2px solid rgba(255,255,255,.35); border-top-color:#fff;
+  animation:spin .7s linear infinite;
+}
+.spinner-ink{ border-color:var(--line); border-top-color:var(--accent); width:12px; height:12px; }
+
+/* Groupe segmenté (langue) */
+.seg{ display:inline-flex; border:1px solid var(--line-strong); border-radius:var(--r); overflow:hidden; }
+.seg button{
+  font-family:var(--font-mono); font-size:10.5px; letter-spacing:.08em;
+  padding:5px 9px; color:var(--muted); background:var(--surface);
+}
+.seg button + button{ border-left:1px solid var(--line-strong); }
+.seg button[aria-pressed="true"]{ background:var(--accent); color:var(--on-accent); }
+.chip-btn{
+  font-family:var(--font-mono); font-size:10.5px; letter-spacing:.04em;
+  padding:5px 9px; border:1px solid var(--line-strong); border-radius:var(--r);
+  background:var(--surface); color:var(--muted);
+}
+.chip-btn:hover{ color:var(--ink); border-color:var(--accent); }
+
+/* ── 6. ALERTES ────────────────────────────────────────────────────────── */
+.alert{
+  display:flex; gap:10px; padding:11px 13px; border-radius:var(--r);
+  border:1px solid; font-size:13.5px; line-height:1.45; margin-bottom:20px;
+}
+.alert-error{ background:var(--danger-soft); border-color:var(--st-blocked); color:var(--st-blocked); }
+.alert-success{ background:var(--success-soft); border-color:var(--st-done); color:var(--st-done); }
+/* Neutre : confirme qu'une action a eu lieu sans rien affirmer sur les données. */
+.alert-neutral{ background:var(--accent-soft); border-color:var(--accent); color:var(--ink); }
+.alert-neutral .alert-icon{ color:var(--accent); }
+.alert-warn{ background:var(--warn-soft); border-color:var(--st-review); color:var(--st-review); }
+.alert-icon{ flex:none; font-weight:700; }
+
+/* ── 7. GABARIT DE LA VUE CONNEXION ────────────────────────────────────── */
+.split{ min-height:100vh; display:grid; grid-template-columns:1fr minmax(430px,40%); }
+
+.brand-panel{
+  background:var(--brand-panel); color:#fff; position:relative; overflow:hidden;
+  padding:44px 48px; display:flex; flex-direction:column; justify-content:space-between;
+}
+.brand-panel::after{                       /* texture : la trame, très discrète */
+  content:''; position:absolute; inset:0; pointer-events:none;
+  background-image:linear-gradient(to right,rgba(255,255,255,.045) 1px,transparent 1px);
+  background-size:44px 100%;
+}
+.brand-panel > *{ position:relative; z-index:1; }
+.wordmark{ display:flex; align-items:baseline; gap:12px; }
+.wordmark-name{ font-family:var(--font-display); font-size:30px; font-weight:600; letter-spacing:-.01em; line-height:1; }
+.brand-sub{ margin:12px 0 0; font-size:15px; line-height:1.6; max-width:24rem; color:rgba(255,255,255,.75); }
+.brand-foot{ margin:0; font-size:13px; line-height:1.6; max-width:30rem; color:rgba(255,255,255,.6); }
+.on-brand-eyebrow{ color:rgba(255,255,255,.5); }
+
+.form-panel{ background:var(--paper); display:flex; flex-direction:column; }
+.service-bar{ display:flex; align-items:center; justify-content:flex-end; gap:6px; padding:24px 48px 0; }
+.form-body{ flex:1; display:flex; align-items:center; justify-content:center; padding:40px 48px; }
+.form-card{ width:100%; max-width:380px; }
+.form-intro{ margin-bottom:28px; }
+.form-foot{ display:flex; flex-wrap:wrap; gap:4px 20px; justify-content:center; padding:0 48px 24px; }
+.signup-row{ margin-top:24px; padding-top:20px; border-top:1px solid var(--line); font-size:13.5px; color:var(--muted); }
+.signup-row .link{ font-weight:500; margin-left:4px; }
+.submit-row{ margin-top:24px; }
+.redirect{ display:flex; align-items:center; gap:8px; font-size:13.5px; color:var(--muted); margin:0; }
+
+/* ── 8. GRILLE MINIATURE (vocabulaire visuel des cellules du planning) ──── */
+.mini-wrap{ margin:14px 0 0; }
+.mini-caption{ display:flex; align-items:baseline; justify-content:space-between; gap:16px; margin-bottom:10px; }
+.mini{ border:1px solid rgba(255,255,255,.16); border-radius:var(--r); background:rgba(255,255,255,.03); }
+.mini-grid{ display:grid; grid-template-columns:92px repeat(5,1fr); }
+.mini-headrow{ padding:6px 0; }
+.mini-head{
+  font-family:var(--font-cond); font-size:10.5px; font-weight:600;
+  letter-spacing:.09em; text-transform:uppercase; color:rgba(255,255,255,.62);
+  text-align:center;
+}
+.mini-head.is-first{ text-align:left; padding-left:10px; }
+.mini-row{ border-top:1px solid rgba(255,255,255,.11); animation:rise .5s cubic-bezier(.22,.61,.36,1) both; }
+.mini-name{ font-family:var(--font-cond); font-size:11.5px; color:rgba(255,255,255,.88); padding:10px; }
+.mini-cell{ border-left:1px solid rgba(255,255,255,.11); padding:4px; min-height:38px; display:flex; flex-direction:column; gap:2px; }
+.chip{
+  display:flex; align-items:center; gap:4px;
+  font-family:var(--font-cond); font-size:9.5px; line-height:1.25;
+  padding:3px 4px 3px 5px; border-radius:2px;
+  background:rgba(255,255,255,.10); border-left:2.5px solid currentColor;
+  animation:rise .5s cubic-bezier(.22,.61,.36,1) both;
+}
+.chip > span{ color:rgba(255,255,255,.92); min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+/* Tâche hors projet : trait interrompu, pas de pastille projet. Cas nominal, pas anomalie. */
+.chip-indep{ border-left-style:dashed; }
+.chip-flat{ border-left:none; padding-left:5px; background:rgba(195,171,245,.28); }
+.chip-hatch{ background-image:repeating-linear-gradient(135deg,rgba(255,255,255,.18) 0 3px,transparent 3px 6px); }
+.col-ferie{ background:rgba(255,255,255,.055); }
+.mini-foot{ font-family:var(--font-mono); font-size:9.5px; color:rgba(255,255,255,.58); text-align:center; padding:8px 0; }
+.mini-foot.is-first{ text-align:left; padding-left:10px; }
+.mini-sum{ background:rgba(255,255,255,.04); }
+
+@media (prefers-reduced-motion:reduce){
+  .chip,.mini-row{ animation:none; }
+  *{ transition-duration:.01ms !important; }
+}
+
+/* ── 8 bis. PORTEFEUILLE MINIATURE (l'amont : d'où viennent les occupations) ──
+   L'identité d'un projet est portée par sa pastille — jamais par la couleur,
+   qui reste réservée au statut. Même règle en vues 07, 12 et 16. */
+.pglyph{
+  display:inline-flex; align-items:center; justify-content:center; flex:none;
+  width:14px; height:14px; border:1px solid rgba(255,255,255,.4); border-radius:2px;
+  font-family:var(--font-mono); font-size:8px; font-style:normal; font-weight:500;
+  color:rgba(255,255,255,.88); background:rgba(255,255,255,.06);
+}
+.chip .pglyph{ width:12px; height:12px; font-size:7px; }
+
+.pf{ margin-top:30px; }
+.pf-caption{ display:flex; align-items:baseline; justify-content:space-between; gap:16px; margin-bottom:10px; }
+.pf-list{ border:1px solid rgba(255,255,255,.16); border-radius:var(--r); background:rgba(255,255,255,.03); }
+.pf-row{
+  display:grid; grid-template-columns:14px minmax(0,1fr) 112px minmax(0,1.15fr) 76px;
+  gap:12px; align-items:center; padding:9px 10px;
+}
+.pf-row + .pf-row{ border-top:1px solid rgba(255,255,255,.11); }
+.pf-name{ font-family:var(--font-cond); font-size:12px; color:rgba(255,255,255,.9);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.pf-prog{ display:flex; align-items:center; gap:7px; }
+.pf-bar{ flex:1; height:4px; border-radius:2px; background:rgba(255,255,255,.14); position:relative; }
+.pf-bar > i{ position:absolute; top:0; bottom:0; left:0; border-radius:2px; background:rgba(255,255,255,.75); }
+.pf-pct{ font-family:var(--font-mono); font-size:9.5px; color:rgba(255,255,255,.6); }
+.pf-mile{ font-family:var(--font-cond); font-size:10.5px; color:rgba(255,255,255,.62);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.pf-health{ display:flex; align-items:center; gap:5px; justify-content:flex-end;
+  font-family:var(--font-mono); font-size:8.5px; letter-spacing:.1em; text-transform:uppercase; white-space:nowrap; }
+.pf-dot{ width:7px; height:7px; border-radius:50%; background:currentColor; flex:none; }
+
+/* Articulation entre les deux moitiés */
+.pf-link{ display:flex; align-items:center; gap:10px; margin:16px 0 0; }
+.pf-link::after{ content:''; flex:1; height:1px; background:rgba(255,255,255,.14); }
+
+/* ── 9. PANNEAU DE REVUE (hors produit) ────────────────────────────────── */
+#review{
+  position:fixed; bottom:12px; right:12px; z-index:50; width:230px;
+  background:var(--surface); color:var(--ink);
+  border:1px solid var(--line-strong); border-radius:var(--r);
+  font-family:var(--font-mono);
+}
+.rv-head{ display:flex; align-items:center; justify-content:space-between; width:100%; padding:8px 12px; border-bottom:1px solid var(--line); }
+.rv-body{ padding:12px; }
+.rv-group + .rv-group{ margin-top:12px; }
+.rv-legend{ font-family:var(--font-mono); font-size:9px; font-weight:500; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); margin:0 0 6px; }
+.rv-grid{ display:grid; grid-template-columns:1fr 1fr; gap:4px; }
+.rv-btn{
+  font-family:var(--font-mono); font-size:10.5px; text-align:left;
+  padding:5px 8px; border:1px solid var(--line); border-radius:2px;
+  background:var(--surface); color:var(--muted);
+}
+.rv-btn:hover{ color:var(--ink); }
+.rv-btn[aria-pressed="true"]{ background:var(--accent); border-color:var(--accent); color:var(--on-accent); }
+
+/* ── 10. RESPONSIVE ────────────────────────────────────────────────────── */
+@media (max-width:1000px){
+  .split{ grid-template-columns:1fr; }
+  .brand-panel{ padding:28px; }
+  .service-bar{ padding:20px 28px 0; }
+  .form-body{ padding:32px 28px 44px; }
+  .form-foot{ padding:0 28px 20px; }
+  .brand-foot{ display:none; }
+}
+@media (max-height:780px){
+  .pf{ display:none; }                /* priorité à la grille quand la hauteur manque */
+}
+@media (max-width:640px){
+  .mini-wrap,.pf{ display:none; }     /* les miniatures ne se dégradent pas : on les retire */
+  .brand-panel{ padding:22px 20px; }
+  .wordmark-name{ font-size:25px; }
+  .brand-sub{ font-size:14px; margin-top:8px; }
+  #review{ left:12px; right:12px; width:auto; }
+}
+</style>
+</head>
+
+<body>
+<a class="skip" href="#contenu">Aller au contenu principal</a>
+
+<!-- Bibliothèque d'icônes de projet — 44 symboles, 11 catégories, aucune dépendance -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="p-flow" viewBox="0 0 16 16"><rect x="6" y="1.6" width="4" height="3"/><rect x="1.6" y="11" width="4" height="3"/><rect x="10.4" y="11" width="4" height="3"/><path d="M8 4.6v3M3.6 11V7.6h8.8V11"/></symbol>
+  <symbol id="p-screen" viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="8"/><path d="M6 14h4M8 11v3"/></symbol>
+  <symbol id="p-database" viewBox="0 0 16 16"><path d="M13.5 4c0 1.1-2.5 2-5.5 2S2.5 5.1 2.5 4 5 2 8 2s5.5.9 5.5 2z"/><path d="M2.5 4v8c0 1.1 2.5 2 5.5 2s5.5-.9 5.5-2V4M2.5 8c0 1.1 2.5 2 5.5 2s5.5-.9 5.5-2"/></symbol>
+</svg>
+
+<div class="split">
+
+  <!-- ══════════ PANNEAU SIGNATURE : la grille, thèse du produit ══════════ -->
+  <aside class="brand-panel">
+
+    <div>
+      <div class="wordmark">
+        <span class="wordmark-name">Trame</span>
+        <span class="eyebrow on-brand-eyebrow">Ville de Roqueville</span>
+      </div>
+      <p class="brand-sub"
+         data-fr="Projets, ressources et temps sur une seule grille."
+         data-en="Projects, people and time on a single grid.">
+        Projets, ressources et temps sur une seule grille.
+      </p>
+    </div>
+
+    <!-- ── L'amont : le portefeuille (vues 10 · 11 · 30) ── -->
+    <div class="pf">
+      <div class="pf-caption">
+        <span class="eyebrow on-brand-eyebrow"
+              data-fr="Portefeuille · 3 projets actifs" data-en="Portfolio · 3 active projects">Portefeuille · 3 projets actifs</span>
+        <span class="mini-foot" style="padding:0"
+              data-fr="Progression · prochain jalon · santé"
+              data-en="Progress · next milestone · health">Progression · prochain jalon · santé</span>
+      </div>
+
+      <div class="pf-list">
+        <div class="pf-row">
+          <i class="pglyph" title="Refonte du portail citoyen"><svg class="pgi" viewBox="0 0 16 16" aria-hidden="true"><use href="#p-screen"/></svg></i>
+          <span class="pf-name">Refonte du portail citoyen</span>
+          <span class="pf-prog"><span class="pf-bar"><i style="width:62%"></i></span><span class="pf-pct">62 %</span></span>
+          <span class="pf-mile" data-fr="Recette · 28 nov." data-en="User testing · 28 Nov">Recette · 28 nov.</span>
+          <span class="pf-health" style="color:var(--ob-done)"><i class="pf-dot"></i><span data-fr="Bon" data-en="Good">Bon</span></span>
+        </div>
+        <div class="pf-row">
+          <i class="pglyph" title="Migration SIRH"><svg class="pgi" viewBox="0 0 16 16" aria-hidden="true"><use href="#p-database"/></svg></i>
+          <span class="pf-name">Migration SIRH</span>
+          <span class="pf-prog"><span class="pf-bar"><i style="width:31%"></i></span><span class="pf-pct">31 %</span></span>
+          <span class="pf-mile" data-fr="Reprise des données · 5 déc." data-en="Data migration · 5 Dec">Reprise des données · 5 déc.</span>
+          <span class="pf-health" style="color:var(--ob-review)"><i class="pf-dot"></i><span data-fr="Attention" data-en="At risk">Attention</span></span>
+        </div>
+        <div class="pf-row">
+          <i class="pglyph" title="Schéma directeur numérique"><svg class="pgi" viewBox="0 0 16 16" aria-hidden="true"><use href="#p-flow"/></svg></i>
+          <span class="pf-name">Schéma directeur numérique</span>
+          <span class="pf-prog"><span class="pf-bar"><i style="width:12%"></i></span><span class="pf-pct">12 %</span></span>
+          <span class="pf-mile" data-fr="Comité de pilotage · 15 déc." data-en="Steering committee · 15 Dec">Comité de pilotage · 15 déc.</span>
+          <span class="pf-health" style="color:var(--ob-blocked)"><i class="pf-dot"></i><span data-fr="Critique" data-en="Critical">Critique</span></span>
+        </div>
+      </div>
+
+      <p class="pf-link eyebrow on-brand-eyebrow" style="margin-bottom:0"
+         data-fr="Ce que cela occupe, jour par jour" data-en="What that takes up, day by day">Ce que cela occupe, jour par jour</p>
+    </div>
+
+    <!-- ── L'aval : la grille (vue 07) ── -->
+    <div class="mini-wrap">
+      <div class="mini-caption">
+        <span class="eyebrow on-brand-eyebrow"
+              data-fr="Semaine du 17 au 21 novembre" data-en="Week of 17–21 November">Semaine du 17 au 21 novembre</span>
+        <span class="mini-foot" style="padding:0"
+              data-fr="Systèmes d'information · 5 personnes"
+              data-en="IT department · 5 people">Systèmes d'information · 5 personnes</span>
+      </div>
+
+      <div class="mini">
+        <div class="mini-grid mini-headrow">
+          <div class="mini-head is-first" data-fr="Ressource" data-en="Resource">Ressource</div>
+          <div class="mini-head">lun 17</div>
+          <div class="mini-head">mar 18</div>
+          <div class="mini-head">mer 19</div>
+          <div class="mini-head col-ferie">jeu 20</div>
+          <div class="mini-head">ven 21</div>
+        </div>
+
+        <div class="mini-grid mini-row">
+          <div class="mini-name">C. Durand</div>
+          <div class="mini-cell"><span class="chip" style="color:var(--ob-doing)"><i class="pglyph" title="Refonte du portail citoyen"><svg class="pgi" viewBox="0 0 16 16" aria-hidden="true"><use href="#p-screen"/></svg></i><span>Maquettes portail</span></span></div>
+          <div class="mini-cell"><span class="chip" style="color:var(--ob-doing)"><i class="pglyph" title="Refonte du portail citoyen"><svg class="pgi" viewBox="0 0 16 16" aria-hidden="true"><use href="#p-screen"/></svg></i><span>Maquettes portail</span></span></div>
+          <div class="mini-cell"><span class="chip chip-flat" style="color:var(--ob-leave)"><span>Congé annuel</span></span></div>
+          <div class="mini-cell col-ferie"><span class="chip chip-flat" style="color:var(--ob-leave)"><span>Congé annuel</span></span></div>
+          <div class="mini-cell"><span class="chip" style="color:var(--ob-todo)"><i class="pglyph" title="Refonte du portail citoyen"><svg class="pgi" viewBox="0 0 16 16" aria-hidden="true"><use href="#p-screen"/></svg></i><span>Recette portail</span></span></div>
+        </div>
+
+        <div class="mini-grid mini-row">
+          <div class="mini-name">D. Amrani</div>
+          <div class="mini-cell">
+            <span class="chip" style="color:var(--ob-telework)"><span>Télétravail</span></span>
+            <span class="chip" style="color:var(--ob-review)"><i class="pglyph" title="Migration SIRH"><svg class="pgi" viewBox="0 0 16 16" aria-hidden="true"><use href="#p-database"/></svg></i><span>Cahier des charges</span></span>
+          </div>
+          <div class="mini-cell"><span class="chip" style="color:var(--ob-doing)"><i class="pglyph" title="Migration SIRH"><svg class="pgi" viewBox="0 0 16 16" aria-hidden="true"><use href="#p-database"/></svg></i><span>Cahier des charges</span></span></div>
+          <div class="mini-cell"><span class="chip" style="color:var(--ob-event)"><span>Comité · EXT</span></span></div>
+          <div class="mini-cell col-ferie"></div>
+          <div class="mini-cell"><span class="chip" style="color:var(--ob-done)"><i class="pglyph" title="Refonte du portail citoyen"><svg class="pgi" viewBox="0 0 16 16" aria-hidden="true"><use href="#p-screen"/></svg></i><span>Recette portail</span></span></div>
+        </div>
+
+        <div class="mini-grid mini-row">
+          <div class="mini-name">F. Berthier</div>
+          <div class="mini-cell"><span class="chip" style="color:var(--ob-activity)"><span>Accueil · matin</span></span></div>
+          <div class="mini-cell"><span class="chip chip-flat chip-hatch" style="color:var(--ob-leave)"><span>Congé · en attente</span></span></div>
+          <div class="mini-cell"><span class="chip chip-flat chip-hatch" style="color:var(--ob-leave)"><span>Congé · en attente</span></span></div>
+          <div class="mini-cell col-ferie"></div>
+          <div class="mini-cell"><span class="chip" style="color:var(--ob-telework)"><span>Télétravail</span></span></div>
+        </div>
+
+        <div class="mini-grid mini-row">
+          <div class="mini-name">H. Nguyen</div>
+          <div class="mini-cell"><span class="chip" style="color:var(--ob-blocked)"><i class="pglyph" title="Migration SIRH"><svg class="pgi" viewBox="0 0 16 16" aria-hidden="true"><use href="#p-database"/></svg></i><span>Reprise des données</span></span></div>
+          <div class="mini-cell"><span class="chip" style="color:var(--ob-doing)"><i class="pglyph" title="Migration SIRH"><svg class="pgi" viewBox="0 0 16 16" aria-hidden="true"><use href="#p-database"/></svg></i><span>Reprise des données</span></span></div>
+          <div class="mini-cell"><span class="chip" style="color:var(--ob-doing)"><i class="pglyph" title="Migration SIRH"><svg class="pgi" viewBox="0 0 16 16" aria-hidden="true"><use href="#p-database"/></svg></i><span>Reprise des données</span></span></div>
+          <div class="mini-cell col-ferie"></div>
+          <div class="mini-cell"><span class="chip" style="color:var(--ob-activity)"><span>Astreinte</span></span></div>
+        </div>
+
+        <div class="mini-grid mini-row">
+          <div class="mini-name">I. Rocher</div>
+          <div class="mini-cell"><span class="chip" style="color:var(--ob-todo)"><i class="pglyph" title="Schéma directeur numérique"><svg class="pgi" viewBox="0 0 16 16" aria-hidden="true"><use href="#p-flow"/></svg></i><span>Note de cadrage</span></span></div>
+          <div class="mini-cell"><span class="chip" style="color:var(--ob-event)"><span>Bureau municipal</span></span></div>
+          <div class="mini-cell"><span class="chip" style="color:var(--ob-doing)"><i class="pglyph" title="Schéma directeur numérique"><svg class="pgi" viewBox="0 0 16 16" aria-hidden="true"><use href="#p-flow"/></svg></i><span>Note de cadrage</span></span></div>
+          <div class="mini-cell col-ferie"></div>
+          <div class="mini-cell"><span class="chip chip-indep" style="color:var(--ob-todo)"><span>Réunion de service</span></span></div>
+        </div>
+
+        <div class="mini-grid mini-row mini-sum">
+          <div class="mini-foot is-first" data-fr="Hors présentiel" data-en="Off-site">Hors présentiel</div>
+          <div class="mini-foot">1/5 · 20 %</div>
+          <div class="mini-foot">1/5 · 20 %</div>
+          <div class="mini-foot">2/5 · 40 %</div>
+          <div class="mini-foot col-ferie" data-fr="Férié" data-en="Holiday">Férié</div>
+          <div class="mini-foot">1/5 · 20 %</div>
+        </div>
+      </div>
+    </div>
+
+    <p class="brand-foot"
+       data-fr="En haut, où en sont les projets. En bas, ce qu'ils occupent réellement — aux côtés des congés, du télétravail, des permanences et des réunions."
+       data-en="Above, where projects stand. Below, what they actually take up — alongside leave, remote work, on-call duties and meetings.">
+      En haut, où en sont les projets. En bas, ce qu'ils occupent réellement — aux côtés des congés, du télétravail, des permanences et des réunions.
+    </p>
+  </aside>
+
+  <!-- ══════════ FORMULAIRE ══════════ -->
+  <main class="form-panel" id="contenu" tabindex="-1">
+
+    <div class="service-bar">
+      <div class="seg" role="group" aria-label="Langue">
+        <button id="lang-fr" aria-pressed="true" onclick="setLang('fr')">FR</button>
+        <button id="lang-en" aria-pressed="false" onclick="setLang('en')">EN</button>
+      </div>
+      <button class="chip-btn" id="theme-btn" onclick="toggleTheme()"
+              data-fr="Thème sombre" data-en="Dark theme">Thème sombre</button>
+    </div>
+
+    <div class="form-body">
+      <div class="form-card">
+
+        <div class="form-intro">
+          <span class="eyebrow" data-fr="Accès à l'application" data-en="Application access">Accès à l'application</span>
+          <h1 class="h1" data-fr="Connexion" data-en="Sign in">Connexion</h1>
+          <p class="lede"
+             data-fr="Identifiez-vous pour accéder à votre espace."
+             data-en="Sign in to reach your workspace.">Identifiez-vous pour accéder à votre espace.</p>
+        </div>
+
+        <!-- ─── État : succès ─── -->
+        <div id="pane-success" hidden>
+          <div class="alert alert-success">
+            <span class="alert-icon" aria-hidden="true">✓</span>
+            <span data-fr="Connexion réussie." data-en="Signed in.">Connexion réussie.</span>
+          </div>
+          <p class="redirect">
+            <span class="spinner spinner-ink" aria-hidden="true"></span>
+            <span data-fr="Redirection vers le tableau de bord…" data-en="Redirecting to your dashboard…">Redirection vers le tableau de bord…</span>
+          </p>
+        </div>
+
+        <!-- ─── Formulaire ─── -->
+        <form id="form" novalidate autocomplete="on">
+
+          <div class="alert alert-error" id="alert" role="alert" hidden>
+            <span class="alert-icon" aria-hidden="true" id="alert-icon">!</span>
+            <span id="alert-text"></span>
+          </div>
+
+          <div class="field-block">
+            <label class="field-label" for="login"
+                   data-fr="Identifiant ou email" data-en="Username or email">Identifiant ou email</label>
+            <input id="login" name="login" type="text" class="field" autocomplete="username"
+                   aria-describedby="login-err"
+                   data-ph-fr="c.durand ou camille.durand@roqueville.fr"
+                   data-ph-en="c.durand or camille.durand@roqueville.fr"
+                   placeholder="c.durand ou camille.durand@roqueville.fr">
+            <p class="field-error" id="login-err" hidden>
+              <span aria-hidden="true">↑</span>
+              <span data-fr="L'identifiant est requis" data-en="Username is required">L'identifiant est requis</span>
+            </p>
+          </div>
+
+          <div class="field-block">
+            <div class="field-head">
+              <label class="field-label" for="password" data-fr="Mot de passe" data-en="Password">Mot de passe</label>
+              <a href="#" class="link link-sm" data-fr="Mot de passe oublié ?" data-en="Forgot password?">Mot de passe oublié ?</a>
+            </div>
+            <div class="field-wrap">
+              <input id="password" name="password" type="password" class="field"
+                     autocomplete="current-password" aria-describedby="password-err">
+              <button type="button" class="pw-toggle" id="pw-toggle" onclick="togglePw()"
+                      data-fr="AFFICHER" data-en="SHOW">AFFICHER</button>
+            </div>
+            <p class="field-error" id="password-err" hidden>
+              <span aria-hidden="true">↑</span>
+              <span data-fr="Le mot de passe est requis" data-en="Password is required">Le mot de passe est requis</span>
+            </p>
+          </div>
+
+          <div class="submit-row">
+            <button type="submit" id="submit" class="btn btn-primary btn-block">
+              <span class="spinner" id="spinner" aria-hidden="true" hidden></span>
+              <span id="submit-label" data-fr="Se connecter" data-en="Sign in">Se connecter</span>
+            </button>
+          </div>
+
+          <!-- Variante : inscription autonome activée -->
+          <div class="signup-row" id="signup-row">
+            <span data-fr="Pas encore de compte ?" data-en="No account yet?">Pas encore de compte ?</span>
+            <a href="#" class="link" data-fr="S'inscrire" data-en="Create one">S'inscrire</a>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <footer class="form-foot">
+      <span class="eyebrow">Trame v1.0</span>
+      <a href="#" class="eyebrow"
+         data-fr="Accessibilité : conforme RGAA" data-en="Accessibility: RGAA compliant">Accessibilité : conforme RGAA</a>
+      <a href="#" class="eyebrow" data-fr="Aide" data-en="Help">Aide</a>
+    </footer>
+  </main>
+</div>
+
+<!-- ══════════ PANNEAU DE REVUE — hors produit ══════════ -->
+<div id="review">
+  <button class="rv-head" onclick="var b=document.getElementById('rv-body'); b.hidden=!b.hidden;">
+    <span class="eyebrow" style="font-size:9.5px">Vue 01 · panneau de revue</span>
+    <span aria-hidden="true" style="color:var(--muted);font-size:11px">▾</span>
+  </button>
+  <div class="rv-body" id="rv-body">
+    <div class="rv-group">
+      <p class="rv-legend">État</p>
+      <div class="rv-grid" id="rv-states">
+        <button class="rv-btn" data-state="idle" aria-pressed="true">Par défaut</button>
+        <button class="rv-btn" data-state="submitting" aria-pressed="false">Soumission</button>
+        <button class="rv-btn" data-state="invalid" aria-pressed="false">Identifiants</button>
+        <button class="rv-btn" data-state="locked" aria-pressed="false">Verrouillé</button>
+        <button class="rv-btn" data-state="empty" aria-pressed="false">Champs vides</button>
+        <button class="rv-btn" data-state="success" aria-pressed="false">Succès</button>
+      </div>
+    </div>
+    <div class="rv-group">
+      <p class="rv-legend">Inscription autonome</p>
+      <div class="rv-grid">
+        <button class="rv-btn" id="rv-signup-on" aria-pressed="true" onclick="setSignup(true)">Activée</button>
+        <button class="rv-btn" id="rv-signup-off" aria-pressed="false" onclick="setSignup(false)">Désactivée</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ── Thème ─────────────────────────────────────────────── */
+function toggleTheme(){
+  document.documentElement.classList.toggle('dark');
+  syncLang();
+}
+
+/* ── Langue ────────────────────────────────────────────── */
+var lang = 'fr';
+function setLang(l){
+  lang = l;
+  document.documentElement.lang = l;
+  document.getElementById('lang-fr').setAttribute('aria-pressed', l === 'fr');
+  document.getElementById('lang-en').setAttribute('aria-pressed', l === 'en');
+  syncLang();
+}
+function syncLang(){
+  document.querySelectorAll('[data-fr]').forEach(function(el){ el.textContent = el.dataset[lang]; });
+  document.querySelectorAll('[data-ph-fr]').forEach(function(el){
+    el.placeholder = lang === 'fr' ? el.dataset.phFr : el.dataset.phEn;
+  });
+  var dark = document.documentElement.classList.contains('dark');
+  document.getElementById('theme-btn').textContent =
+    dark ? (lang === 'fr' ? 'Thème clair' : 'Light theme')
+         : (lang === 'fr' ? 'Thème sombre' : 'Dark theme');
+  var shown = document.getElementById('password').type === 'text';
+  document.getElementById('pw-toggle').textContent =
+    shown ? (lang === 'fr' ? 'MASQUER' : 'HIDE') : (lang === 'fr' ? 'AFFICHER' : 'SHOW');
+  applyState(current, true);
+}
+
+/* ── Bascule d'affichage du mot de passe ───────────────── */
+function togglePw(){
+  var f = document.getElementById('password');
+  f.type = f.type === 'password' ? 'text' : 'password';
+  syncLang();
+}
+
+/* ── Machine à états ───────────────────────────────────── */
+var T = {
+  invalid:    { fr:"Identifiant ou mot de passe incorrect", en:"Incorrect username or password" },
+  locked:     { fr:"Trop de tentatives de connexion. Réessayez plus tard.", en:"Too many sign-in attempts. Try again later." },
+  submit:     { fr:"Se connecter", en:"Sign in" },
+  submitting: { fr:"Connexion…", en:"Signing in…" }
+};
+var current = 'idle';
+
+function applyState(state, keepValues){
+  current = state;
+  var form  = document.getElementById('form'),
+      ok    = document.getElementById('pane-success'),
+      alrt  = document.getElementById('alert'),
+      atxt  = document.getElementById('alert-text'),
+      aicn  = document.getElementById('alert-icon'),
+      login = document.getElementById('login'),
+      pw    = document.getElementById('password'),
+      btn   = document.getElementById('submit'),
+      spin  = document.getElementById('spinner'),
+      label = document.getElementById('submit-label');
+
+  form.hidden = false; ok.hidden = true; alrt.hidden = true;
+  login.disabled = pw.disabled = btn.disabled = false;
+  spin.hidden = true; label.textContent = T.submit[lang];
+  login.setAttribute('aria-invalid','false'); pw.setAttribute('aria-invalid','false');
+  document.getElementById('login-err').hidden = true;
+  document.getElementById('password-err').hidden = true;
+
+  if(state === 'idle' && !keepValues){ login.value = ''; pw.value = ''; }
+
+  if(state === 'submitting'){
+    if(!login.value) login.value = 'c.durand';
+    if(!pw.value) pw.value = 'MotDePasse2026!';
+    login.disabled = pw.disabled = btn.disabled = true;
+    spin.hidden = false; label.textContent = T.submitting[lang];
+  }
+
+  if(state === 'invalid'){
+    /* les champs restent remplis — exigence explicite du brief */
+    if(!login.value) login.value = 'c.durand';
+    if(!pw.value) pw.value = 'MotDePasse2026!';
+    alrt.hidden = false; aicn.textContent = '!'; atxt.textContent = T.invalid[lang];
+    login.setAttribute('aria-invalid','true'); pw.setAttribute('aria-invalid','true');
+  }
+
+  if(state === 'locked'){
+    if(!login.value) login.value = 'c.durand';
+    alrt.hidden = false; aicn.textContent = '⏱'; atxt.textContent = T.locked[lang];
+  }
+
+  if(state === 'empty'){
+    login.value = ''; pw.value = '';
+    document.getElementById('login-err').hidden = false;
+    document.getElementById('password-err').hidden = false;
+    login.setAttribute('aria-invalid','true'); pw.setAttribute('aria-invalid','true');
+  }
+
+  if(state === 'success'){ form.hidden = true; ok.hidden = false; }
+
+  document.querySelectorAll('#rv-states .rv-btn').forEach(function(b){
+    b.setAttribute('aria-pressed', b.dataset.state === state);
+  });
+}
+
+document.querySelectorAll('#rv-states .rv-btn').forEach(function(b){
+  b.addEventListener('click', function(){ applyState(b.dataset.state); });
+});
+
+/* ── Variante : inscription autonome ───────────────────── */
+function setSignup(on){
+  document.getElementById('signup-row').hidden = !on;   /* le lien disparaît entièrement */
+  document.getElementById('rv-signup-on').setAttribute('aria-pressed', on);
+  document.getElementById('rv-signup-off').setAttribute('aria-pressed', !on);
+}
+
+/* ── Apparition orchestrée de la grille ────────────────── */
+document.querySelectorAll('.mini-row').forEach(function(r,i){ r.style.animationDelay = (60 + i*55) + 'ms'; });
+document.querySelectorAll('.chip').forEach(function(c,i){ c.style.animationDelay = (180 + i*22) + 'ms'; });
+
+setLang('fr');
+applyState('idle');
+</script>
+
+<script>
+/* ══════════ ACCESSIBILITÉ — comportements transversaux ══════════ */
+(function(){
+  var SEL = 'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),' +
+            'textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
+  var lastFocus = null;
+  function shown(el){ return el.offsetWidth || el.offsetHeight || el.getClientRects().length; }
+  function items(box){ return Array.prototype.filter.call(box.querySelectorAll(SEL), shown); }
+  function openBox(){
+    var m = document.querySelector('.scrim-modal:not([hidden])');
+    if(m) return m.querySelector('.modal') || m;
+    return document.querySelector('.drawer.is-open');
+  }
+
+  /* Le focus ne sort pas d'une fenêtre ouverte */
+  document.addEventListener('keydown', function(e){
+    if(e.key !== 'Tab') return;
+    var box = openBox(); if(!box) return;
+    var f = items(box); if(!f.length) return;
+    var first = f[0], last = f[f.length - 1];
+    if(e.shiftKey && document.activeElement === first){ e.preventDefault(); last.focus(); }
+    else if(!e.shiftKey && document.activeElement === last){ e.preventDefault(); first.focus(); }
+  }, true);
+
+  /* À l'ouverture : focus dans la fenêtre. À la fermeture : retour au déclencheur. */
+  function watch(el, isModal){
+    el.__open = isModal ? !el.hidden : el.classList.contains('is-open');
+    new MutationObserver(function(){
+      var now = isModal ? !el.hidden : el.classList.contains('is-open');
+      if(now === el.__open) return;
+      el.__open = now;
+      if(now){
+        lastFocus = document.activeElement;
+        var box = el.querySelector('.modal') || el;
+        if(!box.hasAttribute('tabindex')) box.setAttribute('tabindex', '-1');
+        setTimeout(function(){ var f = items(box); (f[0] || box).focus(); }, 20);
+      }else if(lastFocus && lastFocus.focus){
+        lastFocus.focus();
+      }
+    }).observe(el, { attributes:true, attributeFilter:['hidden','class'] });
+  }
+  document.querySelectorAll('.scrim-modal').forEach(function(el){
+    var box = el.querySelector('.modal');
+    if(box){
+      if(!box.getAttribute('role')) box.setAttribute('role', 'dialog');
+      box.setAttribute('aria-modal', 'true');
+    }
+    watch(el, true);
+  });
+  document.querySelectorAll('.drawer').forEach(function(el){
+    if(!el.getAttribute('role')) el.setAttribute('role', 'dialog');
+    watch(el, false);
+  });
+
+  /* Un bouton sans texte n'est pas muet : son titre devient son nom accessible */
+  document.querySelectorAll('button,a').forEach(function(b){
+    if(b.getAttribute('aria-label') || (b.textContent || '').trim()) return;
+    if(b.title) b.setAttribute('aria-label', b.title);
+  });
+
+  /* Les zones qui défilent se parcourent au clavier */
+  [['.pl-wrap', 'Grille du planning'], ['.mx-wrap', 'Matrice des compétences'],
+   ['.pm-wrap', 'Matrice des permissions'], ['.gantt', 'Diagramme de Gantt'],
+   ['.pg-wrap', 'Gantt du portefeuille']].forEach(function(p){
+    document.querySelectorAll(p[0]).forEach(function(el){
+      el.tabIndex = 0;
+      el.setAttribute('role', 'region');
+      if(!el.getAttribute('aria-label'))
+        el.setAttribute('aria-label', p[1] + ' — zone défilante, parcourez-la avec les flèches du clavier');
+    });
+  });
+})();
+</script>
+</body>
+</html>

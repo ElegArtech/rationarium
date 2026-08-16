@@ -1,0 +1,1335 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trame — Tableau de bord (Vue 06)</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Serif:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+/* ==========================================================================
+   TRAME — SOCLE GRAPHIQUE
+   Bloc canonique, recopié à l'identique dans chaque vue.
+   Aucune dépendance externe hors polices (substituts système déclarés).
+   Sommaire : 1 tokens · 2 base · 3 typo · 4 formulaires · 5 boutons
+              6 alertes · 7 gabarit connexion · 8 grille miniature
+              9 panneau de revue · 10 responsive
+   ========================================================================== */
+
+/* ── 1. TOKENS ─────────────────────────────────────────────────────────── */
+:root{
+  /* Surfaces & texte */
+  --paper:#F1F2F4;
+  --surface:#FFFFFF;
+  --surface-2:#FAFAFB;
+  --line:#D5D8DE;
+  --line-strong:#7E8698;
+  --ink:#14161C;
+  --muted:#5B6270;
+  --placeholder:#6E7583;
+
+  /* Accent unique */
+  --accent:#1B2A9B;
+  --accent-strong:#121D75;
+  --accent-soft:#E7EAF8;
+  --on-accent:#FFFFFF;
+  --brand-panel:#101A6E;
+
+  /* Statuts de tâche */
+  --st-todo:#5B6270;
+  --st-doing:#1B2A9B;
+  --st-review:#9A5B00;
+  --st-done:#146B3D;
+  --st-blocked:#AF2020;
+
+  /* Présence & absences */
+  --leave:#6A4BA6;
+  --leave-pending:#71609E;
+  --telework:#0C6E86;
+  --office:#5B6270;
+  --event:#B8420B;
+  --activity:#0F6E5C;
+
+  /* Retours d'état */
+  --danger-soft:#FBECEC;
+  --success-soft:#E8F4ED;
+  --warn-soft:#FCF2E2;
+
+  /* Trames de fond */
+  --trame-ferie:rgba(20,22,28,.055);
+  --trame-vacances:rgba(27,42,155,.05);
+
+  /* Chips sur surface de marque (contraste inversé) */
+  --ob-todo:#AEB6C7; --ob-doing:#8FA9FF; --ob-review:#F2C46A;
+  --ob-done:#6FD3A0; --ob-blocked:#FF9A9A; --ob-leave:#C3ABF5;
+  --ob-telework:#7FD7E8; --ob-activity:#6ED6BE; --ob-event:#FFAE7A;
+
+  /* Rythme */
+  --r:3px;                /* rayon standard : net, jamais arrondi mou */
+  --font-ui:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --font-display:'IBM Plex Serif',Georgia,'Times New Roman',serif;
+  --font-cond:'IBM Plex Sans Condensed','IBM Plex Sans',system-ui,sans-serif;
+  --font-mono:'IBM Plex Mono',ui-monospace,'SFMono-Regular',Consolas,monospace;
+}
+html.dark{
+  --paper:#0E1014;
+  --surface:#161922;
+  --surface-2:#1C202A;
+  --line:#2A2F3B;
+  --line-strong:#6B7486;
+  --ink:#E7E9EE;
+  --muted:#98A0AF;
+  --placeholder:#8E96A6;
+
+  --accent:#8093FF;
+  --accent-strong:#A3B0FF;
+  --accent-soft:#1A2044;
+  --on-accent:#0A0F2E;
+  --brand-panel:#0A0F45;
+
+  --st-todo:#98A0AF;
+  --st-doing:#8093FF;
+  --st-review:#E0A64B;
+  --st-done:#5EC48D;
+  --st-blocked:#F08585;
+
+  --leave:#B39BE8;
+  --leave-pending:#8E7FBD;
+  --telework:#5FC3D8;
+  --office:#98A0AF;
+  --event:#F0975E;
+  --activity:#54C7AE;
+
+  --danger-soft:#2C1618;
+  --success-soft:#12271C;
+  --warn-soft:#2A2113;
+
+  --trame-ferie:rgba(255,255,255,.05);
+  --trame-vacances:rgba(128,147,255,.07);
+}
+
+/* ── 2. BASE ───────────────────────────────────────────────────────────── */
+*,*::before,*::after{ box-sizing:border-box; }
+html,body{ margin:0; padding:0; }
+body{
+  background:var(--paper); color:var(--ink);
+  font-family:var(--font-ui); font-size:15px; line-height:1.5;
+  -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+  min-height:100vh;
+}
+[hidden]{ display:none !important; }
+a{ color:inherit; }
+button{ font:inherit; color:inherit; background:none; border:none; padding:0; cursor:pointer; }
+:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+@keyframes spin{ to{ transform:rotate(360deg); } }
+@keyframes rise{ from{ opacity:0; transform:translateY(4px); } to{ opacity:1; transform:none; } }
+
+
+
+/* La pastille de projet porte l'icône du référentiel, jamais une initiale :
+   deux projets peuvent commencer par la même lettre, pas porter la même icône. */
+.pgi{ width:64%; height:64%; fill:none; stroke:currentColor; stroke-width:1.7;
+  stroke-linecap:round; stroke-linejoin:round; }
+
+
+@media print{
+  #review, .toasts, .skip, .hcard, .pop, .scrim-modal{ display:none !important; }
+  body{ background:#fff; }
+  a[href]::after{ content:''; }
+}
+
+/* ── ACCESSIBILITÉ — passe transversale ────────────────────────────────── */
+/* Bordures de contrôle relevées à 3:1, texte d'espace réservé à 4,5:1,
+   mouvement respectant la préférence système, contrastes forcés pris en charge. */
+.skip{ position:absolute; left:12px; top:-64px; z-index:200; background:var(--accent);
+  color:var(--on-accent); padding:11px 17px; border-radius:var(--r);
+  font-size:13px; font-weight:600; text-decoration:none; transition:top .12s ease; }
+.skip:focus{ top:12px; }
+.sr-only{ position:absolute; width:1px; height:1px; padding:0; margin:-1px;
+  overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0; }
+
+/* Toute frontière de contrôle doit être perceptible, pas seulement les champs */
+.chip-btn,.icon-btn,.ms-toggle,.rv-btn,.seg,.nav-sq,.pm-all,.ms-ico,.mdel,
+.day-opt,.svc-chip,.icat,.doc-ic,.sess-ic,.au-sys{ border-color:var(--line-strong); }
+
+/* Micro-typographie relevée : sous 9,5 px, le monospace capitalisé décroche */
+.pill,.tt-mark,.mx-cov-n,.msum-n,.au-code,.us-login,.lock-tag,.tt-ok,
+.occ-ext,.diff-pill,.scope,.tpl-n{ font-size:9.5px; }
+
+[role="region"][tabindex="0"]:focus-visible{ outline:2px solid var(--accent); outline-offset:-2px; }
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{
+    animation-duration:.01ms !important; animation-iteration-count:1 !important;
+    transition-duration:.01ms !important; scroll-behavior:auto !important; }
+}
+@media (forced-colors:active){
+  .btn,.chip-btn,.field,.pm-box,.toggle,.mini-select{ border:1px solid ButtonText; }
+  .pm-box[aria-pressed="true"],.toggle[aria-pressed="true"]{ forced-color-adjust:none; }
+  .bar > i,.mbar,.tchip,.occ,.lvl{ forced-color-adjust:none; }
+}
+
+/* ── 3. TYPOGRAPHIE ────────────────────────────────────────────────────── */
+/* Le libellé mono est le dispositif de repérage récurrent du produit. */
+.eyebrow{
+  font-family:var(--font-mono); font-size:10.5px; font-weight:500;
+  letter-spacing:.14em; text-transform:uppercase; color:var(--muted);
+  text-decoration:none;
+}
+a.eyebrow:hover{ color:var(--ink); }
+.h1{ font-family:var(--font-display); font-size:28px; font-weight:600; letter-spacing:-.01em; margin:8px 0 6px; }
+.lede{ font-size:14px; color:var(--muted); line-height:1.55; margin:0; }
+
+/* ── 4. FORMULAIRES ────────────────────────────────────────────────────── */
+.field-block{ margin-bottom:16px; }
+.field-label{ display:block; font-size:12.5px; font-weight:600; letter-spacing:.01em; margin-bottom:6px; }
+.field-head{ display:flex; align-items:baseline; justify-content:space-between; margin-bottom:6px; }
+.field-head .field-label{ margin-bottom:0; }
+.field{
+  width:100%; display:block;
+  background:var(--surface); color:var(--ink);
+  border:1px solid var(--line-strong); border-radius:var(--r);
+  padding:11px 13px; font-family:var(--font-ui); font-size:14.5px; line-height:1.3;
+  transition:border-color .12s ease, box-shadow .12s ease, background-color .12s ease;
+}
+.field::placeholder{ color:var(--placeholder); opacity:1; }
+.field:focus{ outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
+.field[aria-invalid="true"]{ border-color:var(--st-blocked); }
+.field[aria-invalid="true"]:focus{ box-shadow:0 0 0 3px var(--danger-soft); }
+.field:disabled{ background:var(--surface-2); color:var(--muted); cursor:not-allowed; }
+.field-error{ font-size:12.5px; color:var(--st-blocked); margin:5px 0 0; display:flex; gap:5px; align-items:flex-start; line-height:1.4; }
+/* Le message garde sa place quand il est muet : le formulaire ne saute jamais. */
+.field-error.is-quiet{ visibility:hidden; }
+/* Indicateur de politique de mot de passe (vues 02 · 04 · 05) */
+.policy{ margin-top:9px; display:grid; grid-template-columns:1fr 1fr; gap:5px 14px; }
+.policy-item{ display:flex; align-items:center; gap:7px; font-size:11.5px; color:var(--muted); transition:color .15s ease; }
+.policy-mark{
+  display:inline-flex; align-items:center; justify-content:center; flex:none;
+  width:14px; height:14px; border:1px solid var(--line-strong); border-radius:2px;
+  font-family:var(--font-mono); font-size:9px; color:var(--muted);
+  transition:color .15s ease, border-color .15s ease;
+}
+.policy-item.is-met{ color:var(--st-done); }
+.policy-item.is-met .policy-mark{ color:var(--st-done); border-color:var(--st-done); }
+.btn-stack{ display:grid; gap:8px; }
+.sent-addr{ display:flex; flex-direction:column; gap:3px; margin:0 0 16px;
+  padding:10px 12px; border:1px solid var(--line); border-radius:var(--r); background:var(--surface); }
+.sent-mail{ font-family:var(--font-mono); font-size:12.5px; color:var(--ink); word-break:break-all; }
+.rv-note{ font-family:var(--font-mono); font-size:9px; line-height:1.5; color:var(--muted); margin:6px 0 0; }
+
+.field-wrap{ position:relative; }
+.field-wrap .field{ padding-right:92px; }
+.pw-toggle{
+  position:absolute; right:6px; top:50%; transform:translateY(-50%);
+  font-family:var(--font-mono); font-size:11px; letter-spacing:.06em;
+  color:var(--muted); padding:5px 7px; border-radius:2px;
+}
+.pw-toggle:hover{ color:var(--ink); background:var(--accent-soft); }
+
+/* ── 5. BOUTONS ────────────────────────────────────────────────────────── */
+.btn{
+  display:inline-flex; align-items:center; justify-content:center; gap:8px;
+  border-radius:var(--r); font-size:14px; font-weight:600; letter-spacing:.01em;
+  padding:11px 18px; border:1px solid transparent;
+  transition:background-color .12s ease, border-color .12s ease, color .12s ease;
+}
+.btn-primary{ background:var(--accent); color:var(--on-accent); }
+.btn-primary:hover:not(:disabled){ background:var(--accent-strong); }
+.btn-secondary{ background:var(--surface); color:var(--ink); border-color:var(--line-strong); }
+.btn-secondary:hover:not(:disabled){ border-color:var(--accent); color:var(--accent); }
+.btn-block{ width:100%; }
+.btn:disabled{ opacity:.6; cursor:not-allowed; }
+.link{ color:var(--accent); text-decoration:none; border-bottom:1px solid transparent; }
+.link:hover{ border-bottom-color:currentColor; }
+.link-sm{ font-size:12.5px; }
+
+.spinner{
+  display:inline-block; width:14px; height:14px; border-radius:50%;
+  border:2px solid rgba(255,255,255,.35); border-top-color:#fff;
+  animation:spin .7s linear infinite;
+}
+.spinner-ink{ border-color:var(--line); border-top-color:var(--accent); width:12px; height:12px; }
+
+/* Groupe segmenté (langue) */
+.seg{ display:inline-flex; border:1px solid var(--line); border-radius:var(--r); overflow:hidden; }
+.seg button{
+  font-family:var(--font-mono); font-size:10.5px; letter-spacing:.08em;
+  padding:5px 9px; color:var(--muted); background:var(--surface);
+}
+.seg button + button{ border-left:1px solid var(--line); }
+.seg button[aria-pressed="true"]{ background:var(--accent); color:var(--on-accent); }
+.chip-btn{
+  font-family:var(--font-mono); font-size:10.5px; letter-spacing:.04em;
+  padding:5px 9px; border:1px solid var(--line); border-radius:var(--r);
+  background:var(--surface); color:var(--muted);
+}
+.chip-btn:hover{ color:var(--ink); border-color:var(--line-strong); }
+
+/* ── 6. ALERTES ────────────────────────────────────────────────────────── */
+.alert{
+  display:flex; gap:10px; padding:11px 13px; border-radius:var(--r);
+  border:1px solid; font-size:13.5px; line-height:1.45; margin-bottom:20px;
+}
+.alert-error{ background:var(--danger-soft); border-color:var(--st-blocked); color:var(--st-blocked); }
+.alert-success{ background:var(--success-soft); border-color:var(--st-done); color:var(--st-done); }
+/* Neutre : confirme qu'une action a eu lieu sans rien affirmer sur les données. */
+.alert-neutral{ background:var(--accent-soft); border-color:var(--accent); color:var(--ink); }
+.alert-neutral .alert-icon{ color:var(--accent); }
+.alert-warn{ background:var(--warn-soft); border-color:var(--st-review); color:var(--st-review); }
+.alert-icon{ flex:none; font-weight:700; }
+
+/* ── 7. COQUILLE APPLICATIVE (§ B) ─────────────────────────────────────── */
+.app{ display:grid; grid-template-columns:242px 1fr; min-height:100vh; }
+.app.is-collapsed{ grid-template-columns:62px 1fr; }
+
+/* Barre latérale */
+.side{ background:var(--surface); border-right:1px solid var(--line); display:flex; flex-direction:column;
+  position:sticky; top:0; height:100vh; overflow:hidden; }
+.side-head{ display:flex; align-items:center; justify-content:space-between; gap:8px;
+  padding:15px 16px; border-bottom:1px solid var(--line); min-height:57px; }
+.side-mark{ font-family:var(--font-display); font-size:20px; font-weight:600; letter-spacing:-.01em; }
+.app.is-collapsed .side-mark{ font-size:17px; }
+.side-nav{ flex:1; overflow-y:auto; padding:12px 0 20px; }
+.nav-group{ margin-bottom:16px; }
+.nav-legend{ font-family:var(--font-mono); font-size:9px; font-weight:500; letter-spacing:.16em;
+  text-transform:uppercase; color:var(--muted); margin:0 0 5px; padding:0 16px; }
+.app.is-collapsed .nav-legend{ visibility:hidden; height:9px; margin-bottom:8px; }
+.nav-item{ display:flex; align-items:center; gap:11px; padding:7px 16px; font-size:13.5px;
+  color:var(--ink); text-decoration:none; border-left:2px solid transparent; white-space:nowrap; }
+.nav-item:hover{ background:var(--surface-2); }
+.nav-item.is-active{ border-left-color:var(--accent); color:var(--accent); background:var(--accent-soft); font-weight:600; }
+.nav-item .ico{ flex:none; color:var(--muted); }
+.nav-item.is-active .ico{ color:var(--accent); }
+.app.is-collapsed .nav-item span{ display:none; }
+.app.is-collapsed .nav-item{ justify-content:center; padding:9px 0; }
+.side-foot{ border-top:1px solid var(--line); padding:10px 16px; }
+.app.is-collapsed .side-foot{ padding:10px 8px; }
+
+/* En-tête */
+.topbar{ position:sticky; top:0; z-index:30; background:var(--surface); border-bottom:1px solid var(--line);
+  display:flex; align-items:center; gap:14px; padding:0 20px; min-height:57px; }
+.crumb{ display:flex; align-items:center; gap:7px; font-size:13px; color:var(--muted); white-space:nowrap; }
+.crumb b{ color:var(--ink); font-weight:600; }
+.search{ position:relative; flex:1; max-width:380px; }
+.search .ico{ position:absolute; left:10px; top:50%; transform:translateY(-50%); color:var(--muted); }
+.search input{ width:100%; background:var(--paper); border:1px solid var(--line); border-radius:var(--r);
+  padding:7px 11px 7px 32px; font-family:var(--font-ui); font-size:13px; color:var(--ink); }
+.search input:focus{ outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); background:var(--surface); }
+.topbar-right{ margin-left:auto; display:flex; align-items:center; gap:8px; }
+.icon-btn{ display:inline-flex; align-items:center; justify-content:center; width:31px; height:31px;
+  border:1px solid var(--line); border-radius:var(--r); color:var(--muted); background:var(--surface); position:relative; }
+.icon-btn:hover{ color:var(--ink); border-color:var(--line-strong); }
+.dot-badge{ position:absolute; top:-5px; right:-5px; min-width:16px; height:16px; padding:0 4px;
+  background:var(--st-blocked); color:#fff; border-radius:8px; font-family:var(--font-mono);
+  font-size:9px; display:flex; align-items:center; justify-content:center; }
+.avatar{ width:29px; height:29px; border-radius:50%; background:var(--accent); color:var(--on-accent);
+  display:flex; align-items:center; justify-content:center; font-family:var(--font-mono); font-size:10.5px; flex:none; }
+.usermenu-btn{ display:flex; align-items:center; gap:9px; padding:3px 8px 3px 3px;
+  border:1px solid var(--line); border-radius:20px; background:var(--surface); }
+.usermenu-btn:hover{ border-color:var(--line-strong); }
+.um-name{ font-size:12.5px; font-weight:600; line-height:1.15; }
+.um-role{ font-family:var(--font-mono); font-size:9px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); }
+
+/* Panneaux flottants */
+.pop{ position:absolute; top:46px; right:0; width:330px; background:var(--surface);
+  border:1px solid var(--line-strong); border-radius:var(--r); z-index:40; }
+.pop-sm{ width:190px; }
+.pop-head{ display:flex; align-items:center; justify-content:space-between; gap:10px;
+  padding:10px 13px; border-bottom:1px solid var(--line); }
+.pop-list{ max-height:330px; overflow-y:auto; }
+.pop-item{ display:flex; gap:10px; padding:11px 13px; border-bottom:1px solid var(--line); text-decoration:none; }
+.pop-item:last-child{ border-bottom:none; }
+.pop-item:hover{ background:var(--surface-2); }
+.pop-item.is-unread{ background:var(--accent-soft); }
+.pop-mark{ width:6px; height:6px; border-radius:50%; background:var(--accent); flex:none; margin-top:6px; }
+.pop-item:not(.is-unread) .pop-mark{ background:transparent; }
+.pop-body{ min-width:0; }
+.pop-title{ font-size:12.5px; font-weight:600; line-height:1.35; }
+.pop-meta{ font-family:var(--font-mono); font-size:9.5px; color:var(--muted); margin-top:3px; display:block; }
+.pop-action{ display:block; padding:9px 13px; font-size:12.5px; color:var(--ink); text-decoration:none; }
+.pop-action:hover{ background:var(--surface-2); }
+.pop-action + .pop-action{ border-top:1px solid var(--line); }
+.has-pop{ position:relative; }
+
+/* ── 8. GABARIT DE PAGE ────────────────────────────────────────────────── */
+.main{ min-width:0; display:flex; flex-direction:column; }
+.page{ padding:22px 24px 40px; max-width:1360px; width:100%; }
+.greet{ margin-bottom:20px; }
+.greet .h1{ margin:6px 0 4px; }
+.panel{ background:var(--surface); border:1px solid var(--line); border-radius:var(--r); }
+.panel + .panel{ margin-top:16px; }
+.panel-head{ display:flex; align-items:center; justify-content:space-between; gap:12px;
+  padding:11px 14px; border-bottom:1px solid var(--line); }
+.panel-title{ font-size:13.5px; font-weight:600; }
+.panel-body{ padding:14px; }
+.panel-body.is-flush{ padding:0; }
+.empty{ text-align:center; padding:24px 16px; }
+.empty p{ margin:0 0 4px; font-size:13px; color:var(--ink); }
+.empty small{ font-size:12px; color:var(--muted); display:block; margin-bottom:10px; }
+
+/* Indicateurs */
+.kpi-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:18px; }
+.kpi{ background:var(--surface); border:1px solid var(--line); border-radius:var(--r); padding:13px 14px; }
+.kpi-val{ font-family:var(--font-display); font-size:28px; font-weight:600; line-height:1.1; margin:6px 0 2px; }
+.kpi-sub{ font-size:11.5px; color:var(--muted); }
+.kpi.is-alert .kpi-val{ color:var(--st-blocked); }
+.kpi.is-alert .kpi-sub{ color:var(--st-blocked); }
+
+.dash-grid{ display:grid; grid-template-columns:minmax(0,1.55fr) minmax(0,1fr); gap:16px; align-items:start; }
+
+/* ── 9. VOCABULAIRE DES OCCUPATIONS SUR SURFACE CLAIRE ─────────────────── */
+/* Même grammaire que la grille du planning : couleur = statut, pastille = projet. */
+.pglyph{ display:inline-flex; align-items:center; justify-content:center; flex:none;
+  width:15px; height:15px; border:1px solid var(--line-strong); border-radius:2px;
+  font-family:var(--font-mono); font-size:8px; font-style:normal; color:var(--muted); background:var(--surface); }
+.tchip{ display:flex; align-items:center; gap:5px; font-family:var(--font-cond); font-size:11px;
+  line-height:1.3; padding:3px 5px; border-radius:2px; border-left:3px solid currentColor;
+  background:var(--surface-2); background:color-mix(in srgb, currentColor 12%, var(--surface)); }
+.tchip > span{ color:var(--ink); min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.tchip .pglyph{ width:12px; height:12px; font-size:7px; background:transparent; }
+.tchip-indep{ border-left-style:dashed; }
+.tchip-flat{ border-left:none; padding-left:8px; }
+
+/* Extrait de semaine personnel */
+.week{ display:grid; grid-template-columns:repeat(5,1fr); }
+.week-col + .week-col{ border-left:1px solid var(--line); }
+.week-day{ font-family:var(--font-cond); font-size:10.5px; font-weight:600; letter-spacing:.08em;
+  text-transform:uppercase; color:var(--muted); padding:8px 9px 6px; }
+.week-col.is-today .week-day{ color:var(--accent); }
+.week-col.is-today{ background:var(--accent-soft); }
+.week-cell{ padding:0 6px 10px; display:flex; flex-direction:column; gap:3px; min-height:74px; }
+.week-none{ font-family:var(--font-mono); font-size:10px; color:var(--muted); padding:2px 3px; }
+
+/* Lignes de tâches */
+.tabs{ display:flex; gap:2px; }
+.tab{ font-size:12.5px; padding:5px 10px; border:1px solid transparent; border-radius:var(--r); color:var(--muted); }
+.tab[aria-selected="true"]{ background:var(--accent-soft); color:var(--accent); font-weight:600; }
+.trow{ display:grid; grid-template-columns:minmax(0,1fr) auto auto; gap:12px; align-items:center;
+  padding:10px 14px; border-bottom:1px solid var(--line); }
+.trow:last-child{ border-bottom:none; }
+.trow:hover{ background:var(--surface-2); }
+.trow-title{ display:flex; align-items:center; gap:7px; font-size:13.5px; font-weight:600; min-width:0; }
+.trow-title span{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.trow-meta{ font-family:var(--font-mono); font-size:9.5px; color:var(--muted); margin-top:3px; display:block; }
+.badge{ font-family:var(--font-mono); font-size:8.5px; letter-spacing:.08em; text-transform:uppercase;
+  padding:2px 5px; border-radius:2px; border:1px solid currentColor; flex:none; }
+.badge-late{ color:var(--st-blocked); }
+.badge-indep{ color:var(--muted); }
+.mini-select{ font-family:var(--font-ui); font-size:12px; padding:5px 7px; border:1px solid var(--line-strong);
+  border-radius:var(--r); background:var(--surface); color:var(--ink); }
+.mini-select:focus{ outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
+.hours{ display:flex; align-items:center; gap:5px; }
+.hours input{ width:52px; text-align:right; font-family:var(--font-mono); font-size:12px;
+  padding:5px 7px; border:1px solid var(--line-strong); border-radius:var(--r);
+  background:var(--surface); color:var(--ink); }
+.hours input:focus{ outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
+.hours-unit{ font-family:var(--font-mono); font-size:11px; color:var(--muted); }
+.hours-note{ font-family:var(--font-mono); font-size:9px; color:var(--muted); margin-top:3px; text-align:right; display:block; }
+.check{ display:flex; align-items:center; gap:7px; font-size:12.5px; color:var(--muted); white-space:nowrap; }
+.check input{ accent-color:var(--accent); width:15px; height:15px; }
+
+/* To-do */
+.todo-add{ display:flex; gap:8px; padding:12px 14px; border-bottom:1px solid var(--line); }
+.todo-add input{ flex:1; background:var(--surface); border:1px solid var(--line-strong); border-radius:var(--r);
+  padding:7px 10px; font-family:var(--font-ui); font-size:13px; color:var(--ink); }
+.todo-add input:focus{ outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
+.todo-add input:disabled{ background:var(--surface-2); color:var(--muted); cursor:not-allowed; }
+.todo-item{ display:flex; align-items:center; gap:9px; padding:8px 14px; border-bottom:1px solid var(--line); }
+.todo-item:last-child{ border-bottom:none; }
+.todo-item:hover{ background:var(--surface-2); }
+.todo-label{ flex:1; font-size:13px; cursor:text; }
+.todo-item.is-done .todo-label{ color:var(--muted); text-decoration:line-through; }
+.todo-del{ font-family:var(--font-mono); font-size:12px; color:var(--muted); opacity:0; }
+.todo-item:hover .todo-del{ opacity:1; }
+.todo-del:hover{ color:var(--st-blocked); }
+.todo-sep{ display:flex; align-items:center; gap:8px; padding:8px 14px; border-bottom:1px solid var(--line);
+  background:var(--surface-2); }
+.todo-limit{ padding:9px 14px; font-size:11.5px; color:var(--st-review); background:var(--warn-soft);
+  border-bottom:1px solid var(--line); }
+
+/* Projets */
+.prow{ display:grid; grid-template-columns:auto minmax(0,1fr) auto; gap:10px; align-items:center;
+  padding:10px 14px; border-bottom:1px solid var(--line); text-decoration:none; }
+.prow:last-child{ border-bottom:none; }
+.prow:hover{ background:var(--surface-2); }
+.prow-name{ font-size:13px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.prow-role{ font-family:var(--font-mono); font-size:9px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); }
+.bar{ height:4px; border-radius:2px; background:var(--line); position:relative; margin-top:6px; }
+.bar > i{ position:absolute; top:0; bottom:0; left:0; border-radius:2px; background:var(--accent); }
+.prow-pct{ font-family:var(--font-mono); font-size:11px; color:var(--muted); }
+
+/* Icônes */
+.ico{ width:16px; height:16px; fill:none; stroke:currentColor; stroke-width:1.4;
+  stroke-linecap:round; stroke-linejoin:round; flex:none; }
+.ico-sm{ width:13px; height:13px; }
+
+/* ── 10. PANNEAU DE REVUE + RESPONSIVE ─────────────────────────────────── */
+#review{ position:fixed; bottom:12px; right:12px; z-index:60; width:230px;
+  background:var(--surface); color:var(--ink); border:1px solid var(--line-strong);
+  border-radius:var(--r); font-family:var(--font-mono); }
+.rv-head{ display:flex; align-items:center; justify-content:space-between; width:100%;
+  padding:8px 12px; border-bottom:1px solid var(--line); }
+.rv-body{ padding:12px; }
+.rv-group + .rv-group{ margin-top:12px; }
+.rv-legend{ font-family:var(--font-mono); font-size:9px; font-weight:500; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--muted); margin:0 0 6px; }
+.rv-grid{ display:grid; grid-template-columns:1fr 1fr; gap:4px; }
+.rv-btn{ font-family:var(--font-mono); font-size:10.5px; text-align:left; padding:5px 8px;
+  border:1px solid var(--line); border-radius:2px; background:var(--surface); color:var(--muted); }
+.rv-btn:hover{ color:var(--ink); }
+.rv-btn[aria-pressed="true"]{ background:var(--accent); border-color:var(--accent); color:var(--on-accent); }
+.rv-note{ font-family:var(--font-mono); font-size:9px; line-height:1.5; color:var(--muted); margin:6px 0 0; }
+
+.burger{ display:none; }
+.scrim{ display:none; }
+@media (max-width:1180px){
+  .kpi-grid{ grid-template-columns:repeat(2,1fr); }
+  .dash-grid{ grid-template-columns:1fr; }
+}
+@media (max-width:900px){
+  .app{ grid-template-columns:1fr; }
+  .side{ position:fixed; left:0; top:0; width:242px; z-index:50; transform:translateX(-100%);
+    transition:transform .18s ease; }
+  .app.is-open .side{ transform:none; }
+  .app.is-open .scrim{ display:block; position:fixed; inset:0; background:rgba(0,0,0,.35); z-index:45; }
+  .burger{ display:inline-flex; }
+  .search{ display:none; }
+  .um-name,.um-role{ display:none; }
+  .usermenu-btn{ border:none; padding:0; }
+  .page{ padding:16px 14px 40px; }
+  .week{ grid-template-columns:repeat(5,minmax(120px,1fr)); overflow-x:auto; }
+  #review{ left:12px; right:12px; width:auto; }
+}
+@media (max-width:520px){
+  .kpi-grid{ grid-template-columns:1fr 1fr; gap:8px; }
+  .trow{ grid-template-columns:1fr; align-items:start; }
+}
+</style>
+</head>
+
+<body>
+<a class="skip" href="#contenu">Aller au contenu principal</a>
+
+<!-- Bibliothèque d'icônes de projet — 44 symboles, 11 catégories, aucune dépendance -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="p-flow" viewBox="0 0 16 16"><rect x="6" y="1.6" width="4" height="3"/><rect x="1.6" y="11" width="4" height="3"/><rect x="10.4" y="11" width="4" height="3"/><path d="M8 4.6v3M3.6 11V7.6h8.8V11"/></symbol>
+  <symbol id="p-screen" viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="8"/><path d="M6 14h4M8 11v3"/></symbol>
+  <symbol id="p-database" viewBox="0 0 16 16"><path d="M13.5 4c0 1.1-2.5 2-5.5 2S2.5 5.1 2.5 4 5 2 8 2s5.5.9 5.5 2z"/><path d="M2.5 4v8c0 1.1 2.5 2 5.5 2s5.5-.9 5.5-2V4M2.5 8c0 1.1 2.5 2 5.5 2s5.5-.9 5.5-2"/></symbol>
+</svg>
+
+<!-- Jeu d'icônes intégré : aucune police externe, cohérent avec le réseau fermé -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-dash" viewBox="0 0 16 16"><rect x="2" y="2" width="5" height="5"/><rect x="9" y="2" width="5" height="5"/><rect x="2" y="9" width="5" height="5"/><rect x="9" y="9" width="5" height="5"/></symbol>
+  <symbol id="i-planning" viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="11"/><path d="M2 6.5h12M6 6.5v7.5M10 6.5v7.5"/></symbol>
+  <symbol id="i-reports" viewBox="0 0 16 16"><path d="M3 13.5V8.5M8 13.5V3M13 13.5v-4"/><path d="M1.5 13.5h13"/></symbol>
+  <symbol id="i-projects" viewBox="0 0 16 16"><path d="M2 4h4l1.4 2H14v7.5H2z"/></symbol>
+  <symbol id="i-tasks" viewBox="0 0 16 16"><rect x="2" y="2.5" width="12" height="11.5" rx="1"/><path d="M5 8.6l2.1 2.1L11.3 6.4"/></symbol>
+  <symbol id="i-events" viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="11"/><path d="M2 6.5h12M5 2v2.5M11 2v2.5"/><circle cx="8" cy="10" r="1.1"/></symbol>
+  <symbol id="i-leaves" viewBox="0 0 16 16"><path d="M8 13.5V7"/><path d="M2 7a6 6 0 0 1 12 0z"/></symbol>
+  <symbol id="i-telework" viewBox="0 0 16 16"><path d="M2 7.2l6-5 6 5"/><path d="M4 7v7h8V7"/></symbol>
+  <symbol id="i-time" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 4.6V8l2.4 1.5"/></symbol>
+  <symbol id="i-skills" viewBox="0 0 16 16"><path d="M8 2.2l1.7 3.7 4 .5-3 2.8.8 4-3.5-2-3.5 2 .8-4-3-2.8 4-.5z"/></symbol>
+  <symbol id="i-users" viewBox="0 0 16 16"><circle cx="8" cy="5.4" r="2.7"/><path d="M2.8 13.8a5.2 5.2 0 0 1 10.4 0"/></symbol>
+  <symbol id="i-depts" viewBox="0 0 16 16"><rect x="6" y="1.6" width="4" height="3.4"/><rect x="1.6" y="10.8" width="4" height="3.4"/><rect x="10.4" y="10.8" width="4" height="3.4"/><path d="M8 5v3M3.6 10.8V8h8.8v2.8"/></symbol>
+  <symbol id="i-third" viewBox="0 0 16 16"><circle cx="5.6" cy="8" r="3.1"/><circle cx="10.4" cy="8" r="3.1"/></symbol>
+  <symbol id="i-clients" viewBox="0 0 16 16"><rect x="3" y="2" width="10" height="12"/><path d="M5.8 5h1.2M9 5h1.2M5.8 8h1.2M9 8h1.2M6 11.5h4"/></symbol>
+  <symbol id="i-roles" viewBox="0 0 16 16"><path d="M8 1.8l5 2v4.3c0 3-2.1 5.1-5 6.1-2.9-1-5-3.1-5-6.1V3.8z"/></symbol>
+  <symbol id="i-audit" viewBox="0 0 16 16"><path d="M3 4h10M3 8h10M3 12h6"/></symbol>
+  <symbol id="i-predef" viewBox="0 0 16 16"><path d="M13.2 8a5.2 5.2 0 1 1-1.7-3.9"/><path d="M13.2 2v3.2H10"/></symbol>
+  <symbol id="i-settings" viewBox="0 0 16 16"><path d="M2 5h12M2 11h12"/><circle cx="6" cy="5" r="1.7"/><circle cx="10.5" cy="11" r="1.7"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 16 16"><path d="M4 7a4 4 0 0 1 8 0v3l1.2 2H2.8L4 10z"/><path d="M6.4 12a1.6 1.6 0 0 0 3.2 0"/></symbol>
+  <symbol id="i-search" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.6"/><path d="M10.4 10.4L14 14"/></symbol>
+  <symbol id="i-collapse" viewBox="0 0 16 16"><path d="M9.5 4L5.5 8l4 4"/></symbol>
+  <symbol id="i-burger" viewBox="0 0 16 16"><path d="M2 4h12M2 8h12M2 12h12"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 16 16"><path d="M3 8h10M9 4l4 4-4 4"/></symbol>
+</svg>
+
+<div class="app" id="app">
+  <div class="scrim" onclick="closeDrawer()"></div>
+
+  <!-- ══════════ BARRE LATÉRALE ══════════ -->
+  <aside class="side">
+    <div class="side-head">
+      <span class="side-mark">Trame</span>
+      <button class="icon-btn" onclick="toggleSide()" id="collapse-btn"
+              title="Replier la barre latérale" aria-label="Replier la barre latérale">
+        <svg class="ico ico-sm"><use href="#i-collapse"/></svg>
+      </button>
+    </div>
+
+    <nav class="side-nav" id="nav">
+      <div class="nav-group">
+        <p class="nav-legend" data-fr="Pilotage" data-en="Steering">Pilotage</p>
+        <a class="nav-item is-active" href="#" data-roles="cfk" title="Tableau de bord">
+          <svg class="ico"><use href="#i-dash"/></svg><span data-fr="Tableau de bord" data-en="Dashboard">Tableau de bord</span></a>
+        <a class="nav-item" href="#" data-roles="cfk" title="Planning">
+          <svg class="ico"><use href="#i-planning"/></svg><span data-fr="Planning" data-en="Schedule">Planning</span></a>
+        <a class="nav-item" href="#" data-roles="fk" title="Rapports">
+          <svg class="ico"><use href="#i-reports"/></svg><span data-fr="Rapports" data-en="Reports">Rapports</span></a>
+      </div>
+
+      <div class="nav-group">
+        <p class="nav-legend" data-fr="Projets" data-en="Projects">Projets</p>
+        <a class="nav-item" href="#" data-roles="cfk" title="Projets">
+          <svg class="ico"><use href="#i-projects"/></svg><span data-fr="Projets" data-en="Projects">Projets</span></a>
+        <a class="nav-item" href="#" data-roles="cfk" title="Tâches">
+          <svg class="ico"><use href="#i-tasks"/></svg><span data-fr="Tâches" data-en="Tasks">Tâches</span></a>
+        <a class="nav-item" href="#" data-roles="cfk" title="Événements">
+          <svg class="ico"><use href="#i-events"/></svg><span data-fr="Événements" data-en="Events">Événements</span></a>
+      </div>
+
+      <div class="nav-group">
+        <p class="nav-legend" data-fr="Ressources humaines" data-en="Human resources">Ressources humaines</p>
+        <a class="nav-item" href="#" data-roles="cfk" title="Congés">
+          <svg class="ico"><use href="#i-leaves"/></svg><span data-fr="Congés" data-en="Leave">Congés</span></a>
+        <a class="nav-item" href="#" data-roles="cfk" title="Télétravail">
+          <svg class="ico"><use href="#i-telework"/></svg><span data-fr="Télétravail" data-en="Remote work">Télétravail</span></a>
+        <a class="nav-item" href="#" data-roles="cfk" title="Temps passé">
+          <svg class="ico"><use href="#i-time"/></svg><span data-fr="Temps passé" data-en="Time spent">Temps passé</span></a>
+        <a class="nav-item" href="#" data-roles="fk" title="Compétences">
+          <svg class="ico"><use href="#i-skills"/></svg><span data-fr="Compétences" data-en="Skills">Compétences</span></a>
+      </div>
+
+      <div class="nav-group">
+        <p class="nav-legend" data-fr="Référentiels" data-en="Reference data">Référentiels</p>
+        <a class="nav-item" href="#" data-roles="fk" title="Utilisateurs">
+          <svg class="ico"><use href="#i-users"/></svg><span data-fr="Utilisateurs" data-en="Users">Utilisateurs</span></a>
+        <a class="nav-item" href="#" data-roles="fk" title="Départements">
+          <svg class="ico"><use href="#i-depts"/></svg><span data-fr="Départements" data-en="Departments">Départements</span></a>
+        <a class="nav-item" href="#" data-roles="k" title="Tiers">
+          <svg class="ico"><use href="#i-third"/></svg><span data-fr="Tiers" data-en="Third parties">Tiers</span></a>
+        <a class="nav-item" href="#" data-roles="k" title="Clients">
+          <svg class="ico"><use href="#i-clients"/></svg><span data-fr="Clients" data-en="Clients">Clients</span></a>
+      </div>
+
+      <div class="nav-group">
+        <p class="nav-legend" data-fr="Administration" data-en="Administration">Administration</p>
+        <a class="nav-item" href="#" data-roles="k" title="Rôles">
+          <svg class="ico"><use href="#i-roles"/></svg><span data-fr="Rôles" data-en="Roles">Rôles</span></a>
+        <a class="nav-item" href="#" data-roles="k" title="Journal d'audit">
+          <svg class="ico"><use href="#i-audit"/></svg><span data-fr="Journal d'audit" data-en="Audit log">Journal d'audit</span></a>
+        <a class="nav-item" href="#" data-roles="k" title="Tâches prédéfinies">
+          <svg class="ico"><use href="#i-predef"/></svg><span data-fr="Tâches prédéfinies" data-en="Recurring activities">Tâches prédéfinies</span></a>
+        <a class="nav-item" href="#" data-roles="k" title="Paramètres">
+          <svg class="ico"><use href="#i-settings"/></svg><span data-fr="Paramètres" data-en="Settings">Paramètres</span></a>
+      </div>
+    </nav>
+
+    <div class="side-foot">
+      <span class="eyebrow" id="side-count">8 entrées</span>
+    </div>
+  </aside>
+
+  <!-- ══════════ ZONE PRINCIPALE ══════════ -->
+  <div class="main">
+
+    <header class="topbar">
+      <button class="icon-btn burger" onclick="openDrawer()" aria-label="Ouvrir le menu">
+        <svg class="ico ico-sm"><use href="#i-burger"/></svg>
+      </button>
+      <p class="crumb" style="margin:0">Trame <span aria-hidden="true">/</span>
+        <b data-fr="Tableau de bord" data-en="Dashboard">Tableau de bord</b></p>
+
+      <div class="search">
+        <svg class="ico ico-sm"><use href="#i-search"/></svg>
+        <input type="search" aria-label="Recherche globale"
+               data-ph-fr="Rechercher un projet, une tâche, une personne…"
+               data-ph-en="Search a project, a task, a person…"
+               placeholder="Rechercher un projet, une tâche, une personne…">
+      </div>
+
+      <div class="topbar-right">
+        <div class="seg" role="group" aria-label="Langue">
+          <button id="lang-fr" aria-pressed="true" onclick="setLang('fr')">FR</button>
+          <button id="lang-en" aria-pressed="false" onclick="setLang('en')">EN</button>
+        </div>
+        <button class="chip-btn" id="theme-btn" onclick="toggleTheme()"
+                data-fr="Thème sombre" data-en="Dark theme">Thème sombre</button>
+
+        <div class="has-pop">
+          <button class="icon-btn" onclick="togglePop('notif')" aria-label="Notifications">
+            <svg class="ico ico-sm"><use href="#i-bell"/></svg>
+            <span class="dot-badge" id="notif-count">3</span>
+          </button>
+
+          <div class="pop" id="pop-notif" hidden>
+            <div class="pop-head">
+              <span class="panel-title" data-fr="Notifications" data-en="Notifications">Notifications</span>
+              <button class="link link-sm" onclick="readAll()"
+                      data-fr="Tout marquer comme lu" data-en="Mark all as read">Tout marquer comme lu</button>
+            </div>
+            <div class="pop-list" id="notif-list">
+              <a class="pop-item is-unread" href="#">
+                <span class="pop-mark"></span>
+                <span class="pop-body">
+                  <span class="pop-title" data-fr="Nouvelle tâche assignée — Recette portail"
+                        data-en="New task assigned — Portal testing">Nouvelle tâche assignée — Recette portail</span>
+                  <span class="pop-meta">Il y a 12 min · Refonte du portail citoyen</span>
+                </span>
+              </a>
+              <a class="pop-item is-unread" href="#">
+                <span class="pop-mark"></span>
+                <span class="pop-body">
+                  <span class="pop-title" data-fr="Tâche à échéance proche — Maquettes portail"
+                        data-en="Task due soon — Portal mockups">Tâche à échéance proche — Maquettes portail</span>
+                  <span class="pop-meta">Il y a 2 h · Échéance le 14 août</span>
+                </span>
+              </a>
+              <a class="pop-item is-unread" href="#">
+                <span class="pop-mark"></span>
+                <span class="pop-body">
+                  <span class="pop-title" data-fr="Décision sur votre demande de congé — Approuvée"
+                        data-en="Decision on your leave request — Approved">Décision sur votre demande de congé — Approuvée</span>
+                  <span class="pop-meta">Hier 16:40 · Du 18 au 22 août</span>
+                </span>
+              </a>
+              <a class="pop-item" href="#">
+                <span class="pop-mark"></span>
+                <span class="pop-body">
+                  <span class="pop-title" data-fr="Ajout à un projet — Schéma directeur numérique"
+                        data-en="Added to a project — Digital roadmap">Ajout à un projet — Schéma directeur numérique</span>
+                  <span class="pop-meta">11 août · Par Driss Amrani</span>
+                </span>
+              </a>
+              <a class="pop-item" href="#">
+                <span class="pop-mark"></span>
+                <span class="pop-body">
+                  <span class="pop-title" data-fr="Tâche en retard — Note de cadrage"
+                        data-en="Overdue task — Scoping note">Tâche en retard — Note de cadrage</span>
+                  <span class="pop-meta">8 août · Échéance dépassée de 5 jours</span>
+                </span>
+              </a>
+            </div>
+            <div class="empty" id="notif-empty" hidden>
+              <p data-fr="Aucune notification" data-en="No notifications">Aucune notification</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="has-pop">
+          <button class="usermenu-btn" onclick="togglePop('user')">
+            <span class="avatar" id="uavatar">CD</span>
+            <span style="text-align:left">
+              <span class="um-name" id="uname">Camille Durand</span><br>
+              <span class="um-role" id="urole">Contributeur</span>
+            </span>
+          </button>
+          <div class="pop pop-sm" id="pop-user" hidden>
+            <a class="pop-action" href="#" data-fr="Mon profil" data-en="My profile">Mon profil</a>
+            <a class="pop-action" href="#" data-fr="Se déconnecter" data-en="Sign out">Se déconnecter</a>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- ══════════ TABLEAU DE BORD ══════════ -->
+    <div class="page" id="contenu" tabindex="-1">
+
+      <div class="greet">
+        <span class="eyebrow" id="today">Jeudi 13 août 2026</span>
+        <h1 class="h1" id="hello">Bonjour Camille</h1>
+        <p class="lede" data-fr="Voici un aperçu de votre activité."
+           data-en="Here is an overview of your activity.">Voici un aperçu de votre activité.</p>
+      </div>
+
+      <div class="kpi-grid">
+        <div class="kpi">
+          <span class="eyebrow" data-fr="Projets actifs" data-en="Active projects">Projets actifs</span>
+          <p class="kpi-val" id="k1">3</p>
+          <span class="kpi-sub" id="k1s">sur 5 projets</span>
+        </div>
+        <div class="kpi">
+          <span class="eyebrow" data-fr="Tâches en cours" data-en="Tasks in progress">Tâches en cours</span>
+          <p class="kpi-val" id="k2">7</p>
+          <span class="kpi-sub" id="k2s">sur 24 tâches</span>
+        </div>
+        <div class="kpi">
+          <span class="eyebrow" data-fr="Tâches terminées" data-en="Completed tasks">Tâches terminées</span>
+          <p class="kpi-val" id="k3">14</p>
+          <span class="kpi-sub" id="k3s">58 % complétées</span>
+        </div>
+        <div class="kpi is-alert" id="k4box">
+          <span class="eyebrow" data-fr="Tâches en retard" data-en="Overdue tasks">Tâches en retard</span>
+          <p class="kpi-val" id="k4">2</p>
+          <span class="kpi-sub" id="k4s" data-fr="Échéance dépassée" data-en="Past due">Échéance dépassée</span>
+        </div>
+      </div>
+
+      <div class="dash-grid">
+        <div>
+          <!-- ── Mon planning ── -->
+          <section class="panel">
+            <div class="panel-head">
+              <span class="panel-title" data-fr="Mon planning" data-en="My schedule">Mon planning</span>
+              <a href="#" class="link link-sm" data-fr="Ouvrir le planning →" data-en="Open the schedule →">Ouvrir le planning →</a>
+            </div>
+            <div class="panel-body is-flush">
+              <div class="week" id="week">
+                <div class="week-col">
+                  <p class="week-day" style="margin:0">lun 10</p>
+                  <div class="week-cell">
+                    <span class="tchip" style="color:var(--st-doing)"><i class="pglyph" title="Refonte du portail citoyen"><svg class="pgi" viewBox="0 0 16 16" aria-hidden="true"><use href="#p-screen"/></svg></i><span>Maquettes portail</span></span>
+                  </div>
+                </div>
+                <div class="week-col">
+                  <p class="week-day" style="margin:0">mar 11</p>
+                  <div class="week-cell">
+                    <span class="tchip" style="color:var(--st-doing)"><i class="pglyph" title="Refonte du portail citoyen"><svg class="pgi" viewBox="0 0 16 16" aria-hidden="true"><use href="#p-screen"/></svg></i><span>Maquettes portail</span></span>
+                    <span class="tchip tchip-flat" style="color:var(--telework)"><span>Télétravail</span></span>
+                  </div>
+                </div>
+                <div class="week-col">
+                  <p class="week-day" style="margin:0">mer 12</p>
+                  <div class="week-cell">
+                    <span class="tchip tchip-indep" style="color:var(--st-todo)"><span>Réunion de service</span></span>
+                  </div>
+                </div>
+                <div class="week-col is-today">
+                  <p class="week-day" style="margin:0">jeu 13</p>
+                  <div class="week-cell">
+                    <span class="tchip" style="color:var(--st-review)"><i class="pglyph" title="Refonte du portail citoyen"><svg class="pgi" viewBox="0 0 16 16" aria-hidden="true"><use href="#p-screen"/></svg></i><span>Recette portail</span></span>
+                    <span class="tchip" style="color:var(--event)"><span>Comité · EXT</span></span>
+                  </div>
+                </div>
+                <div class="week-col">
+                  <p class="week-day" style="margin:0">ven 14</p>
+                  <div class="week-cell">
+                    <span class="tchip tchip-flat" style="color:var(--activity)"><span>Accueil · matin</span></span>
+                    <span class="tchip" style="color:var(--st-todo)"><i class="pglyph" title="Schéma directeur numérique"><svg class="pgi" viewBox="0 0 16 16" aria-hidden="true"><use href="#p-flow"/></svg></i><span>Note de cadrage</span></span>
+                  </div>
+                </div>
+              </div>
+              <div class="empty" id="week-empty" hidden>
+                <p data-fr="Aucune occupation cette semaine" data-en="Nothing scheduled this week">Aucune occupation cette semaine</p>
+                <small data-fr="Vos tâches, congés et réunions apparaîtront ici."
+                       data-en="Your tasks, leave and meetings will appear here.">Vos tâches, congés et réunions apparaîtront ici.</small>
+              </div>
+            </div>
+          </section>
+
+          <!-- ── Mes tâches ── -->
+          <section class="panel">
+            <div class="panel-head">
+              <span class="panel-title" data-fr="Mes tâches" data-en="My tasks">Mes tâches</span>
+              <div class="tabs" role="tablist">
+                <button class="tab" role="tab" aria-selected="true" id="tab-next" onclick="setTab('next')"
+                        data-fr="À venir · 3" data-en="Upcoming · 3">À venir · 3</button>
+                <button class="tab" role="tab" aria-selected="false" id="tab-undecl" onclick="setTab('undecl')"
+                        data-fr="Non déclarées · 2" data-en="Undeclared · 2">Non déclarées · 2</button>
+              </div>
+            </div>
+
+            <div class="panel-body is-flush" id="pane-next">
+              <div class="trow">
+                <div>
+                  <p class="trow-title" style="margin:0"><i class="pglyph" title="Refonte du portail citoyen"><svg class="pgi" viewBox="0 0 16 16" aria-hidden="true"><use href="#p-screen"/></svg></i>
+                    <span>Recette du portail citoyen</span>
+                    <span class="badge badge-late" data-fr="En retard" data-en="Overdue">En retard</span></p>
+                  <span class="trow-meta">Refonte du portail citoyen · 11 → 12 août · 6 h estimées</span>
+                </div>
+                <select class="mini-select" aria-label="Statut">
+                  <option data-fr="À faire" data-en="To do">À faire</option>
+                  <option selected data-fr="En cours" data-en="In progress">En cours</option>
+                  <option data-fr="En revue" data-en="In review">En revue</option>
+                  <option data-fr="Terminé" data-en="Done">Terminé</option>
+                  <option data-fr="Bloqué" data-en="Blocked">Bloqué</option>
+                </select>
+                <div>
+                  <div class="hours">
+                    <input type="text" inputmode="decimal" placeholder="0" aria-label="Heures à déclarer">
+                    <span class="hours-unit">h</span>
+                  </div>
+                  <span class="hours-note" data-fr="3 h déjà déclarées, tous contributeurs"
+                        data-en="3 h already logged, all contributors">3 h déjà déclarées, tous contributeurs</span>
+                </div>
+              </div>
+
+              <div class="trow">
+                <div>
+                  <p class="trow-title" style="margin:0"><i class="pglyph" title="Schéma directeur numérique"><svg class="pgi" viewBox="0 0 16 16" aria-hidden="true"><use href="#p-flow"/></svg></i>
+                    <span>Note de cadrage — volet infrastructures</span></p>
+                  <span class="trow-meta">Schéma directeur numérique · 14 → 20 août · 10 h estimées</span>
+                </div>
+                <select class="mini-select" aria-label="Statut">
+                  <option selected data-fr="À faire" data-en="To do">À faire</option>
+                  <option data-fr="En cours" data-en="In progress">En cours</option>
+                  <option data-fr="En revue" data-en="In review">En revue</option>
+                  <option data-fr="Terminé" data-en="Done">Terminé</option>
+                  <option data-fr="Bloqué" data-en="Blocked">Bloqué</option>
+                </select>
+                <div>
+                  <div class="hours">
+                    <input type="text" inputmode="decimal" placeholder="0" aria-label="Heures à déclarer">
+                    <span class="hours-unit">h</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="trow">
+                <div>
+                  <p class="trow-title" style="margin:0">
+                    <span>Préparer la réunion de service</span>
+                    <span class="badge badge-indep" data-fr="Sans projet" data-en="No project">Sans projet</span></p>
+                  <span class="trow-meta" data-fr="Sans projet · 18 août · 2 h estimées"
+                        data-en="No project · 18 August · 2 h estimated">Sans projet · 18 août · 2 h estimées</span>
+                </div>
+                <select class="mini-select" aria-label="Statut">
+                  <option selected data-fr="À faire" data-en="To do">À faire</option>
+                  <option data-fr="En cours" data-en="In progress">En cours</option>
+                  <option data-fr="En revue" data-en="In review">En revue</option>
+                  <option data-fr="Terminé" data-en="Done">Terminé</option>
+                  <option data-fr="Bloqué" data-en="Blocked">Bloqué</option>
+                </select>
+                <div>
+                  <div class="hours">
+                    <input type="text" inputmode="decimal" placeholder="0" aria-label="Heures à déclarer">
+                    <span class="hours-unit">h</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="panel-body is-flush" id="pane-undecl" hidden>
+              <div class="trow">
+                <div>
+                  <p class="trow-title" style="margin:0"><i class="pglyph" title="Refonte du portail citoyen"><svg class="pgi" viewBox="0 0 16 16" aria-hidden="true"><use href="#p-screen"/></svg></i>
+                    <span>Maquettes du portail citoyen</span></p>
+                  <span class="trow-meta" data-fr="Terminée le 12 août · aucune heure déclarée"
+                        data-en="Completed on 12 August · no hours logged">Terminée le 12 août · aucune heure déclarée</span>
+                </div>
+                <label class="check"><input type="checkbox">
+                  <span data-fr="Valider sans déclaration" data-en="Close without logging">Valider sans déclaration</span></label>
+                <div class="hours">
+                  <input type="text" inputmode="decimal" placeholder="0" aria-label="Heures à déclarer">
+                  <span class="hours-unit">h</span>
+                </div>
+              </div>
+              <div class="trow">
+                <div>
+                  <p class="trow-title" style="margin:0"><i class="pglyph" title="Migration SIRH"><svg class="pgi" viewBox="0 0 16 16" aria-hidden="true"><use href="#p-database"/></svg></i>
+                    <span>Cahier des charges — reprise des données</span></p>
+                  <span class="trow-meta" data-fr="Terminée le 8 août · aucune heure déclarée"
+                        data-en="Completed on 8 August · no hours logged">Terminée le 8 août · aucune heure déclarée</span>
+                </div>
+                <label class="check"><input type="checkbox">
+                  <span data-fr="Valider sans déclaration" data-en="Close without logging">Valider sans déclaration</span></label>
+                <div class="hours">
+                  <input type="text" inputmode="decimal" placeholder="0" aria-label="Heures à déclarer">
+                  <span class="hours-unit">h</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="empty" id="tasks-empty" hidden>
+              <p data-fr="Aucune tâche assignée" data-en="No tasks assigned">Aucune tâche assignée</p>
+              <small data-fr="Les tâches qui vous seront confiées apparaîtront ici."
+                     data-en="Tasks assigned to you will appear here.">Les tâches qui vous seront confiées apparaîtront ici.</small>
+            </div>
+            <div class="empty" id="undecl-empty" hidden>
+              <p data-fr="Aucune tâche en attente de validation" data-en="No task awaiting validation">Aucune tâche en attente de validation</p>
+              <small data-fr="Tout votre temps est déclaré." data-en="All your time is logged.">Tout votre temps est déclaré.</small>
+            </div>
+          </section>
+        </div>
+
+        <div>
+          <!-- ── Ma to-do ── -->
+          <section class="panel">
+            <div class="panel-head">
+              <span class="panel-title" data-fr="Ma to-do" data-en="My to-do">Ma to-do</span>
+              <span class="eyebrow" id="todo-count">3 / 20</span>
+            </div>
+            <div class="todo-limit" id="todo-limit" hidden></div>
+            <div class="todo-add">
+              <input id="todo-input" type="text"
+                     data-ph-fr="Ajouter une to-do…" data-ph-en="Add a to-do…" placeholder="Ajouter une to-do…">
+              <button class="btn btn-primary" style="padding:7px 13px" onclick="addTodo()">+</button>
+            </div>
+            <div id="todo-list"></div>
+            <div class="empty" id="todo-empty" hidden>
+              <p data-fr="Aucune to-do pour le moment" data-en="No to-do yet">Aucune to-do pour le moment</p>
+              <small data-fr="Double-cliquez sur une ligne pour la modifier."
+                     data-en="Double-click a line to edit it.">Double-cliquez sur une ligne pour la modifier.</small>
+            </div>
+          </section>
+
+          <!-- ── Mes projets ── -->
+          <section class="panel">
+            <div class="panel-head">
+              <span class="panel-title" data-fr="Mes projets" data-en="My projects">Mes projets</span>
+              <a href="#" class="link link-sm" data-fr="Tous →" data-en="All →">Tous →</a>
+            </div>
+            <div class="panel-body is-flush" id="proj-list">
+              <a class="prow" href="#">
+                <i class="pglyph" title="Refonte du portail citoyen"><svg class="pgi" viewBox="0 0 16 16" aria-hidden="true"><use href="#p-screen"/></svg></i>
+                <div>
+                  <p class="prow-name" style="margin:0">Refonte du portail citoyen</p>
+                  <span class="prow-role" data-fr="Membre · Développeuse" data-en="Member · Developer">Membre · Développeuse</span>
+                  <div class="bar"><i style="width:62%"></i></div>
+                </div>
+                <span class="prow-pct">62 %</span>
+              </a>
+              <a class="prow" href="#">
+                <i class="pglyph" title="Migration SIRH"><svg class="pgi" viewBox="0 0 16 16" aria-hidden="true"><use href="#p-database"/></svg></i>
+                <div>
+                  <p class="prow-name" style="margin:0">Migration SIRH</p>
+                  <span class="prow-role" data-fr="Membre · Testeuse" data-en="Member · Tester">Membre · Testeuse</span>
+                  <div class="bar"><i style="width:31%"></i></div>
+                </div>
+                <span class="prow-pct">31 %</span>
+              </a>
+              <a class="prow" href="#">
+                <i class="pglyph" title="Schéma directeur numérique"><svg class="pgi" viewBox="0 0 16 16" aria-hidden="true"><use href="#p-flow"/></svg></i>
+                <div>
+                  <p class="prow-name" style="margin:0">Schéma directeur numérique</p>
+                  <span class="prow-role" data-fr="Membre" data-en="Member">Membre</span>
+                  <div class="bar"><i style="width:12%"></i></div>
+                </div>
+                <span class="prow-pct">12 %</span>
+              </a>
+            </div>
+            <div class="empty" id="proj-empty" hidden>
+              <p data-fr="Aucun projet assigné" data-en="No project assigned">Aucun projet assigné</p>
+              <small data-fr="Vous n'êtes membre d'aucun projet pour l'instant."
+                     data-en="You are not a member of any project yet.">Vous n'êtes membre d'aucun projet pour l'instant.</small>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ PANNEAU DE REVUE — hors produit ══════════ -->
+<div id="review">
+  <button class="rv-head" onclick="var b=document.getElementById('rv-body'); b.hidden=!b.hidden;">
+    <span class="eyebrow" style="font-size:9.5px">Vue 06 · panneau de revue</span>
+    <span aria-hidden="true" style="color:var(--muted);font-size:11px">▾</span>
+  </button>
+  <div class="rv-body" id="rv-body">
+    <div class="rv-group">
+      <p class="rv-legend">Profil connecté</p>
+      <div class="rv-grid">
+        <button class="rv-btn" id="rv-c" aria-pressed="true" onclick="setRole('c')">Camille</button>
+        <button class="rv-btn" id="rv-f" aria-pressed="false" onclick="setRole('f')">Fatou</button>
+        <button class="rv-btn" id="rv-k" aria-pressed="false" onclick="setRole('k')">Karim</button>
+        <button class="rv-btn" id="rv-i" aria-pressed="false" onclick="setRole('i')">Inès</button>
+      </div>
+      <p class="rv-note">Les entrées sans droit ne sont pas affichées.</p>
+    </div>
+    <div class="rv-group">
+      <p class="rv-legend">Contenu</p>
+      <div class="rv-grid">
+        <button class="rv-btn" id="rv-full" aria-pressed="true" onclick="setData('full')">Nominal</button>
+        <button class="rv-btn" id="rv-empty" aria-pressed="false" onclick="setData('empty')">Tout vide</button>
+        <button class="rv-btn" id="rv-limit" aria-pressed="false" onclick="setData('limit')">Limite to-do</button>
+      </div>
+    </div>
+    <div class="rv-group">
+      <p class="rv-legend">Barre latérale</p>
+      <div class="rv-grid">
+        <button class="rv-btn" id="rv-open" aria-pressed="true" onclick="setSide(false)">Déployée</button>
+        <button class="rv-btn" id="rv-fold" aria-pressed="false" onclick="setSide(true)">Repliée</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ── Thème & langue ────────────────────────────────────── */
+function toggleTheme(){ document.documentElement.classList.toggle('dark'); syncLang(); }
+
+var lang = 'fr';
+function setLang(l){
+  lang = l; document.documentElement.lang = l;
+  document.getElementById('lang-fr').setAttribute('aria-pressed', l === 'fr');
+  document.getElementById('lang-en').setAttribute('aria-pressed', l === 'en');
+  syncLang();
+}
+function syncLang(){
+  document.querySelectorAll('[data-fr]').forEach(function(el){ el.textContent = el.dataset[lang]; });
+  document.querySelectorAll('[data-ph-fr]').forEach(function(el){
+    el.placeholder = lang === 'fr' ? el.dataset.phFr : el.dataset.phEn;
+  });
+  var dark = document.documentElement.classList.contains('dark');
+  document.getElementById('theme-btn').textContent =
+    dark ? (lang === 'fr' ? 'Thème clair' : 'Light theme')
+         : (lang === 'fr' ? 'Thème sombre' : 'Dark theme');
+  paintRole(); paintTodos();
+}
+
+/* ── Barre latérale ────────────────────────────────────── */
+function setSide(folded){
+  document.getElementById('app').classList.toggle('is-collapsed', folded);
+  document.getElementById('rv-fold').setAttribute('aria-pressed', folded);
+  document.getElementById('rv-open').setAttribute('aria-pressed', !folded);
+}
+function toggleSide(){ setSide(!document.getElementById('app').classList.contains('is-collapsed')); }
+function openDrawer(){ document.getElementById('app').classList.add('is-open'); }
+function closeDrawer(){ document.getElementById('app').classList.remove('is-open'); }
+
+/* ── Panneaux flottants ────────────────────────────────── */
+function togglePop(which){
+  ['notif','user'].forEach(function(k){
+    var el = document.getElementById('pop-' + k);
+    el.hidden = (k === which) ? !el.hidden : true;
+  });
+}
+document.addEventListener('click', function(e){
+  if(!e.target.closest('.has-pop')) togglePop(null);
+});
+function readAll(){
+  document.querySelectorAll('.pop-item').forEach(function(i){ i.classList.remove('is-unread'); });
+  document.getElementById('notif-count').hidden = true;
+}
+
+/* ── Profils : les entrées sans droit ne sont pas affichées ── */
+var ROLES = {
+  c: { key:'c', name:'Camille Durand', init:'CD', role:{fr:'Contributeur',en:'Contributor'}, hello:'Camille' },
+  f: { key:'f', name:'Fatou Berthier', init:'FB', role:{fr:'Manager de service',en:'Team manager'}, hello:'Fatou' },
+  k: { key:'k', name:'Karim Haddad',   init:'KH', role:{fr:'Administrateur',en:'Administrator'}, hello:'Karim' },
+  i: { key:'f', name:'Inès Rocher',    init:'IR', role:{fr:'Direction',en:'Executive'}, hello:'Inès' }
+};
+var role = 'c';
+function setRole(r){
+  role = r;
+  ['c','f','k','i'].forEach(function(x){
+    document.getElementById('rv-' + x).setAttribute('aria-pressed', x === r);
+  });
+  if(r === 'i') setData('empty'); else if(dataMode === 'empty') setData('full');
+  paintRole();
+}
+function paintRole(){
+  var R = ROLES[role], n = 0;
+  document.getElementById('uname').textContent = R.name;
+  document.getElementById('uavatar').textContent = R.init;
+  document.getElementById('urole').textContent = R.role[lang];
+  document.getElementById('hello').textContent =
+    (lang === 'fr' ? 'Bonjour ' : 'Hello ') + R.hello;
+
+  document.querySelectorAll('.nav-item').forEach(function(item){
+    var ok = item.dataset.roles.indexOf(R.key) !== -1;
+    item.hidden = !ok; if(ok) n++;
+  });
+  /* Un groupe entièrement vide disparaît, légende comprise */
+  document.querySelectorAll('.nav-group').forEach(function(g){
+    g.hidden = g.querySelectorAll('.nav-item:not([hidden])').length === 0;
+  });
+  document.getElementById('side-count').textContent =
+    n + (lang === 'fr' ? (n > 1 ? ' entrées' : ' entrée') : (n > 1 ? ' items' : ' item'));
+}
+
+/* ── Jeux de données ───────────────────────────────────── */
+var dataMode = 'full';
+function setData(mode){
+  dataMode = mode;
+  ['full','empty','limit'].forEach(function(m){
+    document.getElementById('rv-' + m).setAttribute('aria-pressed', m === mode);
+  });
+  var empty = (mode === 'empty');
+
+  document.getElementById('week').hidden = empty;
+  document.getElementById('week-empty').hidden = !empty;
+  document.getElementById('proj-list').hidden = empty;
+  document.getElementById('proj-empty').hidden = !empty;
+  document.getElementById('tasks-empty').hidden = !empty;
+
+  /* Les compteurs restent dignes à zéro : pas de zone morte, pas d'alerte rouge. */
+  var v = empty ? ['0','0','0','0'] : ['3','7','14','2'];
+  var s = empty
+    ? [{fr:'Aucun projet',en:'No project'},{fr:'Aucune tâche',en:'No task'},
+       {fr:'Rien à afficher',en:'Nothing to show'},{fr:'Aucun retard',en:'Nothing overdue'}]
+    : [{fr:'sur 5 projets',en:'of 5 projects'},{fr:'sur 24 tâches',en:'of 24 tasks'},
+       {fr:'58 % complétées',en:'58% completed'},{fr:'Échéance dépassée',en:'Past due'}];
+  for(var i = 0; i < 4; i++){
+    document.getElementById('k' + (i+1)).textContent = v[i];
+    document.getElementById('k' + (i+1) + 's').textContent = s[i][lang];
+  }
+  document.getElementById('k4box').classList.toggle('is-alert', !empty);
+
+  todos = empty ? [] : (mode === 'limit' ? limitSet() : baseSet());
+  LIMIT = (mode === 'limit') ? todos.length : 20;
+  paintTodos();
+  setTab(currentTab);
+}
+
+/* ── To-do : privées, plafonnées, éditables au double-clic ── */
+var LIMIT = 20, todos = [], nextId = 100;
+function baseSet(){
+  return [
+    { id:1, label:"Relancer le prestataire sur la maquette", done:false },
+    { id:2, label:"Préparer les questions du comité", done:false },
+    { id:3, label:"Archiver les comptes rendus de juillet", done:true }
+  ];
+}
+function limitSet(){
+  var a = [];
+  for(var i = 1; i <= 6; i++) a.push({ id:i, label:"Point de suivi n° " + i, done:false });
+  return a;
+}
+function paintTodos(){
+  var list = document.getElementById('todo-list');
+  list.innerHTML = '';
+  var open = todos.filter(function(t){ return !t.done; }),
+      done = todos.filter(function(t){ return t.done; });
+
+  open.forEach(function(t){ list.appendChild(todoNode(t)); });
+
+  if(done.length){
+    var sep = document.createElement('div');
+    sep.className = 'todo-sep';
+    sep.innerHTML = '<span class="eyebrow">' +
+      (lang === 'fr' ? 'Terminées · ' : 'Completed · ') + done.length + '</span>';
+    list.appendChild(sep);
+    done.forEach(function(t){ list.appendChild(todoNode(t)); });
+  }
+
+  document.getElementById('todo-empty').hidden = todos.length > 0;
+  document.getElementById('todo-count').textContent = todos.length + ' / ' + LIMIT;
+
+  var full = todos.length >= LIMIT;
+  var lim = document.getElementById('todo-limit');
+  lim.hidden = !full;
+  lim.textContent = lang === 'fr'
+    ? 'Limite de ' + LIMIT + ' to-dos atteinte. Terminez-en une pour en ajouter.'
+    : 'Limit of ' + LIMIT + ' to-dos reached. Complete one to add another.';
+  document.getElementById('todo-input').disabled = full;
+}
+function todoNode(t){
+  var row = document.createElement('div');
+  row.className = 'todo-item' + (t.done ? ' is-done' : '');
+  var cb = document.createElement('input');
+  cb.type = 'checkbox'; cb.checked = t.done;
+  cb.addEventListener('change', function(){ t.done = cb.checked; paintTodos(); });
+  var lb = document.createElement('span');
+  lb.className = 'todo-label'; lb.textContent = t.label;
+  lb.title = lang === 'fr' ? 'Double-cliquer pour modifier' : 'Double-click to edit';
+  lb.addEventListener('dblclick', function(){ editTodo(t, lb); });
+  var del = document.createElement('button');
+  del.className = 'todo-del'; del.textContent = '×';
+  del.setAttribute('aria-label', lang === 'fr' ? 'Supprimer' : 'Delete');
+  del.addEventListener('click', function(){
+    todos = todos.filter(function(x){ return x.id !== t.id; }); paintTodos();
+  });
+  row.appendChild(cb); row.appendChild(lb); row.appendChild(del);
+  return row;
+}
+function editTodo(t, node){
+  var input = document.createElement('input');
+  input.type = 'text'; input.value = t.label;
+  input.style.cssText = 'flex:1;font-family:var(--font-ui);font-size:13px;padding:3px 6px;' +
+    'border:1px solid var(--accent);border-radius:2px;background:var(--surface);color:var(--ink)';
+  node.replaceWith(input); input.focus(); input.select();
+  function commit(){ t.label = input.value.trim() || t.label; paintTodos(); }
+  input.addEventListener('blur', commit);
+  input.addEventListener('keydown', function(e){
+    if(e.key === 'Enter') commit();
+    if(e.key === 'Escape') paintTodos();
+  });
+}
+function addTodo(){
+  var el = document.getElementById('todo-input'), v = el.value.trim();
+  if(!v || todos.length >= LIMIT) return;
+  todos.push({ id: nextId++, label:v, done:false });
+  el.value = ''; paintTodos(); el.focus();
+}
+document.getElementById('todo-input').addEventListener('keydown', function(e){
+  if(e.key === 'Enter') addTodo();
+});
+
+/* ── Onglets de tâches ─────────────────────────────────── */
+var currentTab = 'next';
+function setTab(t){
+  currentTab = t;
+  var empty = (dataMode === 'empty');
+  document.getElementById('tab-next').setAttribute('aria-selected', t === 'next');
+  document.getElementById('tab-undecl').setAttribute('aria-selected', t === 'undecl');
+  document.getElementById('pane-next').hidden = (t !== 'next') || empty;
+  document.getElementById('pane-undecl').hidden = (t !== 'undecl') || empty;
+  document.getElementById('tasks-empty').hidden = !(empty && t === 'next');
+  document.getElementById('undecl-empty').hidden = !(empty && t === 'undecl');
+}
+
+setLang('fr');
+setRole('c');
+setData('full');
+</script>
+
+<script>
+/* ══════════ ACCESSIBILITÉ — comportements transversaux ══════════ */
+(function(){
+  var SEL = 'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),' +
+            'textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
+  var lastFocus = null;
+  function shown(el){ return el.offsetWidth || el.offsetHeight || el.getClientRects().length; }
+  function items(box){ return Array.prototype.filter.call(box.querySelectorAll(SEL), shown); }
+  function openBox(){
+    var m = document.querySelector('.scrim-modal:not([hidden])');
+    if(m) return m.querySelector('.modal') || m;
+    return document.querySelector('.drawer.is-open');
+  }
+
+  /* Le focus ne sort pas d'une fenêtre ouverte */
+  document.addEventListener('keydown', function(e){
+    if(e.key !== 'Tab') return;
+    var box = openBox(); if(!box) return;
+    var f = items(box); if(!f.length) return;
+    var first = f[0], last = f[f.length - 1];
+    if(e.shiftKey && document.activeElement === first){ e.preventDefault(); last.focus(); }
+    else if(!e.shiftKey && document.activeElement === last){ e.preventDefault(); first.focus(); }
+  }, true);
+
+  /* À l'ouverture : focus dans la fenêtre. À la fermeture : retour au déclencheur. */
+  function watch(el, isModal){
+    el.__open = isModal ? !el.hidden : el.classList.contains('is-open');
+    new MutationObserver(function(){
+      var now = isModal ? !el.hidden : el.classList.contains('is-open');
+      if(now === el.__open) return;
+      el.__open = now;
+      if(now){
+        lastFocus = document.activeElement;
+        var box = el.querySelector('.modal') || el;
+        if(!box.hasAttribute('tabindex')) box.setAttribute('tabindex', '-1');
+        setTimeout(function(){ var f = items(box); (f[0] || box).focus(); }, 20);
+      }else if(lastFocus && lastFocus.focus){
+        lastFocus.focus();
+      }
+    }).observe(el, { attributes:true, attributeFilter:['hidden','class'] });
+  }
+  document.querySelectorAll('.scrim-modal').forEach(function(el){
+    var box = el.querySelector('.modal');
+    if(box){
+      if(!box.getAttribute('role')) box.setAttribute('role', 'dialog');
+      box.setAttribute('aria-modal', 'true');
+    }
+    watch(el, true);
+  });
+  document.querySelectorAll('.drawer').forEach(function(el){
+    if(!el.getAttribute('role')) el.setAttribute('role', 'dialog');
+    watch(el, false);
+  });
+
+  /* Un bouton sans texte n'est pas muet : son titre devient son nom accessible */
+  document.querySelectorAll('button,a').forEach(function(b){
+    if(b.getAttribute('aria-label') || (b.textContent || '').trim()) return;
+    if(b.title) b.setAttribute('aria-label', b.title);
+  });
+
+  /* Les zones qui défilent se parcourent au clavier */
+  [['.pl-wrap', 'Grille du planning'], ['.mx-wrap', 'Matrice des compétences'],
+   ['.pm-wrap', 'Matrice des permissions'], ['.gantt', 'Diagramme de Gantt'],
+   ['.pg-wrap', 'Gantt du portefeuille']].forEach(function(p){
+    document.querySelectorAll(p[0]).forEach(function(el){
+      el.tabIndex = 0;
+      el.setAttribute('role', 'region');
+      if(!el.getAttribute('aria-label'))
+        el.setAttribute('aria-label', p[1] + ' — zone défilante, parcourez-la avec les flèches du clavier');
+    });
+  });
+})();
+</script>
+</body>
+</html>
