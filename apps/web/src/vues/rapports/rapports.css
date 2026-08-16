@@ -100,3 +100,45 @@
 /* `RG-RPT-02` — le troncage est ANNONCÉ, jamais silencieux. */
 .trunc{ display:flex; align-items:center; gap:9px; padding:10px 14px; border-top:1px solid var(--line);
   background:var(--warn-soft); font-size:12px; color:var(--st-review); }
+
+/* ── Impression et PDF — vue 30 ──────────────────────────────────────────── */
+/*
+ * `EX-RPT-03` demande un export PDF. Le produit n'en génère pas côté serveur :
+ * il **imprime**, et le navigateur produit le PDF. La décision a été prise au
+ * L-22 et refermée ici — générer un second chemin de mise en page ferait
+ * diverger deux rendus du même contenu, et c'est le genre d'écart qu'on ne
+ * découvre qu'en comparant deux documents datés du même jour.
+ *
+ * Inès imprime cette page une fois par mois pour la porter en réunion. Ce qui
+ * doit rester : la santé du portefeuille, les alertes, les chiffres. Ce qui
+ * disparaît : les commandes, qui n'ont aucun sens sur papier.
+ */
+@media print {
+  @page { size: A4 portrait; margin: 14mm; }
+
+  .sidebar, .topbar, .rep-bar, .tabs, .no-print { display: none !important; }
+  .app { display: block !important; }
+  .contenu { display: block; }
+  .page { padding: 0; max-width: none; }
+
+  body, .panel, .kpi, .health-row, .ratio-box {
+    background: var(--papier) !important;
+    color: var(--encre) !important;
+  }
+  .panel { border: 1px solid var(--encre) !important; break-inside: avoid; }
+  .health-row { border-bottom: 1px solid var(--encre) !important; }
+
+  /* Les barres deviennent des contours : un aplat gris à l'impression est
+     illisible, et un aplat noir vide la cartouche. */
+  .hbar-t { border: 1px solid var(--encre); background: var(--papier) !important; }
+  .hbar-t > i { background: var(--encre) !important; opacity: 0.35; }
+
+  /* `RG-RPT-02` — le troncage reste annoncé sur papier : c'est là qu'il
+     compte le plus, puisqu'on ne peut plus faire défiler. */
+  .trunc { background: var(--papier) !important; border: 1px solid var(--encre); }
+
+  /* Les onglets ne s'impriment pas : le panneau visible est le seul imprimé,
+     et l'en-tête d'impression dit lequel. */
+  .chart .serie { stroke: var(--encre) !important; }
+  .chart .dot { fill: var(--encre) !important; }
+}

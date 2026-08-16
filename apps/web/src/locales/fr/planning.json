@@ -54,7 +54,8 @@
     "deplacerVers": "Déplacer vers…",
     "reassignerA": "Réassigner à…",
     "dateVerrouillee": "Date non déplaçable : tâche multi-assignée",
-    "basculerTeletravail": "{nom}, {date} — actuellement {etat}. Basculer vers {suivant}"
+    "basculerTeletravail": "{nom}, {date} — actuellement {etat}. Basculer vers {suivant}",
+    "imprimer": "Imprimer"
   },
   "groupe": {
     "effectif": "{n, plural, one {# personne} other {# personnes}}",

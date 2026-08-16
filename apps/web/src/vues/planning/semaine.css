@@ -633,3 +633,52 @@
     width: 100%;
   }
 }
+
+/* ── Impression — vue 07 ─────────────────────────────────────────────────── */
+/*
+ * `cadrage/01 § 7` : « le planning et la grille d'activité disposent d'une mise
+ * en page imprimable ». La grille d'activité avait la sienne dans la maquette
+ * 09 ; **le planning n'en avait aucune** — la maquette 07 ne porte que le bloc
+ * d'impression du socle. La mise en page ci-dessous est donc construite par
+ * analogie avec celle de la vue 09, et c'est un écart consigné en `DESIGN.md`.
+ *
+ * Trois décisions, et chacune répond à une question qu'une impression pose et
+ * qu'un écran ne pose pas :
+ *
+ * 1. **La feuille est en paysage.** Cinq à sept colonnes de jours plus la
+ *    colonne des ressources ne tiennent pas en portrait.
+ * 2. **Les couleurs deviennent des filets.** Une imprimante de service est en
+ *    noir et blanc : un statut porté par la seule couleur disparaît. Chaque
+ *    occupation garde donc son filet de gauche et son libellé.
+ * 3. **Le cadre défilant se déplie.** `max-height` et `overflow` sont des
+ *    notions d'écran ; sur papier, elles coupent la grille à la première page.
+ */
+@media print {
+  @page { size: A4 landscape; margin: 12mm; }
+
+  .sidebar, .topbar, .filters, .pl-toolbar, .no-print, .cell-add, .legend { display: none !important; }
+  .app { display: block !important; }
+  .contenu { display: block; }
+  .page { padding: 0; max-width: none; }
+
+  body, .panel, .cell, .pl-head, .pl-corner, .res, .sum-cell, .sum-lab {
+    background: var(--papier) !important;
+    color: var(--encre) !important;
+  }
+
+  .pl-wrap { border: 1px solid var(--encre); max-height: none; overflow: visible; border-radius: 0; }
+  .pl { min-width: 0; }
+  .pl-corner, .pl-head, .res, .cell, .sum-cell, .sum-lab { border-color: var(--encre) !important; }
+
+  /* Le jour courant perd sa teinte : il garde sa marque. */
+  .pl-head.is-today, .cell.is-today { background: var(--papier) !important; }
+  .pl-head.is-today .pl-dnum::after { content: " •"; }
+
+  /* Les occupations gardent leur filet, seul repère qui survive au noir et
+     blanc, et le fond disparaît pour ne pas noircir la page. */
+  .occ, .leave { background: var(--papier) !important; border-left-width: 3px; }
+  .occ > span, .leave > span { color: var(--encre) !important; }
+  .pres { border-color: var(--encre) !important; color: var(--encre) !important; }
+
+  .cell { min-height: 18mm; }
+}

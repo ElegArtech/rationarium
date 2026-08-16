@@ -258,6 +258,28 @@ a.eyebrow:hover{ color:var(--ink); }
 .alert-warn{ background:var(--warn-soft); border-color:var(--st-review); color:var(--st-review); }
 .alert-icon{ flex:none; font-weight:700; }
 
+/* ── IMPRESSION — passe transversale ─────────────────────────────────── */
+/* Bloc du socle, jamais porté avant L-27 : ce qui n'existe qu'à l'écran ne
+   doit pas consommer du papier. Le panneau de revue est hors produit, les
+   messages sont éphémères, une fenêtre modale n'a pas de sens imprimée, et
+   une surcouche flottante se poserait au milieu de la page. */
+/* L'en-tête d'impression : invisible à l'écran, où le titre de vue le dit
+   déjà, et indispensable sur papier — une feuille sans date ni période est
+   inexploitable dès qu'elle a quitté la main de qui l'a imprimée. */
+.print-head{ display:none; }
+.print-title{ font-family:var(--font-display); font-size:19pt; font-weight:600; margin:0; }
+.print-meta{ font-family:var(--font-mono); font-size:8.5pt; margin:3mm 0 0; }
+
+@media print{
+  .toasts, .skip, .hcard, .pop, .scrim-modal, .drawer{ display:none !important; }
+  .print-head{ display:block; margin-bottom:8mm; }
+  .print-meta{ color:var(--encre); }
+  body{ background:var(--papier); }
+  /* Les adresses ne sont PAS déployées après les liens : sur un planning, un
+     lien par cellule couvrirait la grille d'URL illisibles. */
+  a[href]::after{ content:''; }
+}
+
 /* ── ACCESSIBILITÉ — passe transversale ──────────────────────────────── */
 /* Bordures de contrôle relevées à 3:1, texte d'espace réservé à 4,5:1,
    mouvement respectant la préférence système, contrastes forcés pris en charge. */

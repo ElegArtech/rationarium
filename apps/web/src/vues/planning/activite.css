@@ -307,9 +307,8 @@
 
 /* ── Impression : affichée en salle de service, en noir et blanc ────────── */
 
-.print-head {
-  display: none;
-}
+/* `.print-head`, `.print-title` et `.print-meta` vivent dans le socle depuis
+   L-27 : trois vues les emploient, et trois copies auraient divergé. */
 
 @media print {
   @page {
@@ -317,7 +316,7 @@
     margin: 12mm;
   }
 
-  .side,
+  .sidebar,
   .topbar,
   .filters,
   .pl-toolbar,
@@ -332,7 +331,7 @@
     display: block !important;
   }
 
-  .main {
+  .contenu {
     display: block;
   }
 
@@ -350,25 +349,6 @@
   .agent {
     background: var(--papier) !important;
     color: var(--encre) !important;
-  }
-
-  .print-head {
-    display: block;
-    margin-bottom: 8mm;
-  }
-
-  .print-title {
-    font-family: var(--font-display);
-    font-size: 19pt;
-    font-weight: 600;
-    margin: 0;
-  }
-
-  .print-meta {
-    font-family: var(--font-mono);
-    font-size: 8.5pt;
-    color: var(--encre);
-    margin: 3mm 0 0;
   }
 
   .pl-wrap {
