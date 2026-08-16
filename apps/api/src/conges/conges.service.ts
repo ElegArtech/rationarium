@@ -78,6 +78,88 @@ export class CongesService {
    * `RG-CNG-24` — un solde peut être défini par agent, ou globalement par
    * défaut. L'allocation propre à l'agent l'emporte sur le défaut global.
    */
+  /**
+   * `RG-CNG-24` — **attribuer des jours**, par agent ou globalement.
+   *
+   * Rien ne les attribuait. `leaveBalance` n'était lue nulle part ailleurs
+   * qu'ici : ni route, ni import, ni amorçage n'écrivait une seule ligne. Sur
+   * une instance neuve, `attribues` valait donc zéro pour tout le monde, et
+   * `RG-CNG-20` refusait **toute** demande de congé — le module entier était
+   * inutilisable, sans qu'aucun contrôle ne le dise, parce que chaque test
+   * fabriquait son allocation avant de commencer.
+   *
+   * `userId` à `null` définit le **défaut global** ; une allocation propre à
+   * l'agent l'emporte sur lui, comme le dit la règle.
+   *
+   * `RG-GEN-07` — la version transmise est celle qu'on a lue. Un écart lève
+   * plutôt que d'écraser : deux gestionnaires qui attribuent le même solde en
+   * même temps ne doivent pas se marcher dessus en silence.
+   */
+  async attribuerSolde(
+    donnees: {
+      userId: string | null;
+      typeId: string;
+      annee: number;
+      joursAttribues: number;
+      version?: number;
+    },
+    acteurId: string,
+  ) {
+    const type = await this.prisma.leaveType.findUnique({
+      where: { id: donnees.typeId },
+      select: { id: true, actif: true, nom: true },
+    });
+    if (!type) throw new ErreurConge("introuvable");
+    if (!type.actif) throw new ErreurConge("type_inactif");
+
+    const existante = donnees.userId
+      ? await this.prisma.leaveBalance.findUnique({
+          where: {
+            userId_typeId_annee: {
+              userId: donnees.userId,
+              typeId: donnees.typeId,
+              annee: donnees.annee,
+            },
+          },
+        })
+      : await this.prisma.leaveBalance.findFirst({
+          where: { userId: null, typeId: donnees.typeId, annee: donnees.annee },
+        });
+
+    if (existante && donnees.version !== undefined && existante.version !== donnees.version) {
+      throw new ErreurConge("allocation_modifiee");
+    }
+
+    const solde = existante
+      ? await this.prisma.leaveBalance.update({
+          where: { id: existante.id },
+          data: { joursAttribues: donnees.joursAttribues, version: { increment: 1 } },
+        })
+      : await this.prisma.leaveBalance.create({
+          data: {
+            userId: donnees.userId,
+            typeId: donnees.typeId,
+            annee: donnees.annee,
+            joursAttribues: donnees.joursAttribues,
+          },
+        });
+
+    await this.audit.tracer({
+      action: "leave.balance_set",
+      typeEntite: "LeaveBalance",
+      entiteId: solde.id,
+      acteurId,
+      detail: {
+        userId: donnees.userId,
+        type: type.nom,
+        annee: donnees.annee,
+        avant: existante ? Number(existante.joursAttribues) : null,
+        apres: donnees.joursAttribues,
+      },
+    });
+    return solde;
+  }
+
   async solde(userId: string, typeId: string, annee: number): Promise<Solde> {
     const [propre, global] = await Promise.all([
       this.prisma.leaveBalance.findUnique({

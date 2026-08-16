@@ -45,6 +45,15 @@ async function departement() {
   return id;
 }
 
+/** Un type de congé actif, avec un code unique. */
+async function creerType() {
+  const id = uuid();
+  await prisma.leaveType.create({
+    data: { id, code: `X${id.slice(0, 4)}`, nom: "Type" },
+  });
+  return id;
+}
+
 async function attribuer(userId: string | null, typeId: string, annee: number, jours: number) {
   await prisma.leaveBalance.create({
     data: { userId, typeId, annee, joursAttribues: jours },
@@ -585,5 +594,104 @@ describe("EX-CNG-01 — consultation filtrée", () => {
     const aValider = await conges.lister(p, { aValider: true }, manager);
     expect(aValider.length).toBeGreaterThan(0);
     expect(aValider.every((c) => c.validateurId === manager)).toBe(true);
+  });
+});
+
+describe("RG-CNG-24 — les jours S'ATTRIBUENT, par beneficiaire ou globalement", () => {
+  /*
+   * Rien ne les attribuait. `leaveBalance` n'était écrite nulle part : ni
+   * route, ni import, ni amorçage. Sur une instance neuve, `attribues` valait
+   * zéro pour tout le monde et `RG-CNG-20` refusait TOUTE demande — le module
+   * entier était inutilisable.
+   *
+   * Aucun contrôle ne pouvait le dire : chaque test fabriquait son allocation
+   * en base avant de commencer, donc chacun mesurait un monde où le problème
+   * n'existe pas. C'est le même piège que celui du jeu d'essai qui ment avec
+   * le code, sous une autre forme.
+   */
+  it("une allocation propre à l'beneficiaire ouvre son solde", async () => {
+    const beneficiaire = await agent();
+    const type = await creerType();
+
+    expect((await conges.solde(beneficiaire, type, 2026)).attribues).toBe(0);
+    await conges.attribuerSolde(
+      { userId: beneficiaire, typeId: type, annee: 2026, joursAttribues: 25 },
+      beneficiaire,
+    );
+    expect((await conges.solde(beneficiaire, type, 2026)).attribues).toBe(25);
+  });
+
+  it("le défaut global sert tout le monde, et l'allocation propre le SURCLASSE", async () => {
+    const a = await agent();
+    const b = await agent();
+    const type = await creerType();
+
+    await conges.attribuerSolde(
+      { userId: null, typeId: type, annee: 2026, joursAttribues: 25 },
+      a,
+    );
+    expect((await conges.solde(a, type, 2026)).attribues).toBe(25);
+    expect((await conges.solde(b, type, 2026)).attribues).toBe(25);
+
+    await conges.attribuerSolde({ userId: b, typeId: type, annee: 2026, joursAttribues: 30 }, a);
+    expect((await conges.solde(b, type, 2026)).attribues).toBe(30);
+    // Le défaut n'a pas bougé pour les autres.
+    expect((await conges.solde(a, type, 2026)).attribues).toBe(25);
+  });
+
+  it("réattribuer met à jour, sans créer de seconde ligne", async () => {
+    const beneficiaire = await agent();
+    const type = await creerType();
+    await conges.attribuerSolde({ userId: beneficiaire, typeId: type, annee: 2026, joursAttribues: 25 }, beneficiaire);
+    await conges.attribuerSolde({ userId: beneficiaire, typeId: type, annee: 2026, joursAttribues: 28 }, beneficiaire);
+
+    expect((await conges.solde(beneficiaire, type, 2026)).attribues).toBe(28);
+    expect(
+      await prisma.leaveBalance.count({ where: { userId: beneficiaire, typeId: type, annee: 2026 } }),
+    ).toBe(1);
+  });
+
+  it("RG-GEN-07 — une version périmée est REFUSÉE, jamais écrasée", async () => {
+    const beneficiaire = await agent();
+    const type = await creerType();
+    const pose = await conges.attribuerSolde(
+      { userId: beneficiaire, typeId: type, annee: 2026, joursAttribues: 25 },
+      beneficiaire,
+    );
+    // Quelqu'un d'autre passe entre-temps.
+    await conges.attribuerSolde({ userId: beneficiaire, typeId: type, annee: 2026, joursAttribues: 30 }, beneficiaire);
+
+    await expect(
+      conges.attribuerSolde(
+        { userId: beneficiaire, typeId: type, annee: 2026, joursAttribues: 12, version: pose.version },
+        beneficiaire,
+      ),
+    ).rejects.toMatchObject({ code: "allocation_modifiee" });
+    // La valeur du second reste : rien n'a été écrasé.
+    expect((await conges.solde(beneficiaire, type, 2026)).attribues).toBe(30);
+  });
+
+  it("un type inactif n'accepte pas d'attribution", async () => {
+    const beneficiaire = await agent();
+    const type = await creerType();
+    await prisma.leaveType.update({ where: { id: type }, data: { actif: false } });
+
+    await expect(
+      conges.attribuerSolde({ userId: beneficiaire, typeId: type, annee: 2026, joursAttribues: 25 }, beneficiaire),
+    ).rejects.toMatchObject({ code: "type_inactif" });
+  });
+
+  it("RG-ADM — l'attribution est tracée, avec l'avant et l'après", async () => {
+    const beneficiaire = await agent();
+    const type = await creerType();
+    await conges.attribuerSolde({ userId: beneficiaire, typeId: type, annee: 2026, joursAttribues: 25 }, beneficiaire);
+    await conges.attribuerSolde({ userId: beneficiaire, typeId: type, annee: 2026, joursAttribues: 30 }, beneficiaire);
+
+    const trace = await prisma.auditLog.findFirst({
+      where: { action: "leave.balance_set" },
+      orderBy: { horodatage: "desc" },
+    });
+    expect(JSON.stringify(trace?.detail)).toContain("25");
+    expect(JSON.stringify(trace?.detail)).toContain("30");
   });
 });
