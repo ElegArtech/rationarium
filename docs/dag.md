@@ -25,7 +25,7 @@ Séquentiel, en pair. Aucune délégation : c'est le harnais qui rend la délég
 | Lot | Contenu | Criticité | État |
 | --- | --- | --- | --- |
 | **L-00** | Harnais, espaces de travail, boucles de vérification, ADR, `DESIGN.md`, `socle.css`, `etats.json`, gel | Haute | en cours |
-| **L-01** | Levée de R1, R2 · **prototype jetable de la vue 08** à la volumétrie cible (R5) | Haute | R1 et R2 livrés · prototype à faire |
+| **L-01** | Levée de R1, R2, R5 · prototype jetable de la vue 08 | Haute | **livré** — ADR-0006, 0013, 0014, 0015 |
 
 **Critère de sortie de la vague 0** : la question 3 du gate — *l'agent dispose-t-il des outils pour implémenter, tester et corriger seul ?* — reçoit un **oui démontré, commande par commande**.
 
@@ -88,7 +88,9 @@ Séquentiel, en pair. Aucune délégation : c'est le harnais qui rend la délég
 | --- | --- | --- | --- | --- | --- | --- |
 | **L-20** | **Planning unifié** : point d'entrée agrégé, Semaine, Mois, Activité, glisser-déposer et alternative clavier, légende filtrante, ICS | M7 | 07, 08, 09 | **Haute** | L-11, L-14, L-15, L-16, L-17 | pair |
 
-Aucun parallélisme. C'est la fonction centrale du produit et son plus grand risque de conception — le prototype jetable de la vague 0 a levé le risque cinq vagues avant l'ouverture du lot.
+Aucun parallélisme.
+
+**Le risque de ce lot a changé de nature.** Le prototype de la vague 0 (`ADR-0015`) établit que la vue Mois n'est pas un problème de rendu : 500 ressources × 31 jours se peignent en 52 ms, et en 297 ms sur matériel bridé six fois. L'effort de conception va donc au **point d'entrée agrégé** de `RG-PLN-01` et à ses index, pas à la couche de présentation — et le contrôle de `pnpm perf` doit porter sur la requête, non sur la peinture.
 
 ---
 
