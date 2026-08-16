@@ -28,9 +28,9 @@
   "remplacerBloque": "Le fichier comporte des erreurs : en mode Remplacer, rien ne sera supprimé ni importé.",
   "titreUtilisateurs": "Importer des utilisateurs",
   "titreProjet": "Import projet (jalons + tâches)",
-  "ouvrirImport": "Importer CSV",
   "ouvrirImportProjet": "Import projet (jalons + tâches)",
   "exporterTaches": "Exporter les tâches",
   "exporterJalons": "Exporter les jalons",
-  "exporterCompetences": "Exporter la matrice"
+  "titreCompetences": "Importer des compétences",
+  "importerCsv": "Importer CSV"
 }
