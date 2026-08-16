@@ -587,7 +587,7 @@ Ces points sont ouverts mais, par application du parti pris n° 3 de `01` — *t
 
 | # | Prérequis | État constaté | Note |
 | --- | --- | --- | --- |
-| T1 | **Dépôt git initialisé** | **Absent** — le dossier n'est pas un dépôt | Bloquant absolu : sans git, ni worktrees, ni branches, ni points de restauration, ni traçabilité, ni revue de diff |
+| T1 | **Dépôt git initialisé** | **Levé** le 2026-08-16 (`df14c64`, branche `main`) | Bloquant absolu : sans git, ni worktrees, ni branches, ni points de restauration, ni traçabilité, ni revue de diff. Le gel des maquettes date de cette validation |
 | T2 | Node 24 LTS | Présent (24.19.0) | Conforme à `03 § 3.1` |
 | T3 | pnpm 11 | **Absent** | À installer |
 | T4 | Docker / Docker Compose | **Absent** | Nécessaire aux tests d'intégration (Testcontainers) et à la cible de déploiement |
