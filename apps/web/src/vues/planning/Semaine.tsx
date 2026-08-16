@@ -2,7 +2,7 @@ import { useState, type CSSProperties, type DragEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { Button, Menu, MenuItem, MenuTrigger, Popover, SubmenuTrigger } from "react-aria-components";
 import type { Planning, PersonnePlanning } from "../../api/planning.js";
-import { CELLULE_VIDE, initiales, type Cellule } from "./grille.js";
+import { CELLULE_VIDE, initiales, joursAffiches, type Cellule } from "./grille.js";
 import { cleGroupe } from "./Planning.js";
 import type { Selection } from "./Detail.js";
 
@@ -62,7 +62,8 @@ export function GrilleSemaine({
   const [glisse, setGlisse] = useState<{ taskId: string; userId: string } | null>(null);
   const [cible, setCible] = useState<string | null>(null);
 
-  const jours = donnees.periode.jours;
+  // `RG-PLN-03` — les jours visibles suivent le paramétrage global.
+  const jours = joursAffiches(donnees.periode.jours);
   const aujourdhui = new Date().toISOString().slice(0, 10);
   const styleGrille = { "--cols": `210px repeat(${jours.length}, minmax(122px, 1fr))` } as CSSProperties;
 

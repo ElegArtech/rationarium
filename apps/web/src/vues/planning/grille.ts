@@ -1,3 +1,4 @@
+import { premierJourSemaine, joursVisibles } from "../../formats.js";
 import type {
   Planning,
   TachePlanning,
@@ -53,15 +54,19 @@ export const ajouterJours = (s: string, n: number): string => {
 };
 
 /**
- * Le lundi de la semaine d'une date.
+ * Le premier jour de la semaine d'une date, **selon le réglage global**.
  *
- * `getUTCDay()` rend 0 pour dimanche : le décalage `(j + 6) % 7` ramène le
- * dimanche à six jours du lundi précédent, et non au lendemain. C'est
- * l'erreur classique de ce calcul, et elle ne se voit qu'un jour sur sept.
+ * `getUTCDay()` rend 0 pour dimanche : le décalage `(j - premier + 7) % 7`
+ * ramène la date au premier jour choisi, et non au lendemain. C'est l'erreur
+ * classique de ce calcul, et elle ne se voit qu'un jour sur sept.
+ *
+ * `RG-PLN-03` et la vue 31 rendent ce premier jour paramétrable : une semaine
+ * qui commencerait toujours le lundi contredirait le réglage qu'on offre.
  */
 export const lundiDe = (s: string): string => {
   const d = dateDe(s);
-  return ajouterJours(s, -((d.getUTCDay() + 6) % 7));
+  const premier = premierJourSemaine();
+  return ajouterJours(s, -((d.getUTCDay() - premier + 7) % 7));
 };
 
 export const premierDuMois = (s: string): string => `${s.slice(0, 7)}-01`;
@@ -224,6 +229,24 @@ export const CELLULE_VIDE: Cellule = {
   lieu: null,
   occupations: [],
 };
+
+/**
+ * `RG-PLN-03` — **les jours visibles sont paramétrables globalement.**
+ *
+ * Le serveur rend la période entière ; le filtrage est ici, parce que c'est un
+ * choix d'affichage et non de données — et parce qu'un utilisateur qui change
+ * le réglage doit voir la grille suivre sans nouvelle requête.
+ *
+ * Le réglage était enregistré par la vue 31 et **appliqué nulle part** : la
+ * grille montrait sept colonnes quoi qu'on choisisse.
+ */
+export function joursAffiches(jours: string[]): string[] {
+  const visibles = joursVisibles();
+  const retenus = jours.filter((j) => visibles.has(dateDe(j).getUTCDay()));
+  // Une grille sans colonne ressemble à une panne : si le réglage exclut tout
+  // ce que la période contient, on montre la période telle quelle.
+  return retenus.length > 0 ? retenus : jours;
+}
 
 /** L'index des jours de vacances scolaires, pour la trame de fond. */
 export function trameDesJours(donnees: Planning): Map<string, { ferie: boolean; vacances: string | null }> {

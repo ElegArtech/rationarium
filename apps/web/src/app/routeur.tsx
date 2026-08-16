@@ -17,6 +17,8 @@ import { FournisseurSession, useSession, CLE_SESSION } from "../session/session.
 import { Chargement, RouteIntrouvable } from "../composants/etats.js";
 import { deconnexion } from "../api/session.js";
 import { notifications as notificationsApi } from "../api/notifications.js";
+import { reglages as reglagesApi } from "../api/administration.js";
+import { appliquerReglages } from "../formats.js";
 import { CLE_NOTIFICATIONS } from "../coquille/Notifications.js";
 
 import { Connexion } from "../routes/connexion.js";
@@ -227,6 +229,7 @@ function RedirectionMotDePasse() {
 
 function CoquilleDeSession({ surDeconnexion }: { surDeconnexion: () => void }) {
   const { session, permissions } = useSession();
+  const { t: tCommun } = useTranslation("commun");
 
   /**
    * Le compteur de la cloche — `EX-NTF-01`.
@@ -236,11 +239,50 @@ function CoquilleDeSession({ surDeconnexion }: { surDeconnexion: () => void }) {
    * ne justifient pas une interrogation plus serrée — elle coûterait plus
    * qu'elle ne rapporterait.
    */
+  /*
+   * `RG-GEN-09` — les réglages d'affichage sont chargés une fois et **poussés**
+   * dans le module de formatage. Ils étaient enregistrés par la vue 31 et
+   * appliqués nulle part : choisir « AAAA-MM-JJ » ne changeait rien.
+   *
+   * `settings:read` est détenu par tout le monde — c'est justement pour cela
+   * que le catalogue distingue `read` de `update` (voir `navigation.ts`).
+   */
+  const reglages = useQuery({
+    queryKey: ["parametrage"],
+    queryFn: reglagesApi,
+    staleTime: 5 * 60_000,
+    /*
+     * **Aucun réessai.** La coquille attend cette requête avant de rendre ;
+     * un réessai la ferait attendre trois fois plus longtemps sur une panne,
+     * et le paramétrage n'est pas une condition de service — le produit a des
+     * défauts corrects. Échouer vite vaut mieux qu'attendre en vain.
+     */
+    retry: false,
+  });
+
+  if (reglages.data) appliquerReglages(reglages.data);
+
   const cloche = useQuery({
     queryKey: CLE_NOTIFICATIONS,
     queryFn: () => notificationsApi({ limite: 20 }),
     refetchInterval: 120_000,
   });
+
+  /*
+   * La coquille attend le paramétrage avant de rendre ses vues.
+   *
+   * Les fonctions de formatage sont appelées **pendant le rendu** — des
+   * centaines de fois sur une grille — et lisent un module, pas un état React :
+   * un réglage arrivé après coup ne provoquerait aucun nouveau rendu, et la
+   * page resterait au format par défaut jusqu'à la navigation suivante. Rendre
+   * d'abord puis corriger produirait en outre un clignotement de format, qui
+   * est un défaut à part entière.
+   *
+   * Le coût est une requête, mise en cache cinq minutes. En cas d'échec — droit
+   * manquant, panne —, on rend quand même : le produit garde ses défauts
+   * plutôt que de refuser de servir.
+   */
+  if (reglages.isPending) return <Chargement quoi={tCommun("etats.laSession")} />;
 
   return (
     <Coquille

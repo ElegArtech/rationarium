@@ -8,7 +8,7 @@ import { usePeut } from "../../session/session.js";
 import { Chargement, ErreurDeChargement, AccesRefuse } from "../../composants/etats.js";
 import { useMessages } from "../../composants/messages.js";
 import { Fenetre } from "../../composants/fenetre.js";
-import { formaterDate, formaterDateLongue } from "../../formats.js";
+import { formaterDate, formaterDateLongue, formaterHeure } from "../../formats.js";
 import { ajouterJours, decaler, initiales, iso, lundiDe, periodeDe } from "./grille.js";
 import "../../composants/partages.css";
 import "./semaine.css";
@@ -163,7 +163,7 @@ export function Activite() {
                 </div>
                 {tache.heureDebut && tache.heureFin ? (
                   <span className="act-sub">
-                    {tache.heureDebut} – {tache.heureFin}
+                    {formaterHeure(tache.heureDebut)} – {formaterHeure(tache.heureFin)}
                   </span>
                 ) : null}
               </div>

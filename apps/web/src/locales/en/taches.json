@@ -21,7 +21,7 @@
   "liste": {
     "surtitre": "All tasks",
     "titre": "Tasks",
-    "compte": "{n, plural, =0 {task} one {task} other {tasks}}",
+    "compte": "{n, plural, =0 {tasks} one {task} other {tasks}}",
     "dontIndependantes": "{n, plural, one {# standalone} other {# standalone}}",
     "creer": "New task",
     "creerLaTache": "Create task",

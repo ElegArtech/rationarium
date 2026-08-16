@@ -110,6 +110,22 @@ test.describe("Vue 07 — planning, semaine", () => {
 
     // Un aplat gris sans étiquette se prend pour un défaut d'affichage.
     await expect(page.getByText("Vacances d'été").first()).toBeVisible();
+  });
+
+  test("le férié du 15 août tombe un SAMEDI : il n'apparaît qu'avec le week-end", async ({
+    page,
+  }) => {
+    await horlogeFixe(page);
+    await serveur(page, {
+      session: SESSION_PLANNING,
+      reponses: { ...reponses, "/api/parametrage": { corps: { "planning.visibleDays": "0,1,2,3,4,5,6" } } },
+    });
+    await page.goto("/planning");
+
+    // `RG-PLN-03` — la semaine ouvrée est le réglage par défaut, et elle masque
+    // donc un férié tombant un samedi. Ce n'est pas un défaut : c'est le
+    // réglage qui s'applique, et la maquette de la vue 08 le prévoit
+    // explicitement dans son axe « Jours ouvrés / Tous les jours ».
     await expect(page.getByText("Férié").first()).toBeVisible();
   });
 

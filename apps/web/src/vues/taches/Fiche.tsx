@@ -11,7 +11,7 @@ import { Chargement, ErreurDeChargement } from "../../composants/etats.js";
 import { Fenetre } from "../../composants/fenetre.js";
 import { useMessages } from "../../composants/messages.js";
 import { Pastille, AvatarAgent, useLibelle } from "../../composants/pastilles.js";
-import { formaterDate, formaterDateLongue, formaterNombre } from "../../formats.js";
+import { formaterDate, formaterDateLongue, formaterNombre, formaterHeure } from "../../formats.js";
 import "../../composants/partages.css";
 import "./liste.css";
 import "./fiche.css";
@@ -204,7 +204,7 @@ export function FicheTache({ tacheId }: { tacheId: string }) {
                 libelle={t("fiche.horaires")}
                 valeur={
                   tache.heureDebut && tache.heureFin
-                    ? `${tache.heureDebut} – ${tache.heureFin}`
+                    ? `${formaterHeure(tache.heureDebut)} – ${formaterHeure(tache.heureFin)}`
                     : null
                 }
               />
