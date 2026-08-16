@@ -31,6 +31,28 @@
   --on-accent:#FFFFFF;
   --brand-panel:#101A6E;
 
+  /* Sur le panneau signature des vues d'accès (01–05).
+     Les maquettes y posent des blancs transparents. Les FILETS et les FONDS
+     les gardent tels quels : l'opacité y est sans conséquence. Le TEXTE, non —
+     `DESIGN.md § 4` : l'opacité ne sert jamais à atténuer du texte, le
+     contraste tombe sous le seuil AA à chaque fois. Les trois niveaux de
+     texte sont donc des couleurs pleines, calées sur le rendu de la maquette. */
+  --on-brand:#FFFFFF;
+  --on-brand-doux:#D7DBF0;
+  --on-brand-faible:#B4BBE0;
+  --brand-ligne:rgba(255,255,255,.16);
+  --brand-ligne-douce:rgba(255,255,255,.11);
+  --brand-fond:rgba(255,255,255,.03);
+  --brand-fond-2:rgba(255,255,255,.06);
+  --brand-puce:rgba(255,255,255,.10);
+  --brand-barre:rgba(255,255,255,.14);
+  --brand-barre-pleine:rgba(255,255,255,.75);
+  --brand-trame:rgba(255,255,255,.045);
+  --brand-ferie:rgba(255,255,255,.055);
+  --brand-hachure:rgba(255,255,255,.18);
+  --brand-chip-plat:rgba(195,171,245,.28);
+  --brand-glyphe:rgba(255,255,255,.4);
+
   /* Statuts de tâche */
   --st-todo:#5B6270;
   --st-doing:#1B2A9B;

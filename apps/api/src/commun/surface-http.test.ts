@@ -75,6 +75,8 @@ const PUBLIQUES_ATTENDUES = new Set([
   "AuthController.resetPassword",
   "AuthController.changePassword",
   "AuthController.me",
+  // Ce que la page de connexion doit savoir avant toute session (vue 01).
+  "AuthController.acces",
   // L-29 — une sonde d'exploitation n'a pas de session. Voir sante.controller.ts.
   "SanteController.vivant",
   "SanteController.pret",

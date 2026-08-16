@@ -15,6 +15,7 @@ import { GabaritAcces } from "./gabarit-acces.js";
  */
 export function MotDePasseImpose({ surSucces }: { surSucces: () => void }) {
   const { t } = useTranslation("auth");
+  const { t: tAcces } = useTranslation("acces");
   const [actuel, setActuel] = useState("");
   const [nouveau, setNouveau] = useState("");
   const [confirmation, setConfirmation] = useState("");
@@ -40,7 +41,11 @@ export function MotDePasseImpose({ surSucces }: { surSucces: () => void }) {
   }
 
   return (
-    <GabaritAcces titre={t("impose.titre")}>
+    <GabaritAcces
+      chapeau={tAcces("impose.chapeau")}
+      titre={t("impose.titre")}
+      intro={t("impose.intro")}
+    >
       <p className="acces-explication">{t("impose.explication")}</p>
       <form onSubmit={soumettre} noValidate>
         <div className="zone-alerte" aria-live="polite">

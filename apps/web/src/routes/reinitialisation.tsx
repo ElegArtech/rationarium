@@ -16,6 +16,7 @@ import { GabaritAcces } from "./gabarit-acces.js";
  */
 export function Reinitialisation({ jeton }: { jeton: string }) {
   const { t } = useTranslation("auth");
+  const { t: tAcces } = useTranslation("acces");
   const [motDePasse, setMotDePasse] = useState("");
   const [confirmation, setConfirmation] = useState("");
   const [erreur, setErreur] = useState<{ message: string; cle?: string | undefined } | null>(null);
@@ -44,7 +45,11 @@ export function Reinitialisation({ jeton }: { jeton: string }) {
 
   if (succes) {
     return (
-      <GabaritAcces titre={t("reinitialisation.titre")}>
+      <GabaritAcces
+      chapeau={tAcces("reinitialisation.chapeau")}
+      titre={t("reinitialisation.titre")}
+      intro={t("reinitialisation.intro")}
+    >
         <div className="alert alert-success" role="status">
           {t("reinitialisation.succes")}
         </div>
@@ -56,7 +61,11 @@ export function Reinitialisation({ jeton }: { jeton: string }) {
   }
 
   return (
-    <GabaritAcces titre={t("reinitialisation.titre")}>
+    <GabaritAcces
+      chapeau={tAcces("reinitialisation.chapeau")}
+      titre={t("reinitialisation.titre")}
+      intro={t("reinitialisation.intro")}
+    >
       <form onSubmit={soumettre} noValidate>
         {erreur ? (
           <div className="alert alert-danger" role="alert">

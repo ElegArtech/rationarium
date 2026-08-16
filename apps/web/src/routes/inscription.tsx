@@ -15,6 +15,7 @@ import { GabaritAcces } from "./gabarit-acces.js";
  */
 export function Inscription({ ouverte = true }: { ouverte?: boolean }) {
   const { t } = useTranslation("auth");
+  const { t: tAcces } = useTranslation("acces");
   const [champs, setChamps] = useState({
     prenom: "", nom: "", email: "", login: "", motDePasse: "", confirmation: "",
   });
@@ -28,7 +29,11 @@ export function Inscription({ ouverte = true }: { ouverte?: boolean }) {
   // Page atteinte par URL directe alors que la fonction est désactivée.
   if (!ouverte) {
     return (
-      <GabaritAcces titre={t("inscription.titre")}>
+      <GabaritAcces
+      chapeau={tAcces("inscription.chapeau")}
+      titre={t("inscription.titre")}
+      intro={t("inscription.intro")}
+    >
         <div className="alert alert-warn" role="status">
           {t("erreurs.inscriptionDesactivee")}
         </div>
@@ -59,7 +64,11 @@ export function Inscription({ ouverte = true }: { ouverte?: boolean }) {
 
   if (cree) {
     return (
-      <GabaritAcces titre={t("inscription.titre")}>
+      <GabaritAcces
+      chapeau={tAcces("inscription.chapeau")}
+      titre={t("inscription.titre")}
+      intro={t("inscription.intro")}
+    >
         <div className="alert alert-success" role="status">
           {t("reinitialisation.succes")}
         </div>
@@ -71,7 +80,11 @@ export function Inscription({ ouverte = true }: { ouverte?: boolean }) {
   }
 
   return (
-    <GabaritAcces titre={t("inscription.titre")}>
+    <GabaritAcces
+      chapeau={tAcces("inscription.chapeau")}
+      titre={t("inscription.titre")}
+      intro={t("inscription.intro")}
+    >
       <form onSubmit={soumettre} noValidate>
         {/* Zone d'alerte en tête : le formulaire ne saute pas quand un message apparaît. */}
         <div className="zone-alerte" aria-live="polite">

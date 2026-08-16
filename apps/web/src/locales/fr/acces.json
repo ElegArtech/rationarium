@@ -1,0 +1,89 @@
+{
+  "panneau": {
+    "organisation": "Ville de Roqueville",
+    "signature": "Projets, ressources et temps sur une seule grille.",
+    "portefeuille": "Portefeuille · 3 projets actifs",
+    "colonnes": "Progression · prochain jalon · santé",
+    "pourcent": "{n} %",
+    "articulation": "Ce que cela occupe, jour par jour",
+    "semaine": "Semaine du 17 au 21 novembre",
+    "service": "Systèmes d'information · 5 personnes",
+    "ressource": "Ressource",
+    "horsPresentiel": "Hors présentiel",
+    "ferie": "Férié",
+    "legende": "En haut, où en sont les projets. En bas, ce qu'ils occupent réellement — aux côtés des congés, du télétravail, des permanences et des réunions.",
+    "jours": {
+      "0": "lun 17",
+      "1": "mar 18",
+      "2": "mer 19",
+      "3": "jeu 20",
+      "4": "ven 21"
+    },
+    "sante": {
+      "done": "Bon",
+      "review": "Attention",
+      "blocked": "Critique"
+    },
+    "projets": {
+      "portail": {
+        "nom": "Refonte du portail citoyen",
+        "jalon": "Recette · 28 nov."
+      },
+      "sirh": {
+        "nom": "Migration SIRH",
+        "jalon": "Reprise des données · 5 déc."
+      },
+      "schema": {
+        "nom": "Schéma directeur numérique",
+        "jalon": "Comité de pilotage · 15 déc."
+      }
+    },
+    "personnes": {
+      "durand": "C. Durand",
+      "amrani": "D. Amrani",
+      "berthier": "F. Berthier",
+      "nguyen": "H. Nguyen",
+      "rocher": "I. Rocher"
+    },
+    "occupations": {
+      "maquettes": "Maquettes portail",
+      "recette": "Recette portail",
+      "congeAnnuel": "Congé annuel",
+      "congeAttente": "Congé · en attente",
+      "teletravail": "Télétravail",
+      "cahierCharges": "Cahier des charges",
+      "comite": "Comité · EXT",
+      "accueil": "Accueil · matin",
+      "reprise": "Reprise des données",
+      "astreinte": "Astreinte",
+      "noteCadrage": "Note de cadrage",
+      "bureau": "Bureau municipal",
+      "reunion": "Réunion de service"
+    }
+  },
+  "theme": {
+    "sombre": "Thème sombre",
+    "clair": "Thème clair"
+  },
+  "pied": {
+    "version": "Trame v1.0",
+    "accessibilite": "Accessibilité : conforme RGAA",
+    "aide": "Aide"
+  },
+  "connexion": {
+    "chapeau": "Accès à l'application"
+  },
+  "inscription": {
+    "chapeau": "Nouveau compte"
+  },
+  "oubli": {
+    "chapeau": "Récupération d'accès"
+  },
+  "reinitialisation": {
+    "chapeau": "Récupération d'accès"
+  },
+  "impose": {
+    "chapeau": "Sécurité du compte"
+  },
+  "skip": "Aller au contenu principal"
+}
