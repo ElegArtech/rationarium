@@ -21,7 +21,8 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
-    "db:export": "node dist/reversibilite-cli.js"
+    "db:export": "node dist/reversibilite-cli.js",
+    "db:maquette": "node dist/maquette-cli.js"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.9.1",
