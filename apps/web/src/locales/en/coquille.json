@@ -1,0 +1,64 @@
+{
+  "navigation": {
+    "ouvrir": "Open navigation",
+    "replier": "Collapse the sidebar",
+    "deplier": "Expand the sidebar",
+    "principale": "Main navigation"
+  },
+  "groupes": {
+    "pilotage": "Steering",
+    "projets": "Projects",
+    "rh": "Human resources",
+    "referentiels": "Reference data",
+    "administration": "Administration"
+  },
+  "entrees": {
+    "tableauDeBord": "Dashboard",
+    "planning": "Schedule",
+    "rapports": "Reports",
+    "projetsListe": "Projects",
+    "taches": "Tasks",
+    "evenements": "Events",
+    "conges": "Leave",
+    "teletravail": "Remote work",
+    "tempsPasse": "Time tracking",
+    "competences": "Skills",
+    "utilisateurs": "Users",
+    "departements": "Departments",
+    "tiers": "Third parties",
+    "clients": "Clients",
+    "roles": "Roles",
+    "journalAudit": "Audit log",
+    "tachesPredefinies": "Recurring tasks",
+    "parametres": "Settings"
+  },
+  "entete": {
+    "filAriane": "Breadcrumb",
+    "rechercheGlobale": "Global search",
+    "langue": "Language",
+    "theme": "Theme",
+    "themeClair": "Light theme",
+    "themeSombre": "Dark theme",
+    "themeAuto": "Automatic theme",
+    "notifications": "Notifications",
+    "notificationsNonLues": "{n, plural, =0 {no unread notifications} one {# unread notification} other {# unread notifications}}",
+    "menuUtilisateur": "User menu",
+    "monProfil": "My profile",
+    "deconnexion": "Sign out"
+  },
+  "notifications": {
+    "titre": "Notifications",
+    "aucune": "No notifications",
+    "toutMarquerLu": "Mark all as read"
+  },
+  "profil": {
+    "titre": "My profile",
+    "identite": "Identity",
+    "avatar": "Avatar",
+    "preferences": "Preferences",
+    "securite": "Security",
+    "derniereConnexion": "Last sign-in",
+    "jamaisConnecte": "Never signed in",
+    "changerMotDePasse": "Change my password"
+  }
+}

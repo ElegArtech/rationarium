@@ -85,7 +85,26 @@ C'est le vocabulaire visuel de la vue centrale. Six natures d'information doiven
 | `--trame-ferie` `rgba(20,22,28,.055)` | Trame de fond des jours fériés — **ne masque jamais le contenu** (`EX-PLN-14`) |
 | `--trame-vacances` `rgba(27,42,155,.05)` | Trame de fond des vacances scolaires |
 
-### 1.6 Rythme et typographie
+### 1.6 Encres constantes — jetons ajoutés au portage
+
+Six jetons qui **n'existaient pas dans les maquettes**, ajoutés au socle parce que le portage ne pouvait pas s'en passer sans écrire des couleurs littérales.
+
+Les maquettes emploient `#fff`, `#000` et cinq `rgba(…)` dans leurs sections de vue. Aucun jeton existant ne convenait : `--on-accent` bascule au sombre, or ces couleurs sont posées sur des aplats qui **restent sombres dans les deux thèmes** — un aplat de statut, une ombre, un voile de fenêtre modale.
+
+| Jeton | Valeur | Emploi |
+| --- | --- | --- |
+| `--on-status` | `#FFFFFF` | Texte sur un aplat de statut : pastille de compteur, étiquette sur `--st-blocked` |
+| `--ombre-douce` | `rgba(0,0,0,.04)` | Ombre de survol, séparation légère |
+| `--ombre-portee` | `rgba(0,0,0,.35)` | Ombre de fenêtre et de panneau |
+| `--voile-fenetre` | `rgba(8,10,16,.45)` | Voile derrière une fenêtre modale |
+| `--trame-leave-douce` | `rgba(106,75,166,.30)` | Trame de congé validé, en fond de cellule |
+| `--trame-leave-pending-douce` | `rgba(120,110,150,.16)` | Trame de congé en attente |
+
+**Ce sont des ajouts, pas des réinterprétations** : les valeurs sont exactement celles des maquettes. Ils ne basculent pas avec le thème, et c'est délibéré.
+
+La règle qui a produit cet ajout mérite d'être retenue : quand une couleur nécessaire n'existe pas dans les jetons, **on s'arrête et on tranche** — soit c'est un jeton manquant à ajouter et à documenter ici, soit c'est une réinterprétation qu'il ne faut pas faire. `stylelint` force cet arrêt ; sans lui, la couleur littérale serait passée sans que personne ne la voie.
+
+### 1.7 Rythme et typographie
 
 | Jeton | Valeur | Note |
 | --- | --- | --- |

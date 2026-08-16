@@ -1,0 +1,32 @@
+{
+  "actions": {
+    "annuler": "Cancel",
+    "confirmer": "Confirm",
+    "creer": "Create",
+    "enregistrer": "Save",
+    "fermer": "Close",
+    "modifier": "Edit",
+    "reinitialiser": "Reset",
+    "rechercher": "Search",
+    "supprimer": "Delete",
+    "toutAfficher": "Show all"
+  },
+  "etats": {
+    "chargement": "Loading…",
+    "erreur": "An error occurred",
+    "reessayer": "Try again",
+    "aucunResultat": "No results",
+    "aucunResultatFiltres": "No results for these filters",
+    "retirerFiltres": "Clear filters"
+  },
+  "compteurs": {
+    "jours": "{n, plural, =0 {no days} one {# day} other {# days}}",
+    "taches": "{n, plural, =0 {no tasks} one {# task} other {# tasks}}",
+    "tachesSurTotal": "{n, plural, one {# task} other {# tasks}} of {total}",
+    "personnes": "{n, plural, =0 {nobody} one {# person} other {# people}}"
+  },
+  "droits": {
+    "permissionRequise": "Permission required",
+    "actionIndisponible": "This action is not available to you"
+  }
+}

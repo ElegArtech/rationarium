@@ -1,0 +1,64 @@
+{
+  "navigation": {
+    "ouvrir": "Ouvrir la navigation",
+    "replier": "Replier la barre latérale",
+    "deplier": "Déplier la barre latérale",
+    "principale": "Navigation principale"
+  },
+  "groupes": {
+    "pilotage": "Pilotage",
+    "projets": "Projets",
+    "rh": "Ressources humaines",
+    "referentiels": "Référentiels",
+    "administration": "Administration"
+  },
+  "entrees": {
+    "tableauDeBord": "Tableau de bord",
+    "planning": "Planning",
+    "rapports": "Rapports",
+    "projetsListe": "Projets",
+    "taches": "Tâches",
+    "evenements": "Événements",
+    "conges": "Congés",
+    "teletravail": "Télétravail",
+    "tempsPasse": "Temps passé",
+    "competences": "Compétences",
+    "utilisateurs": "Utilisateurs",
+    "departements": "Départements",
+    "tiers": "Tiers",
+    "clients": "Clients",
+    "roles": "Rôles",
+    "journalAudit": "Journal d'audit",
+    "tachesPredefinies": "Tâches prédéfinies",
+    "parametres": "Paramètres"
+  },
+  "entete": {
+    "filAriane": "Fil d'Ariane",
+    "rechercheGlobale": "Recherche globale",
+    "langue": "Langue",
+    "theme": "Thème",
+    "themeClair": "Thème clair",
+    "themeSombre": "Thème sombre",
+    "themeAuto": "Thème automatique",
+    "notifications": "Notifications",
+    "notificationsNonLues": "{n, plural, =0 {aucune notification non lue} one {# notification non lue} other {# notifications non lues}}",
+    "menuUtilisateur": "Menu utilisateur",
+    "monProfil": "Mon profil",
+    "deconnexion": "Déconnexion"
+  },
+  "notifications": {
+    "titre": "Notifications",
+    "aucune": "Aucune notification",
+    "toutMarquerLu": "Tout marquer comme lu"
+  },
+  "profil": {
+    "titre": "Mon profil",
+    "identite": "Identité",
+    "avatar": "Avatar",
+    "preferences": "Préférences",
+    "securite": "Sécurité",
+    "derniereConnexion": "Dernière connexion",
+    "jamaisConnecte": "Jamais connecté",
+    "changerMotDePasse": "Changer mon mot de passe"
+  }
+}

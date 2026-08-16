@@ -1,0 +1,32 @@
+{
+  "actions": {
+    "annuler": "Annuler",
+    "confirmer": "Confirmer",
+    "creer": "Créer",
+    "enregistrer": "Enregistrer",
+    "fermer": "Fermer",
+    "modifier": "Modifier",
+    "reinitialiser": "Réinitialiser",
+    "rechercher": "Rechercher",
+    "supprimer": "Supprimer",
+    "toutAfficher": "Tout afficher"
+  },
+  "etats": {
+    "chargement": "Chargement…",
+    "erreur": "Une erreur est survenue",
+    "reessayer": "Réessayer",
+    "aucunResultat": "Aucun résultat",
+    "aucunResultatFiltres": "Aucun résultat pour ces filtres",
+    "retirerFiltres": "Retirer les filtres"
+  },
+  "compteurs": {
+    "jours": "{n, plural, =0 {aucun jour} one {# jour} other {# jours}}",
+    "taches": "{n, plural, =0 {aucune tâche} one {# tâche} other {# tâches}}",
+    "tachesSurTotal": "{n, plural, one {# tâche} other {# tâches}} sur {total}",
+    "personnes": "{n, plural, =0 {aucune personne} one {# personne} other {# personnes}}"
+  },
+  "droits": {
+    "permissionRequise": "Permission requise",
+    "actionIndisponible": "Cette action ne vous est pas accessible"
+  }
+}
