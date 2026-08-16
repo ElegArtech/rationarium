@@ -40,6 +40,57 @@ export class TiersService {
   // ── Tiers — EX-TRS-01 ────────────────────────────────────────────────────
 
   /** `RG-TRS-01` — un tiers de type *personne morale* ne porte pas de contact nommé. */
+  /**
+   * `EX-TRS-02` — **modifier un tiers.**
+   *
+   * Il se créait, se lisait et se supprimait ; rien ne le modifiait. Les
+   * maquettes 23 et 24 posent pourtant « Modifier » sur la liste ET sur la
+   * fiche — et corriger un numéro de téléphone imposait de supprimer le tiers,
+   * donc de rompre ses rattachements de projet et de perdre le temps déclaré
+   * pour lui.
+   *
+   * `RG-TRS-01` vaut à la modification comme à la création : une personne
+   * morale n'a pas de contact nommé. Sans ce contrôle ici, il suffisait de
+   * créer une personne physique puis de la basculer en organisation pour
+   * contourner la règle.
+   */
+  async modifierTiers(
+    id: string,
+    donnees: {
+      type?: TypeTiers; organisation?: string | null;
+      contactNom?: string | null; contactEmail?: string | null; contactTelephone?: string | null;
+      notes?: string | null;
+      /** L'archivage s'exprime par l'inactivité : le modèle porte `actif`. */
+      actif?: boolean;
+    },
+    acteurId: string,
+  ) {
+    const avant = await this.prisma.thirdParty.findUnique({ where: { id } });
+    if (!avant) throw new ErreurTiers("introuvable");
+
+    const type = donnees.type ?? avant.type;
+    const contactNom = donnees.contactNom !== undefined ? donnees.contactNom : avant.contactNom;
+    if (type === "organisation" && contactNom) {
+      throw new ErreurTiers("contact_sur_personne_morale");
+    }
+
+    const tiers = await this.prisma.thirdParty.update({
+      where: { id },
+      data: { ...donnees, version: { increment: 1 } },
+    });
+    await this.audit.tracer({
+      action: "third_party.update",
+      typeEntite: "ThirdParty",
+      entiteId: id,
+      acteurId,
+      detail: {
+        avant: { type: avant.type, organisation: avant.organisation, actif: avant.actif },
+        apres: { type: tiers.type, organisation: tiers.organisation, actif: tiers.actif },
+      },
+    });
+    return tiers;
+  }
+
   async creerTiers(
     donnees: {
       type: TypeTiers; organisation?: string | null;
@@ -234,6 +285,40 @@ export class TiersService {
   }
 
   // ── Clients — EX-TRS-04, EX-TRS-05 ───────────────────────────────────────
+
+  /**
+   * `EX-CLI-02` — **modifier un client**, ou le rendre inactif.
+   *
+   * Même absence que pour les tiers, et même conséquence : corriger une
+   * adresse imposait de supprimer le client, donc de détacher les projets qui
+   * lui sont rattachés. La maquette 26 pose « Modifier » et « Rendre
+   * inactif » ; l'inactivité est réversible et n'efface rien.
+   */
+  async modifierClient(
+    id: string,
+    donnees: {
+      nom?: string; contactNom?: string | null; contactEmail?: string | null;
+      contactTelephone?: string | null; adresse?: string | null; notes?: string | null;
+      actif?: boolean;
+    },
+    acteurId: string,
+  ) {
+    const avant = await this.prisma.client.findUnique({ where: { id } });
+    if (!avant) throw new ErreurTiers("introuvable");
+
+    const client = await this.prisma.client.update({
+      where: { id },
+      data: { ...donnees, version: { increment: 1 } },
+    });
+    await this.audit.tracer({
+      action: "client.update",
+      typeEntite: "Client",
+      entiteId: id,
+      acteurId,
+      detail: { avant: { nom: avant.nom, actif: avant.actif }, apres: { nom: client.nom, actif: client.actif } },
+    });
+    return client;
+  }
 
   async creerClient(
     donnees: {

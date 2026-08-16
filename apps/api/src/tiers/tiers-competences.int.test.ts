@@ -293,3 +293,64 @@ describe("RG-CMP-01, RG-CMP-02, RG-CMP-03 — couverture et écarts", () => {
     expect(csv.split("\n")[0]!.startsWith("Agent;")).toBe(true);
   });
 });
+
+describe("EX-TRS-02 et EX-CLI-02 — un tiers et un client se MODIFIENT", () => {
+  /*
+   * Ils se créaient, se lisaient et se supprimaient ; rien ne les modifiait.
+   * Les maquettes 23 à 26 posent pourtant « Modifier » sur la liste ET sur la
+   * fiche — et corriger un numéro de téléphone imposait de SUPPRIMER le tiers,
+   * donc de rompre ses rattachements de projet et de perdre le temps déclaré
+   * pour lui.
+   *
+   * Trouvé par la conformité de rendu : « Modifier » manquait sur cinq vues.
+   */
+  it("le contact d'une personne physique se corrige, l'objet reste le même", async () => {
+    const acteur = await agent();
+    const t = await tiers.creerTiers(
+      { type: "individual", contactNom: "Jean Dupont", contactTelephone: "0102030405" },
+      acteur,
+    );
+
+    const apres = await tiers.modifierTiers(t.id, { contactTelephone: "0607080910" }, acteur);
+
+    expect(apres.id).toBe(t.id);
+    expect(apres.contactTelephone).toBe("0607080910");
+    expect(apres.contactNom).toBe("Jean Dupont");
+  });
+
+  it("RG-TRS-01 — LA RÈGLE VAUT AUSSI À LA MODIFICATION", async () => {
+    /*
+     * Sans ce contrôle ici, il suffisait de créer une personne physique puis de
+     * la basculer en organisation pour contourner la règle : une personne
+     * morale se serait retrouvée avec un contact nommé.
+     */
+    const acteur = await agent();
+    const t = await tiers.creerTiers({ type: "individual", contactNom: "Jean Dupont" }, acteur);
+
+    await expect(
+      tiers.modifierTiers(t.id, { type: "organisation" }, acteur),
+    ).rejects.toMatchObject({ code: "contact_sur_personne_morale" });
+  });
+
+  it("un client se renomme et se rend inactif, sans rien effacer", async () => {
+    const acteur = await agent();
+    const c = await tiers.creerClient({ nom: "Ville de X" }, acteur);
+
+    const renomme = await tiers.modifierClient(c.id, { nom: "Ville de Y", actif: false }, acteur);
+
+    expect(renomme.nom).toBe("Ville de Y");
+    expect(renomme.actif).toBe(false);
+    expect(await prisma.client.count({ where: { id: c.id } })).toBe(1);
+  });
+
+  it("un tiers ou un client inconnu est refusé, pas créé en douce", async () => {
+    const acteur = await agent();
+    const inconnu = "00000000-0000-4000-8000-000000000000";
+    await expect(tiers.modifierTiers(inconnu, { notes: "x" }, acteur)).rejects.toMatchObject({
+      code: "introuvable",
+    });
+    await expect(tiers.modifierClient(inconnu, { nom: "x" }, acteur)).rejects.toMatchObject({
+      code: "introuvable",
+    });
+  });
+});
