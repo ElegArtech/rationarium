@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { Button } from "react-aria-components";
+import { Button, Dialog, DialogTrigger, Popover } from "react-aria-components";
 import { STATUTS_TACHE, PRIORITES, STATUTS_CONGE, NIVEAUX_COMPETENCE, TYPES_ACTIVITE, CATEGORIES_COMPETENCE } from "@trame/contracts";
 import * as api from "../../api/administration.js";
 import { ErreurApi } from "../../api/client.js";
@@ -11,8 +11,10 @@ import { Chargement, ErreurDeChargement, AccesRefuse } from "../../composants/et
 import { Pastille, AvatarAgent, Barre, useLibelle } from "../../composants/pastilles.js";
 import { formaterDate, formaterNombre } from "../../formats.js";
 import "../../composants/partages.css";
+/* Sections cumulatives : `.two-col`, `.proj-head`, `.side-dl`, `.kpi-head`. */
 import "../taches/liste.css";
 import "../projets/fiche.css";
+import "../taches/fiche.css";
 import "./suivi.css";
 
 /**
@@ -91,10 +93,12 @@ export function SuiviIndividuel({ userId }: { userId: string }) {
     const introuvable = requete.error instanceof ErreurApi && requete.error.statut === 404;
     if (introuvable) {
       return (
-        <div className="page">
-          <div className="empty empty-large">
-            <p>{t("suivi.introuvable")}</p>
-          </div>
+        <div className="empty empty-encadre">
+          <p>{t("suivi.introuvable")}</p>
+          <small>{t("suivi.introuvableExplication")}</small>
+          <Link to="/utilisateurs" className="chip-btn">
+            {t("suivi.retour")}
+          </Link>
         </div>
       );
     }
@@ -111,37 +115,30 @@ export function SuiviIndividuel({ userId }: { userId: string }) {
     { cle: "competences", libelle: t("suivi.ongletCompetences") },
   ];
 
+  const sousTitre = [donnees.agent.departement?.nom, donnees.agent.role?.code]
+    .filter(Boolean)
+    .join(" · ");
+
   return (
-    <div className="page">
-      <Link to="/utilisateurs" className="back-link">
+    <>
+      <Link to="/utilisateurs" className="back-link" activeOptions={{ exact: true }}>
         <span aria-hidden="true">←</span> <span>{t("suivi.retour")}</span>
       </Link>
 
       <div className="proj-head">
-        <AvatarAgent
+        <SelecteurCollaborateur
           prenom={donnees.agent.prenom}
           nom={donnees.agent.nom}
-          classe="mav"
+          sousTitre={sousTitre || t("suivi.sansRole")}
         />
-        <div className="bloc-etroit">
-          <span className="eyebrow">{donnees.agent.role?.nom ?? t("suivi.sansRole")}</span>
-          <h1 className="proj-name">
-            {donnees.agent.prenom} {donnees.agent.nom}
-          </h1>
-        </div>
       </div>
 
       {/* Le bandeau reste visible : sa portée est écrite, pas devinée. */}
       <div className="period-band">
-        <span className="eyebrow">{t("suivi.periode")}</span>
-        <div className="bascule-vue" role="group" aria-label={t("suivi.periode")}>
+        <span className="eyebrow">{t("suivi.periodeAnalysee")}</span>
+        <div className="seg" role="group" aria-label={t("suivi.periode")}>
           {PERIODES.map((p) => (
-            <Button
-              key={p}
-              className="tab"
-              aria-selected={periode === p}
-              onPress={() => setPeriode(p)}
-            >
+            <Button key={p} aria-pressed={periode === p} onPress={() => setPeriode(p)}>
               {t(`suivi.periode_${p}`)}
             </Button>
           ))}
@@ -175,6 +172,73 @@ export function SuiviIndividuel({ userId }: { userId: string }) {
       {onglet === "teletravail" ? <OngletTeletravail donnees={donnees} /> : null}
       {onglet === "temps" ? <OngletTemps donnees={donnees} /> : null}
       {onglet === "competences" ? <OngletCompetences donnees={donnees} /> : null}
+    </>
+  );
+}
+
+/**
+ * Le sélecteur de collaborateur.
+ *
+ * Le brief le veut cherchable par nom : la vue sert un entretien annuel, où
+ * l'on passe d'un agent à l'autre sans repasser par l'annuaire.
+ */
+function SelecteurCollaborateur({
+  prenom,
+  nom,
+  sousTitre,
+}: {
+  prenom: string;
+  nom: string;
+  sousTitre: string;
+}) {
+  const { t } = useTranslation("administration");
+  const [recherche, setRecherche] = useState("");
+  const annuaire = useQuery({
+    queryKey: ["utilisateurs", { recherche }],
+    queryFn: () => api.utilisateurs({ recherche, actif: true }),
+  });
+
+  return (
+    <div className="has-pop">
+      <DialogTrigger>
+        <Button className="who-btn">
+          <AvatarAgent prenom={prenom} nom={nom} />
+          <span style={{ textAlign: "left" }}>
+            <span className="who-name">
+              {prenom} {nom}
+            </span>
+            <span className="who-sub">{sousTitre}</span>
+          </span>
+          <span aria-hidden="true" style={{ color: "var(--muted)", fontSize: "11px" }}>
+            ▾
+          </span>
+        </Button>
+        <Popover className="pop who-pop">
+          <Dialog aria-label={t("suivi.changerCollaborateur")}>
+            <div style={{ padding: "10px 12px", borderBottom: "1px solid var(--line)" }}>
+              <input
+                className="f-input"
+                type="search"
+                style={{ width: "100%" }}
+                value={recherche}
+                onChange={(e) => setRecherche(e.target.value)}
+                placeholder={t("suivi.rechercherCollaborateur")}
+                aria-label={t("suivi.rechercherCollaborateur")}
+              />
+            </div>
+            <div>
+              {(annuaire.data ?? []).slice(0, 40).map((u) => (
+                <a className="who-item" key={u.id} href={`/utilisateurs/${u.id}/suivi`}>
+                  <AvatarAgent prenom={u.prenom} nom={u.nom} />
+                  <span>
+                    {u.prenom} {u.nom}
+                  </span>
+                </a>
+              ))}
+            </div>
+          </Dialog>
+        </Popover>
+      </DialogTrigger>
     </div>
   );
 }
@@ -191,10 +255,12 @@ function Indicateur({
   libelle,
   valeur,
   etendue,
+  precision,
 }: {
   libelle: string;
   valeur: string | number;
   etendue: Etendue;
+  precision?: string;
 }) {
   return (
     <div className="kpi">
@@ -203,6 +269,7 @@ function Indicateur({
         <Etendue nature={etendue} />
       </div>
       <p className="kpi-val">{valeur}</p>
+      {precision ? <span className="kpi-sub">{precision}</span> : null}
     </div>
   );
 }
@@ -210,31 +277,84 @@ function Indicateur({
 function Ensemble({ donnees }: { donnees: api.Suivi }) {
   const { t } = useTranslation("administration");
   const s = donnees.statistiques;
+  const evenements = activite(donnees);
 
   return (
     <>
       <div className="kpi-grid">
-        <Indicateur libelle={t("suivi.tachesActives")} valeur={s.tachesActives} etendue="maintenant" />
+        <Indicateur
+          libelle={t("suivi.tachesActives")}
+          valeur={s.tachesActives}
+          etendue="maintenant"
+          precision={t("suivi.assigneesNonTerminees")}
+        />
         <Indicateur
           libelle={t("suivi.tachesTerminees")}
           valeur={s.tachesTerminees}
-          etendue="maintenant"
+          etendue="periode"
+          precision={t("suivi.surLaPeriode")}
         />
         {/* Un droit à congés ne se découpe pas en trimestres : l'étendue est
             l'année civile, et c'est écrit. */}
-        <Indicateur libelle={t("suivi.congesPris")} valeur={formaterNombre(s.congesAnnee, 1)} etendue="annee" />
+        <Indicateur
+          libelle={t("suivi.soldeConges")}
+          valeur={formaterNombre(s.congesAnnee, 1)}
+          etendue="annee"
+          precision={t("suivi.joursPris")}
+        />
         <Indicateur
           libelle={t("suivi.joursTeletravail")}
           valeur={s.joursTeletravail}
           etendue="periode"
+          precision={t("suivi.surLaPeriode")}
         />
         <Indicateur
           libelle={t("suivi.heuresSaisies")}
           valeur={formaterNombre(s.heuresSaisies, 1)}
           etendue="periode"
+          precision={t("suivi.surLaPeriode")}
         />
-        <Indicateur libelle={t("suivi.projetsActifs")} valeur={s.projetsActifs} etendue="maintenant" />
+        <Indicateur
+          libelle={t("suivi.projetsActifs")}
+          valeur={s.projetsActifs}
+          etendue="maintenant"
+          precision={t("suivi.avecUneTacheActive")}
+        />
       </div>
+
+      <div className="two-col">
+      <section className="panel">
+        <div className="panel-head">
+          <span className="panel-title">{t("suivi.activiteRecente")}</span>
+          <span className="eyebrow">
+            {formaterDate(donnees.periode.debut)} → {formaterDate(donnees.periode.fin)}
+          </span>
+        </div>
+        <div className="panel-body">
+          {evenements.length > 0 ? (
+            <div className="act-feed">
+              {evenements.map((a) => (
+                <div className="act-it" key={a.cle}>
+                  <span className="act-dot" aria-hidden="true" />
+                  <span className="act-t">
+                    {a.nature === "tache"
+                      ? t("suivi.aTermine", { titre: a.libelle })
+                      : a.nature === "conge"
+                        ? t("suivi.congeEnregistre", { type: a.libelle })
+                        : t("suivi.journeeTeletravail")}
+                  </span>
+                  <span className="act-w">{formaterDate(a.quand)}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="empty">
+              <p>{t("suivi.aucuneActivite")}</p>
+              <small>{t("suivi.aucuneActiviteExplication")}</small>
+            </div>
+          )}
+        </div>
+      </section>
 
       <section className="panel">
         <div className="panel-head">
@@ -263,8 +383,48 @@ function Ensemble({ donnees }: { donnees: api.Suivi }) {
           <dd>{donnees.agent.actif ? t("suivi.actif") : t("suivi.inactif")}</dd>
         </dl>
       </section>
+      </div>
     </>
   );
+}
+
+/**
+ * L'activité récente, **dérivée des données de la période**.
+ *
+ * Le suivi ne sert pas de journal séparé : ce fil récapitule ce que la période
+ * contient déjà — tâches terminées, jours de télétravail, congés. Inventer une
+ * source d'événements en aurait fait une seconde vérité.
+ */
+type Evenement =
+  | { cle: string; nature: "tache"; libelle: string; quand: string }
+  | { cle: string; nature: "teletravail"; libelle: null; quand: string }
+  | { cle: string; nature: "conge"; libelle: string; quand: string };
+
+function activite(donnees: api.Suivi): Evenement[] {
+  const items: Evenement[] = [];
+
+  for (const tache of donnees.taches) {
+    if (tache.statut !== "done" || !tache.dateFin) continue;
+    items.push({
+      cle: `t-${tache.id}`,
+      nature: "tache",
+      libelle: tache.titre,
+      quand: tache.dateFin,
+    });
+  }
+  for (const jour of donnees.teletravail) {
+    items.push({ cle: `tt-${jour.date}`, nature: "teletravail", libelle: null, quand: jour.date });
+  }
+  for (const conge of donnees.conges) {
+    items.push({
+      cle: `c-${conge.id}`,
+      nature: "conge",
+      libelle: conge.type.nom,
+      quand: conge.dateDebut,
+    });
+  }
+
+  return items.sort((a, b) => b.quand.localeCompare(a.quand)).slice(0, 8);
 }
 
 function OngletTaches({ donnees }: { donnees: api.Suivi }) {

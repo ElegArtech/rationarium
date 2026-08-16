@@ -43,7 +43,7 @@ export const utilisateurs = (filtres: {
   serviceId?: string;
   roleId?: string;
   actif?: boolean;
-}) => appeler<{ utilisateurs: Utilisateur[] }>(`/utilisateurs${params(filtres)}`);
+}) => appeler<Utilisateur[]>(`/utilisateurs${params(filtres)}`);
 
 export const creerUtilisateur = (donnees: {
   prenom: string;

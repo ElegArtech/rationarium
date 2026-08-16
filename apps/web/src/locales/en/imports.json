@@ -28,9 +28,9 @@
   "remplacerBloque": "The file contains errors: in Replace mode, nothing will be deleted or imported.",
   "titreUtilisateurs": "Import users",
   "titreProjet": "Project import (milestones + tasks)",
-  "ouvrirImport": "Import CSV",
   "ouvrirImportProjet": "Project import (milestones + tasks)",
   "exporterTaches": "Export tasks",
   "exporterJalons": "Export milestones",
-  "exporterCompetences": "Export the matrix"
+  "titreCompetences": "Import skills",
+  "importerCsv": "Import CSV"
 }

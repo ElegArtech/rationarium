@@ -25,8 +25,15 @@ export const SESSION_ADMIN = {
 
 // ── Vue 27 ──────────────────────────────────────────────────────────────────
 
-export const UTILISATEURS = {
-  utilisateurs: [
+/*
+ * `GET /api/utilisateurs` rend un TABLEAU.
+ *
+ * Ce jeu l'enveloppait dans `{ utilisateurs: [...] }` — la forme que le type du
+ * client attendait, et que le serveur n'a jamais rendue. Les deux erreurs se
+ * validaient l'une l'autre : la vue 27 n'a jamais affiché une seule ligne, et
+ * les parcours de bout en bout passaient au vert sur la forme inventée.
+ */
+export const UTILISATEURS = [
     {
       id: "u-moi",
       prenom: "Hugo",
@@ -65,9 +72,8 @@ export const UTILISATEURS = {
       role: null,
       departement: null,
       services: [],
-    },
-  ],
-};
+  },
+];
 
 export const IMPACT_BLOQUE = {
   nom: "Camille Roussel",

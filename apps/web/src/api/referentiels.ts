@@ -96,6 +96,8 @@ export type FicheTiers = Omit<Tiers, "_count"> & {
   projets: { id: string; nom: string; statut: string }[];
   taches: { id: string; titre: string; statut: string }[];
   heuresDeclarees: number;
+  creeLe: string;
+  modifieLe: string;
 };
 
 export type Client = {
@@ -120,7 +122,10 @@ export type FicheClient = {
   adresse: string | null;
   notes: string | null;
   actif: boolean;
-  projets: { id: string; nom: string; statut: string }[];
+  /** `dateFin` sert la prochaine échéance de la fiche client (vue 26). */
+  projets: { id: string; nom: string; statut: string; dateFin: string | null }[];
+  creeLe: string;
+  modifieLe: string;
 };
 
 export type Impact = {
@@ -145,6 +150,13 @@ export const creerTiers = (donnees: {
   notes?: string;
 }) => appeler<{ id: string }>("/tiers", { methode: "POST", corps: donnees });
 
+/** `EX-TRS-02` — rattacher un tiers à un projet, préalable à toute assignation. */
+export const rattacherTiersAuProjet = (projetId: string, thirdPartyId: string) =>
+  appeler<void>(`/tiers/projets/${projetId}/rattacher`, {
+    methode: "POST",
+    corps: { thirdPartyId },
+  });
+
 export const supprimerTiers = (id: string) => appeler<void>(`/tiers/${id}`, { methode: "DELETE" });
 
 export const listerClients = (filtres: { recherche?: string; actif?: boolean }) =>
@@ -156,6 +168,19 @@ export const impactClient = (id: string) => appeler<Impact>(`/clients/${id}/impa
 
 export const supprimerClient = (id: string) =>
   appeler<void>(`/clients/${id}`, { methode: "DELETE" });
+
+/**
+ * `RG-PRJ-10` — les clients d'un projet sont **remplacés en bloc**.
+ *
+ * Rattacher ou détacher se fait donc en relisant la liste courante et en
+ * renvoyant celle qu'on veut : une écriture incrémentale exposerait un état
+ * intermédiaire sans bénéficiaire.
+ */
+export const definirClientsDuProjet = (projetId: string, clientIds: string[]) =>
+  appeler<{ rattaches: number; dejaRattaches: number }>(`/clients/projets/${projetId}`, {
+    methode: "POST",
+    corps: { clientIds },
+  });
 
 export const creerClient = (donnees: {
   nom: string;
