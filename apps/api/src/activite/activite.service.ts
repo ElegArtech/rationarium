@@ -21,6 +21,7 @@ export type EchecActivite =
   | "tache_inactive"
   | "deja_assigne"
   | "agent_indisponible"
+  | "dates_incoherentes"
   | "introuvable";
 
 export class ErreurActivite extends Error {
@@ -68,6 +69,121 @@ export class ActiviteService {
   }
 
   /** `EX-ACT-01`, `RG-ACT-02` — une durée « créneau horaire » exige ses horaires. */
+  /**
+   * `EX-ACT-02` — **modifier une tâche prédéfinie**, ou la désactiver.
+   *
+   * Elle se créait et se lisait ; rien ne la modifiait. La maquette 34 pose
+   * pourtant « Modifier » et « Désactiver » sur chaque ligne du catalogue —
+   * et une permanence dont l'horaire change devait jusqu'ici être recréée,
+   * ce qui détache ses assignations passées de leur libellé.
+   *
+   * La désactivation est **réversible et ne supprime rien** : les assignations
+   * déjà posées restent, elles ont eu lieu. C'est la distinction que
+   * `RG-GEN-10` demande partout ailleurs.
+   */
+  async modifierTache(
+    id: string,
+    donnees: {
+      nom?: string; description?: string | null; couleur?: string | null; icone?: string | null;
+      dureeParDefaut?: DureeTachePredefinie;
+      heureDebut?: string | null; heureFin?: string | null;
+      teletravailAutorise?: boolean; poids?: number; actif?: boolean;
+    },
+    acteurId: string,
+  ) {
+    const avant = await this.prisma.predefinedTask.findUnique({ where: { id } });
+    if (!avant) throw new ErreurActivite("introuvable");
+
+    const duree = donnees.dureeParDefaut ?? avant.dureeParDefaut;
+    const debut = donnees.heureDebut !== undefined ? donnees.heureDebut : avant.heureDebut;
+    const fin = donnees.heureFin !== undefined ? donnees.heureFin : avant.heureFin;
+    if (duree === "time_slot" && (!debut || !fin)) {
+      throw new ErreurActivite("creneau_sans_horaires");
+    }
+
+    const tache = await this.prisma.predefinedTask.update({
+      where: { id },
+      data: { ...donnees, version: { increment: 1 } },
+    });
+    await this.audit.tracer({
+      action: "predefined_task.update",
+      typeEntite: "PredefinedTask",
+      entiteId: id,
+      acteurId,
+      detail: { avant: { nom: avant.nom, actif: avant.actif }, apres: { nom: tache.nom, actif: tache.actif } },
+    });
+    return tache;
+  }
+
+  /**
+   * `RG-ACT-08` — **poser une règle de récurrence** sur une tâche prédéfinie.
+   *
+   * Les récurrences étaient LUES et exploitées par la génération — rien ne
+   * permettait d'en créer une. Le catalogue de la vue 34 montre donc ses
+   * cartes de règle vides sur toute instance, et « Générer les assignations »
+   * n'avait jamais rien à générer.
+   *
+   * La date de fin est facultative : une permanence d'accueil n'a pas de
+   * terme prévu, et lui en imposer un obligerait à la reconduire à la main.
+   */
+  async creerRecurrence(
+    predefinedTaskId: string,
+    donnees: {
+      type: string; frequence?: number; jourSemaine?: number | null; jourMois?: number | null;
+      ordinal?: number | null; dateDebut: Date; dateFin?: Date | null;
+    },
+    acteurId: string,
+  ) {
+    const tache = await this.prisma.predefinedTask.findUnique({
+      where: { id: predefinedTaskId },
+      select: { id: true, nom: true },
+    });
+    if (!tache) throw new ErreurActivite("introuvable");
+    if (donnees.dateFin && donnees.dateFin < donnees.dateDebut) {
+      throw new ErreurActivite("dates_incoherentes");
+    }
+
+    const regle = await this.prisma.predefinedTaskRecurrence.create({
+      data: {
+        predefinedTaskId,
+        type: donnees.type,
+        frequence: donnees.frequence ?? 1,
+        jourSemaine: donnees.jourSemaine ?? null,
+        jourMois: donnees.jourMois ?? null,
+        ordinal: donnees.ordinal ?? null,
+        dateDebut: donnees.dateDebut,
+        dateFin: donnees.dateFin ?? null,
+      },
+    });
+    await this.audit.tracer({
+      action: "predefined_task.recurrence_add",
+      typeEntite: "PredefinedTask",
+      entiteId: predefinedTaskId,
+      acteurId,
+      detail: { type: donnees.type, frequence: regle.frequence },
+    });
+    return regle;
+  }
+
+  /** Une règle s'arrête sans s'effacer : ce qu'elle a engendré reste. */
+  async basculerRecurrence(id: string, active: boolean, acteurId: string) {
+    const regle = await this.prisma.predefinedTaskRecurrence.findUnique({ where: { id } });
+    if (!regle) throw new ErreurActivite("introuvable");
+
+    const modifiee = await this.prisma.predefinedTaskRecurrence.update({
+      where: { id },
+      data: { active, version: { increment: 1 } },
+    });
+    await this.audit.tracer({
+      action: "predefined_task.recurrence_toggle",
+      typeEntite: "PredefinedTask",
+      entiteId: regle.predefinedTaskId,
+      acteurId,
+      detail: { regle: id, active },
+    });
+    return modifiee;
+  }
+
   async creerTache(
     donnees: {
       nom: string; description?: string; couleur?: string; icone?: string;

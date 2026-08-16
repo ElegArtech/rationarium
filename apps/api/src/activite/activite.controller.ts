@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Query } from "@nestjs/common";
+import { Body, Controller, Get, Param, Patch, Post, Query } from "@nestjs/common";
 import { z } from "zod";
 import { enumDe, DUREES_TACHE_PREDEFINIE, PERIODES_JOURNEE } from "@trame/contracts";
 import { ActiviteService } from "./activite.service.js";
@@ -46,6 +46,68 @@ export class ActiviteController {
       corps,
     );
     return this.activite.creerTache(donnees, d.userId);
+  }
+
+  /**
+   * `EX-ACT-02` — modifier une tâche prédéfinie, ou la désactiver.
+   *
+   * Une permanence dont l'horaire change devait jusqu'ici être RECRÉÉE, ce qui
+   * détache ses assignations passées de leur libellé. La désactivation est
+   * réversible et ne supprime rien : les assignations déjà posées restent,
+   * elles ont eu lieu.
+   */
+  @Patch("taches/:id")
+  @RequiertPermission("predefined_tasks:update")
+  modifierTache(@Param("id") id: string, @Body() corps: unknown, @Demande() d: ContexteDemande) {
+    const donnees = valider(
+      z.object({
+        nom: z.string().min(1).max(160).optional(),
+        description: z.string().max(5000).nullish(),
+        couleur: z.string().max(30).nullish(),
+        icone: z.string().max(20).nullish(),
+        dureeParDefaut: enumDe(DUREES_TACHE_PREDEFINIE).optional(),
+        heureDebut: z.string().nullish(),
+        heureFin: z.string().nullish(),
+        teletravailAutorise: z.boolean().optional(),
+        poids: z.number().min(0).optional(),
+        actif: z.boolean().optional(),
+      }),
+      corps,
+    );
+    return this.activite.modifierTache(id, donnees, d.userId);
+  }
+
+  /**
+   * `RG-ACT-08` — poser une règle de récurrence.
+   *
+   * Elles étaient LUES et exploitées par la génération ; rien ne permettait
+   * d'en créer une. « Générer les assignations » n'avait donc jamais rien à
+   * générer, et le catalogue montrait ses cartes de règle vides.
+   */
+  @Post("taches/:id/recurrences")
+  @RequiertPermission("predefined_tasks:update")
+  creerRecurrence(@Param("id") id: string, @Body() corps: unknown, @Demande() d: ContexteDemande) {
+    const donnees = valider(
+      z.object({
+        type: z.enum(["daily", "weekly", "monthly"]),
+        frequence: z.number().int().min(1).max(52).optional(),
+        jourSemaine: z.number().int().min(0).max(6).nullish(),
+        jourMois: z.number().int().min(1).max(31).nullish(),
+        ordinal: z.number().int().min(-1).max(5).nullish(),
+        dateDebut: dateSchema,
+        dateFin: dateSchema.nullish(),
+      }),
+      corps,
+    );
+    return this.activite.creerRecurrence(id, donnees, d.userId);
+  }
+
+  /** Une règle s'arrête sans s'effacer : ce qu'elle a engendré reste. */
+  @Patch("recurrences/:id")
+  @RequiertPermission("predefined_tasks:update")
+  basculerRecurrence(@Param("id") id: string, @Body() corps: unknown, @Demande() d: ContexteDemande) {
+    const { active } = valider(z.object({ active: z.boolean() }), corps);
+    return this.activite.basculerRecurrence(id, active, d.userId);
   }
 
   /**
