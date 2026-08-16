@@ -56,23 +56,61 @@ function clesDeclarees(langue) {
   return cles;
 }
 
+/**
+ * Clés employées dans le code.
+ *
+ * **L'espace de noms n'est pas toujours dans la clé.** `useTranslation("auth")`
+ * le fixe pour tout le fichier, et `t("connexion.titre")` s'y rapporte. Une
+ * première version de ce contrôle l'ignorait et préfixait tout par `commun:` :
+ * elle déclarait orphelines 122 clés parfaitement employées.
+ *
+ * L'enseignement est le même que pour le contrôle d'accessibilité : un
+ * contrôle mal spécifié ne produit pas du bruit neutre, il produit de la
+ * fausse confiance dans les deux sens.
+ */
 function clesEmployees() {
   const cles = new Set();
-  const motif = /\bt\(\s*["'`]([^"'`]+)["'`]/g;
+  /** Familles employées dynamiquement : `t(`groupes.${x}`)` → `groupes.` */
+  const familles = new Set();
+
+  // Toutes les chaînes littérales d'un appel `t(...)`, y compris derrière un
+  // ternaire : `t(sombre ? "entete.themeSombre" : "entete.themeClair")`.
+  const motifAppel = /\bt\(([^()]*(?:\([^()]*\)[^()]*)*)\)/g;
+  const motifChaine = /["']([A-Za-z0-9_]+(?:[.:][A-Za-z0-9_]+)+)["']/g;
+  const motifNs = /useTranslation\(\s*["'`]([^"'`]+)["'`]/g;
+  // Gabarit dont le préfixe est littéral et la fin interpolée.
+  const motifGabarit = /\bt\(\s*`([^`$]*)\$\{/g;
+  // Déclaration explicite, pour les clés résolues à l'exécution — `t(e.cle)`.
+  // Ce que l'analyse statique ne peut pas voir, on le lui DIT, plutôt que
+  // d'affaiblir le contrôle jusqu'à ce qu'il ne voie plus rien.
+  const motifDeclaration = /i18n-familles:\s*([^\n*]+)/g;
+
   for (const f of fichiersRecursifs(
     SOURCES,
     (p) => /\.tsx?$/.test(p) && !p.includes("/locales/"),
   )) {
     const src = fs.readFileSync(f, "utf8");
-    for (const m of src.matchAll(motif)) {
-      cles.add(m[1].includes(":") ? m[1] : `commun:${m[1]}`);
+    const espaces = [...src.matchAll(motifNs)].map((m) => m[1]);
+    const parDefaut = espaces[0] ?? "commun";
+
+    for (const appel of src.matchAll(motifAppel)) {
+      for (const c of appel[1].matchAll(motifChaine)) {
+        cles.add(c[1].includes(":") ? c[1] : `${parDefaut}:${c[1]}`);
+      }
+    }
+    for (const m of src.matchAll(motifGabarit)) {
+      const prefixe = m[1];
+      familles.add(prefixe.includes(":") ? prefixe : `${parDefaut}:${prefixe}`);
+    }
+    for (const m of src.matchAll(motifDeclaration)) {
+      for (const f of m[1].split(",").map((x) => x.trim()).filter(Boolean)) familles.add(f);
     }
   }
-  return cles;
+  return { cles, familles };
 }
 
 const parLangue = Object.fromEntries(LANGUES.map((l) => [l, clesDeclarees(l)]));
-const employees = clesEmployees();
+const { cles: employees, familles } = clesEmployees();
 
 // 1. Parité entre catalogues
 for (const langue of LANGUES) {
@@ -85,11 +123,20 @@ for (const langue of LANGUES) {
   }
 }
 
-// 2. Clés déclarées jamais employées
+// 2. Clés déclarées jamais employées.
+//
+// Une clé composée dynamiquement — `t(`groupes.${cle}`)` — n'est pas
+// détectable par analyse statique. On en relève le PRÉFIXE littéral et on
+// considère la famille entière comme employée. C'est volontairement
+// permissif : le contraire produirait des orphelines fausses, et une alerte
+// fausse finit par ne plus être lue.
 const declarees = parLangue.fr;
+const employeeParFamille = (cle) => [...familles].some((f) => cle.startsWith(f));
 if (employees.size > 0) {
   for (const cle of declarees) {
-    if (!employees.has(cle)) ecarts.push(`clé orpheline (déclarée, non employée) : ${cle}`);
+    if (!employees.has(cle) && !employeeParFamille(cle)) {
+      ecarts.push(`clé orpheline (déclarée, non employée) : ${cle}`);
+    }
   }
 }
 
@@ -97,6 +144,13 @@ if (employees.size > 0) {
 if (declarees.size > 0) {
   for (const cle of employees) {
     if (!declarees.has(cle)) ecarts.push(`clé employée mais non déclarée : ${cle}`);
+  }
+}
+
+// 4. Famille employée dynamiquement mais vide : le gabarit ne trouvera rien.
+for (const f of familles) {
+  if (![...declarees].some((c) => c.startsWith(f))) {
+    ecarts.push(`famille employée dynamiquement mais sans aucune clé : ${f}*`);
   }
 }
 
