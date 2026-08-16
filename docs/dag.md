@@ -4,7 +4,7 @@ Forme opérationnelle du § 5 de `cadrage/04`. C'est le document qu'on ouvre pou
 
 > **Sans DAG, la parallélisation est un pari ; avec, c'est une lecture.**
 
-**État au 2026-08-16** — **vague 1 close** (L-02 à L-05). Vague 2 ouvrable. Vague 1 ouvrable dès la clôture de la vague 0 : l'arbitrage bloquant B1 est rendu, les prérequis T1 à T6 sont levés.
+**État au 2026-08-16** — vague 1 close (L-02 à L-05) · vague 2 : L-06 et L-07 livrés. Vague 1 ouvrable dès la clôture de la vague 0 : l'arbitrage bloquant B1 est rendu, les prérequis T1 à T6 sont levés.
 
 ---
 
@@ -50,8 +50,8 @@ Séquentiel, en pair. Aucune délégation : c'est le harnais qui rend la délég
 
 | Lot | Contenu | Modules | Vues | Criticité | Dépend de | Mode |
 | --- | --- | --- | --- | --- | --- | --- |
-| **L-06** | Structure organisationnelle **et constructeur de prédicats de périmètre** | M2 | 29 | **Haute** | L-02, L-03 | pair |
-| **L-07** | Utilisateurs, annuaire, suivi individuel, contrôle de dépendances | M3 | 27, 28 | **Haute** | L-06 | pair |
+| ~~**L-06**~~ | Structure organisationnelle **et constructeur de prédicats de périmètre** | M2 | 29 | **Haute** | L-02, L-03 | **livré** |
+| ~~**L-07**~~ | Utilisateurs, annuaire, suivi individuel, contrôle de dépendances | M3 | 27, 28 | **Haute** | L-06 | **livré** — serveur et socle d'import |
 | **L-08** | Rôles, matrice de permissions, journal d'audit inaltérable | M20 | 32, 33 | **Haute** | L-06 | pair |
 | **L-09** | Paramétrage : affichage, planning, jours fériés, vacances scolaires | M19 | 31 | Moyenne | L-05 | délégation |
 
