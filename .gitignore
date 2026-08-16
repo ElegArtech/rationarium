@@ -28,3 +28,12 @@ apps/web/.playwright/
 .env
 .env.local
 *.log
+
+# Sorties de la boucle de conformité de rendu — régénérables par
+# `pnpm conformite`. Elles changent à chaque passage : versionnées, elles
+# entrent en conflit dès que deux vues sont portées en parallèle, et le conflit
+# ne porte sur rien. Les RELEVÉS de référence, eux, restent versionnés
+# (`design/references/`) : un relevé qui change sans que la maquette ait changé
+# est un signal de dérive.
+design/conformite.json
+design/captures/
