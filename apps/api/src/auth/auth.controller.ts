@@ -17,6 +17,7 @@ import {
 } from "@trame/contracts";
 import { z } from "zod";
 import { AuthService, ErreurAuth } from "./auth.service.js";
+import { Public } from "../commun/permissions.garde.js";
 import { MESSAGES } from "./messages.js";
 
 const COOKIE = "trame_session";
@@ -54,6 +55,7 @@ export class AuthController {
   constructor(private readonly auth: AuthService) {}
 
   /** EX-AUTH-01 — se connecter par identifiant ou email. */
+  @Public()
   @Post("login")
   @HttpCode(200)
   async login(
@@ -77,6 +79,7 @@ export class AuthController {
   }
 
   /** EX-AUTH-03 — se déconnecter, en invalidant la session. */
+  @Public()
   @Post("logout")
   @HttpCode(204)
   async logout(@Req() req: FastifyRequest, @Res({ passthrough: true }) res: FastifyReply) {
@@ -89,6 +92,7 @@ export class AuthController {
   }
 
   /** EX-AUTH-04 — créer un compte en autonomie, quand l'organisation l'autorise. */
+  @Public()
   @Post("signup")
   @HttpCode(201)
   async signup(@Body() corps: unknown) {
@@ -107,6 +111,7 @@ export class AuthController {
    * RG-AUTH-02 dans l'esprit : la réponse est **identique** que l'adresse
    * existe ou non. La vue 03 l'exige explicitement.
    */
+  @Public()
   @Post("forgot-password")
   @HttpCode(202)
   async forgotPassword(@Body() corps: unknown) {
@@ -119,6 +124,7 @@ export class AuthController {
   }
 
   /** EX-AUTH-06 — définir un nouveau mot de passe depuis un lien reçu. */
+  @Public()
   @Post("reset-password")
   @HttpCode(200)
   async resetPassword(@Body() corps: unknown) {
@@ -135,6 +141,7 @@ export class AuthController {
   }
 
   /** EX-AUTH-08 — changer son mot de passe depuis son profil. */
+  @Public()
   @Post("change-password")
   @HttpCode(200)
   async changePassword(@Body() corps: unknown, @Req() req: FastifyRequest) {
@@ -152,11 +159,15 @@ export class AuthController {
   }
 
   /** EX-AUTH-09, EX-AUTH-10 — qui suis-je, et quand me suis-je connecté ? */
+  @Public()
   @Get("me")
   async me(@Req() req: FastifyRequest) {
     const jeton = req.cookies?.[COOKIE];
     const session = jeton ? await this.auth.resoudreSession(jeton) : null;
-    if (!session) throw new HttpException({ message: "Session requise" }, 401);
-    return { userId: session.userId, motDePasseAChanger: session.motDePasseAChanger };
+    if (!session) throw new HttpException({ cle: "auth:erreurs.sessionRequise", message: "Session requise" }, 401);
+    return {
+      ...(await this.auth.profil(session.userId)),
+      motDePasseAChanger: session.motDePasseAChanger,
+    };
   }
 }
