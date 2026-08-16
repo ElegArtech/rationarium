@@ -242,6 +242,83 @@ export class UtilisateursService {
    * Contrôlé ici et pas seulement dans l'interface : une requête forgée doit
    * échouer comme un formulaire.
    */
+  /**
+   * `EX-USR-02` — **modifier un compte** : identité, rôle, rattachement.
+   *
+   * Il se créait, se désactivait, se supprimait ; rien ne le modifiait. La
+   * maquette 27 pose pourtant « Modifier » sur chaque ligne — et corriger une
+   * faute dans un nom, ou changer quelqu'un de service, n'avait aucun chemin.
+   *
+   * **`RG-AUTH-08` — l'identifiant de connexion n'est JAMAIS modifiable.** Il
+   * n'est donc pas dans les champs acceptés : c'est la clé sous laquelle les
+   * traces d'audit ont été écrites, et la changer réécrirait l'histoire.
+   *
+   * `RG-GEN-07` — la version transmise est celle qu'on a lue.
+   */
+  async modifier(
+    id: string,
+    donnees: {
+      version: number;
+      prenom?: string; nom?: string; email?: string;
+      roleId?: string | null; departementId?: string | null; serviceIds?: string[];
+    },
+    acteurId: string,
+  ) {
+    const avant = await this.prisma.user.findUnique({
+      where: { id },
+      select: { id: true, version: true, prenom: true, nom: true, email: true, roleId: true, departementId: true },
+    });
+    if (!avant) throw new ErreurUtilisateur("introuvable");
+    if (avant.version !== donnees.version) throw new ErreurUtilisateur("conflit_de_version");
+
+    const email = donnees.email?.toLowerCase();
+    if (email && email !== avant.email) {
+      const pris = await this.prisma.user.findUnique({ where: { email }, select: { id: true } });
+      if (pris) throw new ErreurUtilisateur("email_deja_pris");
+    }
+
+    const departementId =
+      donnees.departementId !== undefined ? donnees.departementId : avant.departementId;
+    if (donnees.serviceIds) {
+      await this.verifierServices(departementId, donnees.serviceIds);
+    }
+
+    /*
+     * Les champs sont ÉNUMÉRÉS, jamais propagés. Un `...champs` laissait
+     * passer `login` : le schéma du contrôleur l'écarte, mais un appel interne
+     * ou un second point d'entrée ne passerait pas par lui. `RG-AUTH-08` est
+     * une règle du domaine — elle se tient dans le service, pas seulement à la
+     * frontière HTTP. Un test l'a montré en une ligne.
+     */
+    const { version, serviceIds } = donnees;
+    const user = await this.prisma.user.update({
+      where: { id },
+      data: {
+        ...(donnees.prenom !== undefined ? { prenom: donnees.prenom } : {}),
+        ...(donnees.nom !== undefined ? { nom: donnees.nom } : {}),
+        ...(donnees.roleId !== undefined ? { roleId: donnees.roleId } : {}),
+        ...(donnees.departementId !== undefined ? { departementId: donnees.departementId } : {}),
+        ...(email ? { email } : {}),
+        version: { increment: 1 },
+        ...(serviceIds
+          ? { services: { deleteMany: {}, create: serviceIds.map((serviceId) => ({ serviceId })) } }
+          : {}),
+      },
+    });
+
+    await this.audit.tracer({
+      action: "user.update",
+      typeEntite: "User",
+      entiteId: id,
+      acteurId,
+      detail: {
+        avant: { prenom: avant.prenom, nom: avant.nom, email: avant.email, roleId: avant.roleId },
+        apres: { prenom: user.prenom, nom: user.nom, email: user.email, roleId: user.roleId },
+      },
+    });
+    return user;
+  }
+
   async creer(
     donnees: {
       prenom: string; nom: string; email: string; login: string;

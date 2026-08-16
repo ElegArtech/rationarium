@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post, Query } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from "@nestjs/common";
 import { z } from "zod";
 import { motDePasse } from "@trame/contracts";
 import { UtilisateursService } from "./utilisateurs.service.js";
@@ -74,6 +74,31 @@ export class UtilisateursController {
    * deux points d'entrée et deux permissions. Les confondre ferait de
    * l'irréversible le chemin par défaut.
    */
+  /**
+   * `EX-USR-02` — modifier un compte.
+   *
+   * `RG-AUTH-08` : l'identifiant de connexion n'est pas dans les champs
+   * acceptés. C'est la clé sous laquelle les traces d'audit ont été écrites,
+   * et la changer réécrirait l'histoire.
+   */
+  @Patch(":id")
+  @RequiertPermission("users:update")
+  modifier(@Param("id") id: string, @Body() corps: unknown, @Demande() d: ContexteDemande) {
+    const donnees = valider(
+      z.object({
+        version: z.number().int().min(1),
+        prenom: z.string().min(1).max(80).optional(),
+        nom: z.string().min(1).max(80).optional(),
+        email: z.string().email().optional(),
+        roleId: z.uuid().nullable().optional(),
+        departementId: z.uuid().nullable().optional(),
+        serviceIds: z.array(z.uuid()).optional(),
+      }),
+      corps,
+    );
+    return this.utilisateurs.modifier(id, donnees, d.userId);
+  }
+
   @Post(":id/desactiver")
   @RequiertPermission("users:deactivate")
   desactiver(@Param("id") id: string, @Demande() d: ContexteDemande) {
