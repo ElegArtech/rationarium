@@ -3,7 +3,8 @@
     "ouvrir": "Open navigation",
     "replier": "Collapse the sidebar",
     "deplier": "Expand the sidebar",
-    "principale": "Main navigation"
+    "principale": "Main navigation",
+    "allerAuContenu": "Skip to main content"
   },
   "groupes": {
     "pilotage": "Steering",
