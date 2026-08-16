@@ -142,7 +142,11 @@
     "regle_doing": "In progress — at least one task started",
     "regle_done": "Completed — every task is done",
     "regleDone": "A milestone is complete when all its tasks are.",
-    "regleDoing": "At least one task started, not all are finished."
+    "regleDoing": "At least one task started, not all are finished.",
+    "sansAssigne": "Nobody",
+    "assignesDe": "Assignees of {nom}: {gens}",
+    "heures": "{n} h",
+    "sansJalonTitre": "Tasks without a milestone"
   },
   "equipe": {
     "lEquipe": "the team",

@@ -66,8 +66,13 @@ export type TacheDeJalon = {
   id: string;
   titre: string;
   statut: string;
+  priorite: string;
   avancement: number;
   dateFin: string | null;
+  /** La charge estimée — la maquette la pose sur chaque ligne. */
+  estimationHeures: string | number | null;
+  /** Qui la porte. Sans eux, la feuille de route ne dit pas si un jalon tiendra. */
+  assignes: { user: { id: string; prenom: string; nom: string } }[];
 };
 
 export type Jalon = {
@@ -81,7 +86,15 @@ export type Jalon = {
 
 export type FeuilleDeRoute = {
   jalons: Jalon[];
-  indicateurs: { total: number; termines: number; enCours: number; taches: number };
+  /** `RG-JAL-05` — les tâches détachées d'un jalon supprimé existent encore. */
+  sansJalon: TacheDeJalon[];
+  indicateurs: {
+    total: number;
+    termines: number;
+    enCours: number;
+    taches: number;
+    sansJalon: number;
+  };
 };
 
 export type Impact = {
