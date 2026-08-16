@@ -201,11 +201,33 @@ export const DELEGATIONS = {
 
 // ── Vue 20 — Télétravail ────────────────────────────────────────────────────
 
-export const PLANNING_TELETRAVAIL = [
-  { date: "2026-08-04", etat: "telework", issuDeRegle: true },
-  { date: "2026-08-06", etat: "office", issuDeRegle: false },
-  { date: "2026-08-11", etat: "none", issuDeRegle: false },
-];
+/**
+ * Le planning de télétravail, **à la forme que le serveur rend réellement** :
+ * `{ calendrier, cumul }`, un jour par date de la plage, avec `weekend` et
+ * `exception`.
+ *
+ * La version précédente de ce jeu d'essai était un simple tableau de trois
+ * jours — une forme que `TeletravailService.planning` n'a jamais rendue. Le
+ * type du client la recopiait, la vue faisait `.map` dessus, et la vue 20 ne
+ * s'affichait pas du tout : elle levait à chaque rendu. Les contrôles de bout
+ * en bout passaient, puisqu'ils servaient la même fiction que le code.
+ *
+ * **Un jeu d'essai qui ment sur la forme rend le contrôle aveugle.**
+ */
+export const PLANNING_TELETRAVAIL = {
+  calendrier: [
+    { date: "2026-08-03", etat: "undeclared", weekend: false, issuDeRegle: false, exception: false },
+    { date: "2026-08-04", etat: "telework", weekend: false, issuDeRegle: true, exception: false },
+    { date: "2026-08-05", etat: "undeclared", weekend: false, issuDeRegle: false, exception: false },
+    { date: "2026-08-06", etat: "office", weekend: false, issuDeRegle: false, exception: false },
+    { date: "2026-08-07", etat: "undeclared", weekend: false, issuDeRegle: false, exception: false },
+    { date: "2026-08-08", etat: "undeclared", weekend: true, issuDeRegle: false, exception: false },
+    { date: "2026-08-09", etat: "undeclared", weekend: true, issuDeRegle: false, exception: false },
+    { date: "2026-08-10", etat: "undeclared", weekend: false, issuDeRegle: false, exception: false },
+    { date: "2026-08-11", etat: "office", weekend: false, issuDeRegle: true, exception: true },
+  ],
+  cumul: { teletravail: 1, bureau: 2, nonDeclares: 5 },
+};
 
 export const REGLES_TELETRAVAIL = [
   { id: "r1", jourSemaine: 2, dateDebut: "2026-03-01", dateFin: null, active: true },

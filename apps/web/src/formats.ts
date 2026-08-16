@@ -197,6 +197,7 @@ export const formaterDateLongue = (valeur: string | Date | null | undefined): st
 };
 
 /**
+/**
  * Forme longue précédée du jour de semaine : `jeudi 13 août 2026`.
  *
  * Employée par le surtitre du tableau de bord (vue 06), où la date situe tout
@@ -217,7 +218,7 @@ export const formaterDateAvecJour = (valeur: string | Date | null | undefined): 
 };
 
 /**
- * Le mois et son année, pour l'en-tête de la vue Mois : `Août 2026`.
+ * Le mois et son année, depuis une date : `Août 2026`.
  *
  * La maquette 08 titre le mois, pas une plage de dates : « Du 01/08/2026 au
  * 31/08/2026 » dit la même chose en trois fois plus large, sur une barre
@@ -233,6 +234,25 @@ export const formaterMois = (valeur: string | Date | null | undefined): string =
     timeZone: "UTC",
   }).format(d);
   return rendu.charAt(0).toUpperCase() + rendu.slice(1);
+};
+
+/**
+ * Le même, depuis un couple année / mois — la forme dont disposent les vues qui
+ * naviguent de mois en mois sans porter de date.
+ *
+ * L'année n'est **pas** formatée comme un nombre : `{annee, number}` rendrait
+ * « 2 026 » en français, séparateur de milliers compris. `Intl` avec
+ * `year: "numeric"` ne fait pas cette erreur, contrairement à une
+ * interpolation ICU.
+ */
+export const formaterMoisAnnee = (annee: number, mois: number): string =>
+  formaterMois(new Date(Date.UTC(annee, mois, 1)));
+
+/** Le seul nom du mois d'une date : `août`. */
+export const formaterMoisSeul = (valeur: string | Date | null | undefined): string => {
+  const d = instant(valeur);
+  if (!d) return "—";
+  return new Intl.DateTimeFormat(locale(), { month: "long", timeZone: "UTC" }).format(d);
 };
 
 /**

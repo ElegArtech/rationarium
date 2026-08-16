@@ -10,7 +10,7 @@ import { usePeut } from "../../session/session.js";
 import { Chargement, ErreurDeChargement } from "../../composants/etats.js";
 import { Fenetre } from "../../composants/fenetre.js";
 import { useMessages } from "../../composants/messages.js";
-import { formaterDate, formaterDateLongue, formaterHeure } from "../../formats.js";
+import { formaterDate, formaterHeure, formaterMoisSeul, formaterMoisAnnee } from "../../formats.js";
 import "../../composants/partages.css";
 import "../taches/liste.css";
 import "./evenements.css";
@@ -30,9 +30,12 @@ const JOURS = [0, 1, 2, 3, 4, 5, 6];
 export function Evenements() {
   const { t } = useTranslation("occupations");
   const peut = usePeut();
+  const [recherche, setRecherche] = useState("");
   const [projectId, setProjectId] = useState("");
+  const [interventionExterieure, setInterventionExterieure] = useState(false);
   const [vue, setVue] = useState<"liste" | "calendrier">("liste");
   const [creationOuverte, setCreationOuverte] = useState(false);
+  const [detail, setDetail] = useState<api.Evenement | null>(null);
   const [mois, setMois] = useState(() => {
     const d = new Date();
     return { annee: d.getUTCFullYear(), mois: d.getUTCMonth() };
@@ -40,6 +43,7 @@ export function Evenements() {
 
   const debut = new Date(Date.UTC(mois.annee, mois.mois, 1)).toISOString().slice(0, 10);
   const fin = new Date(Date.UTC(mois.annee, mois.mois + 1, 0)).toISOString().slice(0, 10);
+  const aujourdhui = new Date().toISOString().slice(0, 10);
 
   const filtres = { debut, fin, projectId };
   const requete = useQuery({
@@ -51,7 +55,22 @@ export function Evenements() {
     queryFn: () => apiProjets.portefeuille({}),
   });
 
-  const evenements = requete.data ?? [];
+  /* La recherche par titre et le filtre d'intervention extérieure se posent
+     sur la liste rendue, comme la maquette : ni l'un ni l'autre n'existe en
+     paramètre de la route `/evenements`. */
+  const evenements = useMemo(() => {
+    const q = recherche.trim().toLowerCase();
+    return (requete.data ?? [])
+      .filter((e) => (q ? e.titre.toLowerCase().includes(q) : true))
+      .filter((e) => (interventionExterieure ? e.interventionExterieure : true));
+  }, [requete.data, recherche, interventionExterieure]);
+
+  const filtreActif = Boolean(recherche || projectId || interventionExterieure);
+  const reinitialiser = () => {
+    setRecherche("");
+    setProjectId("");
+    setInterventionExterieure(false);
+  };
 
   /** Regroupés par jour : la liste se lit par date, pas par ordre d'insertion. */
   const parJour = useMemo(() => {
@@ -71,47 +90,34 @@ export function Evenements() {
           <h1 className="h1 titre-vue">{t("evenements.titre")}</h1>
         </div>
         <span className="count-split">
-          <b>{evenements.length}</b> {t("evenements.compte", { n: evenements.length })}
+          {t("evenements.compte", { n: evenements.length })}
         </span>
-        {peut("events:create") ? (
-          <div className="pl-toolbar-fin">
+        <div className="pl-toolbar-fin">
+          <div className="seg" role="group" aria-label={t("evenements.affichage")}>
+            <Button aria-pressed={vue === "liste"} onPress={() => setVue("liste")}>
+              {t("evenements.affichageListe")}
+            </Button>
+            <Button aria-pressed={vue === "calendrier"} onPress={() => setVue("calendrier")}>
+              {t("evenements.affichageCalendrier")}
+            </Button>
+          </div>
+          {peut("events:create") ? (
             <Button className="btn btn-primary" onPress={() => setCreationOuverte(true)}>
               {t("evenements.creer")}
             </Button>
-          </div>
-        ) : null}
+          ) : null}
+        </div>
       </div>
 
       <div className="filters">
-        <div className="pl-nav" role="group" aria-label={t("evenements.navigationMois")}>
-          <Button
-            className="nav-sq"
-            onPress={() =>
-              setMois((m) =>
-                m.mois === 0 ? { annee: m.annee - 1, mois: 11 } : { ...m, mois: m.mois - 1 },
-              )
-            }
-            aria-label={t("evenements.moisPrecedent")}
-          >
-            <span aria-hidden="true">‹</span>
-          </Button>
-          <span className="pl-period">
-            {formaterDateLongue(`${debut}`).replace(/^\d+\s/, "")}
-          </span>
-          <Button
-            className="nav-sq"
-            onPress={() =>
-              setMois((m) =>
-                m.mois === 11 ? { annee: m.annee + 1, mois: 0 } : { ...m, mois: m.mois + 1 },
-              )
-            }
-            aria-label={t("evenements.moisSuivant")}
-          >
-            <span aria-hidden="true">›</span>
-          </Button>
-        </div>
-
-        <span className="vsep" aria-hidden="true" />
+        <input
+          className="f-input filtre-recherche"
+          type="search"
+          value={recherche}
+          onChange={(e) => setRecherche(e.target.value)}
+          aria-label={t("evenements.rechercher")}
+          placeholder={t("evenements.rechercher")}
+        />
 
         <select
           className="f-input"
@@ -127,16 +133,39 @@ export function Evenements() {
           ))}
         </select>
 
-        <div className="bascule-vue" role="group" aria-label={t("evenements.affichage")}>
-          <Button className="tab" aria-selected={vue === "liste"} onPress={() => setVue("liste")}>
-            {t("evenements.affichageListe")}
+        <Button
+          className="filter-toggle"
+          aria-pressed={interventionExterieure}
+          onPress={() => setInterventionExterieure((v) => !v)}
+        >
+          {t("evenements.interventionExterieure")}
+        </Button>
+
+        <span className="pl-period ligne-actions-fin">
+          {formaterMoisAnnee(mois.annee, mois.mois)}
+        </span>
+        <div className="pl-nav" role="group" aria-label={t("evenements.navigationMois")}>
+          <Button
+            className="nav-sq"
+            onPress={() =>
+              setMois((m) =>
+                m.mois === 0 ? { annee: m.annee - 1, mois: 11 } : { ...m, mois: m.mois - 1 },
+              )
+            }
+            aria-label={t("evenements.moisPrecedent")}
+          >
+            <span aria-hidden="true">‹</span>
           </Button>
           <Button
-            className="tab"
-            aria-selected={vue === "calendrier"}
-            onPress={() => setVue("calendrier")}
+            className="nav-sq"
+            onPress={() =>
+              setMois((m) =>
+                m.mois === 11 ? { annee: m.annee + 1, mois: 0 } : { ...m, mois: m.mois + 1 },
+              )
+            }
+            aria-label={t("evenements.moisSuivant")}
           >
-            {t("evenements.affichageCalendrier")}
+            <span aria-hidden="true">›</span>
           </Button>
         </div>
       </div>
@@ -148,10 +177,14 @@ export function Evenements() {
 
       {requete.data ? (
         evenements.length === 0 ? (
-          <div className="empty empty-large">
+          <div className="empty empty-encadre">
             <p>{t("evenements.videTitre")}</p>
-            <small>{t("evenements.videExplication")}</small>
-            {peut("events:create") ? (
+            <small>{filtreActif ? t("evenements.videFiltres") : t("evenements.videExplication")}</small>
+            {filtreActif ? (
+              <Button className="chip-btn" onPress={reinitialiser}>
+                {t("evenements.reinitialiserFiltres")}
+              </Button>
+            ) : peut("events:create") ? (
               <Button className="btn btn-primary" onPress={() => setCreationOuverte(true)}>
                 {t("evenements.creer")}
               </Button>
@@ -161,20 +194,40 @@ export function Evenements() {
           <CalendrierSimplifie evenements={evenements} annee={mois.annee} mois={mois.mois} />
         ) : (
           <div className="tlist">
-            {parJour.map(([jour, liste]) => (
+            {parJour.map(([jour, liste]) => {
+              const nomDuJour = t(
+                `jours.long.${new Date(`${jour}T00:00:00.000Z`).getUTCDay()}`,
+              ).toLowerCase();
+              return (
               <div key={jour}>
-                <div className="ev-day">
+                <div className={`ev-day${jour === aujourdhui ? " is-today" : ""}`}>
                   <span className="ev-dnum">{Number(jour.slice(8, 10))}</span>
-                  <span className="ev-dow">{formaterDateLongue(jour)}</span>
+                  <span className="ev-dow">
+                    {t("evenements.jourEtMois", {
+                      jour: nomDuJour,
+                      mois: formaterMoisSeul(jour),
+                    })}
+                  </span>
+                  {jour === aujourdhui ? (
+                    <span className="ev-dtoday">{t("evenements.aujourdhui")}</span>
+                  ) : null}
                 </div>
                 {liste.map((e) => (
-                  <LigneEvenement key={e.id} evenement={e} />
+                  <LigneEvenement key={e.id} evenement={e} surOuverture={() => setDetail(e)} />
                 ))}
               </div>
-            ))}
+              );
+            })}
           </div>
         )
       ) : null}
+
+      {/*
+        Le panneau de détail vit en permanence dans le document et se glisse
+        hors du cadre quand il est fermé — comme la maquette. Fermé, il est
+        `inert` : sans cela, la tabulation traverserait un panneau invisible.
+      */}
+      <PanneauDetail evenement={detail} surFermeture={() => setDetail(null)} />
 
       <FenetreCreation
         ouverte={creationOuverte}
@@ -185,54 +238,171 @@ export function Evenements() {
   );
 }
 
-function LigneEvenement({ evenement }: { evenement: api.Evenement }) {
+/**
+ * Le panneau de détail d'un événement.
+ *
+ * **« Modifier » et « Supprimer » sont désactivés, et disent pourquoi.**
+ * Le serveur n'expose aujourd'hui ni mise à jour ni suppression d'événement —
+ * seulement la création, les participants et l'arrêt de récurrence. Les
+ * proposer puis échouer serait le contraire de `RG-GEN-06` ; les cacher
+ * ferait disparaître un manque qui doit se voir. Question remontée.
+ */
+function PanneauDetail({
+  evenement,
+  surFermeture,
+}: {
+  evenement: api.Evenement | null;
+  surFermeture: () => void;
+}) {
   const { t } = useTranslation("occupations");
   const [portee, setPortee] = useState(false);
-  const serie = Boolean(evenement.parentId ?? evenement.frequenceSemaines);
+  const ouvert = evenement !== null;
+  const serie = Boolean(evenement?.parentId ?? evenement?.frequenceSemaines);
 
   return (
-    <div className="ev-row">
-      <span className={`ev-time${evenement.journeeEntiere ? " is-all" : ""}`}>
-        {evenement.journeeEntiere
-          ? t("evenements.touteLaJournee")
-          : `${formaterHeure(evenement.heureDebut)} – ${formaterHeure(evenement.heureFin)}`}
-      </span>
-
-      <div className="bloc-etroit">
-        <p className="ev-name">{evenement.titre}</p>
-        <span className="ev-sub">
-          {serie ? <span className="ev-rec">{t("evenements.serie")}</span> : null}
-          {evenement.interventionExterieure ? (
-            <span className="badge badge-indep">{t("evenements.interventionExt")}</span>
-          ) : null}
-          <span className="ev-part">
-            {t("evenements.participants", { n: evenement.participants.length })}
-          </span>
-        </span>
+    <aside
+      className={`drawer${ouvert ? " is-open" : ""}`}
+      aria-label={t("evenements.detailTitre")}
+      aria-hidden={!ouvert}
+      inert={!ouvert}
+    >
+      <div className="drawer-head">
+        <div className="bloc-etroit">
+          <span className="eyebrow">{t("evenements.detailTitre")}</span>
+          <p className="panel-title">{evenement?.titre ?? "—"}</p>
+        </div>
+        <Button className="icon-btn" onPress={surFermeture} aria-label={t("fermer")}>
+          <span aria-hidden="true">×</span>
+        </Button>
       </div>
 
-      <span className="ev-part">
-        {evenement.project ? evenement.project.nom : t("evenements.sansProjet")}
+      <div className="drawer-body">
+        <p className="drawer-desc">{evenement?.description ?? "—"}</p>
+        <dl className="dl">
+          <dt>{t("evenements.colDate")}</dt>
+          <dd>{evenement ? formaterDate(evenement.date) : "—"}</dd>
+          <dt>{t("evenements.colHoraires")}</dt>
+          <dd>
+            {!evenement
+              ? "—"
+              : evenement.journeeEntiere || !evenement.heureDebut
+                ? t("evenements.touteLaJournee")
+                : t("evenements.plageHoraire", {
+                    debut: formaterHeure(evenement.heureDebut),
+                    fin: formaterHeure(evenement.heureFin),
+                  })}
+          </dd>
+          <dt>{t("evenements.projet")}</dt>
+          <dd>{evenement?.project?.nom ?? t("evenements.sansProjet")}</dd>
+          <dt>{t("evenements.colParticipants")}</dt>
+          <dd>{t("evenements.participants", { n: evenement?.participants.length ?? 0 })}</dd>
+        </dl>
+
+        {serie && evenement ? (
+          <div className="drawer-serie">
+            <div className="alert alert-neutral drawer-alerte">
+              <p className="drawer-serie-t">{t("evenements.faitPartieDuneSerie")}</p>
+              <p className="drawer-serie-d">{t("evenements.serieExplication")}</p>
+            </div>
+            <Button className="btn btn-secondary btn-block" onPress={() => setPortee(true)}>
+              {t("evenements.arreterRecurrence")}
+            </Button>
+            <FenetrePortee
+              evenement={evenement}
+              ouverte={portee}
+              surFermeture={() => setPortee(false)}
+            />
+          </div>
+        ) : null}
+
+        <div className="btn-stack">
+          <Button className="btn btn-secondary" isDisabled aria-description={t("evenements.gesteIndisponible")}>
+            {t("evenements.modifier")}
+          </Button>
+          <Button
+            className="btn btn-secondary btn-refus"
+            isDisabled
+            aria-description={t("evenements.gesteIndisponible")}
+          >
+            {t("evenements.supprimer")}
+          </Button>
+        </div>
+      </div>
+    </aside>
+  );
+}
+
+function LigneEvenement({
+  evenement,
+  surOuverture,
+}: {
+  evenement: api.Evenement;
+  surOuverture: () => void;
+}) {
+  const { t } = useTranslation("occupations");
+  const serie = Boolean(evenement.parentId ?? evenement.frequenceSemaines);
+  const sansHoraire = evenement.journeeEntiere || !evenement.heureDebut;
+
+  /*
+   * La maquette rend la ligne cliquable. Une ligne cliquable qui n'est pas un
+   * élément interactif est inatteignable au clavier : c'est un bouton, avec
+   * le nom accessible de l'événement qu'il ouvre.
+   */
+  return (
+    <Button className="ev-row" onPress={surOuverture} aria-label={evenement.titre}>
+      {/*
+        Pas d'horaire = toute la journée. Rendre « — – — » pour un événement
+        sans heure serait annoncer une donnée manquante là où il n'en manque
+        aucune : la maquette dit « Toute la journée » dans les deux cas.
+      */}
+      <span className={`ev-time${sansHoraire ? " is-all" : ""}`}>
+        {sansHoraire
+          ? t("evenements.touteLaJournee")
+          : t("evenements.plageHoraire", {
+              debut: formaterHeure(evenement.heureDebut),
+              fin: formaterHeure(evenement.heureFin),
+            })}
       </span>
 
-      <span>
-        {serie ? (
-          <Button className="chip-btn" onPress={() => setPortee(true)}>
-            {t("evenements.arreterRecurrence")}
-          </Button>
-        ) : null}
+      <span className="bloc-etroit">
+        <span className="ev-name">{evenement.titre}</span>
+        <span className="ev-sub">
+          {serie ? (
+            <span className="ev-rec">
+              <span aria-hidden="true">↻</span>
+              <span>{t("evenements.serie")}</span>
+            </span>
+          ) : null}
+          {evenement.interventionExterieure ? (
+            <span className="pill pill-ext">{t("evenements.interventionExt")}</span>
+          ) : null}
+        </span>
+      </span>
+
+      <span className="bloc-etroit">
+        {evenement.project ? (
+          <span className="pchip">
+            <span className="picon" aria-hidden="true">
+              ◇
+            </span>
+            <span>{evenement.project.nom}</span>
+          </span>
+        ) : (
+          <span className="pchip is-indep">
+            <span className="dot-ind" aria-hidden="true" />
+            <span>{t("evenements.sansProjet")}</span>
+          </span>
+        )}
+      </span>
+
+      <span className="ev-part">
+        {t("evenements.participants", { n: evenement.participants.length })}
       </span>
 
       <span className="ev-go" aria-hidden="true">
         ›
       </span>
-
-      <FenetrePortee
-        evenement={evenement}
-        ouverte={portee}
-        surFermeture={() => setPortee(false)}
-      />
-    </div>
+    </Button>
   );
 }
 

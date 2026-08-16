@@ -410,6 +410,94 @@
   width: 100%;
 }
 
+/*
+ * COMPLÉMENT DU 2026-08-16, au portage des vues 16 à 21.
+ *
+ * La section 8 des maquettes ne s'arrête pas à `.page` : `.greet` et
+ * `.dash-grid` en font partie et manquaient. Les primitives voisines —
+ * `.panel*`, `.empty*`, `.kpi*` — sont remontées au socle par le correctif
+ * `8296eaa` : une primitive employée par trente vues n'appartient à aucune.
+ * Ne pas les redéfinir ici.
+ */
+
+.greet {
+  margin-bottom: 20px;
+}
+
+.greet .h1 {
+  margin: 6px 0 4px;
+}
+
+.dash-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+/* ── 9. Vocabulaire commun aux vues ─────────────────────────────────────── */
+/*
+ * La section 9 des maquettes n'avait jamais été portée. Les vues 16 à 21
+ * emploient `.tab`, `.badge` et `.mini-select` — tous inertes, donc rendus
+ * nus, sans qu'aucune boucle ne puisse le dire. Seules les règles réellement
+ * employées sont reprises ; `.check`, `.bar` et `.pglyph` vivent au socle,
+ * `.avs` dans `vues/taches/kanban.css`, à leur section d'origine.
+ */
+
+.tabs {
+  display: flex;
+  gap: 2px;
+}
+
+.tab {
+  font-size: 12.5px;
+  padding: 5px 10px;
+  border: 1px solid transparent;
+  border-radius: var(--r);
+  color: var(--muted);
+}
+
+.tab[aria-selected="true"] {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.badge {
+  font-family: var(--font-mono);
+  font-size: 8.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 2px 5px;
+  border-radius: 2px;
+  border: 1px solid currentcolor;
+  flex: none;
+}
+
+.badge-late {
+  color: var(--st-blocked);
+}
+
+.badge-indep {
+  color: var(--muted);
+}
+
+.mini-select {
+  font-family: var(--font-ui);
+  font-size: 12px;
+  padding: 5px 7px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.mini-select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
 /* ── Icônes ─────────────────────────────────────────────────────────────── */
 
 .ico {

@@ -13,6 +13,8 @@ import { Pastille, AvatarAgent, useLibelle } from "../../composants/pastilles.js
 import { formaterDate, formaterNombre } from "../../formats.js";
 import "../../composants/partages.css";
 import "../taches/liste.css";
+/* `.ms-toggle` vient de la section 17 ; la maquette 19 l'emploie telle quelle. */
+import "../projets/jalons.css";
 import "./conges.css";
 
 /**
@@ -64,6 +66,22 @@ export function Conges() {
     queryKey: ["conges", "soldes", annee],
     queryFn: () => api.soldes(annee),
   });
+  const mesDemandes = useQuery({
+    queryKey: ["conges", { userId: session.id }],
+    queryFn: () => api.conges({ userId: session.id }),
+  });
+  const aValider = useQuery({
+    queryKey: ["conges", { aValider: true }],
+    queryFn: () => api.conges({ aValider: true }),
+    enabled: peut("leaves:approve"),
+  });
+
+  /* Le compteur porté par l'onglet : ce qui attend une décision se voit sans
+     avoir à ouvrir l'onglet qui l'héberge. */
+  const compteurs: Partial<Record<Onglet, number>> = {
+    mesDemandes: mesDemandes.data?.length ?? 0,
+    aValider: aValider.data?.length ?? 0,
+  };
 
   return (
     <div className="page">
@@ -102,7 +120,10 @@ export function Conges() {
               setOnglet(o.cle);
             }}
           >
-            {o.libelle}
+            <span>{o.libelle}</span>
+            {compteurs[o.cle] === undefined ? null : (
+              <span className="n">{formaterNombre(compteurs[o.cle] ?? 0)}</span>
+            )}
           </a>
         ))}
       </nav>
@@ -132,11 +153,19 @@ function CarteSolde({ entree }: { entree: api.SoldeParType }) {
   const { t } = useTranslation("occupations");
   const { solde, type } = entree;
   const total = Math.max(solde.attribues, solde.consommes + solde.engages, 1);
+  /*
+   * La couleur vient du TYPE, pas d'un jeton : le référentiel des types la
+   * porte (`EX-CNG-16`), et deux instances n'ont pas les mêmes types. La part
+   * « en attente » est hachurée dans la même couleur — la distinction ne
+   * repose donc pas sur la seule teinte.
+   */
+  const couleur = type.couleur ?? "var(--accent)";
+  const hachure = `repeating-linear-gradient(135deg, ${couleur} 0 3px, transparent 3px 6px)`;
 
   return (
     <div className="bal">
       <div className="bal-head">
-        <span className="bal-ic" style={{ background: type.couleur ?? "var(--accent)" }} aria-hidden="true">
+        <span className="bal-ic" style={{ background: couleur }} aria-hidden="true">
           {type.code.slice(0, 2).toUpperCase()}
         </span>
         <span className="bal-n">{type.nom}</span>
@@ -158,30 +187,69 @@ function CarteSolde({ entree }: { entree: api.SoldeParType }) {
           disponibles: solde.disponibles,
         })}
       >
-        <i className="bal-part-utilises" style={{ width: `${(solde.consommes / total) * 100}%` }} />
-        <i className="bal-part-attente" style={{ width: `${(solde.engages / total) * 100}%` }} />
+        <i style={{ width: `${(solde.consommes / total) * 100}%`, background: couleur }} />
+        <i style={{ width: `${(solde.engages / total) * 100}%`, background: hachure }} />
       </div>
 
       <div className="bal-legend">
         <span className="bal-l">
-          <span className="bal-sw bal-part-total" aria-hidden="true" />
-          {t("conges.total", { n: formaterNombre(solde.attribues, 1) })}
+          <span className="bal-sw" style={{ background: couleur }} aria-hidden="true" />
+          <span>{t("conges.utilises", { n: formaterNombre(solde.consommes, 1) })}</span>
         </span>
         <span className="bal-l">
-          <span className="bal-sw bal-part-utilises" aria-hidden="true" />
-          {t("conges.utilises", { n: formaterNombre(solde.consommes, 1) })}
+          <span className="bal-sw" style={{ background: hachure }} aria-hidden="true" />
+          <span>{t("conges.enAttente", { n: formaterNombre(solde.engages, 1) })}</span>
         </span>
         <span className="bal-l">
-          <span className="bal-sw bal-part-attente" aria-hidden="true" />
-          {t("conges.enAttente", { n: formaterNombre(solde.engages, 1) })}
+          <span className="bal-sw bal-sw-total" aria-hidden="true" />
+          <span>{t("conges.total", { n: formaterNombre(solde.attribues, 1) })}</span>
         </span>
       </div>
     </div>
   );
 }
 
+/**
+ * Le cycle de vie d'une demande, dépliable.
+ *
+ * `RG-CNG-12` est contre-intuitive — un congé approuvé ne s'annule pas, il se
+ * *demande* en annulation. La règle est donc montrée, pas seulement appliquée
+ * au moment où elle surprend.
+ */
+function CycleDeVie() {
+  const { t } = useTranslation("occupations");
+  return (
+    <div className="conges-flow">
+      <div className="flow">
+        <span className="fnode fnode-attente">{t("conges.statut_pending")}</span>
+        <span className="farrow" aria-hidden="true">
+          →
+        </span>
+        <div className="fbranch">
+          <span className="fnode fnode-approuve">{t("conges.statut_approved")}</span>
+          <span className="fnode fnode-refuse">{t("conges.statut_refused")}</span>
+        </div>
+        <span className="farrow" aria-hidden="true">
+          →
+        </span>
+        <span className="fnode fnode-attente">{t("conges.statut_cancelling")}</span>
+        <span className="farrow" aria-hidden="true">
+          →
+        </span>
+        <div className="fbranch">
+          <span className="fnode fnode-neutre">{t("conges.statut_cancelled")}</span>
+          <span className="fnode fnode-approuve">{t("conges.retourApprouve")}</span>
+        </div>
+      </div>
+      <p className="fsub">{t("conges.cycleExplication")}</p>
+    </div>
+  );
+}
+
 function MesDemandes({ userId }: { userId: string }) {
   const { t } = useTranslation("occupations");
+  const peut = usePeut();
+  const [cycleOuvert, setCycleOuvert] = useState(false);
   const requete = useQuery({
     queryKey: ["conges", { userId }],
     queryFn: () => api.conges({ userId }),
@@ -191,29 +259,43 @@ function MesDemandes({ userId }: { userId: string }) {
   if (requete.isError)
     return <ErreurDeChargement erreur={requete.error} surReessai={() => void requete.refetch()} />;
 
-  if (requete.data.length === 0) {
-    return (
-      <div className="empty empty-large">
-        <p>{t("conges.videMesDemandes")}</p>
-        <small>{t("conges.videMesDemandesExplication")}</small>
-      </div>
-    );
-  }
-
   return (
-    <div className="tlist">
-      <div className="lv-row lv-head" aria-hidden="true">
-        <span>{t("conges.colType")}</span>
-        <span>{t("conges.colPeriode")}</span>
-        <span className="num">{t("conges.colJours")}</span>
-        <span>{t("conges.colStatut")}</span>
-        <span className="c-val">{t("conges.colValidateur")}</span>
-        <span className="end">{t("conges.colActions")}</span>
+    <section className="panel">
+      <div className="panel-head">
+        <span className="panel-title">{t("conges.ongletMesDemandes")}</span>
+        <Button className="chip-btn" onPress={() => setCycleOuvert((v) => !v)}>
+          {t("conges.commentEvolue")}
+        </Button>
       </div>
-      {requete.data.map((d) => (
-        <LigneDemande key={d.id} demande={d} avecActions />
-      ))}
-    </div>
+
+      {cycleOuvert ? <CycleDeVie /> : null}
+
+      {requete.data.length === 0 ? (
+        <div className="empty">
+          <p>{t("conges.videMesDemandes")}</p>
+          <small>{t("conges.videMesDemandesExplication")}</small>
+          {peut("leaves:create") ? (
+            <Button className="btn btn-primary" onPress={() => setCycleOuvert(false)}>
+              {t("conges.creerPremiere")}
+            </Button>
+          ) : null}
+        </div>
+      ) : (
+        <>
+          <div className="lv-row lv-head" aria-hidden="true">
+            <span>{t("conges.colType")}</span>
+            <span>{t("conges.colPeriode")}</span>
+            <span className="num">{t("conges.colJours")}</span>
+            <span>{t("conges.colStatut")}</span>
+            <span className="c-val">{t("conges.colValidateur")}</span>
+            <span className="end">{t("conges.colActions")}</span>
+          </div>
+          {requete.data.map((d) => (
+            <LigneDemande key={d.id} demande={d} avecActions />
+          ))}
+        </>
+      )}
+    </section>
   );
 }
 
@@ -304,10 +386,10 @@ function LigneDemande({
 
       {avecValidation ? (
         <span className="lv-acts">
-          <Button className="chip-btn" onPress={() => action.mutate("approuver")}>
+          <Button className="btn btn-primary" onPress={() => action.mutate("approuver")}>
             {t("conges.approuver")}
           </Button>
-          <Button className="chip-btn chip-danger" onPress={() => setRefusOuvert(true)}>
+          <Button className="btn btn-secondary btn-refus" onPress={() => setRefusOuvert(true)}>
             {t("conges.refuser")}
           </Button>
         </span>
@@ -317,23 +399,30 @@ function LigneDemande({
           {avecDemandeur ? null : (
             <span className="lv-val c-val">
               {demande.validateur
-                ? `${demande.validateur.prenom} ${demande.validateur.nom}`
+                ? t("conges.validateurEst", {
+                    qui: `${demande.validateur.prenom} ${demande.validateur.nom}`,
+                  })
                 : t("conges.sansValidateur")}
             </span>
           )}
           {avecActions ? (
             <span className="lv-acts">
-              {demande.statut === "pending" ? (
-                <Button className="chip-btn" onPress={() => action.mutate("supprimer")}>
+              {demande.statut === "pending" || demande.statut === "refused" ? (
+                <Button className="ms-toggle" onPress={() => action.mutate("supprimer")}>
                   {t("conges.supprimer")}
                 </Button>
               ) : null}
               {/* `RG-CNG-12` — un congé approuvé ne s'annule pas directement :
                   il se demande. Le bouton dit ce qu'il fait. */}
               {demande.statut === "approved" ? (
-                <Button className="chip-btn" onPress={() => action.mutate("annulation")}>
+                <Button className="ms-toggle" onPress={() => action.mutate("annulation")}>
                   {t("conges.demanderAnnulation")}
                 </Button>
+              ) : null}
+              {/* Une annulation transmise n'offre aucun geste : elle attend une
+                  décision, et le dit plutôt que de laisser une case vide. */}
+              {demande.statut === "cancelling" ? (
+                <span className="lv-val">{t("conges.enAttenteDeDecision")}</span>
               ) : null}
             </span>
           ) : null}
@@ -360,55 +449,99 @@ function AValider() {
   if (requete.isError)
     return <ErreurDeChargement erreur={requete.error} surReessai={() => void requete.refetch()} />;
 
-  if (requete.data.length === 0) {
-    return (
-      <div className="empty empty-large">
-        <p>{t("conges.videAValider")}</p>
-        <small>{t("conges.videAValiderExplication")}</small>
-      </div>
-    );
-  }
-
   return (
     <>
-      <div className="alert alert-neutral" role="status">
-        <span className="alert-icon" aria-hidden="true">
-          →
-        </span>
-        <span>{t("conges.enAttenteDeValidation", { n: requete.data.length })}</span>
-      </div>
-      <div className="tlist">
-        {requete.data.map((d) => (
-          <LigneDemande key={d.id} demande={d} avecValidation />
-        ))}
-      </div>
+      {requete.data.length > 0 ? (
+        <div className="alert alert-warn" role="status">
+          <span className="alert-icon" aria-hidden="true">
+            !
+          </span>
+          <span>{t("conges.enAttenteDeValidation", { n: requete.data.length })}</span>
+        </div>
+      ) : null}
+      <section className="panel">
+        <div className="panel-head">
+          <span className="panel-title">{t("conges.demandesAValider")}</span>
+          <span className="eyebrow">{t("conges.votrePerimetre")}</span>
+        </div>
+        {requete.data.length === 0 ? (
+          <div className="empty">
+            <p>{t("conges.videAValider")}</p>
+            <small>{t("conges.videAValiderExplication")}</small>
+          </div>
+        ) : (
+          <>
+            <div className="lv-row is-todo lv-head" aria-hidden="true">
+              <span>{t("conges.colDemandeur")}</span>
+              <span>{t("conges.colDemande")}</span>
+              <span className="num">{t("conges.colJours")}</span>
+              <span className="end">{t("conges.colDecision")}</span>
+            </div>
+            {requete.data.map((d) => (
+              <LigneDemande key={d.id} demande={d} avecValidation />
+            ))}
+          </>
+        )}
+      </section>
     </>
   );
 }
 
 function ToutesLesDemandes() {
   const { t } = useTranslation("occupations");
-  const requete = useQuery({ queryKey: ["conges", {}], queryFn: () => api.conges({}) });
+  const libelle = useLibelle();
+  const [statut, setStatut] = useState("");
+  const requete = useQuery({
+    queryKey: ["conges", { statut }],
+    queryFn: () => api.conges({ statut }),
+  });
 
   if (requete.isPending) return <Chargement quoi={t("conges.lesDemandes")} />;
   if (requete.isError)
     return <ErreurDeChargement erreur={requete.error} surReessai={() => void requete.refetch()} />;
 
-  if (requete.data.length === 0) {
-    return (
-      <div className="empty empty-large">
-        <p>{t("conges.videToutes")}</p>
-        <small>{t("conges.videToutesExplication")}</small>
-      </div>
-    );
-  }
-
   return (
-    <div className="tlist">
-      {requete.data.map((d) => (
-        <LigneDemande key={d.id} demande={d} avecDemandeur />
-      ))}
-    </div>
+    <>
+      <div className="filters">
+        <select
+          className="f-input"
+          value={statut}
+          onChange={(e) => setStatut(e.target.value)}
+          aria-label={t("conges.colStatut")}
+        >
+          <option value="">{t("conges.tousStatuts")}</option>
+          {STATUTS_CONGE.map((s) => (
+            <option key={s.code} value={s.code}>
+              {libelle(s.code, STATUTS_CONGE)}
+            </option>
+          ))}
+        </select>
+        <span className="count-split ligne-actions-fin">
+          {t("conges.compte", { n: requete.data.length })}
+        </span>
+      </div>
+
+      <section className="panel">
+        {requete.data.length === 0 ? (
+          <div className="empty">
+            <p>{t("conges.videToutes")}</p>
+            <small>{t("conges.videToutesExplication")}</small>
+          </div>
+        ) : (
+          <>
+            <div className="lv-row is-all lv-head" aria-hidden="true">
+              <span>{t("conges.colDemandeur")}</span>
+              <span>{t("conges.colPeriode")}</span>
+              <span className="num">{t("conges.colJours")}</span>
+              <span>{t("conges.colStatut")}</span>
+            </div>
+            {requete.data.map((d) => (
+              <LigneDemande key={d.id} demande={d} avecDemandeur />
+            ))}
+          </>
+        )}
+      </section>
+    </>
   );
 }
 
@@ -437,6 +570,7 @@ function Delegations() {
     titre: string,
     liste: api.Delegation[],
     vide: string,
+    videExplication: string,
     qui: (d: api.Delegation) => string,
     avecDesactivation: boolean,
   ) => (
@@ -444,9 +578,11 @@ function Delegations() {
       <div className="panel-head">
         <span className="panel-title">{titre}</span>
       </div>
+      {avecDesactivation ? <p className="dg-note">{t("conges.delegationExplication")}</p> : null}
       {liste.length === 0 ? (
         <div className="empty">
           <p>{vide}</p>
+          <small>{videExplication}</small>
         </div>
       ) : (
         liste.map((d) => (
@@ -473,11 +609,11 @@ function Delegations() {
 
   return (
     <>
-      <p className="dg-note">{t("conges.delegationExplication")}</p>
       {bloc(
         t("conges.delegationsDonnees"),
         requete.data.donnees,
         t("conges.videDelegationsDonnees"),
+        t("conges.videDelegationsDonneesExplication"),
         (d) => `${d.delegue?.prenom ?? ""} ${d.delegue?.nom ?? ""}`.trim(),
         true,
       )}
@@ -485,6 +621,7 @@ function Delegations() {
         t("conges.delegationsRecues"),
         requete.data.recues,
         t("conges.videDelegationsRecues"),
+        t("conges.videDelegationsRecuesExplication"),
         (d) => `${d.delegant?.prenom ?? ""} ${d.delegant?.nom ?? ""}`.trim(),
         false,
       )}
@@ -512,8 +649,9 @@ function TypesDeConge() {
     return <ErreurDeChargement erreur={requete.error} surReessai={() => void requete.refetch()} />;
 
   return (
-    <>
-      <div className="filters">
+    <section className="panel">
+      <div className="panel-head">
+        <span className="panel-title">{t("conges.referentielDesTypes")}</span>
         <label className="check">
           <input
             type="checkbox"
@@ -524,7 +662,7 @@ function TypesDeConge() {
         </label>
       </div>
 
-      <div className="tlist">
+      <div>
         <div className="ty-grid ty-head" aria-hidden="true">
           <span>{t("conges.colCode")}</span>
           <span>{t("conges.colNom")}</span>
@@ -561,7 +699,7 @@ function TypesDeConge() {
           </div>
         ))}
       </div>
-    </>
+    </section>
   );
 }
 

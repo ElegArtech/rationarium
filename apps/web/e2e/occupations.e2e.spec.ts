@@ -52,6 +52,9 @@ test.describe("Vue 18 — événements", () => {
   }) => {
     await serveur(page, { session: CAMILLE, reponses });
     await page.goto("/evenements");
+    // Le geste part du panneau de détail, comme la maquette : on ouvre
+    // l'événement, puis on agit sur sa série.
+    await page.getByRole("button", { name: EVENEMENTS[0].titre }).click();
     await page.getByRole("button", { name: "Arrêter la récurrence" }).click();
 
     await expect(page.getByText("Toute la série à partir d'ici")).toBeVisible();
@@ -106,7 +109,8 @@ test.describe("Vue 19 — congés : trois publics, un écran", () => {
 
     const onglets = page.getByRole("navigation", { name: "Sections des congés" }).getByRole("link");
     await expect(onglets).toHaveCount(1);
-    await expect(onglets.first()).toHaveText("Mes demandes");
+    // L'onglet porte son compteur à côté de son libellé, comme la maquette.
+    await expect(onglets.first()).toContainText("Mes demandes");
   });
 
   test("Fatou en voit trois : elle valide et délègue", async ({ page }) => {
@@ -234,14 +238,21 @@ test.describe("Vue 20 — télétravail", () => {
     await serveur(page, { session: CAMILLE, reponses });
     await page.goto("/teletravail");
 
-    await expect(page.getByText(/Cliquez sur un jour pour basculer/)).toBeVisible();
+    await expect(page.getByText(/Cliquez sur un jour pour faire évoluer sa déclaration/)).toBeVisible();
   });
 
-  test("la légende nomme les cinq apparences", async ({ page }) => {
+  test("la légende nomme les six apparences", async ({ page }) => {
     await serveur(page, { session: CAMILLE, reponses });
     await page.goto("/teletravail");
 
-    for (const etat of ["Télétravail", "Bureau", "Non déclaré", "Week-end", "Télétravail récurrent"]) {
+    for (const etat of [
+      "Télétravail",
+      "Bureau (déclaré)",
+      "Non déclaré",
+      "Week-end",
+      "Télétravail récurrent",
+      "Exception",
+    ]) {
       await expect(page.getByText(etat, { exact: true }).first()).toBeVisible();
     }
   });
@@ -258,8 +269,18 @@ test.describe("Vue 20 — télétravail", () => {
   test("un jour issu d'une règle porte son marqueur, en plus de son état", async ({ page }) => {
     await serveur(page, { session: CAMILLE, reponses });
     await page.goto("/teletravail");
-    // Le marqueur porte son pictogramme, muet aux assistances techniques.
     await expect(page.getByText(/Récurrent/).first()).toBeVisible();
+  });
+
+  /*
+   * `EX-TLT-02` — modifier un jour engendré par une règle en fait une
+   * EXCEPTION, et l'exception se surajoute à l'état, elle ne le remplace pas.
+   * Le jeu d'essai porte un 11 août à la fois `issuDeRegle` et `exception`.
+   */
+  test("une exception à une règle porte son propre marqueur", async ({ page }) => {
+    await serveur(page, { session: CAMILLE, reponses });
+    await page.goto("/teletravail");
+    await expect(page.getByText("⌁ Exception").first()).toBeVisible();
   });
 
   test("les règles se relisent en langage naturel", async ({ page }) => {
@@ -294,16 +315,18 @@ test.describe("Vue 21 — temps passé", () => {
     await page.goto("/temps");
 
     await expect(page.getByRole("heading", { name: "Temps passé", level: 1 })).toBeVisible();
-    await expect(page.getByText("17,5")).toBeVisible();
+    await expect(page.getByText("3 entrées")).toBeVisible();
+    await expect(page.getByText("17,5 h au total")).toBeVisible();
   });
 
   test("les saisies sont groupées par jour, avec le total et le plafond", async ({ page }) => {
     await serveur(page, { session: CAMILLE, reponses });
     await page.goto("/temps");
 
-    // Le plafond est journalier : la lecture l'est aussi.
-    await expect(page.getByText("13,5 h")).toBeVisible();
-    await expect(page.getByText("sur 12 h").first()).toBeVisible();
+    // Le plafond est journalier, et le dépassement est CHIFFRÉ : « dépasse le
+    // plafond de 1,5 h », pas « dépassé ». Sans le compte, il faut recompter.
+    await expect(page.getByText("13,5 h", { exact: true })).toBeVisible();
+    await expect(page.getByText("dépasse le plafond de 1,5 h")).toBeVisible();
     await expect(page.getByRole("progressbar", { name: /Remplissage du 12/ })).toBeVisible();
   });
 
@@ -312,7 +335,7 @@ test.describe("Vue 21 — temps passé", () => {
     await page.goto("/temps");
 
     await expect(page.getByText("Hors projet")).toBeVisible();
-    await expect(page.getByText("Pour Presta SA")).toBeVisible();
+    await expect(page.getByText("◇ Presta SA")).toBeVisible();
   });
 
   test("RG-TMP-01 — ni tâche ni projet est refusé sans aller-retour", async ({ page }) => {
