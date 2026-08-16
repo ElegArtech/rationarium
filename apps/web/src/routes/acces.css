@@ -292,32 +292,23 @@
 /*
  * La pastille de projet porte l'icône du référentiel, jamais une initiale :
  * deux projets peuvent commencer par la même lettre, pas porter la même icône.
+ *
+ * **Le sélecteur est descendant, et ce n'est pas un détail.** Le socle porte
+ * désormais `.pglyph` — la version posée sur surface claire, employée par une
+ * trentaine de vues. Ici la pastille est posée sur l'aplat de marque et prend
+ * les jetons `--brand-*`. À spécificité égale, laquelle des deux gagne dépend
+ * de l'ordre des feuilles, donc de l'ordre des imports : une dépendance
+ * invisible, qu'un simple déplacement d'import casserait sans un mot. Ancrer
+ * la variante à `.brand-panel` la rend indépendante de cet ordre — et dit où
+ * elle vit. `.pgi` est identique dans les deux : il reste au socle, seul.
  */
-.pglyph {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex: none;
+.brand-panel .pglyph {
   width: 14px;
   height: 14px;
-  border: 1px solid var(--brand-glyphe);
-  border-radius: 2px;
-  font-family: var(--font-mono);
-  font-size: 8px;
-  font-style: normal;
+  border-color: var(--brand-glyphe);
   font-weight: 500;
   color: var(--on-brand-doux);
   background: var(--brand-fond-2);
-}
-
-.pgi {
-  width: 64%;
-  height: 64%;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.7;
-  stroke-linecap: round;
-  stroke-linejoin: round;
 }
 
 /* ── 8. Grille miniature — le vocabulaire visuel des cellules ───────────── */
