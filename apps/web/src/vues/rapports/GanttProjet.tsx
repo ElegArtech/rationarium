@@ -34,7 +34,15 @@ const LARGEUR: Record<Echelle, number> = { jour: 34, semaine: 14, mois: 5 };
 const HAUTEUR_LIGNE = 34;
 const HAUTEUR_GROUPE = 30;
 
-const jourDe = (iso: string) => new Date(`${iso}T00:00:00.000Z`).getTime();
+/**
+ * Le jour civil d'une date, en millisecondes.
+ *
+ * L'API rend des horodatages complets (`2024-08-16T00:00:00.000Z`), pas des
+ * dates seules. Concaténer `T00:00:00.000Z` à une valeur qui en porte déjà un
+ * donne une date invalide, donc `NaN`, donc un `Math.min` à `NaN` — et
+ * `new Date(NaN).toISOString()` **lève**. On tronque au jour avant de composer.
+ */
+const jourDe = (iso: string) => new Date(`${iso.slice(0, 10)}T00:00:00.000Z`).getTime();
 const JOUR_MS = 86_400_000;
 
 export function GanttProjet({ projetId }: { projetId: string }) {

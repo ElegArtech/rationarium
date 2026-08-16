@@ -230,6 +230,101 @@ textarea.field {
   white-space: nowrap;
 }
 
+/* ── Vocabulaire de lignes (section 9 des maquettes) ───────────────────── */
+/*
+ * ─────────────────────────────────────────────────────────────────────────
+ * DEUXIÈME ÉCART DE CARTOGRAPHIE, RELEVÉ AU PORTAGE DES VUES 10 À 15
+ *
+ * `DESIGN.md § 4` attribue la section 9 (VOCABULAIRE) des maquettes au lot
+ * L-05. Le gabarit de page — `.panel*`, `.empty`, `.kpi*`, `.bar` — y est
+ * remonté au socle. Restaient sans règle, dans aucune de nos feuilles :
+ * `.badge`, `.mini-select` et `.hours*`, que les vues 12, 13 et 14 emploient,
+ * et `.prow-pct` qu'emploient les vues 10 et 13.
+ *
+ * `.mini-select` n'existait que dans une requête `forced-colors` du socle :
+ * assez pour que `ui-conformite` la compte comme définie, pas assez pour la
+ * styler. Un sélecteur de rôle en ligne s'affichait donc nu.
+ *
+ * Les redéfinir dans chaque feuille de vue les ferait diverger : même
+ * raisonnement, et même remède, que l'écart relevé au L-32 ci-dessus. Reprises
+ * **verbatim** de la section 9 de la maquette cumulative.
+ * ─────────────────────────────────────────────────────────────────────────
+ */
+
+.badge {
+  font-family: var(--font-mono);
+  font-size: 8.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 2px 5px;
+  border-radius: 2px;
+  border: 1px solid currentcolor;
+  flex: none;
+}
+.badge-late {
+  color: var(--st-blocked);
+}
+.badge-indep {
+  color: var(--muted);
+}
+
+.mini-select {
+  font-family: var(--font-ui);
+  font-size: 12px;
+  padding: 5px 7px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r);
+  background: var(--surface);
+  color: var(--ink);
+}
+.mini-select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.hours {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.hours input {
+  width: 52px;
+  text-align: right;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  padding: 5px 7px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r);
+  background: var(--surface);
+  color: var(--ink);
+}
+.hours input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.hours-unit {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--muted);
+}
+.hours-note {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--muted);
+  margin-top: 3px;
+  text-align: right;
+  display: block;
+}
+
+.prow-pct {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--muted);
+}
+
+
 /* ── Ajustements de mise en page ───────────────────────────────────────── */
 /* Les maquettes portent ces valeurs en style en ligne. Les nommer ici évite
    de les disséminer dans le TSX, où elles échapperaient à stylelint. */
