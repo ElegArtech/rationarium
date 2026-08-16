@@ -55,13 +55,30 @@
     "marquerLue": "Mark “{titre}” as read"
   },
   "profil": {
-    "titre": "My profile",
-    "identite": "Identity",
-    "avatar": "Avatar",
-    "preferences": "Preferences",
-    "securite": "Security",
     "derniereConnexion": "Last sign-in",
     "jamaisConnecte": "Never signed in",
-    "changerMotDePasse": "Change my password"
+    "changerMotDePasse": "Change my password",
+    "monCompte": "My account",
+    "compteActif": "Active account",
+    "seDeconnecter": "Sign out",
+    "sections": "Profile sections",
+    "onglet_info": "Information",
+    "onglet_sec": "Security",
+    "modifiableParVous": "You can change these",
+    "modifiableParVousAide": "These details are yours: change them whenever you want.",
+    "emailAide": "Used for notifications and password reset.",
+    "enregistrer": "Save",
+    "annuler": "Cancel",
+    "gereParAdministration": "Managed by your administration",
+    "gereParAdministrationAide": "These details commit the organisation: they cannot be changed from your profile.",
+    "demanderModification": "Request a change",
+    "champLogin": "Login",
+    "champRole": "Role",
+    "pourquoiLogin": "Sign-in identifier, fixed at account creation: it is the reference used in the audit log.",
+    "pourquoiRole": "Determines your rights in the application. Only an administrator can change it.",
+    "pourquoiDerniereConnexion": "Recorded automatically at every sign-in.",
+    "nonModifiable": "Not editable",
+    "parAdministrateur": "Administrator",
+    "autresSessions": "Your other sessions stay open."
   }
 }

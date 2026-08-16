@@ -1,0 +1,63 @@
+/*
+ * Vue 35 — Mon profil. Section 39 de la maquette, reprise verbatim.
+ *
+ * Ce que je peux changer / ce qui relève de l'administration : deux blocs
+ * séparés, et chaque champ verrouillé dit pourquoi et par qui.
+ */
+
+.own-head,
+.adm-head{ display:flex; align-items:center; gap:10px; padding:11px 14px;
+  border-bottom:1px solid var(--line); }
+.own-head{ background:color-mix(in srgb, var(--st-done) 8%, var(--surface)); }
+.adm-head{ background:var(--surface-2); }
+.blk-ic{ width:24px; height:24px; border-radius:var(--r); display:flex; align-items:center;
+  justify-content:center; font-family:var(--font-mono); font-size:11px; flex:none; }
+.blk-t{ font-size:12.5px; font-weight:600; }
+.blk-d{ display:block; font-size:11.5px; color:var(--muted); margin-top:3px; }
+
+.lock-field{ display:grid; grid-template-columns:minmax(0,1fr) auto; gap:12px; align-items:center;
+  padding:11px 14px; border-bottom:1px solid var(--line); }
+.lock-field:last-child{ border-bottom:none; }
+.lock-k{ font-family:var(--font-mono); font-size:8.5px; letter-spacing:.11em; text-transform:uppercase;
+  color:var(--muted); display:block; margin-bottom:4px; }
+.lock-v{ font-size:13px; }
+.lock-why{ display:block; font-size:11.5px; color:var(--muted); margin-top:5px; line-height:1.5; }
+.lock-tag{ display:inline-flex; align-items:center; gap:5px; font-family:var(--font-mono);
+  font-size:8.5px; letter-spacing:.07em; text-transform:uppercase; color:var(--muted);
+  border:1px solid var(--line-strong); border-radius:2px; padding:2px 6px; white-space:nowrap; }
+
+.sess{ display:grid; grid-template-columns:34px minmax(0,1fr) 152px 116px; gap:12px;
+  align-items:center; padding:11px 14px; border-bottom:1px solid var(--line); }
+.sess:last-child{ border-bottom:none; }
+.sess-ic{ width:30px; height:30px; border:1px solid var(--line); border-radius:var(--r);
+  display:flex; align-items:center; justify-content:center; font-family:var(--font-mono);
+  font-size:9px; color:var(--muted); }
+.sess-n{ font-size:12.5px; }
+.sess-m{ display:block; font-family:var(--font-mono); font-size:9px; color:var(--muted); margin-top:3px; }
+.sess.is-current{ background:var(--accent-soft); }
+.sess.is-current .sess-ic{ border-color:var(--accent); color:var(--accent); }
+
+.notif-row{ display:grid; grid-template-columns:minmax(0,1fr) 108px 108px; gap:14px;
+  align-items:center; padding:11px 14px; border-bottom:1px solid var(--line); }
+.notif-row:last-child{ border-bottom:none; }
+.notif-head{ padding:9px 14px; background:var(--surface-2); border-bottom:1px solid var(--line-strong); }
+.notif-head span{ font-family:var(--font-mono); font-size:8.5px; font-weight:500; letter-spacing:.12em;
+  text-transform:uppercase; color:var(--muted); }
+.notif-n{ font-size:12.5px; }
+.notif-d{ display:block; font-size:11.5px; color:var(--muted); margin-top:3px; }
+.toggle.is-accent[aria-pressed="true"]{ background:var(--accent); }
+.chan-off{ font-family:var(--font-mono); font-size:9px; color:var(--muted); }
+
+/*
+ * Ce que la maquette pose en style en ligne, et qui devient une classe : le
+ * balisage du produit ne porte pas d'attribut `style` calculé à la main.
+ */
+.profil-head{ align-items:center; margin-bottom:14px; }
+.avatar-xl{ width:56px; height:56px; font-size:17px; }
+.nom-profil{ font-size:23px; }
+.blk-ic-propre{ background:var(--st-done); color:var(--on-status); }
+.blk-ic-admin{ background:var(--line-strong); color:var(--surface); }
+.lock-v-mono{ font-family:var(--font-mono); }
+.actions-profil{ margin-top:6px; }
+.panel-body-separe{ border-top:1px solid var(--line); }
+.hint-securite{ margin-top:10px; }

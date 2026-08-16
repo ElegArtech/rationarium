@@ -1,14 +1,15 @@
 import { useMemo, useState, type CSSProperties } from "react";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button } from "react-aria-components";
+import { Button, Tooltip, TooltipTrigger } from "react-aria-components";
 import { NOMBRE_PERMISSIONS } from "@trame/contracts";
 import * as api from "../../api/administration.js";
 import { messageErreur } from "../../api/erreurs.js";
 import { usePeut } from "../../session/session.js";
 import { Chargement, ErreurDeChargement, AccesRefuse } from "../../composants/etats.js";
 import { useMessages } from "../../composants/messages.js";
-import { Barre } from "../../composants/pastilles.js";
+import { Barre, MarqueurCalcule } from "../../composants/pastilles.js";
+import { Fenetre } from "../../composants/fenetre.js";
 import "../../composants/partages.css";
 import "../taches/liste.css";
 import "../referentiels/competences.css";
@@ -49,6 +50,8 @@ export function Roles() {
   if (liste.isError)
     return <ErreurDeChargement erreur={liste.error} surReessai={() => void liste.refetch()} />;
 
+  const selection = roleId ?? liste.data[0]?.id ?? null;
+
   return (
     <div className="page">
       <div className="pl-toolbar">
@@ -59,54 +62,70 @@ export function Roles() {
         </div>
       </div>
 
-      {liste.data.length === 0 ? (
-        <div className="empty empty-large">
-          <p>{t("roles.videTitre")}</p>
-          <small>{t("roles.videExplication")}</small>
+      <section className="panel">
+        <div className="panel-head">
+          <span className="panel-title">{t("roles.listeTitre")}</span>
+          <span className="eyebrow">{t("roles.compte", { n: liste.data.length })}</span>
         </div>
-      ) : (
-        <div className="tlist">
-          <div className="role-grid role-head" aria-hidden="true">
-            <span>{t("roles.colNom")}</span>
-            <span>{t("roles.colCode")}</span>
-            <span>{t("roles.colPermissions")}</span>
-            <span>{t("roles.colNature")}</span>
-            <span>{t("roles.colActions")}</span>
-          </div>
-          {liste.data.map((r) => (
-            <div
-              className={`role-grid role-row${roleId === r.id ? " is-sel" : ""}`}
-              key={r.id}
-            >
-              <div className="bloc-etroit">
-                <p className="role-n">{r.nom}</p>
-                {r.description ? <span className="role-c">{r.description}</span> : null}
-              </div>
-              <span className="role-c">{r.code}</span>
-              <span className="role-perm">
-                <Barre
-                  valeur={(r.nombrePermissions / NOMBRE_PERMISSIONS) * 100}
-                  libelle={t("roles.permissionsDe", { nom: r.nom })}
-                />
-                <span className="role-pn">{r.nombrePermissions}</span>
-              </span>
-              <span
-                className="pill"
-                style={{ color: r.systeme ? "var(--muted)" : "var(--st-doing)" }}
-              >
-                {r.systeme ? t("roles.systeme") : t("roles.personnalise")}
-              </span>
-              <span className="lv-acts">
-                <Button className="chip-btn" onPress={() => setRoleId(r.id)}>
-                  {t("roles.ouvrirMatrice")}
-                </Button>
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
 
-      {roleId ? <MatricePermissions roleId={roleId} /> : null}
+        {liste.data.length === 0 ? (
+          <div className="empty">
+            <p>{t("roles.videTitre")}</p>
+            <small>{t("roles.videExplication")}</small>
+          </div>
+        ) : (
+          <>
+            <div className="role-grid role-head">
+              <span>{t("roles.colNom")}</span>
+              <span>{t("roles.colPermissions")}</span>
+              <span>{t("roles.colUtilisateurs")}</span>
+              <span>{t("roles.colOrigine")}</span>
+              <span>{t("roles.colActions")}</span>
+            </div>
+            {liste.data.map((r) => (
+              <div
+                className={`role-grid role-row${selection === r.id ? " is-sel" : ""}`}
+                key={r.id}
+              >
+                <div className="bloc-etroit">
+                  <p className="role-n">{r.nom}</p>
+                  <span className="role-c">{r.code}</span>
+                </div>
+                <span className="role-perm">
+                  <Barre
+                    valeur={(r.nombrePermissions / NOMBRE_PERMISSIONS) * 100}
+                    libelle={t("roles.permissionsDe", { nom: r.nom })}
+                  />
+                  <span className="role-pn">
+                    {r.nombrePermissions} / {NOMBRE_PERMISSIONS}
+                  </span>
+                </span>
+                <span className="lv-when">
+                  {t("roles.nUtilisateurs", { n: r.nombreUtilisateurs })}
+                </span>
+                <div>
+                  <span
+                    className="pill"
+                    style={{ color: r.systeme ? "var(--accent)" : "var(--st-review)" }}
+                  >
+                    {r.systeme ? t("roles.systeme") : t("roles.personnalise")}
+                  </span>
+                </div>
+                <div className="lv-acts">
+                  <Button className="ms-toggle" onPress={() => setRoleId(r.id)}>
+                    {t("roles.ouvrir")}
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </>
+        )}
+      </section>
+
+      {/* La matrice porte sur le rôle sélectionné. À l'ouverture, c'est le
+          premier de la liste : une page qui n'affiche rien tant qu'on n'a pas
+          cliqué se lit comme une page vide. */}
+      {selection ? <MatricePermissions roleId={selection} /> : null}
     </div>
   );
 }
@@ -117,6 +136,7 @@ function MatricePermissions({ roleId }: { roleId: string }) {
   const annoncer = useMessages();
   const client = useQueryClient();
   const [brouillon, setBrouillon] = useState<ReadonlySet<string> | null>(null);
+  const [impactOuvert, setImpactOuvert] = useState(false);
 
   const matrice = useQuery({
     queryKey: ["roles", roleId, "matrice"],
@@ -184,24 +204,43 @@ function MatricePermissions({ roleId }: { roleId: string }) {
 
   const cases = lignes.length * actions.length;
 
+  /* Les modules effectivement couverts : au moins une case accordée. */
+  const modulesCouverts = lignes.filter((l) =>
+    l.cases.some((c) => c.detenue !== null && courantes.has(c.permission)),
+  ).length;
+
   return (
-    <section className="panel matrice-espace">
-      <div className="panel-head">
-        <span className="panel-title">{t("roles.matriceDe", { nom: role.nom })}</span>
-        <span className="ligne-actions">
-          {/* L'écart au dernier enregistrement : la seule chose qu'on puisse
-              montrer honnêtement de l'impact, depuis cette page. */}
-          {modifie ? (
-            <>
-              <span className="diff-pill diff-add">
-                {t("roles.ajoutees", { n: ajoutees.length })}
-              </span>
-              <span className="diff-pill diff-rem">
-                {t("roles.retirees", { n: retirees.length })}
-              </span>
-            </>
-          ) : null}
-          {systeme ? null : (
+    <div className="matrice-espace">
+      <div className="pl-toolbar">
+        <div>
+          <span className="eyebrow">{t("roles.matriceSurtitre")}</span>
+          <h2 className="panel-title titre-matrice">{role.nom}</h2>
+        </div>
+        <div className="ligne-actions-fin">
+          <Button
+            className="chip-btn"
+            isDisabled={!modifie}
+            onPress={() => setBrouillon(null)}
+          >
+            {t("roles.revenirAuModele")}
+          </Button>
+          <Button
+            className="chip-btn"
+            isDisabled={!modifie}
+            onPress={() => setImpactOuvert(true)}
+          >
+            {t("roles.voirImpact")}
+          </Button>
+          {/* `RG-GEN-06` — désactivé plutôt qu'absent, et l'explication est au
+              survol : une commande qui disparaît laisse chercher où elle est. */}
+          {systeme ? (
+            <TooltipTrigger delay={200}>
+              <Button className="btn btn-primary" isDisabled>
+                {t("roles.enregistrerPermissions")}
+              </Button>
+              <Tooltip className="tooltip">{t("roles.roleSystemeLectureSeule")}</Tooltip>
+            </TooltipTrigger>
+          ) : (
             <Button
               className="btn btn-primary"
               isDisabled={!modifie}
@@ -211,15 +250,71 @@ function MatricePermissions({ roleId }: { roleId: string }) {
               {t("roles.enregistrerPermissions")}
             </Button>
           )}
-        </span>
+        </div>
+      </div>
+
+      {/* Lecture de haut niveau, avant le détail case à case. */}
+      <div className="mx-top">
+        <div className="kpi">
+          <span className="eyebrow">{t("roles.permissionsAccordees")}</span>
+          <p className="kpi-val">{courantes.size}</p>
+          <Barre
+            valeur={(courantes.size / Math.max(1, etat.existantes.size)) * 100}
+            libelle={t("roles.permissionsAccordees")}
+            classe="bar kpi-bar"
+          />
+        </div>
+
+        <div className="kpi">
+          <div className="kpi-head">
+            <span className="eyebrow">{t("roles.croisementsValides")}</span>
+            <MarqueurCalcule
+              libelle={t("roles.surTotal", { n: cases })}
+              explication={t("roles.croisementsExplication")}
+            />
+          </div>
+          <p className="kpi-val">{etat.existantes.size}</p>
+          <span className="kpi-sub">
+            {t("roles.croisementsAide", { n: etat.existantes.size, total: cases })}
+          </span>
+        </div>
+
+        <div className={`kpi${modifie ? " is-alert" : ""}`}>
+          <span className="eyebrow">{t("roles.ecartAuModele")}</span>
+          <p className="kpi-val kpi-val-ecart">
+            {modifie ? (
+              <>
+                <span className="diff-pill diff-add">
+                  {t("roles.ajoutees", { n: ajoutees.length })}
+                </span>{" "}
+                <span className="diff-pill diff-rem">
+                  {t("roles.retirees", { n: retirees.length })}
+                </span>
+              </>
+            ) : (
+              t("roles.aucunEcart")
+            )}
+          </p>
+          <span className="kpi-sub">
+            {modifie
+              ? t("roles.parRapportAu", { code: role.code })
+              : t("roles.identiqueAu", { code: role.code })}
+          </span>
+        </div>
+
+        <div className="kpi">
+          <span className="eyebrow">{t("roles.modulesCouverts")}</span>
+          <p className="kpi-val">{modulesCouverts}</p>
+          <span className="kpi-sub">{t("roles.surNModules", { n: lignes.length })}</span>
+        </div>
       </div>
 
       {systeme ? (
-        <div className="alert alert-neutral" role="status">
+        <div className="alert alert-warn" role="status">
           <span className="alert-icon" aria-hidden="true">
-            →
+            ⌸
           </span>
-          <span>{t("roles.roleSystemeLectureSeule")}</span>
+          <span className="alert-corps">{t("roles.roleSystemeLectureSeule")}</span>
         </div>
       ) : null}
 
@@ -251,10 +346,61 @@ function MatricePermissions({ roleId }: { roleId: string }) {
         </div>
       </div>
 
-      <p className="mx-foot">
-        {t("roles.pied", { valides: etat.existantes.size, cases })}
-      </p>
-    </section>
+      {/* Les cases hachurées ne sont pas des refus : le croisement n'existe
+          pas au catalogue. Le dire évite de le lire comme une interdiction. */}
+      <p className="field-hint mx-foot">{t("roles.pied")}</p>
+
+      {/* « Cocher une permission a des conséquences invisibles depuis cette
+          page. » On montre donc l'écart avant d'écrire, et on rappelle que
+          rien n'est écrit tant qu'on n'a pas confirmé. */}
+      <Fenetre
+        ouverte={impactOuvert}
+        surFermeture={() => setImpactOuvert(false)}
+        categorie={t("roles.avantEnregistrer")}
+        titre={`${role.nom} · ${role.code}`}
+        large
+        mention={t("roles.rienNEstEcrit")}
+        actions={
+          <>
+            <Button className="btn btn-secondary" onPress={() => setImpactOuvert(false)}>
+              {t("roles.continuerAModifier")}
+            </Button>
+            <Button
+              className="btn btn-primary"
+              isDisabled={systeme}
+              onPress={() => {
+                setImpactOuvert(false);
+                enregistrement.mutate([...courantes]);
+              }}
+            >
+              {t("roles.confirmerEtEnregistrer")}
+            </Button>
+          </>
+        }
+      >
+        <p className="lede impact-lede">
+          {t("roles.impactLede", { n: ajoutees.length + retirees.length })}
+        </p>
+        {ajoutees.map((p) => (
+          <div className="impact-row" key={p}>
+            <span className="impact-k diff-add">{t("roles.impactAjout")}</span>
+            <span>
+              <span className="impact-t">{p}</span>
+              <span className="impact-d">{t("roles.impactAjoutAide")}</span>
+            </span>
+          </div>
+        ))}
+        {retirees.map((p) => (
+          <div className="impact-row" key={p}>
+            <span className="impact-k diff-rem">{t("roles.impactRetrait")}</span>
+            <span>
+              <span className="impact-t">{p}</span>
+              <span className="impact-d">{t("roles.impactRetraitAide")}</span>
+            </span>
+          </div>
+        ))}
+      </Fenetre>
+    </div>
   );
 }
 
@@ -291,17 +437,20 @@ function LigneDomaine({
             {cochees}/{existantes.length}
           </span>
         </span>
-        {systeme ? (
-          <span />
-        ) : (
-          <Button
-            className="pm-all"
-            onPress={surTout}
-            aria-label={t("roles.toutSelectionner", { module: nomDomaine })}
-          >
-            <span aria-hidden="true">⊞</span>
-          </Button>
-        )}
+        {/* Sur un rôle système la commande reste visible et désactivée, avec
+            son explication : la faire disparaître ferait croire que le module
+            ne se coche pas en bloc, au lieu que ce rôle-ci ne se modifie pas. */}
+        {/* Pas d'infobulle ici : le motif est déjà énoncé par le bandeau au-
+            dessus de la matrice, et vingt-quatre infobulles pèseraient sur le
+            budget de rendu de la grille. */}
+        <Button
+          className="pm-all"
+          onPress={surTout}
+          isDisabled={systeme}
+          aria-label={t("roles.toutSelectionner", { module: nomDomaine })}
+        >
+          <span aria-hidden="true">{cochees === existantes.length ? "−" : "✓"}</span>
+        </Button>
       </div>
 
       {ligne.cases.map((c) => {

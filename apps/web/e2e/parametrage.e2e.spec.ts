@@ -167,7 +167,7 @@ test.describe("Vue 32 — rôles et permissions", () => {
   test("LES CROISEMENTS INVALIDES N'EXISTENT PAS — ils ne sont pas grisés", async ({ page }) => {
     await serveur(page, { session: SESSION_CONFIG, reponses });
     await page.goto("/roles");
-    await page.getByRole("button", { name: "Ouvrir la matrice" }).nth(1).click();
+    await page.getByRole("button", { name: "Ouvrir", exact: true }).nth(1).click();
 
     // On n'« approuve » pas un projet : aucune case, pas une case désactivée.
     // Une case désactivée laisserait croire à un droit qu'on n'a pas.
@@ -185,7 +185,7 @@ test.describe("Vue 32 — rôles et permissions", () => {
   test("l'écart au dernier enregistrement est montré AVANT d'enregistrer", async ({ page }) => {
     await serveur(page, { session: SESSION_CONFIG, reponses });
     await page.goto("/roles");
-    await page.getByRole("button", { name: "Ouvrir la matrice" }).nth(1).click();
+    await page.getByRole("button", { name: "Ouvrir", exact: true }).nth(1).click();
 
     const enregistrer = page.getByRole("button", { name: "Enregistrer les permissions" });
     await expect(enregistrer).toBeDisabled();
@@ -203,17 +203,17 @@ test.describe("Vue 32 — rôles et permissions", () => {
   test("un rôle système est en lecture seule, et dit comment le décliner", async ({ page }) => {
     await serveur(page, { session: SESSION_CONFIG, reponses });
     await page.goto("/roles");
-    await page.getByRole("button", { name: "Ouvrir la matrice" }).first().click();
+    await page.getByRole("button", { name: "Ouvrir", exact: true }).first().click();
 
     await expect(page.getByText(/Dupliquez-le pour en créer une variante/)).toBeVisible();
-    await expect(page.getByRole("button", { name: "Enregistrer les permissions" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Enregistrer les permissions" })).toBeDisabled();
     await expect(page.getByRole("button", { name: /^Congés — Approuver/ })).toBeDisabled();
   });
 
   test("la couverture par module précède le détail", async ({ page }) => {
     await serveur(page, { session: SESSION_CONFIG, reponses });
     await page.goto("/roles");
-    await page.getByRole("button", { name: "Ouvrir la matrice" }).nth(1).click();
+    await page.getByRole("button", { name: "Ouvrir", exact: true }).nth(1).click();
 
     // 3 permissions détenues sur 4 croisements existants pour les projets.
     await expect(page.getByText("3/4")).toBeVisible();
@@ -256,7 +256,7 @@ test.describe("Vue 33 — journal d'audit", () => {
     await serveur(page, { session: SESSION_CONFIG, reponses });
     await page.goto("/audit");
 
-    await expect(page.getByText("Consultation en lecture seule")).toBeVisible();
+    await expect(page.getByText("Registre en lecture seule")).toBeVisible();
     await expect(page.getByText(/n'a que les droits de lecture et d'insertion/)).toBeVisible();
   });
 

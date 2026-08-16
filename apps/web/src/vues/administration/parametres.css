@@ -60,3 +60,7 @@
 .toggle[aria-pressed="true"] + .toggle-lab{ color:var(--st-review); }
 
 .set-stats{ display:grid; grid-template-columns:repeat(4,1fr); gap:11px; margin-bottom:14px; }
+
+/* Ce que la maquette pose en style en ligne, et qui devient une classe. */
+.lede-vue{ margin-top:4px; }
+.dirty-mark{ color:var(--st-review); font-size:15px; }

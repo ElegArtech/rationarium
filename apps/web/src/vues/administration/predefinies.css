@@ -69,3 +69,7 @@
 .rv-group + .rv-group{ margin-top:12px; }
 .rv-legend{ font-family:var(--font-mono); font-size:9px; font-weight:500; letter-spacing:.14em;
   text-transform:uppercase; color:var(--muted); margin:0 0 6px; }
+
+/* Ce que la maquette pose en style en ligne, et qui devient une classe. */
+.check-espace{ margin-left:14px; }
+.hint-regles{ margin:0 0 12px; }

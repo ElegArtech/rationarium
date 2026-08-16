@@ -1,13 +1,13 @@
 {
   "surtitre": "Steering",
-  "titre": "Reports & Analytics",
+  "titre": "Reports & analytics",
   "lesDonnees": "the analytics data",
   "periode": {
     "groupe": "Analysis period",
-    "semaine": "This week",
-    "mois": "This month",
-    "trimestre": "This quarter",
-    "annee": "This year"
+    "semaine": "7 days",
+    "mois": "30 days",
+    "trimestre": "90 days",
+    "annee": "365 days"
   },
   "actions": {
     "actualiser": "Refresh",
@@ -18,63 +18,72 @@
   },
   "onglets": {
     "groupe": "Report sections",
-    "ensemble": "Overview",
-    "analytics": "Advanced analytics",
+    "over": "Overview",
+    "adv": "Advanced analytics",
     "gantt": "Portfolio Gantt"
   },
   "alerte": {
-    "titre": "Attention required —",
-    "texte": "{n, plural, one {# overdue task needs your attention} other {# overdue tasks need your attention}}. See the Tasks page for details."
+    "titre": "Attention required",
+    "texte": "— {n, plural, one {# overdue task needs attention} other {# overdue tasks need attention}}.",
+    "ouvrirLesTaches": "Open tasks"
   },
   "sante": {
     "titre": "Project health",
-    "compte": "{n, plural, one {# project} other {# projects}}",
+    "tri": "Sorted by criticality · health is computed, never entered",
     "vide": "No project to display",
-    "videAide": "No data available for this period.",
+    "videAide": "No project matches the filters.",
     "colProjet": "Project",
-    "colCompletion": "% complete",
+    "colSante": "Health",
+    "colAvancement": "Progress",
     "colJalons": "Milestones",
     "colActives": "Active tasks",
-    "colSante": "Health",
-    "colDetail": "Details",
-    "completionDe": "{nom} completion: {n, number}%",
+    "colPourquoi": "Why",
+    "completionDe": "{nom} completion: {n, number} %",
     "nonAssigne": "Unassigned",
+    "jalonsEchus": "{n, number} / {total, number} due",
     "restantes": "{n, plural, one {# task left} other {# tasks left}}",
     "enRetard": "{n, plural, one {# overdue} other {# overdue}}",
-    "finLe": "ends {date}"
+    "finLe": "ends {date}",
+    "toutAffiche": "All projects are shown.",
+    "limite": "Limited to the {n, number} most critical — {reste, number} not shown.",
+    "toutAfficher": "Show all",
+    "revenirA": "Back to {n, number}"
   },
   "progression": {
-    "titre": "Project progress",
-    "tousLesProjets": "See all projects",
-    "de": "{nom}: {n, number}%",
-    "vide": "No project to display",
-    "videAide": "No data available for this period.",
-    "tronque": "Display limited to the first {n, number} projects for readability — {total, number} in total."
+    "titre": "Actual vs expected progress",
+    "tousLesProjets": "See all projects →",
+    "de": "{nom}: {n, number} %",
+    "vide": "No ongoing project",
+    "repere": "The vertical mark shows the progress expected today, prorated over elapsed duration.",
+    "tronque": "Limited to the first {n, number} projects for readability — {total, number} in all."
   },
   "charge": {
     "titre": "Workload distribution",
-    "surchargeDetectee": "{n, plural, one {# overload detected} other {# overloads detected}}",
-    "moyenne": "Team average: {n, number} tasks",
+    "surchargeDetectee": "Overload",
+    "moyenne": "Average: {n, number} active tasks · overload flagged beyond +40%",
     "libelle": "{nom}: {n, number} tasks, against an average of {moyenne, number}",
     "libelleSurcharge": "{nom}: {n, number} tasks — overloaded, the average is {moyenne, number}",
     "vide": "No active task to display",
-    "videAide": "Nobody has a task in progress in this scope."
+    "videAide": "Nobody has a task in progress in this scope.",
+    "total": "{n, number} active tasks · {gens, number} people",
+    "nTaches": "{n, plural, one {# task} other {# tasks}}"
   },
   "tendance": {
     "titre": "Progress trend",
     "stagnation": "Stagnation detected",
     "historiqueCourt": "History still being built",
-    "historiqueCourtAide": "The data will be more meaningful after a few weeks of collection.",
-    "libelle": "Progress from {debut, number}% to {fin, number}% over {points, number} readings"
+    "historiqueCourtAide": "At least three snapshots are needed to draw a trend.",
+    "libelle": "Progress from {debut, number}% to {fin, number}% over {points, number} readings",
+    "instantanes": "Snapshots",
+    "instantanesExplication": "Progress snapshots taken at month end."
   },
   "jalons": {
     "titre": "Milestone completion",
     "surEchus": "milestones met on time out of {n, number} due",
-    "aTemps": "{n, number} on time",
-    "enRetard": "{n, number} late",
-    "aVenir": "{n, number} upcoming",
-    "vide": "No milestone defined",
-    "videAide": "Add milestones to track portfolio deadlines."
+    "aTemps": "On time",
+    "enRetard": "Late",
+    "aVenir": "Upcoming",
+    "vide": "No milestone defined"
   },
   "repartitions": {
     "parPriorite": "Breakdown by priority",
@@ -82,7 +91,8 @@
     "surActives": "of {n, number} tasks",
     "libelle": "{quoi}: {n, number} of {total, number}",
     "vide": "No active task to display",
-    "videAide": "No data available for this period."
+    "videAide": "No data available for this period.",
+    "partPart": "{n, number} · {part, number} %"
   },
   "activite": {
     "titre": "Recent activity",
@@ -157,5 +167,41 @@
     "normal": "Normal",
     "high": "High",
     "critical": "Critical"
+  },
+  "arreteAu": "Portfolio as of {date}",
+  "fenetre": "Activity window",
+  "filtres": {
+    "projets": "Projects",
+    "tousLesProjets": "All projects",
+    "enCoursSeulement": "Ongoing only",
+    "aRisque": "At-risk projects",
+    "responsable": "Lead",
+    "tousLesResponsables": "All leads"
+  },
+  "aucuneDonnee": {
+    "titre": "No data available.",
+    "aide": "Widen the window or clear the filters."
+  },
+  "erreur": {
+    "titre": "Analytics data could not be loaded.",
+    "aide": "The computation service did not respond. Other pages remain available.",
+    "reessayer": "Retry"
+  },
+  "kpi": {
+    "projetsEnCours": "Ongoing projects",
+    "aLInstant": "Right now",
+    "projetsSuivis": "{n, plural, one {# tracked} other {# tracked}}",
+    "projetsCritiques": "Critical projects",
+    "regle": "Rule",
+    "regleExplication": "A project is critical when it carries at least 4 overdue tasks, or trails expected progress by more than 25 points.",
+    "aucunEnDifficulte": "none in trouble",
+    "avancementMoyen": "Average progress",
+    "pondere": "Weighted",
+    "pondereExplication": "Average weighted by the workload of ongoing projects.",
+    "attenduACeStade": "expected at this point: {n, number} %",
+    "jalonsEchusTenus": "Due milestones met",
+    "partJalonsTenus": "{n, number} % of due milestones met",
+    "pourcent": "{n, number} %",
+    "pourcentBrut": "{n, number}%"
   }
 }

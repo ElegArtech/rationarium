@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "react-aria-components";
@@ -43,6 +43,21 @@ const FORMATS_HEURE = [
 ] as const;
 
 const JOURS = [1, 2, 3, 4, 5, 6, 0] as const;
+
+/** Les régions offertes. Elles décident du nom des mois et des jours. */
+const REGIONS = [
+  { cle: "fr-FR", exemple: "jeudi 31 décembre" },
+  { cle: "en-US", exemple: "Thursday, December 31" },
+] as const;
+
+/** Les valeurs par défaut du produit, celles que « Réinitialiser » restaure. */
+const DEFAUTS: Record<string, string> = {
+  "display.dateFormat": "JJ/MM/AAAA",
+  "display.timeFormat": "24h",
+  "display.locale": "fr-FR",
+  "display.firstDayOfWeek": "1",
+  "planning.visibleDays": "1,2,3,4,5",
+};
 
 export function Parametres() {
   const { t } = useTranslation("administration");
@@ -98,15 +113,15 @@ export function Parametres() {
         <div>
           <span className="eyebrow">{t("parametres.surtitre")}</span>
           <h1 className="h1 titre-vue">{t("parametres.titre")}</h1>
+          <p className="lede lede-vue">{t("parametres.lede")}</p>
         </div>
         {peut("settings:update") ? (
           <div className="ligne-actions-fin">
-            <Button
-              className="chip-btn"
-              isDisabled={!modifie}
-              onPress={() => setBrouillon(enregistre)}
-            >
-              {t("parametres.annulerModifications")}
+            {/* « Réinitialiser » ramène le brouillon aux valeurs par défaut du
+                produit ; c'est l'enregistrement qui les applique. Rien n'est
+                écrit en base tant que la personne n'a pas confirmé. */}
+            <Button className="chip-btn" onPress={() => setBrouillon({ ...brouillon, ...DEFAUTS })}>
+              {t("parametres.reinitialiser")}
             </Button>
             <Button
               className="btn btn-primary"
@@ -124,10 +139,23 @@ export function Parametres() {
           et une alerte fugace n'y survivrait pas. */}
       {modifie ? (
         <div className="dirty-bar" role="status">
-          <span>
+          <span aria-hidden="true" className="dirty-mark">
+            !
+          </span>
+          <span className="bloc-etroit">
             <span className="dirty-t">{t("parametres.modificationsNonEnregistrees")}</span>
             <span className="dirty-d">{t("parametres.modificationsAide")}</span>
           </span>
+          <Button className="chip-btn" onPress={() => setBrouillon(enregistre)}>
+            {t("parametres.annulerModifications")}
+          </Button>
+          <Button
+            className="btn btn-primary"
+            isPending={enregistrement.isPending}
+            onPress={() => enregistrement.mutate()}
+          >
+            {t("parametres.enregistrer")}
+          </Button>
         </div>
       ) : null}
 
@@ -161,80 +189,190 @@ type Acces = {
   ecrire: (cle: string, valeur: string) => void;
 };
 
+/**
+ * L'aperçu, appliqué en direct au **brouillon**.
+ *
+ * Il ne passe pas par `formats.ts` : celui-ci lit les réglages *enregistrés*,
+ * et l'aperçu doit montrer ce que produirait le brouillon — sans quoi il
+ * afficherait l'ancien réglage jusqu'à l'enregistrement, c'est-à-dire
+ * exactement l'inverse de ce qu'on lui demande.
+ */
+function Apercu({
+  formatDate,
+  formatHeure,
+  region,
+  premierJour,
+}: {
+  formatDate: string;
+  formatHeure: string;
+  region: string;
+  premierJour: string;
+}) {
+  const { t } = useTranslation("administration");
+  const d = new Date(Date.UTC(2026, 11, 31));
+
+  const date = new Intl.DateTimeFormat(region, {
+    ...(formatDate === "AAAA-MM-JJ" || formatDate === "MM/JJ/AAAA"
+      ? { day: "2-digit" as const, month: "2-digit" as const, year: "numeric" as const }
+      : (OPTIONS_APERCU[formatDate] ?? OPTIONS_APERCU["JJ/MM/AAAA"]!)),
+    timeZone: "UTC",
+  }).format(d);
+  const dateFinale =
+    formatDate === "AAAA-MM-JJ" ? "2026-12-31" : formatDate === "MM/JJ/AAAA" ? "12/31/2026" : date;
+
+  const heure =
+    formatHeure === "24h-secondes" ? "14:30:45" : formatHeure === "12h" ? "02:30 PM" : "14:30";
+
+  const lignes: [string, string][] = [
+    [t("parametres.apercuEcheance"), dateFinale],
+    [t("parametres.apercuHoraire"), `${heure} → 16:00`],
+    [t("parametres.apercuConge"), t("parametres.apercuDuAu", { debut: dateFinale, fin: dateFinale })],
+    [t("parametres.apercuEnTete"), t(`parametres.ordreSemaine_${premierJour}`)],
+    [t("parametres.apercuAudit"), `${dateFinale} · ${heure}`],
+  ];
+
+  return (
+    <section className="panel">
+      <div className="panel-head">
+        <span className="panel-title">{t("parametres.apercu")}</span>
+        <span className="eyebrow">{t("parametres.appliqueEnDirect")}</span>
+      </div>
+      <div className="panel-body">
+        <div className="preview-box">
+          <dl className="preview-l">
+            {lignes.map(([cle, valeur]) => (
+              <Fragment key={cle}>
+                <dt>{cle}</dt>
+                <dd>{valeur}</dd>
+              </Fragment>
+            ))}
+          </dl>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+const OPTIONS_APERCU: Record<string, Intl.DateTimeFormatOptions> = {
+  "JJ/MM/AAAA": { day: "2-digit", month: "2-digit", year: "numeric" },
+  "J Mois AAAA": { day: "numeric", month: "long", year: "numeric" },
+  "Jour J Mois AAAA": { weekday: "long", day: "numeric", month: "long", year: "numeric" },
+};
+
 /** Chaque format se choisit sur un exemple, pas sur son code. */
 function Affichage({ lire, ecrire }: Acces) {
   const { t } = useTranslation("administration");
   const formatDate = lire("display.dateFormat", "JJ/MM/AAAA");
   const formatHeure = lire("display.timeFormat", "24h");
+  const region = lire("display.locale", "fr-FR");
   const premierJour = lire("display.firstDayOfWeek", "1");
 
   return (
-    <>
-      <section className="panel panel-espace">
-        <div className="panel-head">
-          <span className="panel-title">{t("parametres.formatDate")}</span>
-        </div>
-        <div className="panel-body">
-          <div className="opt-list" role="radiogroup" aria-label={t("parametres.formatDate")}>
-            {FORMATS_DATE.map((f) => (
-              <Button
-                key={f.cle}
-                className="opt"
-                aria-pressed={formatDate === f.cle}
-                onPress={() => ecrire("display.dateFormat", f.cle)}
-              >
-                <span className="opt-mark" aria-hidden="true" />
-                <span className="opt-n">{f.cle}</span>
-                {/* L'exemple est ce qu'on lit ; le code ne dit rien. */}
-                <span className="opt-ex">{f.exemple}</span>
-              </Button>
-            ))}
+    <div className="two-col">
+      <div>
+        <section className="panel panel-espace">
+          <div className="panel-head">
+            <span className="panel-title">{t("parametres.formatDate")}</span>
           </div>
-        </div>
-      </section>
+          <div className="panel-body">
+            <div className="opt-list" role="radiogroup" aria-label={t("parametres.formatDate")}>
+              {FORMATS_DATE.map((f) => (
+                <Button
+                  key={f.cle}
+                  className="opt"
+                  aria-pressed={formatDate === f.cle}
+                  onPress={() => ecrire("display.dateFormat", f.cle)}
+                >
+                  <span className="opt-mark" aria-hidden="true" />
+                  <span className="opt-n">{f.cle}</span>
+                  {/* L'exemple est ce qu'on lit ; le code ne dit rien. */}
+                  <span className="opt-ex">{f.exemple}</span>
+                </Button>
+              ))}
+            </div>
+          </div>
+        </section>
 
-      <section className="panel panel-espace">
-        <div className="panel-head">
-          <span className="panel-title">{t("parametres.formatHeure")}</span>
-        </div>
-        <div className="panel-body">
-          <div className="opt-list" role="radiogroup" aria-label={t("parametres.formatHeure")}>
-            {FORMATS_HEURE.map((f) => (
-              <Button
-                key={f.cle}
-                className="opt"
-                aria-pressed={formatHeure === f.cle}
-                onPress={() => ecrire("display.timeFormat", f.cle)}
-              >
-                <span className="opt-mark" aria-hidden="true" />
-                <span className="opt-n">{t(`parametres.heure_${f.cle}`)}</span>
-                <span className="opt-ex">{f.exemple}</span>
-              </Button>
-            ))}
+        <section className="panel panel-espace">
+          <div className="panel-head">
+            <span className="panel-title">{t("parametres.formatHeure")}</span>
           </div>
-        </div>
-      </section>
+          <div className="panel-body">
+            <div className="opt-list" role="radiogroup" aria-label={t("parametres.formatHeure")}>
+              {FORMATS_HEURE.map((f) => (
+                <Button
+                  key={f.cle}
+                  className="opt"
+                  aria-pressed={formatHeure === f.cle}
+                  onPress={() => ecrire("display.timeFormat", f.cle)}
+                >
+                  <span className="opt-mark" aria-hidden="true" />
+                  <span className="opt-n">{t(`parametres.heure_${f.cle}`)}</span>
+                  <span className="opt-ex">{f.exemple}</span>
+                </Button>
+              ))}
+            </div>
+          </div>
+        </section>
+      </div>
 
-      <section className="panel">
-        <div className="panel-head">
-          <span className="panel-title">{t("parametres.premierJour")}</span>
-        </div>
-        <div className="panel-body">
-          <div className="days-row" role="radiogroup" aria-label={t("parametres.premierJour")}>
-            {[1, 0].map((j) => (
-              <Button
-                key={j}
-                className="day-opt"
-                aria-pressed={premierJour === String(j)}
-                onPress={() => ecrire("display.firstDayOfWeek", String(j))}
-              >
-                <span className="day-n">{t(`jours.long.${j}`)}</span>
-              </Button>
-            ))}
+      <div>
+        <section className="panel panel-espace">
+          <div className="panel-head">
+            <span className="panel-title">{t("parametres.langueEtRegion")}</span>
           </div>
-        </div>
-      </section>
-    </>
+          <div className="panel-body">
+            <div className="opt-list" role="radiogroup" aria-label={t("parametres.langueEtRegion")}>
+              {REGIONS.map((r) => (
+                <Button
+                  key={r.cle}
+                  className="opt"
+                  aria-pressed={region === r.cle}
+                  onPress={() => ecrire("display.locale", r.cle)}
+                >
+                  <span className="opt-mark" aria-hidden="true" />
+                  <span className="opt-n">{t(`parametres.region_${r.cle}`)}</span>
+                  <span className="opt-ex">{r.exemple}</span>
+                </Button>
+              ))}
+            </div>
+            <p className="field-hint">{t("parametres.langueEtRegionAide")}</p>
+          </div>
+        </section>
+
+        <section className="panel panel-espace">
+          <div className="panel-head">
+            <span className="panel-title">{t("parametres.premierJour")}</span>
+          </div>
+          <div className="panel-body">
+            <div className="opt-list" role="radiogroup" aria-label={t("parametres.premierJour")}>
+              {[1, 0].map((j) => (
+                <Button
+                  key={j}
+                  className="opt"
+                  aria-pressed={premierJour === String(j)}
+                  onPress={() => ecrire("display.firstDayOfWeek", String(j))}
+                >
+                  <span className="opt-mark" aria-hidden="true" />
+                  <span className="opt-n">{t(`jours.long.${j}`)}</span>
+                  <span className="opt-ex">{t(`parametres.ordreSemaine_${j}`)}</span>
+                </Button>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* L'exemple en direct porte sur des cas réels du produit, pas sur une
+            date abstraite : c'est ce qui permet de vérifier qu'un réglage
+            **s'applique**, et pas seulement qu'il s'enregistre. */}
+        <Apercu
+          formatDate={formatDate}
+          formatHeure={formatHeure}
+          region={region}
+          premierJour={premierJour}
+        />
+      </div>
+    </div>
   );
 }
 

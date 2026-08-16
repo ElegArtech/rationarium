@@ -58,40 +58,12 @@
   opacity: 0.62;
 }
 
-/* Onglets de la fiche */
-.tabbar {
-  display: flex;
-  gap: 2px;
-  border-bottom: 1px solid var(--line);
-  margin-bottom: 18px;
-  overflow-x: auto;
-}
-.tabbar a {
-  padding: 9px 14px;
-  font-size: 13px;
-  color: var(--muted);
-  text-decoration: none;
-  border-bottom: 2px solid transparent;
-  margin-bottom: -1px;
-  white-space: nowrap;
-}
-.tabbar a:hover {
-  color: var(--ink);
-}
-.tabbar a.is-active {
-  color: var(--accent);
-  border-bottom-color: var(--accent);
-  font-weight: 600;
-}
-.tabbar .n {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  color: var(--muted);
-  margin-left: 5px;
-}
-.tabbar a.is-active .n {
-  color: var(--accent);
-}
+/*
+ * Les onglets ont déménagé dans `composants/partages.css` : la vue 30 les
+ * emploie aussi, et les laisser ici obligeait à les redéfinir — donc à les
+ * faire diverger. Même motif que la correction du 2026-08-16 en
+ * `DESIGN.md § 4`. `Fiche.tsx` importe déjà la feuille transverse.
+ */
 
 /* Indicateurs — le calcul est signalé, la valeur n'est pas saisissable */
 .kpi-head {
@@ -201,18 +173,7 @@
   color: var(--st-blocked);
 }
 
-.two-col {
-  display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
-  gap: 16px;
-  align-items: start;
-  margin-top: 16px;
-}
-@media (max-width: 1100px) {
-  .two-col {
-    grid-template-columns: 1fr;
-  }
-}
+/* `.two-col` a rejoint `composants/partages.css` : la vue 30 l'emploie aussi. */
 
 /* Suppression définitive */
 .danger-box {
