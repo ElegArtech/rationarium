@@ -4,7 +4,7 @@ Forme opérationnelle du § 5 de `cadrage/04`. C'est le document qu'on ouvre pou
 
 > **Sans DAG, la parallélisation est un pari ; avec, c'est une lecture.**
 
-**État au 2026-08-16** — vagues 0, 1, 2 closes · vague 3 : L-10, L-11 livrés. Vague 1 ouvrable dès la clôture de la vague 0 : l'arbitrage bloquant B1 est rendu, les prérequis T1 à T6 sont levés.
+**État au 2026-08-16** — vagues 0, 1, 2 closes · vague 3 : L-10 à L-13 livrés. Vague 1 ouvrable dès la clôture de la vague 0 : l'arbitrage bloquant B1 est rendu, les prérequis T1 à T6 sont levés.
 
 ---
 
@@ -69,8 +69,8 @@ Séquentiel, en pair. Aucune délégation : c'est le harnais qui rend la délég
 | --- | --- | --- | --- | --- | --- | --- |
 | ~~**L-10**~~ | Projets, jalons, épopées, équipe, feuille de route | M4, M5 | 10, 11, 13, 14 | Moyenne | L-07 | **livré** |
 | ~~**L-11**~~ | Tâches, sous-tâches, dépendances, RACI, kanban, cascade de dates | M6 | 12, 16, 17 | **Haute** | L-10 | **livré** |
-| **L-12** | Tiers et clients | M14 | 23–26 | Basse | L-07 | délégation large |
-| **L-13** | Compétences : référentiel, matrice, écarts | M13 | 22 | Basse | L-07 | délégation large |
+| ~~**L-12**~~ | Tiers et clients | M14 | 23–26 | Basse | L-07 | **livré** |
+| ~~**L-13**~~ | Compétences : référentiel, matrice, écarts | M13 | 22 | Basse | L-07 | **livré** |
 | **L-14** | Événements et récurrences | M9 | 18 | Moyenne | L-07, L-09 | délégation |
 | **L-15** | Congés : cycle de vie, validation, délégations, soldes, types | M10 | 19 | **Haute** | L-07, L-09 | pair |
 | **L-16** | Télétravail : déclaration, règles récurrentes, vue équipe | M11 | 20 | Moyenne | L-07 | délégation |
