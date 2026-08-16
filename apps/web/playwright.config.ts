@@ -27,16 +27,24 @@ export default defineConfig({
     locale: "fr-FR",
   },
   /**
-   * L'application est servie par Vite pour les tests qui l'exercent.
-   * Les contrôles a11y de la vague 0 portent sur les maquettes gelées, lues
-   * depuis le disque : ils n'ont pas besoin du serveur, mais le partager ne
-   * leur coûte rien.
+   * L'application est servie **construite**, pas en développement.
+   *
+   * Le serveur de développement transforme les modules à la demande. Sous onze
+   * ouvriers en parallèle et à froid, les dernières vues chargées dépassaient
+   * cinq secondes et quatre tests tombaient — de façon parfaitement
+   * reproductible, mais seulement au premier lancement après un redémarrage.
+   * Un échec qui n'arrive qu'une fois sur trois est pire qu'un échec franc :
+   * il apprend à relancer plutôt qu'à chercher.
+   *
+   * Servir le lot de construction supprime la classe entière du problème, et
+   * teste au passage l'artefact que les utilisateurs recevront — pas une
+   * version transformée à la volée.
    */
   webServer: {
-    command: "pnpm dev --port 4173 --strictPort",
+    command: "pnpm build && pnpm exec vite preview --port 4173 --strictPort",
     url: "http://localhost:4173",
     reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
+    timeout: 180_000,
   },
   projects: [
     { name: "a11y", testMatch: /.*\.a11y\.spec\.ts/ },

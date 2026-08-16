@@ -38,6 +38,9 @@ import { Temps } from "../vues/occupations/Temps.js";
 import { Competences } from "../vues/referentiels/Competences.js";
 import { Tiers, FicheTiers } from "../vues/referentiels/Tiers.js";
 import { Clients, FicheClient } from "../vues/referentiels/Clients.js";
+import { Utilisateurs } from "../vues/administration/Utilisateurs.js";
+import { SuiviIndividuel } from "../vues/administration/Suivi.js";
+import { Organisation } from "../vues/administration/Organisation.js";
 
 /**
  * L'arborescence des routes.
@@ -400,6 +403,29 @@ const routeClientFiche = createRoute({
   },
 });
 
+// ── Administration — vues 27, 28, 29 (L-36) ─────────────────────────────────
+
+const routeUtilisateurs = createRoute({
+  getParentRoute: () => routeApplication,
+  path: "/utilisateurs",
+  component: Utilisateurs,
+});
+
+const routeSuivi = createRoute({
+  getParentRoute: () => routeApplication,
+  path: "/utilisateurs/$id/suivi",
+  component: function PageSuivi() {
+    const { id } = useParams({ from: "/application/utilisateurs/$id/suivi" });
+    return <SuiviIndividuel userId={id} />;
+  },
+});
+
+const routeOrganisation = createRoute({
+  getParentRoute: () => routeApplication,
+  path: "/departements",
+  component: Organisation,
+});
+
 const arbre = racine.addChildren([
   routeConnexion,
   routeInscription,
@@ -425,6 +451,9 @@ const arbre = racine.addChildren([
     routeTiersFiche,
     routeClients,
     routeClientFiche,
+    routeUtilisateurs,
+    routeSuivi,
+    routeOrganisation,
   ]),
 ]);
 

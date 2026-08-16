@@ -36,6 +36,20 @@ export class UtilisateursController {
     return this.utilisateurs.presenceDuJour(d.perimetre, j);
   }
 
+  /**
+   * `EX-USR-07` — le suivi individuel. Vue 28.
+   *
+   * Sa permission est **distincte** de la lecture de l'annuaire : voir la
+   * liste des agents et voir tout ce qu'une personne a fait ne sont pas le
+   * même droit.
+   */
+  @Get(":id/suivi")
+  @RequiertPermission("users:read_individual_tracking")
+  suivi(@Param("id") id: string, @Query() requete: unknown) {
+    const q = valider(z.object({ debut: dateSchema, fin: dateSchema }), requete);
+    return this.utilisateurs.suiviIndividuel(id, q);
+  }
+
   @Post()
   @RequiertPermission("users:create")
   creer(@Body() corps: unknown, @Demande() d: ContexteDemande) {

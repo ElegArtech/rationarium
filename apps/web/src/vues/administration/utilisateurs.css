@@ -1,0 +1,47 @@
+/*
+ * Vue 27 — Utilisateurs. Section 31 des maquettes, reprise verbatim.
+ *
+ * Deux suppressions coexistent — désactivation réversible et suppression
+ * définitive — et elles doivent être impossibles à confondre.
+ */
+
+.us-grid{ display:grid; grid-template-columns:minmax(0,1.1fr) 208px 156px minmax(0,1fr) 112px 150px; gap:13px; }
+.us-head{ padding:9px 14px; background:var(--surface-2); border-bottom:1px solid var(--line-strong); }
+.us-head span{ font-family:var(--font-mono); font-size:8.5px; font-weight:500; letter-spacing:.12em;
+  text-transform:uppercase; color:var(--muted); }
+.us-row{ padding:10px 14px; border-bottom:1px solid var(--line); align-items:center; }
+.us-row:last-child{ border-bottom:none; }
+.us-row:hover{ background:var(--surface-2); }
+/* L'opacité ne sert jamais à atténuer du texte (`DESIGN.md § 4`) : elle fait
+   tomber le contraste sous le seuil AA. Le fond porte l'état, la pastille de
+   statut le dit en mots. */
+.us-row.is-off{ background:var(--surface-2); }
+.us-row.is-me{ background:color-mix(in srgb, var(--accent) 4%, var(--surface)); }
+
+.us-who{ display:flex; align-items:center; gap:9px; min-width:0; }
+.us-n{ font-size:13px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.us-me{ font-family:var(--font-mono); font-size:8px; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--accent); border:1px solid currentColor; border-radius:2px; padding:1px 4px; margin-left:6px; }
+.us-mail{ font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.us-login{ display:block; font-family:var(--font-mono); font-size:9.5px; color:var(--muted); margin-top:3px; }
+.us-org{ font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.us-svc{ display:block; font-family:var(--font-mono); font-size:9px; color:var(--muted); margin-top:3px;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+/* Le menu sépare les actions courantes des actions destructrices */
+.menu-sep{ border-top:1px solid var(--line); margin-top:4px; padding-top:4px; }
+.pop-action.is-danger{ color:var(--st-blocked); }
+.pop-action[aria-disabled="true"]{ color:var(--muted); cursor:not-allowed; }
+.pop-why{ display:block; font-family:var(--font-mono); font-size:8.5px; color:var(--muted); margin-top:3px; }
+
+/* Séquence de suppression définitive */
+.seq{ display:flex; flex-direction:column; gap:11px; }
+.seq-step{ display:flex; gap:11px; align-items:flex-start; }
+.seq-mark{ width:20px; height:20px; border-radius:50%; border:1px solid var(--line-strong);
+  display:flex; align-items:center; justify-content:center; font-family:var(--font-mono);
+  font-size:9px; color:var(--muted); flex:none; }
+.seq-mark.is-on{ border-color:var(--accent); color:var(--accent); }
+.seq-mark.is-ok{ background:var(--st-done); border-color:var(--st-done); color:var(--on-status); }
+.seq-mark.is-ko{ background:var(--st-blocked); border-color:var(--st-blocked); color:var(--on-status); }
+.seq-t{ font-size:12.5px; font-weight:600; }
+.seq-d{ display:block; font-size:11.5px; color:var(--muted); margin-top:3px; line-height:1.5; }
