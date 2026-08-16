@@ -68,5 +68,6 @@
   "limiteTodos": "Vous avez atteint la limite de to-dos. Terminez-en ou supprimez-en une pour en ajouter.",
   "colonnesManquantes": "Le fichier ne contient pas toutes les colonnes obligatoires.",
   "fichierIllisible": "Le fichier n'a pas pu être lu. Vérifiez qu'il s'agit bien d'un CSV.",
-  "remplacementImpossible": "Des données rattachées au projet empêchent le remplacement."
+  "remplacementImpossible": "Des données rattachées au projet empêchent le remplacement.",
+  "membreIntrouvable": "Cette personne n'est pas membre de l'équipe."
 }

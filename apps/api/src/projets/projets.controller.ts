@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post, Query } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from "@nestjs/common";
 import { z } from "zod";
 import { enumDe, STATUTS_PROJET, PRIORITES } from "@trame/contracts";
 import { ProjetsService } from "./projets.service.js";
@@ -125,6 +125,32 @@ export class ProjetsController {
       corps,
     );
     return this.projets.ajouterMembre(id, donnees, d.userId);
+  }
+
+  /**
+   * `EX-PRJ-09` — changer le rôle ou l'allocation d'un membre en place.
+   *
+   * Sans ce point d'entrée, la seule façon de corriger un rôle était de
+   * retirer la personne puis de la rajouter : un lien rompu pour être refait,
+   * avec sa notification d'ajout. La vue 14 pose pourtant un sélecteur de rôle
+   * sur chaque ligne.
+   */
+  @Patch(":id/membres/:userId")
+  @RequiertPermission("projects:manage_members")
+  changerRoleMembre(
+    @Param("id") id: string,
+    @Param("userId") userId: string,
+    @Body() corps: unknown,
+    @Demande() d: ContexteDemande,
+  ) {
+    const donnees = valider(
+      z.object({
+        roleProjet: z.string().min(1).max(60).optional(),
+        tauxAllocation: z.number().min(0).max(100).nullable().optional(),
+      }),
+      corps,
+    );
+    return this.projets.changerRoleMembre(id, userId, donnees, d.userId);
   }
 
   @Delete(":id/membres/:userId")

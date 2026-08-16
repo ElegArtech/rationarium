@@ -25,6 +25,7 @@ export type EchecProjet =
   | "deja_archive"
   | "pas_archive"
   | "membre_en_double"
+  | "membre_introuvable"
   | "suppression_bloquee"
   | "jalon_autre_projet"
   | "introuvable"
@@ -38,6 +39,27 @@ export class ErreurProjet extends Error {
     super(code);
   }
 }
+
+/**
+ * Ce qu'une tâche montre sur la feuille de route — vue 13.
+ *
+ * Les assignés et l'estimation viennent de la maquette : elle pose une pile
+ * d'avatars et une charge sur chaque ligne. Sans eux, la feuille de route dit
+ * *quoi* et *quand*, jamais *qui* ni *combien* — et c'est précisément ce qu'on
+ * regarde pour savoir si un jalon tiendra.
+ */
+const SELECTION_TACHE_JALON = {
+  id: true,
+  titre: true,
+  statut: true,
+  priorite: true,
+  avancement: true,
+  dateFin: true,
+  estimationHeures: true,
+  assignes: {
+    select: { user: { select: { id: true, prenom: true, nom: true } } },
+  },
+} as const;
 
 @Injectable()
 export class ProjetsService {
@@ -428,6 +450,57 @@ export class ProjetsService {
     return membre;
   }
 
+  /**
+   * `EX-PRJ-09` — **changer le rôle ou l'allocation d'un membre déjà en place.**
+   *
+   * Le point d'entrée manquait, et son absence se voyait à l'écran : la
+   * maquette de la vue 14 place un sélecteur de rôle sur chaque ligne
+   * d'équipe, avec dix-sept intitulés. Sans lui, changer le rôle de quelqu'un
+   * imposait de le retirer puis de le rajouter — c'est-à-dire de rompre un
+   * lien pour en refaire un, avec la notification d'ajout qui va avec.
+   *
+   * Trouvé par la boucle de conformité de rendu, pas par un test : le
+   * comparateur signalait `mini-select` absente de la vue, et la cause était
+   * en amont.
+   *
+   * `RG-GEN-07` — la concurrence se détecte. Le membre porte la version du
+   * projet : deux personnes qui changent le même rôle en même temps ne
+   * s'écrasent pas en silence.
+   */
+  async changerRoleMembre(
+    projectId: string,
+    userId: string,
+    donnees: { roleProjet?: string; tauxAllocation?: number | null },
+    acteurId: string,
+  ) {
+    await this.refuserSiAnnule(projectId);
+    const membre = await this.prisma.projectMember.findUnique({
+      where: { projectId_userId: { projectId, userId } },
+    });
+    if (!membre) throw new ErreurProjet("membre_introuvable");
+
+    const modifie = await this.prisma.projectMember.update({
+      where: { projectId_userId: { projectId, userId } },
+      data: {
+        ...(donnees.roleProjet !== undefined ? { roleProjet: donnees.roleProjet } : {}),
+        ...(donnees.tauxAllocation !== undefined ? { tauxAllocation: donnees.tauxAllocation } : {}),
+      },
+    });
+
+    await this.audit.tracer({
+      action: "project.member_update",
+      typeEntite: "Project",
+      entiteId: projectId,
+      acteurId,
+      detail: {
+        userId,
+        avant: { role: membre.roleProjet, taux: membre.tauxAllocation },
+        apres: { role: modifie.roleProjet, taux: modifie.tauxAllocation },
+      },
+    });
+    return modifie;
+  }
+
   // ── Jalons — M5, vue 13 ──────────────────────────────────────────────────
 
   /**
@@ -498,7 +571,7 @@ export class ProjetsService {
       orderBy: { dateEcheance: "asc" },
       include: {
         taches: {
-          select: { id: true, titre: true, statut: true, avancement: true, dateFin: true },
+          select: SELECTION_TACHE_JALON,
           orderBy: { dateFin: "asc" },
         },
       },
@@ -508,13 +581,30 @@ export class ProjetsService {
       jalons.map(async (j) => ({ ...j, statut: await this.statutJalon(j.id) })),
     );
 
+    /*
+     * **Les tâches sans jalon, nommées plutôt que tues.**
+     *
+     * `RG-JAL-05` détache les tâches d'un jalon supprimé sans les supprimer :
+     * elles existent donc, et la feuille de route ne les montrait nulle part.
+     * La maquette de la vue 13 leur réserve un bloc — une tâche qui n'est
+     * rattachée à rien est précisément celle qu'on oublie, et c'est pour ça
+     * qu'elle est écrite.
+     */
+    const sansJalon = await this.prisma.task.findMany({
+      where: { projectId, milestoneId: null },
+      select: SELECTION_TACHE_JALON,
+      orderBy: [{ dateFin: "asc" }, { titre: "asc" }],
+    });
+
     return {
       jalons: avecStatut,
+      sansJalon,
       indicateurs: {
         total: avecStatut.length,
         termines: avecStatut.filter((j) => j.statut === "done").length,
         enCours: avecStatut.filter((j) => j.statut === "doing").length,
-        taches: avecStatut.reduce((n, j) => n + j.taches.length, 0),
+        taches: avecStatut.reduce((n, j) => n + j.taches.length, 0) + sansJalon.length,
+        sansJalon: sansJalon.length,
       },
     };
   }
