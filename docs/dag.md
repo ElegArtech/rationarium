@@ -4,7 +4,7 @@ Forme opérationnelle du § 5 de `cadrage/04`. C'est le document qu'on ouvre pou
 
 > **Sans DAG, la parallélisation est un pari ; avec, c'est une lecture.**
 
-**État au 2026-08-16** — vagues 0, 1, 2 closes · vague 3 : L-10 à L-17 livrés. Vague 1 ouvrable dès la clôture de la vague 0 : l'arbitrage bloquant B1 est rendu, les prérequis T1 à T6 sont levés.
+**État au 2026-08-16** — **vagues 0 à 3 closes** (L-00 à L-19). Vague 4 ouvrable. Vague 1 ouvrable dès la clôture de la vague 0 : l'arbitrage bloquant B1 est rendu, les prérequis T1 à T6 sont levés.
 
 ---
 
@@ -75,10 +75,10 @@ Séquentiel, en pair. Aucune délégation : c'est le harnais qui rend la délég
 | ~~**L-15**~~ | Congés : cycle de vie, validation, délégations, soldes, types | M10 | 19 | **Haute** | L-07, L-09 | **livré** |
 | ~~**L-16**~~ | Télétravail : déclaration, règles récurrentes, vue équipe | M11 | 20 | Moyenne | L-07 | **livré** |
 | ~~**L-17**~~ | Activité récurrente : catalogue, assignations, récurrences | M8 | 34 | Moyenne | L-07, L-09 | **livré** |
-| **L-18** | Temps passé : saisie, plafond, rapports, saisie pour tiers | M12 | 21 | Moyenne | L-10, L-11 | délégation |
-| **L-19** | Documents et commentaires, avec traçage des accès | M15 | — | Moyenne | L-10, L-11 | délégation |
+| ~~**L-18**~~ | Temps passé : saisie, plafond, rapports, saisie pour tiers | M12 | 21 | Moyenne | L-10, L-11 | **livré** |
+| ~~**L-19**~~ | Documents et commentaires, avec traçage des accès | M15 | — | Moyenne | L-10, L-11 | **livré** |
 
-**Ordre lisible** : `L-10` puis `L-11` ; `L-12`, `L-13`, `L-14`, `L-15`, `L-16`, `L-17` sont mutuellement indépendants ; `L-18` et `L-19` ferment la vague.
+**Ordre lisible** : `L-10` puis `L-11` ; `L-12`, `L-13`, `L-14`, `L-15`, `L-16`, `L-17` sont mutuellement indépendants ; `L-18` et `L-19` ferment la vague. **Vague close.**
 
 **Étanchéité** : deux lots d'une même vague ne modifient jamais les mêmes fichiers. Le schéma de base est hors de portée — tenu par un hook.
 
