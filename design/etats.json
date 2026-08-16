@@ -1,0 +1,2334 @@
+{
+  "10": {
+    "fichier": "mockups/10-portefeuille-projets.html",
+    "titre": "Portefeuille de projets (Vue 10)",
+    "axes": [
+      {
+        "axe": "Contenu",
+        "options": [
+          {
+            "pilote": "setData('full')",
+            "libelle": "Nominal"
+          },
+          {
+            "pilote": "setData('void')",
+            "libelle": "Aucun projet"
+          }
+        ],
+        "note": "« Rien n'existe » et « rien ne correspond » n'ont pas la même sortie."
+      },
+      {
+        "axe": "Fenêtre de création",
+        "options": [
+          {
+            "pilote": "openCreate()",
+            "libelle": "Ouvrir"
+          },
+          {
+            "pilote": "openCreate(); setTimeout(submitCreate,60)",
+            "libelle": "Champs manquants"
+          }
+        ]
+      },
+      {
+        "axe": "Thème",
+        "options": [
+          {
+            "pilote": "document.documentElement.classList.remove(dark)",
+            "libelle": "Clair"
+          },
+          {
+            "pilote": "toggleTheme()",
+            "libelle": "Sombre"
+          }
+        ]
+      },
+      {
+        "axe": "Langue",
+        "options": [
+          {
+            "pilote": "setLang(fr)",
+            "libelle": "Français"
+          },
+          {
+            "pilote": "setLang(en)",
+            "libelle": "English"
+          }
+        ]
+      }
+    ]
+  },
+  "11": {
+    "fichier": "mockups/11-projet-vue-ensemble.html",
+    "titre": "Projet, vue d'ensemble (Vue 11)",
+    "axes": [
+      {
+        "axe": "État d'existence",
+        "options": [
+          {
+            "pilote": "setLife('active')",
+            "libelle": "Actif"
+          },
+          {
+            "pilote": "setLife('archived')",
+            "libelle": "Archivé"
+          },
+          {
+            "pilote": "setLife('cancelled')",
+            "libelle": "Annulé"
+          }
+        ],
+        "note": "Les trois états bloquent la modification différemment."
+      },
+      {
+        "axe": "Suppression définitive",
+        "options": [
+          {
+            "pilote": "canDelete=true;openDelete()",
+            "libelle": "Possible"
+          },
+          {
+            "pilote": "canDelete=false;openDelete()",
+            "libelle": "Refusée"
+          }
+        ]
+      },
+      {
+        "axe": "Champs optionnels",
+        "options": [
+          {
+            "pilote": "setFilled(true)",
+            "libelle": "Renseignés"
+          },
+          {
+            "pilote": "setFilled(false)",
+            "libelle": "Vides"
+          }
+        ]
+      },
+      {
+        "axe": "Thème",
+        "options": [
+          {
+            "pilote": "document.documentElement.classList.remove(dark)",
+            "libelle": "Clair"
+          },
+          {
+            "pilote": "toggleTheme()",
+            "libelle": "Sombre"
+          }
+        ]
+      },
+      {
+        "axe": "Langue",
+        "options": [
+          {
+            "pilote": "setLang(fr)",
+            "libelle": "Français"
+          },
+          {
+            "pilote": "setLang(en)",
+            "libelle": "English"
+          }
+        ]
+      }
+    ]
+  },
+  "12": {
+    "fichier": "mockups/12-projet-taches-kanban.html",
+    "titre": "Projet, tâches (Vue 12)",
+    "axes": [
+      {
+        "axe": "Déplacement",
+        "options": [
+          {
+            "pilote": "setFail(false)",
+            "libelle": "Réussi"
+          },
+          {
+            "pilote": "setFail(true)",
+            "libelle": "En échec"
+          }
+        ],
+        "note": "En échec, la carte revient à sa place d'origine."
+      },
+      {
+        "axe": "Import projet",
+        "options": [
+          {
+            "pilote": "setBlocked(false)",
+            "libelle": "Remplacement possible"
+          },
+          {
+            "pilote": "setBlocked(true)",
+            "libelle": "Impossible"
+          }
+        ]
+      },
+      {
+        "axe": "Contenu",
+        "options": [
+          {
+            "pilote": "setData(true)",
+            "libelle": "Nominal"
+          },
+          {
+            "pilote": "setData(false)",
+            "libelle": "Colonnes vides"
+          }
+        ]
+      },
+      {
+        "axe": "Thème",
+        "options": [
+          {
+            "pilote": "document.documentElement.classList.remove(dark)",
+            "libelle": "Clair"
+          },
+          {
+            "pilote": "toggleTheme()",
+            "libelle": "Sombre"
+          }
+        ]
+      },
+      {
+        "axe": "Langue",
+        "options": [
+          {
+            "pilote": "setLang(fr)",
+            "libelle": "Français"
+          },
+          {
+            "pilote": "setLang(en)",
+            "libelle": "English"
+          }
+        ]
+      }
+    ]
+  },
+  "13": {
+    "fichier": "mockups/13-projet-jalons.html",
+    "titre": "Projet, jalons (Vue 13)",
+    "axes": [
+      {
+        "axe": "Contenu",
+        "options": [
+          {
+            "pilote": "setData(true)",
+            "libelle": "Nominal"
+          },
+          {
+            "pilote": "setData(false)",
+            "libelle": "Aucun jalon"
+          }
+        ]
+      },
+      {
+        "axe": "Fenêtre de jalon",
+        "options": [
+          {
+            "pilote": "openMs()",
+            "libelle": "Ouvrir"
+          },
+          {
+            "pilote": "openMs();setTimeout(saveMs,60)",
+            "libelle": "Nom manquant"
+          }
+        ]
+      },
+      {
+        "axe": "Chronologie",
+        "options": [
+          {
+            "pilote": "expandAll(true)",
+            "libelle": "Tout déplier"
+          },
+          {
+            "pilote": "expandAll(false)",
+            "libelle": "Tout replier"
+          }
+        ],
+        "note": "Le statut du jalon suit ses tâches, en direct."
+      },
+      {
+        "axe": "Thème",
+        "options": [
+          {
+            "pilote": "document.documentElement.classList.remove(dark)",
+            "libelle": "Clair"
+          },
+          {
+            "pilote": "toggleTheme()",
+            "libelle": "Sombre"
+          }
+        ]
+      },
+      {
+        "axe": "Langue",
+        "options": [
+          {
+            "pilote": "setLang(fr)",
+            "libelle": "Français"
+          },
+          {
+            "pilote": "setLang(en)",
+            "libelle": "English"
+          }
+        ]
+      }
+    ]
+  },
+  "14": {
+    "fichier": "mockups/14-projet-equipe.html",
+    "titre": "Projet, équipe (Vue 14)",
+    "axes": [
+      {
+        "axe": "Contenu",
+        "options": [
+          {
+            "pilote": "setData('full')",
+            "libelle": "Nominal"
+          },
+          {
+            "pilote": "setData('solo')",
+            "libelle": "Agents seuls"
+          },
+          {
+            "pilote": "setData('void')",
+            "libelle": "Aucun membre"
+          }
+        ]
+      },
+      {
+        "axe": "Fenêtre d'ajout",
+        "options": [
+          {
+            "pilote": "openAdd('agent')",
+            "libelle": "Ouvrir"
+          },
+          {
+            "pilote": "openAdd('agent');setTimeout(doAdd,60)",
+            "libelle": "Sans utilisateur"
+          },
+          {
+            "pilote": "demoDup()",
+            "libelle": "Doublon"
+          }
+        ],
+        "note": "Trois populations, trois formes de pastille."
+      },
+      {
+        "axe": "Thème",
+        "options": [
+          {
+            "pilote": "document.documentElement.classList.remove(dark)",
+            "libelle": "Clair"
+          },
+          {
+            "pilote": "toggleTheme()",
+            "libelle": "Sombre"
+          }
+        ]
+      },
+      {
+        "axe": "Langue",
+        "options": [
+          {
+            "pilote": "setLang(fr)",
+            "libelle": "Français"
+          },
+          {
+            "pilote": "setLang(en)",
+            "libelle": "English"
+          }
+        ]
+      }
+    ]
+  },
+  "15": {
+    "fichier": "mockups/15-projet-gantt.html",
+    "titre": "Projet, Gantt (Vue 15)",
+    "axes": [
+      {
+        "axe": "Contenu",
+        "options": [
+          {
+            "pilote": "setData(true)",
+            "libelle": "Nominal"
+          },
+          {
+            "pilote": "setData(false)",
+            "libelle": "Aucune date"
+          }
+        ]
+      },
+      {
+        "axe": "Essayez",
+        "options": [
+          {
+            "pilote": "select(6)",
+            "libelle": "Sélection"
+          },
+          {
+            "pilote": "openDeps(10)",
+            "libelle": "Dépendances"
+          }
+        ],
+        "note": "Faites glisser une barre : la cascade est proposée."
+      },
+      {
+        "axe": "Thème",
+        "options": [
+          {
+            "pilote": "document.documentElement.classList.remove(dark)",
+            "libelle": "Clair"
+          },
+          {
+            "pilote": "toggleTheme()",
+            "libelle": "Sombre"
+          }
+        ]
+      },
+      {
+        "axe": "Langue",
+        "options": [
+          {
+            "pilote": "setLang(fr)",
+            "libelle": "Français"
+          },
+          {
+            "pilote": "setLang(en)",
+            "libelle": "English"
+          }
+        ]
+      }
+    ]
+  },
+  "16": {
+    "fichier": "mockups/16-taches-globales.html",
+    "titre": "Tâches (Vue 16)",
+    "axes": [
+      {
+        "axe": "Contenu",
+        "options": [
+          {
+            "pilote": "setData(true)",
+            "libelle": "Nominal"
+          },
+          {
+            "pilote": "setData(false)",
+            "libelle": "Aucune tâche"
+          }
+        ]
+      },
+      {
+        "axe": "Fenêtre de création",
+        "options": [
+          {
+            "pilote": "openNew()",
+            "libelle": "Hors projet"
+          },
+          {
+            "pilote": "openNew('P')",
+            "libelle": "Projet doté"
+          },
+          {
+            "pilote": "openNew('D')",
+            "libelle": "Projet sans membre"
+          },
+          {
+            "pilote": "openNew();setTimeout(doCreate,60)",
+            "libelle": "Titre manquant"
+          }
+        ],
+        "note": "« Projet sans membre » change la liste d'assignés."
+      },
+      {
+        "axe": "Thème",
+        "options": [
+          {
+            "pilote": "document.documentElement.classList.remove(dark)",
+            "libelle": "Clair"
+          },
+          {
+            "pilote": "toggleTheme()",
+            "libelle": "Sombre"
+          }
+        ]
+      },
+      {
+        "axe": "Langue",
+        "options": [
+          {
+            "pilote": "setLang(fr)",
+            "libelle": "Français"
+          },
+          {
+            "pilote": "setLang(en)",
+            "libelle": "English"
+          }
+        ]
+      }
+    ]
+  },
+  "17": {
+    "fichier": "mockups/17-fiche-tache.html",
+    "titre": "Fiche tâche (Vue 17)",
+    "axes": [
+      {
+        "axe": "Contenu",
+        "options": [
+          {
+            "pilote": "setData(true)",
+            "libelle": "Nominal"
+          },
+          {
+            "pilote": "setData(false)",
+            "libelle": "Tout vide"
+          }
+        ]
+      },
+      {
+        "axe": "Suppression",
+        "options": [
+          {
+            "pilote": "canDel=false;openDel()",
+            "libelle": "Bloquée"
+          },
+          {
+            "pilote": "canDel=true;openDel()",
+            "libelle": "Possible"
+          }
+        ]
+      },
+      {
+        "axe": "Dépendances",
+        "options": [
+          {
+            "pilote": "openDeps()",
+            "libelle": "Modifier"
+          },
+          {
+            "pilote": "openDeps();setTimeout(function(){pickDep(99)},60)",
+            "libelle": "Circulaire"
+          }
+        ],
+        "note": "Les sous-tâches se réordonnent au glisser-déposer."
+      },
+      {
+        "axe": "Thème",
+        "options": [
+          {
+            "pilote": "document.documentElement.classList.remove(dark)",
+            "libelle": "Clair"
+          },
+          {
+            "pilote": "toggleTheme()",
+            "libelle": "Sombre"
+          }
+        ]
+      },
+      {
+        "axe": "Langue",
+        "options": [
+          {
+            "pilote": "setLang(fr)",
+            "libelle": "Français"
+          },
+          {
+            "pilote": "setLang(en)",
+            "libelle": "English"
+          }
+        ]
+      }
+    ]
+  },
+  "18": {
+    "fichier": "mockups/18-evenements.html",
+    "titre": "Événements (Vue 18)",
+    "axes": [
+      {
+        "axe": "Contenu",
+        "options": [
+          {
+            "pilote": "setData(true)",
+            "libelle": "Nominal"
+          },
+          {
+            "pilote": "setData(false)",
+            "libelle": "Aucun"
+          }
+        ]
+      },
+      {
+        "axe": "Récurrence",
+        "options": [
+          {
+            "pilote": "open18(0)",
+            "libelle": "Ouvrir une série"
+          },
+          {
+            "pilote": "openNew();document.getElementById('e-rec').checked=true;onRec();horizon()",
+            "libelle": "Horizon dépassé"
+          }
+        ],
+        "note": "Modifier une occurrence demande la portée avant d'agir."
+      },
+      {
+        "axe": "Thème",
+        "options": [
+          {
+            "pilote": "document.documentElement.classList.remove(dark)",
+            "libelle": "Clair"
+          },
+          {
+            "pilote": "toggleTheme()",
+            "libelle": "Sombre"
+          }
+        ]
+      },
+      {
+        "axe": "Langue",
+        "options": [
+          {
+            "pilote": "setLang(fr)",
+            "libelle": "Français"
+          },
+          {
+            "pilote": "setLang(en)",
+            "libelle": "English"
+          }
+        ]
+      }
+    ]
+  },
+  "19": {
+    "fichier": "mockups/19-conges.html",
+    "titre": "Congés (Vue 19)",
+    "axes": [
+      {
+        "axe": "Profil connecté",
+        "options": [
+          {
+            "pilote": "setRole('c')",
+            "libelle": "Camille"
+          },
+          {
+            "pilote": "setRole('f')",
+            "libelle": "Fatou"
+          },
+          {
+            "pilote": "setRole('h')",
+            "libelle": "Hugo"
+          }
+        ],
+        "note": "1 onglet, 4 onglets, 6 onglets."
+      },
+      {
+        "axe": "Cas de la demande",
+        "options": [
+          {
+            "pilote": "demo('ok')",
+            "libelle": "Nominal"
+          },
+          {
+            "pilote": "demo('over')",
+            "libelle": "Solde insuffisant"
+          },
+          {
+            "pilote": "demo('cross')",
+            "libelle": "À cheval sur 2 ans"
+          },
+          {
+            "pilote": "demo('overlap')",
+            "libelle": "Chevauchement"
+          },
+          {
+            "pilote": "demo('auto')",
+            "libelle": "Validation auto"
+          }
+        ]
+      },
+      {
+        "axe": "Thème",
+        "options": [
+          {
+            "pilote": "document.documentElement.classList.remove(dark)",
+            "libelle": "Clair"
+          },
+          {
+            "pilote": "toggleTheme()",
+            "libelle": "Sombre"
+          }
+        ]
+      },
+      {
+        "axe": "Langue",
+        "options": [
+          {
+            "pilote": "setLang(fr)",
+            "libelle": "Français"
+          },
+          {
+            "pilote": "setLang(en)",
+            "libelle": "English"
+          }
+        ]
+      }
+    ]
+  },
+  "20": {
+    "fichier": "mockups/20-teletravail.html",
+    "titre": "Télétravail (Vue 20)",
+    "axes": [
+      {
+        "axe": "Règles récurrentes",
+        "options": [
+          {
+            "pilote": "openRules()",
+            "libelle": "Ouvrir"
+          },
+          {
+            "pilote": "setRules(false);openRules()",
+            "libelle": "Aucune règle"
+          },
+          {
+            "pilote": "demoDup()",
+            "libelle": "Doublon"
+          },
+          {
+            "pilote": "demoRange()",
+            "libelle": "Plage &gt; 366 j"
+          }
+        ]
+      },
+      {
+        "axe": "Calendrier",
+        "options": [
+          {
+            "pilote": "setRules(true);render()",
+            "libelle": "Avec récurrence"
+          },
+          {
+            "pilote": "clearMonth()",
+            "libelle": "Tout non déclaré"
+          }
+        ],
+        "note": "Le mardi 11 est une exception à la règle."
+      },
+      {
+        "axe": "Thème",
+        "options": [
+          {
+            "pilote": "document.documentElement.classList.remove(dark)",
+            "libelle": "Clair"
+          },
+          {
+            "pilote": "toggleTheme()",
+            "libelle": "Sombre"
+          }
+        ]
+      },
+      {
+        "axe": "Langue",
+        "options": [
+          {
+            "pilote": "setLang(fr)",
+            "libelle": "Français"
+          },
+          {
+            "pilote": "setLang(en)",
+            "libelle": "English"
+          }
+        ]
+      }
+    ]
+  },
+  "21": {
+    "fichier": "mockups/21-temps-passe.html",
+    "titre": "Temps passé (Vue 21)",
+    "axes": [
+      {
+        "axe": "Contenu",
+        "options": [
+          {
+            "pilote": "setData(true)",
+            "libelle": "Nominal"
+          },
+          {
+            "pilote": "setData(false)",
+            "libelle": "Aucune entrée"
+          }
+        ]
+      },
+      {
+        "axe": "Saisie",
+        "options": [
+          {
+            "pilote": "openEntry()",
+            "libelle": "Nominal"
+          },
+          {
+            "pilote": "demo('cap')",
+            "libelle": "Plafond dépassé"
+          },
+          {
+            "pilote": "demo('nolink')",
+            "libelle": "Ni tâche ni projet"
+          },
+          {
+            "pilote": "demo('third')",
+            "libelle": "Pour un tiers"
+          }
+        ]
+      },
+      {
+        "axe": "Droits",
+        "options": [
+          {
+            "pilote": "setThird(true)",
+            "libelle": "Tiers autorisé"
+          },
+          {
+            "pilote": "setThird(false)",
+            "libelle": "Sans droit"
+          }
+        ]
+      },
+      {
+        "axe": "Thème",
+        "options": [
+          {
+            "pilote": "document.documentElement.classList.remove(dark)",
+            "libelle": "Clair"
+          },
+          {
+            "pilote": "toggleTheme()",
+            "libelle": "Sombre"
+          }
+        ]
+      },
+      {
+        "axe": "Langue",
+        "options": [
+          {
+            "pilote": "setLang(fr)",
+            "libelle": "Français"
+          },
+          {
+            "pilote": "setLang(en)",
+            "libelle": "English"
+          }
+        ]
+      }
+    ]
+  },
+  "22": {
+    "fichier": "mockups/22-competences.html",
+    "titre": "Compétences (Vue 22)",
+    "axes": [
+      {
+        "axe": "Contenu",
+        "options": [
+          {
+            "pilote": "setData(true)",
+            "libelle": "Nominal"
+          },
+          {
+            "pilote": "setData(false)",
+            "libelle": "Aucune donnée"
+          }
+        ]
+      },
+      {
+        "axe": "Volumétrie",
+        "options": [
+          {
+            "pilote": "setVolume(false)",
+            "libelle": "12 × 14"
+          },
+          {
+            "pilote": "setVolume(true)",
+            "libelle": "48 × 37 (cible)"
+          }
+        ],
+        "note": "La cible du cahier des charges : 50 lignes sur 40 colonnes."
+      },
+      {
+        "axe": "Cas limites",
+        "options": [
+          {
+            "pilote": "demoDelete()",
+            "libelle": "Suppression bloquée"
+          },
+          {
+            "pilote": "demoDup()",
+            "libelle": "Doublon de nom"
+          },
+          {
+            "pilote": "demoFull()",
+            "libelle": "Toutes assignées"
+          }
+        ],
+        "note": "La ligne de couverture est figée sous les en-têtes."
+      },
+      {
+        "axe": "Thème",
+        "options": [
+          {
+            "pilote": "document.documentElement.classList.remove(dark)",
+            "libelle": "Clair"
+          },
+          {
+            "pilote": "toggleTheme()",
+            "libelle": "Sombre"
+          }
+        ]
+      },
+      {
+        "axe": "Langue",
+        "options": [
+          {
+            "pilote": "setLang(fr)",
+            "libelle": "Français"
+          },
+          {
+            "pilote": "setLang(en)",
+            "libelle": "English"
+          }
+        ]
+      }
+    ]
+  },
+  "23": {
+    "fichier": "mockups/23-tiers.html",
+    "titre": "Tiers (Vue 23)",
+    "axes": [
+      {
+        "axe": "Fenêtre de création",
+        "options": [
+          {
+            "pilote": "openNew('phys')",
+            "libelle": "Personne physique"
+          },
+          {
+            "pilote": "openNew('moral')",
+            "libelle": "Personne morale"
+          }
+        ],
+        "note": "Le contact nommé disparaît pour une personne morale."
+      },
+      {
+        "axe": "Suppression",
+        "options": [
+          {
+            "pilote": "askDel(TIERS[0])",
+            "libelle": "Tiers engagé"
+          },
+          {
+            "pilote": "askDel(TIERS[5])",
+            "libelle": "Sans rattachement"
+          }
+        ]
+      },
+      {
+        "axe": "Thème",
+        "options": [
+          {
+            "pilote": "document.documentElement.classList.remove(dark)",
+            "libelle": "Clair"
+          },
+          {
+            "pilote": "toggleTheme()",
+            "libelle": "Sombre"
+          }
+        ]
+      },
+      {
+        "axe": "Langue",
+        "options": [
+          {
+            "pilote": "setLang(fr)",
+            "libelle": "Français"
+          },
+          {
+            "pilote": "setLang(en)",
+            "libelle": "English"
+          }
+        ]
+      }
+    ]
+  },
+  "24": {
+    "fichier": "mockups/24-fiche-tiers.html",
+    "titre": "Fiche tiers (Vue 24)",
+    "axes": [
+      {
+        "axe": "Type de tiers",
+        "options": [
+          {
+            "pilote": "setKind('moral')",
+            "libelle": "Personne morale"
+          },
+          {
+            "pilote": "setKind('phys')",
+            "libelle": "Personne physique"
+          }
+        ],
+        "note": "Le contact nommé n'existe que pour une personne physique."
+      },
+      {
+        "axe": "Statut",
+        "options": [
+          {
+            "pilote": "setStatus(true)",
+            "libelle": "Actif"
+          },
+          {
+            "pilote": "setStatus(false)",
+            "libelle": "Archivé"
+          }
+        ]
+      },
+      {
+        "axe": "Rattachements",
+        "options": [
+          {
+            "pilote": "setData(true)",
+            "libelle": "Nominal"
+          },
+          {
+            "pilote": "setData(false)",
+            "libelle": "Aucun"
+          }
+        ]
+      },
+      {
+        "axe": "Thème",
+        "options": [
+          {
+            "pilote": "document.documentElement.classList.remove(dark)",
+            "libelle": "Clair"
+          },
+          {
+            "pilote": "toggleTheme()",
+            "libelle": "Sombre"
+          }
+        ]
+      },
+      {
+        "axe": "Langue",
+        "options": [
+          {
+            "pilote": "setLang(fr)",
+            "libelle": "Français"
+          },
+          {
+            "pilote": "setLang(en)",
+            "libelle": "English"
+          }
+        ]
+      }
+    ]
+  },
+  "25": {
+    "fichier": "mockups/25-clients.html",
+    "titre": "Clients (Vue 25)",
+    "axes": [
+      {
+        "axe": "Suppression",
+        "options": [
+          {
+            "pilote": "askDel(CLIENTS[0])",
+            "libelle": "Client engagé"
+          },
+          {
+            "pilote": "askDel(CLIENTS[6])",
+            "libelle": "Sans projet"
+          }
+        ],
+        "note": "Supprimer détache, ça ne supprime pas les projets."
+      },
+      {
+        "axe": "Création",
+        "options": [
+          {
+            "pilote": "openNew('int')",
+            "libelle": "Direction interne"
+          },
+          {
+            "pilote": "openNew('ext')",
+            "libelle": "Organisme extérieur"
+          }
+        ]
+      },
+      {
+        "axe": "Thème",
+        "options": [
+          {
+            "pilote": "document.documentElement.classList.remove(dark)",
+            "libelle": "Clair"
+          },
+          {
+            "pilote": "toggleTheme()",
+            "libelle": "Sombre"
+          }
+        ]
+      },
+      {
+        "axe": "Langue",
+        "options": [
+          {
+            "pilote": "setLang(fr)",
+            "libelle": "Français"
+          },
+          {
+            "pilote": "setLang(en)",
+            "libelle": "English"
+          }
+        ]
+      }
+    ]
+  },
+  "26": {
+    "fichier": "mockups/26-fiche-client.html",
+    "titre": "Fiche client (Vue 26)",
+    "axes": [
+      {
+        "axe": "Nature",
+        "options": [
+          {
+            "pilote": "setNat('int')",
+            "libelle": "Direction interne"
+          },
+          {
+            "pilote": "setNat('ext')",
+            "libelle": "Organisme extérieur"
+          }
+        ]
+      },
+      {
+        "axe": "Statut",
+        "options": [
+          {
+            "pilote": "setStatus(true)",
+            "libelle": "Actif"
+          },
+          {
+            "pilote": "setStatus(false)",
+            "libelle": "Inactif"
+          }
+        ]
+      },
+      {
+        "axe": "Portefeuille",
+        "options": [
+          {
+            "pilote": "setData(true)",
+            "libelle": "Nominal"
+          },
+          {
+            "pilote": "setData(false)",
+            "libelle": "Aucun projet"
+          }
+        ],
+        "note": "Détacher ne supprime pas le projet."
+      },
+      {
+        "axe": "Thème",
+        "options": [
+          {
+            "pilote": "document.documentElement.classList.remove(dark)",
+            "libelle": "Clair"
+          },
+          {
+            "pilote": "toggleTheme()",
+            "libelle": "Sombre"
+          }
+        ]
+      },
+      {
+        "axe": "Langue",
+        "options": [
+          {
+            "pilote": "setLang(fr)",
+            "libelle": "Français"
+          },
+          {
+            "pilote": "setLang(en)",
+            "libelle": "English"
+          }
+        ]
+      }
+    ]
+  },
+  "27": {
+    "fichier": "mockups/27-utilisateurs.html",
+    "titre": "Utilisateurs (Vue 27)",
+    "axes": [
+      {
+        "axe": "Suppression définitive",
+        "options": [
+          {
+            "pilote": "askDel(USERS[1])",
+            "libelle": "Bloquée"
+          },
+          {
+            "pilote": "askDel(USERS[9])",
+            "libelle": "Possible"
+          }
+        ],
+        "note": "Trois temps : vérification, verdict, action."
+      },
+      {
+        "axe": "Création",
+        "options": [
+          {
+            "pilote": "openNew()",
+            "libelle": "Nouveau"
+          },
+          {
+            "pilote": "openNew(USERS[0])",
+            "libelle": "Modification"
+          },
+          {
+            "pilote": "demoTaken()",
+            "libelle": "Email pris"
+          },
+          {
+            "pilote": "demoNoRole()",
+            "libelle": "Aucun rôle"
+          }
+        ]
+      },
+      {
+        "axe": "Import",
+        "options": [
+          {
+            "pilote": "openImport()",
+            "libelle": "Ouvrir"
+          }
+        ]
+      },
+      {
+        "axe": "Thème",
+        "options": [
+          {
+            "pilote": "document.documentElement.classList.remove(dark)",
+            "libelle": "Clair"
+          },
+          {
+            "pilote": "toggleTheme()",
+            "libelle": "Sombre"
+          }
+        ]
+      },
+      {
+        "axe": "Langue",
+        "options": [
+          {
+            "pilote": "setLang(fr)",
+            "libelle": "Français"
+          },
+          {
+            "pilote": "setLang(en)",
+            "libelle": "English"
+          }
+        ]
+      }
+    ]
+  },
+  "28": {
+    "fichier": "mockups/28-suivi-individuel.html",
+    "titre": "Suivi individuel (Vue 28)",
+    "axes": [
+      {
+        "axe": "Collaborateur",
+        "options": [
+          {
+            "pilote": "setWho('CD')",
+            "libelle": "Camille"
+          },
+          {
+            "pilote": "setWho('NK')",
+            "libelle": "Nouvelle arrivée"
+          }
+        ],
+        "note": "Nadia est arrivée en juillet : ses onglets sont presque vides."
+      },
+      {
+        "axe": "Accès",
+        "options": [
+          {
+            "pilote": "setAccess('ok')",
+            "libelle": "Autorisé"
+          },
+          {
+            "pilote": "setAccess('denied')",
+            "libelle": "Restreint"
+          },
+          {
+            "pilote": "setAccess('404')",
+            "libelle": "Introuvable"
+          }
+        ]
+      },
+      {
+        "axe": "Thème",
+        "options": [
+          {
+            "pilote": "document.documentElement.classList.remove(dark)",
+            "libelle": "Clair"
+          },
+          {
+            "pilote": "toggleTheme()",
+            "libelle": "Sombre"
+          }
+        ]
+      },
+      {
+        "axe": "Langue",
+        "options": [
+          {
+            "pilote": "setLang(fr)",
+            "libelle": "Français"
+          },
+          {
+            "pilote": "setLang(en)",
+            "libelle": "English"
+          }
+        ]
+      }
+    ]
+  },
+  "29": {
+    "fichier": "mockups/29-departements-services.html",
+    "titre": "Départements &amp; services (Vue 29)",
+    "axes": [
+      {
+        "axe": "Suppression",
+        "options": [
+          {
+            "pilote": "askDel('dir', 0)",
+            "libelle": "Direction bloquée"
+          },
+          {
+            "pilote": "askDel('dir', 3)",
+            "libelle": "Direction vide"
+          },
+          {
+            "pilote": "askDel('dep', '1a')",
+            "libelle": "Département cascade"
+          }
+        ],
+        "note": "Deux règles opposées, deux fenêtres différentes."
+      },
+      {
+        "axe": "Contenu",
+        "options": [
+          {
+            "pilote": "setData(true)",
+            "libelle": "Nominal"
+          },
+          {
+            "pilote": "setData(false)",
+            "libelle": "Vide"
+          }
+        ]
+      },
+      {
+        "axe": "Accès",
+        "options": [
+          {
+            "pilote": "setAccess(true)",
+            "libelle": "Autorisé"
+          },
+          {
+            "pilote": "setAccess(false)",
+            "libelle": "Restreint"
+          }
+        ]
+      },
+      {
+        "axe": "Thème",
+        "options": [
+          {
+            "pilote": "document.documentElement.classList.remove(dark)",
+            "libelle": "Clair"
+          },
+          {
+            "pilote": "toggleTheme()",
+            "libelle": "Sombre"
+          }
+        ]
+      },
+      {
+        "axe": "Langue",
+        "options": [
+          {
+            "pilote": "setLang(fr)",
+            "libelle": "Français"
+          },
+          {
+            "pilote": "setLang(en)",
+            "libelle": "English"
+          }
+        ]
+      }
+    ]
+  },
+  "30": {
+    "fichier": "mockups/30-rapports-analytics.html",
+    "titre": "Rapports &amp; analytics (Vue 30)",
+    "axes": [
+      {
+        "axe": "État",
+        "options": [
+          {
+            "pilote": "setState('ok')",
+            "libelle": "Nominal"
+          },
+          {
+            "pilote": "setState('void')",
+            "libelle": "Aucune donnée"
+          },
+          {
+            "pilote": "setState('thin')",
+            "libelle": "Historique court"
+          },
+          {
+            "pilote": "setState('err')",
+            "libelle": "Erreur"
+          }
+        ]
+      },
+      {
+        "axe": "Volumétrie",
+        "options": [
+          {
+            "pilote": "setVol(12)",
+            "libelle": "12 projets"
+          },
+          {
+            "pilote": "setVol(6)",
+            "libelle": "6 projets"
+          }
+        ]
+      },
+      {
+        "axe": "Thème",
+        "options": [
+          {
+            "pilote": "document.documentElement.classList.remove(dark)",
+            "libelle": "Clair"
+          },
+          {
+            "pilote": "toggleTheme()",
+            "libelle": "Sombre"
+          }
+        ]
+      },
+      {
+        "axe": "Langue",
+        "options": [
+          {
+            "pilote": "setLang(fr)",
+            "libelle": "Français"
+          },
+          {
+            "pilote": "setLang(en)",
+            "libelle": "English"
+          }
+        ]
+      }
+    ]
+  },
+  "31": {
+    "fichier": "mockups/31-parametres.html",
+    "titre": "Paramètres (Vue 31)",
+    "axes": [
+      {
+        "axe": "Calendrier",
+        "options": [
+          {
+            "pilote": "setData(true)",
+            "libelle": "Rempli"
+          },
+          {
+            "pilote": "setData(false)",
+            "libelle": "Vide"
+          }
+        ]
+      },
+      {
+        "axe": "Cas limites",
+        "options": [
+          {
+            "pilote": "demoOneDay()",
+            "libelle": "Un seul jour visible"
+          },
+          {
+            "pilote": "openHol();document.getElementById('hw').checked=true;holConsequence()",
+            "libelle": "Férié ouvré"
+          },
+          {
+            "pilote": "demoVacErr()",
+            "libelle": "Dates incohérentes"
+          }
+        ],
+        "note": "Le férié ouvré change le décompte des congés."
+      },
+      {
+        "axe": "Thème",
+        "options": [
+          {
+            "pilote": "document.documentElement.classList.remove(dark)",
+            "libelle": "Clair"
+          },
+          {
+            "pilote": "toggleTheme()",
+            "libelle": "Sombre"
+          }
+        ]
+      },
+      {
+        "axe": "Langue",
+        "options": [
+          {
+            "pilote": "setLang(fr)",
+            "libelle": "Français"
+          },
+          {
+            "pilote": "setLang(en)",
+            "libelle": "English"
+          }
+        ]
+      }
+    ]
+  },
+  "32": {
+    "fichier": "mockups/32-roles-permissions.html",
+    "titre": "Rôles &amp; permissions (Vue 32)",
+    "axes": [
+      {
+        "axe": "Rôle affiché",
+        "options": [
+          {
+            "pilote": "select(1)",
+            "libelle": "Personnalisé"
+          },
+          {
+            "pilote": "select(0)",
+            "libelle": "Système"
+          }
+        ],
+        "note": "Un rôle système est en lecture seule."
+      },
+      {
+        "axe": "Contenu",
+        "options": [
+          {
+            "pilote": "setData(true)",
+            "libelle": "Nominal"
+          },
+          {
+            "pilote": "setData(false)",
+            "libelle": "Aucun rôle"
+          }
+        ]
+      },
+      {
+        "axe": "Impact",
+        "options": [
+          {
+            "pilote": "demoDiff()",
+            "libelle": "Modifier 3 cases"
+          },
+          {
+            "pilote": "openImpact()",
+            "libelle": "Voir l'impact"
+          }
+        ]
+      },
+      {
+        "axe": "Thème",
+        "options": [
+          {
+            "pilote": "document.documentElement.classList.remove(dark)",
+            "libelle": "Clair"
+          },
+          {
+            "pilote": "toggleTheme()",
+            "libelle": "Sombre"
+          }
+        ]
+      },
+      {
+        "axe": "Langue",
+        "options": [
+          {
+            "pilote": "setLang(fr)",
+            "libelle": "Français"
+          },
+          {
+            "pilote": "setLang(en)",
+            "libelle": "English"
+          }
+        ]
+      }
+    ]
+  },
+  "33": {
+    "fichier": "mockups/33-journal-audit.html",
+    "titre": "Journal d'audit (Vue 33)",
+    "axes": [
+      {
+        "axe": "État",
+        "options": [
+          {
+            "pilote": "setState('ok')",
+            "libelle": "Nominal"
+          },
+          {
+            "pilote": "setState('void')",
+            "libelle": "Aucun événement"
+          },
+          {
+            "pilote": "setState('denied')",
+            "libelle": "Accès refusé"
+          },
+          {
+            "pilote": "setState('err')",
+            "libelle": "Erreur"
+          }
+        ]
+      },
+      {
+        "axe": "Repères",
+        "options": [
+          {
+            "pilote": "filterFam('auth')",
+            "libelle": "Connexions"
+          },
+          {
+            "pilote": "filterFam('leave')",
+            "libelle": "Congés"
+          },
+          {
+            "pilote": "filterFam('sys')",
+            "libelle": "Actions système"
+          }
+        ],
+        "note": "Aucune action d'écriture n'existe sur cette page."
+      },
+      {
+        "axe": "Thème",
+        "options": [
+          {
+            "pilote": "document.documentElement.classList.remove(dark)",
+            "libelle": "Clair"
+          },
+          {
+            "pilote": "toggleTheme()",
+            "libelle": "Sombre"
+          }
+        ]
+      },
+      {
+        "axe": "Langue",
+        "options": [
+          {
+            "pilote": "setLang(fr)",
+            "libelle": "Français"
+          },
+          {
+            "pilote": "setLang(en)",
+            "libelle": "English"
+          }
+        ]
+      }
+    ]
+  },
+  "34": {
+    "fichier": "mockups/34-taches-predefinies.html",
+    "titre": "Tâches prédéfinies (Vue 34)",
+    "axes": [
+      {
+        "axe": "Récurrence",
+        "options": [
+          {
+            "pilote": "openRule();setType('week')",
+            "libelle": "Hebdomadaire"
+          },
+          {
+            "pilote": "openRule();setType('date');document.getElementById('r-day').value=31;previewRule()",
+            "libelle": "31 du mois"
+          },
+          {
+            "pilote": "openRule();setType('ord')",
+            "libelle": "Ordinale"
+          }
+        ],
+        "note": "La phrase se réécrit à chaque changement de champ."
+      },
+      {
+        "axe": "Cas limites",
+        "options": [
+          {
+            "pilote": "demoSlot()",
+            "libelle": "Créneau sans horaires"
+          },
+          {
+            "pilote": "openGen();doGen()",
+            "libelle": "Génération"
+          }
+        ]
+      },
+      {
+        "axe": "Contenu",
+        "options": [
+          {
+            "pilote": "setData(true)",
+            "libelle": "Nominal"
+          },
+          {
+            "pilote": "setData(false)",
+            "libelle": "Vide"
+          }
+        ]
+      },
+      {
+        "axe": "Thème",
+        "options": [
+          {
+            "pilote": "document.documentElement.classList.remove(dark)",
+            "libelle": "Clair"
+          },
+          {
+            "pilote": "toggleTheme()",
+            "libelle": "Sombre"
+          }
+        ]
+      },
+      {
+        "axe": "Langue",
+        "options": [
+          {
+            "pilote": "setLang(fr)",
+            "libelle": "Français"
+          },
+          {
+            "pilote": "setLang(en)",
+            "libelle": "English"
+          }
+        ]
+      }
+    ]
+  },
+  "35": {
+    "fichier": "mockups/35-mon-profil.html",
+    "titre": "Mon profil (Vue 35)",
+    "axes": [
+      {
+        "axe": "Sécurité",
+        "options": [
+          {
+            "pilote": "demoWrong()",
+            "libelle": "Ancien faux"
+          },
+          {
+            "pilote": "demoMismatch()",
+            "libelle": "Mots de passe ≠"
+          },
+          {
+            "pilote": "demoOk()",
+            "libelle": "Succès"
+          }
+        ]
+      },
+      {
+        "axe": "Courriel",
+        "options": [
+          {
+            "pilote": "setMail(true)",
+            "libelle": "Disponible"
+          },
+          {
+            "pilote": "setMail(false)",
+            "libelle": "Réseau fermé"
+          }
+        ],
+        "note": "Sans relais de messagerie, la colonne email se désactive."
+      },
+      {
+        "axe": "Thème",
+        "options": [
+          {
+            "pilote": "document.documentElement.classList.remove(dark)",
+            "libelle": "Clair"
+          },
+          {
+            "pilote": "toggleTheme()",
+            "libelle": "Sombre"
+          }
+        ]
+      },
+      {
+        "axe": "Langue",
+        "options": [
+          {
+            "pilote": "setLang(fr)",
+            "libelle": "Français"
+          },
+          {
+            "pilote": "setLang(en)",
+            "libelle": "English"
+          }
+        ]
+      }
+    ]
+  },
+  "01": {
+    "fichier": "mockups/01-connexion.html",
+    "titre": "Connexion (Vue 01)",
+    "axes": [
+      {
+        "axe": "Inscription autonome",
+        "options": [
+          {
+            "pilote": "setSignup(true)",
+            "libelle": "Activée"
+          },
+          {
+            "pilote": "setSignup(false)",
+            "libelle": "Désactivée"
+          }
+        ]
+      },
+      {
+        "axe": "Thème",
+        "options": [
+          {
+            "pilote": "document.documentElement.classList.remove(dark)",
+            "libelle": "Clair"
+          },
+          {
+            "pilote": "toggleTheme()",
+            "libelle": "Sombre"
+          }
+        ]
+      },
+      {
+        "axe": "Langue",
+        "options": [
+          {
+            "pilote": "setLang(fr)",
+            "libelle": "Français"
+          },
+          {
+            "pilote": "setLang(en)",
+            "libelle": "English"
+          }
+        ]
+      }
+    ]
+  },
+  "02": {
+    "fichier": "mockups/02-inscription.html",
+    "titre": "Inscription (Vue 02)",
+    "axes": [
+      {
+        "axe": "Thème",
+        "options": [
+          {
+            "pilote": "document.documentElement.classList.remove(dark)",
+            "libelle": "Clair"
+          },
+          {
+            "pilote": "toggleTheme()",
+            "libelle": "Sombre"
+          }
+        ]
+      },
+      {
+        "axe": "Langue",
+        "options": [
+          {
+            "pilote": "setLang(fr)",
+            "libelle": "Français"
+          },
+          {
+            "pilote": "setLang(en)",
+            "libelle": "English"
+          }
+        ]
+      }
+    ]
+  },
+  "03": {
+    "fichier": "mockups/03-mot-de-passe-oublie.html",
+    "titre": "Mot de passe oublié (Vue 03)",
+    "axes": [
+      {
+        "axe": "Adresse de démonstration",
+        "options": [
+          {
+            "pilote": "setDemo(true)",
+            "libelle": "Compte connu"
+          },
+          {
+            "pilote": "setDemo(false)",
+            "libelle": "Inconnue"
+          }
+        ],
+        "note": "La confirmation est strictement identique dans les deux cas."
+      },
+      {
+        "axe": "Thème",
+        "options": [
+          {
+            "pilote": "document.documentElement.classList.remove(dark)",
+            "libelle": "Clair"
+          },
+          {
+            "pilote": "toggleTheme()",
+            "libelle": "Sombre"
+          }
+        ]
+      },
+      {
+        "axe": "Langue",
+        "options": [
+          {
+            "pilote": "setLang(fr)",
+            "libelle": "Français"
+          },
+          {
+            "pilote": "setLang(en)",
+            "libelle": "English"
+          }
+        ]
+      }
+    ]
+  },
+  "04": {
+    "fichier": "mockups/04-reinitialisation.html",
+    "titre": "Réinitialisation du mot de passe (Vue 04)",
+    "axes": [
+      {
+        "axe": "Échecs de lien",
+        "options": [
+          {
+            "pilote": "applyState('expired')",
+            "libelle": "Expiré"
+          },
+          {
+            "pilote": "applyState('used')",
+            "libelle": "Déjà utilisé"
+          },
+          {
+            "pilote": "applyState('invalid')",
+            "libelle": "Invalide"
+          }
+        ],
+        "note": "Trois messages distincts, trois sorties distinctes."
+      },
+      {
+        "axe": "Thème",
+        "options": [
+          {
+            "pilote": "document.documentElement.classList.remove(dark)",
+            "libelle": "Clair"
+          },
+          {
+            "pilote": "toggleTheme()",
+            "libelle": "Sombre"
+          }
+        ]
+      },
+      {
+        "axe": "Langue",
+        "options": [
+          {
+            "pilote": "setLang(fr)",
+            "libelle": "Français"
+          },
+          {
+            "pilote": "setLang(en)",
+            "libelle": "English"
+          }
+        ]
+      }
+    ]
+  },
+  "05": {
+    "fichier": "mockups/05-mot-de-passe-impose.html",
+    "titre": "Changement de mot de passe imposé (Vue 05)",
+    "axes": [
+      {
+        "axe": "Motif du blocage",
+        "options": [
+          {
+            "pilote": "setReason('first')",
+            "libelle": "1re connexion"
+          },
+          {
+            "pilote": "setReason('admin')",
+            "libelle": "Réinit. admin"
+          }
+        ],
+        "note": "Deux chemins mènent ici : ils n'appellent pas la même explication."
+      },
+      {
+        "axe": "Thème",
+        "options": [
+          {
+            "pilote": "document.documentElement.classList.remove(dark)",
+            "libelle": "Clair"
+          },
+          {
+            "pilote": "toggleTheme()",
+            "libelle": "Sombre"
+          }
+        ]
+      },
+      {
+        "axe": "Langue",
+        "options": [
+          {
+            "pilote": "setLang(fr)",
+            "libelle": "Français"
+          },
+          {
+            "pilote": "setLang(en)",
+            "libelle": "English"
+          }
+        ]
+      }
+    ]
+  },
+  "06": {
+    "fichier": "mockups/06-tableau-de-bord.html",
+    "titre": "Tableau de bord (Vue 06)",
+    "axes": [
+      {
+        "axe": "Profil connecté",
+        "options": [
+          {
+            "pilote": "setRole('c')",
+            "libelle": "Camille"
+          },
+          {
+            "pilote": "setRole('f')",
+            "libelle": "Fatou"
+          },
+          {
+            "pilote": "setRole('k')",
+            "libelle": "Karim"
+          },
+          {
+            "pilote": "setRole('i')",
+            "libelle": "Inès"
+          }
+        ],
+        "note": "Les entrées sans droit ne sont pas affichées."
+      },
+      {
+        "axe": "Contenu",
+        "options": [
+          {
+            "pilote": "setData('full')",
+            "libelle": "Nominal"
+          },
+          {
+            "pilote": "setData('empty')",
+            "libelle": "Tout vide"
+          },
+          {
+            "pilote": "setData('limit')",
+            "libelle": "Limite to-do"
+          }
+        ]
+      },
+      {
+        "axe": "Barre latérale",
+        "options": [
+          {
+            "pilote": "setSide(false)",
+            "libelle": "Déployée"
+          },
+          {
+            "pilote": "setSide(true)",
+            "libelle": "Repliée"
+          }
+        ]
+      },
+      {
+        "axe": "Thème",
+        "options": [
+          {
+            "pilote": "document.documentElement.classList.remove(dark)",
+            "libelle": "Clair"
+          },
+          {
+            "pilote": "toggleTheme()",
+            "libelle": "Sombre"
+          }
+        ]
+      },
+      {
+        "axe": "Langue",
+        "options": [
+          {
+            "pilote": "setLang(fr)",
+            "libelle": "Français"
+          },
+          {
+            "pilote": "setLang(en)",
+            "libelle": "English"
+          }
+        ]
+      }
+    ]
+  },
+  "07": {
+    "fichier": "mockups/07-planning-semaine.html",
+    "titre": "Planning, vue Semaine (Vue 07)",
+    "axes": [
+      {
+        "axe": "État",
+        "options": [
+          {
+            "pilote": "setState('normal')",
+            "libelle": "Nominal"
+          },
+          {
+            "pilote": "setState('loading')",
+            "libelle": "Chargement"
+          },
+          {
+            "pilote": "setState('none')",
+            "libelle": "Aucune ressource"
+          },
+          {
+            "pilote": "setState('stale')",
+            "libelle": "Rafraîch. KO"
+          }
+        ]
+      },
+      {
+        "axe": "Jours visibles",
+        "options": [
+          {
+            "pilote": "setDays(5)",
+            "libelle": "5 colonnes"
+          },
+          {
+            "pilote": "setDays(7)",
+            "libelle": "7 colonnes"
+          }
+        ]
+      },
+      {
+        "axe": "Droits",
+        "options": [
+          {
+            "pilote": "setTT(true)",
+            "libelle": "TT modifiable"
+          },
+          {
+            "pilote": "setTT(false)",
+            "libelle": "TT lecture seule"
+          },
+          {
+            "pilote": "setAct(true)",
+            "libelle": "Permanences"
+          },
+          {
+            "pilote": "setAct(false)",
+            "libelle": "Sans droit"
+          }
+        ],
+        "note": "Glissez une tâche sur un autre jour ou une autre ligne."
+      },
+      {
+        "axe": "Thème",
+        "options": [
+          {
+            "pilote": "document.documentElement.classList.remove(dark)",
+            "libelle": "Clair"
+          },
+          {
+            "pilote": "toggleTheme()",
+            "libelle": "Sombre"
+          }
+        ]
+      },
+      {
+        "axe": "Langue",
+        "options": [
+          {
+            "pilote": "setLang(fr)",
+            "libelle": "Français"
+          },
+          {
+            "pilote": "setLang(en)",
+            "libelle": "English"
+          }
+        ]
+      }
+    ]
+  },
+  "08": {
+    "fichier": "mockups/08-planning-mois.html",
+    "titre": "Planning, vue Mois (Vue 08)",
+    "axes": [
+      {
+        "axe": "Jours visibles",
+        "options": [
+          {
+            "pilote": "setWeekend(false)",
+            "libelle": "Jours ouvrés"
+          },
+          {
+            "pilote": "setWeekend(true)",
+            "libelle": "Tous les jours"
+          }
+        ],
+        "note": "Le férié du 15 août tombe un samedi."
+      },
+      {
+        "axe": "État",
+        "options": [
+          {
+            "pilote": "setState('normal')",
+            "libelle": "Nominal"
+          },
+          {
+            "pilote": "setState('loading')",
+            "libelle": "Chargement"
+          },
+          {
+            "pilote": "setState('none')",
+            "libelle": "Aucune ressource"
+          },
+          {
+            "pilote": "setState('stale')",
+            "libelle": "Rafraîch. KO"
+          }
+        ]
+      },
+      {
+        "axe": "Droits",
+        "options": [
+          {
+            "pilote": "setAct(true)",
+            "libelle": "Permanences"
+          },
+          {
+            "pilote": "setAct(false)",
+            "libelle": "Sans droit"
+          }
+        ]
+      },
+      {
+        "axe": "Thème",
+        "options": [
+          {
+            "pilote": "document.documentElement.classList.remove(dark)",
+            "libelle": "Clair"
+          },
+          {
+            "pilote": "toggleTheme()",
+            "libelle": "Sombre"
+          }
+        ]
+      },
+      {
+        "axe": "Langue",
+        "options": [
+          {
+            "pilote": "setLang(fr)",
+            "libelle": "Français"
+          },
+          {
+            "pilote": "setLang(en)",
+            "libelle": "English"
+          }
+        ]
+      }
+    ]
+  },
+  "09": {
+    "fichier": "mockups/09-planning-activite.html",
+    "titre": "Planning, vue Activité (Vue 09)",
+    "axes": [
+      {
+        "axe": "État",
+        "options": [
+          {
+            "pilote": "setState('normal')",
+            "libelle": "Nominal"
+          },
+          {
+            "pilote": "setState('noact')",
+            "libelle": "Aucune tâche"
+          }
+        ]
+      },
+      {
+        "axe": "Jours visibles",
+        "options": [
+          {
+            "pilote": "setDays(5)",
+            "libelle": "5 jours"
+          },
+          {
+            "pilote": "setDays(7)",
+            "libelle": "7 jours"
+          }
+        ]
+      },
+      {
+        "axe": "Fenêtre d'ajout",
+        "options": [
+          {
+            "pilote": "openAdd('civ',0)",
+            "libelle": "Cas nominal"
+          },
+          {
+            "pilote": "openAdd('acc-m',4)",
+            "libelle": "Aucun éligible"
+          }
+        ],
+        "note": "Chaque agent inéligible porte sa raison."
+      },
+      {
+        "axe": "Thème",
+        "options": [
+          {
+            "pilote": "document.documentElement.classList.remove(dark)",
+            "libelle": "Clair"
+          },
+          {
+            "pilote": "toggleTheme()",
+            "libelle": "Sombre"
+          }
+        ]
+      },
+      {
+        "axe": "Langue",
+        "options": [
+          {
+            "pilote": "setLang(fr)",
+            "libelle": "Français"
+          },
+          {
+            "pilote": "setLang(en)",
+            "libelle": "English"
+          }
+        ]
+      }
+    ]
+  }
+}

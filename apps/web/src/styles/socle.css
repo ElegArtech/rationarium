@@ -1,0 +1,261 @@
+/* ==========================================================================
+   TRAME — SOCLE GRAPHIQUE
+   Contrat de style de l'application. Repris des maquettes SANS RÉINTERPRÉTATION.
+   Source : mockups/ (gel du 2026-08-16). Voir docs/design/DESIGN.md.
+
+   Jetons issus du groupe conforme RGAA (voir mockups/GEL.md, écart 5) :
+   9 des 35 maquettes portaient une correction de contraste non rétro-propagée.
+   Ce sont ces valeurs-là qui font foi.
+
+   Ce fichier ne contient QUE le socle : jetons, base, typographie,
+   formulaires, boutons, alertes, passe d'accessibilité. Tout le reste vit en
+   modules CSS portés par les composants. Voir cadrage/03 § 3.2.
+   ========================================================================== */
+
+/* ── 1. TOKENS ───────────────────────────────────────────────────────── */
+:root{
+  /* Surfaces & texte */
+  --paper:#F1F2F4;
+  --surface:#FFFFFF;
+  --surface-2:#FAFAFB;
+  --line:#D5D8DE;
+  --line-strong:#7E8698;
+  --ink:#14161C;
+  --muted:#5B6270;
+  --placeholder:#6E7583;
+
+  /* Accent unique */
+  --accent:#1B2A9B;
+  --accent-strong:#121D75;
+  --accent-soft:#E7EAF8;
+  --on-accent:#FFFFFF;
+  --brand-panel:#101A6E;
+
+  /* Statuts de tâche */
+  --st-todo:#5B6270;
+  --st-doing:#1B2A9B;
+  --st-review:#9A5B00;
+  --st-done:#146B3D;
+  --st-blocked:#AF2020;
+
+  /* Présence & absences */
+  --leave:#6A4BA6;
+  --leave-pending:#71609E;
+  --telework:#0C6E86;
+  --office:#5B6270;
+  --event:#B8420B;
+  --activity:#0F6E5C;
+
+  /* Retours d'état */
+  --danger-soft:#FBECEC;
+  --success-soft:#E8F4ED;
+  --warn-soft:#FCF2E2;
+
+  /* Trames de fond */
+  --trame-ferie:rgba(20,22,28,.055);
+  --trame-vacances:rgba(27,42,155,.05);
+
+  /* Chips sur surface de marque (contraste inversé) */
+  --ob-todo:#AEB6C7; --ob-doing:#8FA9FF; --ob-review:#F2C46A;
+  --ob-done:#6FD3A0; --ob-blocked:#FF9A9A; --ob-leave:#C3ABF5;
+  --ob-telework:#7FD7E8; --ob-activity:#6ED6BE; --ob-event:#FFAE7A;
+
+  /* Rythme */
+  --r:3px;                /* rayon standard : net, jamais arrondi mou */
+  --font-ui:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --font-display:'IBM Plex Serif',Georgia,'Times New Roman',serif;
+  --font-cond:'IBM Plex Sans Condensed','IBM Plex Sans',system-ui,sans-serif;
+  --font-mono:'IBM Plex Mono',ui-monospace,'SFMono-Regular',Consolas,monospace;
+}
+html.dark{
+  --paper:#0E1014;
+  --surface:#161922;
+  --surface-2:#1C202A;
+  --line:#2A2F3B;
+  --line-strong:#6B7486;
+  --ink:#E7E9EE;
+  --muted:#98A0AF;
+  --placeholder:#8E96A6;
+
+  --accent:#8093FF;
+  --accent-strong:#A3B0FF;
+  --accent-soft:#1A2044;
+  --on-accent:#0A0F2E;
+  --brand-panel:#0A0F45;
+
+  --st-todo:#98A0AF;
+  --st-doing:#8093FF;
+  --st-review:#E0A64B;
+  --st-done:#5EC48D;
+  --st-blocked:#F08585;
+
+  --leave:#B39BE8;
+  --leave-pending:#8E7FBD;
+  --telework:#5FC3D8;
+  --office:#98A0AF;
+  --event:#F0975E;
+  --activity:#54C7AE;
+
+  --danger-soft:#2C1618;
+  --success-soft:#12271C;
+  --warn-soft:#2A2113;
+
+  --trame-ferie:rgba(255,255,255,.05);
+  --trame-vacances:rgba(128,147,255,.07);
+}
+
+/* ── 2. BASE ─────────────────────────────────────────────────────────── */
+*,*::before,*::after{ box-sizing:border-box; }
+html,body{ margin:0; padding:0; }
+body{
+  background:var(--paper); color:var(--ink);
+  font-family:var(--font-ui); font-size:15px; line-height:1.5;
+  -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+  min-height:100vh;
+}
+[hidden]{ display:none !important; }
+a{ color:inherit; }
+button{ font:inherit; color:inherit; background:none; border:none; padding:0; cursor:pointer; }
+:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+@keyframes spin{ to{ transform:rotate(360deg); } }
+@keyframes rise{ from{ opacity:0; transform:translateY(4px); } to{ opacity:1; transform:none; } }
+
+/* ── 3. TYPOGRAPHIE ──────────────────────────────────────────────────── */
+/* Le libellé mono est le dispositif de repérage récurrent du produit. */
+.eyebrow{
+  font-family:var(--font-mono); font-size:10.5px; font-weight:500;
+  letter-spacing:.14em; text-transform:uppercase; color:var(--muted);
+  text-decoration:none;
+}
+a.eyebrow:hover{ color:var(--ink); }
+.h1{ font-family:var(--font-display); font-size:28px; font-weight:600; letter-spacing:-.01em; margin:8px 0 6px; }
+.lede{ font-size:14px; color:var(--muted); line-height:1.55; margin:0; }
+
+/* ── 4. FORMULAIRES ──────────────────────────────────────────────────── */
+.field-block{ margin-bottom:16px; }
+.field-label{ display:block; font-size:12.5px; font-weight:600; letter-spacing:.01em; margin-bottom:6px; }
+.field-head{ display:flex; align-items:baseline; justify-content:space-between; margin-bottom:6px; }
+.field-head .field-label{ margin-bottom:0; }
+.field{
+  width:100%; display:block;
+  background:var(--surface); color:var(--ink);
+  border:1px solid var(--line-strong); border-radius:var(--r);
+  padding:11px 13px; font-family:var(--font-ui); font-size:14.5px; line-height:1.3;
+  transition:border-color .12s ease, box-shadow .12s ease, background-color .12s ease;
+}
+.field::placeholder{ color:var(--muted); opacity:.7; }
+.field:focus{ outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
+.field[aria-invalid="true"]{ border-color:var(--st-blocked); }
+.field[aria-invalid="true"]:focus{ box-shadow:0 0 0 3px var(--danger-soft); }
+.field:disabled{ background:var(--surface-2); color:var(--muted); cursor:not-allowed; }
+.field-error{ font-size:12.5px; color:var(--st-blocked); margin:5px 0 0; display:flex; gap:5px; align-items:flex-start; line-height:1.4; }
+/* Le message garde sa place quand il est muet : le formulaire ne saute jamais. */
+.field-error.is-quiet{ visibility:hidden; }
+/* Indicateur de politique de mot de passe (vues 02 · 04 · 05) */
+.policy{ margin-top:9px; display:grid; grid-template-columns:1fr 1fr; gap:5px 14px; }
+.policy-item{ display:flex; align-items:center; gap:7px; font-size:11.5px; color:var(--muted); transition:color .15s ease; }
+.policy-mark{
+  display:inline-flex; align-items:center; justify-content:center; flex:none;
+  width:14px; height:14px; border:1px solid var(--line-strong); border-radius:2px;
+  font-family:var(--font-mono); font-size:9px; color:var(--muted);
+  transition:color .15s ease, border-color .15s ease;
+}
+.policy-item.is-met{ color:var(--st-done); }
+.policy-item.is-met .policy-mark{ color:var(--st-done); border-color:var(--st-done); }
+.btn-stack{ display:grid; gap:8px; }
+.sent-addr{ display:flex; flex-direction:column; gap:3px; margin:0 0 16px;
+  padding:10px 12px; border:1px solid var(--line); border-radius:var(--r); background:var(--surface); }
+.sent-mail{ font-family:var(--font-mono); font-size:12.5px; color:var(--ink); word-break:break-all; }
+.rv-note{ font-family:var(--font-mono); font-size:9px; line-height:1.5; color:var(--muted); margin:6px 0 0; }
+
+.field-wrap{ position:relative; }
+.field-wrap .field{ padding-right:92px; }
+.pw-toggle{
+  position:absolute; right:6px; top:50%; transform:translateY(-50%);
+  font-family:var(--font-mono); font-size:11px; letter-spacing:.06em;
+  color:var(--muted); padding:5px 7px; border-radius:2px;
+}
+.pw-toggle:hover{ color:var(--ink); background:var(--accent-soft); }
+
+/* ── 5. BOUTONS ──────────────────────────────────────────────────────── */
+.btn{
+  display:inline-flex; align-items:center; justify-content:center; gap:8px;
+  border-radius:var(--r); font-size:14px; font-weight:600; letter-spacing:.01em;
+  padding:11px 18px; border:1px solid transparent;
+  transition:background-color .12s ease, border-color .12s ease, color .12s ease;
+}
+.btn-primary{ background:var(--accent); color:var(--on-accent); }
+.btn-primary:hover:not(:disabled){ background:var(--accent-strong); }
+.btn-secondary{ background:var(--surface); color:var(--ink); border-color:var(--line-strong); }
+.btn-secondary:hover:not(:disabled){ border-color:var(--accent); color:var(--accent); }
+.btn-block{ width:100%; }
+.btn:disabled{ opacity:.6; cursor:not-allowed; }
+.link{ color:var(--accent); text-decoration:none; border-bottom:1px solid transparent; }
+.link:hover{ border-bottom-color:currentColor; }
+.link-sm{ font-size:12.5px; }
+
+.spinner{
+  display:inline-block; width:14px; height:14px; border-radius:50%;
+  border:2px solid rgba(255,255,255,.35); border-top-color:#fff;
+  animation:spin .7s linear infinite;
+}
+.spinner-ink{ border-color:var(--line); border-top-color:var(--accent); width:12px; height:12px; }
+
+/* Groupe segmenté (langue) */
+.seg{ display:inline-flex; border:1px solid var(--line); border-radius:var(--r); overflow:hidden; }
+.seg button{
+  font-family:var(--font-mono); font-size:10.5px; letter-spacing:.08em;
+  padding:5px 9px; color:var(--muted); background:var(--surface);
+}
+.seg button + button{ border-left:1px solid var(--line); }
+.seg button[aria-pressed="true"]{ background:var(--accent); color:var(--on-accent); }
+.chip-btn{
+  font-family:var(--font-mono); font-size:10.5px; letter-spacing:.04em;
+  padding:5px 9px; border:1px solid var(--line); border-radius:var(--r);
+  background:var(--surface); color:var(--muted);
+}
+.chip-btn:hover{ color:var(--ink); border-color:var(--line-strong); }
+
+/* ── 6. ALERTES ──────────────────────────────────────────────────────── */
+.alert{
+  display:flex; gap:10px; padding:11px 13px; border-radius:var(--r);
+  border:1px solid; font-size:13.5px; line-height:1.45; margin-bottom:20px;
+}
+.alert-error{ background:var(--danger-soft); border-color:var(--st-blocked); color:var(--st-blocked); }
+.alert-success{ background:var(--success-soft); border-color:var(--st-done); color:var(--st-done); }
+/* Neutre : confirme qu'une action a eu lieu sans rien affirmer sur les données. */
+.alert-neutral{ background:var(--accent-soft); border-color:var(--accent); color:var(--ink); }
+.alert-neutral .alert-icon{ color:var(--accent); }
+.alert-warn{ background:var(--warn-soft); border-color:var(--st-review); color:var(--st-review); }
+.alert-icon{ flex:none; font-weight:700; }
+
+/* ── ACCESSIBILITÉ — passe transversale ──────────────────────────────── */
+/* Bordures de contrôle relevées à 3:1, texte d'espace réservé à 4,5:1,
+   mouvement respectant la préférence système, contrastes forcés pris en charge. */
+.skip{ position:absolute; left:12px; top:-64px; z-index:200; background:var(--accent);
+  color:var(--on-accent); padding:11px 17px; border-radius:var(--r);
+  font-size:13px; font-weight:600; text-decoration:none; transition:top .12s ease; }
+.skip:focus{ top:12px; }
+.sr-only{ position:absolute; width:1px; height:1px; padding:0; margin:-1px;
+  overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0; }
+
+/* Toute frontière de contrôle doit être perceptible, pas seulement les champs */
+.chip-btn,.icon-btn,.ms-toggle,.rv-btn,.seg,.nav-sq,.pm-all,.ms-ico,.mdel,
+.day-opt,.svc-chip,.icat,.doc-ic,.sess-ic,.au-sys{ border-color:var(--line-strong); }
+
+/* Micro-typographie relevée : sous 9,5 px, le monospace capitalisé décroche */
+.pill,.tt-mark,.mx-cov-n,.msum-n,.au-code,.us-login,.lock-tag,.tt-ok,
+.occ-ext,.diff-pill,.scope,.tpl-n{ font-size:9.5px; }
+
+[role="region"][tabindex="0"]:focus-visible{ outline:2px solid var(--accent); outline-offset:-2px; }
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{
+    animation-duration:.01ms !important; animation-iteration-count:1 !important;
+    transition-duration:.01ms !important; scroll-behavior:auto !important; }
+}
+@media (forced-colors:active){
+  .btn,.chip-btn,.field,.pm-box,.toggle,.mini-select{ border:1px solid ButtonText; }
+  .pm-box[aria-pressed="true"],.toggle[aria-pressed="true"]{ forced-color-adjust:none; }
+  .bar > i,.mbar,.tchip,.occ,.lvl{ forced-color-adjust:none; }
+}

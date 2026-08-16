@@ -1,0 +1,166 @@
+# DESIGN.md — le système de design comme contrainte
+
+**Trame.** Ce document transforme la génération d'interface en **assemblage contraint** : l'agent ne dessine pas, il compose.
+
+---
+
+## 0. Règle d'or
+
+> **`mockups/` est la référence. Ce document la décrit, il ne la remplace pas.**
+
+En cas d'écart entre ce document et une maquette, **la maquette gagne** et ce document est corrigé. Les maquettes sont gelées (`mockups/GEL.md`) et en lecture seule.
+
+Trois interdits qui découlent de cette règle, et qui sont tenus mécaniquement, pas par consigne :
+
+| Interdit | Tenu par |
+| --- | --- |
+| Aucune couleur littérale hors `socle.css` | `stylelint.config.js` — `color-no-hex`, `color-named`, fonctions de couleur |
+| Aucune écriture sous `mockups/` | Hook `PreToolUse` (`.claude/settings.json`) |
+| Aucun composant hors inventaire | Revue de lot ; toute addition exige un ADR |
+
+---
+
+## 1. Les jetons
+
+Les jetons sont **le contrat de style**. Ils sont repris des maquettes sans réinterprétation, et vivent dans `apps/web/src/styles/socle.css`, importé une fois globalement.
+
+> **Sur la provenance des valeurs.** Les 35 maquettes ne portaient pas toutes les mêmes valeurs : neuf d'entre elles (01, 06, 07, 09, 14, 19, 22, 28, 30) portaient une correction de contraste qui n'avait pas été rétro-propagée aux 26 autres. Ce sont **ces valeurs-là qui font foi**, parce qu'elles seules satisfont `C5`. Détail en `mockups/GEL.md`, écart 5.
+
+### 1.1 Surfaces et texte
+
+| Jeton | Clair | Sombre | Rôle |
+| --- | --- | --- | --- |
+| `--paper` | `#F1F2F4` | `#0E1014` | Fond de page |
+| `--surface` | `#FFFFFF` | `#161922` | Fond de carte, de panneau, de cellule |
+| `--surface-2` | `#FAFAFB` | `#1C202A` | Fond secondaire : en-têtes de tableau, zones inertes |
+| `--line` | `#D5D8DE` | `#2A2F3B` | Séparateur ordinaire |
+| `--line-strong` | `#7E8698` | `#6B7486` | Bordure de contrôle interactif — **contraste 3,65 : seuil non-texte tenu** |
+| `--ink` | `#14161C` | `#E7E9EE` | Texte principal |
+| `--muted` | `#5B6270` | `#98A0AF` | Texte secondaire |
+| `--placeholder` | `#6E7583` | `#8E96A6` | Texte indicatif de champ — **contraste 4,63 : seuil texte tenu** |
+
+### 1.2 Accent
+
+Une couleur d'accent **unique et affirmée**, employée avec parcimonie. `02 § A` est explicite : la couleur reste porteuse de sens, jamais décorative.
+
+| Jeton | Clair | Sombre | Rôle |
+| --- | --- | --- | --- |
+| `--accent` | `#1B2A9B` | `#8093FF` | Action principale, sélection, focus |
+| `--accent-strong` | `#121D75` | `#A3B0FF` | État actif ou survolé de l'accent |
+| `--accent-soft` | `#E7EAF8` | `#1A2044` | Fond d'accent, alerte neutre |
+| `--on-accent` | `#FFFFFF` | `#0A0F2E` | Texte sur aplat d'accent |
+| `--brand-panel` | `#101A6E` | — | Panneau de marque (vues 01 à 05) |
+
+### 1.3 Statuts de tâche — vocabulaire `01 § 4.1`
+
+| Jeton | Valeur | Statut |
+| --- | --- | --- |
+| `--st-todo` | `#5B6270` | À faire |
+| `--st-doing` | `#1B2A9B` | En cours |
+| `--st-review` | `#9A5B00` | En revue |
+| `--st-done` | `#146B3D` | Terminé |
+| `--st-blocked` | `#AF2020` | Bloqué |
+
+**Cinq statuts, cinq jetons.** Le vocabulaire est fermé : toute couleur de statut inventée est un défaut.
+
+### 1.4 Occupations du planning
+
+C'est le vocabulaire visuel de la vue centrale. Six natures d'information doivent cohabiter dans une cellule sans devenir illisibles (`02 § D.1`).
+
+| Jeton | Valeur | Occupation |
+| --- | --- | --- |
+| `--leave` | `#6A4BA6` | Congé validé |
+| `--leave-pending` | `#71609E` | Congé **en attente** — distinct du validé (`EX-PLN-13`) |
+| `--telework` | `#0C6E86` | Télétravail |
+| `--office` | `#5B6270` | Bureau déclaré |
+| `--event` | `#B8420B` | Événement |
+| `--activity` | `#0F6E5C` | Permanence (tâche prédéfinie) |
+
+### 1.5 Contraste inversé, retours d'état, trames
+
+| Jeton | Rôle |
+| --- | --- |
+| `--ob-todo`, `--ob-doing`, `--ob-review`, `--ob-done`, `--ob-blocked`, `--ob-leave`, `--ob-telework`, `--ob-activity`, `--ob-event` | Pastilles sur surface de marque : contraste inversé, à employer **uniquement** sur `--brand-panel` |
+| `--danger-soft`, `--success-soft`, `--warn-soft` | Fonds d'alerte |
+| `--trame-ferie` `rgba(20,22,28,.055)` | Trame de fond des jours fériés — **ne masque jamais le contenu** (`EX-PLN-14`) |
+| `--trame-vacances` `rgba(27,42,155,.05)` | Trame de fond des vacances scolaires |
+
+### 1.6 Rythme et typographie
+
+| Jeton | Valeur | Note |
+| --- | --- | --- |
+| `--r` | `3px` | Rayon standard : **net, jamais arrondi mou**. Le registre est institutionnel, pas SaaS générique |
+| `--font-ui` | IBM Plex Sans | Interface |
+| `--font-display` | IBM Plex Serif | Titres et signature de marque |
+| `--font-cond` | IBM Plex Sans Condensed | Grilles denses : planning, matrices, Gantt |
+| `--font-mono` | IBM Plex Mono | Identifiants, horodatages, valeurs techniques |
+
+**Les polices sont auto-hébergées** via `@fontsource`, jamais chargées depuis un service distant. Les maquettes les chargent en ligne : c'est l'écart 1 du gel, à corriger au portage (`C1`).
+
+---
+
+## 2. Inventaire fermé des composants
+
+**Fermé** signifie : tout composant hors de cette liste exige un ADR avant d'exister. C'est la parade au risque A1 — l'agent qui invente de l'interface là où la maquette est muette.
+
+Le comportement et l'accessibilité s'achètent (React Aria Components, `03 § 4, D3`) ; le style est apporté par le socle.
+
+| Composant | Source | Emploi |
+| --- | --- | --- |
+| Dialogue, dialogue modal | `react-aria-components` | Confirmations, fenêtres de création, imports |
+| Menu, menu déroulant | `react-aria-components` | Menus d'action, menu utilisateur, menu « Créer » |
+| Onglets | `react-aria-components` | Fiche projet, suivi individuel, paramètres, rapports |
+| Liste déroulante, combobox, sélection multiple | `react-aria-components` | Assignés, services, projets, périmètres, dépendances |
+| Sélecteur de dates, plage de dates | `react-aria-components` + `@internationalized/date` | Congés, tâches, événements, filtres de période |
+| Infobulle | `react-aria-components` | Explication des actions désactivées (`RG-GEN-06`) |
+| Table | `react-aria-components` + `@tanstack/react-table` | Listes, journal d'audit, matrices |
+| Case à cocher, groupe de cases, bouton radio, interrupteur | `react-aria-components` | Filtres, couches d'affichage, matrice de permissions |
+| Champ texte, zone de texte, champ numérique | `react-aria-components` | Formulaires |
+| Barre de progression | `react-aria-components` | Progression de projet, de tâche, de jalon |
+| Virtualisation | `@tanstack/react-virtual` | Vue Mois, matrice de compétences, journal d'audit |
+| Glisser-déposer | `@atlaskit/pragmatic-drag-and-drop` | Planning, kanban — **toujours doublé d'une action explicite au clavier** (`C6`) |
+| Graphiques, Gantt, grilles de planning | **Aucune bibliothèque** | HTML, CSS et SVG pilotés par les jetons, portés des maquettes (`03 § 4, D12`) |
+
+**Ce que l'inventaire exclut, définitivement** : toute bibliothèque de composants stylés (Material, Ant, Chakra, shadcn/ui), tout framework CSS utilitaire, toute bibliothèque de graphiques ou de Gantt. Motif en `03 § 2` : leur adoption reviendrait à jeter le travail de conception pour le refaire dans un autre vocabulaire.
+
+---
+
+## 3. Règles de layout
+
+1. **Hiérarchie par la typographie et l'espacement avant la couleur.** La couleur porte le sens (statut, alerte, catégorie) ; elle ne hiérarchise pas.
+2. **Bordures et séparateurs nets plutôt qu'ombres diffuses.**
+3. **Densité assumée sur les vues de pilotage, blanc généreux sur les vues de consultation.** Les deux régimes coexistent et ne se mélangent pas dans une même vue.
+4. **Les vues denses sont optimisées pour le poste de travail** ; les vues de consultation et de saisie courante restent utilisables sur mobile (`02 § A.8`).
+5. **Sur les grilles** : colonne de gauche figée au défilement horizontal, ligne d'en-tête figée au défilement vertical.
+6. **Prévoir l'anglais 30 % plus long** que le français (`02 § D.7`). Aucune largeur calée sur un libellé français.
+7. **Les deux thèmes sont traités partout**, y compris sur les codes couleur porteurs de sens (`02 § D.8`).
+
+---
+
+## 4. Carte des sources CSS
+
+Chaque maquette introduit **exactement une** section CSS, qui devient le module CSS du composant correspondant. Le socle (sections 1 à 6 et la passe d'accessibilité) est global ; tout le reste est local.
+
+| Section de maquette | Introduite par | Destination |
+| --- | --- | --- |
+| 1 TOKENS · 2 BASE · 3 TYPOGRAPHIE · 4 FORMULAIRES · 5 BOUTONS · 6 ALERTES · ACCESSIBILITÉ | vue 01 | **`styles/socle.css`** — global |
+| 7 GABARIT DE LA VUE CONNEXION · 8 GRILLE MINIATURE · 8 bis PORTEFEUILLE MINIATURE · 10 RESPONSIVE | vue 01 | L-04 — gabarit des vues 01 à 05 |
+| 7 COQUILLE APPLICATIVE · 8 GABARIT DE PAGE · 9 VOCABULAIRE DES OCCUPATIONS | vue 06 | L-05 — coquille |
+| 11 PLANNING GRILLE · 12 VUE MOIS · 13 VUE ACTIVITÉ · feuille d'impression | vues 07, 08, 09 | L-20 |
+| 14 PORTEFEUILLE · 15 FICHE PROJET · 17 FEUILLE DE ROUTE · 18 ÉQUIPE | vues 10, 11, 13, 14 | L-10 |
+| 16 KANBAN · fenêtre d'import · 20 TÂCHES VUE GLOBALE · 21 FICHE TÂCHE | vues 12, 16, 17 | L-11 |
+| 19 GANTT · 34 RAPPORTS & ANALYTICS | vues 15, 30 | L-22 |
+| 22 ÉVÉNEMENTS | vue 18 | L-14 |
+| 23 CONGÉS | vue 19 | L-15 |
+| 24 TÉLÉTRAVAIL | vue 20 | L-16 |
+| 25 TEMPS PASSÉ | vue 21 | L-18 |
+| 26 COMPÉTENCES | vue 22 | L-13 |
+| 27 TIERS · 28 FICHE TIERS · 29 CLIENTS · 30 FICHE CLIENT | vues 23 à 26 | L-12 |
+| 31 UTILISATEURS · 32 SUIVI INDIVIDUEL | vues 27, 28 | L-07 |
+| 33 STRUCTURE ORGANISATIONNELLE | vue 29 | L-06 |
+| 35 PARAMÈTRES | vue 31 | L-09 |
+| 36 RÔLES & PERMISSIONS · 37 JOURNAL D'AUDIT | vues 32, 33 | L-08 |
+| 38 TÂCHES PRÉDÉFINIES | vue 34 | L-17 |
+| 39 MON PROFIL | vue 35 | L-05 |
+
+**Ce qui ne se porte jamais** : la section « PANNEAU DE REVUE », explicitement marquée *hors produit* dans les maquettes. C'est l'outil qui pilote les états pour la vérification (`design/etats.json`), pas une partie de l'application.
