@@ -281,6 +281,12 @@ export const saisirTemps = (donnees: {
 export const supprimerTemps = (id: string) =>
   appeler<void>(`/temps/${id}`, { methode: "DELETE" });
 
+/** `RG-TMP-07` — ce qui est déjà déclaré sur une tâche, tous contributeurs confondus. */
+export const contexteTemps = (taskId: string) =>
+  appeler<{ heuresDeclarees: number; entrees: number; contributeurs: number }>(
+    `/temps/contexte/${taskId}`,
+  );
+
 /**
  * `EX-TMP-06`, `EX-DSH-06` — clore une tâche terminée **sans** déclaration.
  *

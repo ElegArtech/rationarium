@@ -30,7 +30,15 @@
 .te-day.is-over .te-caplab{ color:var(--st-blocked); }
 .te-day.is-empty{ background:repeating-linear-gradient(135deg,
   var(--surface-2) 0 6px, var(--surface) 6px 12px); }
-.te-day.is-empty .te-dnum, .te-day.is-empty .te-dow{ opacity:.6; }
+/*
+ * ÉCART ASSUMÉ CONTRE LA MAQUETTE — contraste.
+ *
+ * La maquette éteint le jour vide par `opacity: .6`. C'est la quatrième
+ * occurrence de la même famille (`DESIGN.md § 4`) : l'opacité fait tomber le
+ * contraste sous AA, et un jour sans saisie est précisément ce que la vue doit
+ * rendre VISIBLE. La distinction est déjà portée par la trame de fond, qui ne
+ * couvre aucun texte ; le libellé garde son contraste.
+ */
 
 .te-row{ display:grid; grid-template-columns:186px 78px minmax(0,1fr) auto;
   gap:14px; align-items:center; padding:10px 14px; border-bottom:1px solid var(--line); }
@@ -38,7 +46,7 @@
 .te-row:hover{ background:var(--surface-2); }
 .te-act{ display:flex; align-items:center; gap:8px; }
 .te-h{ font-family:var(--font-mono); font-size:12.5px; text-align:right; }
-.te-desc{ font-size:12.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.te-desc{ margin:0; font-size:12.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .te-meta{ display:flex; align-items:center; gap:8px; margin-top:5px; flex-wrap:wrap; }
 .te-created{ font-family:var(--font-mono); font-size:9px; color:var(--muted); }
 .te-actor{ display:inline-flex; align-items:center; gap:5px; font-family:var(--font-mono);

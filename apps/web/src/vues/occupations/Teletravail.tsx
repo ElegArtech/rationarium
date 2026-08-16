@@ -14,6 +14,9 @@ import { formaterDate, formaterMois } from "../../formats.js";
 import "../../composants/partages.css";
 import "../taches/liste.css";
 import "../projets/equipe.css";
+/* La fenêtre des règles reprend `.rec-grid` et `.rec-prev` de la section 22,
+   comme la maquette 20 — cumulative — le fait elle-même. */
+import "./evenements.css";
 import "./teletravail.css";
 
 /**
@@ -94,7 +97,7 @@ export function Teletravail() {
     [calendrier],
   );
   const nomsFeries = useMemo(
-    () => new Map((feries.data?.feries ?? []).map((f) => [f.date.slice(0, 10), f.nom])),
+    () => new Map((feries.data?.feries ?? []).map((f) => [f.date.slice(0, 10), f.libelle])),
     [feries.data],
   );
 
@@ -594,7 +597,7 @@ function FenetreRegles({
 
         {/* La règle se relit en français avant d'être posée. */}
         <div className="rec-prev">
-          <span className="rec-prev-ic" aria-hidden="true">
+          <span aria-hidden="true" className="rec-prev-glyphe">
             ↻
           </span>
           <div>

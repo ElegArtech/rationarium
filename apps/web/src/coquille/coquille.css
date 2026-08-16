@@ -413,12 +413,11 @@
 /*
  * COMPLÉMENT DU 2026-08-16, au portage des vues 16 à 21.
  *
- * La section 8 des maquettes s'arrêtait ici : `.greet`, `.panel*`, `.empty*`
- * et les indicateurs avaient été omis au portage du L-05. Rien ne pouvait le
- * dire — une classe posée sans règle en face ne produit ni erreur, ni
- * avertissement, ni test rouge. Toutes les vues bâties sur un panneau
- * s'affichaient donc sans cadre, sans fond et sans séparateur, et l'état vide
- * sans sa mise en page. Repris verbatim de la section 8.
+ * La section 8 des maquettes ne s'arrête pas à `.page` : `.greet` et
+ * `.dash-grid` en font partie et manquaient. Les primitives voisines —
+ * `.panel*`, `.empty*`, `.kpi*` — sont remontées au socle par le correctif
+ * `8296eaa` : une primitive employée par trente vues n'appartient à aucune.
+ * Ne pas les redéfinir ici.
  */
 
 .greet {
@@ -427,90 +426,6 @@
 
 .greet .h1 {
   margin: 6px 0 4px;
-}
-
-.panel {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--r);
-}
-
-.panel + .panel {
-  margin-top: 16px;
-}
-
-.panel-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 11px 14px;
-  border-bottom: 1px solid var(--line);
-}
-
-.panel-title {
-  font-size: 13.5px;
-  font-weight: 600;
-}
-
-.panel-body {
-  padding: 14px;
-}
-
-.panel-body.is-flush {
-  padding: 0;
-}
-
-.empty {
-  text-align: center;
-  padding: 24px 16px;
-}
-
-.empty p {
-  margin: 0 0 4px;
-  font-size: 13px;
-  color: var(--ink);
-}
-
-.empty small {
-  font-size: 12px;
-  color: var(--muted);
-  display: block;
-  margin-bottom: 10px;
-}
-
-/* Indicateurs */
-
-.kpi-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 12px;
-  margin-bottom: 18px;
-}
-
-.kpi {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--r);
-  padding: 13px 14px;
-}
-
-.kpi-val {
-  font-family: var(--font-display);
-  font-size: 28px;
-  font-weight: 600;
-  line-height: 1.1;
-  margin: 6px 0 2px;
-}
-
-.kpi-sub {
-  font-size: 11.5px;
-  color: var(--muted);
-}
-
-.kpi.is-alert .kpi-val,
-.kpi.is-alert .kpi-sub {
-  color: var(--st-blocked);
 }
 
 .dash-grid {
@@ -522,11 +437,11 @@
 
 /* ── 9. Vocabulaire commun aux vues ─────────────────────────────────────── */
 /*
- * Même omission que ci-dessus : la section 9 des maquettes n'avait jamais été
- * portée. Les vues 16 à 21 emploient `.tab`, `.badge`, `.mini-select`,
- * `.check` et `.bar` — tous inertes. Seules les règles réellement employées
- * sont reprises ici ; `.pglyph` vit déjà dans `routes/acces.css` et `.avs`
- * dans `vues/taches/kanban.css`, à leur section d'origine.
+ * La section 9 des maquettes n'avait jamais été portée. Les vues 16 à 21
+ * emploient `.tab`, `.badge` et `.mini-select` — tous inertes, donc rendus
+ * nus, sans qu'aucune boucle ne puisse le dire. Seules les règles réellement
+ * employées sont reprises ; `.check`, `.bar` et `.pglyph` vivent au socle,
+ * `.avs` dans `vues/taches/kanban.css`, à leur section d'origine.
  */
 
 .tabs {
@@ -581,38 +496,6 @@
   outline: none;
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-soft);
-}
-
-.check {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  font-size: 12.5px;
-  color: var(--muted);
-  white-space: nowrap;
-}
-
-.check input {
-  accent-color: var(--accent);
-  width: 15px;
-  height: 15px;
-}
-
-.bar {
-  height: 4px;
-  border-radius: 2px;
-  background: var(--line);
-  position: relative;
-  margin-top: 6px;
-}
-
-.bar > i {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  border-radius: 2px;
-  background: var(--accent);
 }
 
 /* ── Icônes ─────────────────────────────────────────────────────────────── */
