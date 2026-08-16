@@ -77,4 +77,31 @@ test.describe("la boucle de conformité de rendu", () => {
     // Et il sort en 1 dès qu'il en trouve une.
     expect(source).toContain("process.exit(ecarts === 0 ? 0 : 1)");
   });
+
+  test("L'EXCLUSION D'INERTIE SE LIT SUR LA MAQUETTE, JAMAIS SUR UNE LISTE", () => {
+    /*
+     * Le comparateur ne compte plus comme inerte une classe que la maquette
+     * pose sans la styler non plus — `row-more` en vue 27, simple crochet de
+     * script. C'est juste : le contrôle cherche ce que le PRODUIT invente sans
+     * règle derrière.
+     *
+     * Mais c'est aussi la porte la plus facile à élargir. Une liste d'exceptions
+     * nommées y muselerait n'importe quel écart, une classe à la fois, sans que
+     * rien ne rougisse — exactement la mécanique qui a laissé `ui:diff` sortir
+     * en zéro pendant tout un projet.
+     *
+     * L'exclusion doit donc rester DÉRIVÉE de la maquette : elle se calcule sur
+     * `maquette.definies`, et aucune classe n'y est écrite en dur.
+     */
+    const source = readFileSync(path.join(RACINE, "scripts/ui-conformite.mjs"), "utf8");
+    expect(source).toContain("maquette.definies");
+
+    const bloc = source.slice(
+      source.indexOf("const inertesMaquette"),
+      source.indexOf("// 3. Les textes"),
+    );
+    expect(bloc.length).toBeGreaterThan(0);
+    // Aucune classe littérale dans le calcul : que des dérivations.
+    expect(bloc).not.toMatch(/["'][a-z][a-z0-9-]*["']/);
+  });
 });
