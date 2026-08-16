@@ -1,0 +1,306 @@
+/*
+ * Primitives transverses : fenêtre modale, file de messages, barre de filtres,
+ * pastilles et avatars.
+ *
+ * ─────────────────────────────────────────────────────────────────────────
+ * ÉCART DE CARTOGRAPHIE, RELEVÉ AU PORTAGE DE L-32
+ *
+ * `DESIGN.md § 4` attribue les sections 11 à 13 des maquettes au lot L-20
+ * (planning). Or ces sections introduisent des règles qui n'ont rien de
+ * planificatoire : `.scrim-modal`, `.modal*`, `.toasts`, `.filters`,
+ * `.f-input`, `.agent-av`. Elles apparaissent d'abord dans le planning parce
+ * que c'est la première vue de la lignée qui en avait besoin, pas parce
+ * qu'elles lui appartiennent.
+ *
+ * Les laisser dans L-20 obligerait les vues 10 à 14 à les redéfinir, donc à
+ * les faire diverger. Elles sont donc extraites ici, verbatim, et la carte de
+ * `DESIGN.md` est corrigée en conséquence.
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * Aucune couleur littérale hors des deux voiles, qui sont des opacités et non
+ * des couleurs de marque — elles reprennent la valeur exacte des maquettes.
+ */
+
+/* ── Barre d'outils et filtres ─────────────────────────────────────────── */
+
+.pl-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 11px;
+}
+
+.filters {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex-wrap: wrap;
+  padding: 9px 11px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  margin-bottom: 11px;
+}
+.filters .vsep {
+  width: 1px;
+  height: 20px;
+  background: var(--line);
+}
+.f-input {
+  font-family: var(--font-ui);
+  font-size: 12px;
+  padding: 5px 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r);
+  background: var(--surface);
+  color: var(--ink);
+}
+.f-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+/* ── Fenêtre modale ────────────────────────────────────────────────────── */
+
+.scrim-modal {
+  position: fixed;
+  inset: 0;
+  background: var(--voile-fenetre);
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.modal {
+  width: min(520px, 100%);
+  max-height: 86vh;
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r);
+  display: flex;
+  flex-direction: column;
+}
+.modal-lg {
+  width: min(740px, 100%);
+}
+.modal-head {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.modal-body {
+  overflow-y: auto;
+  flex: 1;
+  padding: 16px;
+}
+.modal-foot {
+  padding: 12px 16px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.modal-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* Grille de formulaire des grandes fenêtres */
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 13px 14px;
+}
+.span2 {
+  grid-column: 1 / -1;
+}
+.req {
+  color: var(--st-blocked);
+}
+textarea.field {
+  resize: vertical;
+  min-height: 66px;
+  font-family: var(--font-ui);
+}
+
+@media (max-width: 640px) {
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── File de messages d'action ─────────────────────────────────────────── */
+/* Un retour d'action est annoncé, pas seulement affiché : la région est vive.
+   Sans cela, une confirmation ne parvient jamais à qui n'a pas l'écran. */
+
+.toasts {
+  position: fixed;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  z-index: 70;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(460px, 92vw);
+}
+.toast {
+  display: flex;
+  gap: 9px;
+  padding: 10px 12px;
+  border-radius: var(--r);
+  border: 1px solid;
+  font-size: 12.5px;
+  line-height: 1.45;
+  background: var(--surface);
+}
+.toast-err {
+  border-color: var(--st-blocked);
+  color: var(--st-blocked);
+  background: var(--danger-soft);
+}
+.toast-warn {
+  border-color: var(--st-review);
+  color: var(--st-review);
+  background: var(--warn-soft);
+}
+.toast-ok {
+  border-color: var(--st-done);
+  color: var(--st-done);
+  background: var(--success-soft);
+}
+
+/* ── Pastilles, avatars, marqueur de valeur calculée ───────────────────── */
+
+.pills {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+.pill {
+  font-family: var(--font-mono);
+  font-size: 8.5px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 2px;
+  border: 1px solid currentcolor;
+  white-space: nowrap;
+}
+
+.agent-av {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 8px;
+  flex: none;
+}
+
+.kcol-n {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--muted);
+}
+
+/* Le marqueur dit que la valeur est calculée, donc non saisissable. Le tiret
+   de la bordure le distingue d'une pastille de statut. */
+.calc-tag {
+  font-family: var(--font-mono);
+  font-size: 7.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  border: 1px dashed var(--line-strong);
+  border-radius: 2px;
+  padding: 1px 4px;
+  cursor: help;
+  white-space: nowrap;
+}
+
+/* ── Ajustements de mise en page ───────────────────────────────────────── */
+/* Les maquettes portent ces valeurs en style en ligne. Les nommer ici évite
+   de les disséminer dans le TSX, où elles échapperaient à stylelint. */
+
+.pl-toolbar-fin {
+  margin-left: auto;
+}
+.titre-vue {
+  margin: 5px 0 0;
+  font-size: 24px;
+}
+.sous-titre-vue {
+  font-size: 16px;
+  margin: 0;
+}
+.filtre-recherche {
+  width: 250px;
+  max-width: 100%;
+}
+.empty-large {
+  padding: 52px 20px;
+}
+.empty-encadre {
+  padding: 56px 20px;
+  border: 1px dashed var(--line);
+  border-radius: var(--r);
+}
+.form-grid-espace {
+  margin-top: 4px;
+}
+.modal-titre {
+  margin: 5px 0 0;
+  font-size: 15px;
+}
+.modal-dialogue {
+  display: contents;
+}
+.toasts-groupe {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.picon-glyphe {
+  font-size: 17px;
+  line-height: 1;
+}
+.bloc-etroit {
+  min-width: 0;
+}
+.ligne-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ligne-actions-fin {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.mini-select-libelle {
+  font-size: 12.5px;
+  color: var(--ink);
+}
+.lien-route {
+  margin: 16px 0 0;
+}
+.chip-danger {
+  color: var(--st-blocked);
+  border-color: var(--st-blocked);
+}
+.pill-muted {
+  color: var(--muted);
+}

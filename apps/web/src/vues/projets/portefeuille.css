@@ -1,0 +1,171 @@
+/*
+ * Vue 10 — Portefeuille de projets.
+ * Section 14 des maquettes, reprise verbatim.
+ *
+ * L'icône de projet est un repère d'identification réutilisé dans le planning,
+ * les tâches et le Gantt : elle est traitée comme une donnée, pas un ornement.
+ */
+
+.picon {
+  width: 19px;
+  height: 19px;
+  fill: none;
+  stroke: currentcolor;
+  stroke-width: 1.3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.pcount {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* Lignes-cartes : les valeurs s'alignent d'un projet à l'autre, donc se comparent. */
+.plist {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.prow-card {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 122px 128px 74px 148px 124px 14px;
+  gap: 14px;
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 11px 14px;
+  text-decoration: none;
+  color: inherit;
+}
+.prow-card:hover {
+  border-color: var(--line-strong);
+  background: var(--surface-2);
+}
+.prow-card:hover .prow-go {
+  color: var(--accent);
+}
+.prow-card.is-cancelled {
+  opacity: 0.6;
+}
+.picon-box {
+  width: 38px;
+  height: 38px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+  background: var(--accent-soft);
+  flex: none;
+}
+.prow-main {
+  min-width: 0;
+}
+.prow-title {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.3;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.prow-desc {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 2px 0 0;
+  line-height: 1.35;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.prow-desc.is-none {
+  font-style: italic;
+  opacity: 0.75;
+}
+.prow-col {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.prow-k {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.prow-v {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.prow-lead {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+.prow-lead .agent-av {
+  width: 22px;
+  height: 22px;
+  font-size: 8.5px;
+}
+.prow-lead span:last-child {
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.prow-progline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.prow-progline .bar {
+  flex: 1;
+  margin: 0;
+}
+.prow-go {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--muted);
+  text-align: right;
+}
+
+@media (max-width: 1380px) {
+  .prow-card {
+    grid-template-columns: 44px minmax(0, 1fr) 122px 128px 148px 124px 14px;
+  }
+  .c-budget {
+    display: none;
+  }
+}
+@media (max-width: 1180px) {
+  .prow-card {
+    grid-template-columns: 44px minmax(0, 1fr) 122px 148px 124px 14px;
+  }
+  .c-dates {
+    display: none;
+  }
+}
+@media (max-width: 900px) {
+  .prow-card {
+    grid-template-columns: 38px minmax(0, 1fr) 110px;
+    row-gap: 10px;
+  }
+  .c-lead {
+    display: none;
+  }
+  .c-prog {
+    grid-column: 2 / -1;
+  }
+}

@@ -4,7 +4,7 @@ Forme opérationnelle du § 5 de `cadrage/04`. C'est le document qu'on ouvre pou
 
 > **Sans DAG, la parallélisation est un pari ; avec, c'est une lecture.**
 
-**État au 2026-08-16** — vagues 0 à 3 closes côté serveur (L-00 à L-19), surface HTTP (L-30) et socle client (L-31) livrés. **L'application démarre et se navigue.** Reste : le portage des 23 vues métier de la vague 3 bis, puis les vagues 4 à 6. Vague 1 ouvrable dès la clôture de la vague 0 : l'arbitrage bloquant B1 est rendu, les prérequis T1 à T6 sont levés.
+**État au 2026-08-16** — vagues 0 à 3 closes côté serveur (L-00 à L-19), surface HTTP (L-30), socle client (L-31) et vues projet (L-32) livrés. **10 des 35 vues sont portées.** Reste : L-33 à L-37 pour les 19 vues métier restantes, puis les vagues 4 à 6. Vague 1 ouvrable dès la clôture de la vague 0 : l'arbitrage bloquant B1 est rendu, les prérequis T1 à T6 sont levés.
 
 ---
 
@@ -98,7 +98,7 @@ Le choix est donc de **nommer la séparation plutôt que de la subir**. Les lots
 | --- | --- | --- | --- | --- | --- |
 | ~~**L-30**~~ | **Surface HTTP** : modules, contrôleurs, garde globale, validation, erreurs traduisibles | — | tous les lots serveur | **Haute** | **livré** |
 | ~~**L-31**~~ | Socle applicatif client : routeur, fournisseurs, session, gardes de route, états transverses | — | L-05 | **Haute** | **livré** |
-| **L-32** | Projets : portefeuille, vue d'ensemble, jalons, équipe | 10, 11, 13, 14 | L-10 | Moyenne | délégation |
+| ~~**L-32**~~ | Projets : portefeuille, vue d'ensemble, jalons, équipe | 10, 11, 13, 14 | L-10 | Moyenne | **livré** |
 | **L-33** | Tâches : kanban, vue globale, fiche tâche | 12, 16, 17 | L-11 | **Haute** | délégation |
 | **L-34** | Occupations : événements, congés, télétravail, temps passé | 18, 19, 20, 21 | L-14, L-15, L-16, L-18 | **Haute** | délégation |
 | **L-35** | Compétences, tiers et clients | 22, 23, 24, 25, 26 | L-13, L-12 | Basse | délégation |

@@ -18,21 +18,7 @@ import AxeBuilder from "@axe-core/playwright";
  * thème, et un seul des deux ne prouve rien.
  */
 
-const SESSION = {
-  id: "11111111-1111-4111-8111-111111111111",
-  prenom: "Camille",
-  nom: "Roussel",
-  email: "camille.roussel@exemple.fr",
-  login: "camille.roussel",
-  avatarFichier: null,
-  avatarPredefini: null,
-  langue: "fr",
-  theme: "auto",
-  derniereConnexion: "2026-08-15T08:12:00.000Z",
-  role: { code: "ENCADREMENT", nom: "Encadrement" },
-  permissions: ["planning:read", "projects:read", "tasks:read", "leaves:read", "users:read"],
-  motDePasseAChanger: false,
-};
+import { PROJET, LIGNE_PROJET, ROUTE, EQUIPE, serveur } from "./fixtures/projets.js";
 
 /** Les vues portées à ce jour, et l'état de session qu'elles supposent. */
 const VUES: { nom: string; chemin: string; session: "valide" | "absente" }[] = [
@@ -41,23 +27,34 @@ const VUES: { nom: string; chemin: string; session: "valide" | "absente" }[] = [
   { nom: "03 — mot de passe oublié", chemin: "/mot-de-passe-oublie", session: "absente" },
   { nom: "04 — réinitialisation", chemin: "/reinitialisation?jeton=exemple", session: "absente" },
   { nom: "35 — mon profil, dans la coquille", chemin: "/profil", session: "valide" },
+  { nom: "10 — portefeuille de projets", chemin: "/projets", session: "valide" },
+  { nom: "11 — fiche projet", chemin: `/projets/${PROJET.id}`, session: "valide" },
+  { nom: "13 — jalons", chemin: `/projets/${PROJET.id}/jalons`, session: "valide" },
+  { nom: "14 — équipe", chemin: `/projets/${PROJET.id}/equipe`, session: "valide" },
   { nom: "adresse inconnue", chemin: "/adresse-inexistante", session: "valide" },
 ];
 
 async function preparer(page: Page, session: "valide" | "absente", theme: "clair" | "sombre") {
-  await page.route("**/api/auth/me", (route) =>
-    session === "valide"
-      ? route.fulfill({
-          status: 200,
-          contentType: "application/json",
-          body: JSON.stringify(SESSION),
-        })
-      : route.fulfill({
+  if (session === "valide") {
+    await serveur(page, {
+      reponses: {
+        "/api/projets": { corps: { projets: [LIGNE_PROJET], affiches: 1, total: 1 } },
+        [`/api/projets/${PROJET.id}`]: { corps: PROJET },
+        "/feuille-de-route": { corps: ROUTE },
+        "/equipe": { corps: EQUIPE },
+      },
+    });
+  } else {
+    await page.route(
+      (url) => url.pathname.startsWith("/api/"),
+      (route) =>
+        route.fulfill({
           status: 401,
           contentType: "application/json",
           body: JSON.stringify({ cle: "auth:erreurs.sessionRequise", message: "Session requise" }),
         }),
-  );
+    );
+  }
   // Le thème est mémorisé avant le premier rendu : l'appliquer après ferait
   // mesurer axe sur la palette claire pendant un instant.
   await page.addInitScript((t: string) => {

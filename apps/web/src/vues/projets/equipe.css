@@ -1,0 +1,211 @@
+/*
+ * Vue 14 — Projet, onglet Équipe.
+ * Section 18 des maquettes, reprise verbatim.
+ *
+ * Trois populations cohabitent : agents, tiers externes, clients.
+ * La forme de la pastille les distingue avant même la lecture du libellé.
+ */
+
+.team-bar {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 12px 15px;
+  margin-bottom: 14px;
+}
+.tb-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.tb-val {
+  font-family: var(--font-display);
+  font-size: 19px;
+  font-weight: 600;
+  line-height: 1.1;
+}
+.tb-sep {
+  width: 1px;
+  height: 30px;
+  background: var(--line);
+}
+.tb-etp {
+  margin-left: auto;
+  text-align: right;
+}
+
+.sec-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--line);
+}
+.sec-kind {
+  font-family: var(--font-mono);
+  font-size: 8.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  border: 1px solid currentcolor;
+  border-radius: 2px;
+  padding: 1px 5px;
+}
+.sec-kind-agents {
+  color: var(--accent);
+}
+.sec-kind-tiers {
+  color: var(--st-review);
+}
+.sec-kind-clients {
+  color: var(--muted);
+}
+
+.mrow {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) 196px 158px 28px;
+  gap: 14px;
+  align-items: center;
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--line);
+}
+.mrow:last-child {
+  border-bottom: none;
+}
+.mrow:hover {
+  background: var(--surface-2);
+}
+
+.mav {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  flex: none;
+}
+.mav.is-ext {
+  border-radius: 3px;
+  background: transparent;
+  border: 1px dashed var(--st-review);
+  color: var(--st-review);
+}
+.mav.is-client {
+  border-radius: 3px;
+  background: var(--surface-2);
+  border: 1px solid var(--line-strong);
+  color: var(--ink);
+}
+.mav-sm {
+  width: 22px;
+  height: 22px;
+  font-size: 8px;
+}
+
+.mname {
+  font-size: 13.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin: 0;
+}
+.msub {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  color: var(--muted);
+  margin-top: 3px;
+}
+
+.malloc {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.malloc input {
+  width: 56px;
+  text-align: right;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  padding: 5px 7px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r);
+  background: var(--surface);
+  color: var(--ink);
+}
+.malloc input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.malloc .bar {
+  flex: 1;
+  margin: 0;
+}
+.malloc-na {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  color: var(--muted);
+}
+
+.mdel {
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+.mdel:hover {
+  color: var(--st-blocked);
+  border-color: var(--st-blocked);
+}
+
+.kind-seg {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.kind-opt {
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r);
+  padding: 11px;
+  background: var(--surface);
+  text-align: left;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.kind-opt[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.kind-name {
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.kind-desc {
+  display: block;
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 2px;
+  line-height: 1.35;
+}
+
+.panel-espace {
+  margin-bottom: 14px;
+}
+.sec-head-fin {
+  margin-left: auto;
+}
