@@ -114,6 +114,23 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/*
+ * L'icône du projet. La maquette pose un symbole SVG (`p-screen`,
+ * `p-database`) ; le produit rend le glyphe que porte le projet, comme les
+ * vues 10 et 11. Le nom de classe reste celui de la maquette.
+ */
+.pchip .picon {
+  width: 13px;
+  height: 13px;
+  color: var(--accent);
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-style: normal;
+  line-height: 1;
+}
 .pchip.is-indep {
   border-style: dashed;
   border-color: var(--line-strong);
@@ -213,10 +230,29 @@
   color: var(--accent);
 }
 
+/*
+ * `.bascule-vue` n'est pas de la maquette : la vue 16 emploie `.seg` du socle.
+ * La règle est conservée parce que trois autres vues l'importent encore ;
+ * elle disparaîtra avec leur portage.
+ */
 .bascule-vue {
   display: flex;
   gap: 2px;
   margin-left: auto;
+}
+
+.hours-pair {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.hours-pair input {
+  flex: 1;
+}
+.hours-pair span {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--muted);
 }
 
 @media (max-width: 1280px) {
