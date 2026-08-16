@@ -224,6 +224,124 @@ describe("RG-PRJ-06 — un membre ne s'ajoute pas deux fois", () => {
   });
 });
 
+
+describe("EX-PRJ-09 — le rôle d'un membre se change SANS le retirer", () => {
+  /*
+   * Le point d'entrée n'existait pas, et son absence se voyait à l'écran : la
+   * maquette de la vue 14 pose un sélecteur de rôle sur chaque ligne d'équipe.
+   * Sans lui, corriger un rôle imposait de retirer la personne puis de la
+   * rajouter — un lien rompu pour être refait, avec sa notification d'ajout.
+   *
+   * Trouvé par la boucle de conformité de rendu : elle signalait `mini-select`
+   * absente de la vue, et la cause était en amont.
+   */
+  it("le rôle et l'allocation changent, l'appartenance ne bouge pas", async () => {
+    const p = await projets.creer(nouveauProjet(), chef);
+    const membre = await agent();
+    await projets.ajouterMembre(p.id, { userId: membre, roleProjet: "Développeur", tauxAllocation: 50 }, chef);
+
+    const modifie = await projets.changerRoleMembre(
+      p.id,
+      membre,
+      { roleProjet: "Chef de projet", tauxAllocation: 80 },
+      chef,
+    );
+
+    expect(modifie.roleProjet).toBe("Chef de projet");
+    expect(modifie.tauxAllocation).toBe(80);
+    // L'appartenance est la même ligne : ni retrait, ni doublon.
+    expect(await prisma.projectMember.count({ where: { projectId: p.id } })).toBe(1);
+  });
+
+  it("changer le rôle N'ENVOIE PAS de notification d'ajout", async () => {
+    // C'est tout l'intérêt du point d'entrée : le contournement par
+    // retrait-puis-ajout prévenait la personne qu'elle rejoignait un projet
+    // qu'elle n'avait jamais quitté.
+    const p = await projets.creer(nouveauProjet(), chef);
+    const membre = await agent();
+    await projets.ajouterMembre(p.id, { userId: membre, roleProjet: "Développeur" }, chef);
+    const avant = await prisma.notification.count({ where: { userId: membre } });
+
+    await projets.changerRoleMembre(p.id, membre, { roleProjet: "Testeur" }, chef);
+
+    expect(await prisma.notification.count({ where: { userId: membre } })).toBe(avant);
+  });
+
+  it("RG-ADM — le changement est tracé, avec l'avant et l'après", async () => {
+    const p = await projets.creer(nouveauProjet(), chef);
+    const membre = await agent();
+    await projets.ajouterMembre(p.id, { userId: membre, roleProjet: "Développeur" }, chef);
+    await projets.changerRoleMembre(p.id, membre, { roleProjet: "Architecte" }, chef);
+
+    const trace = await prisma.auditLog.findFirst({
+      where: { action: "project.member_update", entiteId: p.id },
+      orderBy: { horodatage: "desc" },
+    });
+    expect(trace).not.toBeNull();
+    expect(JSON.stringify(trace?.detail)).toContain("Développeur");
+    expect(JSON.stringify(trace?.detail)).toContain("Architecte");
+  });
+
+  it("une personne qui n'est pas membre est refusée, pas ajoutée en douce", async () => {
+    const p = await projets.creer(nouveauProjet(), chef);
+    const etranger = await agent();
+    await expect(
+      projets.changerRoleMembre(p.id, etranger, { roleProjet: "Testeur" }, chef),
+    ).rejects.toMatchObject({ code: "membre_introuvable" });
+    expect(await prisma.projectMember.count({ where: { projectId: p.id } })).toBe(0);
+  });
+});
+
+describe("RG-JAL-05 — la feuille de route NOMME les tâches sans jalon", () => {
+  /*
+   * `RG-JAL-05` détache les tâches d'un jalon supprimé sans les supprimer :
+   * elles existent donc, et la feuille de route ne les montrait nulle part.
+   * Une tâche rattachée à rien est précisément celle qu'on oublie.
+   */
+  it("elles sont rendues à part, et comptées", async () => {
+    const p = await projets.creer(nouveauProjet(), chef);
+    const j = await projets.creerJalon(
+      { nom: "Jalon", dateEcheance: utc("2026-06-30"), projectId: p.id },
+      chef,
+    );
+    await prisma.task.createMany({
+      data: [
+        { titre: "Rattachée", projectId: p.id, milestoneId: j.id, statut: "todo" },
+        { titre: "Orpheline", projectId: p.id, statut: "doing" },
+      ],
+    });
+
+    const feuille = await projets.feuilleDeRoute(p.id);
+
+    expect(feuille.sansJalon.map((t) => t.titre)).toEqual(["Orpheline"]);
+    expect(feuille.indicateurs.sansJalon).toBe(1);
+    // Le compte total les inclut : une tâche sans jalon reste une tâche du projet.
+    expect(feuille.indicateurs.taches).toBe(2);
+  });
+
+  it("la ligne porte QUI et COMBIEN, pas seulement quoi et quand", async () => {
+    // La maquette pose une pile d'avatars et une charge sur chaque ligne.
+    // Sans elles, la feuille de route ne dit pas si un jalon tiendra.
+    const p = await projets.creer(nouveauProjet(), chef);
+    const j = await projets.creerJalon(
+      { nom: "Jalon", dateEcheance: utc("2026-06-30"), projectId: p.id },
+      chef,
+    );
+    const membre = await agent();
+    const t = await prisma.task.create({
+      data: { titre: "Chiffrée", projectId: p.id, milestoneId: j.id, statut: "todo", estimationHeures: 12 },
+    });
+    await prisma.taskAssignee.create({ data: { taskId: t.id, userId: membre } });
+
+    const feuille = await projets.feuilleDeRoute(p.id);
+    const ligne = feuille.jalons[0]?.taches[0];
+
+    expect(Number(ligne?.estimationHeures)).toBe(12);
+    expect(ligne?.assignes).toHaveLength(1);
+    expect(ligne?.assignes[0]?.user.id).toBe(membre);
+  });
+});
+
 describe("RG-JAL-01 — le statut d'un jalon est CALCULÉ", () => {
   it("sans tâche : En attente", async () => {
     const p = await projets.creer(nouveauProjet(), chef);

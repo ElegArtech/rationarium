@@ -109,6 +109,7 @@ export const MESSAGES_METIER: Record<string, Message> = {
   deja_archive: m(409, "erreurs:dejaArchive", "Ce projet est déjà archivé."),
   pas_archive: m(409, "erreurs:pasArchive", "Ce projet n'est pas archivé."),
   membre_en_double: m(409, "erreurs:membreEnDouble", "Cette personne est déjà membre de l'équipe."),
+  membre_introuvable: m(404, "erreurs:membreIntrouvable", "Cette personne n'est pas membre de l'équipe."),
   jalon_autre_projet: m(
     422,
     "erreurs:jalonAutreProjet",
