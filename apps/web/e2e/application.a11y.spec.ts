@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { test, expect, type Page } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 
@@ -16,7 +18,29 @@ import AxeBuilder from "@axe-core/playwright";
  *
  * Chaque vue est passée dans **les deux thèmes** : le contraste change avec le
  * thème, et un seul des deux ne prouve rien.
+ *
+ * ────────────────────────────────────────────────────────────────────────────
+ * L-25 — **L'AUDIT BALAIE EXHAUSTIVEMENT, JAMAIS PAR ÉCHANTILLON.**
+ *
+ * La liste ci-dessous était tenue à la main, et l'audit a immédiatement montré
+ * ce que cela coûte : **la vue 05 n'y avait jamais figuré**. Une vue ajoutée
+ * plus tard échappait au balayage sans que rien ne le signale — un contrôle
+ * qui se tait sur ce qu'il ne regarde pas.
+ *
+ * La couverture est désormais **dérivée de l'inventaire gelé**
+ * (`design/etats.json`, 35 vues) et vérifiée par un test dédié. Ajouter une
+ * vue sans l'auditer fait échouer la suite ; c'est la seule façon qu'un audit
+ * reste exhaustif après le jour où il a été écrit.
+ * ────────────────────────────────────────────────────────────────────────────
  */
+
+/** L'inventaire gelé des vues — la source, jamais une copie. */
+const INVENTAIRE: Record<string, { titre: string }> = JSON.parse(
+  readFileSync(
+    fileURLToPath(new URL("../../../design/etats.json", import.meta.url)),
+    "utf8",
+  ),
+) as Record<string, { titre: string }>;
 
 import { PROJET, LIGNE_PROJET, ROUTE, EQUIPE, serveur, SESSION } from "./fixtures/projets.js";
 import { LISTE, FICHE } from "./fixtures/taches.js";
@@ -155,6 +179,13 @@ const VUES: {
   { nom: "02 — inscription", chemin: "/inscription", session: "absente" },
   { nom: "03 — mot de passe oublié", chemin: "/mot-de-passe-oublie", session: "absente" },
   { nom: "04 — réinitialisation", chemin: "/reinitialisation?jeton=exemple", session: "absente" },
+  {
+    // L-25 — **la vue oubliée**. Elle vit hors de la coquille : l'utilisateur
+    // est identifié mais n'a pas encore repris la main sur son compte.
+    nom: "05 — mot de passe imposé",
+    chemin: "/mot-de-passe-impose",
+    session: "valide",
+  },
   { nom: "35 — mon profil, dans la coquille", chemin: "/profil", session: "valide" },
   { nom: "10 — portefeuille de projets", chemin: "/projets", session: "valide" },
   { nom: "11 — fiche projet", chemin: `/projets/${PROJET.id}`, session: "valide" },
@@ -308,6 +339,27 @@ async function preparer(page: Page, session: "valide" | "absente", theme: "clair
     window.localStorage.setItem("trame.theme", t);
   }, theme === "sombre" ? "sombre" : "clair");
 }
+
+/**
+ * Les numéros de vue effectivement balayés, extraits des libellés.
+ *
+ * Le libellé porte le numéro en tête — « 07 — planning, semaine » — parce
+ * qu'il sert de repère au lecteur du rapport autant qu'à ce contrôle.
+ */
+const VUES_BALAYEES = new Set(
+  VUES.map((v) => /^(\d{2}) /.exec(v.nom)?.[1]).filter((n): n is string => n !== undefined),
+);
+
+test("L-25 — L'AUDIT COUVRE LES 35 VUES DE L'INVENTAIRE GELÉ", () => {
+  // Sans ce contrôle, une vue ajoutée après l'audit lui échappe en silence.
+  // C'est exactement ce qui était arrivé à la vue 05.
+  const manquantes = Object.keys(INVENTAIRE)
+    .filter((numero) => !VUES_BALAYEES.has(numero))
+    .map((numero) => `${numero} — ${INVENTAIRE[numero]?.titre ?? ""}`);
+
+  expect(manquantes).toEqual([]);
+  expect(VUES_BALAYEES.size).toBe(Object.keys(INVENTAIRE).length);
+});
 
 for (const vue of VUES) {
   for (const theme of ["clair", "sombre"] as const) {

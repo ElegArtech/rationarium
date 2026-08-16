@@ -3,7 +3,8 @@
     "ouvrir": "Ouvrir la navigation",
     "replier": "Replier la barre latérale",
     "deplier": "Déplier la barre latérale",
-    "principale": "Navigation principale"
+    "principale": "Navigation principale",
+    "allerAuContenu": "Aller au contenu principal"
   },
   "groupes": {
     "pilotage": "Pilotage",

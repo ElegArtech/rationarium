@@ -1,5 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
+import { useEffect } from "react";
+import { useRouterState } from "@tanstack/react-router";
 import { PanneauNotifications } from "./Notifications.js";
 import {
   Button,
@@ -72,8 +74,41 @@ export function Coquille({
     setThemeEtat(nouveau);
   };
 
+  /*
+   * RGAA 8.6 — **le titre de page doit être pertinent**, et il ne l'était pas :
+   * toutes les vues s'appelaient « Trame ». Un utilisateur de lecteur d'écran
+   * qui passe d'une vue à l'autre n'entendait donc rien qui les distingue, et
+   * l'historique du navigateur affichait trente-cinq entrées identiques.
+   *
+   * Le titre est **dérivé du `h1` affiché** plutôt que déclaré vue par vue :
+   * une liste parallèle finirait par diverger, et une vue nouvelle
+   * l'oublierait. Ce qui est à l'écran est ce qui est annoncé.
+   */
+  const chemin = useRouterState({ select: (etat) => etat.location.pathname });
+
+  useEffect(() => {
+    const image = requestAnimationFrame(() => {
+      const titre = document.querySelector("main h1")?.textContent?.trim();
+      document.title = titre ? `${titre} — Trame` : "Trame";
+    });
+    return () => cancelAnimationFrame(image);
+  }, [chemin]);
+
   return (
     <div className={`app ${repliee ? "sidebar-repliee" : ""} ${tiroirOuvert ? "tiroir-ouvert" : ""}`}>
+      {/*
+        RGAA 12.7 — le lien d'évitement. Il était **stylé dans le socle et
+        jamais rendu** : la classe existait, l'élément non. L'audit L-25 l'a
+        trouvé, et c'est exactement le genre de manque qu'`axe` ne voit pas —
+        rien n'est incorrect dans une page qui n'a pas de lien d'évitement,
+        elle est seulement plus longue à traverser pour qui n'a pas de souris.
+
+        Il est le **premier enfant** : un lien d'évitement atteint après la
+        navigation ne sert à rien, on l'a déjà traversée.
+      */}
+      <a className="skip" href="#contenu">
+        {t("navigation.allerAuContenu")}
+      </a>
       <nav className="sidebar" aria-label={t("navigation.principale")}>
         <div className="sidebar-tete">
           <span className="marque-nom">Trame</span>
@@ -193,7 +228,9 @@ export function Coquille({
           </div>
         </header>
 
-        <main className="contenu">{children}</main>
+        <main className="contenu" id="contenu">
+          {children}
+        </main>
       </div>
     </div>
   );
