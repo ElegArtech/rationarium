@@ -200,10 +200,10 @@ Au-delà des permissions, un **périmètre** limite ce qu'un utilisateur voit.
 
 ### 4.1 Vocabulaires
 
-**Statut de projet** — Brouillon · Actif · Suspendu · En pause · Terminé · Annulé
+**Statut de projet** — Brouillon · Actif · Suspendu · Terminé · Annulé
 **Statut de tâche** — À faire · En cours · En revue · Terminé · Bloqué
 **Statut de jalon** — En attente · En cours · Terminé
-**Priorité** — Basse · Normale · Moyenne · Haute · Urgente · Critique
+**Priorité** — Basse · Normale · Haute · Critique
 **Statut de congé** — En attente · Approuvé · Refusé · Annulé *(+ état intermédiaire : annulation demandée)*
 **Demi-journée** — Matin · Après-midi
 **Type d'activité (temps)** — Développement · Réunion · Support · Formation · Autre
