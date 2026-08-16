@@ -1,0 +1,42 @@
+# ════════════════════════════════════════════════════════════════════════════
+# La base de développement, et rien d'autre.
+#
+# Le serveur et le client tournent sur la machine, pas en conteneur : on veut
+# le rechargement à chaud et un débogueur attachable. Seule PostgreSQL est
+# conteneurisée, parce qu'elle est la seule dépendance qu'on ne veut pas
+# installer à la main — et parce que les tests d'intégration exigent la même
+# version que la production (`Testcontainers`, `postgres:18`).
+#
+# Le port 55432 et non 5432 : une PostgreSQL déjà installée sur le poste ne
+# doit pas entrer en conflit, ni recevoir par erreur les migrations de Trame.
+#
+#     docker compose -f deploiement/compose.dev.yaml up -d
+#
+# Voir le README de la racine pour la marche complète.
+# ════════════════════════════════════════════════════════════════════════════
+
+name: trame-dev
+
+services:
+  base:
+    image: postgres:18.6-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: trame
+      POSTGRES_PASSWORD: trame
+      POSTGRES_DB: trame
+      TZ: Europe/Paris
+    ports:
+      - "55432:5432"
+    volumes:
+      # `/var/lib/postgresql`, pas `/var/lib/postgresql/data` : voir le motif
+      # dans `compose.yaml`, il vaut ici aussi.
+      - donnees-dev:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U trame -d trame"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+volumes:
+  donnees-dev:
