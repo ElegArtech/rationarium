@@ -49,6 +49,24 @@ export class ActiviteService {
     private readonly perimetres: PerimetreService,
   ) {}
 
+  /**
+   * `EX-ACT-01` — le catalogue, avec ses règles de récurrence.
+   *
+   * Une tâche désactivée reste au catalogue : `RG-ACT-05` conserve le passé,
+   * et la faire disparaître laisserait des assignations rattachées à un objet
+   * introuvable.
+   */
+  async catalogue(inclureInactives = false) {
+    return this.prisma.predefinedTask.findMany({
+      where: inclureInactives ? {} : { actif: true },
+      orderBy: [{ actif: "desc" }, { nom: "asc" }],
+      include: {
+        recurrences: { orderBy: [{ active: "desc" }, { dateDebut: "asc" }] },
+        _count: { select: { assignations: true } },
+      },
+    });
+  }
+
   /** `EX-ACT-01`, `RG-ACT-02` — une durée « créneau horaire » exige ses horaires. */
   async creerTache(
     donnees: {

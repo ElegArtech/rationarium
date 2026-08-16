@@ -323,4 +323,109 @@ export class CalendrierService {
       legaux: feries.filter((f) => f.type === "legal").length,
     };
   }
+  /**
+   * `EX-PRM-01` — les réglages globaux.
+   *
+   * Seuls les réglages **publics** sortent : la table porte aussi des limites
+   * internes (plafond journalier, durée de session) qu'un écran de préférences
+   * n'a pas à exposer. Le drapeau est en base, il ne se décide pas ici.
+   */
+  async reglages() {
+    const lignes = await this.prisma.setting.findMany({
+      where: { public: true },
+      orderBy: { cle: "asc" },
+    });
+    return Object.fromEntries(lignes.map((l) => [l.cle, l.valeur]));
+  }
+
+  /**
+   * Enregistre des réglages, **en une transaction**.
+   *
+   * Un enregistrement partiel laisserait l'application dans un état que
+   * personne n'a choisi : format de date changé, premier jour de la semaine
+   * inchangé. Tout passe, ou rien.
+   */
+  async enregistrerReglages(reglages: Record<string, string>, acteurId: string) {
+    const cles = Object.keys(reglages);
+    if (cles.length === 0) return {};
+
+    await this.prisma.$transaction(
+      cles.map((cle) =>
+        this.prisma.setting.upsert({
+          where: { cle },
+          create: { cle, valeur: reglages[cle]!, public: true },
+          update: { valeur: reglages[cle]!, version: { increment: 1 } },
+        }),
+      ),
+    );
+    await this.audit.tracer({
+      action: "settings.update", typeEntite: "Setting", entiteId: cles.join(","), acteurId,
+      detail: { cles },
+    });
+    return this.reglages();
+  }
+
+  /**
+   * `EX-PRM-02` — les jours fériés d'une année, avec leur statistique.
+   *
+   * Le compte de jours **ouvrés** est mis en avant parce que c'est le réglage
+   * à effet lointain : un férié marqué ouvré compte comme travaillé dans le
+   * décompte des congés. Le brief exige que la conséquence soit explicite.
+   */
+  async joursFeries(annee: number) {
+    const debut = new Date(Date.UTC(annee, 0, 1));
+    const fin = new Date(Date.UTC(annee, 11, 31));
+    const lignes = await this.prisma.holiday.findMany({
+      where: { OR: [{ date: { gte: debut, lte: fin } }, { recurrent: true }] },
+      orderBy: { date: "asc" },
+    });
+
+    // `RG-PRM-02` — un récurrent est stocké UNE fois et projeté sur l'année
+    // demandée, exactement comme le fait `joursChomes`. Sans cette projection,
+    // une année jamais importée s'afficherait vide dans la vue 31 alors que le
+    // décompte des congés, lui, y voit bien ses fériés : les deux lectures se
+    // contrediraient, et c'est le paramétrage qui aurait tort.
+    const parDate = new Map<string, (typeof lignes)[number]>();
+    for (const f of lignes) {
+      if (f.date >= debut && f.date <= fin) parDate.set(jour(f.date), f);
+    }
+    for (const f of lignes) {
+      if (!f.recurrent) continue;
+      const projete = new Date(f.date);
+      projete.setUTCFullYear(annee);
+      const cle = jour(projete);
+      // Une déclaration explicite pour l'année l'emporte sur la projection :
+      // c'est ainsi qu'on chôme un jour habituellement travaillé, ou l'inverse.
+      if (!parDate.has(cle)) parDate.set(cle, { ...f, date: projete });
+    }
+
+    const feries = [...parDate.values()].sort((a, b) => a.date.getTime() - b.date.getTime());
+
+    return {
+      feries,
+      statistiques: {
+        total: feries.length,
+        chomes: feries.filter((f) => !f.ouvre).length,
+        ouvres: feries.filter((f) => f.ouvre).length,
+        legaux: feries.filter((f) => f.type === "legal").length,
+      },
+    };
+  }
+
+  /** `EX-PRM-03` — les vacances scolaires d'une année scolaire. */
+  async vacances(anneeScolaire?: string) {
+    const vacances = await this.prisma.schoolVacation.findMany({
+      ...(anneeScolaire ? { where: { anneeScolaire } } : {}),
+      orderBy: { dateDebut: "asc" },
+    });
+    return {
+      vacances,
+      statistiques: {
+        total: vacances.length,
+        importees: vacances.filter((v) => v.importee).length,
+        manuelles: vacances.filter((v) => !v.importee).length,
+      },
+    };
+  }
+
 }

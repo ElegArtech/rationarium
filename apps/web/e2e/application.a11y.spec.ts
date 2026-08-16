@@ -39,6 +39,16 @@ import {
   FICHE_CLIENT,
 } from "./fixtures/referentiels.js";
 import { UTILISATEURS, SUIVI, ARBORESCENCE } from "./fixtures/administration.js";
+import {
+  REGLAGES,
+  FERIES,
+  VACANCES,
+  ROLES,
+  MATRICE_PERSONNALISE,
+  AUDIT,
+  FACETTES_AUDIT,
+  PREDEFINIES,
+} from "./fixtures/parametrage.js";
 
 /** Une session dotée des droits d'écriture : les vues doivent rester conformes
  *  avec leurs actions affichées, pas seulement en lecture seule. */
@@ -87,11 +97,30 @@ const SESSION_COMPLETE = {
     "directions:read",
     "directions:delete",
     "services:read",
+    "settings:read",
+    "settings:update",
+    "holidays:read",
+    "holidays:import",
+    "school_vacations:read",
+    "users:manage_roles",
+    "audit:read",
+    "predefined_tasks:read",
   ],
 };
 
-/** Les vues portées à ce jour, et l'état de session qu'elles supposent. */
-const VUES: { nom: string; chemin: string; session: "valide" | "absente" }[] = [
+/**
+ * Les vues portées à ce jour, et l'état de session qu'elles supposent.
+ *
+ * `apres` amène la vue dans un état qu'une simple adresse n'atteint pas —
+ * un onglet, un panneau dépliant. Sans lui, les grilles les plus denses du
+ * produit, qui sont justement les plus exposées, ne seraient jamais mesurées.
+ */
+const VUES: {
+  nom: string;
+  chemin: string;
+  session: "valide" | "absente";
+  apres?: (page: Page) => Promise<void>;
+}[] = [
   { nom: "01 — connexion", chemin: "/connexion", session: "absente" },
   { nom: "02 — inscription", chemin: "/inscription", session: "absente" },
   { nom: "03 — mot de passe oublié", chemin: "/mot-de-passe-oublie", session: "absente" },
@@ -116,6 +145,23 @@ const VUES: { nom: string; chemin: string; session: "valide" | "absente" }[] = [
   { nom: "27 — utilisateurs", chemin: "/utilisateurs", session: "valide" },
   { nom: "28 — suivi individuel", chemin: "/utilisateurs/u-autre/suivi", session: "valide" },
   { nom: "29 — départements et services", chemin: "/departements", session: "valide" },
+  { nom: "31 — paramètres", chemin: "/parametres", session: "valide" },
+  {
+    nom: "31 — paramètres, onglet jours fériés",
+    chemin: "/parametres",
+    session: "valide",
+    apres: (page) => page.getByRole("link", { name: "Jours fériés" }).click(),
+  },
+  { nom: "32 — rôles et permissions", chemin: "/roles", session: "valide" },
+  {
+    nom: "32 — matrice des permissions dépliée",
+    chemin: "/roles",
+    session: "valide",
+    // La grille la plus dense du produit : 26 modules × 30 actions.
+    apres: (page) => page.getByRole("button", { name: "Ouvrir la matrice" }).nth(1).click(),
+  },
+  { nom: "33 — journal d'audit", chemin: "/audit", session: "valide" },
+  { nom: "34 — tâches prédéfinies", chemin: "/taches-predefinies", session: "valide" },
   { nom: "adresse inconnue", chemin: "/adresse-inexistante", session: "valide" },
 ];
 
@@ -148,6 +194,14 @@ async function preparer(page: Page, session: "valide" | "absente", theme: "clair
         "/api/utilisateurs": { corps: UTILISATEURS },
         "/suivi": { corps: SUIVI },
         "/api/organisation": { corps: ARBORESCENCE },
+        "/api/parametrage": { corps: REGLAGES },
+        "/api/parametrage/feries": { corps: FERIES },
+        "/api/parametrage/vacances": { corps: VACANCES },
+        "/api/administration/roles": { corps: ROLES },
+        "/api/administration/roles/r-agent/matrice": { corps: MATRICE_PERSONNALISE },
+        "/api/administration/audit": { corps: AUDIT },
+        "/api/administration/audit/facettes": { corps: FACETTES_AUDIT },
+        "/api/activite/taches": { corps: PREDEFINIES },
       },
     });
   } else {
@@ -174,6 +228,10 @@ for (const vue of VUES) {
       await preparer(page, vue.session, theme);
       await page.goto(vue.chemin);
       await page.waitForLoadState("networkidle");
+      if (vue.apres) {
+        await vue.apres(page);
+        await page.waitForLoadState("networkidle");
+      }
 
       const resultat = await new AxeBuilder({ page })
         .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])

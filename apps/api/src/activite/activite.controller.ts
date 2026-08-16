@@ -21,6 +21,13 @@ export class ActiviteController {
     return this.activite.grille(q.debut, q.fin, d.perimetre);
   }
 
+  /** `EX-ACT-01` — le catalogue des tâches prédéfinies. Vue 34. */
+  @Get("taches")
+  @RequiertPermission("predefined_tasks:read")
+  catalogue(@Query("inclureInactives") inclureInactives?: string) {
+    return this.activite.catalogue(inclureInactives === "true");
+  }
+
   @Post("taches")
   @RequiertPermission("predefined_tasks:create")
   creerTache(@Body() corps: unknown, @Demande() d: ContexteDemande) {

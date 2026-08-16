@@ -41,6 +41,10 @@ import { Clients, FicheClient } from "../vues/referentiels/Clients.js";
 import { Utilisateurs } from "../vues/administration/Utilisateurs.js";
 import { SuiviIndividuel } from "../vues/administration/Suivi.js";
 import { Organisation } from "../vues/administration/Organisation.js";
+import { Parametres } from "../vues/administration/Parametres.js";
+import { Roles } from "../vues/administration/Roles.js";
+import { Audit } from "../vues/administration/Audit.js";
+import { Predefinies } from "../vues/administration/Predefinies.js";
 
 /**
  * L'arborescence des routes.
@@ -426,6 +430,30 @@ const routeOrganisation = createRoute({
   component: Organisation,
 });
 
+const routeParametres = createRoute({
+  getParentRoute: () => routeApplication,
+  path: "/parametres",
+  component: Parametres,
+});
+
+const routeRoles = createRoute({
+  getParentRoute: () => routeApplication,
+  path: "/roles",
+  component: Roles,
+});
+
+const routeAudit = createRoute({
+  getParentRoute: () => routeApplication,
+  path: "/audit",
+  component: Audit,
+});
+
+const routePredefinies = createRoute({
+  getParentRoute: () => routeApplication,
+  path: "/taches-predefinies",
+  component: Predefinies,
+});
+
 const arbre = racine.addChildren([
   routeConnexion,
   routeInscription,
@@ -454,6 +482,10 @@ const arbre = racine.addChildren([
     routeUtilisateurs,
     routeSuivi,
     routeOrganisation,
+    routeParametres,
+    routeRoles,
+    routeAudit,
+    routePredefinies,
   ]),
 ]);
 

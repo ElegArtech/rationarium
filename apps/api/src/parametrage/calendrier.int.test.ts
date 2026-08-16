@@ -248,3 +248,131 @@ describe("Vacances scolaires et trame de fond", () => {
     expect(stats.legaux).toBe(11);
   });
 });
+
+/**
+ * L-37 — ce que la vue 31 lit et écrit.
+ *
+ * Les trois lectures de cette vue portent chacune un piège : des réglages
+ * privés qui ne doivent pas fuir, une année jamais importée qui doit pourtant
+ * montrer ses fériés récurrents, et un enregistrement qui doit être entier.
+ */
+describe("EX-PRM-01 — les réglages globaux", () => {
+  beforeEach(async () => {
+    await prisma.setting.deleteMany();
+    await prisma.auditLog.deleteMany({ where: { action: "settings.update" } });
+  });
+
+  it("ne rend que les réglages PUBLICS — un secret de service n'est pas un paramètre d'affichage", async () => {
+    await prisma.setting.createMany({
+      data: [
+        { cle: "display.dateFormat", valeur: "JJ/MM/AAAA", public: true },
+        { cle: "smtp.password", valeur: "s3cr3t", public: false },
+      ],
+    });
+
+    const lus = await cal.reglages();
+    expect(lus["display.dateFormat"]).toBe("JJ/MM/AAAA");
+    // L'assertion qui porte : l'absence, pas la présence.
+    expect(Object.keys(lus)).not.toContain("smtp.password");
+  });
+
+  it("enregistre en bloc et rend l'état complet, pas seulement ce qui a changé", async () => {
+    await cal.enregistrerReglages(
+      { "display.dateFormat": "AAAA-MM-JJ", "display.firstDayOfWeek": "0" },
+      acteur,
+    );
+    const apres = await cal.enregistrerReglages({ "display.firstDayOfWeek": "1" }, acteur);
+
+    expect(apres["display.firstDayOfWeek"]).toBe("1");
+    // Le réglage non transmis survit : un enregistrement n'est pas un
+    // remplacement de l'ensemble.
+    expect(apres["display.dateFormat"]).toBe("AAAA-MM-JJ");
+  });
+
+  it("un enregistrement vide ne trace rien et ne casse rien", async () => {
+    expect(await cal.enregistrerReglages({}, acteur)).toEqual({});
+    expect(await prisma.auditLog.count({ where: { action: "settings.update" } })).toBe(0);
+  });
+
+  it("M20 — la modification des paramètres est tracée avec les clés touchées", async () => {
+    await cal.enregistrerReglages({ "planning.visibleDays": "1,2,3" }, acteur);
+    const trace = await prisma.auditLog.findFirst({ where: { action: "settings.update" } });
+    expect(trace).not.toBeNull();
+    expect(trace?.detail).toMatchObject({ cles: ["planning.visibleDays"] });
+  });
+});
+
+describe("EX-PRM-02 — la liste des fériés d'une année", () => {
+  it("RG-PRM-02 — une année JAMAIS IMPORTÉE montre quand même ses fériés récurrents", async () => {
+    // Le décompte des congés, lui, les voit : les deux lectures doivent dire
+    // la même chose, sinon c'est le paramétrage qui ment.
+    await cal.importerJoursFeries(2026, acteur);
+
+    const listee = await cal.joursFeries(2028);
+    const dates = listee.feries.map((f) => f.date.toISOString().slice(0, 10));
+    expect(dates).toContain("2028-01-01");
+    expect(dates).toContain("2028-07-14");
+    // Pâques 2026 est mobile : elle n'est pas récurrente, donc pas projetée.
+    expect(dates).not.toContain("2028-04-06");
+
+    // La contrepartie, vérifiée : le décompte voit la même chose. Le 13 est
+    // un jeudi, le 14 un vendredi férié, le 15 un samedi — un seul jour
+    // ouvré. Sans la projection du récurrent, il y en aurait deux.
+    expect(await cal.joursOuvres(utc("2028-07-13"), utc("2028-07-15"))).toBe(1);
+  });
+
+  it("une déclaration explicite pour l'année l'emporte sur la projection", async () => {
+    await cal.importerJoursFeries(2026, acteur);
+    // La collectivité travaille le 11 novembre 2028.
+    await cal.declarerJourFerie(
+      { date: utc("2028-11-11"), libelle: "Armistice travaillé", ouvre: true, recurrent: false },
+      acteur,
+    );
+
+    const listee = await cal.joursFeries(2028);
+    const onze = listee.feries.filter(
+      (f) => f.date.toISOString().slice(0, 10) === "2028-11-11",
+    );
+    expect(onze).toHaveLength(1);
+    expect(onze[0]?.ouvre).toBe(true);
+  });
+
+  it("les statistiques comptent la liste projetée, pas les seules lignes stockées", async () => {
+    await cal.importerJoursFeries(2026, acteur);
+    const listee = await cal.joursFeries(2028);
+    expect(listee.statistiques.total).toBe(listee.feries.length);
+    expect(listee.statistiques.chomes + listee.statistiques.ouvres).toBe(listee.feries.length);
+  });
+});
+
+describe("EX-PRM-03 — les vacances scolaires", () => {
+  beforeEach(async () => {
+    await prisma.schoolVacation.deleteMany();
+  });
+
+  it("distingue ce qui vient d'un import de ce qui a été saisi à la main", async () => {
+    await cal.declarerVacances(
+      {
+        libelle: "Toussaint", dateDebut: utc("2026-10-17"), dateFin: utc("2026-11-02"),
+        zone: "B", anneeScolaire: "2026-2027", importee: true,
+      },
+      acteur,
+    );
+    await cal.declarerVacances(
+      {
+        libelle: "Pont local", dateDebut: utc("2027-05-13"), dateFin: utc("2027-05-16"),
+        zone: "B", anneeScolaire: "2026-2027",
+      },
+      acteur,
+    );
+
+    const toutes = await cal.vacances();
+    expect(toutes.statistiques).toMatchObject({ total: 2, importees: 1, manuelles: 1 });
+
+    // Les deux ne se corrigent pas de la même façon : l'un se rejoue, l'autre
+    // se ressaisit.
+    const filtrees = await cal.vacances("2025-2026");
+    expect(filtrees.vacances).toHaveLength(0);
+    expect(filtrees.statistiques.total).toBe(0);
+  });
+});

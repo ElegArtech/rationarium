@@ -178,9 +178,9 @@ Chaque maquette introduit **exactement une** section CSS, qui devient le module 
 | 27 TIERS · 28 FICHE TIERS · 29 CLIENTS · 30 FICHE CLIENT | vues 23 à 26 | L-12 |
 | 31 UTILISATEURS · 32 SUIVI INDIVIDUEL | vues 27, 28 | L-07 |
 | 33 STRUCTURE ORGANISATIONNELLE | vue 29 | L-06 |
-| 35 PARAMÈTRES | vue 31 | L-09 |
-| 36 RÔLES & PERMISSIONS · 37 JOURNAL D'AUDIT | vues 32, 33 | L-08 |
-| 38 TÂCHES PRÉDÉFINIES | vue 34 | L-17 |
+| 35 PARAMÈTRES | vue 31 | L-09 → portée en L-37, `vues/administration/parametres.css` |
+| 36 RÔLES & PERMISSIONS · 37 JOURNAL D'AUDIT | vues 32, 33 | L-08 → portées en L-37, `roles.css` et `audit.css` |
+| 38 TÂCHES PRÉDÉFINIES | vue 34 | L-17 → portée en L-37, `predefinies.css` |
 | 39 MON PROFIL | vue 35 | L-05 |
 
 > **Correction du 2026-08-16, au portage de L-32.** Les sections 11 à 13 introduisent des règles qui n'ont rien de planificatoire : la fenêtre modale, la file de messages, la barre de filtres, la pastille de vocabulaire, l'avatar d'agent, le marqueur de valeur calculée. Elles apparaissent d'abord dans le planning parce que c'est la première vue de la lignée qui en avait besoin, **pas parce qu'elles lui appartiennent**. Les laisser dans L-20 obligerait les vues 10 à 14 à les redéfinir, donc à les faire diverger. Elles vivent désormais dans `composants/partages.css`, reprises verbatim.
@@ -190,5 +190,7 @@ Chaque maquette introduit **exactement une** section CSS, qui devient le module 
 > **Troisième écart, confirmé trois fois — l'opacité comme moyen d'atténuer.** Les maquettes atténuent par `opacity` : `.7` sur une valeur absente (vues 10 et 16), `.45` et `.4` sur les numéros de week-end et de débord (vue 20). Dans tous les cas le contraste tombe sous le seuil AA. Sur la vue 20 s'ajoute une collision de sélecteurs de même poids : quand aujourd'hui tombe un week-end — deux jours sur sept — la règle du jour courant et celle du week-end se disputent la couleur, et la dernière écrite gagne. **L'opacité ne sert jamais à atténuer du texte dans le produit** : on emploie un jeton, ou on laisse le fond porter la distinction. Détail ci-dessous.
 >
 > **Troisième écart, relevé au portage de L-33 — le contraste des absences.** Les maquettes marquent une valeur absente par `opacity: .7` sur `--muted`. L'opacité fait tomber le contraste sous le seuil AA, et `axe` le refuse sur la vue portée. Le jeton `--placeholder` existe pour exactement cet usage et porte la valeur conforme. Les vues 10 et 16 emploient donc `color: var(--placeholder)` là où la maquette pose une opacité. **La maquette reste la référence de forme ; le socle est la référence de contraste.** Même famille que l'écart 5 de `mockups/GEL.md`.
+
+> **Quatrième écart, relevé au portage de L-37 — l'opacité, encore, sur une ligne inactive.** Les sections 36 et 38 atténuent les lignes désactivées par `opacity: .55`. Une tâche prédéfinie inactive reste au catalogue (`RG-ACT-05`) précisément pour être relue : la rendre illisible contredit la règle qui la conserve. Le fond porte la distinction — `background: var(--surface-2)` — et le texte garde son contraste. Quatrième occurrence de la même famille : la règle est désormais générale, **l'opacité ne dilue jamais du texte**.
 
 **Ce qui ne se porte jamais** : la section « PANNEAU DE REVUE », explicitement marquée *hors produit* dans les maquettes. C'est l'outil qui pilote les états pour la vérification (`design/etats.json`), pas une partie de l'application.
