@@ -137,7 +137,7 @@ test.describe("Vue 30 — les rapports imprimés, et le PDF", () => {
     await enImpression(page);
 
     await expect(page.locator(".print-head")).toBeVisible();
-    await expect(page.locator(".print-head")).toContainText("Ce mois");
+    await expect(page.locator(".print-head")).toContainText("30 jours");
   });
 
   test("la barre de contrôle et les onglets disparaissent", async ({ page }) => {
@@ -146,9 +146,9 @@ test.describe("Vue 30 — les rapports imprimés, et le PDF", () => {
     await enImpression(page);
 
     await expect(page.locator(".rep-bar")).toBeHidden();
-    await expect(page.getByRole("tablist")).toBeHidden();
+    await expect(page.locator(".tabbar")).toBeHidden();
     // La santé du portefeuille, elle, est ce qu'on emporte en réunion.
-    await expect(page.getByText("Portail citoyen")).toBeVisible();
+    await expect(page.getByText("Portail citoyen").first()).toBeVisible();
   });
 
   test("RG-RPT-02 — LE TRONCAGE RESTE ANNONCÉ SUR PAPIER", async ({ page }) => {

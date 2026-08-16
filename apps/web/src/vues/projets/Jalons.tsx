@@ -13,6 +13,7 @@ import { useMessages } from "../../composants/messages.js";
 import { Pastille, Barre, MarqueurCalcule } from "../../composants/pastilles.js";
 import { formaterDate, joursAvant } from "../../formats.js";
 import { CadreProjet } from "./Fiche.js";
+import "../../composants/partages.css";
 import "./fiche.css";
 import "./jalons.css";
 

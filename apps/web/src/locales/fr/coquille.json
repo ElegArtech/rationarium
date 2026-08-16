@@ -55,13 +55,30 @@
     "marquerLue": "Marquer « {titre} » comme lue"
   },
   "profil": {
-    "titre": "Mon profil",
-    "identite": "Identité",
-    "avatar": "Avatar",
-    "preferences": "Préférences",
-    "securite": "Sécurité",
     "derniereConnexion": "Dernière connexion",
     "jamaisConnecte": "Jamais connecté",
-    "changerMotDePasse": "Changer mon mot de passe"
+    "changerMotDePasse": "Changer mon mot de passe",
+    "monCompte": "Mon compte",
+    "compteActif": "Compte actif",
+    "seDeconnecter": "Se déconnecter",
+    "sections": "Sections du profil",
+    "onglet_info": "Informations",
+    "onglet_sec": "Sécurité",
+    "modifiableParVous": "Modifiable par vous",
+    "modifiableParVousAide": "Ces informations vous appartiennent : modifiez-les quand vous le souhaitez.",
+    "emailAide": "Utilisée pour les notifications et la réinitialisation du mot de passe.",
+    "enregistrer": "Enregistrer",
+    "annuler": "Annuler",
+    "gereParAdministration": "Géré par votre administration",
+    "gereParAdministrationAide": "Ces informations engagent l'organisation : elles ne se modifient pas depuis votre profil.",
+    "demanderModification": "Demander une modification",
+    "champLogin": "Login",
+    "champRole": "Rôle",
+    "pourquoiLogin": "Identifiant de connexion, figé à la création du compte : il sert de référence dans le journal d’audit.",
+    "pourquoiRole": "Détermine vos droits dans l’application. Seul un administrateur peut le changer.",
+    "pourquoiDerniereConnexion": "Relevé automatiquement à chaque ouverture de session.",
+    "nonModifiable": "Non modifiable",
+    "parAdministrateur": "Administrateur",
+    "autresSessions": "Vos autres sessions resteront ouvertes."
   }
 }

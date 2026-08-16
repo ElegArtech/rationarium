@@ -338,6 +338,7 @@ const routeProfil = createRoute({
           email: session.email,
           login: session.login,
           role: session.role?.nom ?? "",
+          roleCode: session.role?.code ?? "",
           derniereConnexion: session.derniereConnexion,
         }}
       />
