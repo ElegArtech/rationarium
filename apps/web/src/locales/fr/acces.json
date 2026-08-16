@@ -74,13 +74,13 @@
     "chapeau": "Accès à l'application"
   },
   "inscription": {
-    "chapeau": "Nouveau compte"
+    "chapeau": "Création de compte"
   },
   "oubli": {
-    "chapeau": "Récupération d'accès"
+    "chapeau": "Réinitialisation"
   },
   "reinitialisation": {
-    "chapeau": "Récupération d'accès"
+    "chapeau": "Réinitialisation"
   },
   "impose": {
     "chapeau": "Sécurité du compte"
