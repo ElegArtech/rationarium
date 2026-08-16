@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "react-aria-components";
 import * as api from "../../api/administration.js";
 import { usePeut } from "../../session/session.js";
 import { Chargement, ErreurDeChargement, AccesRefuse } from "../../composants/etats.js";
+import { AvatarAgent } from "../../composants/pastilles.js";
 import { formaterDateLongue } from "../../formats.js";
 import "../../composants/partages.css";
 import "../taches/liste.css";
@@ -39,6 +41,7 @@ function couleurDe(action: string): string {
 export function Audit() {
   const { t } = useTranslation("administration");
   const peut = usePeut();
+  const [detail, setDetail] = useState<api.EvenementAudit | null>(null);
 
   const [filtres, setFiltres] = useState({
     typeEntite: "",
@@ -87,6 +90,7 @@ export function Audit() {
         <div>
           <span className="eyebrow">{t("audit.surtitre")}</span>
           <h1 className="h1 titre-vue">{t("audit.titre")}</h1>
+          <p className="lede lede-vue">{t("audit.chapeau")}</p>
         </div>
       </div>
 
@@ -124,14 +128,22 @@ export function Audit() {
             </option>
           ))}
         </select>
+        <label className="field-label label-inline" htmlFor="audit-depuis">
+          {t("audit.du")}
+        </label>
         <input
           className="f-input"
+          id="audit-depuis"
           type="date"
           aria-label={t("audit.depuis")}
           {...champ("depuis")}
         />
+        <label className="field-label label-inline" htmlFor="audit-jusqua">
+          {t("audit.au")}
+        </label>
         <input
           className="f-input"
+          id="audit-jusqua"
           type="date"
           aria-label={t("audit.jusqua")}
           {...champ("jusqua")}
@@ -161,13 +173,15 @@ export function Audit() {
 
       {requete.data ? (
         requete.data.entrees.length === 0 ? (
-          <div className="empty empty-large">
-            <p>{t("audit.videTitre")}</p>
-            <small>{t("audit.videExplication")}</small>
-          </div>
+          <section className="panel">
+            <div className="empty">
+              <p>{t("audit.videTitre")}</p>
+              <small>{t("audit.videExplication")}</small>
+            </div>
+          </section>
         ) : (
-          <div className="tlist">
-            <div className="au-grid au-head" aria-hidden="true">
+          <section className="panel">
+            <div className="au-grid au-head">
               <span>{t("audit.colDate")}</span>
               <span>{t("audit.colAction")}</span>
               <span>{t("audit.colType")}</span>
@@ -176,8 +190,13 @@ export function Audit() {
             </div>
 
             {requete.data.entrees.map((e) => (
-              <div className="au-grid au-row" key={e.id}>
-                <span className="au-when">{formaterDateLongue(e.horodatage)}</span>
+              /* La ligne ouvre le détail. C'est une CONSULTATION : le tiroir
+                 n'offre aucune écriture, et le dit. */
+              <Button className="au-grid au-row" key={e.id} onPress={() => setDetail(e)}>
+                <span className="bloc-etroit">
+                  <span className="au-when">{formaterDateLongue(e.horodatage)}</span>
+                  <span className="au-ago">{ilYA(e.horodatage, t)}</span>
+                </span>
 
                 <span className="au-act" style={{ color: couleurDe(e.action) }}>
                   <span className="au-dot" aria-hidden="true" />
@@ -193,9 +212,14 @@ export function Audit() {
                   </span>
                 </span>
 
-                <span className="au-ent">{e.typeEntite}</span>
+                <span>
+                  <span className="pill" style={{ color: couleurDe(e.action) }}>
+                    {t(`audit.type_${e.typeEntite}`, e.typeEntite)}
+                  </span>
+                </span>
 
                 <span className="bloc-etroit">
+                  <span className="au-ent">{e.typeEntite}</span>
                   <span className="au-id">{e.entiteId}</span>
                 </span>
 
@@ -213,12 +237,15 @@ export function Audit() {
                   ) : e.acteur.supprime ? (
                     <span className="au-wn">{t("audit.acteurSupprime")}</span>
                   ) : (
-                    <span className="au-wn">
-                      {e.acteur.prenom} {e.acteur.nom}
-                    </span>
+                    <>
+                      <AvatarAgent prenom={e.acteur.prenom ?? ""} nom={e.acteur.nom ?? ""} />
+                      <span className="au-wn">
+                        {e.acteur.prenom} {e.acteur.nom}
+                      </span>
+                    </>
                   )}
                 </span>
-              </div>
+              </Button>
             ))}
 
             <div className="pager">
@@ -250,9 +277,122 @@ export function Audit() {
                 {t("audit.suivant")}
               </Button>
             </div>
-          </div>
+          </section>
         )
       ) : null}
+
+      <TiroirEvenement evenement={detail} surFermeture={() => setDetail(null)} />
     </div>
   );
+}
+
+/**
+ * Le détail d'un événement — **consultation seule**.
+ *
+ * Le tiroir n'offre aucune commande d'écriture, et il l'énonce : l'immuabilité
+ * du journal est une garantie, donc elle se lit, elle ne se devine pas à
+ * l'absence de boutons.
+ */
+function TiroirEvenement({
+  evenement,
+  surFermeture,
+}: {
+  evenement: api.EvenementAudit | null;
+  surFermeture: () => void;
+}) {
+  const { t } = useTranslation("administration");
+  const { t: tCommun } = useTranslation("commun");
+  const fermeture = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (evenement) fermeture.current?.focus();
+  }, [evenement]);
+
+  const acteur = !evenement
+    ? ""
+    : evenement.systeme || !evenement.acteur
+      ? t("audit.systeme")
+      : evenement.acteur.supprime
+        ? t("audit.acteurSupprime")
+        : `${evenement.acteur.prenom ?? ""} ${evenement.acteur.nom ?? ""}`.trim();
+
+  const lignes: [string, string][] = evenement
+    ? [
+        [t("audit.detailHorodatage"), formaterDateLongue(evenement.horodatage)],
+        [t("audit.detailAction"), evenement.action],
+        [t("audit.detailType"), evenement.typeEntite],
+        [t("audit.detailEntite"), evenement.entiteId],
+        [t("audit.detailActeur"), acteur],
+        [t("audit.detailIdentifiant"), evenement.id],
+      ]
+    : [];
+
+  /*
+   * Le tiroir reste dans le document, comme la maquette : il glisse, il
+   * n'apparaît pas. Fermé, il est `inert` — la maquette, elle, se contente
+   * d'`aria-hidden`, ce qui laisse un bouton focalisable hors écran : `axe` le
+   * refuse (`aria-hidden-focus`), et le clavier y tombe sans rien voir.
+   */
+  return (
+    <aside
+      className={evenement ? "drawer is-open" : "drawer"}
+      aria-label={t("audit.evenementTrace")}
+      inert={!evenement}
+    >
+      <div className="drawer-head">
+        <div className="bloc-etroit">
+          <span className="eyebrow">{t("audit.evenementTrace")}</span>
+          <p className="panel-title titre-tiroir">
+            {evenement
+              ? t(`audit.action_${evenement.action.replaceAll(".", "_")}`, evenement.action)
+              : "—"}
+          </p>
+        </div>
+        <Button
+          className="icon-btn"
+          ref={fermeture}
+          onPress={surFermeture}
+          aria-label={tCommun("fermer")}
+        >
+          <span aria-hidden="true">×</span>
+        </Button>
+      </div>
+      <div className="drawer-body">
+        <dl className="au-detail">
+          {lignes.map(([cle, valeur]) => (
+            <Fragment key={cle}>
+              <dt>{cle}</dt>
+              <dd>{valeur}</dd>
+            </Fragment>
+          ))}
+        </dl>
+
+        {/* Le contexte brut, tel qu'il a été enregistré. On ne le reformate
+            pas : ce qui est montré doit être ce qui est stocké. */}
+        <div className="au-ctx">
+          {evenement?.detail === null || evenement?.detail === undefined
+            ? t("audit.aucunContexte")
+            : JSON.stringify(evenement.detail, null, 2)}
+        </div>
+
+        <p className="field-hint hint-tiroir">{t("audit.immuable")}</p>
+      </div>
+    </aside>
+  );
+}
+
+/**
+ * L'écart au présent, en mots.
+ *
+ * Il complète l'horodatage, il ne le remplace pas : « il y a 3 heures » se lit
+ * d'un coup d'œil, mais un journal d'audit se cite à la seconde près. Les trois
+ * clés sont appelées en clair — une clé construite échapperait au contrôle
+ * `i18n:check`, qui ne verrait plus qu'une famille sans emploi.
+ */
+function ilYA(horodatage: string, t: TFunction<"administration">): string {
+  const minutes = Math.max(0, Math.round((Date.now() - new Date(horodatage).getTime()) / 60000));
+  if (minutes < 60) return t("audit.ilYAMinutes", { n: minutes });
+  const heures = Math.round(minutes / 60);
+  if (heures < 24) return t("audit.ilYAHeures", { n: heures });
+  return t("audit.ilYAJours", { n: Math.round(heures / 24) });
 }

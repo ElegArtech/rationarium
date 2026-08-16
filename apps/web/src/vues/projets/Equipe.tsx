@@ -12,6 +12,7 @@ import { useMessages } from "../../composants/messages.js";
 import { Barre } from "../../composants/pastilles.js";
 import { formaterNombre } from "../../formats.js";
 import { CadreProjet } from "./Fiche.js";
+import "../../composants/partages.css";
 import "./fiche.css";
 import "./equipe.css";
 

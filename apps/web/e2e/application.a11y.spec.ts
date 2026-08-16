@@ -224,13 +224,13 @@ const VUES: {
     nom: "30 — rapports, analytics avancés",
     chemin: "/rapports",
     session: "valide",
-    apres: (page) => page.getByRole("tab", { name: "Analytics avancés" }).click(),
+    apres: (page) => page.getByRole("navigation", { name: /Sections des rapports|Report sections/ }).getByRole("button", { name: "Analytics avancés" }).click(),
   },
   {
     nom: "30 — Gantt portefeuille",
     chemin: "/rapports",
     session: "valide",
-    apres: (page) => page.getByRole("tab", { name: "Gantt Portfolio" }).click(),
+    apres: (page) => page.getByRole("navigation", { name: /Sections des rapports|Report sections/ }).getByRole("button", { name: "Gantt portefeuille" }).click(),
   },
   { nom: "15 — projet, Gantt", chemin: `/projets/${PROJET_GANTT.id}/gantt`, session: "valide" },
   {
@@ -264,7 +264,7 @@ const VUES: {
     chemin: "/roles",
     session: "valide",
     // La grille la plus dense du produit : 26 modules × 30 actions.
-    apres: (page) => page.getByRole("button", { name: "Ouvrir la matrice" }).nth(1).click(),
+    apres: (page) => page.getByRole("button", { name: "Ouvrir", exact: true }).nth(1).click(),
   },
   { nom: "33 — journal d'audit", chemin: "/audit", session: "valide" },
   { nom: "34 — tâches prédéfinies", chemin: "/taches-predefinies", session: "valide" },

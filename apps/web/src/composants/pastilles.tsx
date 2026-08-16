@@ -140,11 +140,19 @@ export function AvatarAgent({
  * par `title` **et** par `aria-description` : une infobulle au survol n'existe
  * pas pour qui navigue au clavier.
  */
-export function MarqueurCalcule({ explication }: { explication: string }) {
+export function MarqueurCalcule({
+  explication,
+  libelle,
+}: {
+  explication: string;
+  /** Le mot porté par le marqueur. « Calculé » par défaut ; la vue 30 dit
+      « Règle », « Pondéré » ou « Instantanés » selon la nature du calcul. */
+  libelle?: string;
+}) {
   const { t } = useTranslation("commun");
   return (
     <span className="calc-tag" title={explication} aria-description={explication}>
-      {t("calcule")}
+      {libelle ?? t("calcule")}
     </span>
   );
 }
