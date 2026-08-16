@@ -169,6 +169,23 @@ export const formaterDateLongue = (valeur: string | Date | null | undefined): st
 };
 
 /**
+ * Le mois et l'année : `Août 2026`.
+ *
+ * L'année n'est **pas** formatée comme un nombre — `{annee, number}` rendrait
+ * « 2 026 » en français, séparateur de milliers compris. `Intl` avec
+ * `year: "numeric"` ne fait pas cette erreur, contrairement à une
+ * interpolation ICU.
+ */
+export const formaterMois = (annee: number, mois: number): string => {
+  const rendu = new Intl.DateTimeFormat(locale(), {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(Date.UTC(annee, mois, 1)));
+  return rendu.charAt(0).toUpperCase() + rendu.slice(1);
+};
+
+/**
  * Un nombre, avec le séparateur de milliers de la langue.
  *
  * `1 200 h` en français, `1,200 h` en anglais. Concaténer sans passer par

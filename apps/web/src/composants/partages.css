@@ -136,6 +136,75 @@ textarea.field {
   }
 }
 
+/* ── Panneau de détail latéral ─────────────────────────────────────────── */
+/*
+ * Section 11 des maquettes, comme la barre de filtres et la fenêtre modale :
+ * elle apparaît d'abord dans le planning parce que c'est la première vue de la
+ * lignée qui en avait besoin, pas parce qu'elle lui appartient. La vue 18
+ * l'emploie pour le détail d'un événement. Elle avait été omise au portage du
+ * L-20 : `.drawer`, `.drawer-head`, `.drawer-body` et `.dl` étaient inertes.
+ */
+
+.drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 340px;
+  height: 100vh;
+  background: var(--surface);
+  border-left: 1px solid var(--line-strong);
+  z-index: 55;
+  display: flex;
+  flex-direction: column;
+  transform: translateX(100%);
+  transition: transform 0.18s ease;
+}
+
+.drawer.is-open {
+  transform: none;
+}
+
+.drawer-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.drawer-body {
+  padding: 14px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.dl {
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  gap: 7px 12px;
+  font-size: 12.5px;
+}
+
+.dl dt {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding-top: 2px;
+}
+
+.dl dd {
+  margin: 0;
+}
+
+@media (max-width: 900px) {
+  .drawer {
+    width: 100%;
+  }
+}
+
 /* ── File de messages d'action ─────────────────────────────────────────── */
 /* Un retour d'action est annoncé, pas seulement affiché : la région est vive.
    Sans cela, une confirmation ne parvient jamais à qui n'a pas l'écran. */

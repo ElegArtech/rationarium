@@ -3,24 +3,32 @@ import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "react-aria-components";
 import * as api from "../../api/occupations.js";
+import * as apiAdministration from "../../api/administration.js";
 import { messageErreur } from "../../api/erreurs.js";
 import { usePeut } from "../../session/session.js";
 import { Chargement, ErreurDeChargement } from "../../composants/etats.js";
 import { Fenetre } from "../../composants/fenetre.js";
 import { useMessages } from "../../composants/messages.js";
-import { formaterDate, formaterDateLongue } from "../../formats.js";
+import { AvatarAgent } from "../../composants/pastilles.js";
+import { formaterDate, formaterMois } from "../../formats.js";
 import "../../composants/partages.css";
 import "../taches/liste.css";
+import "../projets/equipe.css";
 import "./teletravail.css";
 
 /**
  * Vue 20 — Télétravail.
  *
  * **Cinq apparences sur une même case.** Le brief le pose en point
- * d'attention : télétravail, bureau déclaré, non déclaré, week-end, plus le
- * qualificatif « issu d'une règle ». Les quatre premiers s'excluent ; le
- * cinquième se surajoute. Les confondre reviendrait à ne plus distinguer
- * « je n'ai rien dit » de « j'ai dit que je serais au bureau ».
+ * d'attention : télétravail, bureau déclaré, non déclaré, week-end, plus les
+ * deux qualificatifs « issu d'une règle » et « exception ». Les quatre
+ * premiers s'excluent ; les deux derniers se surajoutent. Les confondre
+ * reviendrait à ne plus distinguer « je n'ai rien dit » de « j'ai dit que je
+ * serais au bureau ».
+ *
+ * **Le clic fait un cycle à trois temps** — non déclaré → télétravail →
+ * bureau —, et le bandeau le dit avant qu'on l'ait essayé. Un geste qui ne
+ * s'annonce pas ne se devine pas.
  *
  * **La couleur ne porte jamais seule.** Chaque case déclarée porte aussi une
  * étiquette écrite, et le libellé accessible du bouton dit l'état en toutes
@@ -28,7 +36,15 @@ import "./teletravail.css";
  * ne la voit pas.
  */
 
-const JOURS_SEMAINE = [1, 2, 3, 4, 5, 6, 0];
+const JOURS_SEMAINE = [1, 2, 3, 4, 5];
+const ABREGES = ["lun", "mar", "mer", "jeu", "ven", "sam", "dim"] as const;
+
+/** Le cycle du clic, dans l'ordre annoncé par le bandeau. */
+const SUIVANT: Record<string, string> = {
+  undeclared: "telework",
+  telework: "office",
+  office: "undeclared",
+};
 
 export function Teletravail() {
   const { t } = useTranslation("occupations");
@@ -37,6 +53,7 @@ export function Teletravail() {
   const annoncer = useMessages();
   const { t: tErreurs } = useTranslation("erreurs");
   const [reglesOuvertes, setReglesOuvertes] = useState(false);
+  const [vue, setVue] = useState<"moi" | "equipe">("moi");
   const [mois, setMois] = useState(() => {
     const d = new Date();
     return { annee: d.getUTCFullYear(), mois: d.getUTCMonth() };
@@ -50,6 +67,18 @@ export function Teletravail() {
     queryFn: () => api.planningTeletravail(debut, fin),
   });
 
+  /*
+   * Les jours fériés ne viennent pas du planning de télétravail : le service
+   * ne les connaît pas. Ils sont lus au calendrier, et seulement si la
+   * permission le permet — sans elle, la case reste ouvrable, elle perd
+   * seulement son étiquette de fête. C'est une courtoisie, pas un contrôle.
+   */
+  const feries = useQuery({
+    queryKey: ["feries", mois.annee],
+    queryFn: () => apiAdministration.joursFeries(mois.annee),
+    enabled: peut("holidays:read"),
+  });
+
   const bascule = useMutation({
     mutationFn: ({ date, etat }: { date: string; etat: string }) =>
       api.basculerTeletravail(date, etat),
@@ -57,15 +86,23 @@ export function Teletravail() {
     onError: (e) => annoncer("err", messageErreur(e, tErreurs, t("teletravail.echecBascule"))),
   });
 
+  const calendrier = requete.data?.calendrier ?? [];
+  const cumul = requete.data?.cumul;
+
   const parDate = useMemo(
-    () => new Map((requete.data ?? []).map((j) => [j.date.slice(0, 10), j])),
-    [requete.data],
+    () => new Map(calendrier.map((j) => [j.date.slice(0, 10), j])),
+    [calendrier],
   );
-  const nbTeletravail = (requete.data ?? []).filter((j) => j.etat === "telework").length;
+  const nomsFeries = useMemo(
+    () => new Map((feries.data?.feries ?? []).map((f) => [f.date.slice(0, 10), f.nom])),
+    [feries.data],
+  );
 
   const premier = new Date(Date.UTC(mois.annee, mois.mois, 1));
   const decalage = (premier.getUTCDay() + 6) % 7;
   const nbJours = new Date(Date.UTC(mois.annee, mois.mois + 1, 0)).getUTCDate();
+  const nbJoursPrecedent = new Date(Date.UTC(mois.annee, mois.mois, 0)).getUTCDate();
+  const reste = (7 - ((decalage + nbJours) % 7)) % 7;
   const aujourdhui = new Date().toISOString().slice(0, 10);
 
   const modifiable = peut("telework:create");
@@ -75,161 +112,308 @@ export function Teletravail() {
       <div className="pl-toolbar">
         <div>
           <span className="eyebrow">{t("teletravail.surtitre")}</span>
-          <h1 className="h1 titre-vue">{t("teletravail.titre")}</h1>
-          <p className="lede">{t("teletravail.compte", { n: nbTeletravail })}</p>
+          <h1 className="h1 titre-vue">
+            {vue === "moi" ? t("teletravail.titre") : t("teletravail.titreEquipe")}
+          </h1>
         </div>
-        {peut("telework:manage_rules") ? (
-          <div className="pl-toolbar-fin">
+        <span className="count-split">
+          {t("teletravail.compte", { n: cumul?.teletravail ?? 0 })}
+        </span>
+        <div className="pl-toolbar-fin">
+          <div className="seg" role="group" aria-label={t("teletravail.affichage")}>
+            <Button aria-pressed={vue === "moi"} onPress={() => setVue("moi")}>
+              {t("teletravail.monPlanning")}
+            </Button>
+            <Button aria-pressed={vue === "equipe"} onPress={() => setVue("equipe")}>
+              {t("teletravail.vueEquipe")}
+            </Button>
+          </div>
+          {peut("telework:manage_rules") ? (
             <Button className="btn btn-primary" onPress={() => setReglesOuvertes(true)}>
               {t("teletravail.configurerJoursFixes")}
             </Button>
-          </div>
-        ) : null}
-      </div>
-
-      <div className="filters">
-        <div className="pl-nav" role="group" aria-label={t("teletravail.navigationMois")}>
-          <Button
-            className="nav-sq"
-            onPress={() =>
-              setMois((m) =>
-                m.mois === 0 ? { annee: m.annee - 1, mois: 11 } : { ...m, mois: m.mois - 1 },
-              )
-            }
-            aria-label={t("teletravail.moisPrecedent")}
-          >
-            <span aria-hidden="true">‹</span>
-          </Button>
-          <span className="pl-period">{formaterDateLongue(debut).replace(/^\d+\s/, "")}</span>
-          <Button
-            className="nav-sq"
-            onPress={() =>
-              setMois((m) =>
-                m.mois === 11 ? { annee: m.annee + 1, mois: 0 } : { ...m, mois: m.mois + 1 },
-              )
-            }
-            aria-label={t("teletravail.moisSuivant")}
-          >
-            <span aria-hidden="true">›</span>
-          </Button>
+          ) : null}
         </div>
       </div>
 
-      {/* L'explication est dans le flux, pas en aide au survol : le geste de
-          bascule n'est deviné par personne la première fois. */}
-      <div className="alert alert-neutral" role="note">
-        <span className="alert-icon" aria-hidden="true">
-          ?
-        </span>
-        <span>{t("teletravail.commentCaMarche")}</span>
+      {vue === "moi" ? (
+        <div>
+          {/* L'explication est dans le flux, pas en aide au survol : le geste
+              de bascule n'est deviné par personne la première fois. */}
+          <div className="alert alert-neutral" role="note">
+            <span className="alert-icon" aria-hidden="true">
+              →
+            </span>
+            <span>{t("teletravail.commentCaMarche")}</span>
+          </div>
+
+          {requete.isPending ? <Chargement quoi={t("teletravail.lePlanning")} /> : null}
+          {requete.isError ? (
+            <ErreurDeChargement erreur={requete.error} surReessai={() => void requete.refetch()} />
+          ) : null}
+
+          {requete.data ? (
+            <section className="panel">
+              <div className="panel-head">
+                <div className="pl-nav" role="group" aria-label={t("teletravail.navigationMois")}>
+                  <Button
+                    className="nav-sq"
+                    onPress={() =>
+                      setMois((m) =>
+                        m.mois === 0 ? { annee: m.annee - 1, mois: 11 } : { ...m, mois: m.mois - 1 },
+                      )
+                    }
+                    aria-label={t("teletravail.moisPrecedent")}
+                  >
+                    <span aria-hidden="true">‹</span>
+                  </Button>
+                  <Button
+                    className="nav-sq"
+                    onPress={() =>
+                      setMois((m) =>
+                        m.mois === 11 ? { annee: m.annee + 1, mois: 0 } : { ...m, mois: m.mois + 1 },
+                      )
+                    }
+                    aria-label={t("teletravail.moisSuivant")}
+                  >
+                    <span aria-hidden="true">›</span>
+                  </Button>
+                </div>
+                <span className="panel-title">{formaterMois(mois.annee, mois.mois)}</span>
+                <span className="eyebrow ligne-actions-fin">
+                  {t("teletravail.cumulDuMois", {
+                    teletravail: cumul?.teletravail ?? 0,
+                    bureau: cumul?.bureau ?? 0,
+                    nonDeclares: cumul?.nonDeclares ?? 0,
+                  })}
+                </span>
+              </div>
+
+              <div className="tt-cal">
+                {ABREGES.map((j) => (
+                  <div className="tt-dow" key={j}>
+                    {t(`jours.${j}`)}
+                  </div>
+                ))}
+
+                {/* Les jours de débord portent leur numéro : une case nue
+                    laisserait croire à un trou dans le mois. */}
+                {Array.from({ length: decalage }, (_, i) => (
+                  <div className="tt-cell is-out" key={`avant-${i}`} aria-hidden="true">
+                    <span className="tt-n">{nbJoursPrecedent - decalage + i + 1}</span>
+                  </div>
+                ))}
+
+                {Array.from({ length: nbJours }, (_, i) => {
+                  const numero = i + 1;
+                  const date = `${mois.annee}-${String(mois.mois + 1).padStart(2, "0")}-${String(numero).padStart(2, "0")}`;
+                  const jour = parDate.get(date);
+                  const weekEnd = jour?.weekend ?? false;
+                  const etat = jour?.etat ?? "undeclared";
+                  const ferie = nomsFeries.get(date);
+
+                  const classes = [
+                    "tt-cell",
+                    weekEnd ? "is-we" : "",
+                    etat === "telework" ? "is-tt" : "",
+                    etat === "office" ? "is-office" : "",
+                    date === aujourdhui ? "is-today" : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ");
+
+                  const contenu = (
+                    <>
+                      <span className="tt-n">{numero}</span>
+                      {ferie ? (
+                        <span className="tt-ferie">{ferie}</span>
+                      ) : weekEnd ? null : (
+                        <>
+                          {etat === "telework" ? (
+                            <span className="tt-tag is-tt">{t("teletravail.etat_telework")}</span>
+                          ) : null}
+                          {etat === "office" ? (
+                            <span className="tt-tag is-office">{t("teletravail.etat_office")}</span>
+                          ) : null}
+                          {jour?.exception ? (
+                            <span className="tt-mark is-exc">{t("teletravail.marqueException")}</span>
+                          ) : jour?.issuDeRegle ? (
+                            <span className="tt-mark">{t("teletravail.marqueRecurrent")}</span>
+                          ) : null}
+                        </>
+                      )}
+                    </>
+                  );
+
+                  const libelle = t("teletravail.caseLibelle", {
+                    date: formaterDate(date),
+                    etat: t(`teletravail.etat_${weekEnd ? "weekend" : etat}`),
+                  });
+
+                  /* Un week-end et un jour férié ne se déclarent pas : la case
+                     n'est pas un bouton désactivé, elle n'est pas un bouton. */
+                  if (weekEnd || ferie) {
+                    return (
+                      <div className={classes} key={date} aria-label={libelle}>
+                        {contenu}
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <Button
+                      key={date}
+                      className={classes}
+                      isDisabled={!modifiable}
+                      aria-label={libelle}
+                      onPress={() =>
+                        bascule.mutate({ date, etat: SUIVANT[etat] ?? "telework" })
+                      }
+                    >
+                      {contenu}
+                    </Button>
+                  );
+                })}
+
+                {Array.from({ length: reste }, (_, i) => (
+                  <div className="tt-cell is-out" key={`apres-${i}`} aria-hidden="true">
+                    <span className="tt-n">{i + 1}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="tt-legend">
+                <span className="tt-l">
+                  <span className="tt-sw is-tt" aria-hidden="true" />
+                  <span>{t("teletravail.etat_telework")}</span>
+                </span>
+                <span className="tt-l">
+                  <span className="tt-sw is-office" aria-hidden="true" />
+                  <span>{t("teletravail.bureauDeclare")}</span>
+                </span>
+                <span className="tt-l">
+                  <span className="tt-sw is-none" aria-hidden="true" />
+                  <span>{t("teletravail.etat_undeclared")}</span>
+                </span>
+                <span className="tt-l">
+                  <span className="tt-sw is-we" aria-hidden="true" />
+                  <span>{t("teletravail.etat_weekend")}</span>
+                </span>
+                <span className="tt-l">
+                  <span className="tt-sw is-rec" aria-hidden="true" />
+                  <span>{t("teletravail.teletravailRecurrent")}</span>
+                </span>
+                <span className="tt-l">
+                  <span className="tt-mark is-exc">{t("teletravail.marqueException")}</span>
+                </span>
+              </div>
+            </section>
+          ) : null}
+        </div>
+      ) : (
+        <VueEquipe />
+      )}
+
+      <FenetreRegles ouverte={reglesOuvertes} surFermeture={() => setReglesOuvertes(false)} />
+    </div>
+  );
+}
+
+/**
+ * `EX-TLT-05` — qui est sur site, qui est à distance, à une date donnée.
+ *
+ * La lecture est cloisonnée au serveur : le périmètre s'applique à la requête,
+ * pas au rendu. Sans la permission d'équipe, l'onglet reste, et il dit
+ * pourquoi il est vide plutôt que de disparaître sans explication.
+ */
+function VueEquipe() {
+  const { t } = useTranslation("occupations");
+  const peut = usePeut();
+  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
+
+  const requete = useQuery({
+    queryKey: ["teletravail", "equipe", date],
+    queryFn: () => api.equipeTeletravail(date),
+    enabled: peut("telework:read_team"),
+  });
+
+  const agents = requete.data ?? [];
+  const compte = (etat: string) => agents.filter((a) => a.etat === etat).length;
+
+  if (!peut("telework:read_team")) {
+    return (
+      <div className="empty empty-large">
+        <p>{t("teletravail.equipeInterditeTitre")}</p>
+        <small>{t("teletravail.equipeInterditeExplication")}</small>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="filters">
+        <label className="field-label" htmlFor="tt-equipe-date">
+          {t("teletravail.date")}
+        </label>
+        <input
+          className="f-input"
+          id="tt-equipe-date"
+          type="date"
+          value={date}
+          onChange={(e) => setDate(e.target.value)}
+        />
       </div>
 
-      {requete.isPending ? <Chargement quoi={t("teletravail.lePlanning")} /> : null}
+      {requete.isPending ? <Chargement quoi={t("teletravail.lEquipe")} /> : null}
       {requete.isError ? (
         <ErreurDeChargement erreur={requete.error} surReessai={() => void requete.refetch()} />
       ) : null}
 
       {requete.data ? (
-        <section className="panel">
-          <div className="tt-cal">
-            {["lun", "mar", "mer", "jeu", "ven", "sam", "dim"].map((j) => (
-              <div className="tt-dow" key={j}>
-                {t(`jours.${j}`)}
+        agents.length === 0 ? (
+          <div className="empty empty-large">
+            <p>{t("teletravail.equipeVideTitre")}</p>
+            <small>{t("teletravail.equipeVideExplication")}</small>
+          </div>
+        ) : (
+          <section className="panel">
+            <div className="team-sum">
+              <span className="tb-item">
+                <span className="eyebrow">{t("teletravail.etat_telework")}</span>
+                <span className="tb-val">{compte("telework")}</span>
+              </span>
+              <span className="tb-item">
+                <span className="eyebrow">{t("teletravail.surSite")}</span>
+                <span className="tb-val">{compte("office")}</span>
+              </span>
+              <span className="tb-item">
+                <span className="eyebrow">{t("teletravail.etat_undeclared")}</span>
+                <span className="tb-val">{compte("undeclared")}</span>
+              </span>
+            </div>
+            {agents.map((a) => (
+              <div className="team-row" key={a.id}>
+                <span className="lv-who">
+                  <AvatarAgent prenom={a.prenom} nom={a.nom} />
+                  <span className="lv-wn">
+                    {a.prenom} {a.nom}
+                  </span>
+                </span>
+                <span>
+                  {a.etat === "telework" ? (
+                    <span className="tt-tag is-tt">{t("teletravail.etat_telework")}</span>
+                  ) : a.etat === "office" ? (
+                    <span className="tt-tag is-office">{t("teletravail.etat_office")}</span>
+                  ) : (
+                    <span className="lv-val">{t("teletravail.etat_undeclared")}</span>
+                  )}
+                </span>
+                <span className="lv-acts" />
               </div>
             ))}
-
-            {Array.from({ length: decalage }, (_, i) => (
-              <div className="tt-cell is-out" key={`vide-${i}`} />
-            ))}
-
-            {Array.from({ length: nbJours }, (_, i) => {
-              const numero = i + 1;
-              const date = `${mois.annee}-${String(mois.mois + 1).padStart(2, "0")}-${String(numero).padStart(2, "0")}`;
-              const jour = parDate.get(date);
-              const jourSemaine = new Date(`${date}T00:00:00.000Z`).getUTCDay();
-              const weekEnd = jourSemaine === 0 || jourSemaine === 6;
-              const etat = jour?.etat ?? "none";
-
-              const classes = [
-                "tt-cell",
-                weekEnd ? "is-we" : "",
-                etat === "telework" ? "is-tt" : "",
-                etat === "office" ? "is-office" : "",
-                date === aujourdhui ? "is-today" : "",
-              ]
-                .filter(Boolean)
-                .join(" ");
-
-              const libelleEtat = t(`teletravail.etat_${etat}`);
-
-              if (weekEnd) {
-                return (
-                  <div className={classes} key={date}>
-                    <span className="tt-n">{numero}</span>
-                  </div>
-                );
-              }
-
-              return (
-                <Button
-                  key={date}
-                  className={classes}
-                  isDisabled={!modifiable}
-                  // L'état est dit en toutes lettres, pas seulement peint.
-                  aria-label={t("teletravail.caseLibelle", {
-                    date: formaterDate(date),
-                    etat: libelleEtat,
-                  })}
-                  onPress={() =>
-                    bascule.mutate({
-                      date,
-                      etat: etat === "telework" ? "none" : "telework",
-                    })
-                  }
-                >
-                  <span className="tt-n">{numero}</span>
-                  {etat === "telework" ? (
-                    <span className="tt-tag is-tt">{t("teletravail.etat_telework")}</span>
-                  ) : null}
-                  {etat === "office" ? (
-                    <span className="tt-tag is-office">{t("teletravail.etat_office")}</span>
-                  ) : null}
-                  {jour?.issuDeRegle ? (
-                    <span className="tt-mark">
-                      <span aria-hidden="true">↻</span> {t("teletravail.recurrent")}
-                    </span>
-                  ) : null}
-                </Button>
-              );
-            })}
-          </div>
-
-          <div className="tt-legend">
-            <span className="tt-l">
-              <span className="tt-sw is-tt" aria-hidden="true" />
-              {t("teletravail.etat_telework")}
-            </span>
-            <span className="tt-l">
-              <span className="tt-sw is-office" aria-hidden="true" />
-              {t("teletravail.etat_office")}
-            </span>
-            <span className="tt-l">
-              <span className="tt-sw is-none" aria-hidden="true" />
-              {t("teletravail.etat_none")}
-            </span>
-            <span className="tt-l">
-              <span className="tt-sw is-we" aria-hidden="true" />
-              {t("teletravail.weekEnd")}
-            </span>
-            <span className="tt-l">
-              <span className="tt-sw is-rec" aria-hidden="true" />
-              {t("teletravail.teletravailRecurrent")}
-            </span>
-          </div>
-        </section>
+          </section>
+        )
       ) : null}
-
-      <FenetreRegles ouverte={reglesOuvertes} surFermeture={() => setReglesOuvertes(false)} />
     </div>
   );
 }
@@ -252,7 +436,7 @@ function FenetreRegles({
   const annoncer = useMessages();
   const client = useQueryClient();
 
-  const [jourSemaine, setJourSemaine] = useState(1);
+  const [jourSemaine, setJourSemaine] = useState(2);
   const [dateDebut, setDateDebut] = useState("");
   const [dateFin, setDateFin] = useState("");
   const [genDebut, setGenDebut] = useState("");
@@ -290,7 +474,11 @@ function FenetreRegles({
     onError: (e) => setErreur(messageErreur(e, tErreurs, t("teletravail.echecGeneration"))),
   });
 
-  const enLangageNaturel = (r: api.RegleTeletravail) =>
+  const enLangageNaturel = (r: {
+    jourSemaine: number;
+    dateDebut: string;
+    dateFin?: string | null;
+  }) =>
     r.dateFin
       ? t("teletravail.regleDuAu", {
           jour: t(`jours.long.${r.jourSemaine}`),
@@ -302,16 +490,29 @@ function FenetreRegles({
           debut: formaterDate(r.dateDebut),
         });
 
+  /*
+   * `EX-TLT-04` — la plage de génération est bornée à 366 jours. Le contrôle
+   * est au serveur ; ici il ne fait que dire, avant l'envoi, ce qui sera
+   * refusé — et il le dit sans attendre que le bouton soit pressé.
+   */
+  const plageJours =
+    genDebut && genFin
+      ? Math.round(
+          (new Date(genFin).getTime() - new Date(genDebut).getTime()) / 86_400_000,
+        ) + 1
+      : 0;
+  const plageInvalide = plageJours > 366 || plageJours < 1;
+
   return (
     <Fenetre
       ouverte={ouverte}
       surFermeture={surFermeture}
-      categorie={t("teletravail.joursFixes")}
-      titre={t("teletravail.configurerJoursFixes")}
+      categorie={t("teletravail.recurrence")}
+      titre={t("teletravail.joursFixes")}
       large
       mention={t("teletravail.reglesMention")}
       actions={
-        <Button className="btn btn-secondary" onPress={surFermeture}>
+        <Button className="btn btn-primary" onPress={surFermeture}>
           {t("fermer")}
         </Button>
       }
@@ -346,9 +547,9 @@ function FenetreRegles({
       ))}
 
       <div className="gen-box">
-        <p className="eyebrow">{t("teletravail.ajouterRegle")}</p>
-        <div className="gen-row">
-          <div className="field-block">
+        <span className="eyebrow">{t("teletravail.ajouterRegle")}</span>
+        <div className="rec-grid form-grid-espace">
+          <div>
             <label className="field-label" htmlFor="tt-jour">
               {t("teletravail.jourSemaine")}
             </label>
@@ -365,7 +566,7 @@ function FenetreRegles({
               ))}
             </select>
           </div>
-          <div className="field-block">
+          <div>
             <label className="field-label" htmlFor="tt-debut">
               {t("teletravail.dateDebut")}
             </label>
@@ -377,7 +578,7 @@ function FenetreRegles({
               onChange={(e) => setDateDebut(e.target.value)}
             />
           </div>
-          <div className="field-block">
+          <div>
             <label className="field-label" htmlFor="tt-fin">
               {t("teletravail.dateFin")}
             </label>
@@ -389,21 +590,38 @@ function FenetreRegles({
               onChange={(e) => setDateFin(e.target.value)}
             />
           </div>
+        </div>
+
+        {/* La règle se relit en français avant d'être posée. */}
+        <div className="rec-prev">
+          <span className="rec-prev-ic" aria-hidden="true">
+            ↻
+          </span>
+          <div>
+            <p className="rec-prev-t">
+              {dateDebut ? enLangageNaturel({ jourSemaine, dateDebut, dateFin }) : "—"}
+            </p>
+            <p className="rec-prev-d">{t("teletravail.regleSansEffet")}</p>
+          </div>
+        </div>
+
+        <div className="ligne-actions">
           <Button
-            className="btn btn-primary"
+            className="btn btn-primary ligne-actions-fin"
             isDisabled={!dateDebut}
             isPending={creation.isPending}
             onPress={() => creation.mutate()}
           >
-            {t("teletravail.ajouter")}
+            {t("teletravail.ajouterRegle")}
           </Button>
         </div>
       </div>
 
       <div className="gen-box">
-        <p className="eyebrow">{t("teletravail.genererPlannings")}</p>
+        <span className="eyebrow">{t("teletravail.genererPlannings")}</span>
+        <p className="field-hint">{t("teletravail.generationExplication")}</p>
         <div className="gen-row">
-          <div className="field-block">
+          <div>
             <label className="field-label" htmlFor="tt-gd">
               {t("teletravail.du")}
             </label>
@@ -415,7 +633,7 @@ function FenetreRegles({
               onChange={(e) => setGenDebut(e.target.value)}
             />
           </div>
-          <div className="field-block">
+          <div>
             <label className="field-label" htmlFor="tt-gf">
               {t("teletravail.au")}
             </label>
@@ -428,15 +646,22 @@ function FenetreRegles({
             />
           </div>
           <Button
-            className="btn btn-secondary"
-            isDisabled={!genDebut || !genFin}
+            className="btn btn-secondary ligne-actions-fin"
+            isDisabled={plageInvalide}
             isPending={generation.isPending}
             onPress={() => generation.mutate()}
           >
             {t("teletravail.generer")}
           </Button>
         </div>
-        <p className="field-hint">{t("teletravail.plageMaximale")}</p>
+        {plageJours > 366 ? (
+          <div className="alert alert-error" role="alert">
+            <span className="alert-icon" aria-hidden="true">
+              !
+            </span>
+            <span>{t("teletravail.plageMaximale")}</span>
+          </div>
+        ) : null}
       </div>
     </Fenetre>
   );
