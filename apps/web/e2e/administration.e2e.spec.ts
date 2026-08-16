@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 import { serveur, SESSION_LECTURE } from "./fixtures/projets.js";
 import {
   SESSION_ADMIN,
@@ -30,8 +30,11 @@ test.describe("Vue 27 — utilisateurs", () => {
     await expect(page.getByRole("heading", { name: "Utilisateurs", level: 1 })).toBeVisible();
     await expect(page.getByText("camille.roussel@exemple.fr")).toBeVisible();
     await expect(page.getByText("Gestion administrative")).toBeVisible();
-    // La maquette 27 dit « Désactivés », pas « Inactifs » : le vocabulaire du
-    // produit a été aligné dessus au portage de la vue.
+    /*
+     * La maquette 27 dit « Désactivé », pas « Inactif » : c'est un compte que
+     * quelqu'un a désactivé, pas un état d'activité constaté. Le filtre porte
+     * « Désactivés » ; on vise la pastille de ligne, d'où l'exactitude.
+     */
     await expect(page.getByText("Désactivé", { exact: true })).toBeVisible();
   });
 
@@ -123,8 +126,20 @@ test.describe("Vue 28 — suivi individuel", () => {
     await serveur(page, { session: SESSION_ADMIN, reponses });
     await page.goto("/utilisateurs/u-autre/suivi");
 
-    await expect(page.getByText("La période s'applique aux six onglets.")).toBeVisible();
-    await expect(page.getByText("01/08/2026 → 31/08/2026")).toBeVisible();
+    /*
+     * La maquette 28 écrit la portée SANS sujet et lui adjoint la réserve qui
+     * fait tout le sens de la vue : certains chiffres échappent à la période.
+     * Le test citait une phrase plus courte, qui n'existe pas.
+     */
+    await expect(
+      page.getByText(
+        "S'applique aux six onglets. Certains chiffres restent annuels ou instantanés : ils le disent.",
+      ),
+    ).toBeVisible();
+    // Les bornes sont écrites deux fois — dans le bandeau (`.period-range` de
+    // la maquette 28) et en tête du panneau d'activité récente. C'est le
+    // bandeau qu'on vérifie ici.
+    await expect(page.locator(".period-range")).toHaveText("01/08/2026 → 31/08/2026");
   });
 
   test("CHAQUE CHIFFRE PORTE SON ÉTENDUE — c'est le piège de cette vue", async ({ page }) => {
@@ -209,6 +224,23 @@ test.describe("Vue 28 — suivi individuel", () => {
 test.describe("Vue 29 — départements et services", () => {
   const reponses = { "/api/organisation": { corps: ARBORESCENCE } };
 
+  /*
+   * Les noms de l'arborescence se visent par les classes de la maquette 29 —
+   * `.dir-n`, `.dep-n`, `.svc-n`. Un `getByText` nu attrape aussi les
+   * `<option>` du filtre « Filtrer par département », qui portent les mêmes
+   * noms : le test tombait en violation de mode strict sur du texte pourtant
+   * bien affiché. Le niveau visé fait d'ailleurs partie de ce qu'on vérifie.
+   */
+  const direction = (page: Page, nom: string) => page.locator("p.dir-n").filter({ hasText: nom });
+  const departement = (page: Page, nom: string) => page.locator("p.dep-n").filter({ hasText: nom });
+  const service = (page: Page, nom: string) => page.locator("p.svc-n").filter({ hasText: nom });
+
+  /** Le bloc de tête d'un nœud — c'est lui qui porte ses actions. */
+  const teteDirection = (page: Page, nom: string) =>
+    page.locator(".dir-head").filter({ has: page.locator("p.dir-n", { hasText: nom }) });
+  const teteDepartement = (page: Page, nom: string) =>
+    page.locator(".dep-head").filter({ has: page.locator("p.dep-n", { hasText: nom }) });
+
   test("L'ASYMÉTRIE DES DEUX RÈGLES EST ANNONCÉE EN TÊTE", async ({ page }) => {
     await serveur(page, { session: SESSION_ADMIN, reponses });
     await page.goto("/departements");
@@ -219,21 +251,29 @@ test.describe("Vue 29 — départements et services", () => {
     await expect(page.getByText(/Un département emporte ses services/)).toBeVisible();
   });
 
-  test("l'arborescence se déplie sur trois niveaux", async ({ page }) => {
+  test("l'arborescence est DÉPLIÉE d'emblée, sur ses trois niveaux", async ({ page }) => {
     await serveur(page, { session: SESSION_ADMIN, reponses });
     await page.goto("/departements");
 
-    await expect(page.getByText("Direction générale des services")).toBeVisible();
-    await page
-      .getByRole("button", { name: "Déplier la direction Direction générale des services" })
-      .click();
-    await expect(page.getByText("Direction des services numériques")).toBeVisible();
+    /*
+     * La maquette 29 pose `open:true` sur chaque nœud : on vient lire la
+     * structure entière, pas la déplier de proche en proche. Le test partait
+     * de l'hypothèse inverse et cliquait le chevron — ce qui REPLIAIT le
+     * niveau qu'il s'attendait ensuite à voir apparaître.
+     */
+    await expect(direction(page, "Direction générale des services")).toBeVisible();
+    await expect(departement(page, "Direction des services numériques")).toBeVisible();
+    await expect(service(page, "Études et développement")).toBeVisible();
+    await expect(service(page, "Exploitation")).toBeVisible();
 
+    // Et le chevron replie bien, puisqu'on le trouve déplié.
     await page
       .getByRole("button", { name: "Déplier le département Direction des services numériques" })
       .click();
-    await expect(page.getByText("Études et développement")).toBeVisible();
-    await expect(page.getByText("Exploitation")).toBeVisible();
+    await expect(service(page, "Études et développement")).toHaveCount(0);
+
+    await page.getByRole("button", { name: "Tout déplier" }).click();
+    await expect(service(page, "Études et développement")).toBeVisible();
   });
 
   test("RG-ORG-03 — un département sans direction reste visible", async ({ page }) => {
@@ -241,29 +281,40 @@ test.describe("Vue 29 — départements et services", () => {
     await page.goto("/departements");
 
     await expect(page.getByText("Départements sans direction")).toBeVisible();
-    await expect(page.getByText("Mission transversale")).toBeVisible();
+    await expect(departement(page, "Mission transversale")).toBeVisible();
   });
 
-  test("une direction chargée REFUSE, et nomme ce qui bloque", async ({ page }) => {
+  test("une direction chargée REFUSE — et le bouton le dit AVANT le clic", async ({ page }) => {
     await serveur(page, { session: SESSION_ADMIN, reponses });
     await page.goto("/departements");
-    await page
-      .getByRole("button", { name: "Déplier la direction Direction générale des services" })
-      .click();
 
-    await page.getByRole("button", { name: "Supprimer" }).first().click();
-    await expect(page.getByText(/porte encore des départements/)).toBeVisible();
-    await expect(
-      page.getByRole("dialog").getByRole("button", { name: "Supprimer la direction" }),
-    ).toHaveCount(0);
+    /*
+     * `RG-ORG-02`. La maquette 29 (`mini(…, why)`) désactive le bouton et
+     * porte la raison en infobulle : la règle est annoncée avant l'action, pas
+     * découverte au message d'erreur. Le test attendait une fenêtre qui
+     * s'ouvre puis refuse — un aller-retour que la maquette évite.
+     */
+    const supprimer = teteDirection(page, "Direction générale des services").getByRole("button", {
+      name: "Supprimer",
+    });
+    await expect(supprimer).toBeDisabled();
+    await expect(supprimer.locator("[title]")).toHaveAttribute(
+      "title",
+      /1 département y est rattaché/,
+    );
+
+    // Et aucune fenêtre ne s'ouvre : le geste n'est pas seulement refusé, il
+    // n'est pas proposé.
+    await expect(page.getByRole("dialog")).toHaveCount(0);
   });
 
   test("une direction vide accepte la suppression", async ({ page }) => {
     await serveur(page, { session: SESSION_ADMIN, reponses });
     await page.goto("/departements");
 
-    // La deuxième direction n'a pas de département.
-    await page.getByRole("button", { name: "Supprimer" }).nth(1).click();
+    // « Direction vide » ne porte aucun département. On la vise par son nom :
+    // compter les boutons depuis le haut de l'arbre dépendait du dépliage.
+    await teteDirection(page, "Direction vide").getByRole("button", { name: "Supprimer" }).click();
     await expect(
       page.getByRole("dialog").getByRole("button", { name: "Supprimer la direction" }),
     ).toBeVisible();
@@ -275,17 +326,19 @@ test.describe("Vue 29 — départements et services", () => {
       reponses: { ...reponses, "/impact": { corps: IMPACT_DEPARTEMENT } },
     });
     await page.goto("/departements");
-    await page
-      .getByRole("button", { name: "Déplier la direction Direction générale des services" })
-      .click();
 
-    await page.getByRole("button", { name: "Supprimer" }).nth(1).click();
-    await expect(page.getByText(/Tous les services associés seront également supprimés/)).toBeVisible();
+    await teteDepartement(page, "Direction des services numériques")
+      .getByRole("button", { name: "Supprimer" })
+      .click();
+    const fenetre = page.getByRole("dialog");
+    await expect(fenetre.getByText("Tous les services associés seront également supprimés.")).toBeVisible();
     // Les nommer évite de deviner lesquels.
-    await expect(page.getByRole("dialog").getByText("Études et développement")).toBeVisible();
-    await expect(page.getByRole("dialog").getByText("Exploitation")).toBeVisible();
+    await expect(fenetre.getByText("Études et développement")).toBeVisible();
+    await expect(fenetre.getByText("Exploitation")).toBeVisible();
     // Les agents, eux, sont détachés — pas supprimés.
-    await expect(page.getByText(/10 agents seront détachés du département/)).toBeVisible();
+    await expect(
+      fenetre.getByText("10 agents seront détachés du département, sans être supprimés."),
+    ).toBeVisible();
   });
 
   test("sans le droit de lecture, l'accès est refusé", async ({ page }) => {

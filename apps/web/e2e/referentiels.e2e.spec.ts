@@ -35,7 +35,13 @@ test.describe("Vue 22 — compétences", () => {
 
     // « C'est l'information qu'on vient chercher » — brief de la vue 22.
     await expect(page.getByText(/Compétences à renforcer/)).toBeVisible();
-    await expect(page.getByText(/Cartographie SIG \(1\/3\)/)).toBeVisible();
+    /*
+     * Le bandeau écrit chaque écart « nom (détenteurs/requis, il manque n) » —
+     * c'est le format de `renderRef`/`gap-list` dans la maquette 22, et le
+     * catalogue `competences.ecartLigne` le reprend mot pour mot. Le test
+     * attendait le ratio nu « (1/3) », qui ne dit pas combien il manque.
+     */
+    await expect(page.getByText("Cartographie SIG (1/3, il manque 2)")).toBeVisible();
     await expect(page.getByText("1 compétence à renforcer")).toBeVisible();
   });
 
@@ -90,8 +96,18 @@ test.describe("Vue 22 — compétences", () => {
     await page.goto("/competences");
     await page.getByRole("button", { name: "Référentiel" }).click();
 
-    await expect(page.getByText("1/3")).toBeVisible();
-    await expect(page.getByText("2 manquantes")).toBeVisible();
+    /*
+     * La maquette 22 (`renderRef`) donne au référentiel deux colonnes
+     * distinctes : « Ressources requises » porte l'effectif, « Couverture »
+     * porte une pastille écrite — « Partielle 1/3 », « Complète 2/1 ». C'est
+     * elle qui dit l'écart.
+     *
+     * Le test cherchait « 2 manquantes », qui n'existe nulle part, et le ratio
+     * nu « 1/3 », qui vise aussi le bandeau d'écarts.
+     */
+    await expect(page.getByText("3 personnes")).toBeVisible();
+    await expect(page.getByText("Partielle 1/3")).toBeVisible();
+    await expect(page.getByText("Complète 2/1")).toBeVisible();
   });
 
   test("RG-GEN-06 — sans droit sur la matrice, les cellules sont inertes", async ({ page }) => {
@@ -111,40 +127,59 @@ test.describe("Vue 23 — tiers", () => {
     await serveur(page, { session: SESSION_REFERENTIELS, reponses });
     await page.goto("/tiers");
 
-    // RG-TRS-01 — on l'écrit, on ne laisse pas une case vide qui se lirait
-    // comme une donnée manquante.
-    await expect(page.getByText("Sans contact nommé (personne morale)")).toBeVisible();
+    /*
+     * RG-TRS-01 — on l'écrit, on ne laisse pas une case vide qui se lirait
+     * comme une donnée manquante. La maquette 23 choisit le mot : là où une
+     * personne physique porte un nom, une personne morale porte des
+     * « Coordonnées génériques ». Le test attendait une formule inventée.
+     */
+    await expect(page.getByText("Coordonnées génériques")).toBeVisible();
     await expect(page.getByText("nadia.kaufmann@exemple.fr")).toBeVisible();
   });
 
   test("les archivés sont exclus par défaut, mais restent demandables", async ({ page }) => {
-    await serveur(page, { session: SESSION_REFERENTIELS, reponses });
-    await page.goto("/tiers");
-    await expect(page.getByText("Ancien prestataire")).toHaveCount(0);
-
+    /*
+     * Le serveur rend TOUT, y compris l'archivé : c'est le filtre de statut,
+     * posé sur « Actifs » d'emblée par la maquette 23, qui l'exclut. Mocker
+     * une liste déjà filtrée aurait testé le mock, pas la vue.
+     *
+     * Et ce filtre est une liste déroulante — Actifs / Archivés / Tous —, pas
+     * le bouton « Voir les archivés » que ce test supposait.
+     */
     await serveur(page, {
       session: SESSION_REFERENTIELS,
-      reponses: { "/api/tiers": { corps: [TIERS_ARCHIVE] } },
+      reponses: { "/api/tiers": { corps: [...LISTE_TIERS, TIERS_ARCHIVE] } },
     });
-    await page.getByRole("button", { name: "Voir les archivés" }).click();
+    await page.goto("/tiers");
+    await expect(page.getByText("Presta SA")).toBeVisible();
+    await expect(page.getByText("Ancien prestataire")).toHaveCount(0);
+
+    await page.getByLabel("Statut", { exact: true }).selectOption("off");
     await expect(page.getByText("Ancien prestataire")).toBeVisible();
+    await expect(page.getByText("Presta SA")).toHaveCount(0);
+    // Un archivé reste consultable, mais il est dit non assignable.
+    await expect(page.getByText("non assignable")).toBeVisible();
   });
 
   test("les champs de contact DISPARAISSENT pour une personne morale", async ({ page }) => {
     await serveur(page, { session: SESSION_REFERENTIELS, reponses });
     await page.goto("/tiers");
     await page.getByRole("button", { name: "Nouveau tiers" }).click();
+    const fenetre = page.getByRole("dialog");
 
-    // Physique par défaut : les champs sont là.
-    await expect(page.getByLabel("Contact", { exact: true })).toBeVisible();
+    // Physique par défaut : le champ est là. La maquette 23 nomme la colonne
+    // et le champ « Coordonnées », pas « Contact ».
+    await expect(fenetre.getByLabel("Coordonnées", { exact: true })).toBeVisible();
 
-    // Le filtre de la liste porte aussi un libellé « Type » : on vise celui
-    // de la fenêtre, reconnaissable à son astérisque de champ obligatoire.
-    await page.getByRole("dialog").getByLabel(/^Type/).selectOption("organisation");
+    // Le type se choisit sur un groupe segmenté (`.kind-seg` de la maquette),
+    // pas sur une liste déroulante.
+    await fenetre.getByRole("button", { name: /Personne morale/ }).click();
     // Un champ grisé invite à chercher comment le remplir ; un champ absent
     // dit que la question ne se pose pas.
-    await expect(page.getByLabel("Contact", { exact: true })).toHaveCount(0);
-    await expect(page.getByText(/porte une organisation et des contacts/)).toBeVisible();
+    await expect(fenetre.getByLabel("Coordonnées", { exact: true })).toHaveCount(0);
+    await expect(
+      fenetre.getByText("Une personne morale ne porte pas de contact nommé"),
+    ).toBeVisible();
   });
 });
 
@@ -159,7 +194,10 @@ test.describe("Vue 24 — fiche tiers", () => {
     await expect(page.getByRole("heading", { name: "Presta SA", level: 1 })).toBeVisible();
     await expect(page.getByText("Refonte du portail citoyen")).toBeVisible();
     await expect(page.getByText("Audit d'accessibilité")).toBeVisible();
-    await expect(page.getByText("18 saisies")).toBeVisible();
+    // Le nombre de saisies est porté deux fois : sous le compteur d'heures
+    // (`kpi-sub` de la maquette 24) et dans la fiche d'informations. On vise
+    // le compteur, sinon la recherche est ambiguë.
+    await expect(page.locator(".kpi-sub").filter({ hasText: "18 saisies" })).toBeVisible();
   });
 
   test("le contact nommé n'apparaît pas pour une personne morale", async ({ page }) => {
@@ -169,8 +207,18 @@ test.describe("Vue 24 — fiche tiers", () => {
     });
     await page.goto(`/tiers/${FICHE_TIERS.id}`);
 
-    await expect(page.getByText("Sans contact nommé (personne morale)")).toBeVisible();
-    await expect(page.getByText("Courriel")).toHaveCount(0);
+    /*
+     * `RG-TRS-01` sur la fiche : la LIGNE « Contact nommé » existe et dit
+     * qu'elle est sans objet. La supprimer laisserait croire à un oubli de
+     * saisie ; c'est le choix de la maquette 24.
+     *
+     * L'ancienne seconde assertion visait « Courriel », un mot que le produit
+     * n'emploie nulle part : elle passait sans rien vérifier.
+     */
+    await expect(page.getByText("Contact nommé")).toBeVisible();
+    await expect(page.getByText("Sans objet pour une personne morale")).toBeVisible();
+    // L'adresse subsiste, mais elle est annoncée générique — pas nominative.
+    await expect(page.getByText("Email générique")).toBeVisible();
   });
 
   test("sans rattachement, chaque section le dit", async ({ page }) => {
@@ -194,9 +242,19 @@ test.describe("Vue 24 — fiche tiers", () => {
     });
     await page.goto(`/tiers/${FICHE_TIERS.id}`);
     await page.getByRole("button", { name: "Supprimer", exact: true }).click();
+    const fenetre = page.getByRole("dialog");
 
-    await expect(page.getByText("Le bilan est établi avant le geste")).toBeVisible();
-    await expect(page.getByRole("dialog").getByText("18")).toBeVisible();
+    /*
+     * La maquette 24 introduit le bilan avant toute confirmation, et son pied
+     * rappelle qu'il y a deux issues. Le test attendait « Le bilan est établi
+     * avant le geste », une phrase absente du produit.
+     */
+    await expect(
+      fenetre.getByText("Voici ce à quoi ce tiers est rattaché aujourd'hui."),
+    ).toBeVisible();
+    await expect(fenetre.getByText("Deux issues, deux conséquences")).toBeVisible();
+    // Le compte de saisies chiffre l'enjeu, il n'est pas seulement évoqué.
+    await expect(fenetre.getByText("18", { exact: true })).toBeVisible();
   });
 });
 
@@ -210,8 +268,18 @@ test.describe("Vues 25 et 26 — clients", () => {
 
     await expect(page.getByText("Direction de la relation citoyen")).toBeVisible();
     await expect(page.getByText("1 projet")).toBeVisible();
-    await expect(page.getByText("aucun projet")).toBeVisible();
-    await expect(page.getByText("Inactif")).toBeVisible();
+
+    /*
+     * Le filtre de statut est sur « Actifs » d'emblée — c'est l'ordre des
+     * options de la maquette 25. Le client inactif ne se voit qu'en le
+     * demandant ; le test le supposait affiché sans rien demander.
+     */
+    await expect(page.getByText("Association des usagers")).toHaveCount(0);
+    await page.getByLabel("Statut", { exact: true }).selectOption("");
+
+    await expect(page.getByText("Association des usagers")).toBeVisible();
+    await expect(page.getByText("Aucun projet rattaché")).toBeVisible();
+    await expect(page.getByText("Inactif", { exact: true })).toBeVisible();
   });
 
   test("la fiche montre le portefeuille", async ({ page }) => {
