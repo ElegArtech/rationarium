@@ -2,7 +2,7 @@ import { useState, type CSSProperties, type KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Tab, TabList, TabPanel, Tabs } from "react-aria-components";
-import { STATUTS_TACHE } from "@trame/contracts";
+import { STATUTS_PROJET, STATUTS_TACHE } from "@trame/contracts";
 import * as api from "../../api/tableau.js";
 import * as apiTaches from "../../api/taches.js";
 import { saisirTemps, validerSansDeclaration } from "../../api/occupations.js";
@@ -10,9 +10,10 @@ import { messageErreur } from "../../api/erreurs.js";
 import { useSession, usePeut } from "../../session/session.js";
 import { Chargement, ErreurDeChargement, AccesRefuse } from "../../composants/etats.js";
 import { useMessages } from "../../composants/messages.js";
-import { formaterDate } from "../../formats.js";
+import { useLibelle } from "../../composants/pastilles.js";
+import { formaterDate, formaterDateAvecJour } from "../../formats.js";
 import { CELLULE_VIDE, indexer, COUCHES_PAR_DEFAUT } from "../planning/grille.js";
-import "../../composants/partages.css";
+import "./tableau.css";
 
 /**
  * Vue 06 — le tableau de bord.
@@ -30,12 +31,16 @@ import "../../composants/partages.css";
  * point d'attention du brief. Statut, heures et to-do se modifient en place :
  * une fenêtre modale pour saisir « 2 h » coûterait plus que la saisie.
  *
- * Le CSS de cette vue vit dans `coquille/coquille.css` : les sections 8 et 9 de
- * la maquette y ont été portées au L-05, parce que c'est la vue 06 qui les
- * introduit et que la coquille les partage.
+ * Le balisage suit `mockups/06-tableau-de-bord.html` **classe par classe** ;
+ * le style vit dans `tableau.css`, porté des sections 8 et 9 de cette même
+ * maquette. La vue avait vécu sans aucune feuille : ses classes étaient
+ * posées, aucune règle ne les recevait, et la page était nue.
  */
 
 const MAX_PROJETS_VISIBLES = 5;
+
+/** Le style d'un jeton de couleur, quand la valeur vient de la donnée. */
+export const couleurDe = (jeton: string): CSSProperties => ({ color: `var(--${jeton})` });
 
 export function TableauDeBord() {
   const { t } = useTranslation("tableau");
@@ -58,9 +63,13 @@ export function TableauDeBord() {
   return (
     <div className="page">
       {/* `EX-DSH-01` — l'accueil est nominatif. Ce n'est pas une politesse :
-          c'est ce qui dit que la page parle de vous et pas de l'instance. */}
+          c'est ce qui dit que la page parle de vous et pas de l'instance.
+          Le surtitre porte la date du jour, comme la maquette : elle situe
+          tout ce qui suit — « à venir », « en retard », « cette semaine ». */}
       <div className="greet">
-        <span className="eyebrow">{t("surtitre")}</span>
+        <span className="eyebrow">
+          {formaterDateAvecJour(new Date().toISOString().slice(0, 10))}
+        </span>
         <h1 className="h1">{t("bonjour", { prenom: session.prenom })}</h1>
         <p className="lede">{t("apercu")}</p>
       </div>
@@ -85,7 +94,9 @@ export function TableauDeBord() {
  * `EX-DSH-02` — quatre indicateurs, chacun avec son dénominateur.
  *
  * « 3 » ne dit rien. « 3 sur 7 » situe. Le sous-titre n'est pas décoratif :
- * c'est lui qui rend le chiffre lisible.
+ * c'est lui qui rend le chiffre lisible. À zéro, il ne montre pas « 0 % » —
+ * un pourcentage sans population ne veut rien dire — mais le dit en toutes
+ * lettres, comme la maquette.
  */
 function Indicateurs({ indicateurs }: { indicateurs: api.TableauDeBord["indicateurs"] }) {
   const { t } = useTranslation("tableau");
@@ -107,7 +118,9 @@ function Indicateurs({ indicateurs }: { indicateurs: api.TableauDeBord["indicate
         <span className="eyebrow">{t("kpi.tachesTerminees")}</span>
         <p className="kpi-val">{tachesTerminees.valeur}</p>
         <span className="kpi-sub">
-          {t("kpi.pourcentageCompletees", { n: tachesTerminees.pourcentage })}
+          {tachesEnCours.total === 0
+            ? t("kpi.rienAAfficher")
+            : t("kpi.pourcentageCompletees", { n: tachesTerminees.pourcentage })}
         </span>
       </div>
       {/* Le seul indicateur qui alerte. Les trois autres informent — les
@@ -123,7 +136,21 @@ function Indicateurs({ indicateurs }: { indicateurs: api.TableauDeBord["indicate
   );
 }
 
-/** `EX-DSH-03` — l'extrait de planning personnel de la semaine. */
+/** La pastille d'un projet — `RG-PRJ-11` : l'icône du référentiel, pas une initiale. */
+function Pastille({ icone, titre }: { icone: string | null; titre: string }) {
+  return (
+    <i className="pglyph" title={titre} aria-hidden="true">
+      {icone ?? "◆"}
+    </i>
+  );
+}
+
+/**
+ * `EX-DSH-03` — l'extrait de planning personnel de la semaine.
+ *
+ * Cinq colonnes : le brief cale la grille sur la semaine ouvrée, et le
+ * week-end d'un tableau de bord personnel n'apprend rien.
+ */
 function MonPlanning({ planning }: { planning: api.TableauDeBord["planning"] }) {
   const { t } = useTranslation("tableau");
   const aujourdhui = new Date().toISOString().slice(0, 10);
@@ -137,75 +164,91 @@ function MonPlanning({ planning }: { planning: api.TableauDeBord["planning"] }) 
   });
 
   const moi = planning.groupes[0]?.personnes[0]?.id;
-  // La semaine complète compte sept jours ; l'extrait n'en montre que cinq —
-  // le brief cale la grille sur cinq colonnes, et le week-end d'un tableau de
-  // bord personnel n'apprend rien.
   const jours = planning.periode.jours.slice(0, 5);
+  const cellules = jours.map((jour) =>
+    moi ? (index.get(`${moi}|${jour}`) ?? CELLULE_VIDE) : CELLULE_VIDE,
+  );
+
+  // `RG-GEN-04` — la semaine entièrement vide ne se dit pas par cinq tirets :
+  // elle s'explique, et elle annonce ce qui viendra la remplir.
+  const vide = cellules.every(
+    (c) => !c.conge && !c.lieu && c.occupations.length === 0,
+  );
 
   return (
     <section className="panel">
       <div className="panel-head">
         <span className="panel-title">{t("planning.titre")}</span>
-        <a className="chip-btn" href="/planning">
+        <a className="link link-sm" href="/planning">
           {t("planning.ouvrir")}
         </a>
       </div>
       <div className="panel-body is-flush">
-        <div className="week">
-          {jours.map((jour) => {
-            const cellule = moi ? (index.get(`${moi}|${jour}`) ?? CELLULE_VIDE) : CELLULE_VIDE;
-            const d = new Date(`${jour}T00:00:00.000Z`);
-            return (
-              <div
-                className={`week-col${jour === aujourdhui ? " is-today" : ""}`}
-                key={jour}
-              >
-                <p className="week-day">
-                  {t(`jours.court.${d.getUTCDay()}`)} {jour.slice(8)}
-                </p>
-                <div className="week-cell">
-                  {cellule.conge ? (
-                    <span className="tchip tchip-flat" style={{ color: "var(--leave)" }}>
-                      <span>{cellule.conge.type.nom}</span>
-                    </span>
-                  ) : null}
-                  {cellule.lieu?.etat === "telework" ? (
-                    <span className="tchip tchip-flat" style={{ color: "var(--telework)" }}>
-                      <span>{t("planning.teletravail")}</span>
-                    </span>
-                  ) : null}
-                  {cellule.occupations.map((o) => (
-                    <span
-                      key={o.cle}
-                      className={`tchip${
-                        o.genre === "tache" && o.tache.horsProjet ? " tchip-indep" : ""
-                      }`}
-                      style={{
-                        color:
-                          o.genre === "tache"
-                            ? `var(--st-${o.tache.statut})`
-                            : o.genre === "evenement"
-                              ? "var(--event)"
-                              : "var(--accent)",
-                      }}
-                    >
-                      <span>
-                        {o.genre === "tache"
-                          ? o.tache.titre
-                          : o.genre === "evenement"
-                            ? o.evenement.titre
-                            : o.permanence.predefinedTask.nom}
+        {vide ? (
+          <div className="empty">
+            <p>{t("planning.vide")}</p>
+            <small>{t("planning.videAide")}</small>
+          </div>
+        ) : (
+          <div className="week">
+            {jours.map((jour, i) => {
+              const cellule = cellules[i] ?? CELLULE_VIDE;
+              const d = new Date(`${jour}T00:00:00.000Z`);
+              return (
+                <div className={`week-col${jour === aujourdhui ? " is-today" : ""}`} key={jour}>
+                  <p className="week-day">
+                    {t(`jours.court.${d.getUTCDay()}`)} {jour.slice(8)}
+                  </p>
+                  <div className="week-cell">
+                    {cellule.conge ? (
+                      <span className="tchip tchip-flat" style={couleurDe("leave")}>
+                        <span>{cellule.conge.type.nom}</span>
                       </span>
-                    </span>
-                  ))}
-                  {!cellule.conge && !cellule.lieu && cellule.occupations.length === 0 ? (
-                    <span className="week-none">{t("planning.rien")}</span>
-                  ) : null}
+                    ) : null}
+                    {cellule.lieu?.etat === "telework" ? (
+                      <span className="tchip tchip-flat" style={couleurDe("telework")}>
+                        <span>{t("planning.teletravail")}</span>
+                      </span>
+                    ) : null}
+                    {cellule.occupations.map((o) => (
+                      <span
+                        key={o.cle}
+                        className={`tchip${
+                          o.genre === "tache" && o.tache.horsProjet
+                            ? " tchip-indep"
+                            : o.genre === "permanence"
+                              ? " tchip-flat"
+                              : ""
+                        }`}
+                        style={couleurDe(
+                          o.genre === "tache"
+                            ? `st-${o.tache.statut}`
+                            : o.genre === "evenement"
+                              ? "event"
+                              : "activity",
+                        )}
+                      >
+                        {o.genre === "tache" && o.tache.project ? (
+                          <Pastille icone={o.tache.project.icone} titre={o.tache.project.nom} />
+                        ) : null}
+                        <span>
+                          {o.genre === "tache"
+                            ? o.tache.titre
+                            : o.genre === "evenement"
+                              ? o.evenement.titre
+                              : o.permanence.predefinedTask.nom}
+                        </span>
+                      </span>
+                    ))}
+                    {!cellule.conge && !cellule.lieu && cellule.occupations.length === 0 ? (
+                      <span className="week-none">{t("planning.rien")}</span>
+                    ) : null}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </section>
   );
@@ -216,7 +259,8 @@ function MonPlanning({ planning }: { planning: api.TableauDeBord["planning"] }) 
  *
  * Deux onglets pour deux gestes distincts : faire avancer, ou clore ce qui
  * traîne. Les mêler dans une seule liste mélangerait « ce que je dois faire »
- * et « ce que je dois déclarer », qui n'appellent pas la même décision.
+ * et « ce que je dois déclarer », qui n'appellent pas la même décision. Chaque
+ * onglet porte son compte : c'est ce qui dit s'il vaut la peine d'être ouvert.
  */
 function MesTaches({
   aVenir,
@@ -238,10 +282,10 @@ function MesTaches({
           <span className="panel-title">{t("taches.titre")}</span>
           <TabList className="tabs" aria-label={t("taches.titre")}>
             <Tab className="tab" id="aVenir">
-              {t("taches.ongletAVenir")}
+              {t("taches.ongletAVenir", { n: aVenir.length })}
             </Tab>
             <Tab className="tab" id="nonDeclarees">
-              {t("taches.ongletNonDeclarees")}
+              {t("taches.ongletNonDeclarees", { n: nonDeclarees.length })}
             </Tab>
           </TabList>
         </div>
@@ -272,12 +316,55 @@ function MesTaches({
   );
 }
 
+/** Le champ d'heures et son unité — le geste que le brief veut réduit à une frappe. */
+function ChampHeures({
+  libelle,
+  surValidation,
+}: {
+  libelle: string;
+  surValidation: (heures: number) => void;
+}) {
+  const { t } = useTranslation("tableau");
+  const [heures, setHeures] = useState("");
+
+  /** Une frappe, puis Entrée. Le brief demande « une frappe », pas un parcours. */
+  const valider = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key !== "Enter") return;
+    const valeur = Number(heures.replace(",", "."));
+    if (!Number.isFinite(valeur) || valeur <= 0) return;
+    surValidation(valeur);
+    setHeures("");
+  };
+
+  return (
+    <div className="hours">
+      <input
+        type="text"
+        inputMode="decimal"
+        placeholder={t("taches.heuresPlaceholder")}
+        aria-label={libelle}
+        value={heures}
+        onChange={(e) => setHeures(e.target.value)}
+        onKeyDown={valider}
+      />
+      <span className="hours-unit">{t("taches.unite")}</span>
+    </div>
+  );
+}
+
+/** La période d'une tâche : « 11 → 12 août », ou la seule date connue. */
+function periode(debut: string | null, fin: string | null): string | null {
+  if (debut && fin && debut !== fin) return `${formaterDate(debut)} → ${formaterDate(fin)}`;
+  const seule = fin ?? debut;
+  return seule ? formaterDate(seule) : null;
+}
+
 function LigneTache({ tache }: { tache: api.TacheAVenir }) {
   const { t } = useTranslation("tableau");
   const { t: tErreurs } = useTranslation("erreurs");
+  const libelleDe = useLibelle();
   const annoncer = useMessages();
   const client = useQueryClient();
-  const [heures, setHeures] = useState("");
 
   const rafraichir = () => client.invalidateQueries({ queryKey: ["tableau-de-bord"] });
 
@@ -301,29 +388,18 @@ function LigneTache({ tache }: { tache: api.TacheAVenir }) {
       }),
     onSuccess: () => {
       annoncer("ok", t("taches.tempsSaisi"));
-      setHeures("");
       void rafraichir();
     },
     onError: (e) => annoncer("err", messageErreur(e, tErreurs, t("taches.echecTemps"))),
   });
 
-  /** Une frappe, puis Entrée. Le brief demande « une frappe », pas un parcours. */
-  const valider = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key !== "Enter") return;
-    const valeur = Number(heures.replace(",", "."));
-    if (!Number.isFinite(valeur) || valeur <= 0) return;
-    saisie.mutate(valeur);
-  };
+  const intervalle = periode(tache.dateDebut, tache.dateFin);
 
   return (
     <div className="trow">
-      <div className="bloc-etroit">
+      <div>
         <p className="trow-title">
-          {tache.project?.icone ? (
-            <i className="pglyph" aria-hidden="true">
-              {tache.project.icone}
-            </i>
-          ) : null}
+          {tache.project ? <Pastille icone={tache.project.icone} titre={tache.project.nom} /> : null}
           <span>{tache.titre}</span>
           {/* `RG-DSH-04` — le marqueur est textuel autant que coloré. */}
           {tache.enRetard ? <span className="badge badge-late">{t("taches.enRetard")}</span> : null}
@@ -333,7 +409,7 @@ function LigneTache({ tache }: { tache: api.TacheAVenir }) {
         </p>
         <span className="trow-meta">
           {tache.project?.nom ?? t("taches.sansProjet")}
-          {tache.dateFin ? ` · ${formaterDate(tache.dateFin)}` : ""}
+          {intervalle ? ` · ${intervalle}` : ""}
           {tache.estimationHeures !== null
             ? ` · ${t("taches.estimation", { n: tache.estimationHeures })}`
             : ""}
@@ -348,30 +424,21 @@ function LigneTache({ tache }: { tache: api.TacheAVenir }) {
       >
         {STATUTS_TACHE.map((s) => (
           <option key={s.code} value={s.code}>
-            {t(`statuts.${s.code}`)}
+            {libelleDe(s.code, STATUTS_TACHE)}
           </option>
         ))}
       </select>
 
       <div>
-        <div className="hours">
-          <input
-            type="text"
-            inputMode="decimal"
-            aria-label={t("taches.heuresSur", { titre: tache.titre })}
-            value={heures}
-            onChange={(e) => setHeures(e.target.value)}
-            onKeyDown={valider}
-          />
-          <span className="hours-unit">{t("taches.unite")}</span>
-        </div>
+        <ChampHeures
+          libelle={t("taches.heuresSur", { titre: tache.titre })}
+          surValidation={(valeur) => saisie.mutate(valeur)}
+        />
         {/* `RG-TMP-07` — dire ce qui est DÉJÀ déclaré, tous contributeurs
             confondus : c'est ce qui évite de saisir deux fois trois heures
             parce qu'un collègue l'avait fait. */}
         {tache.heuresDeclarees > 0 ? (
-          <span className="hours-note">
-            {t("taches.dejaDeclare", { n: tache.heuresDeclarees })}
-          </span>
+          <span className="hours-note">{t("taches.dejaDeclare", { n: tache.heuresDeclarees })}</span>
         ) : null}
       </div>
     </div>
@@ -384,27 +451,47 @@ function LigneNonDeclaree({ tache }: { tache: api.TacheNonDeclaree }) {
   const annoncer = useMessages();
   const client = useQueryClient();
 
+  const rafraichir = () => client.invalidateQueries({ queryKey: ["tableau-de-bord"] });
+
   const renoncement = useMutation({
     mutationFn: () => validerSansDeclaration(tache.id),
     onSuccess: () => {
       annoncer("ok", t("taches.valideeSansDeclaration"));
-      void client.invalidateQueries({ queryKey: ["tableau-de-bord"] });
+      void rafraichir();
     },
     onError: (e) => annoncer("err", messageErreur(e, tErreurs, t("taches.echecValidation"))),
   });
 
+  // La maquette laisse les deux sorties côte à côte : déclarer les heures
+  // manquantes, ou dire que la question ne se pose pas. Ce ne sont pas les
+  // mêmes faits, et l'une ne remplace pas l'autre.
+  const saisie = useMutation({
+    mutationFn: (valeur: number) =>
+      saisirTemps({
+        date: new Date().toISOString().slice(0, 10),
+        heures: valeur,
+        taskId: tache.id,
+      }),
+    onSuccess: () => {
+      annoncer("ok", t("taches.tempsSaisi"));
+      void rafraichir();
+    },
+    onError: (e) => annoncer("err", messageErreur(e, tErreurs, t("taches.echecTemps"))),
+  });
+
   return (
     <div className="trow">
-      <div className="bloc-etroit">
+      <div>
         <p className="trow-title">
           <span>{tache.titre}</span>
         </p>
         <span className="trow-meta">
-          {tache.projet ?? t("taches.sansProjet")}
-          {tache.dateFin ? ` · ${formaterDate(tache.dateFin)}` : ""}
+          {tache.dateFin
+            ? `${t("taches.termineeLe", { date: formaterDate(tache.dateFin) })} · ${t("taches.aucuneHeure")}`
+            : t("taches.aucuneHeure")}
         </span>
       </div>
-      <span />
+
       <label className="check">
         {/* La case garde son état coché pendant l'écriture : une case qui
             revient toute seule ferait croire que le clic n'a pas pris. La
@@ -419,6 +506,11 @@ function LigneNonDeclaree({ tache }: { tache: api.TacheNonDeclaree }) {
             c'est dire que la question ne se pose pas. */}
         <span>{t("taches.validerSansDeclaration")}</span>
       </label>
+
+      <ChampHeures
+        libelle={t("taches.heuresSur", { titre: tache.titre })}
+        surValidation={(valeur) => saisie.mutate(valeur)}
+      />
     </div>
   );
 }
@@ -441,8 +533,7 @@ function MaToDo({ todos }: { todos: api.Todos }) {
   const [edite, setEdite] = useState<{ id: string; texte: string } | null>(null);
 
   const rafraichir = () => client.invalidateQueries({ queryKey: ["tableau-de-bord"] });
-  const echec = (e: unknown, defaut: string) =>
-    annoncer("err", messageErreur(e, tErreurs, defaut));
+  const echec = (e: unknown, defaut: string) => annoncer("err", messageErreur(e, tErreurs, defaut));
 
   const ajout = useMutation({
     mutationFn: () => api.ajouterTodo(libelle.trim()),
@@ -472,6 +563,8 @@ function MaToDo({ todos }: { todos: api.Todos }) {
     onError: (e) => echec(e, t("todo.echecSuppression")),
   });
 
+  const total = todos.actives.length + todos.faites.length;
+
   const ligne = (todo: api.Todo) => (
     <div className={`todo-item${todo.fait ? " is-done" : ""}`} key={todo.id}>
       <input
@@ -497,7 +590,9 @@ function MaToDo({ todos }: { todos: api.Todos }) {
         />
       ) : (
         // `RG-DSH-02` — double-clic. Doublé d'un bouton pour le clavier : une
-        // action qui n'existe qu'à la souris n'existe pas.
+        // action qui n'existe qu'à la souris n'existe pas. La maquette pose en
+        // plus un `title` d'aide au survol ; `Button` de l'inventaire ne le
+        // prend pas, et l'indication vit donc dans l'état vide du panneau.
         <Button
           className="todo-label"
           onDoubleClick={() => setEdite({ id: todo.id, texte: todo.libelle })}
@@ -520,55 +615,55 @@ function MaToDo({ todos }: { todos: api.Todos }) {
     <section className="panel">
       <div className="panel-head">
         <span className="panel-title">{t("todo.titre")}</span>
-        <span className="grp-meta">{t("todo.prive")}</span>
+        {/* `RG-DSH-01` — la limite se lit AVANT d'être atteinte : « 3 / 20 »
+            dit combien il reste, un champ qui refuse ne dit que le refus. */}
+        <span className="eyebrow">{t("todo.compte", { n: total, limite: todos.limite })}</span>
       </div>
-      <div className="panel-body is-flush">
-        {/* `RG-DSH-01` — la limite est ANNONCÉE avant d'être atteinte, pas
-            découverte sur un champ qui ne répond plus. */}
-        {todos.limiteAtteinte ? (
-          <p className="todo-limit">{t("todo.limiteAtteinte", { n: todos.limite })}</p>
-        ) : null}
 
-        <div className="todo-add">
-          <input
-            type="text"
-            aria-label={t("todo.nouvelle")}
-            placeholder={t("todo.placeholder")}
-            disabled={todos.limiteAtteinte}
-            value={libelle}
-            onChange={(e) => setLibelle(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && libelle.trim()) ajout.mutate();
-            }}
-          />
-          <Button
-            className="chip-btn"
-            isDisabled={todos.limiteAtteinte || libelle.trim() === ""}
-            onPress={() => ajout.mutate()}
-          >
-            {t("todo.ajouter")}
-          </Button>
-        </div>
+      {todos.limiteAtteinte ? (
+        <p className="todo-limit">{t("todo.limiteAtteinte", { n: todos.limite })}</p>
+      ) : null}
 
-        {todos.actives.length === 0 && todos.faites.length === 0 ? (
-          <div className="empty">
-            <p>{t("todo.vide")}</p>
-            <small>{t("todo.videAide")}</small>
+      <div className="todo-add">
+        <input
+          type="text"
+          aria-label={t("todo.nouvelle")}
+          placeholder={t("todo.placeholder")}
+          disabled={todos.limiteAtteinte}
+          value={libelle}
+          onChange={(e) => setLibelle(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && libelle.trim()) ajout.mutate();
+          }}
+        />
+        <Button
+          className="btn btn-primary"
+          aria-label={t("todo.ajouter")}
+          isDisabled={todos.limiteAtteinte || libelle.trim() === ""}
+          onPress={() => ajout.mutate()}
+        >
+          <span aria-hidden="true">+</span>
+        </Button>
+      </div>
+
+      {todos.actives.map(ligne)}
+
+      {/* `RG-DSH-03` — les complétées à part, avec leur compte. */}
+      {todos.faites.length > 0 ? (
+        <>
+          <div className="todo-sep">
+            <span className="eyebrow">{t("todo.completees", { n: todos.faites.length })}</span>
           </div>
-        ) : null}
+          {todos.faites.map(ligne)}
+        </>
+      ) : null}
 
-        {todos.actives.map(ligne)}
-
-        {/* `RG-DSH-03` — les complétées à part, avec leur compte. */}
-        {todos.faites.length > 0 ? (
-          <>
-            <p className="todo-sep">
-              <span className="eyebrow">{t("todo.completees", { n: todos.faites.length })}</span>
-            </p>
-            {todos.faites.map(ligne)}
-          </>
-        ) : null}
-      </div>
+      {total === 0 ? (
+        <div className="empty">
+          <p>{t("todo.vide")}</p>
+          <small>{t("todo.videAide")}</small>
+        </div>
+      ) : null}
     </section>
   );
 }
@@ -576,12 +671,13 @@ function MaToDo({ todos }: { todos: api.Todos }) {
 /** `EX-DSH-07` — mes projets, retrouvés d'un clic. */
 function MesProjets({ projets }: { projets: api.ProjetTableau[] }) {
   const { t } = useTranslation("tableau");
+  const libelleDe = useLibelle();
 
   return (
     <section className="panel">
       <div className="panel-head">
         <span className="panel-title">{t("projets.titre")}</span>
-        <a className="chip-btn" href="/projets">
+        <a className="link link-sm" href="/projets">
           {t("projets.tous")}
         </a>
       </div>
@@ -594,16 +690,14 @@ function MesProjets({ projets }: { projets: api.ProjetTableau[] }) {
         ) : (
           projets.slice(0, MAX_PROJETS_VISIBLES).map((projet) => (
             <a className="prow" href={`/projets/${projet.id}`} key={projet.id}>
-              <i className="pglyph" aria-hidden="true">
-                {projet.icone ?? "◆"}
-              </i>
-              <span className="bloc-etroit">
-                <span className="prow-name">{projet.nom}</span>
+              <Pastille icone={projet.icone} titre={projet.nom} />
+              <div>
+                <p className="prow-name">{projet.nom}</p>
                 <span className="prow-role">
-                  {t(`statutsProjet.${projet.statut}`)} ·{" "}
+                  {libelleDe(projet.statut, STATUTS_PROJET)} ·{" "}
                   {t("projets.nTaches", { n: projet._count.taches })}
                 </span>
-              </span>
+              </div>
               <span className="prow-pct">{formaterDate(projet.dateFin)}</span>
             </a>
           ))
@@ -612,6 +706,3 @@ function MesProjets({ projets }: { projets: api.ProjetTableau[] }) {
     </section>
   );
 }
-
-/** Le style d'un jeton de couleur, quand la valeur vient de la donnée. */
-export const couleurDe = (jeton: string): CSSProperties => ({ color: `var(--${jeton})` });

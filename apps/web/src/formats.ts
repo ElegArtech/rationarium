@@ -169,6 +169,26 @@ export const formaterDateLongue = (valeur: string | Date | null | undefined): st
 };
 
 /**
+ * Forme longue précédée du jour de semaine : `jeudi 13 août 2026`.
+ *
+ * Employée par le surtitre du tableau de bord (vue 06), où la date situe tout
+ * ce que la page affirme — « à venir », « en retard », « cette semaine ». Le
+ * jour de semaine y compte autant que le quantième : c'est lui qui dit où l'on
+ * en est de la semaine ouvrée.
+ */
+export const formaterDateAvecJour = (valeur: string | Date | null | undefined): string => {
+  const d = instant(valeur);
+  if (!d) return "—";
+  return new Intl.DateTimeFormat(locale(), {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(d);
+};
+
+/**
  * Un nombre, avec le séparateur de milliers de la langue.
  *
  * `1 200 h` en français, `1,200 h` en anglais. Concaténer sans passer par

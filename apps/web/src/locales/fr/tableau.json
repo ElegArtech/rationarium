@@ -1,40 +1,45 @@
 {
-  "surtitre": "Accueil",
   "letableau": "le tableau de bord",
   "bonjour": "Bonjour {prenom}",
   "apercu": "Voici un aperçu de votre activité.",
   "kpi": {
     "projetsActifs": "Projets actifs",
-    "surNProjets": "{n, plural, =0 {aucun projet} one {sur # projet} other {sur # projets}}",
+    "surNProjets": "{n, plural, =0 {Aucun projet} one {sur # projet} other {sur # projets}}",
     "tachesEnCours": "Tâches en cours",
-    "surNTaches": "{n, plural, =0 {aucune tâche} one {sur # tâche} other {sur # tâches}}",
+    "surNTaches": "{n, plural, =0 {Aucune tâche} one {sur # tâche} other {sur # tâches}}",
     "tachesTerminees": "Tâches terminées",
     "pourcentageCompletees": "{n, number} % complétées",
+    "rienAAfficher": "Rien à afficher",
     "tachesEnRetard": "Tâches en retard",
     "echeanceDepassee": "Échéance dépassée",
-    "aucunRetard": "Aucune échéance dépassée"
+    "aucunRetard": "Aucun retard"
   },
   "planning": {
     "titre": "Mon planning",
-    "ouvrir": "Ouvrir le planning",
+    "ouvrir": "Ouvrir le planning →",
     "teletravail": "Télétravail",
-    "rien": "—"
+    "rien": "—",
+    "vide": "Aucune occupation cette semaine",
+    "videAide": "Vos tâches, congés et réunions apparaîtront ici."
   },
   "taches": {
     "titre": "Mes tâches",
-    "ongletAVenir": "À venir",
-    "ongletNonDeclarees": "Non déclarées",
+    "ongletAVenir": "À venir · {n, number}",
+    "ongletNonDeclarees": "Non déclarées · {n, number}",
     "videAVenir": "Aucune tâche assignée",
-    "videAVenirAide": "Les tâches qui vous sont confiées apparaîtront ici.",
+    "videAVenirAide": "Les tâches qui vous seront confiées apparaîtront ici.",
     "videNonDeclarees": "Aucune tâche en attente de validation",
-    "videNonDeclareesAide": "Tout votre temps est déclaré, ou dispensé de déclaration.",
+    "videNonDeclareesAide": "Tout votre temps est déclaré.",
     "enRetard": "En retard",
     "sansProjet": "Sans projet",
     "estimation": "{n, number} h estimées",
+    "termineeLe": "Terminée le {date}",
+    "aucuneHeure": "aucune heure déclarée",
     "statutDe": "Statut de la tâche {titre}",
     "heuresSur": "Heures à déclarer sur la tâche {titre}",
+    "heuresPlaceholder": "0",
     "unite": "h",
-    "dejaDeclare": "{n, number} h déjà déclarées",
+    "dejaDeclare": "{n, number} h déjà déclarées, tous contributeurs",
     "statutEnregistre": "Statut enregistré.",
     "echecStatut": "Le statut n'a pas pu être enregistré.",
     "tempsSaisi": "Temps enregistré.",
@@ -45,14 +50,14 @@
   },
   "todo": {
     "titre": "Ma to-do",
-    "prive": "Privée",
+    "compte": "{n, number} / {limite, number}",
     "nouvelle": "Nouvelle to-do",
     "placeholder": "Ajouter une to-do…",
-    "ajouter": "Ajouter",
+    "ajouter": "Ajouter la to-do",
     "vide": "Aucune to-do pour le moment",
-    "videAide": "Double-cliquer pour éditer.",
-    "completees": "{n, plural, one {# complétée} other {# complétées}}",
-    "limiteAtteinte": "Limite de {n, number} to-dos atteinte.",
+    "videAide": "Double-cliquez sur une ligne pour la modifier.",
+    "completees": "Terminées · {n, number}",
+    "limiteAtteinte": "Limite de {n, number} to-dos atteinte. Terminez-en une pour en ajouter.",
     "basculer": "Marquer « {libelle} » comme faite ou à faire",
     "editer": "Modifier « {libelle} »",
     "supprimer": "Supprimer « {libelle} »",
@@ -62,24 +67,10 @@
   },
   "projets": {
     "titre": "Mes projets",
-    "tous": "Tous les projets",
+    "tous": "Tous →",
     "vide": "Aucun projet assigné",
-    "videAide": "Vous n'êtes membre d'aucun projet actif.",
+    "videAide": "Vous n'êtes membre d'aucun projet pour l'instant.",
     "nTaches": "{n, plural, =0 {aucune tâche} one {# tâche} other {# tâches}}"
-  },
-  "statuts": {
-    "todo": "À faire",
-    "doing": "En cours",
-    "review": "En revue",
-    "done": "Terminée",
-    "blocked": "Bloquée"
-  },
-  "statutsProjet": {
-    "draft": "Brouillon",
-    "active": "Actif",
-    "paused": "Suspendu",
-    "done": "Terminé",
-    "cancelled": "Annulé"
   },
   "jours": {
     "court": {
