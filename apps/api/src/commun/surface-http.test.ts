@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import "reflect-metadata";
 import { PATH_METADATA, METHOD_METADATA } from "@nestjs/common/constants.js";
 import { estAuCatalogue } from "@trame/contracts";
-import { CLE_PERMISSION, CLE_PUBLIC } from "./permissions.garde.js";
+import { CLE_PERMISSION, CLE_PERSONNEL, CLE_PUBLIC } from "./permissions.garde.js";
 
 import { AuthController } from "../auth/auth.controller.js";
 import { OrganisationController } from "../organisation/organisation.controller.js";
@@ -19,6 +19,8 @@ import { TempsController } from "../temps/temps.controller.js";
 import { DocumentsController } from "../documents/documents.controller.js";
 import { CompetencesController } from "../competences/competences.controller.js";
 import { TiersController, ClientsController } from "../tiers/tiers.controller.js";
+import { PlanningController } from "../planning/planning.controller.js";
+import { TableauController } from "../tableau/tableau.controller.js";
 
 /**
  * `RG-DROITS-03` — **aucun point d'entrée n'est ouvert par inadvertance.**
@@ -52,6 +54,8 @@ const CONTROLEURS = [
   CompetencesController,
   ClientsController,
   TiersController,
+  PlanningController,
+  TableauController,
 ];
 
 /** Les seules routes autorisées à se passer de permission. */
@@ -65,10 +69,26 @@ const PUBLIQUES_ATTENDUES = new Set([
   "AuthController.me",
 ]);
 
+/**
+ * Les seules routes autorisées à exiger une session **sans** permission.
+ *
+ * `RG-DSH-01` — les to-do sont strictement privées, et les vingt-quatre
+ * domaines de `cadrage/01 § 3.2` n'en comportent aucun pour elles. La liste est
+ * énumérée ici pour la même raison que la précédente : y ajouter une route
+ * demande une modification visible en relecture.
+ */
+const PERSONNELLES_ATTENDUES = new Set([
+  "TableauController.todos",
+  "TableauController.ajouter",
+  "TableauController.modifier",
+  "TableauController.supprimer",
+]);
+
 type Route = {
   nom: string;
   permission: string | undefined;
   publique: boolean;
+  personnelle: boolean;
 };
 
 function routes(): Route[] {
@@ -85,6 +105,7 @@ function routes(): Route[] {
         nom: `${controleur.name}.${methode}`,
         permission: Reflect.getMetadata(CLE_PERMISSION, fn) as string | undefined,
         publique: Reflect.getMetadata(CLE_PUBLIC, fn) === true,
+        personnelle: Reflect.getMetadata(CLE_PERSONNEL, fn) === true,
       });
     }
   }
@@ -99,9 +120,21 @@ describe("RG-DROITS-03 — la surface HTTP est entièrement gardée", () => {
     expect(new Set(toutes.map((r) => r.nom.split(".")[0])).size).toBe(CONTROLEURS.length);
   });
 
-  it("chaque route déclare une permission, ou est explicitement publique", () => {
-    const nues = toutes.filter((r) => !r.permission && !r.publique).map((r) => r.nom);
+  it("chaque route déclare une permission, ou est explicitement publique ou personnelle", () => {
+    const nues = toutes
+      .filter((r) => !r.permission && !r.publique && !r.personnelle)
+      .map((r) => r.nom);
     expect(nues).toEqual([]);
+  });
+
+  it("les routes personnelles sont exactement celles d'une donnée strictement privée", () => {
+    const personnelles = toutes.filter((r) => r.personnelle).map((r) => r.nom).sort();
+    expect(personnelles).toEqual([...PERSONNELLES_ATTENDUES].sort());
+  });
+
+  it("aucune route n'est à la fois personnelle et publique — elle exige une session", () => {
+    const ambigues = toutes.filter((r) => r.personnelle && r.publique).map((r) => r.nom);
+    expect(ambigues).toEqual([]);
   });
 
   it("les routes publiques sont exactement celles qui précèdent la session", () => {

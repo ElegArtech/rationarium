@@ -50,6 +50,7 @@ import {
   PREDEFINIES,
 } from "./fixtures/parametrage.js";
 import { SEMAINE, GRILLE_ACTIVITE, ELIGIBILITE as ELIGIBILITE_A11Y } from "./fixtures/planning.js";
+import { TABLEAU } from "./fixtures/tableau.js";
 
 /** Une session dotée des droits d'écriture : les vues doivent rester conformes
  *  avec leurs actions affichées, pas seulement en lecture seule. */
@@ -150,6 +151,13 @@ const VUES: {
   { nom: "27 — utilisateurs", chemin: "/utilisateurs", session: "valide" },
   { nom: "28 — suivi individuel", chemin: "/utilisateurs/u-autre/suivi", session: "valide" },
   { nom: "29 — départements et services", chemin: "/departements", session: "valide" },
+  { nom: "06 — tableau de bord", chemin: "/", session: "valide" },
+  {
+    nom: "06 — tableau de bord, onglet non déclarées",
+    chemin: "/",
+    session: "valide",
+    apres: (page) => page.getByRole("tab", { name: "Non déclarées" }).click(),
+  },
   { nom: "07 — planning, semaine", chemin: "/planning", session: "valide" },
   { nom: "08 — planning, mois", chemin: "/planning/mois", session: "valide" },
   { nom: "09 — planning, activité", chemin: "/planning/activite", session: "valide" },
@@ -220,6 +228,7 @@ async function preparer(page: Page, session: "valide" | "absente", theme: "clair
         "/api/administration/audit/facettes": { corps: FACETTES_AUDIT },
         "/api/activite/taches": { corps: PREDEFINIES },
         "/api/planning": { corps: SEMAINE },
+        "/api/tableau-de-bord": { corps: TABLEAU },
         "/api/planning/activite": { corps: GRILLE_ACTIVITE },
         "/api/activite/eligibilite": { corps: ELIGIBILITE_A11Y },
       },

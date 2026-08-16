@@ -1,0 +1,95 @@
+{
+  "surtitre": "Home",
+  "letableau": "the dashboard",
+  "bonjour": "Hello {prenom}",
+  "apercu": "Here is an overview of your activity.",
+  "kpi": {
+    "projetsActifs": "Active projects",
+    "surNProjets": "{n, plural, =0 {no project} one {of # project} other {of # projects}}",
+    "tachesEnCours": "Tasks in progress",
+    "surNTaches": "{n, plural, =0 {no task} one {of # task} other {of # tasks}}",
+    "tachesTerminees": "Completed tasks",
+    "pourcentageCompletees": "{n, number}% completed",
+    "tachesEnRetard": "Overdue tasks",
+    "echeanceDepassee": "Past due date",
+    "aucunRetard": "Nothing past due"
+  },
+  "planning": {
+    "titre": "My schedule",
+    "ouvrir": "Open the schedule",
+    "teletravail": "Remote",
+    "rien": "—"
+  },
+  "taches": {
+    "titre": "My tasks",
+    "ongletAVenir": "Upcoming",
+    "ongletNonDeclarees": "Undeclared",
+    "videAVenir": "No task assigned",
+    "videAVenirAide": "Tasks assigned to you will appear here.",
+    "videNonDeclarees": "No task awaiting validation",
+    "videNonDeclareesAide": "All your time is declared, or waived.",
+    "enRetard": "Overdue",
+    "sansProjet": "No project",
+    "estimation": "{n, number} h estimated",
+    "statutDe": "Status of task {titre}",
+    "heuresSur": "Hours to log on task {titre}",
+    "unite": "h",
+    "dejaDeclare": "{n, number} h already logged",
+    "statutEnregistre": "Status saved.",
+    "echecStatut": "The status could not be saved.",
+    "tempsSaisi": "Time saved.",
+    "echecTemps": "The time could not be saved.",
+    "validerSansDeclaration": "Validate without logging",
+    "valideeSansDeclaration": "Task closed without logging.",
+    "echecValidation": "The validation did not go through."
+  },
+  "todo": {
+    "titre": "My to-do",
+    "prive": "Private",
+    "nouvelle": "New to-do",
+    "placeholder": "Add a to-do…",
+    "ajouter": "Add",
+    "vide": "No to-do yet",
+    "videAide": "Double-click to edit.",
+    "completees": "{n, plural, one {# completed} other {# completed}}",
+    "limiteAtteinte": "Limit of {n, number} to-dos reached.",
+    "basculer": "Mark “{libelle}” as done or to do",
+    "editer": "Edit “{libelle}”",
+    "supprimer": "Delete “{libelle}”",
+    "echecAjout": "The to-do could not be added.",
+    "echecModification": "The to-do could not be updated.",
+    "echecSuppression": "The to-do could not be deleted."
+  },
+  "projets": {
+    "titre": "My projects",
+    "tous": "All projects",
+    "vide": "No project assigned",
+    "videAide": "You are not a member of any active project.",
+    "nTaches": "{n, plural, =0 {no task} one {# task} other {# tasks}}"
+  },
+  "statuts": {
+    "todo": "To do",
+    "doing": "In progress",
+    "review": "In review",
+    "done": "Done",
+    "blocked": "Blocked"
+  },
+  "statutsProjet": {
+    "draft": "Draft",
+    "active": "Active",
+    "paused": "Paused",
+    "done": "Completed",
+    "cancelled": "Cancelled"
+  },
+  "jours": {
+    "court": {
+      "0": "Sun",
+      "1": "Mon",
+      "2": "Tue",
+      "3": "Wed",
+      "4": "Thu",
+      "5": "Fri",
+      "6": "Sat"
+    }
+  }
+}

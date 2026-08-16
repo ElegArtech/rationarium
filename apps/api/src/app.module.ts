@@ -15,6 +15,7 @@ import { TeletravailModule } from "./teletravail/teletravail.module.js";
 import { EvenementsModule } from "./evenements/evenements.module.js";
 import { ActiviteModule } from "./activite/activite.module.js";
 import { PlanningModule } from "./planning/planning.module.js";
+import { TableauModule } from "./tableau/tableau.module.js";
 import { TempsModule } from "./temps/temps.module.js";
 import { DocumentsModule } from "./documents/documents.module.js";
 import { CompetencesModule } from "./competences/competences.module.js";
@@ -48,6 +49,7 @@ import { TiersModule } from "./tiers/tiers.module.js";
     EvenementsModule,
     ActiviteModule,
     PlanningModule,
+    TableauModule,
     TempsModule,
     DocumentsModule,
     CompetencesModule,

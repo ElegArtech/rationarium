@@ -96,10 +96,15 @@ test.describe("Le socle démarre", () => {
     await expect(page.getByRole("link", { name: /retour à l'accueil/i })).toBeVisible();
   });
 
-  test("l'accueil renvoie sur une vue portée, jamais sur une page inventée", async ({ page }) => {
+  test("l'accueil sert le tableau de bord — il ne renvoie plus ailleurs", async ({ page }) => {
+    // Il redirigeait vers le profil tant que la vue 06 n'était pas portée.
+    // Depuis L-21, c'est la page la plus consultée du produit qui est à la
+    // racine, et l'adresse ne bouge plus.
     await serveur(page, { statut: 200, corps: SESSION });
     await page.goto("/");
-    await expect(page).toHaveURL(/\/profil/);
+
+    await expect(page).toHaveURL(/\/$/);
+    await expect(page.getByRole("navigation", { name: /navigation principale/i })).toBeVisible();
   });
 });
 
