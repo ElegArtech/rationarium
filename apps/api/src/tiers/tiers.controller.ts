@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post, Query } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from "@nestjs/common";
 import { z } from "zod";
 import { enumDe, TYPES_TIERS } from "@trame/contracts";
 import { TiersService } from "./tiers.service.js";
@@ -56,6 +56,28 @@ export class TiersController {
       corps,
     );
     return this.tiers.creerTiers(donnees, d.userId);
+  }
+
+  /**
+   * `EX-TRS-02` — modifier un tiers, ou l'archiver.
+   *
+   * Corriger un numéro de téléphone imposait jusqu'ici de SUPPRIMER le tiers —
+   * donc de rompre ses rattachements de projet et de perdre le temps déclaré
+   * pour lui.
+   */
+  @Patch(":id")
+  @RequiertPermission("third_parties:update")
+  modifier(@Param("id") id: string, @Body() corps: unknown, @Demande() d: ContexteDemande) {
+    const donnees = valider(
+      z.object({
+        type: enumDe(TYPES_TIERS).optional(),
+        organisation: z.string().max(160).nullish(),
+        actif: z.boolean().optional(),
+        ...contact,
+      }),
+      corps,
+    );
+    return this.tiers.modifierTiers(id, donnees, d.userId);
   }
 
   @Delete(":id")
@@ -135,6 +157,28 @@ export class ClientsController {
       corps,
     );
     return this.tiers.creerClient(donnees, d.userId);
+  }
+
+  /**
+   * `EX-CLI-02` — modifier un client, ou le rendre inactif.
+   *
+   * Corriger une adresse imposait jusqu'ici de supprimer le client, donc de
+   * détacher les projets qui lui sont rattachés. L'inactivité est réversible
+   * et n'efface rien.
+   */
+  @Patch(":id")
+  @RequiertPermission("clients:update")
+  modifierClient(@Param("id") id: string, @Body() corps: unknown, @Demande() d: ContexteDemande) {
+    const donnees = valider(
+      z.object({
+        nom: z.string().min(1).max(160).optional(),
+        adresse: z.string().max(300).nullish(),
+        actif: z.boolean().optional(),
+        ...contact,
+      }),
+      corps,
+    );
+    return this.tiers.modifierClient(id, donnees, d.userId);
   }
 
   @Delete(":id")
