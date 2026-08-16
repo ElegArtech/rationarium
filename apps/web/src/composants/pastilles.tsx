@@ -44,14 +44,22 @@ const JETON: Record<string, string> = {
   methodology: "var(--activity)",
   soft_skill: "var(--event)",
   business: "var(--leave)",
+
+  // Types d'activité — vue 21, section 25 des maquettes
+  development: "var(--st-doing)",
+  meeting: "var(--event)",
+  support: "var(--activity)",
+  training: "var(--st-done)",
+  other: "var(--muted)",
 };
 
 /**
  * Le jeton d'un code de vocabulaire.
  *
- * Exposé parce que la matrice de compétences colore ses en-têtes de colonnes
- * par catégorie, comme la maquette : c'est une correspondance code → jeton,
- * pas une décision graphique prise sur place.
+ * Exposé parce que plusieurs vues en ont besoin hors d'une pastille : la
+ * matrice de compétences colore ses en-têtes de colonnes par catégorie, la vue
+ * 21 ses portions de barre empilée par type d'activité. La carte reste unique :
+ * la dupliquer dans une vue en ferait une seconde source de vérité.
  */
 export const jetonDe = (code: string): string => JETON[code] ?? "var(--muted)";
 

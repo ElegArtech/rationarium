@@ -170,7 +170,32 @@ export const creerDelegation = (donnees: {
 
 // ── M11 — Télétravail, vue 20 ───────────────────────────────────────────────
 
-export type JourTeletravail = { date: string; etat: string; issuDeRegle: boolean };
+/**
+ * Le serveur ne rend pas un tableau : il rend le calendrier **et** son cumul.
+ *
+ * Le type déclaré ici disait `JourTeletravail[]`, et la vue faisait `.map`
+ * dessus — donc une exception à chaque rendu, et la vue 20 ne s'affichait pas
+ * du tout. Rien ne pouvait le voir : `appeler<T>` ne valide pas la forme, le
+ * typage n'a que cette déclaration pour vérité, et aucune boucle n'ouvrait la
+ * page. Le type suit désormais `TeletravailService.planning`.
+ */
+export type JourTeletravail = {
+  date: string;
+  etat: string;
+  weekend: boolean;
+  issuDeRegle: boolean;
+  exception: boolean;
+};
+export type PlanningTeletravail = {
+  calendrier: JourTeletravail[];
+  cumul: { teletravail: number; bureau: number; nonDeclares: number };
+};
+export type AgentTeletravail = {
+  id: string;
+  prenom: string;
+  nom: string;
+  etat: string;
+};
 export type RegleTeletravail = {
   id: string;
   jourSemaine: number;
@@ -180,9 +205,12 @@ export type RegleTeletravail = {
 };
 
 export const planningTeletravail = (debut: string, fin: string, userId?: string) =>
-  appeler<JourTeletravail[]>(
+  appeler<PlanningTeletravail>(
     `/teletravail${params({ debut, fin, ...(userId ? { userId } : {}) })}`,
   );
+
+export const equipeTeletravail = (date: string) =>
+  appeler<AgentTeletravail[]>(`/teletravail/equipe${params({ date })}`);
 
 export const reglesTeletravail = (userId?: string) =>
   appeler<RegleTeletravail[]>(`/teletravail/regles${params(userId ? { userId } : {})}`);
@@ -252,6 +280,12 @@ export const saisirTemps = (donnees: {
 
 export const supprimerTemps = (id: string) =>
   appeler<void>(`/temps/${id}`, { methode: "DELETE" });
+
+/** `RG-TMP-07` — ce qui est déjà déclaré sur une tâche, tous contributeurs confondus. */
+export const contexteTemps = (taskId: string) =>
+  appeler<{ heuresDeclarees: number; entrees: number; contributeurs: number }>(
+    `/temps/contexte/${taskId}`,
+  );
 
 /**
  * `EX-TMP-06`, `EX-DSH-06` — clore une tâche terminée **sans** déclaration.

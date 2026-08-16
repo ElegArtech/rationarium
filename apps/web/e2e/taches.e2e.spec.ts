@@ -37,7 +37,7 @@ test.describe("Vue 16 — tâches, vue globale", () => {
     // « Elle doit être nommée et assumée dans l'interface, jamais présentée
     //   comme une donnée incomplète » — brief de la vue 16.
     await expect(page.getByText("Tâche indépendante").first()).toBeVisible();
-    await expect(page.getByText("1 indépendante")).toBeVisible();
+    await expect(page.getByText("dont 1 hors projet")).toBeVisible();
   });
 
   test("le filtre « sans projet » désactive le choix de projet", async ({ page }) => {
@@ -235,7 +235,21 @@ test.describe("Vue 17 — fiche tâche", () => {
       session: SESSION_TACHES,
       reponses: {
         [`/api/taches/${FICHE.id}`]: {
-          corps: { ...FICHE, incoherences: [{ id: "p1", titre: "Ateliers usagers" }] },
+          /*
+           * La forme est celle que `TachesService.incoherences` rend : le
+           * prérequis complet et le nombre de jours de recouvrement. Le jeu
+           * d'essai disait `{ id, titre }`, une forme que le serveur n'a jamais
+           * produite — la vue ne pouvait donc pas nommer la tâche en cause.
+           */
+          corps: {
+            ...FICHE,
+            incoherences: [
+              {
+                prerequis: { id: "p1", titre: "Ateliers usagers", dateFin: "2026-11-16" },
+                jours: 3,
+              },
+            ],
+          },
         },
       },
     });

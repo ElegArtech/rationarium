@@ -90,6 +90,31 @@ export function Coquille({
   const chemin = useRouterState({ select: (etat) => etat.location.pathname });
 
   /*
+   * Le fil d'Ariane est **dérivé de la navigation** quand l'appelant n'en
+   * fournit pas.
+   *
+   * `filAriane` était une propriété que personne n'a jamais passée : le fil se
+   * réduisait à « Trame » sur les trente-cinq vues, alors que les maquettes
+   * disent « Trame / Télétravail ». Rien ne pouvait le voir — une propriété
+   * facultative non transmise ne produit ni erreur ni avertissement.
+   *
+   * La section courante est celle dont le chemin correspond, la plus longue
+   * d'abord : `/taches/<id>` appartient à « Tâches », pas à la racine.
+   */
+  const sectionCourante = groupes
+    .flatMap((g) => g.entrees)
+    .filter(
+      (e) => chemin === e.chemin || (e.chemin !== "/" && chemin.startsWith(`${e.chemin}/`)),
+    )
+    .sort((a, b) => b.chemin.length - a.chemin.length)[0];
+  const ariane =
+    filAriane.length > 0
+      ? filAriane
+      : sectionCourante && sectionCourante.chemin !== "/"
+        ? [{ libelle: t(`entrees.${sectionCourante.cle}`) }]
+        : [];
+
+  /*
    * RGAA 8.6 — **le titre de page doit être pertinent**, et il ne l'était pas :
    * toutes les vues s'appelaient « Trame ». Le titre est **dérivé du `h1`
    * affiché** plutôt que déclaré vue par vue : une liste parallèle finirait par
@@ -144,18 +169,32 @@ export function Coquille({
               <div key={groupe.cle} className="nav-group">
                 {/* Le titre de groupe n'apparaît que si le groupe a des entrées. */}
                 <p className="nav-legend">{t(`groupes.${groupe.cle}`)}</p>
-                {groupe.entrees.map((entree) => (
+                {groupe.entrees.map((entree) => {
+                  /*
+                   * Une fiche appartient à sa section. `/taches/<id>` doit
+                   * garder « Tâches » allumé : la comparaison stricte
+                   * éteignait la barre latérale sur toutes les vues de détail,
+                   * et l'utilisateur perdait le repère de l'endroit où il est.
+                   * Le séparateur est exigé — sans lui, `/taches` allumerait
+                   * aussi `/taches-predefinies` —, et la racine est exclue,
+                   * qui préfixe tout.
+                   */
+                  const courante =
+                    chemin === entree.chemin ||
+                    (entree.chemin !== "/" && chemin.startsWith(`${entree.chemin}/`));
+                  return (
                   <a
                     key={entree.cle}
-                    className={`nav-item${chemin === entree.chemin ? " is-active" : ""}`}
+                    className={`nav-item${courante ? " is-active" : ""}`}
                     href={entree.chemin}
                     title={t(`entrees.${entree.cle}`)}
-                    {...(chemin === entree.chemin ? { "aria-current": "page" as const } : {})}
+                    {...(courante ? { "aria-current": "page" as const } : {})}
                   >
                     <Icone nom={entree.icone} />
                     <span>{t(`entrees.${entree.cle}`)}</span>
                   </a>
-                ))}
+                  );
+                })}
               </div>
             ))}
           </nav>
@@ -181,7 +220,7 @@ export function Coquille({
 
             <p className="crumb">
               <a href="/">Trame</a>
-              {filAriane.map((etape) => (
+              {ariane.map((etape) => (
                 <span key={etape.libelle}>
                   <span aria-hidden="true"> / </span>
                   {etape.chemin ? (

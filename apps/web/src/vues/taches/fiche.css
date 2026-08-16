@@ -443,6 +443,56 @@
 .side-dl dd {
   margin: 0;
 }
+.doc-dz {
+  margin: 12px 14px 14px;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--r);
+  padding: 15px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/*
+ * Repris de la maquette, qui pose ces valeurs en style en ligne : l'alerte
+ * d'incohérence de dates, le bloc de titre, la pastille de tiers.
+ */
+.conf-alerte {
+  display: block;
+}
+.conf-corps {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+.conf-texte {
+  flex: 1;
+}
+.proj-head-fiche {
+  align-items: center;
+  margin-bottom: 14px;
+}
+.proj-head-titre {
+  flex: 1;
+}
+.proj-head-titre .pills {
+  margin-bottom: 4px;
+}
+/*
+ * Le champ de titre est enveloppé dans un `h1` — le niveau de titre appartient
+ * au document, pas au style. Les marges par défaut de l'agent utilisateur
+ * décollaient le titre de ses pastilles d'une quarantaine de pixels ; la
+ * maquette les colle. La marge est portée par `.task-title`, comme elle l'est
+ * dans la maquette.
+ */
+.proj-head-titre h1 {
+  margin: 0;
+}
+.pchip-tiers {
+  border-color: var(--st-review);
+  color: var(--st-review);
+}
+
 .side-dl dd.is-none {
   color: var(--muted);
   font-style: italic;
