@@ -27,6 +27,9 @@ import { Portefeuille } from "../vues/projets/Portefeuille.js";
 import { VueEnsemble } from "../vues/projets/VueEnsemble.js";
 import { Jalons } from "../vues/projets/Jalons.js";
 import { Equipe } from "../vues/projets/Equipe.js";
+import { OngletTaches } from "../vues/taches/OngletTaches.js";
+import { ListeTaches } from "../vues/taches/Liste.js";
+import { FicheTache } from "../vues/taches/Fiche.js";
 
 /**
  * L'arborescence des routes.
@@ -285,6 +288,32 @@ const routeProjetEquipe = createRoute({
   },
 });
 
+// ── Tâches — vues 12, 16, 17 (L-33) ─────────────────────────────────────────
+
+const routeProjetTaches = createRoute({
+  getParentRoute: () => routeApplication,
+  path: "/projets/$id/taches",
+  component: function PageTachesProjet() {
+    const { id } = useParams({ from: "/application/projets/$id/taches" });
+    return <OngletTaches projetId={id} />;
+  },
+});
+
+const routeTaches = createRoute({
+  getParentRoute: () => routeApplication,
+  path: "/taches",
+  component: ListeTaches,
+});
+
+const routeTache = createRoute({
+  getParentRoute: () => routeApplication,
+  path: "/taches/$id",
+  component: function PageTache() {
+    const { id } = useParams({ from: "/application/taches/$id" });
+    return <FicheTache tacheId={id} />;
+  },
+});
+
 const arbre = racine.addChildren([
   routeConnexion,
   routeInscription,
@@ -298,6 +327,9 @@ const arbre = racine.addChildren([
     routeProjet,
     routeProjetJalons,
     routeProjetEquipe,
+    routeProjetTaches,
+    routeTaches,
+    routeTache,
   ]),
 ]);
 

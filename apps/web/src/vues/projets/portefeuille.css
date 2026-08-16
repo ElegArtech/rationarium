@@ -83,9 +83,11 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* Même écart de contraste que `.t2-mile.is-none` : l'opacité de la maquette
+   fait tomber `--muted` sous le seuil AA. Le jeton conforme le remplace. */
 .prow-desc.is-none {
   font-style: italic;
-  opacity: 0.75;
+  color: var(--placeholder);
 }
 .prow-col {
   display: flex;

@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post, Query } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query } from "@nestjs/common";
 import { z } from "zod";
 import { enumDe, STATUTS_TACHE, PRIORITES, ROLES_RACI } from "@trame/contracts";
 import { TachesService } from "./taches.service.js";
@@ -42,6 +42,13 @@ export class TachesController {
     return this.taches.orphelines(d.perimetre, d.permissions);
   }
 
+  /** `EX-TSK-13` — la fiche complète. Vue 17. */
+  @Get(":id")
+  @RequiertPermission("tasks:read")
+  fiche(@Param("id") id: string) {
+    return this.taches.fiche(id);
+  }
+
   @Post()
   @RequiertPermission("tasks:create")
   creer(@Body() corps: unknown, @Demande() d: ContexteDemande) {
@@ -67,10 +74,67 @@ export class TachesController {
     return this.taches.creer(donnees, d.userId);
   }
 
+  /**
+   * `RG-GEN-07` — la modification transmet la **version lue**.
+   *
+   * Un écart lève un conflit et se traduit en 409 : la concurrence est
+   * détectée, jamais écrasée. C'est ce qui interdit le « dernier arrivé
+   * gagne ».
+   */
+  @Patch(":id")
+  @RequiertPermission("tasks:update")
+  modifier(@Param("id") id: string, @Body() corps: unknown, @Demande() d: ContexteDemande) {
+    const donnees = valider(
+      z.object({
+        version: z.number().int().min(1),
+        titre: z.string().min(1).max(200).optional(),
+        description: z.string().max(10000).nullish(),
+        statut: enumDe(STATUTS_TACHE).optional(),
+        priorite: enumDe(PRIORITES).optional(),
+        dateDebut: dateSchema.nullish(),
+        dateFin: dateSchema.nullish(),
+        estimationHeures: z.number().min(0).nullish(),
+        avancement: z.number().int().min(0).max(100).optional(),
+      }),
+      corps,
+    );
+    return this.taches.modifier(id, donnees, d.userId);
+  }
+
   @Delete(":id")
   @RequiertPermission("tasks:delete")
   supprimer(@Param("id") id: string, @Demande() d: ContexteDemande) {
     return this.taches.supprimer(id, d.userId);
+  }
+
+  // ── Sous-tâches — EX-TSK-09 ──────────────────────────────────────────────
+
+  @Post(":id/sous-taches")
+  @RequiertPermission("tasks:update")
+  ajouterSousTache(@Param("id") id: string, @Body() corps: unknown, @Demande() d: ContexteDemande) {
+    const { libelle } = valider(z.object({ libelle: z.string().min(1).max(300) }), corps);
+    return this.taches.ajouterSousTache(id, libelle, d.userId);
+  }
+
+  @Patch("sous-taches/:sousTacheId")
+  @RequiertPermission("tasks:update")
+  basculerSousTache(@Param("sousTacheId") sousTacheId: string, @Body() corps: unknown) {
+    const { fait } = valider(z.object({ fait: z.boolean() }), corps);
+    return this.taches.basculerSousTache(sousTacheId, fait);
+  }
+
+  @Delete("sous-taches/:sousTacheId")
+  @RequiertPermission("tasks:update")
+  supprimerSousTache(@Param("sousTacheId") sousTacheId: string) {
+    return this.taches.supprimerSousTache(sousTacheId);
+  }
+
+  /** L'ordre complet est transmis : réordonner n'est pas déplacer d'un cran. */
+  @Put(":id/sous-taches/ordre")
+  @RequiertPermission("tasks:update")
+  reordonner(@Param("id") id: string, @Body() corps: unknown) {
+    const { ids } = valider(z.object({ ids: z.array(z.uuid()).max(200) }), corps);
+    return this.taches.reordonnerSousTaches(id, ids);
   }
 
   // ── Dépendances — RG-TSK-04 ──────────────────────────────────────────────
@@ -116,6 +180,16 @@ export class TachesController {
 
   // ── RACI ─────────────────────────────────────────────────────────────────
 
+  @Delete(":id/dependances/:prerequisId")
+  @RequiertPermission("tasks:manage_dependencies")
+  retirerDependance(
+    @Param("id") id: string,
+    @Param("prerequisId") prerequisId: string,
+    @Demande() d: ContexteDemande,
+  ) {
+    return this.taches.retirerDependance(id, prerequisId, d.userId);
+  }
+
   @Post(":id/raci")
   @RequiertPermission("tasks:manage_raci")
   attribuerRaci(@Param("id") id: string, @Body() corps: unknown, @Demande() d: ContexteDemande) {
@@ -124,6 +198,17 @@ export class TachesController {
       corps,
     );
     return this.taches.attribuerRaci(id, userId, role, d.userId);
+  }
+
+  @Delete(":id/raci/:userId/:role")
+  @RequiertPermission("tasks:manage_raci")
+  retirerRaci(
+    @Param("id") id: string,
+    @Param("userId") userId: string,
+    @Param("role") role: string,
+    @Demande() d: ContexteDemande,
+  ) {
+    return this.taches.retirerRaci(id, userId, valider(enumDe(ROLES_RACI), role), d.userId);
   }
 
   /**
