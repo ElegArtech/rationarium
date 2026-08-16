@@ -23,7 +23,8 @@
     "db:deploy": "prisma migrate deploy"
   },
   "dependencies": {
-    "@prisma/client": "7.9.1"
+    "@prisma/client": "7.9.1",
+    "@trame/contracts": "workspace:*"
   },
   "devDependencies": {
     "@testcontainers/postgresql": "12.1.0",
