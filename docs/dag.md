@@ -4,7 +4,7 @@ Forme opérationnelle du § 5 de `cadrage/04`. C'est le document qu'on ouvre pou
 
 > **Sans DAG, la parallélisation est un pari ; avec, c'est une lecture.**
 
-**État au 2026-08-16** — vague 1 en cours : L-02, L-03, L-04 livrés. Vague 1 ouvrable dès la clôture de la vague 0 : l'arbitrage bloquant B1 est rendu, les prérequis T1 à T6 sont levés.
+**État au 2026-08-16** — **vague 1 close** (L-02 à L-05). Vague 2 ouvrable. Vague 1 ouvrable dès la clôture de la vague 0 : l'arbitrage bloquant B1 est rendu, les prérequis T1 à T6 sont levés.
 
 ---
 
@@ -37,10 +37,12 @@ Séquentiel, en pair. Aucune délégation : c'est le harnais qui rend la délég
 | --- | --- | --- | --- | --- | --- | --- |
 | ~~**L-02**~~ | Modèle de données, migrations, contraintes d'exclusion et unicités, colonne `version`, rôle SQL du journal, partitionnement | tous | — | **Haute** | L-01 | **livré** |
 | ~~**L-03**~~ | `packages/contracts` : schémas Zod, 152 permissions, 26 modèles de rôles, vocabulaires § 4.1 | tous | — | **Haute** | L-00 | **livré** |
-| ~~**L-04**~~ | Authentification, session, mot de passe, verrouillage, réinitialisation | M1 | 01–05 | **Haute** | L-02, L-03 | **livré** — serveur ; vues en L-05 |
-| **L-05** | Coquille applicative, navigation par droits, i18n, thème, profil | — | § B, 35 | Moyenne | L-03, L-04 | délégation |
+| ~~**L-04**~~ | Authentification, session, mot de passe, verrouillage, réinitialisation | M1 | 01–05 | **Haute** | L-02, L-03 | **livré** |
+| ~~**L-05**~~ | Coquille applicative, navigation par droits, i18n, thème, profil | — | § B, 35 | Moyenne | L-03, L-04 | **livré** |
 
-`L-02 ∥ L-03`, puis `L-04 → L-05`.
+`L-02 ∥ L-03`, puis `L-04 → L-05`. **Vague close.**
+
+> Deux boucles ont trouvé ce qu'aucune relecture n'aurait vu. Le relevé de la maquette a corrigé trois permissions de navigation trop généreuses ; le contrôle i18n, une fois lui-même corrigé, a signalé trois omissions du § B et de la vue 03. Les deux avaient d'abord produit des faux positifs par mauvaise spécification — 122 clés et 234 éléments — avant de devenir des détecteurs utiles.
 
 ---
 
