@@ -53,7 +53,13 @@ export function CadreProjet({
 
   return (
     <div className="page">
-      <Link to="/projets" className="back-link">
+      {/* `activeProps` neutralisé : le routeur ajoute sa propre classe `active`
+          quand le lien correspond à l'adresse courante — et `/projets` la
+          reçoit sur toute la lignée `/projets/$id`. Cette classe n'existe dans
+          aucune maquette et aucune règle ne la définit : elle serait inerte.
+          Le marquage de l'onglet courant se dit par `is-active`, celui des
+          maquettes, et par `aria-current`. */}
+      <Link to="/projets" className="back-link" activeProps={{ className: "" }}>
         <span aria-hidden="true">←</span> <span>{t("retourAuxProjets")}</span>
       </Link>
 
@@ -91,6 +97,7 @@ export function CadreProjet({
               to={o.chemin}
               params={{ id: projet.id }}
               className={o.cle === onglet ? "is-active" : ""}
+              activeProps={{ className: "" }}
               aria-current={o.cle === onglet ? "page" : undefined}
             >
               <span>{o.libelle}</span>
