@@ -8,7 +8,7 @@ Forme opérationnelle du § 5 de `cadrage/04`. C'est le document qu'on ouvre pou
 
 Plus aucun lot ne porte la mention « livré (serveur) » : **L-08** (vues 32, 33), **L-09** (vue 31) et **L-17** (vue 34) repassent en **« livré »** tout court avec la clôture de L-37. La mention ne se justifiait que par des vues manquantes ; elles sont portées.
 
-Il ne reste aucune vue à porter. Reste **L-24** (imports et exports), puis la vague 6 de durcissement. Vague 1 ouvrable dès la clôture de la vague 0 : l'arbitrage bloquant B1 est rendu, les prérequis T1 à T6 sont levés.
+Il ne reste aucune vue à porter, et la vague 5 est close. Reste la **vague 6** de durcissement : audit RGAA, audit de performance, impression et PDF, audit bilingue, déploiement. Vague 1 ouvrable dès la clôture de la vague 0 : l'arbitrage bloquant B1 est rendu, les prérequis T1 à T6 sont levés.
 
 ---
 
@@ -140,9 +140,13 @@ Aucun parallélisme. **Vague close.**
 | ~~**L-21**~~ | Tableau de bord | M16 | 06 | Moyenne | L-11, L-18, L-20 | **livré** |
 | ~~**L-22**~~ | Rapports, analytics, Gantt de projet et de portefeuille, instantanés | M17 | 15, 30 | Moyenne | L-10, L-11, L-18 | **livré** |
 | ~~**L-23**~~ | Notifications, courriel, traitements planifiés à instance unique | M18 | — | **Haute** | L-15, L-11 | **livré** |
-| **L-24** | Imports et exports : six formats CSV, ICS, Excel, PDF | M21 | — | **Haute** | L-07, L-10, L-11, L-15, L-13 | pair |
+| ~~**L-24**~~ | Imports et exports : six formats CSV, ICS, Excel, PDF | M21 | — | **Haute** | L-07, L-10, L-11, L-15, L-13 | **livré** |
 
-`L-21 ∥ L-22 ∥ L-24`, `L-23` en pair. **B3 doit être rendu avant l'ouverture** : quels modules dans la première livraison.
+`L-21 ∥ L-22 ∥ L-24`, `L-23` en pair. **B3 doit être rendu avant l'ouverture** : quels modules dans la première livraison. **Vague close.**
+
+> **Ce que L-24 a révélé — un contrôle dont le verdict dépendait de l'ordre des déclarations.** `i18n-check` prenait le **premier** `useTranslation` du fichier comme espace de noms de tous les `t(...)`. Un fichier liant deux espaces — `taches` et `imports` — voyait ses clés attribuées au mauvais, et déplacer une fonction changeait le verdict. Le contrôle attribue désormais chaque appel à **sa** liaison, et n'accepte que les noms réellement liés — sans ce second filtre, `trim(` et `test(` passaient pour des appels de traduction. **Un contrôle qui change d'avis quand on déplace une fonction ne contrôle rien** : c'est la troisième fois que cette leçon se paie, après le contrôle d'accessibilité et le comptage des tests de bout en bout.
+>
+> Second point : `analyser` déduisait les colonnes du **premier enregistrement**. Un fichier valide mais sans donnée — l'export d'un projet vide — n'en a aucun, et toutes les colonnes étaient déclarées manquantes. Les en-têtes se lisent sur la première ligne du fichier, pas sur ses données.
 
 > **Ce que L-23 a révélé — un démarrage qui réussit puis échoue ailleurs.** `pg-boss` 12 a `createSchema: false` par défaut : `start()` migre mais refuse de créer le schéma. Le démarrage réussissait, et la **première file** échouait sur « schema "pgboss" does not exist » — dans un `onModuleInit`, donc en faisant tomber le serveur entier. C'est le contrôle d'intégration de la surface HTTP qui l'a vu, pas les tests du module : ceux-ci n'assemblent pas l'application. Deux corrections, pas une : le drapeau, et un `try` autour de l'abonnement — **`RG-NTF-04` vaut aussi un cran plus haut**, une file en panne ne doit pas empêcher le serveur de servir.
 >

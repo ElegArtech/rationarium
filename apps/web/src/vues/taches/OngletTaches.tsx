@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Button } from "react-aria-components";
 import * as apiProjets from "../../api/projets.js";
@@ -8,6 +8,8 @@ import { usePeut } from "../../session/session.js";
 import { Chargement, ErreurDeChargement } from "../../composants/etats.js";
 import { CadreProjet } from "../projets/Fiche.js";
 import { Kanban } from "./Kanban.js";
+import { FenetreImport, useVolumesProjet } from "../../composants/Import.js";
+import * as apiImports from "../../api/imports.js";
 import { FenetreCreationTache } from "./FenetreCreationTache.js";
 import "../projets/fiche.css";
 import "./liste.css";
@@ -23,11 +25,45 @@ import "./liste.css";
  * exports) : les boutons ne sont pas dessinés ici, car un bouton qui ne fait
  * rien est pire qu'un bouton absent.
  */
+/**
+ * La fenêtre d'import projet, isolée pour que les volumes ne soient chargés
+ * qu'à son ouverture : les demander au chargement de l'onglet coûterait une
+ * requête à chaque visite, pour une fenêtre qu'on ouvre rarement.
+ */
+function ImportProjet({ projetId, surFermer }: { projetId: string; surFermer: () => void }) {
+  // Nommé `tImports` et non `t` : le contrôle i18n attribue les clés au
+  // namespace du `t` du fichier, et deux `t` nus le rendraient aveugle.
+  const { t: tImports } = useTranslation("imports");
+  const client = useQueryClient();
+  const volumes = useVolumesProjet(projetId);
+
+  return (
+    <FenetreImport
+      type="projet"
+      titre={tImports("titreProjet")}
+      colonnes={[
+        "rowType", "name", "dueDate", "title", "description", "status", "priority",
+        "assigneeEmail", "milestoneName", "estimatedHours", "startDate", "endDate", "subtasks",
+      ]}
+      modeProjet
+      volumes={volumes.data}
+      surExecuter={async (contenu, mode) => {
+        const rendu = await apiImports.importerProjet(projetId, contenu, mode);
+        await client.invalidateQueries({ queryKey: ["taches"] });
+        return rendu;
+      }}
+      surFermer={surFermer}
+    />
+  );
+}
+
 export function OngletTaches({ projetId }: { projetId: string }) {
   const { t } = useTranslation("taches");
+  const { t: tImports } = useTranslation("imports");
   const peut = usePeut();
   const [recherche, setRecherche] = useState("");
   const [creationOuverte, setCreationOuverte] = useState(false);
+  const [importOuvert, setImportOuvert] = useState(false);
 
   const projet = useQuery({
     queryKey: ["projet", projetId],
@@ -61,6 +97,18 @@ export function OngletTaches({ projetId }: { projetId: string }) {
             placeholder={t("onglet.rechercher")}
             aria-label={t("onglet.rechercher")}
           />
+          {peut("tasks:export") ? (
+            <a className="chip-btn" href={apiImports.adresseExportTaches(projetId)} download>
+              {tImports("exporterTaches")}
+            </a>
+          ) : null}
+          {/* `RG-IMP-05`, `RG-IMP-06` — l'import projet complet : deux modes,
+              prévisualisation obligatoire, tout-ou-rien en mode Remplacer. */}
+          {peut("tasks:import") ? (
+            <Button className="chip-btn" onPress={() => setImportOuvert(true)}>
+              {tImports("ouvrirImportProjet")}
+            </Button>
+          ) : null}
           {peut("tasks:create") ? (
             <Button className="btn btn-primary" onPress={() => setCreationOuverte(true)}>
               {t("onglet.nouvelleTache")}
@@ -83,6 +131,8 @@ export function OngletTaches({ projetId }: { projetId: string }) {
         projets={[]}
         projetImpose={projetId}
       />
+
+      {importOuvert ? <ImportProjet projetId={projetId} surFermer={() => setImportOuvert(false)} /> : null}
     </CadreProjet>
   );
 }

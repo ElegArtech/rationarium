@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { FenetreImport } from "../../composants/Import.js";
+import * as apiImports from "../../api/imports.js";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Menu, MenuItem, MenuTrigger, Popover } from "react-aria-components";
 import * as api from "../../api/administration.js";
@@ -29,10 +31,13 @@ import "./utilisateurs.css";
  */
 export function Utilisateurs() {
   const { t } = useTranslation("administration");
+  const { t: tImports } = useTranslation("imports");
   const peut = usePeut();
   const [recherche, setRecherche] = useState("");
   const [actif, setActif] = useState<"" | "true" | "false">("");
   const [creationOuverte, setCreationOuverte] = useState(false);
+  const [importOuvert, setImportOuvert] = useState(false);
+  const client = useQueryClient();
 
   const filtres = {
     recherche,
@@ -55,13 +60,20 @@ export function Utilisateurs() {
         <span className="count-split">
           <b>{liste.length}</b> {t("utilisateurs.compte", { n: liste.length })}
         </span>
-        {peut("users:create") ? (
-          <div className="pl-toolbar-fin">
+        <div className="pl-toolbar-fin">
+          {/* `RG-IMP-03` — l'import ouvre une fenêtre à trois temps : choisir,
+              prévisualiser, exécuter. Jamais un import direct. */}
+          {peut("users:import") ? (
+            <Button className="chip-btn" onPress={() => setImportOuvert(true)}>
+              {tImports("ouvrirImport")}
+            </Button>
+          ) : null}
+          {peut("users:create") ? (
             <Button className="btn btn-primary" onPress={() => setCreationOuverte(true)}>
               {t("utilisateurs.creer")}
             </Button>
-          </div>
-        ) : null}
+          ) : null}
+        </div>
       </div>
 
       <div className="filters">
@@ -114,6 +126,23 @@ export function Utilisateurs() {
       ) : null}
 
       <FenetreCreation ouverte={creationOuverte} surFermeture={() => setCreationOuverte(false)} />
+
+      {importOuvert ? (
+        <FenetreImport
+          type="utilisateurs"
+          titre={tImports("titreUtilisateurs")}
+          colonnes={[
+            "email", "login", "password", "firstName", "lastName",
+            "role", "departmentName", "serviceNames",
+          ]}
+          surExecuter={async (contenu) => {
+            const rendu = await apiImports.importerUtilisateurs(contenu);
+            await client.invalidateQueries({ queryKey: ["utilisateurs"] });
+            return rendu;
+          }}
+          surFermer={() => setImportOuvert(false)}
+        />
+      ) : null}
     </div>
   );
 }

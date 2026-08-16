@@ -65,5 +65,8 @@
   "tacheInactive": "Cette tâche prédéfinie est désactivée : elle ne peut plus être assignée.",
   "tiersArchive": "Ce tiers est archivé : il n'accepte plus de modification.",
   "typeInactif": "Ce type de congé est désactivé : il ne peut plus être demandé.",
-  "limiteTodos": "Vous avez atteint la limite de to-dos. Terminez-en ou supprimez-en une pour en ajouter."
+  "limiteTodos": "Vous avez atteint la limite de to-dos. Terminez-en ou supprimez-en une pour en ajouter.",
+  "colonnesManquantes": "Le fichier ne contient pas toutes les colonnes obligatoires.",
+  "fichierIllisible": "Le fichier n'a pas pu être lu. Vérifiez qu'il s'agit bien d'un CSV.",
+  "remplacementImpossible": "Des données rattachées au projet empêchent le remplacement."
 }

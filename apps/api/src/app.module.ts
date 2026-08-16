@@ -18,6 +18,7 @@ import { PlanningModule } from "./planning/planning.module.js";
 import { TableauModule } from "./tableau/tableau.module.js";
 import { RapportsModule } from "./rapports/rapports.module.js";
 import { NotificationsModule } from "./notifications/notifications.module.js";
+import { ImportsModule } from "./imports/imports.module.js";
 import { TempsModule } from "./temps/temps.module.js";
 import { DocumentsModule } from "./documents/documents.module.js";
 import { CompetencesModule } from "./competences/competences.module.js";
@@ -54,6 +55,7 @@ import { TiersModule } from "./tiers/tiers.module.js";
     TableauModule,
     RapportsModule,
     NotificationsModule,
+    ImportsModule,
     TempsModule,
     DocumentsModule,
     CompetencesModule,

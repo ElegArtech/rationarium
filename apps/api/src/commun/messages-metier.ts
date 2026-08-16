@@ -322,6 +322,27 @@ export const MESSAGES_METIER: Record<string, Message> = {
    * `RG-DSH-01` — le message dit la limite ET ce qu'il faut faire. « Limite
    * atteinte » tout court laisserait chercher laquelle, et quoi en faire.
    */
+  // ── Imports et exports — M21 ─────────────────────────────────────────────
+  /**
+   * `RG-IMP-04` — l'erreur NOMME les colonnes qui manquent. « Fichier
+   * invalide » obligerait à comparer le fichier au modèle, colonne par colonne.
+   */
+  colonnes_manquantes: m(
+    422,
+    "erreurs:colonnesManquantes",
+    "Le fichier ne contient pas toutes les colonnes obligatoires.",
+  ),
+  fichier_illisible: m(
+    422,
+    "erreurs:fichierIllisible",
+    "Le fichier n'a pas pu être lu. Vérifiez qu'il s'agit bien d'un CSV.",
+  ),
+  remplacement_impossible: m(
+    409,
+    "erreurs:remplacementImpossible",
+    "Des données rattachées au projet empêchent le remplacement.",
+  ),
+
   limite_todos: m(
     422,
     "erreurs:limiteTodos",

@@ -73,9 +73,18 @@ function clesEmployees() {
   /** Familles employées dynamiquement : `t(`groupes.${x}`)` → `groupes.` */
   const familles = new Set();
 
-  // Toutes les chaînes littérales d'un appel `t(...)`, y compris derrière un
-  // ternaire : `t(sombre ? "entete.themeSombre" : "entete.themeClair")`.
-  const motifAppel = /\bt\(([^()]*(?:\([^()]*\)[^()]*)*)\)/g;
+  /*
+   * Toutes les chaînes littérales d'un appel `t(...)`, y compris derrière un
+   * ternaire : `t(sombre ? "entete.themeSombre" : "entete.themeClair")`.
+   *
+   * Le nom de la fonction est CAPTURÉ : un fichier peut lier plusieurs espaces
+   * de noms — `const { t } = useTranslation("taches")` et
+   * `const { t: tImports } = useTranslation("imports")` —, et attribuer les
+   * deux au premier `useTranslation` rencontré rendait le verdict dépendant de
+   * l'ORDRE DES DÉCLARATIONS. Un contrôle qui change d'avis quand on déplace
+   * une fonction ne contrôle rien.
+   */
+  const motifAppel = /\b(t[A-Za-z0-9_]*)\(([^()]*(?:\([^()]*\)[^()]*)*)\)/g;
   const motifChaine = /["']([A-Za-z0-9_]+(?:[.:][A-Za-z0-9_]+)+)["']/g;
   /**
    * Les clés **plates** — `t("annuler")` — sont invisibles au motif ci-dessus,
@@ -87,9 +96,11 @@ function clesEmployees() {
    * une clé, et l'accepter rendrait le contrôle plus large que juste.
    */
   const motifPremierArgument = /^\s*["']([A-Za-z0-9_]+)["']\s*(?:,|$)/;
-  const motifNs = /useTranslation\(\s*["'`]([^"'`]+)["'`]/g;
+  /** `const { t } = useTranslation("ns")` ou `const { t: tX } = useTranslation("ns")`. */
+  const motifNs =
+    /const\s*\{\s*t(?:\s*:\s*([A-Za-z0-9_]+))?[^}]*\}\s*=\s*useTranslation\(\s*["'`]([^"'`]+)["'`]/g;
   // Gabarit dont le préfixe est littéral et la fin interpolée.
-  const motifGabarit = /\bt\(\s*`([^`$]*)\$\{/g;
+  const motifGabarit = /\b(t[A-Za-z0-9_]*)\(\s*`([^`$]*)\$\{/g;
   // Déclaration explicite, pour les clés résolues à l'exécution — `t(e.cle)`.
   // Ce que l'analyse statique ne peut pas voir, on le lui DIT, plutôt que
   // d'affaiblir le contrôle jusqu'à ce qu'il ne voie plus rien.
@@ -100,19 +111,30 @@ function clesEmployees() {
     (p) => /\.tsx?$/.test(p) && !p.includes("/locales/"),
   )) {
     const src = fs.readFileSync(f, "utf8");
-    const espaces = [...src.matchAll(motifNs)].map((m) => m[1]);
-    const parDefaut = espaces[0] ?? "commun";
+
+    /** Chaque nom de fonction de traduction, avec son espace de noms. */
+    const parNom = new Map();
+    for (const m of src.matchAll(motifNs)) parNom.set(m[1] ?? "t", m[2]);
+    const parDefaut = parNom.get("t") ?? [...parNom.values()][0] ?? "commun";
+    const espaceDe = (nom) => parNom.get(nom) ?? parDefaut;
 
     for (const appel of src.matchAll(motifAppel)) {
-      for (const c of appel[1].matchAll(motifChaine)) {
-        cles.add(c[1].includes(":") ? c[1] : `${parDefaut}:${c[1]}`);
+      // Seules les fonctions RÉELLEMENT liées à un espace de noms comptent :
+      // sans ce filtre, `trim(`, `test(` ou n'importe quelle fonction dont le
+      // nom commence par « t » passerait pour un appel de traduction.
+      if (!parNom.has(appel[1])) continue;
+      const espace = espaceDe(appel[1]);
+      for (const c of appel[2].matchAll(motifChaine)) {
+        cles.add(c[1].includes(":") ? c[1] : `${espace}:${c[1]}`);
       }
-      const plate = motifPremierArgument.exec(appel[1]);
-      if (plate) cles.add(`${parDefaut}:${plate[1]}`);
+      const plate = motifPremierArgument.exec(appel[2]);
+      if (plate) cles.add(`${espace}:${plate[1]}`);
     }
     for (const m of src.matchAll(motifGabarit)) {
-      const prefixe = m[1];
-      familles.add(prefixe.includes(":") ? prefixe : `${parDefaut}:${prefixe}`);
+      if (!parNom.has(m[1])) continue;
+      const espace = espaceDe(m[1]);
+      const prefixe = m[2];
+      familles.add(prefixe.includes(":") ? prefixe : `${espace}:${prefixe}`);
     }
     for (const m of src.matchAll(motifDeclaration)) {
       for (const f of m[1].split(",").map((x) => x.trim()).filter(Boolean)) familles.add(f);

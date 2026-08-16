@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
+import { adresseExportJalons } from "../../api/imports.js";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "react-aria-components";
 import { STATUTS_JALON, STATUTS_TACHE } from "@trame/contracts";
@@ -30,6 +31,7 @@ import "./jalons.css";
  */
 export function Jalons({ projetId }: { projetId: string }) {
   const { t } = useTranslation("projets");
+  const { t: tImports } = useTranslation("imports");
   const peut = usePeut();
   const [creationOuverte, setCreationOuverte] = useState(false);
   const [deplies, setDeplies] = useState<ReadonlySet<string>>(new Set());
@@ -67,13 +69,19 @@ export function Jalons({ projetId }: { projetId: string }) {
           <h2 className="panel-title sous-titre-vue">{t("jalons.titre")}</h2>
           <p className="lede">{t("jalons.chapeau")}</p>
         </div>
-        {peut("milestones:create") ? (
-          <div className="ligne-actions-fin">
+        <div className="ligne-actions-fin">
+          {/* La réversibilité : le CSV exporté se réimporte tel quel. */}
+          {peut("tasks:export") ? (
+            <a className="chip-btn" href={adresseExportJalons(projetId)} download>
+              {tImports("exporterJalons")}
+            </a>
+          ) : null}
+          {peut("milestones:create") ? (
             <Button className="btn btn-primary" onPress={() => setCreationOuverte(true)}>
               {t("jalons.nouveau")}
             </Button>
-          </div>
-        ) : null}
+          ) : null}
+        </div>
       </div>
 
       <div className="kpi-grid">

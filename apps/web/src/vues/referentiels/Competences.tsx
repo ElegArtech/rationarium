@@ -1,5 +1,6 @@
 import { useState, type CSSProperties } from "react";
 import { useTranslation } from "react-i18next";
+import { adresseExportCompetences } from "../../api/imports.js";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "react-aria-components";
 import { CATEGORIES_COMPETENCE, NIVEAUX_COMPETENCE } from "@trame/contracts";
@@ -42,6 +43,7 @@ const RANG: Record<string, number> = {
 
 export function Competences() {
   const { t } = useTranslation("referentiels");
+  const { t: tImports } = useTranslation("imports");
   const libelle = useLibelle();
   const peut = usePeut();
   const [vue, setVue] = useState<Vue>("matrice");
@@ -57,13 +59,18 @@ export function Competences() {
           <h1 className="h1 titre-vue">{t("competences.titre")}</h1>
           <p className="lede">{t("competences.chapeau")}</p>
         </div>
-        {peut("skills:create") ? (
-          <div className="pl-toolbar-fin">
+        <div className="pl-toolbar-fin">
+          {peut("skills:export") ? (
+            <a className="chip-btn" href={adresseExportCompetences()} download>
+              {tImports("exporterCompetences")}
+            </a>
+          ) : null}
+          {peut("skills:create") ? (
             <Button className="btn btn-primary" onPress={() => setCreationOuverte(true)}>
               {t("competences.nouvelle")}
             </Button>
-          </div>
-        ) : null}
+          ) : null}
+        </div>
       </div>
 
       <div className="filters">

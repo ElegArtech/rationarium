@@ -65,5 +65,8 @@
   "tacheInactive": "This predefined task is disabled and can no longer be assigned.",
   "tiersArchive": "This third party is archived and no longer accepts changes.",
   "typeInactif": "This leave type is disabled and can no longer be requested.",
-  "limiteTodos": "You have reached the to-do limit. Complete or delete one to add another."
+  "limiteTodos": "You have reached the to-do limit. Complete or delete one to add another.",
+  "colonnesManquantes": "The file is missing some required columns.",
+  "fichierIllisible": "The file could not be read. Check that it is a CSV file.",
+  "remplacementImpossible": "Data attached to the project prevents replacement."
 }
