@@ -73,6 +73,7 @@ Enrichi à chaque capitalisation. Un piège rencontré deux fois sans être cons
 - **TypeScript est en 6.0.3, pas 7.** `typescript-eslint` lève une erreur fatale sur TS 7.0. Ne pas « moderniser » la version : voir `ADR-0014` et ses conditions de bascule.
 - **Les maquettes sont cumulatives.** Chaque fichier embarque les sections CSS des précédents. La feuille complète est celle de la dernière vue de la lignée, pas celle de la vue traitée.
 - **26 maquettes sur 35 portent des jetons non conformes RGAA.** Une correction de contraste n'a pas été rétro-propagée. `socle.css` porte les valeurs conformes ; un écart de rendu sur `--placeholder`, `--line-strong` et `--leave-pending` contre ces 26 fichiers est **attendu**. Voir `mockups/GEL.md`, écart 5.
+- **Les relevés de référence sont versionnés.** `design/references/` est régénérable depuis les maquettes gelées, mais il est commité : un relevé qui change sans que la maquette ait changé est un signal de dérive. Contrepartie : une montée de version de Chromium en régénère une partie. Un tel commit se fait **seul et étiqueté comme tel**, jamais mêlé à du travail de lot.
 - **pnpm 11 ne lit plus le champ `pnpm` de `package.json`.** Les surcharges et `allowBuilds` vivent dans `pnpm-workspace.yaml`.
 
 ## Convention de commit
