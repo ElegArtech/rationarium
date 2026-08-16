@@ -183,11 +183,22 @@ export async function peuplerMaquette(
         ...(jalon ? { milestoneId: jalon.id } : {}),
       },
     });
-    await prisma.taskAssignee.upsert({
-      where: { taskId_userId: { taskId: tache.id, userId: agents[t.agent]!.id } },
-      create: { taskId: tache.id, userId: agents[t.agent]!.id, porteur: true },
-      update: {},
-    });
+    /*
+     * Le nombre d'assignés n'est pas anecdotique : la maquette montre une pile
+     * de trois visages PUIS un compte (`avs-more`), et un « Personne » en
+     * italique (`is-none`) quand la tâche n'est portée par personne. Ni l'un ni
+     * l'autre ne se produit avec un assigné par tâche.
+     */
+    if (t.agent >= 0) {
+      const porteurs = "equipe" in t && t.equipe ? agents : [agents[t.agent]!];
+      for (const [k, a] of porteurs.entries()) {
+        await prisma.taskAssignee.upsert({
+          where: { taskId_userId: { taskId: tache.id, userId: a.id } },
+          create: { taskId: tache.id, userId: a.id, porteur: k === 0 },
+          update: {},
+        });
+      }
+    }
   }
 
   // ── Les à-faire personnels — `RG-DSH-01` ────────────────────────────────
@@ -349,8 +360,10 @@ const JALONS = [
 
 const TACHES = [
   { titre: "Maquettes portail", projet: "portail", jalon: "Recette", statut: "doing", agent: 0, debut: 0, fin: 1, avancement: 60, heures: 12 },
-  { titre: "Recette portail", projet: "portail", jalon: "Recette", statut: "todo", agent: 0, debut: 4, fin: 4, heures: 8 },
-  { titre: "Cahier des charges", projet: "sirh", jalon: "Recette", statut: "review", agent: 1, debut: 0, fin: 1, avancement: 80 },
+  // Cinq assignés : la pile montre trois visages, puis « +2 » (`avs-more`).
+  { titre: "Recette portail", projet: "portail", jalon: "Recette", statut: "todo", agent: 0, equipe: true, debut: 4, fin: 4, heures: 8 },
+  // Personne : `is-none`. Une tâche sans porteur est un état qui existe.
+  { titre: "Cahier des charges", projet: "sirh", jalon: "Recette", statut: "review", agent: -1, debut: 0, fin: 1, avancement: 80 },
   { titre: "Reprise des données", projet: "sirh", statut: "doing", agent: 3, debut: 0, fin: 2, avancement: 45 },
   { titre: "Note de cadrage", projet: "schema", statut: "todo", agent: 4, debut: 0, fin: 2 },
   // Jalon « Cadrage » : échéance passée, tâche terminée → jalon TERMINÉ.
@@ -358,7 +371,8 @@ const TACHES = [
   // Jalon « Cadrage » du SIRH : échéance passée, tâche bloquée → EN RETARD.
   { titre: "Reprise des libellés", projet: "sirh", jalon: "Cadrage", statut: "blocked", agent: 0, debut: 1, fin: 3, priorite: "high" },
   // En retard : échéance dépassée, statut non terminé. C'est `badge-late`.
-  { titre: "Comptes rendus de juillet", projet: "portail", statut: "doing", agent: 0, debut: -14, fin: -5, priorite: "high" },
+  // Échéance dépassée sur un jalon échu : le jalon passe EN RETARD (`ms-late`).
+  { titre: "Comptes rendus de juillet", projet: "portail", jalon: "Cadrage", statut: "doing", agent: 0, debut: -14, fin: -5, priorite: "high" },
   // Hors projet : ni pastille ni projet. C'est `badge-indep` et `tchip-indep`.
   { titre: "Réunion de service", projet: null, statut: "todo", agent: 0, debut: 2, fin: 2 },
   { titre: "Accueil · matin", projet: null, statut: "doing", agent: 2, debut: 0, fin: 0 },

@@ -82,7 +82,18 @@ export function Jalons({ projetId }: { projetId: string }) {
   const peut = usePeut();
   const [creationOuverte, setCreationOuverte] = useState(false);
   const [tacheOuverte, setTacheOuverte] = useState(false);
-  const [deplies, setDeplies] = useState<ReadonlySet<string>>(new Set());
+  /*
+   * Dépliés d'emblée, ceux qui portent des tâches.
+   *
+   * La maquette ouvre deux de ses six jalons — ceux qui ont du contenu. Tout
+   * replier fait arriver sur une frise de titres qui n'apprend rien ; tout
+   * déplier noie la chronologie sous les lignes. Le critère est donc celui de
+   * la maquette : on ouvre ce qu'il y a à lire.
+   *
+   * `null` tant que la feuille n'est pas chargée : l'état initial se calcule
+   * depuis les données, il ne peut pas les précéder.
+   */
+  const [deplies, setDeplies] = useState<ReadonlySet<string> | null>(null);
   // Replié par défaut, comme la maquette : le bloc signale, il n'encombre pas.
   const [orphelinesOuvertes, setOrphelinesOuvertes] = useState(false);
 
@@ -99,6 +110,7 @@ export function Jalons({ projetId }: { projetId: string }) {
     return <ErreurDeChargement erreur={route.error} surReessai={() => void route.refetch()} />;
 
   const { jalons, indicateurs } = route.data;
+  const ouverts = deplies ?? new Set(jalons.filter((j) => j.taches.length > 0).map((j) => j.id));
   // Repli sur une liste vide : un serveur antérieur à `RG-JAL-05` ne rend pas
   // ce champ, et une page blanche est le pire des modes de défaillance — bien
   // pire que le bloc manquant qu'elle remplacerait.
@@ -108,9 +120,11 @@ export function Jalons({ projetId }: { projetId: string }) {
     (j) => j.statut !== "done" && (joursAvant(j.dateEcheance) ?? 1) < 0,
   ).length;
 
-  const basculer = (id: string) =>
-    setDeplies((s) => {
-      const n = new Set(s);
+  // La première bascule fige l'état initial calculé : à partir de là, c'est
+  // le choix de l'utilisateur qui commande, jamais le contenu.
+  const basculer = (id: string, actuels: ReadonlySet<string>) =>
+    setDeplies(() => {
+      const n = new Set(actuels);
       if (n.has(id)) n.delete(id);
       else n.add(id);
       return n;
@@ -185,8 +199,8 @@ export function Jalons({ projetId }: { projetId: string }) {
               key={j.id}
               projetId={projetId}
               jalon={j}
-              deplie={deplies.has(j.id)}
-              surBascule={() => basculer(j.id)}
+              deplie={ouverts.has(j.id)}
+              surBascule={() => basculer(j.id, ouverts)}
             />
           ))}
         </div>
