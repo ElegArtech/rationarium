@@ -1,0 +1,91 @@
+{
+  "06-clair": [
+    "label"
+  ],
+  "06-sombre": [
+    "label"
+  ],
+  "07-clair": [
+    "aria-hidden-focus"
+  ],
+  "07-sombre": [
+    "aria-hidden-focus"
+  ],
+  "08-clair": [
+    "aria-hidden-focus"
+  ],
+  "08-sombre": [
+    "aria-hidden-focus"
+  ],
+  "10-clair": [
+    "color-contrast"
+  ],
+  "10-sombre": [
+    "color-contrast"
+  ],
+  "13-clair": [
+    "select-name"
+  ],
+  "13-sombre": [
+    "select-name"
+  ],
+  "14-clair": [
+    "select-name"
+  ],
+  "14-sombre": [
+    "select-name"
+  ],
+  "15-clair": [
+    "scrollable-region-focusable"
+  ],
+  "15-sombre": [
+    "scrollable-region-focusable"
+  ],
+  "16-clair": [
+    "color-contrast",
+    "select-name"
+  ],
+  "16-sombre": [
+    "color-contrast",
+    "select-name"
+  ],
+  "17-clair": [
+    "color-contrast",
+    "label",
+    "select-name"
+  ],
+  "17-sombre": [
+    "label",
+    "select-name"
+  ],
+  "18-clair": [
+    "aria-hidden-focus"
+  ],
+  "18-sombre": [
+    "aria-hidden-focus"
+  ],
+  "19-sombre": [
+    "color-contrast"
+  ],
+  "20-clair": [
+    "color-contrast"
+  ],
+  "20-sombre": [
+    "color-contrast"
+  ],
+  "22-clair": [
+    "color-contrast"
+  ],
+  "33-clair": [
+    "aria-hidden-focus"
+  ],
+  "33-sombre": [
+    "aria-hidden-focus"
+  ],
+  "34-clair": [
+    "color-contrast"
+  ],
+  "34-sombre": [
+    "color-contrast"
+  ]
+}
