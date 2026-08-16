@@ -12,7 +12,11 @@ import { Fenetre } from "../../composants/fenetre.js";
 import { useMessages } from "../../composants/messages.js";
 import { AvatarAgent } from "../../composants/pastilles.js";
 import "../../composants/partages.css";
+/* Sections cumulatives : `.count-split` (20), `.ms-toggle` (17), `.lv-acts`
+   (23), `.pill` / `.agent-av` (transverses). */
 import "../taches/liste.css";
+import "../projets/jalons.css";
+import "../occupations/conges.css";
 import "./utilisateurs.css";
 
 /**
@@ -34,38 +38,61 @@ export function Utilisateurs() {
   const { t: tImports } = useTranslation("imports");
   const peut = usePeut();
   const [recherche, setRecherche] = useState("");
-  const [actif, setActif] = useState<"" | "true" | "false">("");
+  const [departementId, setDepartementId] = useState("");
+  const [serviceId, setServiceId] = useState("");
+  const [roleId, setRoleId] = useState("");
+  const [statut, setStatut] = useState("on");
   const [creationOuverte, setCreationOuverte] = useState(false);
   const [importOuvert, setImportOuvert] = useState(false);
   const client = useQueryClient();
 
+  const reinitialiser = () => {
+    setRecherche("");
+    setDepartementId("");
+    setServiceId("");
+    setRoleId("");
+    setStatut("on");
+  };
+
   const filtres = {
     recherche,
-    ...(actif === "" ? {} : { actif: actif === "true" }),
+    departementId,
+    serviceId,
+    roleId,
+    ...(statut === "" ? {} : { actif: statut === "on" }),
   };
   const requete = useQuery({
     queryKey: ["utilisateurs", filtres],
     queryFn: () => api.utilisateurs(filtres),
   });
 
-  const liste = requete.data?.utilisateurs ?? [];
+  /* Les listes de filtres viennent de l'organisation et du catalogue de rôles :
+     une saisie libre ferait chercher un nom exact. */
+  const orga = useQuery({ queryKey: ["organisation"], queryFn: () => api.arborescence() });
+  const roles = useQuery({ queryKey: ["roles"], queryFn: () => api.roles() });
+
+  const departements = [
+    ...(orga.data?.directions.flatMap((d) => d.departements) ?? []),
+    ...(orga.data?.departementsSansDirection ?? []),
+  ];
+  const services = departements.flatMap((d) => d.services);
+
+  const liste = requete.data ?? [];
 
   return (
-    <div className="page">
+    <>
       <div className="pl-toolbar">
         <div>
           <span className="eyebrow">{t("utilisateurs.surtitre")}</span>
           <h1 className="h1 titre-vue">{t("utilisateurs.titre")}</h1>
         </div>
-        <span className="count-split">
-          <b>{liste.length}</b> {t("utilisateurs.compte", { n: liste.length })}
-        </span>
+        <span className="count-split">{t("utilisateurs.compte", { n: liste.length })}</span>
         <div className="pl-toolbar-fin">
           {/* `RG-IMP-03` — l'import ouvre une fenêtre à trois temps : choisir,
               prévisualiser, exécuter. Jamais un import direct. */}
           {peut("users:import") ? (
             <Button className="chip-btn" onPress={() => setImportOuvert(true)}>
-              {tImports("ouvrirImport")}
+              {tImports("importerCsv")}
             </Button>
           ) : null}
           {peut("users:create") ? (
@@ -78,8 +105,9 @@ export function Utilisateurs() {
 
       <div className="filters">
         <input
-          className="f-input filtre-recherche"
+          className="f-input"
           type="search"
+          style={{ width: "220px" }}
           value={recherche}
           onChange={(e) => setRecherche(e.target.value)}
           placeholder={t("utilisateurs.rechercher")}
@@ -87,14 +115,56 @@ export function Utilisateurs() {
         />
         <select
           className="f-input"
-          value={actif}
-          onChange={(e) => setActif(e.target.value as typeof actif)}
+          value={departementId}
+          onChange={(e) => setDepartementId(e.target.value)}
+          aria-label={t("utilisateurs.departement")}
+        >
+          <option value="">{t("utilisateurs.tousDepartements")}</option>
+          {departements.map((d) => (
+            <option key={d.id} value={d.id}>
+              {d.nom}
+            </option>
+          ))}
+        </select>
+        <select
+          className="f-input"
+          value={serviceId}
+          onChange={(e) => setServiceId(e.target.value)}
+          aria-label={t("utilisateurs.service")}
+        >
+          <option value="">{t("utilisateurs.tousServices")}</option>
+          {services.map((sv) => (
+            <option key={sv.id} value={sv.id}>
+              {sv.nom}
+            </option>
+          ))}
+        </select>
+        <select
+          className="f-input"
+          value={roleId}
+          onChange={(e) => setRoleId(e.target.value)}
+          aria-label={t("utilisateurs.colRole")}
+        >
+          <option value="">{t("utilisateurs.tousRoles")}</option>
+          {(roles.data ?? []).map((r) => (
+            <option key={r.id} value={r.id}>
+              {r.nom}
+            </option>
+          ))}
+        </select>
+        <select
+          className="f-input"
+          value={statut}
+          onChange={(e) => setStatut(e.target.value)}
           aria-label={t("utilisateurs.statut")}
         >
-          <option value="">{t("utilisateurs.tousStatuts")}</option>
-          <option value="true">{t("utilisateurs.actifs")}</option>
-          <option value="false">{t("utilisateurs.inactifs")}</option>
+          <option value="on">{t("utilisateurs.filtreActifs")}</option>
+          <option value="off">{t("utilisateurs.filtreDesactives")}</option>
+          <option value="">{t("utilisateurs.filtreTous")}</option>
         </select>
+        <Button className="chip-btn" onPress={reinitialiser}>
+          {t("reinitialiser")}
+        </Button>
       </div>
 
       {requete.isPending ? <Chargement quoi={t("utilisateurs.lesComptes")} /> : null}
@@ -103,26 +173,30 @@ export function Utilisateurs() {
       ) : null}
 
       {requete.data ? (
-        liste.length === 0 ? (
-          <div className="empty empty-large">
-            <p>{t("utilisateurs.videTitre")}</p>
-            <small>{t("utilisateurs.videExplication")}</small>
+        <section className="panel">
+          <div className="us-grid us-head">
+            <span>{t("utilisateurs.colUtilisateur")}</span>
+            <span>{t("utilisateurs.colEmail")}</span>
+            <span>{t("utilisateurs.colRole")}</span>
+            <span>{t("utilisateurs.colOrganisation")}</span>
+            <span>{t("utilisateurs.colStatut")}</span>
+            <span style={{ textAlign: "right" }}>{t("utilisateurs.colActions")}</span>
           </div>
-        ) : (
-          <div className="tlist">
-            <div className="us-grid us-head" aria-hidden="true">
-              <span>{t("utilisateurs.colUtilisateur")}</span>
-              <span>{t("utilisateurs.colEmail")}</span>
-              <span>{t("utilisateurs.colRole")}</span>
-              <span>{t("utilisateurs.colOrganisation")}</span>
-              <span>{t("utilisateurs.colStatut")}</span>
-              <span>{t("utilisateurs.colActions")}</span>
-            </div>
+          <div>
             {liste.map((u) => (
               <LigneUtilisateur key={u.id} utilisateur={u} />
             ))}
           </div>
-        )
+          {liste.length === 0 ? (
+            <div className="empty">
+              <p>{t("utilisateurs.videTitre")}</p>
+              <small>{t("utilisateurs.videExplication")}</small>
+              <Button className="chip-btn" onPress={reinitialiser}>
+                {t("reinitialiserFiltres")}
+              </Button>
+            </div>
+          ) : null}
+        </section>
       ) : null}
 
       <FenetreCreation ouverte={creationOuverte} surFermeture={() => setCreationOuverte(false)} />
@@ -143,8 +217,39 @@ export function Utilisateurs() {
           surFermer={() => setImportOuvert(false)}
         />
       ) : null}
-    </div>
+    </>
   );
+}
+
+/**
+ * Un mot de passe provisoire, jamais réutilisé.
+ *
+ * Il n'est pas montré : le compte devra le changer à la première connexion, et
+ * l'exploitant le communique par le canal qu'il choisit. Le tirage vient de
+ * `crypto`, pas de `Math.random` — un mot de passe prévisible n'en est pas un.
+ */
+function motDePasseProvisoire(): string {
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
+  const tirage = crypto.getRandomValues(new Uint32Array(12));
+  return (
+    [...tirage].map((n) => alphabet[n % alphabet.length]).join("") + "!2Aa"
+  );
+}
+
+/**
+ * La couleur d'une pastille de rôle.
+ *
+ * La maquette colore par famille : administration en rouge, encadrement et RH
+ * en orangé, observation en gris, le reste en bleu. C'est une correspondance
+ * code → jeton, comme la carte de `pastilles.tsx`.
+ */
+function jetonRole(code: string | undefined): string {
+  if (!code) return "var(--muted)";
+  const c = code.toUpperCase();
+  if (c === "ADMIN") return "var(--st-blocked)";
+  if (c.startsWith("MANAGER") || c.startsWith("HR")) return "var(--st-review)";
+  if (c.startsWith("OBSERVER")) return "var(--muted)";
+  return "var(--st-doing)";
 }
 
 function LigneUtilisateur({ utilisateur }: { utilisateur: api.Utilisateur }) {
@@ -172,28 +277,46 @@ function LigneUtilisateur({ utilisateur }: { utilisateur: api.Utilisateur }) {
     onError: (e) => annoncer("err", messageErreur(e, tErreurs, t("utilisateurs.echecAction"))),
   });
 
+  const motDePasse = useMutation({
+    mutationFn: () => api.reinitialiserMotDePasse(utilisateur.id, motDePasseProvisoire()),
+    onSuccess: () =>
+      annoncer("ok", t("utilisateurs.motDePasseReinitialise", { nom: nomComplet })),
+    onError: (e) => annoncer("err", messageErreur(e, tErreurs, t("utilisateurs.echecAction"))),
+  });
+
   return (
     <div
       className={`us-grid us-row${utilisateur.actif ? "" : " is-off"}${soiMeme ? " is-me" : ""}`}
     >
-      <span className="us-who">
+      <div className="us-who">
         <AvatarAgent prenom={utilisateur.prenom} nom={utilisateur.nom} />
-        <span className="bloc-etroit">
-          <span className="us-n">
+        <div style={{ minWidth: 0 }}>
+          <p className="us-n" style={{ margin: 0 }}>
             {nomComplet}
             {soiMeme ? <span className="us-me">{t("utilisateurs.moi")}</span> : null}
-          </span>
-        </span>
-      </span>
+          </p>
+        </div>
+      </div>
 
-      <span className="bloc-etroit">
+      <div style={{ minWidth: 0 }}>
         <span className="us-mail">{utilisateur.email}</span>
         <span className="us-login">{utilisateur.login}</span>
-      </span>
+      </div>
 
-      <span className="us-org">{utilisateur.role?.nom ?? t("utilisateurs.sansRole")}</span>
+      <div>
+        {/* La pastille porte le CODE du rôle, comme la maquette : c'est
+            l'identifiant stable que l'administration manipule, et il est le
+            même dans le journal d'audit et dans les imports. */}
+        <span
+          className="pill"
+          style={{ color: jetonRole(utilisateur.role?.code) }}
+          title={utilisateur.role?.nom ?? undefined}
+        >
+          {utilisateur.role?.code ?? t("utilisateurs.sansRole")}
+        </span>
+      </div>
 
-      <span className="bloc-etroit">
+      <div style={{ minWidth: 0 }}>
         <span className="us-org">
           {utilisateur.departement?.nom ?? t("utilisateurs.sansDepartement")}
         </span>
@@ -202,25 +325,45 @@ function LigneUtilisateur({ utilisateur }: { utilisateur: api.Utilisateur }) {
             {utilisateur.services.map((s) => s.service.nom).join(" · ")}
           </span>
         ) : null}
-      </span>
+      </div>
 
-      <span
-        className="pill"
-        style={{ color: utilisateur.actif ? "var(--st-done)" : "var(--muted)" }}
-      >
-        {utilisateur.actif ? t("utilisateurs.actif") : t("utilisateurs.inactif")}
-      </span>
+      <div>
+        <span
+          className="pill"
+          style={{ color: utilisateur.actif ? "var(--st-done)" : "var(--muted)" }}
+        >
+          {utilisateur.actif ? t("utilisateurs.actif") : t("utilisateurs.inactif")}
+        </span>
+      </div>
 
-      <span className="lv-acts">
+      <div className="lv-acts">
+        {peut("users:read_individual_tracking") ? (
+          <a className="ms-toggle" href={`/utilisateurs/${utilisateur.id}/suivi`}>
+            {t("utilisateurs.suivi")}
+          </a>
+        ) : null}
         <MenuTrigger>
-          <Button className="chip-btn" aria-label={t("utilisateurs.actionsPour", { nom: nomComplet })}>
-            {t("utilisateurs.actions")}
+          <Button
+            className="ms-toggle row-more"
+            aria-label={t("utilisateurs.actionsPour", { nom: nomComplet })}
+          >
+            <span aria-hidden="true">⋯</span>
           </Button>
           <Popover>
             <Menu className="pop-list">
-              {peut("users:read_individual_tracking") ? (
-                <MenuItem href={`/utilisateurs/${utilisateur.id}/suivi`} className="pop-action">
-                  {t("utilisateurs.voirSuivi")}
+              {/* La route de réinitialisation existe côté serveur ; celle de
+                  modification d'un compte, non. « Modifier » de la maquette est
+                  remonté au cadrage plutôt qu'ébauché ici. */}
+              {peut("users:reset_password") ? (
+                <MenuItem
+                  className="pop-action"
+                  isDisabled={soiMeme}
+                  onAction={() => motDePasse.mutate()}
+                >
+                  {t("utilisateurs.reinitialiserMotDePasse")}
+                  {soiMeme ? (
+                    <span className="pop-why">{t("utilisateurs.pasSoiMemeMotDePasse")}</span>
+                  ) : null}
                 </MenuItem>
               ) : null}
 
@@ -254,7 +397,7 @@ function LigneUtilisateur({ utilisateur }: { utilisateur: api.Utilisateur }) {
             </Menu>
           </Popover>
         </MenuTrigger>
-      </span>
+      </div>
 
       <FenetreSuppression
         utilisateur={utilisateur}
