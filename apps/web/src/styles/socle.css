@@ -265,10 +265,15 @@ a.eyebrow:hover{ color:var(--ink); }
 .seg button[aria-pressed="true"]{ background:var(--accent); color:var(--on-accent); }
 /* Le groupe segmenté sert aussi de bascule de VUE (vues 07 à 09). Ses entrées
    sont alors des liens, qui ne peuvent pas porter aria-pressed : l'état courant
-   passe par aria-current, et le style doit suivre. */
+   passe par aria-current, et le style doit suivre.
+   Ce qui change entre les deux variantes, c'est CELA et rien d'autre : le
+   dessin est celui de la maquette dans les deux cas. Le lien avait hérité
+   d'une casse forcée et d'une police condensée que les maquettes 07 à 09 ne
+   portent nulle part — « SEMAINE MOIS ACTIVITÉ » là où elles disent
+   « Semaine Mois Activité ». */
 .seg a{
-  font-family:var(--font-cond); font-size:12px; font-weight:600; letter-spacing:.04em;
-  text-transform:uppercase; padding:6px 13px; background:var(--surface); color:var(--muted);
+  font-family:var(--font-mono); font-size:10.5px; letter-spacing:.08em;
+  padding:5px 9px; color:var(--muted); background:var(--surface);
   text-decoration:none; display:inline-flex; align-items:center;
 }
 .seg a + a{ border-left:1px solid var(--line); }

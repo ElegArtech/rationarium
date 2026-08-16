@@ -304,3 +304,11 @@ textarea.field {
 .pill-muted {
   color: var(--muted);
 }
+
+/* Un panneau qui suit une grille défilante — légende du planning, matrice des
+   permissions, catalogue des tâches prédéfinies — a besoin de respirer.
+   La classe était posée par trois vues et définie par aucune : trois légendes
+   collées à leur grille, et rien pour le dire. */
+.matrice-espace {
+  margin-top: 12px;
+}

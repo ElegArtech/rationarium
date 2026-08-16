@@ -55,7 +55,9 @@ export function GrilleMois({
   const bandeaux = segmenter(jours, (jour) => trame.get(jour)?.vacances ?? null);
 
   return (
-    <div className="pl-wrap">
+    // Voir la vue 07 : un cadre défilant veut son point de repère et sa
+    // prise au clavier.
+    <div className="pl-wrap" role="region" tabIndex={0} aria-label={t("grilleRegion")}>
       <div className="mo" style={style}>
         <div className="pl-corner">
           <span className="eyebrow">{t("colonneRessource")}</span>
@@ -72,7 +74,7 @@ export function GrilleMois({
               }${js === 0 || js === 6 || info?.ferie ? " is-off" : ""}`}
             >
               <span className="mo-dow">{t(`jours.initiale.${js}`)}</span>
-              <span className="mo-num">{jour.slice(8)}</span>
+              <span className="mo-num">{String(Number(jour.slice(8)))}</span>
             </div>
           );
         })}

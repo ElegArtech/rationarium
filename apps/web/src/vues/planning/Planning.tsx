@@ -8,7 +8,7 @@ import { messageErreur } from "../../api/erreurs.js";
 import { usePeut } from "../../session/session.js";
 import { Chargement, ErreurDeChargement, AccesRefuse } from "../../composants/etats.js";
 import { useMessages } from "../../composants/messages.js";
-import { formaterDate } from "../../formats.js";
+import { formaterDate, formaterMois } from "../../formats.js";
 import {
   COUCHES_PAR_DEFAUT,
   decaler,
@@ -200,10 +200,12 @@ export function Planning({ mode }: { mode: Mode }) {
       <div className="print-head">
         <p className="print-title">{t("titre")}</p>
         <p className="print-meta">
-          {t(`navigation.libelle_${mode}`, {
-            debut: formaterDate(periode.debut),
-            fin: formaterDate(periode.fin),
-          })}
+          {mode === "mois"
+            ? t("navigation.libelle_mois", { mois: formaterMois(periode.debut) })
+            : t("navigation.libelle_semaine", {
+                debut: formaterDate(periode.debut),
+                fin: formaterDate(periode.fin),
+              })}
         </p>
       </div>
 
@@ -310,7 +312,7 @@ export function Planning({ mode }: { mode: Mode }) {
       </div>
 
       {requete.isPending ? (
-        <div className="pl-wrap">
+        <div className="pl-wrap" role="region" tabIndex={0} aria-label={t("grilleRegion")}>
           <Chargement quoi={t("leplanning")} />
         </div>
       ) : null}
@@ -321,7 +323,7 @@ export function Planning({ mode }: { mode: Mode }) {
 
       {donnees ? (
         groupes.length === 0 ? (
-          <div className="pl-wrap">
+          <div className="pl-wrap" role="region" tabIndex={0} aria-label={t("grilleRegion")}>
             <div className="pl-empty">
               <p>{t("vide.titre")}</p>
               {/* Le brief le dit : l'état vide vient le plus souvent des
@@ -353,6 +355,7 @@ export function Planning({ mode }: { mode: Mode }) {
             personnes={personnes}
             teletravailModifiable={peut("telework:create")}
             deplacementPossible={peut("tasks:update")}
+            creationPossible={peut("tasks:create")}
             surSelection={setSelection}
             surDeplacer={(donnees) => deplacement.mutate(donnees)}
             surBasculerTeletravail={(userId, date, etat) =>
@@ -379,7 +382,16 @@ export function Planning({ mode }: { mode: Mode }) {
         )
       ) : null}
 
-      <Legende filtres={filtres} surFiltres={setFiltres} />
+      {/* Maquette 08 — la vue Mois est muette par construction : sans cette
+          phrase, rien ne dit que le détail existe et comment l'atteindre. */}
+      {mode === "mois" ? <p className="field-hint">{t("mois.indication")}</p> : null}
+
+      <Legende
+        filtres={filtres}
+        surFiltres={setFiltres}
+        couches={couches}
+        surCouches={setCouches}
+      />
 
       <PanneauDetail selection={selection} surFermer={() => setSelection(null)} />
     </div>
@@ -445,10 +457,12 @@ function BarreOutils({
       </div>
 
       <span className="pl-period">
-        {t(`navigation.libelle_${mode}`, {
-          debut: formaterDate(periode.debut),
-          fin: formaterDate(periode.fin),
-        })}
+        {mode === "mois"
+          ? t("navigation.libelle_mois", { mois: formaterMois(periode.debut) })
+          : t("navigation.libelle_semaine", {
+              debut: formaterDate(periode.debut),
+              fin: formaterDate(periode.fin),
+            })}
       </span>
 
       <div className="ligne-actions-fin">
@@ -499,9 +513,16 @@ function BarreOutils({
 function Legende({
   filtres,
   surFiltres,
+  couches,
+  surCouches,
 }: {
   filtres: Filtres;
   surFiltres: (f: Filtres) => void;
+  /* La permanence n'est pas filtrée par la légende mais par sa COUCHE : la
+     légende commande donc les deux, sans quoi son entrée « Permanence »
+     serait la seule à ne rien faire. */
+  couches: Couches;
+  surCouches: (c: Couches) => void;
 }) {
   const { t } = useTranslation("planning");
 
@@ -536,7 +557,9 @@ function Legende({
       cle: "presence",
       titre: t("legende.presence"),
       entrees: [
-        { valeur: "office", libelle: t("presence.office"), style: { color: "var(--muted)" } },
+        // La légende nomme le marqueur plus longuement que la cellule :
+        // « Bureau » dans une cellule de 122 px, « Bureau déclaré » ici.
+        { valeur: "office", libelle: t("legende.presenceBureau"), style: { color: "var(--office)" } },
         { valeur: "telework", libelle: t("presence.telework"), style: { color: "var(--telework)" } },
       ],
     },
@@ -601,6 +624,25 @@ function Legende({
                   </Button>
                 );
               })}
+
+              {/* La permanence ferme la section « Autres occupations ». Elle
+                  ne se filtre pas par statut mais par couche : ce bouton
+                  commande la même case que « Activités » dans la barre de
+                  filtres, et il en porte l'état. */}
+              {s.cle === "evenements" ? (
+                <Button
+                  className="lg"
+                  aria-pressed={couches.activites}
+                  onPress={() => surCouches({ ...couches, activites: !couches.activites })}
+                >
+                  <span
+                    className="lg-sw is-flat"
+                    style={{ color: "var(--activity)" }}
+                    aria-hidden="true"
+                  />
+                  <span>{t("legende.permanence")}</span>
+                </Button>
+              ) : null}
             </div>
           </div>
         ))}
