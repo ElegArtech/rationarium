@@ -166,6 +166,7 @@ function LigneTiers({ tiers }: { tiers: api.Tiers }) {
   const morale = tiers.type === "organisation";
 
   const [suppressionOuverte, setSuppressionOuverte] = useState(false);
+  const [modificationOuverte, setModificationOuverte] = useState(false);
 
   return (
     <div className={`tp-grid tp-row${tiers.actif ? "" : " is-off"}`}>
@@ -212,12 +213,25 @@ function LigneTiers({ tiers }: { tiers: api.Tiers }) {
         <Link to="/tiers/$id" params={{ id: tiers.id }} className="ms-toggle">
           {t("fiche")}
         </Link>
+        {/* « Modifier », que les maquettes 23 et 24 posent et qui n'existait
+            pas : corriger un numéro imposait de supprimer le tiers. */}
+        {peut("third_parties:update") ? (
+          <Button className="ms-toggle" onPress={() => setModificationOuverte(true)}>
+            {t("modifier")}
+          </Button>
+        ) : null}
         {peut("third_parties:delete") ? (
           <Button className="ms-toggle" onPress={() => setSuppressionOuverte(true)}>
             {t("supprimer")}
           </Button>
         ) : null}
       </div>
+
+      <FenetreCreation
+        ouverte={modificationOuverte}
+        surFermeture={() => setModificationOuverte(false)}
+        tiers={tiers}
+      />
 
       {/* `RG-TRS-06` — le bilan d'impact précède la confirmation, y compris
           depuis la liste : supprimer d'un clic sans bilan serait le contraire
@@ -660,12 +674,28 @@ function FenetreSuppressionTiers({
  * Le type se choisit **d'abord** parce qu'il change la forme du formulaire :
  * une personne morale n'a pas de contact nommé.
  */
+/**
+ * Créer OU modifier — la même fenêtre, le même formulaire, les mêmes règles.
+ *
+ * Deux fenêtres pour les mêmes champs finiraient par diverger : c'est celle
+ * qu'on modifie le moins souvent qui garderait l'ancienne validation. La
+ * distinction tient à un seul paramètre, et à la mutation qu'il choisit.
+ */
 function FenetreCreation({
   ouverte,
   surFermeture,
+  tiers: aModifier,
 }: {
   ouverte: boolean;
   surFermeture: () => void;
+  tiers?: {
+    id: string;
+    type: string;
+    organisation: string | null;
+    contactNom: string | null;
+    contactEmail: string | null;
+    contactTelephone: string | null;
+  };
 }) {
   const { t } = useTranslation("referentiels");
   const { t: tErreurs } = useTranslation("erreurs");
@@ -673,19 +703,19 @@ function FenetreCreation({
   const annoncer = useMessages();
   const client = useQueryClient();
 
-  const [type, setType] = useState("individual");
-  const [organisation, setOrganisation] = useState("");
-  const [contactNom, setContactNom] = useState("");
-  const [contactEmail, setContactEmail] = useState("");
-  const [contactTelephone, setContactTelephone] = useState("");
+  const [type, setType] = useState(aModifier?.type ?? "individual");
+  const [organisation, setOrganisation] = useState(aModifier?.organisation ?? "");
+  const [contactNom, setContactNom] = useState(aModifier?.contactNom ?? "");
+  const [contactEmail, setContactEmail] = useState(aModifier?.contactEmail ?? "");
+  const [contactTelephone, setContactTelephone] = useState(aModifier?.contactTelephone ?? "");
   const [notes, setNotes] = useState("");
   const [erreur, setErreur] = useState<string | null>(null);
 
   const morale = type === "organisation";
 
   const creation = useMutation({
-    mutationFn: () =>
-      api.creerTiers({
+    mutationFn: () => {
+      const champs = {
         type,
         organisation: organisation || null,
         // Une personne morale ne porte pas de contact nommé : on n'envoie pas
@@ -694,9 +724,11 @@ function FenetreCreation({
         contactEmail: contactEmail || null,
         contactTelephone: contactTelephone || null,
         ...(notes ? { notes } : {}),
-      }),
+      };
+      return aModifier ? api.modifierTiers(aModifier.id, champs) : api.creerTiers(champs);
+    },
     onSuccess: () => {
-      annoncer("ok", t("tiers.cree"));
+      annoncer("ok", t(aModifier ? "tiers.modifie" : "tiers.cree"));
       setOrganisation("");
       setContactNom("");
       setContactEmail("");
@@ -712,7 +744,7 @@ function FenetreCreation({
       ouverte={ouverte}
       surFermeture={surFermeture}
       categorie={t("tiers.categorie")}
-      titre={t("tiers.nouveau")}
+      titre={t(aModifier ? "tiers.modifier" : "tiers.nouveau")}
       mention={t("champObligatoire")}
       actions={
         <>

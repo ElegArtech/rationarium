@@ -150,6 +150,26 @@ export const creerTiers = (donnees: {
   notes?: string;
 }) => appeler<{ id: string }>("/tiers", { methode: "POST", corps: donnees });
 
+/**
+ * `EX-TRS-02` — modifier un tiers, ou l'archiver.
+ *
+ * Corriger un numéro de téléphone imposait jusqu'ici de SUPPRIMER le tiers,
+ * donc de rompre ses rattachements de projet et de perdre le temps déclaré
+ * pour lui.
+ */
+export const modifierTiers = (
+  id: string,
+  donnees: {
+    type?: string;
+    organisation?: string | null;
+    contactNom?: string | null;
+    contactEmail?: string | null;
+    contactTelephone?: string | null;
+    notes?: string | null;
+    actif?: boolean;
+  },
+) => appeler<{ id: string }>(`/tiers/${id}`, { methode: "PATCH", corps: donnees });
+
 /** `EX-TRS-02` — rattacher un tiers à un projet, préalable à toute assignation. */
 export const rattacherTiersAuProjet = (projetId: string, thirdPartyId: string) =>
   appeler<void>(`/tiers/projets/${projetId}/rattacher`, {
@@ -190,3 +210,17 @@ export const creerClient = (donnees: {
   adresse?: string | null;
   notes?: string;
 }) => appeler<{ id: string }>("/clients", { methode: "POST", corps: donnees });
+
+/** `EX-CLI-02` — modifier un client, ou le rendre inactif. Réversible. */
+export const modifierClient = (
+  id: string,
+  donnees: {
+    nom?: string;
+    contactNom?: string | null;
+    contactEmail?: string | null;
+    contactTelephone?: string | null;
+    adresse?: string | null;
+    notes?: string | null;
+    actif?: boolean;
+  },
+) => appeler<{ id: string }>(`/clients/${id}`, { methode: "PATCH", corps: donnees });
