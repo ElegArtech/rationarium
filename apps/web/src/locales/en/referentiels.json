@@ -168,7 +168,9 @@
     "echecRattachement": "The attachment failed.",
     "raisonSociale": "Legal name",
     "contactNomme": "Named contact",
-    "sansObjetPersonneMorale": "Not applicable for a legal entity"
+    "sansObjetPersonneMorale": "Not applicable for a legal entity",
+    "modifie": "Third party updated",
+    "modifier": "Edit third party"
   },
   "clients": {
     "surtitre": "Reference data",
@@ -248,5 +250,6 @@
   "fiche": "View",
   "enregistrer": "Save",
   "oui": "Yes",
-  "non": "No"
+  "non": "No",
+  "modifier": "Edit"
 }

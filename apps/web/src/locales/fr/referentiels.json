@@ -168,7 +168,9 @@
     "echecRattachement": "Le rattachement n'a pas abouti.",
     "raisonSociale": "Raison sociale",
     "contactNomme": "Contact nommé",
-    "sansObjetPersonneMorale": "Sans objet pour une personne morale"
+    "sansObjetPersonneMorale": "Sans objet pour une personne morale",
+    "modifie": "Tiers modifié",
+    "modifier": "Modifier le tiers"
   },
   "clients": {
     "surtitre": "Référentiels",
@@ -248,5 +250,6 @@
   "fiche": "Fiche",
   "enregistrer": "Enregistrer",
   "oui": "Oui",
-  "non": "Non"
+  "non": "Non",
+  "modifier": "Modifier"
 }
