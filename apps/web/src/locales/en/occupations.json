@@ -330,6 +330,7 @@
     "surPlafondChiffre": "{total, number} h / {plafond, number} h",
     "saisirCourt": "Log",
     "supprimer": "Delete",
-    "surTache": "· {titre}"
+    "surTache": "· {titre}",
+    "supprimerLaSaisie": "Delete the entry of {date}"
   }
 }

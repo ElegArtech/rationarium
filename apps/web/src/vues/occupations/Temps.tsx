@@ -510,7 +510,13 @@ function LigneSaisie({ saisie }: { saisie: api.SaisieTemps }) {
 
       <span className="lv-acts">
         {peut("time_tracking:delete") ? (
-          <Button className="ms-toggle" onPress={() => setSuppressionOuverte(true)}>
+          /* Le nom accessible commence par le texte visible — sans quoi la
+             commande vocale « supprimer » ne viserait plus le bouton. */
+          <Button
+            className="ms-toggle"
+            aria-label={t("temps.supprimerLaSaisie", { date: formaterDate(saisie.date) })}
+            onPress={() => setSuppressionOuverte(true)}
+          >
             {t("temps.supprimer")}
           </Button>
         ) : null}

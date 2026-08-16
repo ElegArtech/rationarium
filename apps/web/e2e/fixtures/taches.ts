@@ -98,7 +98,10 @@ export const FICHE = {
       { id: "b1", titre: "Rédiger le cahier des charges", statut: "todo", dateDebut: "2026-12-01" },
     ],
   },
-  incoherences: [] as { id: string; titre: string }[],
+  incoherences: [] as {
+    prerequis: { id: string; titre: string; dateFin: string | null };
+    jours: number;
+  }[],
 };
 
 /** Une tâche dont tout est vide : l'état « tout vide » de `design/etats.json`. */

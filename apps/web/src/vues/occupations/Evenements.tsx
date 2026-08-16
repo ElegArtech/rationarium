@@ -285,7 +285,7 @@ function PanneauDetail({
           <dd>
             {!evenement
               ? "—"
-              : evenement.journeeEntiere
+              : evenement.journeeEntiere || !evenement.heureDebut
                 ? t("evenements.touteLaJournee")
                 : t("evenements.plageHoraire", {
                     debut: formaterHeure(evenement.heureDebut),
@@ -341,6 +341,7 @@ function LigneEvenement({
 }) {
   const { t } = useTranslation("occupations");
   const serie = Boolean(evenement.parentId ?? evenement.frequenceSemaines);
+  const sansHoraire = evenement.journeeEntiere || !evenement.heureDebut;
 
   /*
    * La maquette rend la ligne cliquable. Une ligne cliquable qui n'est pas un
@@ -349,8 +350,13 @@ function LigneEvenement({
    */
   return (
     <Button className="ev-row" onPress={surOuverture} aria-label={evenement.titre}>
-      <span className={`ev-time${evenement.journeeEntiere ? " is-all" : ""}`}>
-        {evenement.journeeEntiere
+      {/*
+        Pas d'horaire = toute la journée. Rendre « — – — » pour un événement
+        sans heure serait annoncer une donnée manquante là où il n'en manque
+        aucune : la maquette dit « Toute la journée » dans les deux cas.
+      */}
+      <span className={`ev-time${sansHoraire ? " is-all" : ""}`}>
+        {sansHoraire
           ? t("evenements.touteLaJournee")
           : t("evenements.plageHoraire", {
               debut: formaterHeure(evenement.heureDebut),

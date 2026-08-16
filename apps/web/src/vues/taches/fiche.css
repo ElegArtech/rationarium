@@ -478,6 +478,16 @@
 .proj-head-titre .pills {
   margin-bottom: 4px;
 }
+/*
+ * Le champ de titre est enveloppé dans un `h1` — le niveau de titre appartient
+ * au document, pas au style. Les marges par défaut de l'agent utilisateur
+ * décollaient le titre de ses pastilles d'une quarantaine de pixels ; la
+ * maquette les colle. La marge est portée par `.task-title`, comme elle l'est
+ * dans la maquette.
+ */
+.proj-head-titre h1 {
+  margin: 0;
+}
 .pchip-tiers {
   border-color: var(--st-review);
   color: var(--st-review);
