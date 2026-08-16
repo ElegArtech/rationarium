@@ -6,7 +6,7 @@ import * as apiTaches from "../../api/taches.js";
 import * as apiProjets from "../../api/projets.js";
 import { usePeut } from "../../session/session.js";
 import { Chargement, ErreurDeChargement, AccesRefuse } from "../../composants/etats.js";
-import { formaterDate } from "../../formats.js";
+import { formaterDate, formaterMoisCourt } from "../../formats.js";
 import { CadreProjet } from "../projets/Fiche.js";
 import "../../composants/partages.css";
 import "./gantt.css";
@@ -43,6 +43,13 @@ const HAUTEUR_GROUPE = 30;
  * `new Date(NaN).toISOString()` **lève**. On tronque au jour avant de composer.
  */
 const jourDe = (iso: string) => new Date(`${iso.slice(0, 10)}T00:00:00.000Z`).getTime();
+
+/** Le numéro de semaine, repris de la maquette — il n'étiquette qu'une graduation. */
+const semaineDe = (d: Date) => {
+  const debutAnnee = Date.UTC(d.getUTCFullYear(), 0, 1);
+  const jourDeLAn = new Date(debutAnnee).getUTCDay();
+  return Math.ceil(((d.getTime() - debutAnnee) / JOUR_MS + jourDeLAn + 1) / 7);
+};
 const JOUR_MS = 86_400_000;
 
 export function GanttProjet({ projetId }: { projetId: string }) {
@@ -97,7 +104,12 @@ export function GanttProjet({ projetId }: { projetId: string }) {
           </div>
         ) : (
           <>
-            <div className="g-echelle">
+            {/* La barre de la section 19 : `.filters`, pas un nom propre à cette
+                vue. `g-echelle` et `g-indice` étaient deux inventions — aucune
+                maquette ne les porte — et `.filters` emporte au passage sa règle
+                d'impression, que ces deux-là n'avaient pas. */}
+            <div className="filters">
+              <span className="panel-title">{t("ganttProjet.echelle")}</span>
               <div className="seg" role="group" aria-label={t("ganttProjet.echelle")}>
                 {ECHELLES.map((e) => (
                   <button
@@ -110,9 +122,10 @@ export function GanttProjet({ projetId }: { projetId: string }) {
                   </button>
                 ))}
               </div>
+              <span className="vsep" />
               {/* L'indice du brief, mot pour mot : sans lui, la sélection et le
                   double-clic ne se découvrent pas. */}
-              <span className="g-indice">{t("ganttProjet.indice")}</span>
+              <span className="field-hint pl-toolbar-fin">{t("ganttProjet.indice")}</span>
             </div>
 
             <Grille
@@ -159,9 +172,68 @@ function Grille({
     return { debut: Math.min(...debuts) - JOUR_MS, fin: Math.max(...fins) + JOUR_MS };
   }, [taches]);
 
+  const debut = plage.debut;
   const jours = Math.max(1, Math.round((plage.fin - plage.debut) / JOUR_MS));
-  const largeur = jours * LARGEUR[echelle];
-  const x = (ms: number) => ((ms - plage.debut) / (plage.fin - plage.debut)) * largeur;
+  /** Pixels par jour — le repère unique de toute la frise, comme la maquette. */
+  const ppd = LARGEUR[echelle];
+  const largeur = jours * ppd;
+  const x = (ms: number) => ((ms - plage.debut) / JOUR_MS) * ppd;
+  /** Le jour `i` de la plage, à minuit UTC — `jourDe` compose en UTC. */
+  const jourA = (i: number) => new Date(plage.debut + i * JOUR_MS);
+
+  /**
+   * La bande des mois et celle des unités.
+   *
+   * La maquette nomme chaque mois traversé et découpe les unités selon
+   * l'échelle : un pas par jour, par semaine ISO ou par mois. Une bande unique
+   * portant « début → fin », comme nous le faisions, ne situe rien : c'est la
+   * graduation qui fait lire une position.
+   */
+  const bandes = useMemo(() => {
+    // Le calcul ne dépend que de la plage, de l'échelle et du pas : il refait
+    // son propre `jourA` plutôt que de capturer celui du rendu, qui changerait
+    // d'identité à chaque passage et annulerait la mémoïsation.
+    const jourA = (i: number) => new Date(debut + i * JOUR_MS);
+    const mois: { cle: string; libelle: string; largeur: number }[] = [];
+    let i = 0;
+    while (i < jours) {
+      const d0 = jourA(i);
+      const finDeMois = Date.UTC(d0.getUTCFullYear(), d0.getUTCMonth() + 1, 0);
+      const dernier = Math.min(jours - 1, Math.round((finDeMois - plage.debut) / JOUR_MS));
+      const n = dernier - i + 1;
+      mois.push({ cle: `${d0.getUTCFullYear()}-${d0.getUTCMonth()}`, libelle: formaterMoisCourt(d0), largeur: n * ppd });
+      i = dernier + 1;
+    }
+
+    const unites: { cle: string; libelle: string; largeur: number; lundi: boolean; chome: boolean }[] = [];
+    if (echelle === "jour") {
+      for (let k = 0; k < jours; k += 1) {
+        const d0 = jourA(k);
+        const j = d0.getUTCDay();
+        unites.push({
+          cle: String(k),
+          libelle: String(d0.getUTCDate()),
+          largeur: ppd,
+          lundi: j === 1,
+          chome: j === 0 || j === 6,
+        });
+      }
+    } else if (echelle === "semaine") {
+      let k = 0;
+      while (k < jours) {
+        const d0 = jourA(k);
+        // Le reste de la semaine en cours : la première peut être entamée.
+        const n = Math.min(7 - ((d0.getUTCDay() + 6) % 7), jours - k);
+        unites.push({ cle: String(k), libelle: `S${semaineDe(d0)}`, largeur: n * ppd, lundi: true, chome: false });
+        k += n;
+      }
+    } else {
+      for (const m of mois) {
+        unites.push({ cle: m.cle, libelle: `${Math.round(m.largeur / ppd)} j`, largeur: m.largeur, lundi: true, chome: false });
+      }
+    }
+    return { mois, unites };
+  }, [jours, ppd, echelle, debut]);
 
   /**
    * `EX-JAL-…` — les tâches sont **regroupées par jalon**, dans l'ordre de la
@@ -183,18 +255,26 @@ function Grille({
       : ordonnes;
   }, [taches, jalons, t]);
 
-  /** La position verticale de chaque tâche, pour les barres et les flèches. */
+  /**
+   * La position verticale de chaque tâche, pour les barres et les flèches, et
+   * celle de chaque ligne de groupe, où se pose le losange du jalon.
+   */
   const lignes = useMemo(() => {
     const positions = new Map<string, number>();
+    const sommetsDeGroupe = new Map<string, number>();
+    const filets: number[] = [];
     let y = 0;
     for (const g of groupes) {
+      sommetsDeGroupe.set(g.id, y);
       y += HAUTEUR_GROUPE;
+      filets.push(y);
       for (const tache of g.taches) {
         positions.set(tache.id, y);
         y += HAUTEUR_LIGNE;
+        filets.push(y);
       }
     }
-    return { positions, hauteur: y };
+    return { positions, sommetsDeGroupe, filets, hauteur: y };
   }, [groupes]);
 
   const aujourdhui = Date.now();
@@ -210,6 +290,9 @@ function Grille({
           {groupes.map((g) => (
             <div key={g.id || "sans"}>
               <div className="g-grp">
+                <span className="grp-caret" aria-hidden="true">
+                  ▾
+                </span>
                 <span className="g-grp-name">{g.nom}</span>
                 {g.dateEcheance ? (
                   <span className="g-row-dates">{formaterDate(g.dateEcheance)}</span>
@@ -233,15 +316,88 @@ function Grille({
         <div className="g-right" style={{ width: `${largeur}px` }}>
           <div className="g-head">
             <div className="g-months">
-              <span className="g-month" style={{ width: `${largeur}px` }}>
-                {formaterDate(new Date(plage.debut).toISOString().slice(0, 10))} →{" "}
-                {formaterDate(new Date(plage.fin).toISOString().slice(0, 10))}
-              </span>
+              {bandes.mois.map((m) => (
+                <span className="g-month" key={m.cle} style={{ width: `${m.largeur}px` }}>
+                  {m.libelle}
+                </span>
+              ))}
             </div>
-            <div className="g-units" />
+            <div className="g-units">
+              {bandes.unites.map((u) => (
+                <div
+                  className={`g-unit${u.lundi ? " is-mon" : ""}${u.chome ? " is-off" : ""}`}
+                  key={u.cle}
+                  style={{ width: `${u.largeur}px` }}
+                >
+                  {u.libelle}
+                </div>
+              ))}
+            </div>
           </div>
 
           <div className="g-body" style={{ height: `${lignes.hauteur}px`, position: "relative" }}>
+            {/* Le fond de grille, sous les barres : bandes de fin de semaine,
+                filet vertical du lundi, filet horizontal de chaque ligne. Sans
+                eux, une barre flotte sans repère et sa date ne se lit pas.
+                L'échelle « mois » s'en passe — la maquette aussi : à 5 px par
+                jour, un filet par lundi devient une trame. */}
+            {echelle === "mois"
+              ? null
+              : Array.from({ length: jours }, (_, k) => {
+                  const j = jourA(k).getUTCDay();
+                  if (j === 0 || j === 6) {
+                    return (
+                      <span
+                        className="g-weekend"
+                        key={`we${k}`}
+                        style={{ left: `${k * ppd}px`, width: `${ppd}px` }}
+                      />
+                    );
+                  }
+                  if (j === 1) {
+                    return (
+                      <span className="g-colline is-strong" key={`cl${k}`} style={{ left: `${k * ppd}px` }} />
+                    );
+                  }
+                  return null;
+                })}
+
+            {lignes.filets.map((haut) => (
+              <span className="g-rowline" key={`rl${haut}`} style={{ top: `${haut - 1}px` }} />
+            ))}
+
+            {/* Le jalon sur la frise : un losange à son échéance, sur la ligne
+                de son groupe. Terminé s'il ne reste aucune tâche à faire, en
+                retard si l'échéance est passée sans cela. */}
+            {groupes.map((g) => {
+              if (!g.dateEcheance || g.id === "") return null;
+              const echeance = jourDe(g.dateEcheance);
+              if (echeance < plage.debut || echeance > plage.fin) return null;
+              const haut = lignes.sommetsDeGroupe.get(g.id) ?? 0;
+              const termine = g.taches.every((x) => x.statut === "done");
+              const enRetard = !termine && echeance < aujourdhui;
+              return (
+                <span key={`ms${g.id}`}>
+                  <span
+                    className={`g-mile${termine ? " is-done" : enRetard ? " is-late" : ""}`}
+                    style={{ left: `${x(echeance)}px`, top: `${haut + 7}px` }}
+                    role="img"
+                    aria-label={t("ganttProjet.libelleJalon", {
+                      nom: g.nom,
+                      date: formaterDate(g.dateEcheance),
+                    })}
+                  />
+                  <span
+                    className="g-mile-lab"
+                    style={{ left: `${x(echeance) + 12}px`, top: `${haut + 8}px` }}
+                    aria-hidden="true"
+                  >
+                    {g.nom}
+                  </span>
+                </span>
+              );
+            })}
+
             {/* La ligne d'aujourd'hui, quand elle tombe dans la plage. La
                 dessiner hors plage la collerait à un bord, où elle mentirait. */}
             {dansLaPlage ? (
@@ -290,18 +446,19 @@ function Grille({
               }),
             )}
 
-            {/* `Attention` du brief — les flèches n'existent qu'à la sélection. */}
-            {selection !== null && dependances.length > 0 ? (
-              <Fleches
-                selection={selection}
-                dependances={dependances}
-                positions={lignes.positions}
-                taches={taches}
-                x={x}
-                largeur={largeur}
-                hauteur={lignes.hauteur}
-              />
-            ) : null}
+            {/* `Attention` du brief — les flèches n'existent qu'à la sélection.
+                Le calque, lui, est toujours posé : la maquette le monte à vide,
+                et le retirer ferait varier la pile de superposition selon la
+                sélection. */}
+            <Fleches
+              selection={selection}
+              dependances={dependances}
+              positions={lignes.positions}
+              taches={taches}
+              x={x}
+              largeur={largeur}
+              hauteur={lignes.hauteur}
+            />
           </div>
         </div>
       </div>
@@ -325,7 +482,7 @@ function Fleches({
   largeur,
   hauteur,
 }: {
-  selection: string;
+  selection: string | null;
   dependances: string[];
   positions: Map<string, number>;
   taches: apiTaches.LigneTache[];
@@ -334,15 +491,15 @@ function Fleches({
   hauteur: number;
 }) {
   const parId = new Map(taches.map((t) => [t.id, t]));
-  const cible = parId.get(selection);
-  if (!cible?.dateDebut) return null;
+  const cible = selection === null ? undefined : parId.get(selection);
+  const tracables = cible?.dateDebut ? dependances : [];
 
-  const yCible = (positions.get(selection) ?? 0) + 17;
-  const xCible = x(jourDe(cible.dateDebut));
+  const yCible = (selection === null ? 0 : positions.get(selection) ?? 0) + 17;
+  const xCible = cible?.dateDebut ? x(jourDe(cible.dateDebut)) : 0;
 
   return (
     <svg className="g-arrows" width={largeur} height={hauteur} aria-hidden="true">
-      {dependances.map((id) => {
+      {tracables.map((id) => {
         const source = parId.get(id);
         if (!source?.dateFin) return null;
         const ySource = (positions.get(id) ?? 0) + 17;

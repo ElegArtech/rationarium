@@ -12,6 +12,7 @@ import { Fenetre } from "../../composants/fenetre.js";
 import { useMessages } from "../../composants/messages.js";
 import { Pastille, Barre, MarqueurCalcule } from "../../composants/pastilles.js";
 import { formaterDate, joursAvant } from "../../formats.js";
+import { FenetreCreationTache } from "../taches/FenetreCreationTache.js";
 import { CadreProjet } from "./Fiche.js";
 import "./fiche.css";
 import "./jalons.css";
@@ -34,6 +35,7 @@ export function Jalons({ projetId }: { projetId: string }) {
   const { t: tImports } = useTranslation("imports");
   const peut = usePeut();
   const [creationOuverte, setCreationOuverte] = useState(false);
+  const [tacheOuverte, setTacheOuverte] = useState(false);
   const [deplies, setDeplies] = useState<ReadonlySet<string>>(new Set());
 
   const projet = useQuery({ queryKey: ["projet", projetId], queryFn: () => api.fiche(projetId) });
@@ -75,6 +77,15 @@ export function Jalons({ projetId }: { projetId: string }) {
             <a className="chip-btn" href={adresseExportJalons(projetId)} download>
               {tImports("exporterJalons")}
             </a>
+          ) : null}
+          {/* `cadrage/02`, vue 13 — la barre d'actions porte « + Nouveau jalon,
+              + Nouvelle tâche, Importer CSV ». La création de tâche emploie la
+              fenêtre des vues 12 et 16, projet imposé : trois formulaires de
+              création divergeraient à la première correction. */}
+          {peut("tasks:create") ? (
+            <Button className="chip-btn" onPress={() => setTacheOuverte(true)}>
+              {t("jalons.nouvelleTache")}
+            </Button>
           ) : null}
           {peut("milestones:create") ? (
             <Button className="btn btn-primary" onPress={() => setCreationOuverte(true)}>
@@ -138,6 +149,13 @@ export function Jalons({ projetId }: { projetId: string }) {
           ) : null}
         </div>
       )}
+
+      <FenetreCreationTache
+        ouverte={tacheOuverte}
+        surFermeture={() => setTacheOuverte(false)}
+        projets={[]}
+        projetImpose={projetId}
+      />
 
       <FenetreJalon
         projetId={projetId}

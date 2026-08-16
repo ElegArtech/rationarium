@@ -131,7 +131,8 @@
     "aujourdhui": "Today",
     "videTitre": "No task with dates",
     "videAide": "Add start and end dates to tasks to see them in the Gantt chart.",
-    "libelleBarre": "{titre} — {statut}, from {debut} to {fin}, {avancement, number}%"
+    "libelleBarre": "{titre} — {statut}, from {debut} to {fin}, {avancement, number}%",
+    "libelleJalon": "Milestone {nom}, due {date}"
   },
   "santes": {
     "good": "Good",
