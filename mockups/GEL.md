@@ -100,6 +100,28 @@ Une assistance technique annonce « case à cocher, non cochée » sans dire de 
 
 Concerne les lots **L-21** (vue 06), **L-11** (vue 17) et **L-17** (vue 34).
 
+### Écart 7 — Ligne de base RGAA de la référence
+
+Relevé le 2026-08-16 par `pnpm a11y` : axe-core sur les 35 vues, dans les deux thèmes, panneau de revue exclu. **70 contrôles, 28 en échec, 33 manquements graves ou critiques.**
+
+| Manquement | Gravité | Vues concernées | Ce que c'est |
+| --- | --- | --- | --- |
+| `color-contrast` | serious | 10, 16, 17, 19, 20, 22, 34 | Contraste insuffisant. Partiellement lié à l'écart 5, **mais pas seulement** : 19 et 22 appartiennent au groupe conforme et échouent quand même, l'une en sombre, l'autre en clair |
+| `select-name` | **critical** | 13, 14, 16, 17 | Liste déroulante sans nom accessible |
+| `aria-hidden-focus` | serious | 07, 08, 18, 33 | Élément focalisable à l'intérieur d'un `aria-hidden`. Un piège de navigation clavier : le focus disparaît dans une zone que l'assistance technique ne restitue pas |
+| `label` | **critical** | 06, 17 | Champ de formulaire sans libellé |
+| `scrollable-region-focusable` | serious | 15 | **Zone défilante inatteignable au clavier.** Sur le Gantt, cela signifie qu'une partie du contenu n'est pas consultable sans souris |
+
+Deux observations valent d'être relevées.
+
+**`label` sur 06 et 17 confirme l'écart 6, trouvé indépendamment** par un autre moyen. Deux contrôles distincts qui convergent sur le même défaut, c'est le meilleur signal qu'on puisse obtenir sur sa réalité.
+
+**`scrollable-region-focusable` sur la vue 15 est le plus grave**, alors qu'il n'est pas classé critique : une zone défilante sans accès clavier rend du contenu littéralement inatteignable, ce qui va au-delà d'une gêne d'annonce.
+
+**Décision : le portage corrige, la maquette reste inchangée**, pour le même motif que l'écart 6.
+
+**Mécanisme retenu — le cliquet.** `design/a11y-baseline.json` recense ces 33 manquements. Le contrôle `pnpm a11y` **tolère le connu et refuse le nouveau**, et cette liste ne doit que décroître. Sans cliquet, le contrôle resterait rouge en permanence — et un contrôle en permanence rouge n'est plus lu, il devient du décor. Le lot **L-25** a désormais une cible chiffrée plutôt qu'une intention.
+
 ---
 
 ## 4. Empreintes au gel
