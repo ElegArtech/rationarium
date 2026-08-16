@@ -1,0 +1,77 @@
+/*
+ * Vues 23 et 24 — Tiers et fiche tiers. Sections 27 et 28 des maquettes.
+ */
+
+.tp-grid{ display:grid; grid-template-columns:150px minmax(0,1fr) 216px 168px 116px 176px; gap:13px; }
+.tp-head{ padding:9px 14px; background:var(--surface-2); border-bottom:1px solid var(--line-strong); }
+.tp-head span{ font-family:var(--font-mono); font-size:8.5px; font-weight:500; letter-spacing:.12em;
+  text-transform:uppercase; color:var(--muted); }
+.tp-row{ padding:11px 14px; border-bottom:1px solid var(--line); align-items:center; }
+.tp-row:last-child{ border-bottom:none; }
+.tp-row:hover{ background:var(--surface-2); }
+/*
+ * ÉCART CONTRE LA MAQUETTE — l'inactif ne s'atténue pas.
+ *
+ * La maquette éteint la ligne par `opacity: .6`, ce qui fait tomber tous ses
+ * textes sous le seuil AA. La règle générale de `DESIGN.md` s'applique :
+ * l'opacité ne sert jamais à atténuer du texte. Le fond porte l'état, et la
+ * pastille de statut le dit en toutes lettres.
+ */
+.tp-row.is-off{ background:var(--surface-2); }
+
+.tp-kind{ display:inline-flex; align-items:center; gap:7px; font-family:var(--font-cond);
+  font-size:11px; border:1px solid currentColor; border-radius:2px; padding:2px 7px; }
+.tp-kind.is-moral{ color:var(--st-review); }
+.tp-kind.is-phys{ color:var(--accent); }
+.tp-glyph{ width:14px; height:14px; border:1px solid currentColor; border-radius:2px;
+  display:flex; align-items:center; justify-content:center; font-family:var(--font-mono);
+  font-size:7.5px; flex:none; }
+.tp-kind.is-phys .tp-glyph{ border-radius:50%; }
+
+.tp-n{ font-size:13px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin:0; }
+.tp-note{ display:block; font-size:11.5px; color:var(--muted); margin-top:4px;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.tp-c{ font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.tp-c-mail{ display:block; font-family:var(--font-mono); font-size:9.5px; color:var(--muted); margin-top:3px; }
+.tp-c.is-none{ color:var(--muted); font-style:italic; }
+.tp-link{ display:flex; flex-direction:column; gap:3px; font-family:var(--font-mono);
+  font-size:9.5px; color:var(--muted); }
+
+/* Bilan d'impact */
+.impact{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:14px; }
+.imp{ border:1px solid var(--line); border-radius:var(--r); padding:11px; text-align:center; }
+.imp-n{ font-family:var(--font-display); font-size:21px; font-weight:600; line-height:1.1; }
+.imp.is-hot{ border-color:color-mix(in srgb, var(--st-review) 50%, var(--line)); }
+.imp.is-hot .imp-n{ color:var(--st-review); }
+.imp-list{ margin:0; padding:0; list-style:none; }
+.imp-list li{ display:flex; gap:10px; align-items:baseline; padding:7px 0; border-bottom:1px solid var(--line);
+  font-size:12.5px; }
+.imp-list li:last-child{ border-bottom:none; }
+.imp-k{ font-family:var(--font-mono); font-size:9px; color:var(--muted); flex:none; width:74px; }
+
+.tp-hero{ width:54px; height:54px; border:1px solid var(--line-strong); display:flex;
+  align-items:center; justify-content:center; font-family:var(--font-mono); font-size:15px;
+  flex:none; border-radius:var(--r); }
+.tp-hero.is-phys{ border-radius:50%; color:var(--accent); background:var(--accent-soft); }
+.tp-hero.is-moral{ color:var(--st-review);
+  background:color-mix(in srgb, var(--st-review) 10%, var(--surface)); }
+
+.lnk-row{ display:grid; grid-template-columns:34px minmax(0,1fr) 168px 128px 18px;
+  gap:12px; align-items:center; padding:11px 14px; border-bottom:1px solid var(--line);
+  text-decoration:none; color:inherit; }
+.lnk-row:last-child{ border-bottom:none; }
+.lnk-row:hover{ background:var(--surface-2); }
+.lnk-n{ font-size:13px; font-weight:600; margin:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.lnk-s{ display:block; font-family:var(--font-mono); font-size:9.5px; color:var(--muted); margin-top:3px; }
+
+.tsk-row{ display:grid; grid-template-columns:minmax(0,1fr) 196px 128px 108px;
+  gap:12px; align-items:center; padding:11px 14px; border-bottom:1px solid var(--line); }
+.tsk-row:last-child{ border-bottom:none; }
+.tsk-row:hover{ background:var(--surface-2); }
+
+.tm-row{ display:grid; grid-template-columns:96px 74px 132px minmax(0,1fr);
+  gap:12px; align-items:center; padding:10px 14px; border-bottom:1px solid var(--line); }
+.tm-row:last-child{ border-bottom:none; }
+.tm-head{ padding:9px 14px; background:var(--surface-2); border-bottom:1px solid var(--line-strong); }
+.tm-head span{ font-family:var(--font-mono); font-size:8.5px; font-weight:500; letter-spacing:.12em;
+  text-transform:uppercase; color:var(--muted); }

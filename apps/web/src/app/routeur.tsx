@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import {
   createRootRoute,
   createRoute,
@@ -34,6 +35,9 @@ import { Evenements } from "../vues/occupations/Evenements.js";
 import { Conges } from "../vues/occupations/Conges.js";
 import { Teletravail } from "../vues/occupations/Teletravail.js";
 import { Temps } from "../vues/occupations/Temps.js";
+import { Competences } from "../vues/referentiels/Competences.js";
+import { Tiers, FicheTiers } from "../vues/referentiels/Tiers.js";
+import { Clients, FicheClient } from "../vues/referentiels/Clients.js";
 
 /**
  * L'arborescence des routes.
@@ -172,25 +176,39 @@ const routeApplication = createRoute({
 /**
  * La redirection vers la connexion, **en gardant la destination**.
  *
- * Elle est faite au rendu et non dans un `beforeLoad` : la session est une
+ * Elle est décidée au rendu et non dans un `beforeLoad` : la session est une
  * requête, et la connaître avant le premier rendu obligerait à la charger deux
  * fois — une fois pour décider, une fois pour afficher.
+ *
+ * Mais elle est **exécutée dans un effet**, jamais pendant le rendu. React
+ * l'interdit — « Cannot update a component while rendering a different
+ * component » — et le contrôle de bout en bout l'a signalé en console avant
+ * qu'aucun symptôme ne se voie à l'écran. Une navigation déclenchée en cours
+ * de rendu fonctionne jusqu'au jour où elle arrive pendant un rendu concurrent.
  */
 function RedirectionConnexion() {
   const navigate = useNavigate();
   const { t } = useTranslation("commun");
-  void navigate({
-    to: "/connexion",
-    search: { suite: window.location.pathname + window.location.search },
-    replace: true,
-  });
+
+  useEffect(() => {
+    void navigate({
+      to: "/connexion",
+      search: { suite: window.location.pathname + window.location.search },
+      replace: true,
+    });
+  }, [navigate]);
+
   return <Chargement quoi={t("etats.laSession")} />;
 }
 
 function RedirectionMotDePasse() {
   const navigate = useNavigate();
   const { t } = useTranslation("commun");
-  void navigate({ to: "/mot-de-passe-impose", replace: true });
+
+  useEffect(() => {
+    void navigate({ to: "/mot-de-passe-impose", replace: true });
+  }, [navigate]);
+
   return <Chargement quoi={t("etats.laSession")} />;
 }
 
@@ -344,6 +362,44 @@ const routeTemps = createRoute({
   component: Temps,
 });
 
+// ── Référentiels — vues 22 à 26 (L-35) ──────────────────────────────────────
+
+const routeCompetences = createRoute({
+  getParentRoute: () => routeApplication,
+  path: "/competences",
+  component: Competences,
+});
+
+const routeTiers = createRoute({
+  getParentRoute: () => routeApplication,
+  path: "/tiers",
+  component: Tiers,
+});
+
+const routeTiersFiche = createRoute({
+  getParentRoute: () => routeApplication,
+  path: "/tiers/$id",
+  component: function PageTiers() {
+    const { id } = useParams({ from: "/application/tiers/$id" });
+    return <FicheTiers tiersId={id} />;
+  },
+});
+
+const routeClients = createRoute({
+  getParentRoute: () => routeApplication,
+  path: "/clients",
+  component: Clients,
+});
+
+const routeClientFiche = createRoute({
+  getParentRoute: () => routeApplication,
+  path: "/clients/$id",
+  component: function PageClient() {
+    const { id } = useParams({ from: "/application/clients/$id" });
+    return <FicheClient clientId={id} />;
+  },
+});
+
 const arbre = racine.addChildren([
   routeConnexion,
   routeInscription,
@@ -364,6 +420,11 @@ const arbre = racine.addChildren([
     routeConges,
     routeTeletravail,
     routeTemps,
+    routeCompetences,
+    routeTiers,
+    routeTiersFiche,
+    routeClients,
+    routeClientFiche,
   ]),
 ]);
 

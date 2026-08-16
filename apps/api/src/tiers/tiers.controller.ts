@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Post, Query } from "@nestjs/common";
 import { z } from "zod";
 import { enumDe, TYPES_TIERS } from "@trame/contracts";
 import { TiersService } from "./tiers.service.js";
@@ -17,6 +17,20 @@ const contact = {
 @Controller("tiers")
 export class TiersController {
   constructor(private readonly tiers: TiersService) {}
+
+  @Get()
+  @RequiertPermission("third_parties:read")
+  lister(@Query() requete: unknown) {
+    const filtres = valider(
+      z.object({
+        recherche: z.string().max(120).optional(),
+        type: enumDe(TYPES_TIERS).optional(),
+        archive: z.stringbool().optional(),
+      }),
+      requete,
+    );
+    return this.tiers.listerTiers(filtres);
+  }
 
   @Get(":id")
   @RequiertPermission("third_parties:read")
@@ -84,6 +98,19 @@ export class TiersController {
 export class ClientsController {
   constructor(private readonly tiers: TiersService) {}
 
+  @Get()
+  @RequiertPermission("clients:read")
+  lister(@Query() requete: unknown) {
+    const filtres = valider(
+      z.object({
+        recherche: z.string().max(120).optional(),
+        actif: z.stringbool().optional(),
+      }),
+      requete,
+    );
+    return this.tiers.listerClients(filtres);
+  }
+
   @Get(":id")
   @RequiertPermission("clients:read")
   fiche(@Param("id") id: string) {
@@ -108,6 +135,12 @@ export class ClientsController {
       corps,
     );
     return this.tiers.creerClient(donnees, d.userId);
+  }
+
+  @Delete(":id")
+  @RequiertPermission("clients:delete")
+  supprimer(@Param("id") id: string, @Demande() d: ContexteDemande) {
+    return this.tiers.supprimerClient(id, d.userId);
   }
 
   /**

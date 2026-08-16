@@ -75,6 +75,10 @@ Enrichi à chaque capitalisation. Un piège rencontré deux fois sans être cons
 - **26 maquettes sur 35 portent des jetons non conformes RGAA.** Une correction de contraste n'a pas été rétro-propagée. `socle.css` porte les valeurs conformes ; un écart de rendu sur `--placeholder`, `--line-strong` et `--leave-pending` contre ces 26 fichiers est **attendu**. Voir `mockups/GEL.md`, écart 5.
 - **Les relevés de référence sont versionnés.** `design/references/` est régénérable depuis les maquettes gelées, mais il est commité : un relevé qui change sans que la maquette ait changé est un signal de dérive. Contrepartie : une montée de version de Chromium en régénère une partie. Un tel commit se fait **seul et étiqueté comme tel**, jamais mêlé à du travail de lot.
 - **pnpm 11 ne lit plus le champ `pnpm` de `package.json`.** Les surcharges et `allowBuilds` vivent dans `pnpm-workspace.yaml`.
+- **Le cache de Turborepo ignore les fichiers non suivis par git.** `packages/db/src/generated` est ignoré : régénérer le client Prisma ne change pas la clé de cache, et `typecheck` rejoue un résultat qui ne décrit plus l'arbre. Les fichiers générés sont déclarés en `inputs` dans `turbo.json` ; ne pas les en retirer.
+- **`**/api/**` dans Playwright intercepte aussi les modules de Vite.** `/src/api/client.ts` reçoit alors du JSON là où le navigateur attend un module : page blanche, sans erreur parlante. Intercepter par prédicat ancré à la racine — `(url) => url.pathname.startsWith("/api/")`.
+- **Le compte de tests Playwright se lit à l'état de sortie, pas à la dernière ligne.** Le rapporteur `line` réécrit sa ligne de progression : un `tail -1` peut attraper `[96/100]` sur une suite entièrement verte.
+- **L'opacité ne sert jamais à atténuer du texte.** Les maquettes le font ; le contraste tombe sous le seuil AA à chaque fois. Employer un jeton, ou laisser le fond porter la distinction. Voir `docs/design/DESIGN.md § 4`.
 
 ## Convention de commit
 

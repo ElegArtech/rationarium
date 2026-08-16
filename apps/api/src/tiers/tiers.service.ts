@@ -165,6 +165,55 @@ export class TiersService {
     await this.prisma.thirdParty.delete({ where: { id } });
   }
 
+  /**
+   * `EX-TRS-01` — le répertoire des tiers.
+   *
+   * Les archivés sont exclus par défaut mais restent demandables : un tiers
+   * archivé n'est plus assignable, il n'a pas disparu. Le masquer sans moyen
+   * de le retrouver ferait croire à une suppression.
+   */
+  async listerTiers(filtres: { recherche?: string; type?: TypeTiers; archive?: boolean } = {}) {
+    // « Archivé » dans le vocabulaire du produit, `actif: false` en base.
+    const clauses: Record<string, unknown>[] = [{ actif: !(filtres.archive ?? false) }];
+    if (filtres.type) clauses.push({ type: filtres.type });
+    if (filtres.recherche) {
+      clauses.push({
+        OR: [
+          { organisation: { contains: filtres.recherche, mode: "insensitive" } },
+          { contactNom: { contains: filtres.recherche, mode: "insensitive" } },
+          { contactEmail: { contains: filtres.recherche, mode: "insensitive" } },
+        ],
+      });
+    }
+    return this.prisma.thirdParty.findMany({
+      where: { AND: clauses },
+      orderBy: [{ organisation: "asc" }, { contactNom: "asc" }],
+      include: { _count: { select: { projets: true, taches: true } } },
+    });
+  }
+
+  /** `EX-TRS-04` — le répertoire des clients, avec leur portefeuille. */
+  async listerClients(filtres: { recherche?: string; actif?: boolean } = {}) {
+    const clauses: Record<string, unknown>[] = [];
+    if (filtres.actif !== undefined) clauses.push({ actif: filtres.actif });
+    if (filtres.recherche) {
+      clauses.push({
+        OR: [
+          { nom: { contains: filtres.recherche, mode: "insensitive" } },
+          { contactNom: { contains: filtres.recherche, mode: "insensitive" } },
+        ],
+      });
+    }
+    return this.prisma.client.findMany({
+      ...(clauses.length > 0 ? { where: { AND: clauses } } : {}),
+      orderBy: { nom: "asc" },
+      include: {
+        projets: { include: { project: { select: { id: true, nom: true } } } },
+        _count: { select: { projets: true } },
+      },
+    });
+  }
+
   /** `EX-TRS-03` — la fiche d'un tiers et ses rattachements. */
   async ficheTiers(id: string) {
     const tiers = await this.prisma.thirdParty.findUnique({
@@ -273,4 +322,27 @@ export class TiersService {
       alternative: projets > 0 ? ("desactiver" as const) : null,
     };
   }
+  /**
+   * `EX-TRS-05` — supprimer un client **détache** ses projets.
+   *
+   * Ce n'est pas une suppression en cascade : un projet dont le bénéficiaire
+   * disparaît reste un projet. Confondre les deux effacerait du travail réel
+   * parce qu'un commanditaire a changé de nom.
+   */
+  async supprimerClient(id: string, acteurId: string) {
+    const client = await this.prisma.client.findUnique({
+      where: { id },
+      select: { nom: true, _count: { select: { projets: true } } },
+    });
+    if (!client) throw new ErreurTiers("introuvable");
+
+    await this.audit.tracer({
+      action: "client.delete", typeEntite: "Client", entiteId: id, acteurId,
+      detail: { nom: client.nom, projetsDetaches: client._count.projets },
+    });
+    // Le lien porte `onDelete: Cascade` sur la table de jonction seule : les
+    // projets ne sont pas touchés, seul le rattachement disparaît.
+    await this.prisma.client.delete({ where: { id } });
+  }
+
 }
