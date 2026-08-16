@@ -102,6 +102,7 @@
     "titre": "Roadmap",
     "chapeau": "Chronological view of the project milestones and tasks.",
     "nouveau": "+ New milestone",
+    "nouvelleTache": "+ New task",
     "nouveauTitre": "New milestone",
     "categorie": "Milestone",
     "termines": "Completed",
