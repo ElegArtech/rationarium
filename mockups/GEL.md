@@ -82,6 +82,24 @@ Les neuf fichiers corrigés sont exactement les vues critiques et très denses d
 
 **Conséquence pour la boucle visuelle** : lors d'une comparaison de rendu contre l'une des 26 maquettes non corrigées, un écart sur ces quatre jetons est **attendu et conforme**. La boucle doit le tolérer explicitement, sans quoi elle produira 26 faux positifs. C'est le premier cas concret alimentant la mesure du point ouvert n° 5 (`cadrage/04 § 12`).
 
+### Écart 6 — Cases à cocher sans nom accessible
+
+Relevé au premier passage de la boucle visuelle sur les 335 états, le 2026-08-16.
+
+Trois vues portent des `<input type="checkbox">` nus : sans `aria-label`, sans `label[for]`, non imbriqués dans un `<label>`. Leur sens n'est porté que par un texte adjacent, non associé programmatiquement.
+
+| Vue | Éléments | Ce que c'est |
+| --- | --- | --- |
+| **06** Tableau de bord | 6 | Cases des to-do personnelles |
+| **17** Fiche tâche | 5 | Cases des sous-tâches |
+| **34** Tâches prédéfinies | 12 | Cases apparaissant dans certains états seulement |
+
+Une assistance technique annonce « case à cocher, non cochée » sans dire de quoi. C'est un manquement à `C5` et à `cadrage/01 § 7 Accessibilité`, tous deux contractuels.
+
+**Décision : le portage corrige, la maquette reste inchangée.** Motif : la maquette est la référence **visuelle**, pas une référence de balisage ; et `cadrage/03 § 0` pose qu'aucune considération technique ne justifie de dévier d'une exigence. Le portage associe un nom accessible — le libellé de la to-do, celui de la sous-tâche — sans modifier le rendu.
+
+Concerne les lots **L-21** (vue 06), **L-11** (vue 17) et **L-17** (vue 34).
+
 ---
 
 ## 4. Empreintes au gel
