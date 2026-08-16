@@ -2,5 +2,17 @@
   "droits": {
     "permissionRequise": "Permission requise",
     "actionIndisponible": "Cette action ne vous est pas accessible"
+  },
+  "etats": {
+    "chargement": "Chargement de {quoi}…",
+    "laSession": "votre session",
+    "erreurTitre": "Le chargement a échoué",
+    "erreurRepli": "Les données n'ont pas pu être chargées. Réessayez dans un instant.",
+    "reessayer": "Réessayer",
+    "refusPermission": "Vous n'avez pas la permission d'ouvrir cette page.",
+    "refusPerimetre": "Cette page existe, mais elle est hors de votre périmètre.",
+    "retourAccueil": "Retour à l'accueil",
+    "introuvableTitre": "Cette adresse ne correspond à aucune page",
+    "introuvableExplication": "Le lien est peut-être incomplet, ou la page a été renommée."
   }
 }
