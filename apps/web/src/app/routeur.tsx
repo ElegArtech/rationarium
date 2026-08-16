@@ -45,6 +45,8 @@ import { Parametres } from "../vues/administration/Parametres.js";
 import { Roles } from "../vues/administration/Roles.js";
 import { Audit } from "../vues/administration/Audit.js";
 import { Predefinies } from "../vues/administration/Predefinies.js";
+import { Planning } from "../vues/planning/Planning.js";
+import { Activite } from "../vues/planning/Activite.js";
 
 /**
  * L'arborescence des routes.
@@ -430,6 +432,24 @@ const routeOrganisation = createRoute({
   component: Organisation,
 });
 
+const routePlanning = createRoute({
+  getParentRoute: () => routeApplication,
+  path: "/planning",
+  component: () => <Planning mode="semaine" />,
+});
+
+const routePlanningMois = createRoute({
+  getParentRoute: () => routeApplication,
+  path: "/planning/mois",
+  component: () => <Planning mode="mois" />,
+});
+
+const routePlanningActivite = createRoute({
+  getParentRoute: () => routeApplication,
+  path: "/planning/activite",
+  component: Activite,
+});
+
 const routeParametres = createRoute({
   getParentRoute: () => routeApplication,
   path: "/parametres",
@@ -482,6 +502,9 @@ const arbre = racine.addChildren([
     routeUtilisateurs,
     routeSuivi,
     routeOrganisation,
+    routePlanning,
+    routePlanningMois,
+    routePlanningActivite,
     routeParametres,
     routeRoles,
     routeAudit,

@@ -69,6 +69,11 @@
   --voile-fenetre:rgba(8,10,16,.45);
   --trame-leave-douce:rgba(106,75,166,.30);
   --trame-leave-pending-douce:rgba(120,110,150,.16);
+  /* Impression : le papier est blanc et l'encre noire dans les deux thèmes.
+     La maquette de la vue 09 posait #fff et #000 en littéral ; ce sont bien
+     des constantes, mais elles passent par un jeton comme tout le reste. */
+  --papier:#FFFFFF;
+  --encre:#000000;
 
   /* Rythme */
   --r:3px;                /* rayon standard : net, jamais arrondi mou */
@@ -223,6 +228,16 @@ a.eyebrow:hover{ color:var(--ink); }
 }
 .seg button + button{ border-left:1px solid var(--line); }
 .seg button[aria-pressed="true"]{ background:var(--accent); color:var(--on-accent); }
+/* Le groupe segmenté sert aussi de bascule de VUE (vues 07 à 09). Ses entrées
+   sont alors des liens, qui ne peuvent pas porter aria-pressed : l'état courant
+   passe par aria-current, et le style doit suivre. */
+.seg a{
+  font-family:var(--font-cond); font-size:12px; font-weight:600; letter-spacing:.04em;
+  text-transform:uppercase; padding:6px 13px; background:var(--surface); color:var(--muted);
+  text-decoration:none; display:inline-flex; align-items:center;
+}
+.seg a + a{ border-left:1px solid var(--line); }
+.seg a[aria-current="page"]{ background:var(--accent); color:var(--on-accent); }
 .chip-btn{
   font-family:var(--font-mono); font-size:10.5px; letter-spacing:.04em;
   padding:5px 9px; border:1px solid var(--line); border-radius:var(--r);

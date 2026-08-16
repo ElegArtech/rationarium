@@ -358,6 +358,7 @@ export class ActiviteService {
         ...(perimetre.global ? {} : { userId: { in: [...perimetre.utilisateurs] } }),
       },
       include: { user: { select: { id: true, prenom: true, nom: true } } },
+      orderBy: { user: { nom: "asc" } },
     });
 
     const parCle = new Map<string, typeof assignations>();
@@ -366,14 +367,25 @@ export class ActiviteService {
       parCle.set(cle, [...(parCle.get(cle) ?? []), a]);
     }
 
-    const lignes: { date: string; cellules: { tacheId: string; agents: unknown[] }[] }[] = [];
+    const lignes: {
+      date: string;
+      cellules: { tacheId: string; agents: Record<string, unknown>[] }[];
+    }[] = [];
     for (const d = new Date(debut); d <= fin; d.setUTCDate(d.getUTCDate() + 1)) {
       const iso = d.toISOString().slice(0, 10);
       lignes.push({
         date: iso,
         cellules: taches.map((t) => ({
           tacheId: t.id,
-          agents: (parCle.get(`${iso}|${t.id}`) ?? []).map((a) => a.user),
+          // L'identifiant de l'ASSIGNATION accompagne l'agent : sans lui, la
+          // vue 09 ne peut pas déclarer la réalisation (`EX-ACT-06`) sans une
+          // seconde requête pour retrouver ce qu'elle vient d'afficher.
+          agents: (parCle.get(`${iso}|${t.id}`) ?? []).map((a) => ({
+            ...a.user,
+            assignationId: a.id,
+            periode: a.periode,
+            realisee: a.realisee,
+          })),
         })),
       });
     }

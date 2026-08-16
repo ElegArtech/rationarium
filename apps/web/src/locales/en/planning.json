@@ -1,0 +1,214 @@
+{
+  "titre": "Resource schedule",
+  "leplanning": "the schedule",
+  "lagrille": "the activity grid",
+  "colonneRessource": "Resource",
+  "bandeau": "Calendar",
+  "bandeauFerie": "Holiday",
+  "sansService": "No team",
+  "congeEnAttente": "Pending",
+  "interventionExterieure": "EXT",
+  "teletravailLectureSeule": "Read-only — permission required",
+  "occupationsSupplementaires": "+{n, number} more",
+  "modes": {
+    "groupe": "Display mode",
+    "semaine": "Week",
+    "mois": "Month",
+    "activite": "Activity"
+  },
+  "navigation": {
+    "precedent_semaine": "Previous week",
+    "suivant_semaine": "Next week",
+    "precedent_mois": "Previous month",
+    "suivant_mois": "Next month",
+    "aujourdhui": "Today",
+    "libelle_semaine": "Week of {debut} to {fin}",
+    "libelle_mois": "From {debut} to {fin}"
+  },
+  "filtres": {
+    "tousServices": "All teams",
+    "nServices": "{n, plural, one {# team} other {# teams}}",
+    "departement": "Department",
+    "tousDepartements": "All departments",
+    "monPerimetre": "My scope",
+    "ressource": "Resource",
+    "ressourcePlaceholder": "Resource…"
+  },
+  "couches": {
+    "disponibilites": "Availability",
+    "activites": "Recurring",
+    "tachesProjet": "Project tasks",
+    "tachesHorsProjet": "Non-project tasks",
+    "evenements": "Events"
+  },
+  "actions": {
+    "toutReplier": "Collapse all",
+    "toutDeplier": "Expand all",
+    "replierGroupe": "Collapse team {nom}",
+    "deplierGroupe": "Expand team {nom}",
+    "exporterIcs": "Export ICS",
+    "creer": "Create",
+    "creerTache": "Task",
+    "creerEvenement": "Event",
+    "voirDetail": "View details",
+    "deplacerVers": "Move to…",
+    "reassignerA": "Reassign to…",
+    "dateVerrouillee": "Date cannot be moved: task has several assignees",
+    "basculerTeletravail": "{nom}, {date} — currently {etat}. Switch to {suivant}"
+  },
+  "groupe": {
+    "effectif": "{n, plural, one {# person} other {# people}}",
+    "replie": "(collapsed) — {n, plural, one {# task} other {# tasks}}"
+  },
+  "synthese": {
+    "titre": "Off site",
+    "tendance": "Monthly trend",
+    "detail": "{date} — {absents, number} of {total, number} ({pourcentage, number}%)"
+  },
+  "vide": {
+    "titre": "No resource to display",
+    "explication": "Your filters exclude every resource.",
+    "reinitialiser": "Reset filters"
+  },
+  "erreurs": {
+    "rafraichissement": "Change saved, but the display could not be refreshed — data may be out of date.",
+    "multiAssigneeDate": "Task has several assignees: the date cannot be changed here. Edit the dates from the task details.",
+    "multiAssigneeAssigne": "Task has several assignees: only the assignee changed. The date is unchanged for everyone.",
+    "deplacement": "The move did not go through.",
+    "teletravail": "Remote work could not be updated."
+  },
+  "messages": {
+    "deplacee": "Task moved.",
+    "teletravailBascule": "Remote work updated."
+  },
+  "legende": {
+    "titre": "Legend",
+    "toutAfficher": "Show everything",
+    "statuts": "Task statuses",
+    "typesTache": "Task type",
+    "presence": "Presence",
+    "absences": "Absences",
+    "evenements": "Events",
+    "tacheProjet": "Project task",
+    "tacheHorsProjet": "Non-project task",
+    "congeValide": "Approved leave",
+    "congeAttente": "Pending leave",
+    "evenementInterne": "Event",
+    "evenementExterne": "External intervention"
+  },
+  "presence": {
+    "office": "Office",
+    "telework": "Remote",
+    "undeclared": "Not declared",
+    "nonDeclare": "Not declared"
+  },
+  "demiJournee": {
+    "morning": "Morning",
+    "afternoon": "Afternoon"
+  },
+  "statuts": {
+    "todo": "To do",
+    "doing": "In progress",
+    "review": "In review",
+    "done": "Done",
+    "blocked": "Blocked"
+  },
+  "priorites": {
+    "low": "Low",
+    "normal": "Normal",
+    "high": "High",
+    "critical": "Critical"
+  },
+  "mois": {
+    "resume": "{nom}, {date} — {n, plural, =0 {nothing scheduled} one {# item} other {# items}}, {lieu}",
+    "resumeConge": "{nom}, {date} — {type}, {statut}"
+  },
+  "detail": {
+    "titre": "Details",
+    "fermer": "Close details",
+    "genre_tache": "Task",
+    "genre_evenement": "Event",
+    "genre_cellule": "Day",
+    "celluleTitre": "{nom} — {date}",
+    "celluleVide": "Nothing scheduled that day.",
+    "statut": "Status",
+    "priorite": "Priority",
+    "projet": "Project",
+    "horsProjet": "No project",
+    "periode": "Period",
+    "horaires": "Hours",
+    "avancement": "Progress",
+    "pourcentage": "{n, number}%",
+    "assignes": "Assignees",
+    "nAssignes": "{n, plural, one {# person} other {# people}}",
+    "ouvrir": "Open",
+    "ficheTache": "Task details",
+    "date": "Date",
+    "journeeEntiere": "All day",
+    "type": "Type",
+    "interventionExterieure": "External intervention",
+    "evenementInterne": "Internal event",
+    "participants": "Participants",
+    "nParticipants": "{n, plural, one {# participant} other {# participants}}"
+  },
+  "activite": {
+    "titre": "Activity grid",
+    "titreImpression": "Activity grid",
+    "imprimer": "Print",
+    "axeJours": "Days in rows",
+    "axeTaches": "Tasks in columns",
+    "aucunAgent": "No one assigned",
+    "agentsSupplementaires": "+{n, number} more",
+    "ajouter": "Add",
+    "ajouterA": "Add people to {tache}, on {date}",
+    "videTitre": "No active predefined task",
+    "videExplication": "The activity grid is built from the predefined task catalogue.",
+    "videAction": "Open the catalogue",
+    "fenetreTitre": "Add people",
+    "fenetreSousTitre": "{tache} · {date}",
+    "lesAgents": "the people",
+    "nSelectionnes": "{n, plural, =0 {no one selected} one {# person selected} other {# people selected}}",
+    "ajouterN": "Add ({n, number})",
+    "annuler": "Cancel",
+    "aucunEligible": "Everyone is already assigned, on leave, or working remotely that day.",
+    "motif_deja_assigne": "Already assigned",
+    "motif_en_conge": "On leave",
+    "motif_en_conge_detail": "On leave · {type}",
+    "motif_en_teletravail": "Working remotely",
+    "assignationsCreees": "{n, plural, one {# assignment created} other {# assignments created}}",
+    "echecAssignation": "The assignment did not go through.",
+    "realisationEnregistree": "Completion status saved.",
+    "echecRealisation": "The status could not be saved.",
+    "marquerTenue": "Mark {nom}'s shift as done",
+    "marquerNonTenue": "Mark {nom}'s shift as not done"
+  },
+  "jours": {
+    "court": {
+      "0": "Sun",
+      "1": "Mon",
+      "2": "Tue",
+      "3": "Wed",
+      "4": "Thu",
+      "5": "Fri",
+      "6": "Sat"
+    },
+    "initiale": {
+      "0": "S",
+      "1": "M",
+      "2": "T",
+      "3": "W",
+      "4": "T",
+      "5": "F",
+      "6": "S"
+    },
+    "long": {
+      "0": "Sunday",
+      "1": "Monday",
+      "2": "Tuesday",
+      "3": "Wednesday",
+      "4": "Thursday",
+      "5": "Friday",
+      "6": "Saturday"
+    }
+  }
+}
