@@ -1,4 +1,13 @@
 {
+  "01": "/connexion",
+  "02": "/inscription",
+  "03": "/mot-de-passe-oublie",
+  "04": "/reinitialisation",
+  "05": "/mot-de-passe-impose",
+  "06": "/",
+  "07": "/planning",
+  "08": "/planning/mois",
+  "09": "/planning/activite",
   "10": "/projets",
   "11": "/projets/0000700a-0000-4000-8000-000000000000",
   "12": "/projets/0000700a-0000-4000-8000-000000000000/taches",
@@ -24,14 +33,5 @@
   "32": "/roles",
   "33": "/audit",
   "34": "/taches-predefinies",
-  "35": "/profil",
-  "01": "/connexion",
-  "02": "/inscription",
-  "03": "/mot-de-passe-oublie",
-  "04": "/reinitialisation",
-  "05": "/mot-de-passe-impose",
-  "06": "/",
-  "07": "/planning",
-  "08": "/planning/mois",
-  "09": "/planning/activite"
+  "35": "/profil"
 }

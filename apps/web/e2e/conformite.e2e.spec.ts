@@ -46,10 +46,9 @@ test.describe("la boucle de conformité de rendu", () => {
     ) as Record<string, string>;
 
     /** Vues sans route, et pourquoi. Toute entrée ici est une dette nommée. */
-    const SANS_ROUTE: Record<string, string> = {
-      "24": "fiche tiers — aucun tiers dans le jeu de données local",
-      "26": "fiche client — aucun client dans le jeu de données local",
-    };
+    // Plus aucune : `scripts/donnees-vues-22-29.mjs` crée le tiers et le
+    // client qui manquaient, et leurs routes sont déclarées.
+    const SANS_ROUTE: Record<string, string> = {};
 
     const sansRoute = Object.keys(manifeste).filter((v) => !routes[v]);
     expect(sansRoute.sort()).toEqual(Object.keys(SANS_ROUTE).sort());
