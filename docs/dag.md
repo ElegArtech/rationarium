@@ -28,7 +28,7 @@ Séquentiel, en pair. Aucune délégation : c'est le harnais qui rend la délég
 
 | Lot | Contenu | Criticité | État |
 | --- | --- | --- | --- |
-| **L-00** | Harnais, espaces de travail, boucles de vérification, ADR, `DESIGN.md`, `socle.css`, `etats.json`, gel | Haute | en cours |
+| ~~**L-00**~~ | Harnais, espaces de travail, boucles de vérification, ADR, `DESIGN.md`, `socle.css`, `etats.json`, gel | Haute | **livré** — état corrigé le 2026-08-16 : la ligne était restée à « en cours » alors que ses neuf boucles servent chaque lot depuis L-02 |
 | **L-01** | Levée de R1, R2, R5 · prototype jetable de la vue 08 | Haute | **livré** — ADR-0006, 0013, 0014, 0015 |
 
 **Critère de sortie de la vague 0** : la question 3 du gate — *l'agent dispose-t-il des outils pour implémenter, tester et corriger seul ?* — reçoit un **oui démontré, commande par commande**.
