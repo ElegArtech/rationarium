@@ -1,0 +1,214 @@
+{
+  "titre": "Planning des ressources",
+  "leplanning": "le planning",
+  "lagrille": "la grille d'activité",
+  "colonneRessource": "Ressource",
+  "bandeau": "Calendrier",
+  "bandeauFerie": "Férié",
+  "sansService": "Sans service",
+  "congeEnAttente": "En attente",
+  "interventionExterieure": "EXT",
+  "teletravailLectureSeule": "Lecture seule — permission requise",
+  "occupationsSupplementaires": "+{n, number} de plus",
+  "modes": {
+    "groupe": "Mode d'affichage",
+    "semaine": "Semaine",
+    "mois": "Mois",
+    "activite": "Activité"
+  },
+  "navigation": {
+    "precedent_semaine": "Semaine précédente",
+    "suivant_semaine": "Semaine suivante",
+    "precedent_mois": "Mois précédent",
+    "suivant_mois": "Mois suivant",
+    "aujourdhui": "Aujourd'hui",
+    "libelle_semaine": "Semaine du {debut} au {fin}",
+    "libelle_mois": "Du {debut} au {fin}"
+  },
+  "filtres": {
+    "tousServices": "Tous les services",
+    "nServices": "{n, plural, one {# service} other {# services}}",
+    "departement": "Département",
+    "tousDepartements": "Tous les départements",
+    "monPerimetre": "Mon périmètre",
+    "ressource": "Ressource",
+    "ressourcePlaceholder": "Ressource…"
+  },
+  "couches": {
+    "disponibilites": "Disponibilités",
+    "activites": "Activités",
+    "tachesProjet": "Tâches projets",
+    "tachesHorsProjet": "Tâches hors projets",
+    "evenements": "Événements"
+  },
+  "actions": {
+    "toutReplier": "Tout replier",
+    "toutDeplier": "Tout déplier",
+    "replierGroupe": "Replier le service {nom}",
+    "deplierGroupe": "Déplier le service {nom}",
+    "exporterIcs": "Exporter ICS",
+    "creer": "Créer",
+    "creerTache": "Tâche",
+    "creerEvenement": "Événement",
+    "voirDetail": "Voir le détail",
+    "deplacerVers": "Déplacer vers…",
+    "reassignerA": "Réassigner à…",
+    "dateVerrouillee": "Date non déplaçable : tâche multi-assignée",
+    "basculerTeletravail": "{nom}, {date} — actuellement {etat}. Basculer vers {suivant}"
+  },
+  "groupe": {
+    "effectif": "{n, plural, one {# personne} other {# personnes}}",
+    "replie": "(replié) — {n, plural, one {# tâche} other {# tâches}}"
+  },
+  "synthese": {
+    "titre": "Hors présentiel",
+    "tendance": "Tendance du mois",
+    "detail": "{date} — {absents, number} sur {total, number} ({pourcentage, number} %)"
+  },
+  "vide": {
+    "titre": "Aucune ressource à afficher",
+    "explication": "Vos filtres excluent toutes les ressources.",
+    "reinitialiser": "Réinitialiser les filtres"
+  },
+  "erreurs": {
+    "rafraichissement": "Modification enregistrée, mais l'affichage n'a pas pu être actualisé — données possiblement périmées.",
+    "multiAssigneeDate": "Tâche multi-assignée : changement de date impossible. Modifiez les dates via le détail de la tâche.",
+    "multiAssigneeAssigne": "Tâche multi-assignée : seul l'assigné a été modifié. La date reste inchangée pour tous les assignés.",
+    "deplacement": "Le déplacement n'a pas abouti.",
+    "teletravail": "Le télétravail n'a pas pu être modifié."
+  },
+  "messages": {
+    "deplacee": "Tâche déplacée.",
+    "teletravailBascule": "Télétravail mis à jour."
+  },
+  "legende": {
+    "titre": "Légende",
+    "toutAfficher": "Tout afficher",
+    "statuts": "Statuts de tâches",
+    "typesTache": "Type de tâche",
+    "presence": "Présence",
+    "absences": "Absences",
+    "evenements": "Événements",
+    "tacheProjet": "Tâche de projet",
+    "tacheHorsProjet": "Tâche hors projet",
+    "congeValide": "Congé validé",
+    "congeAttente": "Congé en attente",
+    "evenementInterne": "Événement",
+    "evenementExterne": "Intervention extérieure"
+  },
+  "presence": {
+    "office": "Bureau",
+    "telework": "Télétravail",
+    "undeclared": "Non déclaré",
+    "nonDeclare": "Non déclaré"
+  },
+  "demiJournee": {
+    "morning": "Matin",
+    "afternoon": "Après-midi"
+  },
+  "statuts": {
+    "todo": "À faire",
+    "doing": "En cours",
+    "review": "En revue",
+    "done": "Terminée",
+    "blocked": "Bloquée"
+  },
+  "priorites": {
+    "low": "Basse",
+    "normal": "Normale",
+    "high": "Haute",
+    "critical": "Critique"
+  },
+  "mois": {
+    "resume": "{nom}, {date} — {n, plural, =0 {aucune occupation} one {# occupation} other {# occupations}}, {lieu}",
+    "resumeConge": "{nom}, {date} — {type}, {statut}"
+  },
+  "detail": {
+    "titre": "Détail",
+    "fermer": "Fermer le détail",
+    "genre_tache": "Tâche",
+    "genre_evenement": "Événement",
+    "genre_cellule": "Journée",
+    "celluleTitre": "{nom} — {date}",
+    "celluleVide": "Rien de prévu ce jour-là.",
+    "statut": "Statut",
+    "priorite": "Priorité",
+    "projet": "Projet",
+    "horsProjet": "Hors projet",
+    "periode": "Période",
+    "horaires": "Horaires",
+    "avancement": "Avancement",
+    "pourcentage": "{n, number} %",
+    "assignes": "Assignés",
+    "nAssignes": "{n, plural, one {# personne} other {# personnes}}",
+    "ouvrir": "Ouvrir",
+    "ficheTache": "Fiche de la tâche",
+    "date": "Date",
+    "journeeEntiere": "Journée entière",
+    "type": "Type",
+    "interventionExterieure": "Intervention extérieure",
+    "evenementInterne": "Événement interne",
+    "participants": "Participants",
+    "nParticipants": "{n, plural, one {# participant} other {# participants}}"
+  },
+  "activite": {
+    "titre": "Grille d'activité",
+    "titreImpression": "Grille d'activité",
+    "imprimer": "Imprimer",
+    "axeJours": "Jours en lignes",
+    "axeTaches": "Tâches en colonnes",
+    "aucunAgent": "Aucun agent affecté",
+    "agentsSupplementaires": "+{n, number} de plus",
+    "ajouter": "Ajouter",
+    "ajouterA": "Ajouter des agents à {tache}, le {date}",
+    "videTitre": "Aucune tâche prédéfinie active",
+    "videExplication": "La grille d'activité se remplit à partir du catalogue des tâches prédéfinies.",
+    "videAction": "Ouvrir le catalogue",
+    "fenetreTitre": "Ajouter des agents",
+    "fenetreSousTitre": "{tache} · {date}",
+    "lesAgents": "les agents",
+    "nSelectionnes": "{n, plural, =0 {aucun agent sélectionné} one {# agent sélectionné} other {# agents sélectionnés}}",
+    "ajouterN": "Ajouter ({n, number})",
+    "annuler": "Annuler",
+    "aucunEligible": "Tous les agents sont déjà assignés, en congé ou en télétravail ce jour.",
+    "motif_deja_assigne": "Déjà assigné",
+    "motif_en_conge": "En congé",
+    "motif_en_conge_detail": "En congé · {type}",
+    "motif_en_teletravail": "En télétravail",
+    "assignationsCreees": "{n, plural, one {# assignation créée} other {# assignations créées}}",
+    "echecAssignation": "L'assignation n'a pas abouti.",
+    "realisationEnregistree": "Statut de réalisation enregistré.",
+    "echecRealisation": "Le statut n'a pas pu être enregistré.",
+    "marquerTenue": "Marquer la permanence de {nom} comme tenue",
+    "marquerNonTenue": "Marquer la permanence de {nom} comme non tenue"
+  },
+  "jours": {
+    "court": {
+      "0": "Dim",
+      "1": "Lun",
+      "2": "Mar",
+      "3": "Mer",
+      "4": "Jeu",
+      "5": "Ven",
+      "6": "Sam"
+    },
+    "initiale": {
+      "0": "D",
+      "1": "L",
+      "2": "M",
+      "3": "M",
+      "4": "J",
+      "5": "V",
+      "6": "S"
+    },
+    "long": {
+      "0": "Dimanche",
+      "1": "Lundi",
+      "2": "Mardi",
+      "3": "Mercredi",
+      "4": "Jeudi",
+      "5": "Vendredi",
+      "6": "Samedi"
+    }
+  }
+}

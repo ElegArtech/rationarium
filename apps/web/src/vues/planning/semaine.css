@@ -1,0 +1,635 @@
+/*
+ * Vue 07 — planning, grille personnes × jours. Section 11 de la maquette.
+ *
+ * **Trois strates par cellule : présence · lieu · occupations.** C'est la
+ * réponse au problème de conception principal du produit — six informations de
+ * natures différentes dans une cellule de 54 px, sur vingt lignes. La grammaire
+ * est constante : la couleur porte le statut, la pastille porte le projet, le
+ * filet interrompu porte le hors-projet.
+ *
+ * Ce qui n'est pas ici : `.pl-toolbar`, `.filters`, `.f-input`, `.toasts`.
+ * Ils ont été extraits dans `composants/partages.css` au L-32 — ils
+ * n'appartiennent pas au planning, ils y apparaissaient seulement d'abord
+ * (voir `docs/design/DESIGN.md § 4`).
+ */
+
+.pl-period {
+  font-size: 13.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.pl-nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.nav-sq {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r);
+  color: var(--muted);
+  background: var(--surface);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.nav-sq:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.layers {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  flex-wrap: wrap;
+}
+
+.layer {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.layer input {
+  accent-color: var(--accent);
+  width: 14px;
+  height: 14px;
+}
+
+.layer.is-on {
+  color: var(--ink);
+}
+
+/* ── Cadre de grille ────────────────────────────────────────────────────── */
+
+.pl-wrap {
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r);
+  background: var(--surface);
+  overflow: auto;
+  max-height: calc(100vh - 300px);
+  position: relative;
+}
+
+.pl {
+  display: grid;
+  grid-template-columns: var(--cols);
+  min-width: max-content;
+}
+
+.pl-corner {
+  position: sticky;
+  top: 0;
+  left: 0;
+  z-index: 6;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--line-strong);
+  border-right: 1px solid var(--line-strong);
+  padding: 8px 10px;
+}
+
+.pl-head {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  background: var(--surface-2);
+  text-align: center;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--line-strong);
+  border-left: 1px solid var(--line);
+}
+
+.pl-dow {
+  display: block;
+  font-family: var(--font-cond);
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.pl-dnum {
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.15;
+}
+
+.pl-head.is-today .pl-dnum,
+.pl-head.is-today .pl-dow {
+  color: var(--accent);
+}
+
+.pl-head.is-off .pl-dnum {
+  color: var(--muted);
+}
+
+/* ── Bandeau de calendrier : nommé plutôt que deviné ────────────────────── */
+
+.pl-bandcell {
+  font-family: var(--font-cond);
+  font-size: 9.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-align: center;
+  padding: 3px 4px;
+  color: var(--muted);
+  border-bottom: 1px solid var(--line);
+  border-left: 1px solid var(--line);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pl-bandlab {
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--line);
+  border-right: 1px solid var(--line-strong);
+  padding: 3px 10px;
+}
+
+.is-vac {
+  background: var(--trame-vacances);
+}
+
+.is-ferie {
+  background: var(--trame-ferie);
+}
+
+/* ── Groupe de service ──────────────────────────────────────────────────── */
+
+.grp {
+  grid-column: 1 / -1;
+  position: sticky;
+  left: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 11px;
+  background: var(--surface-2);
+  border-top: 1px solid var(--line-strong);
+  border-bottom: 1px solid var(--line);
+  z-index: 3;
+}
+
+.grp-name {
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.grp-caret {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--muted);
+  width: 12px;
+}
+
+.grp-meta {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  color: var(--muted);
+}
+
+/* ── Ligne ressource ────────────────────────────────────────────────────── */
+
+.res {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: var(--surface);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 11px;
+  border-right: 1px solid var(--line-strong);
+  border-bottom: 1px solid var(--line);
+}
+
+.res-av {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  flex: none;
+}
+
+.res-name {
+  font-size: 12.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Cellule ────────────────────────────────────────────────────────────── */
+
+.cell {
+  border-left: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  padding: 4px;
+  min-height: 54px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  position: relative;
+}
+
+.cell.is-today {
+  background: color-mix(in srgb, var(--accent) 5%, var(--surface));
+}
+
+.cell.is-drop {
+  outline: 2px dashed var(--accent);
+  outline-offset: -2px;
+  background: var(--accent-soft);
+}
+
+.cell-add {
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  width: 17px;
+  height: 17px;
+  border-radius: 2px;
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1;
+  opacity: 0;
+}
+
+/* Le bouton d'ajout apparaît au survol ET au focus : une action qui ne se
+   révèle qu'à la souris n'existe pas au clavier. */
+.cell:hover .cell-add,
+.cell-add:focus-visible {
+  opacity: 1;
+}
+
+.cell-add:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+/* ── Strate 1 — absence : occupe la cellule, rien d'autre à afficher ────── */
+
+.leave {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 7px;
+  border-radius: 2px;
+  font-family: var(--font-cond);
+  font-size: 10.5px;
+  color: var(--ink);
+  min-height: 28px;
+  background: color-mix(in srgb, var(--leave) 20%, var(--surface));
+  border-left: 3px solid var(--leave);
+}
+
+/* `EX-PLN-13` — le congé en attente ne se confond pas avec le congé validé :
+   trame hachurée, filet interrompu, et la mention « En attente » en clair.
+   Trois signaux, dont un textuel : la couleur seule ne suffit jamais. */
+.leave-pending {
+  background-color: color-mix(in srgb, var(--leave-pending) 14%, var(--surface));
+  background-image: repeating-linear-gradient(
+    135deg,
+    var(--trame-leave-pending-douce) 0 4px,
+    transparent 4px 8px
+  );
+  border-left-style: dashed;
+}
+
+.leave-tag {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-left: auto;
+}
+
+.leave.is-half {
+  flex: 0 0 auto;
+}
+
+/* ── Strate 2 — lieu : discret, cliquable ───────────────────────────────── */
+
+.pres {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-cond);
+  font-size: 9.5px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  padding: 2px 5px;
+  border-radius: 2px;
+  border: 1px dashed var(--line-strong);
+  color: var(--muted);
+  background: transparent;
+  width: 100%;
+}
+
+.pres:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.pres.is-tt {
+  border-style: solid;
+  border-color: var(--telework);
+  color: var(--telework);
+  background: color-mix(in srgb, var(--telework) 9%, var(--surface));
+}
+
+.pres.is-office {
+  border-style: solid;
+  border-color: var(--line-strong);
+  color: var(--muted);
+}
+
+.pres.is-locked {
+  cursor: not-allowed;
+}
+
+.pres-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  flex: none;
+}
+
+/* ── Strate 3 — occupations ─────────────────────────────────────────────── */
+
+.occ {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-cond);
+  font-size: 10.5px;
+  line-height: 1.25;
+  padding: 3px 5px;
+  border-radius: 2px;
+  border-left: 3px solid currentColor;
+  background: color-mix(in srgb, currentColor 12%, var(--surface));
+  cursor: grab;
+  text-align: left;
+  width: 100%;
+}
+
+.occ:hover {
+  background: color-mix(in srgb, currentColor 20%, var(--surface));
+}
+
+.occ > span {
+  color: var(--ink);
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Le filet interrompu porte le hors-projet : la distinction ne repose pas sur
+   la couleur, qui est déjà prise par le statut. */
+.occ.is-indep {
+  border-left-style: dashed;
+}
+
+.occ.is-flat {
+  border-left-width: 3px;
+}
+
+.occ:active {
+  cursor: grabbing;
+}
+
+.occ.is-dragging {
+  opacity: 0.4;
+}
+
+.occ-ext {
+  font-family: var(--font-mono);
+  font-size: 7.5px;
+  letter-spacing: 0.06em;
+  color: var(--event);
+  border: 1px solid currentColor;
+  border-radius: 2px;
+  padding: 0 2px;
+  margin-left: auto;
+  flex: none;
+}
+
+.occ-more {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--muted);
+  padding: 1px 4px;
+  text-align: left;
+}
+
+/* ── Ligne de synthèse ──────────────────────────────────────────────────── */
+
+.sum-lab {
+  position: sticky;
+  left: 0;
+  bottom: 0;
+  z-index: 4;
+  background: var(--surface-2);
+  border-right: 1px solid var(--line-strong);
+  border-top: 1px solid var(--line-strong);
+  padding: 7px 11px;
+}
+
+.sum-cell {
+  position: sticky;
+  bottom: 0;
+  z-index: 3;
+  background: var(--surface-2);
+  text-align: center;
+  border-left: 1px solid var(--line);
+  border-top: 1px solid var(--line-strong);
+  padding: 7px 4px;
+}
+
+.sum-val {
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.sum-pct {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--muted);
+  display: block;
+}
+
+.sum-cell.is-high .sum-val {
+  color: var(--st-review);
+  font-weight: 600;
+}
+
+/* ── Légende filtrante ──────────────────────────────────────────────────── */
+
+.legend {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0;
+}
+
+.legend-sec {
+  padding: 11px 13px;
+  border-left: 1px solid var(--line);
+}
+
+.legend-sec:first-child {
+  border-left: none;
+}
+
+.legend-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 7px;
+}
+
+.lg {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11.5px;
+  color: var(--ink);
+  padding: 2px 4px;
+  border-radius: 2px;
+  text-align: left;
+}
+
+.lg:hover {
+  background: var(--surface-2);
+}
+
+.lg-sw {
+  width: 11px;
+  height: 11px;
+  border-radius: 2px;
+  border-left: 3px solid currentColor;
+  background: color-mix(in srgb, currentColor 22%, var(--surface));
+  flex: none;
+}
+
+.lg-sw.is-dashed {
+  border-left-style: dashed;
+}
+
+.lg-sw.is-flat {
+  border-left: none;
+  background: currentColor;
+}
+
+/* La maquette éteint l'entrée filtrée par `opacity: .5`, ce qui fait tomber le
+   contraste sous le seuil AA — quatrième occurrence de cet écart, consigné en
+   `DESIGN.md`. Le barré porte déjà l'information ; le jeton conforme porte la
+   couleur. */
+.lg[aria-pressed="false"] {
+  color: var(--placeholder);
+  text-decoration: line-through;
+}
+
+/* ── Panneau de détail latéral ──────────────────────────────────────────── */
+
+.drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 340px;
+  height: 100vh;
+  background: var(--surface);
+  border-left: 1px solid var(--line-strong);
+  z-index: 55;
+  display: flex;
+  flex-direction: column;
+  transform: translateX(100%);
+  transition: transform 0.18s ease;
+}
+
+.drawer.is-open {
+  transform: none;
+}
+
+.drawer-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.drawer-body {
+  padding: 14px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.dl {
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  gap: 7px 12px;
+  font-size: 12.5px;
+}
+
+.dl dt {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding-top: 2px;
+}
+
+.dl dd {
+  margin: 0;
+}
+
+.pl-empty {
+  padding: 44px 20px;
+  text-align: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .drawer {
+    transition: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .pl-wrap {
+    max-height: none;
+  }
+
+  .drawer {
+    width: 100%;
+  }
+}

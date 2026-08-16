@@ -4,13 +4,13 @@ Forme opérationnelle du § 5 de `cadrage/04`. C'est le document qu'on ouvre pou
 
 > **Sans DAG, la parallélisation est un pari ; avec, c'est une lecture.**
 
-**État au 2026-08-16** — **29 des 35 vues sont portées. La vague 3 bis est close.**
+**État au 2026-08-16** — **32 des 35 vues sont portées. Les vagues 3 bis et 4 sont closes.**
 
 Plus aucun lot ne porte la mention « livré (serveur) » : **L-08** (vues 32, 33), **L-09** (vue 31) et **L-17** (vue 34) repassent en **« livré »** tout court avec la clôture de L-37. La mention ne se justifiait que par des vues manquantes ; elles sont portées.
 
-Restent six vues, toutes dans les vagues 4 et 5 parce qu'elles dépendent de modules serveur non encore écrits : 06 (L-21), 07, 08, 09 (L-20), 15 et 30 (L-22).
+Restent trois vues, dans la vague 5, parce qu'elles dépendent de modules serveur non encore écrits : 06 (L-21), 15 et 30 (L-22).
 
-Reste ensuite : la vague 4 (L-20, planning unifié) et les vagues 5 et 6. Vague 1 ouvrable dès la clôture de la vague 0 : l'arbitrage bloquant B1 est rendu, les prérequis T1 à T6 sont levés.
+Reste ensuite : les vagues 5 et 6. Vague 1 ouvrable dès la clôture de la vague 0 : l'arbitrage bloquant B1 est rendu, les prérequis T1 à T6 sont levés.
 
 ---
 
@@ -125,9 +125,11 @@ Le choix est donc de **nommer la séparation plutôt que de la subir**. Les lots
 
 | Lot | Contenu | Modules | Vues | Criticité | Dépend de | Mode |
 | --- | --- | --- | --- | --- | --- | --- |
-| **L-20** | **Planning unifié** : point d'entrée agrégé, Semaine, Mois, Activité, glisser-déposer et alternative clavier, légende filtrante, ICS | M7 | 07, 08, 09 | **Haute** | L-11, L-14, L-15, L-16, L-17, L-30 | pair |
+| ~~**L-20**~~ | **Planning unifié** : point d'entrée agrégé, Semaine, Mois, Activité, glisser-déposer et alternative clavier, légende filtrante, ICS | M7 | 07, 08, 09 | **Haute** | L-11, L-14, L-15, L-16, L-17, L-30 | **livré** |
 
-Aucun parallélisme.
+Aucun parallélisme. **Vague close.**
+
+> **Ce que L-20 a révélé.** `FournisseurMessages` avait été écrit au L-31 et **jamais monté**. `useMessages` ne lève pas hors fournisseur — il se tait, délibérément, pour qu'une confirmation perdue ne fasse pas tomber la vue qui l'émettait. Résultat : depuis six lots, **aucune notification d'action n'apparaissait nulle part**, et six boucles vertes ne l'avaient pas vu. Aucun contrôle de bout en bout n'affirmait la présence d'un message ; ils vérifiaient tous l'effet, jamais l'accusé de réception. **Un composant qui échoue en silence par conception doit être tenu par un test, pas par une relecture.**
 
 **Le risque de ce lot a changé de nature.** Le prototype de la vague 0 (`ADR-0015`) établit que la vue Mois n'est pas un problème de rendu : 500 ressources × 31 jours se peignent en 52 ms, et en 297 ms sur matériel bridé six fois. L'effort de conception va donc au **point d'entrée agrégé** de `RG-PLN-01` et à ses index, pas à la couche de présentation — et le contrôle de `pnpm perf` doit porter sur la requête, non sur la peinture.
 

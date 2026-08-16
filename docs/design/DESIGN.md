@@ -165,7 +165,7 @@ Chaque maquette introduit **exactement une** section CSS, qui devient le module 
 | 1 TOKENS · 2 BASE · 3 TYPOGRAPHIE · 4 FORMULAIRES · 5 BOUTONS · 6 ALERTES · ACCESSIBILITÉ | vue 01 | **`styles/socle.css`** — global |
 | 7 GABARIT DE LA VUE CONNEXION · 8 GRILLE MINIATURE · 8 bis PORTEFEUILLE MINIATURE · 10 RESPONSIVE | vue 01 | L-04 — gabarit des vues 01 à 05 |
 | 7 COQUILLE APPLICATIVE · 8 GABARIT DE PAGE · 9 VOCABULAIRE DES OCCUPATIONS | vue 06 | L-05 — coquille |
-| 11 PLANNING GRILLE · 12 VUE MOIS · 13 VUE ACTIVITÉ · feuille d'impression | vues 07, 08, 09 | L-20 |
+| 11 PLANNING GRILLE · 12 VUE MOIS · 13 VUE ACTIVITÉ · feuille d'impression | vues 07, 08, 09 | L-20 → `vues/planning/semaine.css`, `mois.css`, `activite.css` |
 | *extraites de 11–13* : `.filters` · `.f-input` · `.pl-toolbar` · `.scrim-modal` · `.modal*` · `.toasts` · `.pill` · `.agent-av` · `.calc-tag` | — | **`composants/partages.css`** — transverse (L-32) |
 | 14 PORTEFEUILLE · 15 FICHE PROJET · 17 FEUILLE DE ROUTE · 18 ÉQUIPE | vues 10, 11, 13, 14 | L-10 |
 | 16 KANBAN · fenêtre d'import · 20 TÂCHES VUE GLOBALE · 21 FICHE TÂCHE | vues 12, 16, 17 | L-11 |
@@ -192,5 +192,9 @@ Chaque maquette introduit **exactement une** section CSS, qui devient le module 
 > **Troisième écart, relevé au portage de L-33 — le contraste des absences.** Les maquettes marquent une valeur absente par `opacity: .7` sur `--muted`. L'opacité fait tomber le contraste sous le seuil AA, et `axe` le refuse sur la vue portée. Le jeton `--placeholder` existe pour exactement cet usage et porte la valeur conforme. Les vues 10 et 16 emploient donc `color: var(--placeholder)` là où la maquette pose une opacité. **La maquette reste la référence de forme ; le socle est la référence de contraste.** Même famille que l'écart 5 de `mockups/GEL.md`.
 
 > **Quatrième écart, relevé au portage de L-37 — l'opacité, encore, sur une ligne inactive.** Les sections 36 et 38 atténuent les lignes désactivées par `opacity: .55`. Une tâche prédéfinie inactive reste au catalogue (`RG-ACT-05`) précisément pour être relue : la rendre illisible contredit la règle qui la conserve. Le fond porte la distinction — `background: var(--surface-2)` — et le texte garde son contraste. Quatrième occurrence de la même famille : la règle est désormais générale, **l'opacité ne dilue jamais du texte**.
+
+> **Cinquième écart, relevé au portage de L-20 — l'impression et les couleurs littérales.** La feuille d'impression de la vue 09 posait `#fff` et `#000` en littéral. Ce sont bien des constantes — le papier reste blanc dans les deux thèmes —, mais elles passent désormais par `--papier` et `--encre`, ajoutés au bloc des encres constantes du socle. Aucune couleur littérale ne subsiste hors `socle.css`.
+>
+> **Sixième écart, même famille que le troisième — l'en-tête de week-end du mois.** La section 12 atténue `.mo-head.is-off` par `opacity: .65`, ce qui fait tomber le contraste sous AA. La distinction est déjà portée par le fond de toute la colonne : l'en-tête garde `--muted`, conforme. S'y ajoutait la collision déjà rencontrée sur la vue 20 — quand aujourd'hui tombe un samedi, la règle du jour courant et celle du week-end ont le même poids. L'ordre d'écriture est ici **délibéré** : l'accent passe après, donc il gagne.
 
 **Ce qui ne se porte jamais** : la section « PANNEAU DE REVUE », explicitement marquée *hors produit* dans les maquettes. C'est l'outil qui pilote les états pour la vérification (`design/etats.json`), pas une partie de l'application.

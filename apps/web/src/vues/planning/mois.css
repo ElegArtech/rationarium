@@ -1,0 +1,303 @@
+/*
+ * Vue 08 — planning, vue Mois. Section 12 de la maquette.
+ *
+ * **La vue la plus contrainte du produit.** À 34 px de large, le texte ne tient
+ * plus. La réponse de la maquette est nette et on la suit : la cellule devient
+ * une **texture** — barres pour les occupations (couleur = statut), aplat pour
+ * l'absence, filet bas pour le lieu. Le détail se lit au survol ou au clavier,
+ * jamais dans la cellule.
+ *
+ * La colonne « Ressource » reste figée au défilement horizontal, la ligne
+ * d'en-tête au défilement vertical. Les deux `position: sticky` ne se
+ * contrarient pas : ils portent sur des axes différents.
+ */
+
+.mo {
+  display: grid;
+  grid-template-columns: var(--cols);
+  min-width: max-content;
+}
+
+.mo-head {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  background: var(--surface-2);
+  text-align: center;
+  padding: 5px 1px 6px;
+  border-bottom: 1px solid var(--line-strong);
+  border-left: 1px solid var(--line);
+}
+
+.mo-dow {
+  display: block;
+  font-family: var(--font-cond);
+  font-size: 8.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.mo-num {
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+/* Le lundi porte un filet plus marqué : sur vingt-deux colonnes, c'est le seul
+   repère qui permet de compter les semaines sans les compter. */
+.mo-head.is-mon,
+.mcell.is-mon,
+.msum.is-mon,
+.mo-band.is-mon {
+  border-left: 1px solid var(--line-strong);
+}
+
+.mo-head.is-today {
+  background: var(--accent-soft);
+}
+
+/* La maquette atténue le week-end par `opacity: .65` sur `--muted` : le
+   contraste tombe sous le seuil AA. La distinction est déjà portée par le fond
+   de toute la colonne (`.mcell.is-off`) — l'en-tête n'a pas à la répéter en
+   s'affaiblissant. Il garde donc `--muted`, qui est conforme. */
+.mo-head.is-off .mo-num,
+.mo-head.is-off .mo-dow {
+  color: var(--muted);
+}
+
+/* Le jour courant passe APRÈS le week-end : quand aujourd'hui tombe un samedi
+   — deux jours sur sept —, deux règles de même poids se disputent la couleur,
+   et la dernière écrite gagne. C'est le même piège qu'au portage de la vue 20 ;
+   ici l'ordre est délibéré, et l'accent l'emporte. */
+.mo-head.is-today .mo-num,
+.mo-head.is-today .mo-dow {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+/* ── Bandeau : une seule étiquette par période, pas un lavis répété ─────── */
+
+.mo-bandlab {
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  background: var(--surface-2);
+  border-right: 1px solid var(--line-strong);
+  border-bottom: 1px solid var(--line);
+  padding: 3px 11px;
+}
+
+.mo-band {
+  font-family: var(--font-cond);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  text-align: center;
+  padding: 3px 2px;
+  color: var(--muted);
+  border-bottom: 1px solid var(--line);
+  border-left: 1px solid var(--line);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mo-band.is-vac {
+  background: var(--trame-vacances);
+}
+
+.mo-band.is-ferie {
+  background: var(--trame-ferie);
+  color: var(--ink);
+}
+
+/* ── Micro-cellule ──────────────────────────────────────────────────────── */
+
+.mcell {
+  border-left: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  height: 34px;
+  padding: 4px 3px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  position: relative;
+  background: none;
+  width: 100%;
+}
+
+.mcell.is-off {
+  background: var(--surface-2);
+}
+
+.mcell.is-today {
+  background: color-mix(in srgb, var(--accent) 7%, var(--surface));
+}
+
+.mcell.is-ferie {
+  background: var(--trame-ferie);
+}
+
+.mcell:hover {
+  background: var(--accent-soft);
+}
+
+.mcell:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  z-index: 2;
+}
+
+.mbar {
+  height: 4px;
+  border-radius: 1px;
+  background: currentColor;
+  flex: none;
+}
+
+.mbar.is-indep {
+  background: repeating-linear-gradient(90deg, currentColor 0 3px, transparent 3px 5px);
+}
+
+.mleave {
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  top: 2px;
+  bottom: 2px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--leave) 32%, var(--surface));
+}
+
+.mleave.is-pending {
+  background-color: color-mix(in srgb, var(--leave-pending) 14%, var(--surface));
+  background-image: repeating-linear-gradient(
+    135deg,
+    var(--trame-leave-douce) 0 3px,
+    transparent 3px 6px
+  );
+}
+
+.mleave.is-am {
+  bottom: 50%;
+}
+
+.mleave.is-pm {
+  top: 50%;
+}
+
+.mplace {
+  position: absolute;
+  left: 3px;
+  right: 3px;
+  bottom: 2px;
+  height: 3px;
+  border-radius: 1px;
+  background: var(--telework);
+}
+
+.mplace.is-office {
+  background: var(--line-strong);
+}
+
+.mcount {
+  position: absolute;
+  right: 2px;
+  top: 1px;
+  font-family: var(--font-mono);
+  font-size: 7.5px;
+  color: var(--muted);
+}
+
+/* ── Synthèse : la tendance du mois se lit comme une courbe ─────────────── */
+
+.msum {
+  position: sticky;
+  bottom: 0;
+  z-index: 3;
+  background: var(--surface-2);
+  border-top: 1px solid var(--line-strong);
+  border-left: 1px solid var(--line);
+  height: 46px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 2px;
+  padding: 3px 2px 4px;
+}
+
+.msum-bar {
+  width: 9px;
+  min-height: 1px;
+  background: var(--accent);
+  border-radius: 1px 1px 0 0;
+  opacity: 0.55;
+}
+
+.msum.is-high .msum-bar {
+  background: var(--st-review);
+  opacity: 1;
+}
+
+.msum-n {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  color: var(--muted);
+  line-height: 1;
+}
+
+.msum-lab {
+  position: sticky;
+  left: 0;
+  bottom: 0;
+  z-index: 4;
+  background: var(--surface-2);
+  border-right: 1px solid var(--line-strong);
+  border-top: 1px solid var(--line-strong);
+  padding: 7px 11px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+/* ── Carte de détail : le détail sort de la cellule ─────────────────────── */
+
+.hcard {
+  position: fixed;
+  z-index: 80;
+  width: 242px;
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r);
+  padding: 10px 11px;
+  pointer-events: none;
+  box-shadow: 0 2px 0 var(--ombre-douce);
+}
+
+.hcard-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding-bottom: 7px;
+  margin-bottom: 7px;
+  border-bottom: 1px solid var(--line);
+}
+
+.hcard-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.hcard .occ {
+  cursor: default;
+}
+
+.hcard-none {
+  font-size: 11.5px;
+  color: var(--muted);
+}

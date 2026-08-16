@@ -49,6 +49,7 @@ import {
   FACETTES_AUDIT,
   PREDEFINIES,
 } from "./fixtures/parametrage.js";
+import { SEMAINE, GRILLE_ACTIVITE, ELIGIBILITE as ELIGIBILITE_A11Y } from "./fixtures/planning.js";
 
 /** Une session dotée des droits d'écriture : les vues doivent rester conformes
  *  avec leurs actions affichées, pas seulement en lecture seule. */
@@ -105,6 +106,10 @@ const SESSION_COMPLETE = {
     "users:manage_roles",
     "audit:read",
     "predefined_tasks:read",
+    "predefined_tasks:assign",
+    "predefined_tasks:update",
+    "planning:export_ics",
+    "telework:create",
   ],
 };
 
@@ -145,6 +150,18 @@ const VUES: {
   { nom: "27 — utilisateurs", chemin: "/utilisateurs", session: "valide" },
   { nom: "28 — suivi individuel", chemin: "/utilisateurs/u-autre/suivi", session: "valide" },
   { nom: "29 — départements et services", chemin: "/departements", session: "valide" },
+  { nom: "07 — planning, semaine", chemin: "/planning", session: "valide" },
+  { nom: "08 — planning, mois", chemin: "/planning/mois", session: "valide" },
+  { nom: "09 — planning, activité", chemin: "/planning/activite", session: "valide" },
+  {
+    nom: "09 — fenêtre d'ajout d'agents",
+    chemin: "/planning/activite",
+    session: "valide",
+    // La fenêtre porte le piège d'accessibilité de la vue : une liste de
+    // cases dont certaines sont désactivées avec leur raison.
+    apres: (page) =>
+      page.getByRole("button", { name: /Ajouter des agents à/ }).first().click(),
+  },
   { nom: "31 — paramètres", chemin: "/parametres", session: "valide" },
   {
     nom: "31 — paramètres, onglet jours fériés",
@@ -202,6 +219,9 @@ async function preparer(page: Page, session: "valide" | "absente", theme: "clair
         "/api/administration/audit": { corps: AUDIT },
         "/api/administration/audit/facettes": { corps: FACETTES_AUDIT },
         "/api/activite/taches": { corps: PREDEFINIES },
+        "/api/planning": { corps: SEMAINE },
+        "/api/planning/activite": { corps: GRILLE_ACTIVITE },
+        "/api/activite/eligibilite": { corps: ELIGIBILITE_A11Y },
       },
     });
   } else {

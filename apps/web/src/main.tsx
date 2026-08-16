@@ -7,13 +7,21 @@ import "./i18n/index.js";
 import "./styles/socle.css";
 import { initialiserTheme } from "./theme/index.js";
 import { routeur } from "./app/routeur.js";
+import { FournisseurMessages } from "./composants/messages.js";
 import { ErreurApi } from "./api/client.js";
 
 /**
  * @trame/web — point d'entrée du client.
  *
- * Trois choses sont posées ici, et rien d'autre : le cache de requêtes, le
- * thème mémorisé, le routeur.
+ * Quatre choses sont posées ici, et rien d'autre : le cache de requêtes, le
+ * thème mémorisé, la file de messages d'action, le routeur.
+ *
+ * **La file de messages est à la racine, hors du routeur.** Elle vaut aussi
+ * pour les vues 01 à 05, qui vivent hors de la coquille. Elle avait été écrite
+ * au L-31 et jamais montée : `useMessages` ne lève pas hors fournisseur — il
+ * se tait —, si bien qu'aucune confirmation d'action n'apparaissait nulle part,
+ * sans qu'aucune boucle ne s'en aperçoive. Un composant qui échoue en silence
+ * doit être branché par un test, pas par une relecture.
  *
  * **Le thème est appliqué avant le premier rendu.** L'appliquer dans un effet
  * ferait clignoter la page en clair avant de passer en sombre — désagréable,
@@ -45,7 +53,9 @@ if (!racine) throw new Error("L'élément #root est absent du document.");
 createRoot(racine).render(
   <StrictMode>
     <QueryClientProvider client={cache}>
-      <RouterProvider router={routeur} />
+      <FournisseurMessages>
+        <RouterProvider router={routeur} />
+      </FournisseurMessages>
     </QueryClientProvider>
   </StrictMode>,
 );
