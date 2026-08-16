@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Patch, Post } from "@nestjs/common";
 import { z } from "zod";
 import { OrganisationService } from "./organisation.service.js";
 import { Demande, RequiertPermission, type ContexteDemande } from "../commun/permissions.garde.js";
@@ -45,6 +45,36 @@ export class OrganisationController {
       corps,
     );
     return this.organisation.creerDirection(donnees, d.userId);
+  }
+
+  /**
+   * `EX-ORG-02` — renommer l'un des trois niveaux, ou changer son responsable.
+   *
+   * Corriger une faute dans un nom de service imposait jusqu'ici de le
+   * SUPPRIMER, donc d'en détacher les agents.
+   */
+  @Patch(":niveau/:id")
+  @RequiertPermission("departments:update")
+  renommer(
+    @Param("niveau") niveau: string,
+    @Param("id") id: string,
+    @Body() corps: unknown,
+    @Demande() d: ContexteDemande,
+  ) {
+    const cible = valider(
+      z.enum(["directions", "departements", "services"]),
+      niveau,
+    );
+    const donnees = valider(
+      z.object({
+        nom: z.string().min(1).max(160).optional(),
+        description: z.string().max(2000).nullish(),
+        responsableId: z.uuid().nullable().optional(),
+      }),
+      corps,
+    );
+    const singulier = cible === "directions" ? "direction" : cible === "departements" ? "departement" : "service";
+    return this.organisation.renommer(singulier, id, donnees, d.userId);
   }
 
   @Delete("directions/:id")

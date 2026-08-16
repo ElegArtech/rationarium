@@ -288,3 +288,62 @@ describe("EX-USR-09 — présence du jour", () => {
     expect(par.get(enTt.id)?.etat).toBe("teletravail");
   });
 });
+
+describe("EX-USR-02 — un compte SE MODIFIE", () => {
+  /*
+   * Il se créait, se désactivait, se supprimait ; rien ne le modifiait. La
+   * maquette 27 pose pourtant « Modifier » sur chaque ligne — et corriger une
+   * faute dans un nom, ou changer quelqu'un de service, n'avait aucun chemin.
+   */
+  it("l'identité se corrige, la version s'incrémente", async () => {
+    const acteur = uuid();
+    const u = await users.creer(nouveau(), acteur);
+
+    const apres = await users.modifier(u.id, { version: u.version, nom: "Corrigé" }, acteur);
+
+    expect(apres.nom).toBe("Corrigé");
+    expect(apres.version).toBe(u.version + 1);
+  });
+
+  it("RG-AUTH-08 — L'IDENTIFIANT DE CONNEXION N'EST PAS MODIFIABLE", async () => {
+    /*
+     * Il n'est pas dans les champs acceptés : c'est la clé sous laquelle les
+     * traces d'audit ont été écrites, et la changer réécrirait l'histoire. Le
+     * contrôle porte sur le fait qu'un envoi ne le change pas.
+     */
+    const acteur = uuid();
+    const u = await users.creer(nouveau(), acteur);
+
+    await users.modifier(
+      u.id,
+      { version: u.version, nom: "X", login: "nouveau-login" } as never,
+      acteur,
+    );
+
+    const relu = await prisma.user.findUniqueOrThrow({ where: { id: u.id } });
+    expect(relu.login).toBe(u.login);
+  });
+
+  it("RG-GEN-07 — une version périmée est refusée, jamais écrasée", async () => {
+    const acteur = uuid();
+    const u = await users.creer(nouveau(), acteur);
+    await users.modifier(u.id, { version: u.version, nom: "Premier" }, acteur);
+
+    await expect(
+      users.modifier(u.id, { version: u.version, nom: "Second" }, acteur),
+    ).rejects.toMatchObject({ code: "conflit_de_version" });
+
+    const relu = await prisma.user.findUniqueOrThrow({ where: { id: u.id } });
+    expect(relu.nom).toBe("Premier");
+  });
+
+  it("un courriel déjà pris est refusé", async () => {
+    const acteur = uuid();
+    const a = await users.creer(nouveau(), acteur);
+    const b = await users.creer(nouveau(), acteur);
+
+    await expect(
+      users.modifier(b.id, { version: b.version, email: a.email }, acteur),
+    ).rejects.toMatchObject({ code: "email_deja_pris" });
+  });
+});

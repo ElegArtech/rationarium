@@ -188,3 +188,39 @@ describe("EX-ORG-04 — l'arborescence respecte le périmètre", () => {
     expect(vus).toEqual([mien.id]);
   });
 });
+
+describe("EX-ORG-02 — les trois niveaux SE RENOMMENT", () => {
+  /*
+   * Ils se créaient et se supprimaient ; aucun ne se modifiait. La maquette 29
+   * pose « Modifier » sur les trois — et corriger une faute dans un nom de
+   * service imposait de le SUPPRIMER, donc d'en détacher les agents.
+   */
+  it("une direction se renomme et change de responsable", async () => {
+    const d = await orga.creerDirection({ nom: unique("Direction") }, acteur);
+
+    const apres = await orga.renommer("direction", d.id, { nom: unique("Renommée") }, acteur);
+
+    expect(apres.id).toBe(d.id);
+    expect(apres.nom).not.toBe(d.nom);
+  });
+
+  it("RG-ORG-04 — LE NOM RESTE UNIQUE À LA MODIFICATION", async () => {
+    /*
+     * Sans ce contrôle, il suffisait de créer puis de renommer pour fabriquer
+     * deux directions homonymes — la règle n'était tenue qu'à la création.
+     */
+    const nom = unique("Occupée");
+    await orga.creerDirection({ nom }, acteur);
+    const autre = await orga.creerDirection({ nom: unique("Autre") }, acteur);
+
+    await expect(
+      orga.renommer("direction", autre.id, { nom }, acteur),
+    ).rejects.toMatchObject({ code: "nom_deja_pris" });
+  });
+
+  it("un niveau inconnu est refusé, pas créé en douce", async () => {
+    await expect(
+      orga.renommer("direction", "00000000-0000-4000-8000-000000000000", { nom: "X" }, acteur),
+    ).rejects.toMatchObject({ code: "introuvable" });
+  });
+});

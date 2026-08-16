@@ -110,6 +110,61 @@ export class OrganisationService {
   }
 
   /**
+   * `EX-ORG-02` — **renommer une direction, un département, un service**, ou
+   * changer son responsable.
+   *
+   * Les trois niveaux se créaient et se supprimaient ; aucun ne se modifiait.
+   * La maquette 29 pose « Modifier » sur les trois — et corriger une faute
+   * dans un nom de service imposait de le supprimer, donc d'en détacher les
+   * agents et de perdre leur rattachement.
+   *
+   * `RG-ORG-04` — le nom reste unique à son niveau, à la modification comme à
+   * la création. Sans ce contrôle ici, il suffisait de créer puis de renommer
+   * pour fabriquer deux directions homonymes.
+   */
+  async renommer(
+    niveau: "direction" | "departement" | "service",
+    id: string,
+    donnees: { nom?: string; description?: string | null; responsableId?: string | null },
+    acteurId: string,
+  ) {
+    const table =
+      niveau === "direction"
+        ? this.prisma.direction
+        : niveau === "departement"
+          ? this.prisma.departement
+          : this.prisma.service;
+
+    const avant = await (table as { findUnique: (a: unknown) => Promise<{ nom: string } | null> })
+      .findUnique({ where: { id } });
+    if (!avant) throw new ErreurOrganisation("introuvable");
+    /*
+     * `RG-ORG-04` — le nom reste unique à son niveau. Le service en est exclu :
+     * son unicité est portée par le couple (département, nom), deux
+     * départements pouvant légitimement avoir chacun leur « Accueil ».
+     */
+    if (donnees.nom && donnees.nom !== avant.nom && niveau !== "service") {
+      await this.refuserNomEnDouble(niveau, donnees.nom);
+    }
+
+    const modifie = await (
+      table as { update: (a: unknown) => Promise<{ id: string; nom: string }> }
+    ).update({
+      where: { id },
+      data: { ...donnees, version: { increment: 1 } },
+    });
+
+    await this.audit.tracer({
+      action: `${niveau}.update`,
+      typeEntite: niveau === "direction" ? "Direction" : niveau === "departement" ? "Departement" : "Service",
+      entiteId: id,
+      acteurId,
+      detail: { avant: avant.nom, apres: modifie.nom },
+    });
+    return modifie;
+  }
+
+  /**
    * `RG-ORG-01` — une direction ne peut être supprimée tant que des
    * départements y sont rattachés. **L'utilisateur est invité à les détacher
    * au préalable** : le refus nomme les blocages, il ne dit pas seulement non.
