@@ -263,7 +263,8 @@
     "generer": "Generate",
     "generation": "Schedules generated: {crees, number} created, {ignores, number} skipped.",
     "echecGeneration": "Generation did not go through.",
-    "plageMaximale": "The date range cannot exceed 366 days."
+    "plageMaximale": "The date range cannot exceed 366 days.",
+    "exception": "Exception"
   },
   "temps": {
     "surtitre": "Human resources",

@@ -263,7 +263,8 @@
     "generer": "Générer",
     "generation": "Plannings générés : {crees, number} créé(s), {ignores, number} ignoré(s).",
     "echecGeneration": "La génération n'a pas abouti.",
-    "plageMaximale": "La plage de dates ne peut pas dépasser 366 jours."
+    "plageMaximale": "La plage de dates ne peut pas dépasser 366 jours.",
+    "exception": "Exception"
   },
   "temps": {
     "surtitre": "Ressources humaines",

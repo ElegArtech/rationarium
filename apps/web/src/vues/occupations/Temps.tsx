@@ -13,7 +13,6 @@ import { Fenetre } from "../../composants/fenetre.js";
 import { useMessages } from "../../composants/messages.js";
 import { Pastille, jetonDe, useLibelle } from "../../composants/pastilles.js";
 import { formaterDate, formaterMoisSeul, formaterNombre, joursVisibles } from "../../formats.js";
-import { PastilleRattachement } from "../taches/Liste.js";
 import "../../composants/partages.css";
 import "../taches/liste.css";
 import "./temps.css";
@@ -475,7 +474,22 @@ function LigneSaisie({ saisie }: { saisie: api.SaisieTemps }) {
           {saisie.description ?? saisie.task?.titre ?? t("temps.sansDescription")}
         </p>
         <span className="te-meta">
-          <PastilleRattachement projet={saisie.project} />
+          {/* Le rattachement d'une SAISIE se dit « Hors projet » — la tâche
+              indépendante est un objet, le temps qu'on y passe est du temps
+              hors projet. La maquette distingue les deux mots. */}
+          {saisie.project ? (
+            <span className="pchip">
+              <span className="picon" aria-hidden="true">
+                ◇
+              </span>
+              <span>{saisie.project.nom}</span>
+            </span>
+          ) : (
+            <span className="pchip is-indep">
+              <span className="dot-ind" aria-hidden="true" />
+              <span>{t("temps.horsProjet")}</span>
+            </span>
+          )}
           {saisie.task ? (
             <span className="te-created">{t("temps.surTache", { titre: saisie.task.titre })}</span>
           ) : null}

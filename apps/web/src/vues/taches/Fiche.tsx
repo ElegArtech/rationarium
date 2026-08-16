@@ -536,7 +536,7 @@ function SousTaches({ tache, modifiable }: { tache: api.FicheTache; modifiable: 
             placeholder={t("fiche.ajouterSousTache")}
             aria-label={t("fiche.ajouterSousTache")}
           />
-          <Button className="chip-btn" type="submit" isDisabled={!nouvelle.trim()}>
+          <Button className="btn btn-primary" type="submit" isDisabled={!nouvelle.trim()}>
             {t("fiche.ajouter")}
           </Button>
         </form>
@@ -549,6 +549,13 @@ function SousTaches({ tache, modifiable }: { tache: api.FicheTache; modifiable: 
 function Dependances({ tache }: { tache: api.FicheTache }) {
   const { t } = useTranslation("taches");
   const libelle = useLibelle();
+
+  /*
+   * `is-bad` marque la date qui ne tient pas : un prérequis qui finit APRÈS le
+   * début de cette tâche. C'est la même information que le bandeau d'alerte,
+   * portée là où on la lit — sur la ligne du lien fautif.
+   */
+  const incoherent = new Set(tache.incoherences.map((x) => x.prerequis.id));
 
   const colonne = (
     titre: string,
@@ -567,7 +574,7 @@ function Dependances({ tache }: { tache: api.FicheTache }) {
           <div className="dep-item" key={l.id}>
             <div className="bloc-etroit">
               <span className="dep-t">{l.titre}</span>
-              <span className="dep-e">
+              <span className={`dep-e${incoherent.has(l.id) ? " is-bad" : ""}`}>
                 {libelle(l.statut, STATUTS_TACHE)}
                 {dateLibelle(l) ? ` · ${dateLibelle(l)}` : ""}
               </span>
@@ -739,7 +746,7 @@ function Commentaires({ tache }: { tache: api.FicheTache }) {
             placeholder={t("fiche.ecrireCommentaire")}
             aria-label={t("fiche.ecrireCommentaire")}
           />
-          <Button className="chip-btn" type="submit" isDisabled={!contenu.trim()}>
+          <Button className="btn btn-primary" type="submit" isDisabled={!contenu.trim()}>
             {t("fiche.publier")}
           </Button>
         </form>
