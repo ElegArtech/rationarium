@@ -44,6 +44,12 @@ export const PROJETS = [
   { cle: "portail", nom: "Refonte du portail citoyen", icone: "p-screen", avancement: 62 },
   { cle: "sirh", nom: "Migration SIRH", icone: "p-database", avancement: 31 },
   { cle: "schema", nom: "Schéma directeur numérique", icone: "p-flow", avancement: 12 },
+  /*
+   * Un projet ANNULÉ. `is-cancelled` n'a aucune autre source : sans lui, la
+   * classe reste inerte et le filtre « Annulés » du portefeuille ne montre
+   * jamais rien — ni la vue, ni aucune boucle ne pouvait le dire.
+   */
+  { cle: "archives", nom: "Dématérialisation des archives", icone: "p-scroll", statut: "cancelled", avancement: 18 },
 ] as const;
 
 const lundiDe = (reference: Date): Date => {
@@ -109,13 +115,15 @@ export async function peuplerMaquette(
         id: idStable("p", i),
         nom: p.nom,
         icone: p.icone,
-        statut: "active",
+        statut: "statut" in p ? p.statut : "active",
         dateDebut: jour(-60),
         dateFin: jour(60 + i * 30),
         createurId: moi.id,
         chefId: agents[i % agents.length]!.id,
       },
-      update: { nom: p.nom, icone: p.icone },
+      // Le statut est dans la mise à jour : sans lui, un projet qui change
+      // d'état garde l'ancien à chaque rejeu du jeu de données.
+      update: { nom: p.nom, icone: p.icone, statut: "statut" in p ? p.statut : "active" },
     });
     projets.push(projet);
 
@@ -478,6 +486,14 @@ const TACHES = [
   // Hors projet : ni pastille ni projet. C'est `badge-indep` et `tchip-indep`.
   { titre: "Réunion de service", projet: null, statut: "todo", agent: 0, debut: 2, fin: 2 },
   { titre: "Accueil · matin", projet: null, statut: "doing", agent: 2, debut: 0, fin: 0 },
+  /*
+   * Les quatre priorités et les cinq statuts doivent TOUS exister sur le projet
+   * que les vues 11, 13 et 15 mesurent — sinon « Basse », « Critique »,
+   * « Bloqué » et « En revue » n'ont aucune donnée qui les porte, et la vue
+   * paraît incomplète alors que c'est le jeu de données qui l'est.
+   */
+  { titre: "Reprise des contenus", projet: "portail", jalon: "Recette", statut: "blocked", agent: 1, debut: 1, fin: 6, priorite: "critical" },
+  { titre: "Relecture juridique", projet: "portail", jalon: "Recette", statut: "review", agent: 3, debut: 2, fin: 5, avancement: 70, priorite: "low" },
 ] as const;
 
 const TODOS = [
