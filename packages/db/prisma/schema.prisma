@@ -367,6 +367,9 @@ model Project {
   @@index([departementId])
   @@index([chefId])
   @@index([archive])
+  /// Recherche globale — `pg_trgm`. Un index B-tree ne sert pas un `LIKE
+  /// '%…%'` ; celui-ci si.
+  @@index([nom(ops: raw("gin_trgm_ops"))], map: "projects_nom_trgm", type: Gin)
   @@map("projects")
 }
 
@@ -418,7 +421,11 @@ model Milestone {
 
   @@unique([projectId, nom])
   @@index([projectId])
-  @@index([dateEcheance])
+  /// Composite, et dans l'ordre du tri de la feuille de route : « les jalons
+  /// sans date en dernier » ne doit pas coûter un tri complet. Le `NULLS LAST`
+  /// posé par la migration n'est pas exprimable ici ; les colonnes le sont, et
+  /// c'est ce qui évite qu'une migration ultérieure remette l'index simple.
+  @@index([projectId, dateEcheance], map: "milestones_dateEcheance_idx")
   @@map("milestones")
 }
 
@@ -483,6 +490,8 @@ model Task {
   @@index([statut])
   @@index([dateFin])
   @@index([milestoneId])
+  /// Recherche globale — `pg_trgm`. Voir `Project.nom`.
+  @@index([titre(ops: raw("gin_trgm_ops"))], map: "tasks_titre_trgm", type: Gin)
   @@map("tasks")
 }
 
@@ -1111,7 +1120,11 @@ model Notification {
 /// Partitionnement mensuel et index BRIN sur l'horodatage, posés en migration :
 /// la rétention se règle par détachement de partition, jamais par purge.
 model AuditLog {
-  id         String   @default(uuid()) @db.Uuid
+  /// La valeur est engendrée PAR LA BASE, pas par le client : le journal est
+  /// la seule table qu'un défaut applicatif ne doit pas pouvoir laisser sans
+  /// identifiant. Déclaré ici pour que le datamodèle dise ce que la migration
+  /// pose — sinon la prochaine migration retirerait ce défaut sans le vouloir.
+  id         String   @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   horodatage DateTime @default(now())
   action     String
   typeEntite String
@@ -1122,8 +1135,10 @@ model AuditLog {
   detail     Json?
 
   @@id([id, horodatage])
-  @@index([typeEntite, entiteId])
-  @@index([acteurId])
-  @@index([action])
+  @@index([typeEntite, entiteId], map: "audit_log_entite")
+  @@index([acteurId], map: "audit_log_acteur")
+  @@index([action], map: "audit_log_action")
+  /// BRIN et non B-tree : le journal est écrit dans l'ordre chronologique.
+  @@index([horodatage], map: "audit_log_horodatage_brin", type: Brin)
   @@map("audit_log")
 }
