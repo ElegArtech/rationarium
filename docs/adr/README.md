@@ -20,8 +20,9 @@ Chaque ADR porte une rubrique **« ce qui est désormais interdit »**. Ce n'est
 | [0012](ADR-0012-aucune-bibliotheque-graphique.md) | Aucune bibliothèque de graphiques, de Gantt ni de planning | `03 § 4, D12` |
 | [0013](ADR-0013-chaine-approvisionnement-hors-ligne.md) | Chaîne d'approvisionnement et construction hors ligne | `C1` · **vérifié** |
 | [0014](ADR-0014-typescript-6-plutot-que-7.md) | TypeScript 6.0.3 plutôt que 7.0.2 | `03 § 6, R1` · **vérifié** |
+| [0015](ADR-0015-densite-vue-mois.md) | Densité de la vue Mois : pas de virtualisation | `03 § 6, R5` · **vérifié** |
 
-Les trois marqués **vérifié** ne dérivent pas d'un document : ils consignent le résultat d'une vérification menée en conditions réelles, et deux d'entre eux **corrigent** le socle technique.
+Les quatre marqués **vérifié** ne dérivent pas d'un document : ils consignent le résultat d'une vérification menée en conditions réelles. Deux **corrigent** le socle technique ; un troisième établit que le risque qu'il traitait était mal attribué.
 
 ## Écrire un nouvel ADR
 
