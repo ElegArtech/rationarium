@@ -40,7 +40,6 @@
     "themeClair": "Thème clair",
     "themeSombre": "Thème sombre",
     "themeAuto": "Thème automatique",
-    "notifications": "Notifications",
     "notificationsNonLues": "{n, plural, =0 {aucune notification non lue} one {# notification non lue} other {# notifications non lues}}",
     "menuUtilisateur": "Menu utilisateur",
     "monProfil": "Mon profil",
