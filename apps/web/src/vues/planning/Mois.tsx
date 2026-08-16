@@ -2,7 +2,7 @@ import { type CSSProperties } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "react-aria-components";
 import type { Planning, PersonnePlanning } from "../../api/planning.js";
-import { CELLULE_VIDE, initiales, type Cellule } from "./grille.js";
+import { CELLULE_VIDE, initiales, joursAffiches, type Cellule } from "./grille.js";
 import { cleGroupe } from "./Planning.js";
 import type { Selection } from "./Detail.js";
 
@@ -43,7 +43,9 @@ export function GrilleMois({
   surSelection: (s: Selection) => void;
 }) {
   const { t } = useTranslation("planning");
-  const jours = donnees.periode.jours;
+  // `RG-PLN-03` — « masquer le week-end » vaut aussi sur la vue Mois, et
+  // c'est même là qu'il fait gagner le plus de largeur.
+  const jours = joursAffiches(donnees.periode.jours);
   const aujourdhui = new Date().toISOString().slice(0, 10);
   const style = { "--cols": `190px repeat(${jours.length}, 34px)` } as CSSProperties;
 

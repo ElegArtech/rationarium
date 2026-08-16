@@ -2,7 +2,7 @@ import { useTranslation } from "react-i18next";
 import { Button } from "react-aria-components";
 import type { TachePlanning, EvenementPlanning, PersonnePlanning } from "../../api/planning.js";
 import type { Cellule } from "./grille.js";
-import { formaterDate } from "../../formats.js";
+import { formaterDate, formaterHeure } from "../../formats.js";
 
 /**
  * Le panneau de détail latéral des vues 07 et 08.
@@ -99,7 +99,7 @@ function Corps({ selection }: { selection: Selection }) {
           <>
             <dt>{t("detail.horaires")}</dt>
             <dd>
-              {tache.heureDebut} – {tache.heureFin ?? "—"}
+              {formaterHeure(tache.heureDebut)} – {formaterHeure(tache.heureFin)}
             </dd>
           </>
         ) : null}
@@ -127,7 +127,7 @@ function Corps({ selection }: { selection: Selection }) {
         <dd>
           {e.journeeEntiere
             ? t("detail.journeeEntiere")
-            : `${e.heureDebut ?? "—"} – ${e.heureFin ?? "—"}`}
+            : `${formaterHeure(e.heureDebut)} – ${formaterHeure(e.heureFin)}`}
         </dd>
         <dt>{t("detail.projet")}</dt>
         <dd>{e.project?.nom ?? t("detail.horsProjet")}</dd>

@@ -6,7 +6,7 @@ import * as api from "../../api/administration.js";
 import { usePeut } from "../../session/session.js";
 import { Chargement, ErreurDeChargement, AccesRefuse } from "../../composants/etats.js";
 import { useLibelle } from "../../composants/pastilles.js";
-import { formaterDate } from "../../formats.js";
+import { formaterDate, formaterHeure } from "../../formats.js";
 import "../../composants/partages.css";
 import "../taches/liste.css";
 import "./predefinies.css";
@@ -108,7 +108,7 @@ export function Predefinies() {
                       ici évite d'ouvrir la fiche pour vérifier. */}
                   {tache.heureDebut && tache.heureFin ? (
                     <span className="pt-slot">
-                      {tache.heureDebut} – {tache.heureFin}
+                      {formaterHeure(tache.heureDebut)} – {formaterHeure(tache.heureFin)}
                     </span>
                   ) : null}
                 </span>

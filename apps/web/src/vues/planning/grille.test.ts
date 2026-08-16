@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
+import { appliquerReglages } from "../../formats.js";
 import {
   lundiDe,
+  joursAffiches,
   decaler,
   periodeDe,
   ajouterJours,
@@ -240,5 +242,53 @@ describe("EX-PLN-03 — l'indexation des occupations", () => {
       TOUT,
     );
     expect(index.size).toBe(0);
+  });
+});
+
+/**
+ * L-28 — `RG-GEN-09` et `RG-PLN-03` : le paramétrage global **s'applique**.
+ *
+ * Ces réglages étaient enregistrés par la vue 31 et n'agissaient nulle part.
+ * Un contrôle qui vérifie qu'on peut les enregistrer ne dit rien de ce qui
+ * compte : qu'ils changent quelque chose.
+ */
+describe("RG-PLN-03 — les jours visibles suivent le paramétrage", () => {
+  const semaine = jours("2026-08-10", 7);
+
+  it("par défaut, la semaine ouvrée : cinq colonnes", () => {
+    appliquerReglages({});
+    expect(joursAffiches(semaine)).toHaveLength(5);
+  });
+
+  it("tous les jours quand le réglage les demande", () => {
+    appliquerReglages({ "planning.visibleDays": "0,1,2,3,4,5,6" });
+    expect(joursAffiches(semaine)).toHaveLength(7);
+  });
+
+  it("UNE GRILLE SANS COLONNE RESSEMBLE À UNE PANNE : on retombe sur la période", () => {
+    // Le réglage n'autorise que le dimanche, la période n'en contient pas.
+    appliquerReglages({ "planning.visibleDays": "3" });
+    expect(joursAffiches(jours("2026-08-10", 2))).toEqual(jours("2026-08-10", 2));
+  });
+
+  it("un réglage illisible ne vide pas la grille", () => {
+    appliquerReglages({ "planning.visibleDays": "n'importe quoi" });
+    expect(joursAffiches(semaine)).toHaveLength(5);
+  });
+});
+
+describe("RG-GEN-09 — le premier jour de la semaine suit le paramétrage", () => {
+  it("lundi par défaut", () => {
+    appliquerReglages({});
+    // 2026-08-16 est un dimanche : il appartient à la semaine du lundi 10.
+    expect(lundiDe("2026-08-16")).toBe("2026-08-10");
+  });
+
+  it("dimanche quand le réglage le demande", () => {
+    appliquerReglages({ "display.firstDayOfWeek": "0" });
+    // La même date ouvre alors sa propre semaine.
+    expect(lundiDe("2026-08-16")).toBe("2026-08-16");
+    expect(lundiDe("2026-08-12")).toBe("2026-08-09");
+    appliquerReglages({});
   });
 });

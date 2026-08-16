@@ -10,7 +10,7 @@ import { usePeut } from "../../session/session.js";
 import { Chargement, ErreurDeChargement } from "../../composants/etats.js";
 import { Fenetre } from "../../composants/fenetre.js";
 import { useMessages } from "../../composants/messages.js";
-import { formaterDate, formaterDateLongue } from "../../formats.js";
+import { formaterDate, formaterDateLongue, formaterHeure } from "../../formats.js";
 import "../../composants/partages.css";
 import "../taches/liste.css";
 import "./evenements.css";
@@ -195,7 +195,7 @@ function LigneEvenement({ evenement }: { evenement: api.Evenement }) {
       <span className={`ev-time${evenement.journeeEntiere ? " is-all" : ""}`}>
         {evenement.journeeEntiere
           ? t("evenements.touteLaJournee")
-          : `${evenement.heureDebut ?? "—"} – ${evenement.heureFin ?? "—"}`}
+          : `${formaterHeure(evenement.heureDebut)} – ${formaterHeure(evenement.heureFin)}`}
       </span>
 
       <div className="bloc-etroit">
