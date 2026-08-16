@@ -44,7 +44,7 @@ export function PanneauNotifications() {
 
   return (
     <>
-      <div className="notif-head">
+      <div className="pop-head">
         <p className="panel-title">{t("notifications.titre")}</p>
         {(requete.data?.nonLues ?? 0) > 0 ? (
           <Button
@@ -66,25 +66,29 @@ export function PanneauNotifications() {
         </div>
       ) : null}
 
-      <div className="notif-liste">
+      <div className="pop-list">
         {entrees.map((n) => (
-          <div className={`notif${n.lue ? " is-lue" : ""}`} key={n.id}>
-            <span className="notif-corps">
+          <div className={`pop-item${n.lue ? "" : " is-unread"}`} key={n.id}>
+            {/* La pastille de non-lu est portée par la liste, pas par un point
+                dans le texte : c'est ce que fait la maquette, et c'est ce qui
+                permet de la lire en survolant la colonne de gauche. */}
+            <span className="pop-mark" aria-hidden="true" />
+            <span className="pop-body">
               {/* Le lien mène à l'objet : une notification qui ne mène nulle
                   part oblige à le retrouver à la main. */}
               {n.lien ? (
-                <a className="notif-titre" href={n.lien}>
+                <a className="pop-title" href={n.lien}>
                   {n.titre}
                 </a>
               ) : (
-                <span className="notif-titre">{n.titre}</span>
+                <span className="pop-title">{n.titre}</span>
               )}
-              <span className="notif-texte">{n.contenu}</span>
-              <span className="notif-quand">{formaterDateLongue(n.creeLe)}</span>
+              <span className="pop-meta">{n.contenu}</span>
+              <span className="pop-meta">{formaterDateLongue(n.creeLe)}</span>
             </span>
             {!n.lue ? (
               <Button
-                className="notif-lue"
+                className="chip-btn"
                 aria-label={t("notifications.marquerLue", { titre: n.titre })}
                 onPress={() => lecture.mutate(n.id)}
               >

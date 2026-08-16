@@ -266,7 +266,11 @@ test.describe("Vue 33 — journal d'audit", () => {
     await serveur(page, { session: SESSION_CONFIG, reponses });
     await page.goto("/audit");
 
-    await expect(page.getByText("Hugo Nguyen")).toBeVisible();
+    // Le nom est visé DANS LE CONTENU : depuis que la coquille affiche
+    // l'identité de la personne connectée — comme la maquette le demande —,
+    // « Hugo Nguyen » figure aussi dans le menu utilisateur. Un `getByText`
+    // nu attrape les deux et échoue en mode strict.
+    await expect(page.locator("#contenu").getByText("Hugo Nguyen")).toBeVisible();
     await expect(page.getByText("Système", { exact: true })).toBeVisible();
     // L'entrée survit à la personne : c'est le point d'un journal.
     await expect(page.getByText("Compte supprimé")).toBeVisible();
