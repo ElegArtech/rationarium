@@ -47,6 +47,8 @@ import { Predefinies } from "../vues/administration/Predefinies.js";
 import { Planning } from "../vues/planning/Planning.js";
 import { Activite } from "../vues/planning/Activite.js";
 import { TableauDeBord } from "../vues/tableau/TableauDeBord.js";
+import { Rapports } from "../vues/rapports/Rapports.js";
+import { GanttProjet } from "../vues/rapports/GanttProjet.js";
 
 /**
  * L'arborescence des routes.
@@ -298,6 +300,15 @@ const routeProjet = createRoute({
   },
 });
 
+const routeProjetGantt = createRoute({
+  getParentRoute: () => routeApplication,
+  path: "/projets/$id/gantt",
+  component: function PageGanttProjet() {
+    const { id } = useParams({ from: "/application/projets/$id/gantt" });
+    return <GanttProjet projetId={id} />;
+  },
+});
+
 const routeProjetJalons = createRoute({
   getParentRoute: () => routeApplication,
   path: "/projets/$id/jalons",
@@ -429,6 +440,12 @@ const routeOrganisation = createRoute({
   component: Organisation,
 });
 
+const routeRapports = createRoute({
+  getParentRoute: () => routeApplication,
+  path: "/rapports",
+  component: Rapports,
+});
+
 const routePlanning = createRoute({
   getParentRoute: () => routeApplication,
   path: "/planning",
@@ -482,6 +499,7 @@ const arbre = racine.addChildren([
     routeProfil,
     routeProjets,
     routeProjet,
+    routeProjetGantt,
     routeProjetJalons,
     routeProjetEquipe,
     routeProjetTaches,
@@ -499,6 +517,7 @@ const arbre = racine.addChildren([
     routeUtilisateurs,
     routeSuivi,
     routeOrganisation,
+    routeRapports,
     routePlanning,
     routePlanningMois,
     routePlanningActivite,

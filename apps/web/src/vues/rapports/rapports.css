@@ -1,0 +1,102 @@
+/*
+ * Vue 30 — rapports et analytics. Section 34 de la maquette.
+ *
+ * **Hiérarchie sans pitié** : la santé du portefeuille et les alertes d'abord,
+ * le détail dans le second onglet. Inès ouvre cette page une fois par mois et
+ * doit comprendre en trente secondes.
+ *
+ * Aucune bibliothèque de graphiques : la courbe de tendance est un `<svg>`
+ * calculé, les barres sont des `<div>` en pourcentage. Les jetons portent les
+ * couleurs, donc les deux thèmes suivent sans traitement particulier.
+ */
+
+.rep-bar{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding:10px 12px;
+  background:var(--surface); border:1px solid var(--line); border-radius:var(--r); margin-bottom:14px; }
+
+/* Santé du portefeuille */
+.health-grid{ display:grid; grid-template-columns:minmax(0,1fr) 116px 96px 104px 128px 150px; gap:13px; }
+.health-head{ padding:9px 14px; background:var(--surface-2); border-bottom:1px solid var(--line-strong); }
+.health-head span{ font-family:var(--font-mono); font-size:8.5px; font-weight:500; letter-spacing:.12em;
+  text-transform:uppercase; color:var(--muted); }
+.health-row{ padding:11px 14px; border-bottom:1px solid var(--line); align-items:center; }
+.health-row:last-child{ border-bottom:none; }
+.health-row:hover{ background:var(--surface-2); }
+
+/* Le filet de gauche double la pastille de santé : la couleur seule ne porte
+   jamais une information à elle seule. */
+.health-row.is-crit{ border-left:3px solid var(--st-blocked); }
+.health-row.is-warn{ border-left:3px solid var(--st-review); }
+.hp-n{ font-size:13px; font-weight:600; margin:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.hp-s{ display:block; font-family:var(--font-mono); font-size:9px; color:var(--muted); margin-top:4px;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.hp-detail{ font-family:var(--font-mono); font-size:9.5px; color:var(--muted); line-height:1.5; }
+.hp-detail b{ color:var(--st-blocked); }
+
+/* Barres horizontales */
+.hbar{ display:grid; grid-template-columns:minmax(0,168px) 1fr 62px; gap:12px; align-items:center;
+  padding:7px 0; }
+.hbar-n{ font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.hbar-t{ position:relative; height:16px; background:var(--surface-2); border-radius:2px; }
+.hbar-t > i{ position:absolute; left:0; top:0; bottom:0; border-radius:2px; background:var(--accent); }
+.hbar-v{ font-family:var(--font-mono); font-size:11px; text-align:right; }
+.hbar.is-over .hbar-t > i{ background:var(--st-review); }
+.hbar.is-over .hbar-v{ color:var(--st-review); font-weight:600; }
+
+/* La ligne de moyenne : c'est elle qui donne son sens à « surcharge ». */
+.avg-line{ position:absolute; top:-3px; bottom:-3px; width:2px; background:var(--line-strong); }
+.avg-cap{ display:flex; align-items:center; gap:7px; font-family:var(--font-mono); font-size:9px;
+  color:var(--muted); margin-top:9px; }
+.avg-sw{ width:2px; height:11px; background:var(--line-strong); }
+
+/* Courbe de tendance */
+.chart{ width:100%; height:auto; }
+.chart .grid-l{ stroke:var(--line); stroke-width:1; }
+.chart .axis-t{ font-family:var(--font-mono); font-size:9px; fill:var(--muted); }
+.chart .serie{ fill:none; stroke-width:2; stroke-linejoin:round; stroke-linecap:round; }
+.chart .serie-avg{ stroke:var(--muted); stroke-width:1.5; stroke-dasharray:4 3; }
+.chart .dot{ stroke:var(--surface); stroke-width:1.5; }
+
+/* Complétion des jalons */
+.mile-sum{ display:flex; align-items:baseline; gap:10px; margin-bottom:12px; }
+.mile-big{ font-family:var(--font-display); font-size:27px; font-weight:600; }
+
+/* Activité récente */
+.act3{ display:grid; grid-template-columns:repeat(3,1fr); gap:11px; margin-bottom:14px; }
+.act3 .kpi{ padding:13px; }
+.ratio-box{ border:1px solid currentColor; border-radius:var(--r); padding:13px 14px;
+  display:flex; align-items:center; gap:13px; }
+.ratio-v{ font-family:var(--font-display); font-size:25px; font-weight:600; line-height:1; }
+.ratio-t{ font-size:13px; font-weight:600; color:var(--ink); }
+.ratio-d{ display:block; font-size:11.5px; color:var(--muted); margin-top:4px; }
+
+/* Gantt portefeuille */
+.pg-wrap{ border:1px solid var(--line-strong); border-radius:var(--r); background:var(--surface);
+  overflow:auto; max-height:calc(100vh - 330px); }
+.pg{ display:flex; align-items:flex-start; min-width:max-content; }
+.pg-left{ position:sticky; left:0; z-index:3; width:290px; flex:none; background:var(--surface);
+  border-right:1px solid var(--line-strong); }
+.pg-lhead{ position:sticky; top:0; z-index:5; height:42px; background:var(--surface-2);
+  display:flex; align-items:center; padding:0 14px; border-bottom:1px solid var(--line-strong); }
+.pg-right{ position:relative; flex:none; }
+.pg-head{ position:sticky; top:0; z-index:4; height:42px; background:var(--surface-2);
+  border-bottom:1px solid var(--line-strong); display:flex; }
+.pg-m{ font-family:var(--font-cond); font-size:10px; font-weight:600; letter-spacing:.07em;
+  text-transform:uppercase; color:var(--muted); border-left:1px solid var(--line);
+  display:flex; align-items:center; padding-left:7px; overflow:hidden; }
+.pg-row{ display:flex; align-items:center; gap:10px; height:38px; padding:0 14px;
+  border-bottom:1px solid var(--line); }
+.pg-n{ font-size:12.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex:1; }
+.pg-body{ position:relative; }
+.pg-bar{ position:absolute; height:16px; border-radius:3px; border:1px solid currentColor;
+  background:color-mix(in srgb, currentColor 24%, var(--surface)); overflow:hidden; }
+.pg-bar > i{ position:absolute; left:0; top:0; bottom:0; background:currentColor; opacity:.6; }
+.pg-today{ position:absolute; top:0; bottom:0; width:2px; background:var(--st-blocked); z-index:2; }
+
+.rag-legend{ display:flex; gap:15px; flex-wrap:wrap; }
+.rag-l{ display:flex; align-items:center; gap:6px; font-size:11.5px; }
+.rag-sw{ width:16px; height:9px; border-radius:2px; border:1px solid currentColor;
+  background:color-mix(in srgb, currentColor 24%, var(--surface)); }
+
+/* `RG-RPT-02` — le troncage est ANNONCÉ, jamais silencieux. */
+.trunc{ display:flex; align-items:center; gap:9px; padding:10px 14px; border-top:1px solid var(--line);
+  background:var(--warn-soft); font-size:12px; color:var(--st-review); }

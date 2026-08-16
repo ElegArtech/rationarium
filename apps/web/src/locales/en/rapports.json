@@ -1,0 +1,161 @@
+{
+  "surtitre": "Steering",
+  "titre": "Reports & Analytics",
+  "lesDonnees": "the analytics data",
+  "periode": {
+    "groupe": "Analysis period",
+    "semaine": "This week",
+    "mois": "This month",
+    "trimestre": "This quarter",
+    "annee": "This year"
+  },
+  "actions": {
+    "actualiser": "Refresh",
+    "exporter": "Export",
+    "exportPdf": "PDF (print)",
+    "exportCsv": "CSV (spreadsheet)",
+    "exportJson": "JSON"
+  },
+  "onglets": {
+    "groupe": "Report sections",
+    "ensemble": "Overview",
+    "analytics": "Advanced analytics",
+    "gantt": "Portfolio Gantt"
+  },
+  "alerte": {
+    "titre": "Attention required —",
+    "texte": "{n, plural, one {# overdue task needs your attention} other {# overdue tasks need your attention}}. See the Tasks page for details."
+  },
+  "sante": {
+    "titre": "Project health",
+    "compte": "{n, plural, one {# project} other {# projects}}",
+    "vide": "No project to display",
+    "videAide": "No data available for this period.",
+    "colProjet": "Project",
+    "colCompletion": "% complete",
+    "colJalons": "Milestones",
+    "colActives": "Active tasks",
+    "colSante": "Health",
+    "colDetail": "Details",
+    "completionDe": "{nom} completion: {n, number}%",
+    "nonAssigne": "Unassigned",
+    "restantes": "{n, plural, one {# task left} other {# tasks left}}",
+    "enRetard": "{n, plural, one {# overdue} other {# overdue}}",
+    "finLe": "ends {date}"
+  },
+  "progression": {
+    "titre": "Project progress",
+    "tousLesProjets": "See all projects",
+    "de": "{nom}: {n, number}%",
+    "vide": "No project to display",
+    "videAide": "No data available for this period.",
+    "tronque": "Display limited to the first {n, number} projects for readability — {total, number} in total."
+  },
+  "charge": {
+    "titre": "Workload distribution",
+    "surchargeDetectee": "{n, plural, one {# overload detected} other {# overloads detected}}",
+    "moyenne": "Team average: {n, number} tasks",
+    "libelle": "{nom}: {n, number} tasks, against an average of {moyenne, number}",
+    "libelleSurcharge": "{nom}: {n, number} tasks — overloaded, the average is {moyenne, number}",
+    "vide": "No active task to display",
+    "videAide": "Nobody has a task in progress in this scope."
+  },
+  "tendance": {
+    "titre": "Progress trend",
+    "stagnation": "Stagnation detected",
+    "historiqueCourt": "History still being built",
+    "historiqueCourtAide": "The data will be more meaningful after a few weeks of collection.",
+    "libelle": "Progress from {debut, number}% to {fin, number}% over {points, number} readings"
+  },
+  "jalons": {
+    "titre": "Milestone completion",
+    "surEchus": "milestones met on time out of {n, number} due",
+    "aTemps": "{n, number} on time",
+    "enRetard": "{n, number} late",
+    "aVenir": "{n, number} upcoming",
+    "vide": "No milestone defined",
+    "videAide": "Add milestones to track portfolio deadlines."
+  },
+  "repartitions": {
+    "parPriorite": "Breakdown by priority",
+    "parStatut": "Breakdown by status",
+    "surActives": "of {n, number} tasks",
+    "libelle": "{quoi}: {n, number} of {total, number}",
+    "vide": "No active task to display",
+    "videAide": "No data available for this period."
+  },
+  "activite": {
+    "titre": "Recent activity",
+    "periode": "Last 30 days",
+    "terminees": "Completed",
+    "creees": "Created",
+    "passeesEnRetard": "Became overdue",
+    "ratio": "Completion ratio",
+    "grossit": "The backlog is growing: more tasks are created than completed.",
+    "resorbe": "The backlog is shrinking: more tasks are completed than created.",
+    "vide": "No completion over the period",
+    "videAide": "No task created in the last thirty days: the ratio has no meaning."
+  },
+  "gantt": {
+    "titre": "Projects overview",
+    "leGantt": "the portfolio Gantt",
+    "colonneProjets": "Projects",
+    "trier": "Sort",
+    "nonAssigne": "Unassigned",
+    "aujourdhui": "Today, {date}",
+    "vide": "No active project to display",
+    "videAide": "No data available for this period.",
+    "libelleBarre": "{nom} — {progression, number}% · from {debut} to {fin} · lead: {chef} · team: {service} · {rag}",
+    "tri": {
+      "nom": "Name A→Z",
+      "nom_desc": "Name Z→A",
+      "progression": "Progress ↑",
+      "progression_desc": "Progress ↓",
+      "fin": "Nearest end date",
+      "fin_desc": "Furthest end date",
+      "priorite": "Priority (critical first)",
+      "service": "By team",
+      "chef": "By project lead"
+    }
+  },
+  "ganttProjet": {
+    "leProjet": "the project",
+    "lesTaches": "the project tasks",
+    "colonneTaches": "Tasks",
+    "echelle": "Time scale",
+    "echelle_jour": "Day",
+    "echelle_semaine": "Week",
+    "echelle_mois": "Month",
+    "indice": "Click a task to see its dependencies, double-click to edit them.",
+    "sansJalon": "No milestone",
+    "aujourdhui": "Today",
+    "videTitre": "No task with dates",
+    "videAide": "Add start and end dates to tasks to see them in the Gantt chart.",
+    "libelleBarre": "{titre} — {statut}, from {debut} to {fin}, {avancement, number}%"
+  },
+  "santes": {
+    "good": "Good",
+    "warning": "Warning",
+    "critical": "Critical"
+  },
+  "rag": {
+    "on_track": "On track",
+    "at_risk": "At risk",
+    "late": "Late",
+    "upcoming": "Upcoming",
+    "done": "Completed"
+  },
+  "statuts": {
+    "todo": "To do",
+    "doing": "In progress",
+    "review": "In review",
+    "done": "Done",
+    "blocked": "Blocked"
+  },
+  "priorites": {
+    "low": "Low",
+    "normal": "Normal",
+    "high": "High",
+    "critical": "Critical"
+  }
+}
