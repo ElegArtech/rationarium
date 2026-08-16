@@ -35,6 +35,12 @@ export const creerClient = (url: string): Client =>
 /** Le jeu de données de volumétrie cible — `cadrage/01 § 7`, employé par L-26. */
 export { peupler, CIBLE, CIBLE_REDUITE, type CibleVolumetrie } from "./volumetrie.js";
 
+/**
+ * Le jeu de données des maquettes, employé par la boucle de conformité.
+ * Il ne sert qu'à mesurer : voir l'en-tête du module.
+ */
+export { peuplerMaquette, AGENTS, PROJETS } from "./maquette.js";
+
 /** C14 — l'export intégral en formats ouverts, employé par L-29. */
 export {
   listerTables,
