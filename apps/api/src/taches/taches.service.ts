@@ -272,6 +272,13 @@ export class TachesService {
       dateFin?: Date | null;
       estimationHeures?: number | null;
       avancement?: number;
+      /*
+       * `RG-SCOPE-04` — la confidentialité se change APRÈS COUP. Elle n'était
+       * acceptée qu'à la création : une tâche devenue sensible ne pouvait plus
+       * le devenir, et une tâche marquée par erreur restait invisible pour
+       * toujours à ceux qui n'ont pas la permission de lecture confidentielle.
+       */
+      confidentielle?: boolean;
     },
     acteurId: string,
   ) {
@@ -577,6 +584,78 @@ export class TachesService {
    * changerait la date pour tout le monde, sans que l'auteur du geste le voie.
    * Le refus est donc un refus de conception, pas une limite technique.
    */
+  /**
+   * `EX-TSK-06` — **fixer la liste des assignés d'une tâche.**
+   *
+   * Elle n'existait pas. On pouvait assigner à la création, et déplacer une
+   * assignation par glisser-déposer depuis le planning — mais pas ajouter ni
+   * retirer quelqu'un depuis la fiche, que la maquette 17 dessine pourtant
+   * avec sa liste et son bouton d'ajout. Trouvé par le portage de la vue, pas
+   * par un test.
+   *
+   * Le **porteur** est le premier de la liste : la maquette le distingue, et
+   * `RG-TSK-11` s'appuie sur la notion — une tâche multi-assignée ne change
+   * que d'assigné, jamais de date.
+   *
+   * La liste est posée **en entier**, jamais par différence : un ajout et un
+   * retrait simultanés depuis deux écrans laisseraient sinon un état que
+   * personne n'a voulu.
+   */
+  async definirAssignes(
+    taskId: string,
+    userIds: string[],
+    acteurId: string,
+  ): Promise<{ assignes: string[] }> {
+    const tache = await this.prisma.task.findUnique({
+      where: { id: taskId },
+      select: { id: true, titre: true },
+    });
+    if (!tache) throw new ErreurTache("introuvable");
+
+    const uniques = [...new Set(userIds)];
+    const connus = await this.prisma.user.count({ where: { id: { in: uniques } } });
+    if (connus !== uniques.length) throw new ErreurTache("introuvable");
+
+    const avant = await this.prisma.taskAssignee.findMany({
+      where: { taskId },
+      select: { userId: true },
+    });
+
+    await this.prisma.$transaction([
+      this.prisma.taskAssignee.deleteMany({ where: { taskId } }),
+      ...uniques.map((userId, i) =>
+        this.prisma.taskAssignee.create({ data: { taskId, userId, porteur: i === 0 } }),
+      ),
+    ]);
+
+    await this.audit.tracer({
+      action: "task.assignees_set",
+      typeEntite: "Task",
+      entiteId: taskId,
+      acteurId,
+      detail: { avant: avant.map((a) => a.userId), apres: uniques },
+    });
+
+    /*
+     * `cadrage/01 § M18` — on ne prévient que les ARRIVANTS, et jamais
+     * soi-même. Renotifier ceux qui étaient déjà là ferait du bruit à chaque
+     * réordonnancement, et le bruit finit par masquer le signal.
+     */
+    const anciens = new Set(avant.map((a) => a.userId));
+    for (const userId of uniques) {
+      if (anciens.has(userId) || userId === acteurId) continue;
+      await this.notifications.notifier({
+        userId,
+        type: "tache_assignee",
+        titre: `Nouvelle tâche assignée — ${tache.titre}`,
+        contenu: `La tâche « ${tache.titre} » vous a été assignée.`,
+        lien: `/taches/${taskId}`,
+      });
+    }
+
+    return { assignes: uniques };
+  }
+
   async deplacerDepuisPlanning(
     taskId: string,
     cible: { nouvelleDate?: Date; nouvelAssigneId?: string; ancienAssigneId?: string },

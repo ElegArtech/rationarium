@@ -95,10 +95,34 @@ export class TachesController {
         dateFin: dateSchema.nullish(),
         estimationHeures: z.number().min(0).nullish(),
         avancement: z.number().int().min(0).max(100).optional(),
+        /*
+         * `RG-SCOPE-04` — la confidentialité se change après coup. Elle était
+         * acceptée à la création et nulle part ensuite : une tâche devenue
+         * sensible ne pouvait plus le devenir, et une tâche marquée par erreur
+         * restait invisible pour toujours.
+         */
+        confidentielle: z.boolean().optional(),
       }),
       corps,
     );
     return this.taches.modifier(id, donnees, d.userId);
+  }
+
+  /**
+   * `EX-TSK-06` — fixer la liste des assignés.
+   *
+   * La liste est posée **en entier**, jamais par différence : un ajout et un
+   * retrait simultanés depuis deux écrans laisseraient sinon un état que
+   * personne n'a voulu. Le premier de la liste est le porteur.
+   */
+  @Put(":id/assignes")
+  @RequiertPermission("tasks:update")
+  definirAssignes(@Param("id") id: string, @Body() corps: unknown, @Demande() d: ContexteDemande) {
+    const donnees = valider(
+      z.object({ userIds: z.array(z.uuid()).max(20) }),
+      corps,
+    );
+    return this.taches.definirAssignes(id, donnees.userIds, d.userId);
   }
 
   @Delete(":id")

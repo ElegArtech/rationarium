@@ -35,6 +35,19 @@ async function agent() {
   return id;
 }
 
+/** Une tâche hors projet, avec ses assignés. */
+async function creerTache(assignes: string[]) {
+  const t = await taches.creer(
+    {
+      titre: "Tâche",
+      horsProjet: true,
+      ...(assignes.length > 0 ? { assigneIds: assignes } : {}),
+    } as never,
+    assignes[0] ?? (await agent()),
+  );
+  return t.id;
+}
+
 async function projet() {
   const id = uuid();
   await prisma.project.create({
@@ -402,5 +415,94 @@ describe("EX-TSK-19, EX-TSK-20 — listes de rattrapage", () => {
 
     const liste = await taches.terminesSansTemps(u);
     expect(liste.map((t) => t.titre)).toEqual(["Non déclarée"]);
+  });
+});
+
+describe("EX-TSK-06 — la liste des assignés se FIXE depuis la fiche", () => {
+  /*
+   * Elle n'existait pas : on pouvait assigner à la création et déplacer une
+   * assignation par glisser-déposer depuis le planning, mais pas ajouter ni
+   * retirer quelqu'un depuis la fiche — que la maquette 17 dessine pourtant
+   * avec sa liste et son bouton d'ajout.
+   *
+   * Trouvé par le portage de la vue, pas par un test. Aucun contrôle ne
+   * pouvait le voir : ils fabriquaient tous leurs assignations en base.
+   */
+  it("la liste est posée EN ENTIER, le premier est le porteur", async () => {
+    const a = await agent();
+    const b = await agent();
+    const t = await creerTache([a]);
+
+    const r = await taches.definirAssignes(t, [b, a], a);
+
+    expect(r.assignes).toEqual([b, a]);
+    const lignes = await prisma.taskAssignee.findMany({
+      where: { taskId: t },
+      orderBy: { userId: "asc" },
+    });
+    expect(lignes).toHaveLength(2);
+    expect(lignes.find((l) => l.userId === b)?.porteur).toBe(true);
+    expect(lignes.find((l) => l.userId === a)?.porteur).toBe(false);
+  });
+
+  it("retirer quelqu'un le retire vraiment, sans toucher au reste", async () => {
+    const a = await agent();
+    const b = await agent();
+    const t = await creerTache([a]);
+    await taches.definirAssignes(t, [a, b], a);
+
+    await taches.definirAssignes(t, [a], a);
+
+    const restants = await prisma.taskAssignee.findMany({ where: { taskId: t } });
+    expect(restants.map((l) => l.userId)).toEqual([a]);
+  });
+
+  it("un doublon dans la demande ne crée qu'une ligne", async () => {
+    const a = await agent();
+    const t = await creerTache([]);
+    await taches.definirAssignes(t, [a, a], a);
+    expect(await prisma.taskAssignee.count({ where: { taskId: t } })).toBe(1);
+  });
+
+  it("SEULS LES ARRIVANTS SONT PRÉVENUS — et jamais soi-même", async () => {
+    // Renotifier ceux qui étaient déjà là ferait du bruit à chaque
+    // réordonnancement, et le bruit finit par masquer le signal.
+    const acteur = await agent();
+    const deja = await agent();
+    const arrivant = await agent();
+    const t = await creerTache([]);
+    await taches.definirAssignes(t, [deja], acteur);
+    const avant = await prisma.notification.count({ where: { userId: deja } });
+
+    await taches.definirAssignes(t, [deja, arrivant, acteur], acteur);
+
+    expect(await prisma.notification.count({ where: { userId: deja } })).toBe(avant);
+    expect(await prisma.notification.count({ where: { userId: arrivant } })).toBe(1);
+    expect(await prisma.notification.count({ where: { userId: acteur } })).toBe(0);
+  });
+
+  it("une personne inconnue est refusée, et rien n'est écrit", async () => {
+    const a = await agent();
+    const t = await creerTache([a]);
+    await expect(
+      taches.definirAssignes(t, [a, "00000000-0000-4000-8000-000000000000"], a),
+    ).rejects.toMatchObject({ code: "introuvable" });
+    expect(await prisma.taskAssignee.count({ where: { taskId: t } })).toBe(1);
+  });
+});
+
+describe("RG-SCOPE-04 — la confidentialité se change APRÈS COUP", () => {
+  it("une tâche devient confidentielle, et cesse de l'être", async () => {
+    // Elle n'était acceptée qu'à la création : une tâche devenue sensible ne
+    // pouvait plus le devenir, et une tâche marquée par erreur restait
+    // invisible pour toujours.
+    const a = await agent();
+    const t = await creerTache([a]);
+
+    const apres = await taches.modifier(t, { version: 1, confidentielle: true }, a);
+    expect(apres.confidentielle).toBe(true);
+
+    const rendue = await taches.modifier(t, { version: apres.version, confidentielle: false }, a);
+    expect(rendue.confidentielle).toBe(false);
   });
 });
