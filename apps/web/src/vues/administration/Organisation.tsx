@@ -11,7 +11,12 @@ import { useMessages } from "../../composants/messages.js";
 import { AvatarAgent } from "../../composants/pastilles.js";
 import { formaterDate } from "../../formats.js";
 import "../../composants/partages.css";
+/* Sections cumulatives : `.count-split` (20), `.ms-toggle` (17), `.lv-acts`
+   (23), `.filters` / `.f-input` (transverses), `.picon` (14). */
 import "../taches/liste.css";
+import "../projets/jalons.css";
+import "../projets/portefeuille.css";
+import "../occupations/conges.css";
 import "./organisation.css";
 
 /**
@@ -26,10 +31,23 @@ import "./organisation.css";
  * hiérarchie et ses règles, et dans chaque fenêtre de confirmation, qui dit ce
  * qui va arriver aux objets rattachés.
  */
+/** Les trois niveaux, dans l'ordre où la maquette les nomme. */
+type Nature = "direction" | "departement" | "service";
+
 export function Organisation() {
   const { t } = useTranslation("administration");
   const peut = usePeut();
-  const [deplies, setDeplies] = useState<ReadonlySet<string>>(new Set());
+  /*
+   * L'arborescence est DÉPLIÉE par défaut, comme la maquette : on vient y
+   * lire la structure entière. On mémorise donc ce qui est replié, pas ce qui
+   * est déplié — sans quoi « tout déplier » exigerait d'énumérer des nœuds
+   * qu'on n'a pas encore chargés.
+   */
+  const [replies, setReplies] = useState<ReadonlySet<string>>(new Set());
+  const [toutReplie, setToutReplie] = useState(false);
+  const [recherche, setRecherche] = useState("");
+  const [departementId, setDepartementId] = useState("");
+  const [creation, setCreation] = useState<Nature | null>(null);
 
   const requete = useQuery({ queryKey: ["organisation"], queryFn: api.arborescence });
 
@@ -46,27 +64,53 @@ export function Organisation() {
     departementsSansDirection.reduce((n, d) => n + d.services.length, 0);
 
   const basculer = (id: string) =>
-    setDeplies((s) => {
+    setReplies((s) => {
       const n = new Set(s);
       if (n.has(id)) n.delete(id);
       else n.add(id);
       return n;
     });
+  const ouvert = (id: string) => !toutReplie && !replies.has(id);
+
+  const tousDepartements = [
+    ...directions.flatMap((d) => d.departements),
+    ...departementsSansDirection,
+  ];
+
+  const correspond = (nom: string) =>
+    !recherche || nom.toLowerCase().includes(recherche.toLowerCase());
 
   return (
-    <div className="page">
+    <>
       <div className="pl-toolbar">
         <div>
           <span className="eyebrow">{t("organisation.surtitre")}</span>
-          <h1 className="h1 titre-vue">{t("organisation.titre")}</h1>
+          <h1 className="h1">{t("organisation.titre")}</h1>
         </div>
         <span className="count-split">
-          <b>{directions.length}</b> {t("organisation.compteDirections", { n: directions.length })}
+          {t("organisation.compteDirections", { n: directions.length })}
           {" · "}
-          <b>{nbDepartements}</b> {t("organisation.compteDepartements", { n: nbDepartements })}
+          {t("organisation.compteDepartements", { n: nbDepartements })}
           {" · "}
-          <b>{nbServices}</b> {t("organisation.compteServices", { n: nbServices })}
+          {t("organisation.compteServices", { n: nbServices })}
         </span>
+        <div className="pl-toolbar-fin">
+          {peut("directions:create") ? (
+            <Button className="chip-btn" onPress={() => setCreation("direction")}>
+              {t("organisation.nouvelleDirection")}
+            </Button>
+          ) : null}
+          {peut("departments:create") ? (
+            <Button className="chip-btn" onPress={() => setCreation("departement")}>
+              {t("organisation.nouveauDepartement")}
+            </Button>
+          ) : null}
+          {peut("services:create") ? (
+            <Button className="btn btn-primary" onPress={() => setCreation("service")}>
+              {t("organisation.nouveauService")}
+            </Button>
+          ) : null}
+        </div>
       </div>
 
       {/*
@@ -97,21 +141,71 @@ export function Organisation() {
         </div>
       </div>
 
+      <div className="filters">
+        <input
+          className="f-input"
+          type="search"
+          style={{ width: "230px" }}
+          value={recherche}
+          onChange={(e) => setRecherche(e.target.value)}
+          placeholder={t("organisation.rechercher")}
+          aria-label={t("organisation.rechercher")}
+        />
+        <select
+          className="f-input"
+          value={departementId}
+          onChange={(e) => setDepartementId(e.target.value)}
+          aria-label={t("organisation.filtrerParDepartement")}
+        >
+          <option value="">{t("organisation.tousDepartements")}</option>
+          {tousDepartements.map((d) => (
+            <option key={d.id} value={d.id}>
+              {d.nom}
+            </option>
+          ))}
+        </select>
+        <Button
+          className="chip-btn"
+          onPress={() => {
+            setToutReplie(false);
+            setReplies(new Set());
+          }}
+        >
+          {t("organisation.toutDeplier")}
+        </Button>
+        <Button className="chip-btn" onPress={() => setToutReplie(true)}>
+          {t("organisation.toutReplier")}
+        </Button>
+      </div>
+
       {directions.length === 0 && departementsSansDirection.length === 0 ? (
-        <div className="empty empty-large">
+        <div className="empty empty-encadre">
           <p>{t("organisation.videTitre")}</p>
           <small>{t("organisation.videExplication")}</small>
+          {peut("departments:create") ? (
+            <Button className="btn btn-primary" onPress={() => setCreation("departement")}>
+              {t("organisation.creerPremierDepartement")}
+            </Button>
+          ) : null}
         </div>
       ) : null}
 
-      {directions.map((d) => (
-        <BlocDirection
-          key={d.id}
-          direction={d}
-          deplies={deplies}
-          surBascule={basculer}
-        />
-      ))}
+      {directions
+        .filter(
+          (d) =>
+            (!departementId || d.departements.some((x) => x.id === departementId)) &&
+            (correspond(d.nom) || d.departements.some((x) => correspond(x.nom))),
+        )
+        .map((d) => (
+          <BlocDirection
+            key={d.id}
+            direction={d}
+            departementId={departementId}
+            ouvert={ouvert}
+            surBascule={basculer}
+            surCreation={setCreation}
+          />
+        ))}
 
       {departementsSansDirection.length > 0 ? (
         <div className="dir">
@@ -137,30 +231,40 @@ export function Organisation() {
               <BlocDepartement
                 key={dep.id}
                 departement={dep}
-                deplie={deplies.has(dep.id)}
+                deplie={ouvert(dep.id)}
                 surBascule={() => basculer(dep.id)}
+                surCreation={setCreation}
               />
             ))}
           </div>
         </div>
       ) : null}
-    </div>
+
+      <FenetreCreationNoeud nature={creation} surFermeture={() => setCreation(null)} />
+    </>
   );
 }
 
 function BlocDirection({
   direction,
-  deplies,
+  departementId,
+  ouvert,
   surBascule,
+  surCreation,
 }: {
   direction: api.Direction;
-  deplies: ReadonlySet<string>;
+  departementId: string;
+  ouvert: (id: string) => boolean;
   surBascule: (id: string) => void;
+  surCreation: (nature: Nature) => void;
 }) {
   const { t } = useTranslation("administration");
   const peut = usePeut();
   const [suppressionOuverte, setSuppressionOuverte] = useState(false);
-  const deplie = deplies.has(direction.id);
+  const deplie = ouvert(direction.id);
+  const departements = direction.departements.filter(
+    (d) => !departementId || d.id === departementId,
+  );
 
   return (
     <div className="dir">
@@ -173,43 +277,65 @@ function BlocDirection({
         >
           <span aria-hidden="true">{deplie ? "▾" : "▸"}</span>
         </Button>
-        <span className="dir-ic" aria-hidden="true">
-          ◈
-        </span>
-        <div className="bloc-etroit">
+        <div className="dir-ic" aria-hidden="true">
+          <svg className="picon">
+            <use href="#i-depts" />
+          </svg>
+        </div>
+        <div style={{ minWidth: 0 }}>
           <p className="dir-n">{direction.nom}</p>
-          {direction.description ? (
-            <span className="node-d">{direction.description}</span>
-          ) : null}
+          <span className="node-d">
+            {direction.description ?? t("organisation.sansDescription")}
+          </span>
         </div>
         <Responsable personne={direction.responsable} />
-        <span className="head-count">
-          <span>
-            {t("organisation.departements", { n: direction.departements.length })}
-          </span>
-        </span>
-        <span className="lv-acts">
+        <div className="head-count">
+          <span>{t("organisation.departements", { n: departements.length })}</span>
+        </div>
+        <div className="lv-acts">
           {peut("directions:delete") ? (
-            <Button className="chip-btn chip-danger" onPress={() => setSuppressionOuverte(true)}>
-              {t("supprimer")}
+            /*
+             * `RG-ORG-02` — la règle est ANNONCÉE avant l'action. Le bouton est
+             * désactivé et dit pourquoi ; la découvrir au message d'erreur est
+             * exactement ce que le brief refuse.
+             */
+            <Button
+              className="ms-toggle"
+              isDisabled={departements.length > 0}
+              style={
+                departements.length > 0
+                  ? {}
+                  : { color: "var(--st-blocked)", borderColor: "var(--st-blocked)" }
+              }
+              onPress={() => setSuppressionOuverte(true)}
+            >
+              <span title={departements.length > 0 ? t("organisation.suppressionBloquee", { n: departements.length }) : undefined}>
+                {t("supprimer")}
+              </span>
             </Button>
           ) : null}
-        </span>
+        </div>
       </div>
 
       {deplie ? (
         <div className="dir-body">
-          {direction.departements.length === 0 ? (
+          {departements.length === 0 ? (
             <div className="node-empty">
               <span>{t("organisation.aucunDepartement")}</span>
+              {peut("departments:create") ? (
+                <Button className="ms-toggle" onPress={() => surCreation("departement")}>
+                  {t("organisation.ajouterUnDepartement")}
+                </Button>
+              ) : null}
             </div>
           ) : (
-            direction.departements.map((dep) => (
+            departements.map((dep) => (
               <BlocDepartement
                 key={dep.id}
                 departement={dep}
-                deplie={deplies.has(dep.id)}
+                deplie={ouvert(dep.id)}
                 surBascule={() => surBascule(dep.id)}
+                surCreation={surCreation}
               />
             ))
           )}
@@ -229,10 +355,12 @@ function BlocDepartement({
   departement,
   deplie,
   surBascule,
+  surCreation,
 }: {
   departement: api.Departement;
   deplie: boolean;
   surBascule: () => void;
+  surCreation: (nature: Nature) => void;
 }) {
   const { t } = useTranslation("administration");
   const peut = usePeut();
@@ -249,24 +377,34 @@ function BlocDepartement({
         >
           <span aria-hidden="true">{deplie ? "▾" : "▸"}</span>
         </Button>
-        <div className="bloc-etroit">
+        <div style={{ minWidth: 0 }}>
           <p className="dep-n">{departement.nom}</p>
           <span className="node-d">
+            {departement.description ?? t("organisation.sansDescription")} ·{" "}
             {t("organisation.creeLe", { date: formaterDate(departement.creeLe) })}
           </span>
         </div>
         <Responsable personne={departement.responsable} />
-        <span className="head-count">
+        <div className="head-count">
           <span>{t("organisation.services", { n: departement._count.services })}</span>
           <span>{t("organisation.membres", { n: departement._count.membres })}</span>
-        </span>
-        <span className="lv-acts">
+        </div>
+        <div className="lv-acts">
+          {peut("services:create") ? (
+            <Button className="ms-toggle" onPress={() => surCreation("service")}>
+              {t("organisation.plusService")}
+            </Button>
+          ) : null}
           {peut("departments:delete") ? (
-            <Button className="chip-btn chip-danger" onPress={() => setSuppressionOuverte(true)}>
+            <Button
+              className="ms-toggle"
+              style={{ color: "var(--st-blocked)", borderColor: "var(--st-blocked)" }}
+              onPress={() => setSuppressionOuverte(true)}
+            >
               {t("supprimer")}
             </Button>
           ) : null}
-        </span>
+        </div>
       </div>
 
       {deplie ? (
@@ -274,19 +412,27 @@ function BlocDepartement({
           {departement.services.length === 0 ? (
             <div className="node-empty">
               <span>{t("organisation.aucunService")}</span>
+              {peut("services:create") ? (
+                <Button className="ms-toggle" onPress={() => surCreation("service")}>
+                  {t("organisation.ajouterUnService")}
+                </Button>
+              ) : null}
             </div>
           ) : (
             departement.services.map((s) => (
               <div className="svc" key={s.id}>
                 <span className="svc-dot" aria-hidden="true" />
-                <div className="bloc-etroit">
+                <div style={{ minWidth: 0 }}>
                   <p className="svc-n">{s.nom}</p>
+                  <span className="node-d">
+                    {s.description ?? t("organisation.sansDescription")}
+                  </span>
                 </div>
                 <Responsable personne={s.manager} />
-                <span className="head-count">
+                <div className="head-count">
                   <span>{t("organisation.membres", { n: s._count.membres })}</span>
-                </span>
-                <span />
+                </div>
+                <div className="lv-acts" />
               </div>
             ))
           )}
@@ -489,6 +635,169 @@ function FenetreSuppressionDepartement({
           </p>
         </>
       ) : null}
+    </Fenetre>
+  );
+}
+
+
+/**
+ * La création d'un nœud — **un formulaire pour trois niveaux**.
+ *
+ * La maquette en fait une seule fenêtre dont le rattachement change avec le
+ * niveau : une direction n'a pas de parent, un département en a un facultatif
+ * (`RG-ORG-03`), un service en exige un.
+ */
+function FenetreCreationNoeud({
+  nature,
+  surFermeture,
+}: {
+  nature: Nature | null;
+  surFermeture: () => void;
+}) {
+  const { t } = useTranslation("administration");
+  const { t: tErreurs } = useTranslation("erreurs");
+  const annoncer = useMessages();
+  const client = useQueryClient();
+
+  const [nom, setNom] = useState("");
+  const [description, setDescription] = useState("");
+  const [parent, setParent] = useState("");
+  const [erreur, setErreur] = useState<string | null>(null);
+
+  const arbre = useQuery({
+    queryKey: ["organisation"],
+    queryFn: api.arborescence,
+    enabled: nature !== null,
+  });
+  const departements = [
+    ...(arbre.data?.directions.flatMap((d) => d.departements) ?? []),
+    ...(arbre.data?.departementsSansDirection ?? []),
+  ];
+
+  const creation = useMutation({
+    mutationFn: () => {
+      if (nature === "direction") {
+        return api.creerDirection({ nom, ...(description ? { description } : {}) });
+      }
+      if (nature === "departement") {
+        return api.creerDepartement({
+          nom,
+          ...(description ? { description } : {}),
+          directionId: parent || null,
+        });
+      }
+      return api.creerService({
+        nom,
+        ...(description ? { description } : {}),
+        departementId: parent,
+      });
+    },
+    onSuccess: () => {
+      annoncer("ok", t("organisation.creee"));
+      setNom("");
+      setDescription("");
+      setParent("");
+      surFermeture();
+      void client.invalidateQueries({ queryKey: ["organisation"] });
+    },
+    onError: (e) => setErreur(messageErreur(e, tErreurs, t("organisation.echecCreation"))),
+  });
+
+  if (nature === null) return null;
+
+  const valider = () => {
+    setErreur(null);
+    if (!nom.trim()) {
+      setErreur(t("organisation.nomObligatoire"));
+      return;
+    }
+    if (nature === "service" && !parent) {
+      setErreur(t("organisation.departementObligatoire"));
+      return;
+    }
+    creation.mutate();
+  };
+
+  return (
+    <Fenetre
+      ouverte
+      surFermeture={surFermeture}
+      categorie={t(`organisation.nature_${nature}`)}
+      titre={t(`organisation.nouveau_${nature}`)}
+      mention={t("champObligatoire")}
+      actions={
+        <>
+          <Button className="btn btn-secondary" onPress={surFermeture}>
+            {t("annuler")}
+          </Button>
+          <Button className="btn btn-primary" isPending={creation.isPending} onPress={valider}>
+            {t("enregistrer")}
+          </Button>
+        </>
+      }
+    >
+      {erreur ? (
+        <div className="alert alert-error" role="alert">
+          <span className="alert-icon" aria-hidden="true">
+            !
+          </span>
+          <span>{erreur}</span>
+        </div>
+      ) : null}
+
+      <div className="field-block">
+        <label className="field-label" htmlFor="org-nom">
+          {t("organisation.nom")} <span className="req">*</span>
+        </label>
+        <input
+          className="field"
+          id="org-nom"
+          type="text"
+          value={nom}
+          onChange={(e) => setNom(e.target.value)}
+        />
+      </div>
+
+      <div className="field-block">
+        <label className="field-label" htmlFor="org-desc">
+          {t("organisation.description")}
+        </label>
+        <textarea
+          className="field"
+          id="org-desc"
+          rows={2}
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+        />
+      </div>
+
+      {nature === "direction" ? null : (
+        <div className="field-block">
+          <label className="field-label" htmlFor="org-parent">
+            {nature === "departement"
+              ? t("organisation.directionDeRattachement")
+              : t("organisation.departementDeRattachement")}
+            {nature === "service" ? <span className="req"> *</span> : null}
+          </label>
+          <select
+            className="field"
+            id="org-parent"
+            value={parent}
+            onChange={(e) => setParent(e.target.value)}
+          >
+            {nature === "departement" ? (
+              <option value="">{t("organisation.aucuneDirection")}</option>
+            ) : (
+              <option value="">{t("organisation.choisirDepartement")}</option>
+            )}
+            {(nature === "departement" ? (arbre.data?.directions ?? []) : departements).map((x) => (
+              <option key={x.id} value={x.id}>
+                {x.nom}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
     </Fenetre>
   );
 }

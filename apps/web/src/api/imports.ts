@@ -38,6 +38,17 @@ export const apercu = (type: TypeImport, contenu: string) =>
 export const importerUtilisateurs = (contenu: string) =>
   appeler<CompteRendu>("/imports/utilisateurs", { methode: "POST", corps: { contenu } });
 
+/**
+ * L'import du référentiel de compétences — vue 22, action « Importer CSV ».
+ *
+ * **La route serveur n'existe pas encore.** `POST /imports/competences` est
+ * absent du contrôleur M21, qui n'expose que l'aperçu (`analyser`) et l'export.
+ * L'aperçu, lui, fonctionne : le modèle et l'analyse connaissent le type
+ * `competences`. Le manque est remonté au cadrage plutôt que comblé ici.
+ */
+export const importerCompetences = (contenu: string) =>
+  appeler<CompteRendu>("/imports/competences", { methode: "POST", corps: { contenu } });
+
 export const volumesRemplacement = (projetId: string) =>
   appeler<{ jalons: number; taches: number; sousTaches: number }>(
     `/imports/projet/${projetId}/volumes`,

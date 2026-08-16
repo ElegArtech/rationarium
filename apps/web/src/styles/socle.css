@@ -284,6 +284,16 @@ a.eyebrow:hover{ color:var(--ink); }
   background:var(--surface); color:var(--muted);
 }
 .chip-btn:hover{ color:var(--ink); border-color:var(--line-strong); }
+/*
+ * Une commande portée par un lien ne se souligne pas.
+ *
+ * Les maquettes rendent ces commandes en `<button>` parce qu'un prototype ne
+ * navigue pas ; le produit, lui, navigue — « Fiche », « Suivi », un export —
+ * et un lien est ce qui convient. Sans cette ligne, `a{color:inherit}` laisse
+ * le soulignement du navigateur et la puce ne ressemble plus à la maquette.
+ * Même dispositif que `.eyebrow` et `.seg a`, qui l'ont déjà.
+ */
+a.chip-btn,a.ms-toggle{ text-decoration:none; }
 
 /* ── 6. ALERTES ──────────────────────────────────────────────────────── */
 .alert{

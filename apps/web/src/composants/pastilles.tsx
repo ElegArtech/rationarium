@@ -39,7 +39,21 @@ const JETON: Record<string, string> = {
   normal: "var(--st-doing)",
   high: "var(--st-review)",
   critical: "var(--st-blocked)",
+  // Catégories de compétence — couleurs de la section 26 des maquettes.
+  technical: "var(--st-doing)",
+  methodology: "var(--activity)",
+  soft_skill: "var(--event)",
+  business: "var(--leave)",
 };
+
+/**
+ * Le jeton d'un code de vocabulaire.
+ *
+ * Exposé parce que la matrice de compétences colore ses en-têtes de colonnes
+ * par catégorie, comme la maquette : c'est une correspondance code → jeton,
+ * pas une décision graphique prise sur place.
+ */
+export const jetonDe = (code: string): string => JETON[code] ?? "var(--muted)";
 
 const TOUS: readonly Terme<string>[] = [
   ...STATUTS_PROJET,
