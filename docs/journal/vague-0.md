@@ -38,7 +38,7 @@ Toutes câblées et **vérifiées à l'envers** : on a contrôlé qu'elles refus
 | `pnpm lint` | ✅ | ESLint 10.8.1, **règles typées actives** |
 | `pnpm stylelint` | ✅ | Refuse une couleur littérale hors `socle.css` — vérifié |
 | `pnpm i18n:check` | ✅ | Refuse une clé FR sans pendant EN — vérifié |
-| `pnpm test` | ✅ | Aucun test : rien à tester en vague 0 |
+| `pnpm test` | ✅ | Aucun test unitaire : rien à tester en vague 0. Cloisonné des parcours Playwright et des tests d'intégration |
 | `pnpm test:int` | ✅ | **PostgreSQL 18 réel**, contrainte d'exclusion GiST de `C15` vérifiée |
 | `pnpm a11y` | ✅ | 70 contrôles, cliquet posé ; refuse une violation nouvelle — vérifié |
 | `pnpm ui:diff` | ✅ | 335 états relevés sur 35 vues |
@@ -47,6 +47,8 @@ Toutes câblées et **vérifiées à l'envers** : on a contrôlé qu'elles refus
 | `pnpm perf` | ⏳ | Câblée, **non exerçable**. `ADR-0015` en change la cible : mesurer la requête, pas la peinture |
 
 **Deux boucles sur onze ne sont pas démontrées.** C'est le principal point à trancher en revue (§ 8).
+
+> **Deux boucles ont été réparées pendant la préparation de ce dossier**, et c'est le meilleur argument pour le rituel de revue. `test:int` référençait une configuration jamais écrite : la boucle n'avait jamais tourné. `test` ramassait les fichiers Playwright et d'intégration, qui ne s'exécutent pas sous Vitest. Aucune des deux n'aurait été vue sans le passage systématique — on ne lance pas spontanément une commande dont on croit qu'elle marche.
 
 ---
 
