@@ -250,7 +250,7 @@ export async function peuplerMaquette(
     });
   }
 
-  for (const [i, r] of RACI.entries()) {
+  for (const r of RACI) {
     await prisma.taskRaci.upsert({
       where: { taskId_userId_role: { taskId: fiche.id, userId: agents[r.agent]!.id, role: r.role } },
       create: { taskId: fiche.id, userId: agents[r.agent]!.id, role: r.role },
