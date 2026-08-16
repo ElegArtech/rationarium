@@ -1,4 +1,5 @@
 {
+  "modifier": "Modifier",
   "annuler": "Annuler",
   "supprimer": "Supprimer",
   "confirmation": "Confirmation",
@@ -215,7 +216,18 @@
     "departementObligatoire": "Un service doit être rattaché à un département.",
     "creee": "Créé.",
     "echecCreation": "La création n'a pas abouti.",
-    "suppressionBloquee": "Impossible : {n, plural, one {# département y est rattaché} other {# départements y sont rattachés}}. Détachez-les d’abord."
+    "suppressionBloquee": "Impossible : {n, plural, one {# département y est rattaché} other {# départements y sont rattachés}}. Détachez-les d’abord.",
+    "modifier_direction": "Modifier — Direction",
+    "modifier_departement": "Modifier — Département",
+    "modifier_service": "Modifier — Service",
+    "modifiee": "Enregistré.",
+    "responsable": "Responsable",
+    "managerDuService": "Manager du service",
+    "aucunResponsableDesigne": "Aucun responsable désigné",
+    "responsableValidateur": "Le responsable devient validateur naturel des congés de son périmètre.",
+    "horsDirectionPossible": "Un département peut exister hors direction.",
+    "horsDepartementImpossible": "Un service ne peut pas exister hors département.",
+    "rattachementFige": "Le rattachement ne se change pas ici : il se corrige en déplaçant les agents."
   },
   "parametres": {
     "surtitre": "Administration",

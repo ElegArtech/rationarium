@@ -203,6 +203,19 @@ export const creerService = (donnees: {
   managerId?: string | null;
 }) => appeler<{ id: string }>("/organisation/services", { methode: "POST", corps: donnees });
 
+/**
+ * `EX-ORG-02` — modifier l'un des trois niveaux.
+ *
+ * Un seul point d'entrée pour les trois, comme la maquette 29 n'a qu'une
+ * fenêtre : le niveau est un segment de chemin, pas trois routes jumelles qui
+ * finiraient par diverger.
+ */
+export const modifierNoeud = (
+  niveau: "directions" | "departements" | "services",
+  id: string,
+  donnees: { nom?: string; description?: string | null; responsableId?: string | null },
+) => appeler<{ id: string }>(`/organisation/${niveau}/${id}`, { methode: "PATCH", corps: donnees });
+
 // ── M19 — Paramétrage, vue 31 ───────────────────────────────────────────────
 
 export type JourFerie = {

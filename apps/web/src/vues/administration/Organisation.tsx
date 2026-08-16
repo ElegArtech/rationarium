@@ -34,6 +34,15 @@ import "./organisation.css";
 /** Les trois niveaux, dans l'ordre où la maquette les nomme. */
 type Nature = "direction" | "departement" | "service";
 
+/** Ce que la fenêtre a besoin de connaître d'un nœud existant pour le préremplir. */
+type Noeud = {
+  id: string;
+  nom: string;
+  description: string | null;
+  parentId: string | null;
+  responsableId: string | null;
+};
+
 export function Organisation() {
   const { t } = useTranslation("administration");
   const peut = usePeut();
@@ -47,7 +56,13 @@ export function Organisation() {
   const [toutReplie, setToutReplie] = useState(false);
   const [recherche, setRecherche] = useState("");
   const [departementId, setDepartementId] = useState("");
-  const [creation, setCreation] = useState<Nature | null>(null);
+  /*
+   * La fenêtre sert les deux usages : `noeud` vaut `null` pour une création,
+   * porte l'existant pour une modification. Deux fenêtres pour les mêmes
+   * champs finiraient par diverger — la maquette n'en a qu'une, dont seul le
+   * titre change (« Nouveau — » / « Modifier — »).
+   */
+  const [edition, setEdition] = useState<{ nature: Nature; noeud: Noeud | null } | null>(null);
 
   const requete = useQuery({ queryKey: ["organisation"], queryFn: api.arborescence });
 
@@ -96,17 +111,17 @@ export function Organisation() {
         </span>
         <div className="pl-toolbar-fin">
           {peut("directions:create") ? (
-            <Button className="chip-btn" onPress={() => setCreation("direction")}>
+            <Button className="chip-btn" onPress={() => setEdition({ nature: "direction", noeud: null })}>
               {t("organisation.nouvelleDirection")}
             </Button>
           ) : null}
           {peut("departments:create") ? (
-            <Button className="chip-btn" onPress={() => setCreation("departement")}>
+            <Button className="chip-btn" onPress={() => setEdition({ nature: "departement", noeud: null })}>
               {t("organisation.nouveauDepartement")}
             </Button>
           ) : null}
           {peut("services:create") ? (
-            <Button className="btn btn-primary" onPress={() => setCreation("service")}>
+            <Button className="btn btn-primary" onPress={() => setEdition({ nature: "service", noeud: null })}>
               {t("organisation.nouveauService")}
             </Button>
           ) : null}
@@ -183,7 +198,7 @@ export function Organisation() {
           <p>{t("organisation.videTitre")}</p>
           <small>{t("organisation.videExplication")}</small>
           {peut("departments:create") ? (
-            <Button className="btn btn-primary" onPress={() => setCreation("departement")}>
+            <Button className="btn btn-primary" onPress={() => setEdition({ nature: "departement", noeud: null })}>
               {t("organisation.creerPremierDepartement")}
             </Button>
           ) : null}
@@ -203,7 +218,7 @@ export function Organisation() {
             departementId={departementId}
             ouvert={ouvert}
             surBascule={basculer}
-            surCreation={setCreation}
+            surOuvrir={setEdition}
           />
         ))}
 
@@ -233,14 +248,14 @@ export function Organisation() {
                 departement={dep}
                 deplie={ouvert(dep.id)}
                 surBascule={() => basculer(dep.id)}
-                surCreation={setCreation}
+                surOuvrir={setEdition}
               />
             ))}
           </div>
         </div>
       ) : null}
 
-      <FenetreCreationNoeud nature={creation} surFermeture={() => setCreation(null)} />
+      <FenetreNoeud edition={edition} surFermeture={() => setEdition(null)} />
     </>
   );
 }
@@ -250,13 +265,13 @@ function BlocDirection({
   departementId,
   ouvert,
   surBascule,
-  surCreation,
+  surOuvrir,
 }: {
   direction: api.Direction;
   departementId: string;
   ouvert: (id: string) => boolean;
   surBascule: (id: string) => void;
-  surCreation: (nature: Nature) => void;
+  surOuvrir: (e: { nature: Nature; noeud: Noeud | null }) => void;
 }) {
   const { t } = useTranslation("administration");
   const peut = usePeut();
@@ -293,6 +308,25 @@ function BlocDirection({
           <span>{t("organisation.departements", { n: departements.length })}</span>
         </div>
         <div className="lv-acts">
+          {peut("departments:update") ? (
+            <Button
+              className="ms-toggle"
+              onPress={() =>
+                surOuvrir({
+                  nature: "direction",
+                  noeud: {
+                    id: direction.id,
+                    nom: direction.nom,
+                    description: direction.description,
+                    parentId: null,
+                    responsableId: direction.responsable?.id ?? null,
+                  },
+                })
+              }
+            >
+              {t("modifier")}
+            </Button>
+          ) : null}
           {peut("directions:delete") ? (
             /*
              * `RG-ORG-02` — la règle est ANNONCÉE avant l'action. Le bouton est
@@ -323,7 +357,7 @@ function BlocDirection({
             <div className="node-empty">
               <span>{t("organisation.aucunDepartement")}</span>
               {peut("departments:create") ? (
-                <Button className="ms-toggle" onPress={() => surCreation("departement")}>
+                <Button className="ms-toggle" onPress={() => surOuvrir({ nature: "departement", noeud: null })}>
                   {t("organisation.ajouterUnDepartement")}
                 </Button>
               ) : null}
@@ -335,7 +369,7 @@ function BlocDirection({
                 departement={dep}
                 deplie={ouvert(dep.id)}
                 surBascule={() => surBascule(dep.id)}
-                surCreation={surCreation}
+                surOuvrir={surOuvrir}
               />
             ))
           )}
@@ -355,12 +389,12 @@ function BlocDepartement({
   departement,
   deplie,
   surBascule,
-  surCreation,
+  surOuvrir,
 }: {
   departement: api.Departement;
   deplie: boolean;
   surBascule: () => void;
-  surCreation: (nature: Nature) => void;
+  surOuvrir: (e: { nature: Nature; noeud: Noeud | null }) => void;
 }) {
   const { t } = useTranslation("administration");
   const peut = usePeut();
@@ -391,8 +425,27 @@ function BlocDepartement({
         </div>
         <div className="lv-acts">
           {peut("services:create") ? (
-            <Button className="ms-toggle" onPress={() => surCreation("service")}>
+            <Button className="ms-toggle" onPress={() => surOuvrir({ nature: "service", noeud: null })}>
               {t("organisation.plusService")}
+            </Button>
+          ) : null}
+          {peut("departments:update") ? (
+            <Button
+              className="ms-toggle"
+              onPress={() =>
+                surOuvrir({
+                  nature: "departement",
+                  noeud: {
+                    id: departement.id,
+                    nom: departement.nom,
+                    description: departement.description,
+                    parentId: null,
+                    responsableId: departement.responsable?.id ?? null,
+                  },
+                })
+              }
+            >
+              {t("modifier")}
             </Button>
           ) : null}
           {peut("departments:delete") ? (
@@ -413,7 +466,7 @@ function BlocDepartement({
             <div className="node-empty">
               <span>{t("organisation.aucunService")}</span>
               {peut("services:create") ? (
-                <Button className="ms-toggle" onPress={() => surCreation("service")}>
+                <Button className="ms-toggle" onPress={() => surOuvrir({ nature: "service", noeud: null })}>
                   {t("organisation.ajouterUnService")}
                 </Button>
               ) : null}
@@ -432,7 +485,27 @@ function BlocDepartement({
                 <div className="head-count">
                   <span>{t("organisation.membres", { n: s._count.membres })}</span>
                 </div>
-                <div className="lv-acts" />
+                <div className="lv-acts">
+                  {peut("departments:update") ? (
+                    <Button
+                      className="ms-toggle"
+                      onPress={() =>
+                        surOuvrir({
+                          nature: "service",
+                          noeud: {
+                            id: s.id,
+                            nom: s.nom,
+                            description: s.description,
+                            parentId: departement.id,
+                            responsableId: s.manager?.id ?? null,
+                          },
+                        })
+                      }
+                    >
+                      {t("modifier")}
+                    </Button>
+                  ) : null}
+                </div>
               </div>
             ))
           )}
@@ -641,28 +714,58 @@ function FenetreSuppressionDepartement({
 
 
 /**
- * La création d'un nœud — **un formulaire pour trois niveaux**.
+ * Un nœud — **un formulaire pour trois niveaux, et pour les deux sens**.
  *
  * La maquette en fait une seule fenêtre dont le rattachement change avec le
  * niveau : une direction n'a pas de parent, un département en a un facultatif
- * (`RG-ORG-03`), un service en exige un.
+ * (`RG-ORG-03`), un service en exige un. Elle sert aussi bien la création que
+ * la modification — seul le titre change (« Nouveau — » / « Modifier — »).
+ *
+ * Deux fenêtres pour les mêmes champs finiraient par diverger : une règle
+ * ajoutée d'un côté manquerait de l'autre, et rien ne le dirait.
+ *
+ * Le rattachement ne se change PAS à la modification : le point d'entrée
+ * `PATCH /organisation/:niveau/:id` porte le nom, la description et le
+ * responsable. Le champ reste affiché — la maquette le montre — mais inerte,
+ * avec la mention qui l'explique ; proposer un choix sans effet serait pire
+ * que ne pas le proposer.
  */
-function FenetreCreationNoeud({
-  nature,
+function FenetreNoeud({
+  edition,
   surFermeture,
 }: {
-  nature: Nature | null;
+  edition: { nature: Nature; noeud: Noeud | null } | null;
   surFermeture: () => void;
 }) {
   const { t } = useTranslation("administration");
   const { t: tErreurs } = useTranslation("erreurs");
   const annoncer = useMessages();
   const client = useQueryClient();
+  const peut = usePeut();
+
+  const nature = edition?.nature ?? null;
+  const noeud = edition?.noeud ?? null;
 
   const [nom, setNom] = useState("");
   const [description, setDescription] = useState("");
   const [parent, setParent] = useState("");
+  const [responsableId, setResponsableId] = useState("");
   const [erreur, setErreur] = useState<string | null>(null);
+  /*
+   * L'identité du nœud ouvert, pour ne recharger les champs qu'à l'OUVERTURE.
+   * Sans cette clé, chaque rendu écraserait la saisie en cours par la valeur
+   * d'origine — le champ paraîtrait refuser la frappe.
+   */
+  const [ouvertSur, setOuvertSur] = useState<string | null>(null);
+  const cle = edition ? `${edition.nature}:${noeud?.id ?? "nouveau"}` : null;
+  if (cle !== ouvertSur) {
+    setOuvertSur(cle);
+    setNom(noeud?.nom ?? "");
+    setDescription(noeud?.description ?? "");
+    setParent(noeud?.parentId ?? "");
+    setResponsableId(noeud?.responsableId ?? "");
+    setErreur(null);
+  }
 
   const arbre = useQuery({
     queryKey: ["organisation"],
@@ -674,33 +777,64 @@ function FenetreCreationNoeud({
     ...(arbre.data?.departementsSansDirection ?? []),
   ];
 
-  const creation = useMutation({
+  /*
+   * La liste des responsables n'est lisible qu'avec `users:read`. Sans la
+   * permission, le champ disparaît plutôt que d'afficher une liste vide qu'on
+   * prendrait pour « aucun agent » (`RG-GEN-06`).
+   */
+  const agents = useQuery({
+    queryKey: ["utilisateurs", { actif: true }],
+    queryFn: () => api.utilisateurs({ actif: true }),
+    enabled: nature !== null && peut("users:read"),
+  });
+
+  const enregistrement = useMutation({
     mutationFn: () => {
+      const champResponsable = responsableId || null;
+      if (noeud) {
+        const niveau =
+          nature === "direction"
+            ? "directions"
+            : nature === "departement"
+              ? "departements"
+              : "services";
+        return api.modifierNoeud(niveau, noeud.id, {
+          nom,
+          description: description || null,
+          responsableId: champResponsable,
+        });
+      }
       if (nature === "direction") {
-        return api.creerDirection({ nom, ...(description ? { description } : {}) });
+        return api.creerDirection({
+          nom,
+          ...(description ? { description } : {}),
+          responsableId: champResponsable,
+        });
       }
       if (nature === "departement") {
         return api.creerDepartement({
           nom,
           ...(description ? { description } : {}),
           directionId: parent || null,
+          responsableId: champResponsable,
         });
       }
       return api.creerService({
         nom,
         ...(description ? { description } : {}),
         departementId: parent,
+        managerId: champResponsable,
       });
     },
     onSuccess: () => {
-      annoncer("ok", t("organisation.creee"));
-      setNom("");
-      setDescription("");
-      setParent("");
+      annoncer("ok", noeud ? t("organisation.modifiee") : t("organisation.creee"));
       surFermeture();
       void client.invalidateQueries({ queryKey: ["organisation"] });
     },
-    onError: (e) => setErreur(messageErreur(e, tErreurs, t("organisation.echecCreation"))),
+    onError: (e) =>
+      setErreur(
+        messageErreur(e, tErreurs, noeud ? t("organisation.echecAction") : t("organisation.echecCreation")),
+      ),
   });
 
   if (nature === null) return null;
@@ -711,11 +845,11 @@ function FenetreCreationNoeud({
       setErreur(t("organisation.nomObligatoire"));
       return;
     }
-    if (nature === "service" && !parent) {
+    if (nature === "service" && !noeud && !parent) {
       setErreur(t("organisation.departementObligatoire"));
       return;
     }
-    creation.mutate();
+    enregistrement.mutate();
   };
 
   return (
@@ -723,14 +857,14 @@ function FenetreCreationNoeud({
       ouverte
       surFermeture={surFermeture}
       categorie={t(`organisation.nature_${nature}`)}
-      titre={t(`organisation.nouveau_${nature}`)}
+      titre={noeud ? t(`organisation.modifier_${nature}`) : t(`organisation.nouveau_${nature}`)}
       mention={t("champObligatoire")}
       actions={
         <>
           <Button className="btn btn-secondary" onPress={surFermeture}>
             {t("annuler")}
           </Button>
-          <Button className="btn btn-primary" isPending={creation.isPending} onPress={valider}>
+          <Button className="btn btn-primary" isPending={enregistrement.isPending} onPress={valider}>
             {t("enregistrer")}
           </Button>
         </>
@@ -755,7 +889,17 @@ function FenetreCreationNoeud({
           type="text"
           value={nom}
           onChange={(e) => setNom(e.target.value)}
+          aria-invalid={erreur !== null && !nom.trim()}
+          aria-describedby="org-nom-err"
         />
+        {/* `is-quiet` tant que rien ne cloche : la maquette réserve la place du
+            message plutôt que de faire sauter le formulaire à l'erreur. */}
+        <p
+          className={erreur !== null && !nom.trim() ? "field-error" : "field-error is-quiet"}
+          id="org-nom-err"
+        >
+          <span aria-hidden="true">↑</span> <span>{t("organisation.nomObligatoire")}</span>
+        </p>
       </div>
 
       <div className="field-block">
@@ -783,6 +927,7 @@ function FenetreCreationNoeud({
             className="field"
             id="org-parent"
             value={parent}
+            disabled={noeud !== null}
             onChange={(e) => setParent(e.target.value)}
           >
             {nature === "departement" ? (
@@ -796,8 +941,39 @@ function FenetreCreationNoeud({
               </option>
             ))}
           </select>
+          <p className="field-hint">
+            {noeud
+              ? t("organisation.rattachementFige")
+              : nature === "departement"
+                ? t("organisation.horsDirectionPossible")
+                : t("organisation.horsDepartementImpossible")}
+          </p>
         </div>
       )}
+
+      {peut("users:read") ? (
+        <div className="field-block" style={{ margin: 0 }}>
+          <label className="field-label" htmlFor="org-mgr">
+            {nature === "service"
+              ? t("organisation.managerDuService")
+              : t("organisation.responsable")}
+          </label>
+          <select
+            className="field"
+            id="org-mgr"
+            value={responsableId}
+            onChange={(e) => setResponsableId(e.target.value)}
+          >
+            <option value="">{t("organisation.aucunResponsableDesigne")}</option>
+            {(agents.data ?? []).map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.prenom} {a.nom}
+              </option>
+            ))}
+          </select>
+          <p className="field-hint">{t("organisation.responsableValidateur")}</p>
+        </div>
+      ) : null}
     </Fenetre>
   );
 }

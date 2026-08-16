@@ -243,7 +243,14 @@
     "echecDetachement": "The project could not be detached.",
     "rattache": "Project attached.",
     "echecRattachement": "The project could not be attached.",
-    "echeanceLe": "Due {date}"
+    "echeanceLe": "Due {date}",
+    "modifierTitre": "Edit — Beneficiary",
+    "modifie": "Saved.",
+    "rendreInactif": "Make inactive",
+    "reactiver": "Reactivate",
+    "renduInactif": "Beneficiary made inactive.",
+    "reactive": "Beneficiary reactivated.",
+    "echecAction": "The action did not go through."
   },
   "reinitialiser": "Reset",
   "reinitialiserFiltres": "Reset filters",

@@ -243,7 +243,14 @@
     "echecDetachement": "Le projet n’a pas pu être détaché.",
     "rattache": "Projet rattaché.",
     "echecRattachement": "Le projet n’a pas pu être rattaché.",
-    "echeanceLe": "Échéance le {date}"
+    "echeanceLe": "Échéance le {date}",
+    "modifierTitre": "Modifier — Bénéficiaire",
+    "modifie": "Enregistré.",
+    "rendreInactif": "Rendre inactif",
+    "reactiver": "Réactiver",
+    "renduInactif": "Bénéficiaire rendu inactif.",
+    "reactive": "Bénéficiaire réactivé.",
+    "echecAction": "L'action n'a pas abouti."
   },
   "reinitialiser": "Réinitialiser",
   "reinitialiserFiltres": "Réinitialiser les filtres",
