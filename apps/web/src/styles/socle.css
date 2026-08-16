@@ -192,7 +192,18 @@ a.eyebrow:hover{ color:var(--ink); }
 .field-error.is-quiet{ visibility:hidden; }
 /* Repris de la section 4 des maquettes, omis au portage de L-00 : la vue 13
    l'emploie pour dire ce que devient un jalon sans date. Une aide de champ
-   n'est pas un ornement — c'est souvent la seule explication d'un choix. */
+   n'est pas un ornement — c'est souvent la seule explication d'un choix.
+
+   **Les maquettes 04 et 05 ont perdu cette règle**, alors qu'elles posent la
+   classe : deux `<p class="field-hint">` en vue 05 — « Celui qui vous a été
+   communiqué. » et « Cette étape est obligatoire… » — y tombent sur les
+   défauts du navigateur, donc 15 px d'encre pleine avec 1 em de marge. La
+   carte de la vue 05 mesure 70 px de plus dans la maquette que dans le
+   produit, et c'est cet écart-là qui l'explique.
+
+   C'est le piège de la classe inerte, dans la maquette elle-même. La règle de
+   la maquette 02 fait foi : une aide de champ se lit comme une aide, pas
+   comme du corps de texte. On ne recopie pas une règle manquante. */
 .field-hint{ font-size:11.5px; color:var(--muted); margin:5px 0 0; line-height:1.4; }
 /* Indicateur de politique de mot de passe (vues 02 · 04 · 05) */
 .policy{ margin-top:9px; display:grid; grid-template-columns:1fr 1fr; gap:5px 14px; }
