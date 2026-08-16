@@ -13,7 +13,12 @@ import { useTranslation } from "react-i18next";
 import { z } from "zod";
 
 import { Coquille } from "../coquille/Coquille.js";
-import { FournisseurSession, useSession, CLE_SESSION } from "../session/session.js";
+import {
+  FournisseurSession,
+  useSession,
+  CLE_SESSION,
+  type Session,
+} from "../session/session.js";
 import { Chargement, RouteIntrouvable } from "../composants/etats.js";
 import { deconnexion } from "../api/session.js";
 import { appeler } from "../api/client.js";
@@ -117,10 +122,35 @@ const routeConnexion = createRoute({
   },
 });
 
+/**
+ * La vue 02 connaît son propre interrupteur.
+ *
+ * Le réglage vient du serveur — même point d'entrée que la vue 01. La page
+ * atteinte par adresse directe alors que la création autonome est coupée doit
+ * le dire et proposer une sortie, pas laisser remplir un formulaire qui sera
+ * refusé.
+ */
 const routeInscription = createRoute({
   getParentRoute: () => racine,
   path: "/inscription",
-  component: () => <Inscription />,
+  component: function PageInscription() {
+    const navigate = useNavigate();
+    const { data: acces, isPending } = useQuery({
+      queryKey: ["auth", "acces"],
+      queryFn: () => appeler<{ inscriptionAutonome: boolean }>("/auth/acces"),
+      retry: false,
+    });
+
+    return (
+      <Inscription
+        // Tant que la réponse n'est pas là, on montre le formulaire : le cas
+        // courant est « ouverte », et faire clignoter le panneau de refus
+        // serait pire que l'attendre.
+        ouverte={isPending ? true : (acces?.inscriptionAutonome ?? false)}
+        surSucces={() => void navigate({ to: "/connexion", search: {} })}
+      />
+    );
+  },
 });
 
 const routeMotDePasseOublie = createRoute({
@@ -129,13 +159,23 @@ const routeMotDePasseOublie = createRoute({
   component: () => <MotDePasseOublie />,
 });
 
+/**
+ * Le lien de réinitialisation.
+ *
+ * `compte` accompagne `jeton` : la vue 04 affiche le compte concerné, et le
+ * serveur n'expose aucun moyen de le retrouver depuis le jeton. Il reste
+ * facultatif — le champ s'affiche vide plutôt que d'inventer une identité.
+ */
 const routeReinitialisation = createRoute({
   getParentRoute: () => racine,
   path: "/reinitialisation",
-  validateSearch: z.object({ jeton: z.string().default("") }),
+  validateSearch: z.object({
+    jeton: z.string().default(""),
+    compte: z.string().default(""),
+  }),
   component: function PageReinitialisation() {
-    const { jeton } = useSearch({ from: "/reinitialisation" });
-    return <Reinitialisation jeton={jeton} />;
+    const { jeton, compte } = useSearch({ from: "/reinitialisation" });
+    return <Reinitialisation jeton={jeton} compte={compte} />;
   },
 });
 
@@ -154,11 +194,35 @@ const routeMotDePasseImpose = createRoute({
   component: function PageMotDePasseImpose() {
     const navigate = useNavigate();
     const client = useQueryClient();
+    // La vue rappelle qui est connecté : on change *ce* mot de passe, pas un
+    // mot de passe en général. La session est déjà en cache — c'est la même
+    // clé que la coquille.
+    const { data: session } = useQuery({
+      queryKey: CLE_SESSION,
+      queryFn: () => appeler<Session>("/auth/me"),
+      retry: false,
+    });
+
     return (
       <MotDePasseImpose
+        {...(session
+          ? {
+              utilisateur: {
+                prenom: session.prenom,
+                nom: session.nom,
+                login: session.login,
+              },
+            }
+          : {})}
         surSucces={() => {
           void client.invalidateQueries({ queryKey: CLE_SESSION });
           void navigate({ to: "/" });
+        }}
+        surDeconnexion={() => {
+          void deconnexion().then(() => {
+            client.clear();
+            return navigate({ to: "/connexion", search: {} });
+          });
         }}
       />
     );
