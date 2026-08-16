@@ -60,6 +60,16 @@
   --ob-done:#6FD3A0; --ob-blocked:#FF9A9A; --ob-leave:#C3ABF5;
   --ob-telework:#7FD7E8; --ob-activity:#6ED6BE; --ob-event:#FFAE7A;
 
+  /* Encres constantes — voir docs/design/DESIGN.md § 1.7.
+     Elles ne basculent PAS avec le thème : elles sont posées sur des aplats
+     qui restent sombres dans les deux thèmes (statuts, ombres, voiles). */
+  --on-status:#FFFFFF;      /* texte sur un aplat de statut */
+  --ombre-douce:rgba(0,0,0,.04);
+  --ombre-portee:rgba(0,0,0,.35);
+  --voile-fenetre:rgba(8,10,16,.45);
+  --trame-leave-douce:rgba(106,75,166,.30);
+  --trame-leave-pending-douce:rgba(120,110,150,.16);
+
   /* Rythme */
   --r:3px;                /* rayon standard : net, jamais arrondi mou */
   --font-ui:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
