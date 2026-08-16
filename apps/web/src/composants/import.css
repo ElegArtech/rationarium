@@ -1,0 +1,56 @@
+/*
+ * La fenêtre d'import — M21, L-24.
+ *
+ * La maquette de la vue 27 documente la fenêtre d'import CSV : format colonne
+ * par colonne, modèle téléchargeable, aperçu, résultat. Ces règles étendent le
+ * vocabulaire existant — surface, filets, mono pour les métadonnées — plutôt
+ * que d'en inventer un.
+ */
+
+.imp-format{ padding:11px 14px; background:var(--surface-2); border:1px solid var(--line);
+  border-radius:var(--r); margin-bottom:12px; }
+.imp-titre{ font-size:12.5px; font-weight:600; margin:0 0 5px; }
+.imp-colonnes{ font-family:var(--font-mono); font-size:10px; color:var(--muted);
+  margin:0 0 9px; line-height:1.6; }
+
+.imp-fichier{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:12px; }
+.imp-label{ font-size:12.5px; font-weight:600; }
+.imp-nom{ font-family:var(--font-mono); font-size:10px; color:var(--muted); }
+
+/* Les deux modes, côte à côte : « remplacer » n'a pas de sens sans savoir ce
+   qu'il remplace, et le lire après avoir choisi serait trop tard. */
+.imp-modes{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px; }
+.imp-mode{ display:flex; align-items:flex-start; gap:9px; padding:11px;
+  border:1px solid var(--line-strong); border-radius:var(--r); background:var(--surface); }
+.imp-mode.is-on{ border-color:var(--accent); background:var(--accent-soft); }
+.imp-mode input{ accent-color:var(--accent); width:15px; height:15px; margin-top:2px; }
+.imp-mode-n{ display:block; font-size:12.5px; font-weight:600; }
+.imp-mode-d{ display:block; font-size:11.5px; color:var(--muted); margin-top:3px; line-height:1.45; }
+
+.imp-volumes{ display:block; font-family:var(--font-mono); font-size:10.5px; margin-top:7px; }
+.imp-confirme{ margin-top:9px; }
+
+.imp-apercu{ margin-top:4px; }
+.imp-table{ border:1px solid var(--line); border-radius:var(--r); overflow:hidden;
+  margin:8px 0 12px; }
+.imp-row{ display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px;
+  padding:7px 11px; border-bottom:1px solid var(--line); font-size:11.5px; }
+.imp-row:last-child{ border-bottom:none; }
+.imp-row > span{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.imp-head{ background:var(--surface-2); font-family:var(--font-mono); font-size:9px;
+  letter-spacing:.1em; text-transform:uppercase; color:var(--muted); }
+.imp-reste{ font-family:var(--font-mono); font-size:9.5px; color:var(--muted);
+  padding:6px 11px; margin:0; }
+
+.imp-erreurs{ margin:0; }
+.imp-erreurs ul{ margin:6px 0 0; padding-left:18px; }
+.imp-erreurs li{ font-size:11.5px; color:var(--st-blocked); line-height:1.6; }
+.imp-bloquant{ font-size:11.5px; color:var(--st-blocked); font-weight:600; margin:8px 0 0; }
+
+/* Le compte rendu : trois familles, jamais deux. */
+.imp-bilan{ display:flex; gap:10px; flex-wrap:wrap; margin-bottom:9px; }
+.imp-chiffre{ font-family:var(--font-mono); font-size:11px; padding:5px 9px;
+  border:1px solid var(--line-strong); border-radius:var(--r); color:var(--muted); }
+.imp-chiffre.is-ok{ color:var(--st-done); border-color:var(--st-done); }
+.imp-chiffre.is-err{ color:var(--st-blocked); border-color:var(--st-blocked); }
+.imp-note{ font-size:11.5px; color:var(--muted); margin:0 0 8px; }

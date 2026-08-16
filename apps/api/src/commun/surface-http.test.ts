@@ -23,6 +23,7 @@ import { PlanningController } from "../planning/planning.controller.js";
 import { TableauController } from "../tableau/tableau.controller.js";
 import { RapportsController } from "../rapports/rapports.controller.js";
 import { NotificationsController } from "../notifications/notifications.controller.js";
+import { ImportsController } from "../imports/imports.controller.js";
 
 /**
  * `RG-DROITS-03` — **aucun point d'entrée n'est ouvert par inadvertance.**
@@ -60,6 +61,7 @@ const CONTROLEURS = [
   TableauController,
   RapportsController,
   NotificationsController,
+  ImportsController,
 ];
 
 /** Les seules routes autorisées à se passer de permission. */
