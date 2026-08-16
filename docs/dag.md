@@ -4,7 +4,7 @@ Forme opérationnelle du § 5 de `cadrage/04`. C'est le document qu'on ouvre pou
 
 > **Sans DAG, la parallélisation est un pari ; avec, c'est une lecture.**
 
-**État au 2026-08-16** — **vagues 0, 1 et 2 closes** (L-00 à L-09). Vague 3 ouvrable. Vague 1 ouvrable dès la clôture de la vague 0 : l'arbitrage bloquant B1 est rendu, les prérequis T1 à T6 sont levés.
+**État au 2026-08-16** — vagues 0, 1, 2 closes · vague 3 : L-10 livré. Vague 1 ouvrable dès la clôture de la vague 0 : l'arbitrage bloquant B1 est rendu, les prérequis T1 à T6 sont levés.
 
 ---
 
@@ -67,7 +67,7 @@ Séquentiel, en pair. Aucune délégation : c'est le harnais qui rend la délég
 
 | Lot | Contenu | Modules | Vues | Criticité | Dépend de | Mode |
 | --- | --- | --- | --- | --- | --- | --- |
-| **L-10** | Projets, jalons, épopées, équipe, feuille de route | M4, M5 | 10, 11, 13, 14 | Moyenne | L-07 | délégation |
+| ~~**L-10**~~ | Projets, jalons, épopées, équipe, feuille de route | M4, M5 | 10, 11, 13, 14 | Moyenne | L-07 | **livré** |
 | **L-11** | Tâches, sous-tâches, dépendances, RACI, kanban, cascade de dates | M6 | 12, 16, 17 | **Haute** | L-10 | pair |
 | **L-12** | Tiers et clients | M14 | 23–26 | Basse | L-07 | délégation large |
 | **L-13** | Compétences : référentiel, matrice, écarts | M13 | 22 | Basse | L-07 | délégation large |
