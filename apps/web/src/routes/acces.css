@@ -109,13 +109,26 @@
   padding: 40px 48px;
 }
 
+/*
+ * `.form-card--wide` — déclarée, et sans effet. **C'est l'état des maquettes.**
+ *
+ * Les vues 01 et 02 déclarent `.form-card--wide{max-width:400px}` en section 4
+ * puis `.form-card{max-width:380px}` en section 7. Spécificité égale, la
+ * seconde gagne : la carte de la vue 02 mesure 380 px, pas 400, alors même que
+ * son balisage porte la classe. Mesuré sur la maquette gelée.
+ *
+ * L'ordre est donc reproduit tel quel, dans le même fichier pour que rien ne
+ * dépende de l'ordre des imports. Porter 400 px « parce que c'est ce que la
+ * règle dit » serait une amélioration de la maquette, pas sa transposition :
+ * la référence est ce qu'elle rend. L'ambiguïté remonte en question.
+ */
+.form-card--wide {
+  max-width: 400px;
+}
+
 .form-card {
   width: 100%;
   max-width: 380px;
-}
-
-.form-card--wide {
-  max-width: 460px;
 }
 
 .form-intro {

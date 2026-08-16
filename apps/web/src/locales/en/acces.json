@@ -74,13 +74,13 @@
     "chapeau": "Application access"
   },
   "inscription": {
-    "chapeau": "New account"
+    "chapeau": "Account creation"
   },
   "oubli": {
-    "chapeau": "Account recovery"
+    "chapeau": "Password reset"
   },
   "reinitialisation": {
-    "chapeau": "Account recovery"
+    "chapeau": "Password reset"
   },
   "impose": {
     "chapeau": "Account security"

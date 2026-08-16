@@ -136,14 +136,26 @@ export function GabaritAcces({
   chapeau,
   intro,
   large = false,
+  actions,
+  avecAide = true,
   children,
 }: {
   titre: string;
   /** Le sur-titre : « Accès à l'application ». */
   chapeau: string;
-  /** La ligne d'introduction sous le titre. */
-  intro: string;
+  /**
+   * La ligne d'introduction sous le titre.
+   *
+   * Facultative : la vue 05 n'en a pas. Son explication n'est pas une
+   * introduction mais **le motif du blocage**, et il vit dans une alerte, pas
+   * dans un chapô — ce n'est pas la même information.
+   */
+  intro?: string | undefined;
   large?: boolean;
+  /** Boutons ajoutés à la barre de service — la sortie de session, vue 05. */
+  actions?: ReactNode;
+  /** La vue 05 n'offre pas de lien d'aide : son pied ne porte que deux entrées. */
+  avecAide?: boolean;
   children: ReactNode;
 }) {
   const { t } = useTranslation("acces");
@@ -289,6 +301,7 @@ export function GabaritAcces({
             <Button className="chip-btn" onPress={basculer}>
               {t(theme === "sombre" ? "theme.clair" : "theme.sombre")}
             </Button>
+            {actions}
           </div>
 
           <div className="form-body">
@@ -296,7 +309,7 @@ export function GabaritAcces({
               <div className="form-intro">
                 <span className="eyebrow">{chapeau}</span>
                 <h1 className="h1">{titre}</h1>
-                <p className="lede">{intro}</p>
+                {intro ? <p className="lede">{intro}</p> : null}
               </div>
               {children}
             </div>
@@ -305,7 +318,7 @@ export function GabaritAcces({
           <footer className="form-foot">
             <span className="eyebrow">{t("pied.version")}</span>
             <span className="eyebrow">{t("pied.accessibilite")}</span>
-            <span className="eyebrow">{t("pied.aide")}</span>
+            {avecAide ? <span className="eyebrow">{t("pied.aide")}</span> : null}
           </footer>
         </main>
       </div>
