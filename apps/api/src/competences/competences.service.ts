@@ -109,6 +109,31 @@ export class CompetencesService {
   }
 
   /**
+   * `EX-CMP-01` — le référentiel, avec l'effectif détenteur de chaque
+   * compétence.
+   *
+   * Le compte de détenteurs se lit à côté de l'effectif requis : c'est
+   * l'écart entre les deux qui fait l'information, pas l'un des deux seul.
+   */
+  async referentiel(filtres: { categorie?: CategorieCompetence; recherche?: string } = {}) {
+    const clauses: Record<string, unknown>[] = [];
+    if (filtres.categorie) clauses.push({ categorie: filtres.categorie });
+    if (filtres.recherche) {
+      clauses.push({ nom: { contains: filtres.recherche, mode: "insensitive" } });
+    }
+    const competences = await this.prisma.skill.findMany({
+      ...(clauses.length > 0 ? { where: { AND: clauses } } : {}),
+      orderBy: [{ categorie: "asc" }, { nom: "asc" }],
+      include: { _count: { select: { detenteurs: true } } },
+    });
+    return competences.map((c) => ({
+      ...c,
+      detenteurs: c._count.detenteurs,
+      manque: Math.max(0, c.effectifRequis - c._count.detenteurs),
+    }));
+  }
+
+  /**
    * `EX-CMP-04`, `EX-CMP-06` — la matrice collaborateurs × compétences, avec
    * la couverture et les écarts.
    *

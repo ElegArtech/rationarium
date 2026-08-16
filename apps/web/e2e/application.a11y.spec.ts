@@ -30,6 +30,14 @@ import {
   REGLES_TELETRAVAIL,
   SAISIES,
 } from "./fixtures/occupations.js";
+import {
+  MATRICE,
+  REFERENTIEL,
+  LISTE_TIERS,
+  FICHE_TIERS,
+  CLIENTS,
+  FICHE_CLIENT,
+} from "./fixtures/referentiels.js";
 
 /** Une session dotée des droits d'écriture : les vues doivent rester conformes
  *  avec leurs actions affichées, pas seulement en lecture seule. */
@@ -58,6 +66,16 @@ const SESSION_COMPLETE = {
     "time_tracking:delete",
     "events:read",
     "events:create",
+    "skills:read",
+    "skills:create",
+    "skills:delete",
+    "skills:manage_matrix",
+    "third_parties:read",
+    "third_parties:create",
+    "third_parties:delete",
+    "clients:read",
+    "clients:create",
+    "clients:delete",
   ],
 };
 
@@ -79,6 +97,11 @@ const VUES: { nom: string; chemin: string; session: "valide" | "absente" }[] = [
   { nom: "19 — congés", chemin: "/conges", session: "valide" },
   { nom: "20 — télétravail", chemin: "/teletravail", session: "valide" },
   { nom: "21 — temps passé", chemin: "/temps", session: "valide" },
+  { nom: "22 — compétences (matrice)", chemin: "/competences", session: "valide" },
+  { nom: "23 — tiers", chemin: "/tiers", session: "valide" },
+  { nom: "24 — fiche tiers", chemin: `/tiers/${FICHE_TIERS.id}`, session: "valide" },
+  { nom: "25 — clients", chemin: "/clients", session: "valide" },
+  { nom: "26 — fiche client", chemin: `/clients/${FICHE_CLIENT.id}`, session: "valide" },
   { nom: "adresse inconnue", chemin: "/adresse-inexistante", session: "valide" },
 ];
 
@@ -102,6 +125,12 @@ async function preparer(page: Page, session: "valide" | "absente", theme: "clair
         "/api/teletravail/regles": { corps: REGLES_TELETRAVAIL },
         "/api/teletravail": { corps: PLANNING_TELETRAVAIL },
         "/api/temps": { corps: SAISIES },
+        "/api/competences/matrice": { corps: MATRICE },
+        "/api/competences": { corps: REFERENTIEL },
+        "/api/tiers": { corps: LISTE_TIERS },
+        [`/api/tiers/${FICHE_TIERS.id}`]: { corps: FICHE_TIERS },
+        "/api/clients": { corps: CLIENTS },
+        [`/api/clients/${FICHE_CLIENT.id}`]: { corps: FICHE_CLIENT },
       },
     });
   } else {

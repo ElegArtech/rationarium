@@ -28,6 +28,20 @@ export class CompetencesController {
     return this.competences.matrice(d.perimetre, filtres);
   }
 
+  /** `EX-CMP-01` — le référentiel des compétences. */
+  @Get()
+  @RequiertPermission("skills:read")
+  referentiel(@Query() requete: unknown) {
+    const filtres = valider(
+      z.object({
+        categorie: enumDe(CATEGORIES_COMPETENCE).optional(),
+        recherche: z.string().max(120).optional(),
+      }),
+      requete,
+    );
+    return this.competences.referentiel(filtres);
+  }
+
   /** `EX-CMP-05` — qui détient cette compétence, au moins à ce niveau. */
   @Get(":id/detenteurs")
   @RequiertPermission("skills:read")

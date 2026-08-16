@@ -1,0 +1,197 @@
+import { SESSION } from "./projets.js";
+
+/** Jeux de données des vues 22 à 26. */
+
+export const SESSION_REFERENTIELS = {
+  ...SESSION,
+  permissions: [
+    ...SESSION.permissions,
+    "skills:read",
+    "skills:create",
+    "skills:delete",
+    "skills:manage_matrix",
+    "third_parties:read",
+    "third_parties:create",
+    "third_parties:delete",
+    "clients:read",
+    "clients:create",
+    "clients:delete",
+  ],
+};
+
+// ── Vue 22 — Compétences ────────────────────────────────────────────────────
+
+export const MATRICE = {
+  colonnes: [
+    {
+      id: "s1",
+      nom: "Cartographie SIG",
+      categorie: "technical",
+      effectifRequis: 3,
+      detenteurs: 1,
+      manque: 2,
+      ecart: true,
+      couverture: "partielle" as const,
+      ratio: "1/3",
+    },
+    {
+      id: "s2",
+      nom: "Rédaction administrative",
+      categorie: "methodology",
+      effectifRequis: 1,
+      detenteurs: 2,
+      manque: 0,
+      ecart: false,
+      couverture: "complete" as const,
+      ratio: "2/1",
+    },
+  ],
+  lignes: [
+    {
+      agent: { id: "a1", prenom: "Driss", nom: "Amrani" },
+      niveaux: ["expert", "master"],
+    },
+    {
+      agent: { id: "a2", prenom: "Inès", nom: "Rocher" },
+      niveaux: [null, "intermediate"],
+    },
+    {
+      agent: { id: "a3", prenom: "Sans", nom: "Competence" },
+      niveaux: [null, null],
+    },
+  ],
+  synthese: { competences: 2, avecEcart: 1, couvertureMoyenne: 67 },
+};
+
+export const REFERENTIEL = [
+  {
+    id: "s1",
+    nom: "Cartographie SIG",
+    categorie: "technical",
+    description: "Production et mise à jour des couches cartographiques",
+    effectifRequis: 3,
+    detenteurs: 1,
+    manque: 2,
+  },
+  {
+    id: "s2",
+    nom: "Rédaction administrative",
+    categorie: "methodology",
+    description: null,
+    effectifRequis: 1,
+    detenteurs: 2,
+    manque: 0,
+  },
+];
+
+// ── Vues 23 et 24 — Tiers ───────────────────────────────────────────────────
+
+export const TIERS_MORALE = {
+  id: "x1",
+  type: "organisation",
+  organisation: "Presta SA",
+  contactNom: null,
+  contactEmail: null,
+  contactTelephone: null,
+  notes: "Marché à bons de commande 2026",
+  actif: true,
+  _count: { projets: 2, taches: 5 },
+};
+
+export const TIERS_PHYSIQUE = {
+  id: "x2",
+  type: "individual",
+  organisation: null,
+  contactNom: "Nadia Kaufmann",
+  contactEmail: "nadia.kaufmann@exemple.fr",
+  contactTelephone: "01 02 03 04 05",
+  notes: null,
+  actif: true,
+  _count: { projets: 1, taches: 0 },
+};
+
+export const TIERS_ARCHIVE = {
+  ...TIERS_MORALE,
+  id: "x3",
+  organisation: "Ancien prestataire",
+  actif: false,
+};
+
+export const LISTE_TIERS = [TIERS_MORALE, TIERS_PHYSIQUE];
+
+export const FICHE_TIERS = {
+  id: TIERS_MORALE.id,
+  type: TIERS_MORALE.type,
+  organisation: TIERS_MORALE.organisation,
+  contactNom: null,
+  contactEmail: null,
+  contactTelephone: null,
+  notes: TIERS_MORALE.notes,
+  actif: true,
+  projets: [{ id: "p1", nom: "Refonte du portail citoyen", statut: "active" }],
+  taches: [{ id: "k1", titre: "Audit d'accessibilité", statut: "doing" }],
+  heuresDeclarees: 18,
+};
+
+export const FICHE_TIERS_VIDE = {
+  ...FICHE_TIERS,
+  id: "x9",
+  organisation: "Sans rattachement",
+  projets: [],
+  taches: [],
+  heuresDeclarees: 0,
+};
+
+// ── Vues 25 et 26 — Clients ─────────────────────────────────────────────────
+
+export const CLIENTS = [
+  {
+    id: "c1",
+    nom: "Direction de la relation citoyen",
+    contactNom: "Fatou Berthier",
+    contactEmail: "f.berthier@exemple.fr",
+    contactTelephone: null,
+    adresse: "12 place de la Mairie",
+    notes: null,
+    actif: true,
+    projets: [{ project: { id: "p1", nom: "Refonte du portail citoyen" } }],
+    _count: { projets: 1 },
+  },
+  {
+    id: "c2",
+    nom: "Association des usagers",
+    contactNom: null,
+    contactEmail: null,
+    contactTelephone: null,
+    adresse: null,
+    notes: null,
+    actif: false,
+    projets: [],
+    _count: { projets: 0 },
+  },
+];
+
+export const FICHE_CLIENT = {
+  id: "c1",
+  nom: "Direction de la relation citoyen",
+  contactNom: "Fatou Berthier",
+  contactEmail: "f.berthier@exemple.fr",
+  contactTelephone: null,
+  adresse: "12 place de la Mairie",
+  notes: null,
+  actif: true,
+  projets: [
+    { id: "p1", nom: "Refonte du portail citoyen", statut: "active" },
+    { id: "p2", nom: "Guichet unique", statut: "draft" },
+  ],
+};
+
+export const FICHE_CLIENT_VIDE = {
+  ...FICHE_CLIENT,
+  id: "c2",
+  nom: "Association des usagers",
+  actif: false,
+  projets: [],
+};
+
+export const IMPACT_VIDE = { blocages: [], effacements: [], alternative: null };
