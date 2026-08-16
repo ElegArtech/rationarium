@@ -14,6 +14,7 @@ import {
 } from "react-aria-components";
 import { PanneauNotifications } from "./Notifications.js";
 import { BibliothequeIcones, Icone } from "./icones.js";
+import { BibliothequeIconesProjet } from "../composants/icones-projet.js";
 import { navigationVisible } from "./navigation.js";
 import { changerLangue, LANGUES } from "../i18n/index.js";
 import { definirTheme, themeCourant, THEMES, type Theme } from "../theme/index.js";
@@ -131,6 +132,10 @@ export function Coquille({
   return (
     <>
       <BibliothequeIcones />
+      {/* Les symboles de projet sont déclarés une fois pour toute
+          l'application : ils sont référencés par les vues 06, 07, 10 à 15, 30
+          et 34, et un sprite par vue les dupliquerait dix fois. */}
+      <BibliothequeIconesProjet />
       <div
         className={`app${repliee ? " is-collapsed" : ""}${tiroirOuvert ? " is-open" : ""}`}
       >

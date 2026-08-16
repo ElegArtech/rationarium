@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
+import { IconeProjet } from "../../composants/icones-projet.js";
 import { Link } from "@tanstack/react-router";
 import { STATUTS_PROJET, PRIORITES } from "@trame/contracts";
 import type { FicheProjet } from "../../api/projets.js";
@@ -66,8 +67,8 @@ export function CadreProjet({
       {bandeau}
 
       <div className={`proj-head${projet.archive || projet.statut === "cancelled" ? " is-dim" : ""}`}>
-        <div className="proj-icon" aria-hidden="true">
-          <span className="picon-glyphe">{projet.icone ?? "◇"}</span>
+        <div className="proj-icon">
+          <IconeProjet icone={projet.icone} nom={projet.nom} />
         </div>
         <div className="bloc-etroit">
           {projet.createur ? (

@@ -1,5 +1,6 @@
 import { useState, type CSSProperties, type KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
+import { IconeProjet } from "../../composants/icones-projet.js";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Tab, TabList, TabPanel, Tabs } from "react-aria-components";
 import { STATUTS_PROJET, STATUTS_TACHE } from "@trame/contracts";
@@ -137,12 +138,9 @@ function Indicateurs({ indicateurs }: { indicateurs: api.TableauDeBord["indicate
 }
 
 /** La pastille d'un projet — `RG-PRJ-11` : l'icône du référentiel, pas une initiale. */
+/** La pastille de projet, en petit — même symbole que partout ailleurs. */
 function Pastille({ icone, titre }: { icone: string | null; titre: string }) {
-  return (
-    <i className="pglyph" title={titre} aria-hidden="true">
-      {icone ?? "◆"}
-    </i>
-  );
+  return <IconeProjet icone={icone} nom={titre} petite />;
 }
 
 /**

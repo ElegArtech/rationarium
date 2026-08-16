@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
+import { IconeProjet } from "../../composants/icones-projet.js";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { Button } from "react-aria-components";
@@ -179,9 +180,10 @@ function LigneProjet({ projet }: { projet: api.LigneProjet }) {
       params={{ id: projet.id }}
       className={`prow-card${projet.statut === "cancelled" ? " is-cancelled" : ""}`}
     >
-      <span className="picon-box" aria-hidden="true">
-        <span className="picon-glyphe">{projet.icone ?? "◇"}</span>
-      </span>
+      {/* La pastille porte le SYMBOLE du référentiel, pas un caractère : deux
+          projets peuvent commencer par la même lettre, pas porter la même
+          icône. Sans icône choisie, l'initiale plutôt qu'un carré vide. */}
+      <IconeProjet icone={projet.icone} nom={projet.nom} />
 
       <div className="prow-main">
         <p className="prow-title">{projet.nom}</p>
