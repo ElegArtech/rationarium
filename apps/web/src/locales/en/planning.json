@@ -9,7 +9,7 @@
   "congeEnAttente": "Pending",
   "interventionExterieure": "EXT",
   "teletravailLectureSeule": "Read-only — permission required",
-  "occupationsSupplementaires": "+{n, number} more",
+  "occupationsSupplementaires": "{n, plural, one {+ # more} other {+ # more}}",
   "modes": {
     "groupe": "Display mode",
     "semaine": "Week",
@@ -23,7 +23,7 @@
     "suivant_mois": "Next month",
     "aujourdhui": "Today",
     "libelle_semaine": "Week of {debut} to {fin}",
-    "libelle_mois": "From {debut} to {fin}"
+    "libelle_mois": "{mois}"
   },
   "filtres": {
     "tousServices": "All teams",
@@ -55,7 +55,8 @@
     "reassignerA": "Reassign to…",
     "dateVerrouillee": "Date cannot be moved: task has several assignees",
     "basculerTeletravail": "{nom}, {date} — currently {etat}. Switch to {suivant}",
-    "imprimer": "Print"
+    "imprimer": "Print",
+    "creerIci": "Create here — {nom}, {date}"
   },
   "groupe": {
     "effectif": "{n, plural, one {# person} other {# people}}",
@@ -89,13 +90,15 @@
     "typesTache": "Task type",
     "presence": "Presence",
     "absences": "Absences",
-    "evenements": "Events",
+    "evenements": "Other",
     "tacheProjet": "Project task",
     "tacheHorsProjet": "Non-project task",
     "congeValide": "Approved leave",
     "congeAttente": "Pending leave",
     "evenementInterne": "Event",
-    "evenementExterne": "External intervention"
+    "evenementExterne": "External intervention",
+    "presenceBureau": "Office",
+    "permanence": "On-call duty"
   },
   "presence": {
     "office": "Office",
@@ -122,7 +125,8 @@
   },
   "mois": {
     "resume": "{nom}, {date} — {n, plural, =0 {nothing scheduled} one {# item} other {# items}}, {lieu}",
-    "resumeConge": "{nom}, {date} — {type}, {statut}"
+    "resumeConge": "{nom}, {date} — {type}, {statut}",
+    "indication": "Hover a day — or move through the grid with the keyboard — to read its details."
   },
   "detail": {
     "titre": "Details",
@@ -150,17 +154,24 @@
     "interventionExterieure": "External intervention",
     "evenementInterne": "Internal event",
     "participants": "Participants",
-    "nParticipants": "{n, plural, one {# participant} other {# participants}}"
+    "nParticipants": "{n, plural, one {# participant} other {# participants}}",
+    "aucuneSelection": "Nothing selected",
+    "taches": "Tasks",
+    "nTaches": "{n, plural, =0 {none} one {# task} other {# tasks}}",
+    "projets": "Projects",
+    "aucunProjet": "None",
+    "presence": "Presence",
+    "presenceAbsent": "Away",
+    "conge": "Leave"
   },
   "activite": {
     "titre": "Activity grid",
-    "titreImpression": "Activity grid",
     "imprimer": "Print",
-    "axeJours": "Days in rows",
-    "axeTaches": "Tasks in columns",
+    "axeJours": "Days",
+    "axeTaches": "Activities",
     "aucunAgent": "No one assigned",
-    "agentsSupplementaires": "+{n, number} more",
-    "ajouter": "Add",
+    "agentsSupplementaires": "{n, plural, one {+ # more} other {+ # more}}",
+    "ajouter": "+ Add",
     "ajouterA": "Add people to {tache}, on {date}",
     "videTitre": "No active predefined task",
     "videExplication": "The activity grid is built from the predefined task catalogue.",
@@ -181,7 +192,14 @@
     "realisationEnregistree": "Completion status saved.",
     "echecRealisation": "The status could not be saved.",
     "marquerTenue": "Mark {nom}'s shift as done",
-    "marquerNonTenue": "Mark {nom}'s shift as not done"
+    "marquerNonTenue": "Mark {nom}'s shift as not done",
+    "grilleRegion": "Activity grid — days run down, activities run across",
+    "axesInverses": "Activity grid — axes are flipped compared with the Week and Month views: days run down, recurring activities run across.",
+    "statutTitre": "Completion status",
+    "statutIndication": "Click the marker to change it",
+    "statutPrevue": "Planned",
+    "statutRealisee": "Completed",
+    "statutNonRealisee": "Not completed"
   },
   "jours": {
     "court": {
@@ -211,5 +229,6 @@
       "5": "Friday",
       "6": "Saturday"
     }
-  }
+  },
+  "grilleRegion": "Schedule grid — scrollable area, move through it with the arrow keys"
 }

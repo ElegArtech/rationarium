@@ -3,6 +3,7 @@ import {
   appliquerReglages,
   formaterDate,
   formaterHeure,
+  formaterMois,
   premierJourSemaine,
   joursVisibles,
 } from "./formats.js";
@@ -105,5 +106,36 @@ describe("Les réglages de planning", () => {
     expect([...joursVisibles()].sort()).toEqual([1, 2, 3, 4, 5]);
     appliquerReglages({ "planning.visibleDays": "0,6" });
     expect([...joursVisibles()].sort()).toEqual([0, 6]);
+  });
+});
+
+/**
+ * L-20, vue 08 — l'en-tête de la vue Mois titre le MOIS, pas une plage.
+ *
+ * « Du 01/08/2026 au 31/08/2026 » dit la même chose que « Août 2026 » en trois
+ * fois plus large, sur une barre d'outils qui débordait déjà. La maquette 08
+ * titre le mois ; c'est ce que ce format rend.
+ */
+describe("Le mois d'un en-tête de planning", () => {
+  it("porte la majuscule d'intitulé, que `Intl` ne met pas en français", () => {
+    // `Intl` rend « août 2026 » : la minuscule est la règle en cours de
+    // phrase, pas en tête d'un intitulé.
+    expect(formaterMois("2026-08-01")).toBe("Août 2026");
+  });
+
+  it("nomme le mois du jour donné, pas le mois courant", () => {
+    expect(formaterMois("2026-01-31")).toBe("Janvier 2026");
+    expect(formaterMois("2026-12-01")).toBe("Décembre 2026");
+  });
+
+  it("ne se laisse pas déborder par le fuseau : le 1er reste dans son mois", () => {
+    // Lu en heure locale, `2026-03-01T00:00:00Z` bascule en février à l'ouest
+    // de Greenwich. Le formatage est ancré en UTC pour cette raison.
+    expect(formaterMois("2026-03-01")).toBe("Mars 2026");
+  });
+
+  it("rend un tiret cadratin sur une valeur absente, comme les autres formats", () => {
+    expect(formaterMois(null)).toBe("—");
+    expect(formaterMois(undefined)).toBe("—");
   });
 });

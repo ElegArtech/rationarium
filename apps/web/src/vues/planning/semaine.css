@@ -618,6 +618,13 @@
   text-align: center;
 }
 
+/* L'état vide est centré, sa sortie aussi. `.ligne-actions` est une rangée
+   flex alignée à gauche : posée ici telle quelle, elle décrochait le bouton
+   de sortie de son texte et le collait au bord gauche du cadre. */
+.pl-empty .ligne-actions {
+  justify-content: center;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .drawer {
     transition: none;
@@ -656,6 +663,8 @@
 @media print {
   @page { size: A4 landscape; margin: 12mm; }
 
+  /* `.toasts` et `.skip` sont déjà masqués par le bloc d'impression du socle :
+     les répéter ici les ferait diverger au premier changement. */
   .side, .topbar, .filters, .pl-toolbar, .no-print, .cell-add, .legend { display: none !important; }
   .app { display: block !important; }
   .page { display: block; padding: 0; max-width: none; }

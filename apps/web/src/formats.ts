@@ -169,6 +169,25 @@ export const formaterDateLongue = (valeur: string | Date | null | undefined): st
 };
 
 /**
+ * Le mois et son année, pour l'en-tête de la vue Mois : `Août 2026`.
+ *
+ * La maquette 08 titre le mois, pas une plage de dates : « Du 01/08/2026 au
+ * 31/08/2026 » dit la même chose en trois fois plus large, sur une barre
+ * d'outils déjà chargée. `Intl` donne la minuscule en français — c'est la
+ * règle en cours de phrase, pas en tête d'un intitulé.
+ */
+export const formaterMois = (valeur: string | Date | null | undefined): string => {
+  const d = instant(valeur);
+  if (!d) return "—";
+  const rendu = new Intl.DateTimeFormat(locale(), {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(d);
+  return rendu.charAt(0).toUpperCase() + rendu.slice(1);
+};
+
+/**
  * Un nombre, avec le séparateur de milliers de la langue.
  *
  * `1 200 h` en français, `1,200 h` en anglais. Concaténer sans passer par
