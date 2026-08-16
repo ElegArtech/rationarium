@@ -1,0 +1,196 @@
+/*
+ * Vue 12 — Projet, onglet Tâches (kanban).
+ * Section 16 des maquettes, reprise verbatim.
+ */
+
+.kan {
+  display: grid;
+  grid-template-columns: repeat(var(--n), minmax(226px, 1fr));
+  gap: 11px;
+  align-items: start;
+}
+.kcol {
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  display: flex;
+  flex-direction: column;
+}
+.kcol.is-over {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.kcol-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 11px;
+  border-bottom: 1px solid var(--line);
+}
+.kcol-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentcolor;
+  flex: none;
+}
+.kcol-name {
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.kcol-add {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--muted);
+  width: 20px;
+  height: 20px;
+  border-radius: 2px;
+}
+.kcol-add:hover {
+  color: var(--accent);
+  background: var(--surface);
+}
+.kcol-body {
+  padding: 9px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 66px;
+}
+
+.kcard {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 10px 10px 9px;
+  position: relative;
+  cursor: grab;
+  text-align: left;
+  width: 100%;
+  display: block;
+  color: inherit;
+  text-decoration: none;
+}
+.kcard:hover {
+  border-color: var(--line-strong);
+}
+.kcard:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.kcard.is-dragging {
+  opacity: 0.4;
+}
+.kcard.is-late {
+  border-left: 3px solid var(--st-blocked);
+}
+.kcard-top {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+  margin-bottom: 7px;
+  padding-right: 22px;
+}
+.kcard-title {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
+  margin: 0 0 9px;
+}
+.kcard-foot {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.avs {
+  display: flex;
+  align-items: center;
+}
+.avs .agent-av {
+  width: 21px;
+  height: 21px;
+  font-size: 7.5px;
+  margin-left: -6px;
+  border: 1.5px solid var(--surface);
+}
+.avs .agent-av:first-child {
+  margin-left: 0;
+}
+.avs-more {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--muted);
+  margin-left: 5px;
+}
+.kcard-est {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  color: var(--muted);
+  margin-left: auto;
+}
+.kcard .bar {
+  margin-top: 9px;
+}
+.kmile {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-cond);
+  font-size: 9.5px;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  padding: 1px 5px;
+}
+
+/*
+ * L'alternative clavier au glisser-déposer (C6).
+ * Elle n'est pas cachée : elle apparaît au survol ET au focus, et reste
+ * atteignable à la tabulation. Un déplacement qui n'existerait qu'à la souris
+ * rendrait le kanban inutilisable au clavier.
+ */
+.kmove {
+  position: absolute;
+  top: 6px;
+  right: 5px;
+  width: 21px;
+  height: 21px;
+  border-radius: 2px;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1;
+  opacity: 0;
+}
+.kcard:hover .kmove,
+.kcard:focus-within .kmove,
+.kmove:focus-visible {
+  opacity: 1;
+}
+.kmove:hover {
+  color: var(--accent);
+  background: var(--surface-2);
+}
+.kempty {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--muted);
+  text-align: center;
+  padding: 15px 6px;
+  border: 1px dashed var(--line);
+  border-radius: 2px;
+}
+.klock {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--muted);
+}
+
+@media (max-width: 900px) {
+  .kan {
+    grid-template-columns: repeat(var(--n), minmax(212px, 1fr));
+    overflow-x: auto;
+  }
+}

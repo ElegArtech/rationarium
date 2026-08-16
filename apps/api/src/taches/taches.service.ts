@@ -27,6 +27,7 @@ export type EchecTache =
   | "hors_projet_avec_jalon"
   | "multi_assignee_date"
   | "deja_assigne"
+  | "dates_incoherentes"
   | "introuvable"
   | "conflit_de_version";
 
@@ -175,6 +176,185 @@ export class TachesService {
   }
 
   // ── Dépendances — EX-TSK-10 à EX-TSK-13 ──────────────────────────────────
+
+  /**
+   * `EX-TSK-13` — la fiche d'une tâche : tout ce que la vue 17 affiche.
+   *
+   * C'est la vue la plus dense en objets liés du produit : sous-tâches,
+   * dépendances dans les deux sens, RACI, commentaires, documents, tiers. Les
+   * charger en un appel n'est pas une optimisation — c'est la seule façon
+   * d'éviter que la page se remplisse par morceaux, chacun avec son propre
+   * clignotement.
+   */
+  async fiche(taskId: string) {
+    const tache = await this.prisma.task.findUnique({
+      where: { id: taskId },
+      include: {
+        project: { select: { id: true, nom: true, icone: true } },
+        milestone: { select: { id: true, nom: true } },
+        epic: { select: { id: true, nom: true } },
+        assignes: {
+          select: { userId: true, porteur: true, user: { select: { prenom: true, nom: true } } },
+        },
+        sousTaches: { orderBy: { ordre: "asc" } },
+        raci: {
+          select: { userId: true, role: true, user: { select: { prenom: true, nom: true } } },
+        },
+        tiers: {
+          select: {
+            thirdParty: { select: { id: true, organisation: true, contactNom: true } },
+          },
+        },
+        commentaires: {
+          orderBy: { creeLe: "asc" },
+          include: { auteur: { select: { id: true, prenom: true, nom: true } } },
+        },
+        documents: {
+          orderBy: { creeLe: "desc" },
+          select: {
+            id: true, nom: true, tailleOctets: true, typeMime: true, creeLe: true,
+            auteur: { select: { prenom: true, nom: true } },
+          },
+        },
+      },
+    });
+    if (!tache) throw new ErreurTache("introuvable");
+
+    const [liens, incoherences] = await Promise.all([
+      this.dependances(taskId),
+      this.incoherences(taskId),
+    ]);
+
+    const maintenant = new Date();
+    return {
+      ...tache,
+      tiers: tache.tiers.map((x) => x.thirdParty),
+      dependances: liens,
+      incoherences,
+      enRetard: tache.dateFin !== null && tache.dateFin < maintenant && tache.statut !== "done",
+      /** Parti pris n° 2 : le hors-projet est nommé, pas laissé vide. */
+      horsProjet: tache.projectId === null,
+    };
+  }
+
+  /**
+   * `EX-TSK-08` — modifier une tâche.
+   *
+   * `RG-GEN-07` — **la version lue est transmise et recontrôlée.** Sans elle,
+   * deux personnes qui éditent la même tâche produisent un « dernier arrivé
+   * gagne » silencieux : celui qui enregistre en second efface le travail du
+   * premier sans que personne ne le sache.
+   */
+  async modifier(
+    taskId: string,
+    donnees: {
+      version: number;
+      titre?: string;
+      description?: string | null;
+      statut?: StatutTache;
+      priorite?: Priorite;
+      dateDebut?: Date | null;
+      dateFin?: Date | null;
+      estimationHeures?: number | null;
+      avancement?: number;
+    },
+    acteurId: string,
+  ) {
+    const { version, ...champs } = donnees;
+    const avant = await this.prisma.task.findUnique({
+      where: { id: taskId },
+      select: { version: true, statut: true, avancement: true },
+    });
+    if (!avant) throw new ErreurTache("introuvable");
+    if (avant.version !== version) {
+      throw new ErreurTache("conflit_de_version", { attendue: avant.version, recue: version });
+    }
+
+    if (champs.dateDebut && champs.dateFin && champs.dateFin < champs.dateDebut) {
+      throw new ErreurTache("dates_incoherentes");
+    }
+
+    const misAJour = await this.prisma.task.update({
+      where: { id: taskId, version },
+      data: { ...champs, version: { increment: 1 } },
+    });
+
+    await this.audit.tracer({
+      action: "task.update", typeEntite: "Task", entiteId: taskId, acteurId,
+      detail: { champs: Object.keys(champs) },
+    });
+    return misAJour;
+  }
+
+  // ── Sous-tâches — EX-TSK-09 ──────────────────────────────────────────────
+
+  /**
+   * L'ordre d'une sous-tâche est **explicite**, pas déduit de la date de
+   * création : la vue 17 les réordonne au glisser-déposer, et un ordre implicite
+   * ne survivrait pas au premier déplacement.
+   */
+  async ajouterSousTache(taskId: string, libelle: string, acteurId: string) {
+    const dernier = await this.prisma.subtask.aggregate({
+      where: { taskId },
+      _max: { ordre: true },
+    });
+    const sousTache = await this.prisma.subtask.create({
+      data: { taskId, libelle, ordre: (dernier._max.ordre ?? -1) + 1 },
+    });
+    await this.audit.tracer({
+      action: "task.subtask_create", typeEntite: "Task", entiteId: taskId, acteurId,
+    });
+    return sousTache;
+  }
+
+  async basculerSousTache(id: string, fait: boolean) {
+    return this.prisma.subtask.update({ where: { id }, data: { fait } });
+  }
+
+  async supprimerSousTache(id: string) {
+    await this.prisma.subtask.delete({ where: { id } });
+  }
+
+  /**
+   * Réordonner les sous-tâches, **en une transaction**.
+   *
+   * L'unicité `(taskId, ordre)` est posée en base : écrire les nouveaux rangs
+   * un par un violerait la contrainte dès le premier échange. Les rangs sont
+   * donc décalés hors plage, puis réécrits.
+   */
+  async reordonnerSousTaches(taskId: string, idsOrdonnes: string[]) {
+    await this.prisma.$transaction([
+      ...idsOrdonnes.map((id, i) =>
+        this.prisma.subtask.update({ where: { id }, data: { ordre: -1 - i } }),
+      ),
+      ...idsOrdonnes.map((id, i) =>
+        this.prisma.subtask.update({ where: { id }, data: { ordre: i } }),
+      ),
+    ]);
+    return this.prisma.subtask.findMany({ where: { taskId }, orderBy: { ordre: "asc" } });
+  }
+
+  /** `EX-TSK-11` — retirer une dépendance. */
+  async retirerDependance(taskId: string, prerequisId: string, acteurId: string) {
+    await this.prisma.taskDependency.delete({
+      where: { taskId_prerequisId: { taskId, prerequisId } },
+    });
+    await this.audit.tracer({
+      action: "task.dependency_remove", typeEntite: "Task", entiteId: taskId, acteurId,
+      detail: { prerequisId },
+    });
+  }
+
+  /** `EX-TSK-14` — retirer un rôle RACI. */
+  async retirerRaci(taskId: string, userId: string, role: RoleRaci, acteurId: string) {
+    await this.prisma.taskRaci.delete({
+      where: { taskId_userId_role: { taskId, userId, role } },
+    });
+    await this.audit.tracer({
+      action: "task.raci_remove", typeEntite: "Task", entiteId: taskId, acteurId,
+      detail: { userId, role },
+    });
+  }
 
   /**
    * `RG-TSK-04` — **une dépendance circulaire est refusée.**

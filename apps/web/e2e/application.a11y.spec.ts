@@ -18,7 +18,23 @@ import AxeBuilder from "@axe-core/playwright";
  * thème, et un seul des deux ne prouve rien.
  */
 
-import { PROJET, LIGNE_PROJET, ROUTE, EQUIPE, serveur } from "./fixtures/projets.js";
+import { PROJET, LIGNE_PROJET, ROUTE, EQUIPE, serveur, SESSION } from "./fixtures/projets.js";
+import { LISTE, FICHE } from "./fixtures/taches.js";
+
+/** Une session dotée des droits d'écriture : les vues doivent rester conformes
+ *  avec leurs actions affichées, pas seulement en lecture seule. */
+const SESSION_COMPLETE = {
+  ...SESSION,
+  permissions: [
+    ...SESSION.permissions,
+    "tasks:create",
+    "tasks:update",
+    "tasks:delete",
+    "tasks:manage_dependencies",
+    "tasks:manage_raci",
+    "comments:create",
+  ],
+};
 
 /** Les vues portées à ce jour, et l'état de session qu'elles supposent. */
 const VUES: { nom: string; chemin: string; session: "valide" | "absente" }[] = [
@@ -31,17 +47,24 @@ const VUES: { nom: string; chemin: string; session: "valide" | "absente" }[] = [
   { nom: "11 — fiche projet", chemin: `/projets/${PROJET.id}`, session: "valide" },
   { nom: "13 — jalons", chemin: `/projets/${PROJET.id}/jalons`, session: "valide" },
   { nom: "14 — équipe", chemin: `/projets/${PROJET.id}/equipe`, session: "valide" },
+  { nom: "12 — kanban du projet", chemin: `/projets/${PROJET.id}/taches`, session: "valide" },
+  { nom: "16 — tâches, vue globale", chemin: "/taches", session: "valide" },
+  { nom: "17 — fiche tâche", chemin: `/taches/${FICHE.id}`, session: "valide" },
   { nom: "adresse inconnue", chemin: "/adresse-inexistante", session: "valide" },
 ];
 
 async function preparer(page: Page, session: "valide" | "absente", theme: "clair" | "sombre") {
   if (session === "valide") {
     await serveur(page, {
+      session: SESSION_COMPLETE,
       reponses: {
         "/api/projets": { corps: { projets: [LIGNE_PROJET], affiches: 1, total: 1 } },
         [`/api/projets/${PROJET.id}`]: { corps: PROJET },
         "/feuille-de-route": { corps: ROUTE },
         "/equipe": { corps: EQUIPE },
+        "/api/taches": { corps: LISTE },
+        [`/api/taches/${FICHE.id}`]: { corps: FICHE },
+        "/utilisateurs": { corps: { utilisateurs: [] } },
       },
     });
   } else {
