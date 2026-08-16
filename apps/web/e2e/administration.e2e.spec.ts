@@ -30,8 +30,9 @@ test.describe("Vue 27 — utilisateurs", () => {
     await expect(page.getByRole("heading", { name: "Utilisateurs", level: 1 })).toBeVisible();
     await expect(page.getByText("camille.roussel@exemple.fr")).toBeVisible();
     await expect(page.getByText("Gestion administrative")).toBeVisible();
-    // Le filtre porte « Inactifs seulement » : on vise la pastille de ligne.
-    await expect(page.getByText("Inactif", { exact: true })).toBeVisible();
+    // La maquette 27 dit « Désactivés », pas « Inactifs » : le vocabulaire du
+    // produit a été aligné dessus au portage de la vue.
+    await expect(page.getByText("Désactivé", { exact: true })).toBeVisible();
   });
 
   test("RG-USR-04 — soi-même est signalé, et ses actions désactivées AVEC leur raison", async ({
