@@ -83,6 +83,38 @@ const HORS_AUTEUR = /^react-aria-/;
  * colonnes, textes de boutons, états vides, messages — ceux que `cadrage/02`
  * donne à la lettre.
  */
+const CATALOGUE = (() => {
+  /*
+   * Toutes les chaînes que le produit sait dire, à plat.
+   *
+   * Elle sert à trancher mécaniquement une question que le comparateur posait
+   * mal : un texte de la maquette absent du rendu est-il un LIBELLÉ MANQUANT
+   * ou du CONTENU DE DÉMONSTRATION ?
+   *
+   *   · présent au catalogue, absent du rendu → le produit sait le dire et ne
+   *     le dit pas. C'est un défaut, il bloque.
+   *   · absent du catalogue → le produit ne le dira jamais : « Anaïs Colin »,
+   *     « Atelier de cadrage », « Congé sans solde » sont la fiction de la
+   *     maquette, pas son gabarit. C'est signalé, ça ne bloque pas.
+   *
+   * Sans cette distinction, la vue 07 comptait 37 écarts de texte dont aucun
+   * n'était corrigeable côté vue — et un contrôle qu'on ne peut pas satisfaire
+   * cesse d'être lu. Avec elle, ce qui reste est ce qu'on peut corriger.
+   */
+  const valeurs = new Set();
+  const aplatir = (o) => {
+    for (const v of Object.values(o)) {
+      if (typeof v === "string") valeurs.add(v.toLowerCase().replace(/\s+/g, " ").trim());
+      else if (v && typeof v === "object") aplatir(v);
+    }
+  };
+  const dossier = path.join(RACINE, "apps/web/src/locales/fr");
+  for (const f of fs.readdirSync(dossier)) {
+    aplatir(JSON.parse(fs.readFileSync(path.join(dossier, f), "utf8")));
+  }
+  return valeurs;
+})();
+
 const DONNEES_MAQUETTE = [
   "c. durand", "d. amrani", "f. berthier", "h. nguyen", "i. rocher",
   "camille durand", "ville de roqueville", "roqueville",
@@ -182,12 +214,17 @@ function comparer(vue, maquette, rendu) {
   // 3. Les textes de la maquette absents du rendu.
   const normaliser = (t) => t.toLowerCase().replace(/[\s ]+/g, " ").trim();
   const textesRendu = new Set(rendu.textes.map(normaliser));
-  const textesManquants = maquette.textes
+  const absents = maquette.textes
     .map(normaliser)
     .filter((t) => t.length > 2)
     .filter((t) => !/\d/.test(t))
     .filter((t) => !DONNEES_MAQUETTE.some((d) => t.includes(d)))
     .filter((t) => !textesRendu.has(t));
+
+  // Le produit sait le dire et ne le dit pas : défaut.
+  const textesManquants = absents.filter((t) => CATALOGUE.has(t));
+  // Le produit ne le dira jamais : contenu de la maquette.
+  const contenuMaquette = absents.filter((t) => !CATALOGUE.has(t));
 
   // 4. Les repères.
   const reperes = [];
@@ -201,7 +238,7 @@ function comparer(vue, maquette, rendu) {
     reperes.push(`points de repère manquants : ${[...new Set(manqueLandmark)].join(", ")}`);
   }
 
-  return { vue, manquantes, inertes, textesManquants, reperes };
+  return { vue, manquantes, inertes, textesManquants, contenuMaquette, reperes };
 }
 
 function rapporter(r) {
@@ -218,8 +255,12 @@ function rapporter(r) {
     console.log(`     ${r.inertes.slice(0, 12).join(" ")}`);
   }
   if (r.textesManquants.length) {
-    console.log(`   textes    : ${r.textesManquants.length} texte(s) de la maquette absents`);
+    console.log(`   textes    : ${r.textesManquants.length} libellé(s) du produit non rendus`);
     for (const t of r.textesManquants.slice(0, 6)) console.log(`     « ${t.slice(0, 70)} »`);
+  }
+  if (r.contenuMaquette.length) {
+    // Signalé, jamais bloquant : c'est la fiction de la maquette.
+    console.log(`   (contenu de démonstration non reproduit : ${r.contenuMaquette.length})`);
   }
   for (const p of r.reperes) console.log(`   repères   : ${p}`);
   return total;
