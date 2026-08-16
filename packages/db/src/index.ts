@@ -31,3 +31,6 @@ import { PrismaClient as Client } from "./generated/client.js";
  */
 export const creerClient = (url: string): Client =>
   new Client({ adapter: new PrismaPg({ connectionString: url }) });
+
+/** Le jeu de données de volumétrie cible — `cadrage/01 § 7`, employé par L-26. */
+export { peupler, CIBLE, CIBLE_REDUITE, type CibleVolumetrie } from "./volumetrie.js";

@@ -1,13 +1,17 @@
 import { defineConfig, devices } from "@playwright/test";
 
 /**
- * Trois projets, trois natures de contrôle.
+ * Deux projets, deux natures de contrôle.
  *
- *   a11y — axe-core, exécutable dès la vague 0 sur les maquettes gelées,
- *          puis sur l'application. C'est le seul des trois qui n'attend rien.
+ *   a11y — axe-core sur les maquettes gelées puis sur l'application, plus les
+ *          parcours clavier qu'aucune analyse statique ne voit (L-25).
  *   e2e  — parcours de bout en bout : exige l'application (à partir de L-05).
- *   perf — budgets de cadrage/01 § 7. À partir de ADR-0015, la mesure porte
- *          sur la REQUÊTE agrégée, pas sur la peinture.
+ *
+ * Il n'y a **pas** de projet `perf`. `ADR-0015` a établi que le budget de
+ * `cadrage/01 § 7` se dépense côté serveur, dans l'agrégat de `RG-PLN-01` : la
+ * mesure vit dans `apps/api/src/perf`, sur PostgreSQL réel à la volumétrie
+ * cible. La placer ici aurait mesuré la peinture, qu'`ADR-0015` a déjà
+ * démontrée non problématique — 52 ms pour 500 ressources sur 31 jours.
  */
 export default defineConfig({
   testDir: "./e2e",
@@ -56,6 +60,5 @@ export default defineConfig({
   projects: [
     { name: "a11y", testMatch: /.*\.a11y\.spec\.ts/ },
     { name: "e2e", testMatch: /.*\.e2e\.spec\.ts/ },
-    { name: "perf", testMatch: /.*\.perf\.spec\.ts/ },
   ],
 });
