@@ -55,8 +55,11 @@ test.describe("Vue 06 — tableau de bord", () => {
 
     // Le brief l'exige pour une direction, dont les compteurs personnels n'ont
     // pas de sens. Aucun « NaN », aucun bloc blanc : quatre états rédigés.
-    await expect(page.getByText("0 % complétées")).toBeVisible();
-    await expect(page.getByText("Aucune échéance dépassée")).toBeVisible();
+    // Les libellés sont ceux de la maquette en mode « Tout vide » : à zéro,
+    // « 0 % complétées » n'est pas une information — un pourcentage sans
+    // population ne veut rien dire.
+    await expect(page.getByText("Rien à afficher")).toBeVisible();
+    await expect(page.getByText("Aucun retard")).toBeVisible();
     await expect(page.getByText("Aucune tâche assignée")).toBeVisible();
     await expect(page.getByText("Aucune to-do pour le moment")).toBeVisible();
     await expect(page.getByText("Aucun projet assigné")).toBeVisible();
@@ -178,7 +181,8 @@ test.describe("Vue 06 — tableau de bord", () => {
     await expect(page.getByText("Relire la note de cadrage")).toBeVisible();
     // Mêlées aux autres elles allongent la liste ; supprimées d'office elles
     // feraient perdre la trace de ce qu'on vient de faire.
-    await expect(page.getByText("1 complétée")).toBeVisible();
+    // Le séparateur porte le compte, dans les termes de la maquette.
+    await expect(page.getByText("Terminées · 1")).toBeVisible();
     await expect(page.getByText("Réserver la salle")).toBeVisible();
   });
 
