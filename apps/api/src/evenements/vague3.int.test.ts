@@ -4,7 +4,7 @@ import { execFileSync } from "node:child_process";
 import path from "node:path";
 import { creerClient, type PrismaClient } from "@trame/db";
 import { EvenementsService, ErreurEvenement } from "./evenements.service.js";
-import { TeletravailService, ErreurTeletravail } from "../teletravail/teletravail.service.js";
+import { TeletravailService } from "../teletravail/teletravail.service.js";
 import { ActiviteService, ErreurActivite } from "../activite/activite.service.js";
 import { AuditService } from "../commun/audit.service.js";
 import { PerimetreService } from "../commun/perimetre.service.js";
