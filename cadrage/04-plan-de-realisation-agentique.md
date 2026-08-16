@@ -591,9 +591,9 @@ Ces points sont ouverts mais, par application du parti pris n° 3 de `01` — *t
 | --- | --- | --- | --- |
 | T1 | **Dépôt git initialisé** | **Levé** le 2026-08-16 (`df14c64`, branche `main`) | Bloquant absolu : sans git, ni worktrees, ni branches, ni points de restauration, ni traçabilité, ni revue de diff. Le gel des maquettes date de cette validation |
 | T2 | Node 24 LTS | Présent (24.19.0) | Conforme à `03 § 3.1` |
-| T3 | pnpm 11 | **Absent** | À installer |
-| T4 | Docker / Docker Compose | **Absent** | Nécessaire aux tests d'intégration (Testcontainers) et à la cible de déploiement |
-| T5 | PostgreSQL 18 accessible | **Absent en local** | Fourni par conteneur |
+| T3 | pnpm 11 | **Levé** le 2026-08-16 — 11.22.0 via corepack | Version épinglée par `03 § 9` |
+| T4 | Docker / Docker Compose | **Levé** le 2026-08-16 — Docker 29.1.3, Compose 2.40.3, démon actif | Nécessaire aux tests d'intégration (Testcontainers) et à la cible de déploiement |
+| T5 | PostgreSQL 18 accessible | Fourni par conteneur, à vérifier au câblage de `test:int` | Aucune installation système : la base de développement est jetable et reproductible |
 | T6 | Navigateurs Playwright | À installer | Téléchargement au premier usage |
 
 **Sur la chaîne d'approvisionnement.** `C1` — réseau fermé — s'applique à l'**exécution** du produit, pas à sa construction : le poste de développement télécharge des paquets et des navigateurs. La conséquence à traiter en L-00 et à consigner en ADR : construire l'image de production **sans accès sortant**, à partir d'un lot de dépendances figé, et le vérifier en intégration continue (c'est le contenu du risque R2 de `03`).
