@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query } from "@nestjs/common";
 import { z } from "zod";
 import { enumDe, DEMI_JOURNEES, STATUTS_CONGE } from "@trame/contracts";
 import { CongesService } from "./conges.service.js";
@@ -63,6 +63,36 @@ export class CongesController {
       requete,
     );
     return this.conges.soldes(q.userId ?? d.userId, q.annee);
+  }
+
+  /**
+   * `RG-CNG-24` — attribuer des jours, par agent ou globalement.
+   *
+   * Le point d'entrée manquait, et rien n'écrivait une seule allocation : sur
+   * une instance neuve tous les soldes valaient zéro, donc `RG-CNG-20`
+   * refusait toute demande. Le module était inutilisable et aucun contrôle ne
+   * le disait — chaque test fabriquait son allocation avant de commencer.
+   *
+   * `userId` omis vaut le **défaut global**, que l'allocation propre à l'agent
+   * surclasse.
+   */
+  @Put("soldes")
+  @RequiertPermission("leaves:manage_balances")
+  attribuerSolde(@Body() corps: unknown, @Demande() d: ContexteDemande) {
+    const donnees = valider(
+      z.object({
+        userId: z.uuid().nullable().optional(),
+        typeId: z.uuid(),
+        annee: z.number().int().min(2000).max(2100),
+        joursAttribues: z.number().min(0).max(365),
+        version: z.number().int().optional(),
+      }),
+      corps,
+    );
+    return this.conges.attribuerSolde(
+      { ...donnees, userId: donnees.userId ?? null },
+      d.userId,
+    );
   }
 
   /**
