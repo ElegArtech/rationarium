@@ -132,11 +132,13 @@ export async function peuplerMaquette(
       });
     }
 
-    await prisma.milestone.upsert({
-      where: { projectId_nom: { projectId: projet.id, nom: JALONS[i]!.nom } },
-      create: { projectId: projet.id, nom: JALONS[i]!.nom, dateEcheance: jour(JALONS[i]!.dans) },
-      update: {},
-    });
+    for (const j of JALONS) {
+      await prisma.milestone.upsert({
+        where: { projectId_nom: { projectId: projet.id, nom: j.nom } },
+        create: { projectId: projet.id, nom: j.nom, dateEcheance: jour(j.dans) },
+        update: { dateEcheance: jour(j.dans) },
+      });
+    }
   }
 
   // ── Les tâches ──────────────────────────────────────────────────────────
@@ -146,6 +148,19 @@ export async function peuplerMaquette(
   for (const [i, t] of TACHES.entries()) {
     const rang = t.projet ? PROJETS.findIndex((p) => p.cle === t.projet) : -1;
     const projet = rang >= 0 ? projets[rang] : null;
+    /*
+     * Le rattachement à un jalon n'est pas décoratif : sans lui, la feuille de
+     * route de la vue 13 n'a aucune ligne de tâche — ni pile d'avatars, ni
+     * charge, ni statut de jalon calculé. Le jalon vide est un état légitime,
+     * mais ce ne peut pas être le SEUL que le jeu produise.
+     */
+    const jalon =
+      projet && "jalon" in t && t.jalon
+        ? await prisma.milestone.findUnique({
+            where: { projectId_nom: { projectId: projet.id, nom: t.jalon } },
+            select: { id: true },
+          })
+        : null;
     const tache = await prisma.task.upsert({
       where: { id: idStable("t", i) },
       create: {
@@ -158,12 +173,14 @@ export async function peuplerMaquette(
         avancement: "avancement" in t ? t.avancement : 0,
         estimationHeures: "heures" in t ? t.heures : null,
         ...(projet ? { projectId: projet.id } : {}),
+        ...(jalon ? { milestoneId: jalon.id } : {}),
       },
       update: {
         titre: t.titre,
         statut: t.statut,
         dateDebut: jour(t.debut),
         dateFin: jour(t.fin),
+        ...(jalon ? { milestoneId: jalon.id } : {}),
       },
     });
     await prisma.taskAssignee.upsert({
@@ -319,20 +336,27 @@ const idStable = (prefixe: string, n: number): string => {
   return `0000${code}0a-0000-4000-8000-${String(n).padStart(12, "0")}`;
 };
 
+/**
+ * Trois jalons, dans trois états — la maquette les distingue et le statut est
+ * CALCULÉ (`RG-JAL-01`) : « Terminé » quand toutes ses tâches le sont, « En
+ * retard » quand l'échéance est passée sans l'être.
+ */
 const JALONS = [
+  { nom: "Cadrage", dans: -21 },
   { nom: "Recette", dans: 14 },
-  { nom: "Reprise des données", dans: 35 },
   { nom: "Comité de pilotage", dans: 60 },
 ] as const;
 
 const TACHES = [
-  { titre: "Maquettes portail", projet: "portail", statut: "doing", agent: 0, debut: 0, fin: 1, avancement: 60, heures: 12 },
-  { titre: "Recette portail", projet: "portail", statut: "todo", agent: 0, debut: 4, fin: 4, heures: 8 },
-  { titre: "Cahier des charges", projet: "sirh", statut: "review", agent: 1, debut: 0, fin: 1, avancement: 80 },
+  { titre: "Maquettes portail", projet: "portail", jalon: "Recette", statut: "doing", agent: 0, debut: 0, fin: 1, avancement: 60, heures: 12 },
+  { titre: "Recette portail", projet: "portail", jalon: "Recette", statut: "todo", agent: 0, debut: 4, fin: 4, heures: 8 },
+  { titre: "Cahier des charges", projet: "sirh", jalon: "Recette", statut: "review", agent: 1, debut: 0, fin: 1, avancement: 80 },
   { titre: "Reprise des données", projet: "sirh", statut: "doing", agent: 3, debut: 0, fin: 2, avancement: 45 },
   { titre: "Note de cadrage", projet: "schema", statut: "todo", agent: 4, debut: 0, fin: 2 },
-  { titre: "Plan de tests", projet: "portail", statut: "done", agent: 0, debut: -7, fin: -3, avancement: 100 },
-  { titre: "Reprise des libellés", projet: "sirh", statut: "blocked", agent: 0, debut: 1, fin: 3, priorite: "high" },
+  // Jalon « Cadrage » : échéance passée, tâche terminée → jalon TERMINÉ.
+  { titre: "Plan de tests", projet: "portail", jalon: "Cadrage", statut: "done", agent: 0, debut: -7, fin: -3, avancement: 100 },
+  // Jalon « Cadrage » du SIRH : échéance passée, tâche bloquée → EN RETARD.
+  { titre: "Reprise des libellés", projet: "sirh", jalon: "Cadrage", statut: "blocked", agent: 0, debut: 1, fin: 3, priorite: "high" },
   // En retard : échéance dépassée, statut non terminé. C'est `badge-late`.
   { titre: "Comptes rendus de juillet", projet: "portail", statut: "doing", agent: 0, debut: -14, fin: -5, priorite: "high" },
   // Hors projet : ni pastille ni projet. C'est `badge-indep` et `tchip-indep`.
