@@ -1,0 +1,28 @@
+// Schéma Prisma — SQUELETTE DE VAGUE 0.
+//
+// Ce fichier ne contient volontairement aucun modèle métier : le modèle de
+// données (~40 tables) est produit intégralement par le lot L-02, en vague 1,
+// et remplacera ce contenu.
+//
+// Le modèle témoin ci-dessous n'existe que pour vérifier, dès la vague 0, que
+// `prisma generate` et `prisma migrate` fonctionnent — et qu'ils fonctionnent
+// SANS accès réseau (risque R2 de cadrage/03 § 6).
+//
+// Toute évolution du schéma passe par une tâche de schéma dédiée.
+// Voir cadrage/04 § 5.3.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated"
+}
+
+// L'URL de connexion vit dans prisma.config.ts (Prisma 7), pas ici.
+datasource db {
+  provider = "postgresql"
+}
+
+/// Modèle témoin, supprimé par L-02.
+model Temoin {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+}

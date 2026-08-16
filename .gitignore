@@ -15,6 +15,14 @@ node_modules/
 dist/
 build/
 .cache/
+.turbo/
+*.tsbuildinfo
+
+# Artefacts engendrés — jamais versionnés, toujours reproductibles
+packages/db/src/generated/
+apps/web/playwright-report/
+apps/web/test-results/
+apps/web/.playwright/
 
 # Environnement
 .env

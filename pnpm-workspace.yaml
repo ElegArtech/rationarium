@@ -1,0 +1,23 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+
+
+# Scripts de post-installation autorisés. Toute autorisation est une décision,
+# motivée ici, et confrontée à C1 (réseau fermé). Voir docs/adr/ADR-0013.
+allowBuilds:
+  # Télécharge le « schema engine », binaire nécessaire à `prisma migrate`.
+  # Le client Prisma 7 est bien en TypeScript pur, mais les migrations
+  # conservent un binaire — voir ADR-0006, qui corrige la portée de 03 § 4, D6.
+  "@prisma/engines": true
+  prisma: true
+
+  # Compilation native optionnelle, tirée par testcontainers via docker-modem.
+  # ssh2 fonctionne en JavaScript pur ; l'accélérateur cpu-features n'est utile
+  # qu'aux connexions SSH, que ce projet n'utilise pas (socket Docker locale).
+  cpu-features: false
+  ssh2: false
+
+  # Génération de types au moment du développement du paquet ; le paquet publié
+  # embarque déjà ses fichiers. Rien à produire à l'installation.
+  protobufjs: false
