@@ -349,13 +349,19 @@ Deux mécanismes distincts, jamais confondus, comme l'exige le § D.4 :
 
 ## 7. Écarts constatés dans les maquettes
 
-Trois points relevés à la lecture des 35 fichiers, à corriger au portage. Aucun ne remet en cause une décision de conception.
+Quatre points relevés en confrontant les 35 fichiers aux deux documents de cadrage, à corriger au portage. Aucun ne remet en cause une décision de conception.
 
 1. **Les polices sont chargées depuis `fonts.googleapis.com`.** C'est incompatible avec le fonctionnement en réseau fermé (**C1**) : en production, l'application afficherait les substituts système. Correction : `@fontsource/ibm-plex-sans`, `-serif`, `-sans-condensed` et `-mono` en 5.3.0, embarqués dans le lot. Les substituts système déclarés dans les maquettes restent le filet de sécurité.
 
 2. **Le socle graphique est recopié à l'identique dans chaque fichier**, ce qui était le bon choix pour des maquettes autonomes. Au portage, il devient une feuille unique importée une fois ; les 35 copies servent de référence de conformité, pas de source.
 
-3. **Le vocabulaire des priorités diverge entre les deux documents de cadrage** : le cahier des charges (§ 4.1) énumère six niveaux — Basse · Normale · Moyenne · Haute · Urgente · Critique — là où les briefs (§ A) et les maquettes n'en retiennent que quatre — Basse · Normale · Haute · Critique. Le parti pris n° 4 du cahier des charges exige un vocabulaire unique par notion. **C'est un arbitrage fonctionnel, pas technique** : il doit être tranché avant l'écriture du modèle de données, puisqu'il fixe une énumération en base.
+3. **Le vocabulaire des priorités divergeait entre les deux documents de cadrage** : le cahier des charges (§ 4.1) énumérait six niveaux — Basse · Normale · Moyenne · Haute · Urgente · Critique — là où les briefs (§ A) et les maquettes n'en retiennent que quatre — Basse · Normale · Haute · Critique (codes `low`, `normal`, `high`, `critical`). Le parti pris n° 4 du cahier des charges exige un vocabulaire unique par notion, et le parti pris n° 5 proscrit les statuts redondants — « Urgente » et « Critique » désignaient le même degré.
+
+   > **Tranché le 16 août 2026 : quatre niveaux.** `01 § 4.1` corrigé en conséquence ; les maquettes et les briefs sont inchangés. L'énumération en base est `low · normal · high · critical`.
+
+4. **Le vocabulaire des statuts de projet divergeait de la même manière** : le cahier des charges (§ 4.1) énumérait six valeurs, dont « Suspendu » **et** « En pause » — deux libellés pour un même état, à nouveau contraires au parti pris n° 5 — là où les briefs (§ A) et les maquettes n'en retiennent que cinq. « En pause » n'apparaît dans aucun des 35 fichiers.
+
+   > **Tranché le 16 août 2026 : cinq valeurs, au libellé des maquettes.** `01 § 4.1` corrigé en conséquence. L'énumération en base est `draft · active · paused · done · cancelled`, « paused » s'affichant « Suspendu ».
 
 ---
 

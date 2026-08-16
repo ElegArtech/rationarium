@@ -571,13 +571,15 @@ Ce projet est le premier essai du cycle. Un pilote qui ne mesure rien ne valide 
 
 | # | Arbitrage | Bloque | Origine |
 | --- | --- | --- | --- |
-| **B1** | **Vocabulaire des priorités** : six niveaux (`01 § 4.1`) ou quatre (`02 § A` et maquettes) ? | **L-02** — c'est une énumération en base | `03 § 7.3` ; parti pris n° 4 de `01` |
+| ~~**B1**~~ | ~~**Vocabulaires divergents du § 4.1**~~ — priorité (six niveaux ou quatre), statut de projet (« Suspendu » et « En pause ») | ~~L-02, L-03~~ | **Tranché le 2026-08-16** : quatre priorités, cinq statuts de projet au libellé des maquettes. `01 § 4.1` corrigé, écarts consignés en `03 § 7.3` et `§ 7.4` |
 | **B2** | **Circuit de validation des congés** : un niveau (manager ou délégué) ou deux ? | L-15 | `01 § 9.2` |
 | **B3** | **Priorité de mise en service** : quels modules dans la première livraison ? | La composition des vagues 5 et 6 | `01 § 9.8` ; recommandation de `03 § 8.6` : M1, M2, M3, M20 puis M7 |
 | **B4** | **Périmètre mobile** : quelles actions réalisables sur téléphone ? | L-25 et la définition de terminé « responsive » de chaque lot | `01 § 9.6` |
 | **B5** | **Cible de déploiement** : machine unique ou orchestrateur existant ? | L-29, et le caractère testable de la répartition des sessions et des verrous | `03 § 8.2` |
 
-**B1 est le seul arbitrage qui interdit de commencer la vague 1.** Les autres peuvent être rendus pendant la vague 0.
+**B1 était le seul arbitrage qui interdisait d'ouvrir la vague 1 ; il est rendu.** Les autres peuvent l'être pendant la vague 0 : B2 avant l'ouverture de L-15, B3 avant la composition des vagues 5 et 6, B4 avant que la définition de terminé « responsive » ne soit figée, B5 avant L-29.
+
+**Sur la méthode d'arbitrage.** B1 illustre le régime attendu pour les suivants : l'écart est constaté par confrontation des sources, l'asymétrie des coûts est chiffrée, la décision est humaine, et la correction est portée **dans le document amont** — jamais absorbée en aval par une conversion silencieuse à l'implémentation. Une divergence de vocabulaire réglée dans le code plutôt que dans `01` est une divergence qui reviendra à chaque lot.
 
 ### 13.2 Arbitrages à valeur par défaut
 
