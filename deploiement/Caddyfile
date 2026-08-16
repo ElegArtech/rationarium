@@ -1,0 +1,71 @@
+# ════════════════════════════════════════════════════════════════════════════
+# Façade — terminaison TLS, fichiers statiques, relais de l'API.
+#
+# `TRAME_HOTE` porte le nom du service. En réseau fermé, une autorité publique
+# ne peut pas émettre de certificat : `tls internal` fait signer par l'autorité
+# locale de Caddy, dont la racine est à distribuer aux postes. C'est la seule
+# option qui ne demande **aucun accès sortant** (`C1`) — un `tls` par défaut
+# tenterait Let's Encrypt et échouerait en boucle.
+# ════════════════════════════════════════════════════════════════════════════
+
+{
+	# Aucune sonde vers l'extérieur, aucun appel de télémétrie.
+	admin off
+	auto_https disable_redirects
+}
+
+{$TRAME_HOTE:localhost} {
+	tls internal
+
+	encode zstd gzip
+
+	# L'API d'abord : la règle de repli de l'application monopage ne doit
+	# jamais rendre `index.html` à un appel `/api/...`. Une erreur 404 d'API
+	# qui revient en HTML est un défaut long à diagnostiquer, parce que le
+	# client la lit comme une réponse valide.
+	handle /api/* {
+		reverse_proxy {$TRAME_API:api:3000}
+	}
+
+	handle {
+		root * /srv
+		# `try_files` : le routeur de l'application vit côté client, donc
+		# `/planning/semaine` n'existe pas sur le disque. Sans ce repli, un
+		# rechargement de page rend 404 — et seulement au rechargement, ce qui
+		# se voit rarement en recette.
+		try_files {path} /index.html
+		file_server
+	}
+
+	header {
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy same-origin
+		# Réseau fermé : aucune ressource distante n'est légitime.
+		Content-Security-Policy "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+		-Server
+	}
+
+	# Les fichiers versionnés par empreinte sont immuables ; TOUT LE RESTE ne
+	# doit jamais l'être. Vite nomme ses lots `index-CJrEusVu.js` : l'empreinte
+	# est en base64url, pas en hexadécimal — un motif `[0-9a-f]` ne la
+	# reconnaîtrait pas, et les lots seraient servis sans cache longue durée
+	# sans que rien ne le signale.
+	#
+	# La règle par défaut porte sur la NÉGATION du motif, et non sur
+	# `/index.html` : une visite de `/` ou de `/planning/semaine` rend
+	# `index.html` par repli, mais le chemin de la requête reste `/planning/...`.
+	# Un en-tête posé sur `/index.html` ne s'y appliquerait donc jamais — et
+	# c'est précisément la page dont une mise en cache empêche de voir la mise
+	# à jour.
+	# Le motif est écrit DEUX FOIS, et c'est voulu : dans `not path_regexp X`,
+	# Caddy lit `X` comme l'expression, jamais comme le nom d'un matcheur déjà
+	# défini. Écrit une fois et référencé, le second matcheur signifiait « le
+	# chemin ne contient pas le mot empreinte », donc : toujours vrai. Tout
+	# était servi en `no-cache`, y compris les lots — l'inverse exact de
+	# l'intention, et une règle qui a l'air juste à la relecture.
+	@empreinte path_regexp \-[A-Za-z0-9_-]{8,}\.(js|css|woff2)$
+	header @empreinte Cache-Control "public, max-age=31536000, immutable"
+	@volatil not path_regexp \-[A-Za-z0-9_-]{8,}\.(js|css|woff2)$
+	header @volatil Cache-Control "no-cache"
+}

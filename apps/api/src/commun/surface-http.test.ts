@@ -24,6 +24,7 @@ import { TableauController } from "../tableau/tableau.controller.js";
 import { RapportsController } from "../rapports/rapports.controller.js";
 import { NotificationsController } from "../notifications/notifications.controller.js";
 import { ImportsController } from "../imports/imports.controller.js";
+import { SanteController } from "../exploitation/sante.controller.js";
 
 /**
  * `RG-DROITS-03` — **aucun point d'entrée n'est ouvert par inadvertance.**
@@ -62,6 +63,7 @@ const CONTROLEURS = [
   RapportsController,
   NotificationsController,
   ImportsController,
+  SanteController,
 ];
 
 /** Les seules routes autorisées à se passer de permission. */
@@ -73,6 +75,9 @@ const PUBLIQUES_ATTENDUES = new Set([
   "AuthController.resetPassword",
   "AuthController.changePassword",
   "AuthController.me",
+  // L-29 — une sonde d'exploitation n'a pas de session. Voir sante.controller.ts.
+  "SanteController.vivant",
+  "SanteController.pret",
 ]);
 
 /**

@@ -20,7 +20,8 @@
     "test:int": "vitest run --config vitest.int.config.ts --passWithNoTests",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
-    "db:deploy": "prisma migrate deploy"
+    "db:deploy": "prisma migrate deploy",
+    "db:export": "node dist/reversibilite-cli.js"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.9.1",
