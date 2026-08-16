@@ -1,0 +1,43 @@
+{
+  "name": "@trame/web",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Application monopage : React, Vite, TanStack, React Aria Components",
+  "scripts": {
+    "build": "vite build",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint src",
+    "test": "vitest run --passWithNoTests",
+    "e2e": "playwright test",
+    "a11y": "playwright test --project=a11y",
+    "perf": "playwright test --project=perf",
+    "dev": "vite"
+  },
+  "dependencies": {
+    "@trame/contracts": "workspace:*",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "@tanstack/react-router": "1.170.29",
+    "@tanstack/react-query": "5.101.4",
+    "@tanstack/react-table": "9.1.2",
+    "@tanstack/react-virtual": "3.14.9",
+    "react-aria-components": "1.20.0",
+    "@internationalized/date": "3.12.3",
+    "@atlaskit/pragmatic-drag-and-drop": "3.0.0",
+    "i18next": "26.3.6",
+    "react-i18next": "17.0.11",
+    "temporal-polyfill": "1.0.4",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "6.0.5",
+    "vite": "8.2.1",
+    "typescript": "6.0.3",
+    "vitest": "4.1.10",
+    "@playwright/test": "1.62.1",
+    "@axe-core/playwright": "4.13.0",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.4"
+  }
+}
