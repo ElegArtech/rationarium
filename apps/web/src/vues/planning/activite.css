@@ -316,7 +316,7 @@
     margin: 12mm;
   }
 
-  .sidebar,
+  .side,
   .topbar,
   .filters,
   .pl-toolbar,
@@ -331,11 +331,8 @@
     display: block !important;
   }
 
-  .contenu {
-    display: block;
-  }
-
   .page {
+    display: block;
     padding: 0;
     max-width: none;
   }

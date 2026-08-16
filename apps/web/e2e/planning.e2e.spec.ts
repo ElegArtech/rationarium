@@ -83,7 +83,10 @@ test.describe("Vue 07 — planning, semaine", () => {
 
     // La couleur et la hachure ne se lisent pas par tout le monde : le mot
     // « En attente » est ce qui rend la distinction accessible.
-    await expect(page.getByText("En attente")).toBeVisible();
+    // `getByText` sans ancrage attrape aussi le libellé d'assistance de la
+    // cellule, « Congé en attente ». La mention visible est celle de
+    // l'étiquette, et c'est elle que la règle demande.
+    await expect(page.locator(".leave-tag", { hasText: /^En attente$/ }).first()).toBeVisible();
   });
 
   test("une demi-journée est nommée, pas devinée à la moitié d'un aplat", async ({ page }) => {
