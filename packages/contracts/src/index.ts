@@ -8,6 +8,7 @@
  */
 
 export * from "./vocabulaires.js";
+export * from "./icones-projet.js";
 export * from "./permissions.js";
 export * from "./roles.js";
 export * from "./schemas.js";
