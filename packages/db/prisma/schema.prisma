@@ -1,28 +1,1128 @@
-// Schéma Prisma — SQUELETTE DE VAGUE 0.
+// ═══════════════════════════════════════════════════════════════════════════
+// Trame — modèle de données
 //
-// Ce fichier ne contient volontairement aucun modèle métier : le modèle de
-// données (~40 tables) est produit intégralement par le lot L-02, en vague 1,
-// et remplacera ce contenu.
+// Lot L-02, vague 1. Produit globalement et non lot par lot : voir
+// `cadrage/04 § 5.3` pour le motif et sa contrepartie — toute évolution
+// ultérieure passe par une tâche de schéma dédiée, garantie par un hook.
 //
-// Le modèle témoin ci-dessous n'existe que pour vérifier, dès la vague 0, que
-// `prisma generate` et `prisma migrate` fonctionnent — et qu'ils fonctionnent
-// SANS accès réseau (risque R2 de cadrage/03 § 6).
+// Trois principes portent ce schéma :
 //
-// Toute évolution du schéma passe par une tâche de schéma dédiée.
-// Voir cadrage/04 § 5.3.
+//   1. L'INTÉGRITÉ SE GARDE EN BASE (C15). Les règles de non-chevauchement et
+//      d'unicité sont doublées ici, pas seulement dans le code. L'application
+//      émet le message métier rédigé ; la base garantit qu'aucune concurrence
+//      ne peut le contourner.
+//   2. LES DATES MÉTIER N'ONT NI HEURE NI FUSEAU. Type `@db.Date`. Les
+//      représenter comme des instants est la source d'erreurs la plus courante
+//      de ce type d'application (ADR-0010).
+//   3. LA CONCURRENCE SE DÉTECTE (RG-GEN-07). Colonne `version` sur toute
+//      entité modifiable ; jamais d'écriture « dernier arrivé gagne ».
+//
+// Ce que Prisma ne sait pas déclarer — contraintes d'exclusion GiST, droits
+// SQL révoqués, partitionnement — est posé en SQL dans les migrations, et
+// vérifié par les tests d'intégration.
+// ═══════════════════════════════════════════════════════════════════════════
 
 generator client {
   provider = "prisma-client"
   output   = "../src/generated"
 }
 
-// L'URL de connexion vit dans prisma.config.ts (Prisma 7), pas ici.
+// L'URL de connexion vit dans prisma.config.ts (Prisma 7). Voir ADR-0006.
 datasource db {
   provider = "postgresql"
 }
 
-/// Modèle témoin, supprimé par L-02.
-model Temoin {
-  id        String   @id @default(uuid())
-  createdAt DateTime @default(now())
+// ── Énumérations ───────────────────────────────────────────────────────────
+// Reprises à l'identique de @trame/contracts. Toute divergence est un défaut :
+// un test de cohérence la refuse.
+
+enum StatutProjet {
+  draft
+  active
+  paused
+  done
+  cancelled
+}
+
+enum StatutTache {
+  todo
+  doing
+  review
+  done
+  blocked
+}
+
+enum StatutJalon {
+  pending
+  doing
+  done
+}
+
+enum Priorite {
+  low
+  normal
+  high
+  critical
+}
+
+enum RoleRaci {
+  responsible
+  accountable
+  consulted
+  informed
+}
+
+enum StatutConge {
+  pending
+  approved
+  refused
+  cancelled
+  cancellation_requested
+}
+
+enum DemiJournee {
+  morning
+  afternoon
+}
+
+enum PeriodeJournee {
+  morning
+  afternoon
+  full_day
+}
+
+enum EtatTeletravail {
+  telework
+  office
+  undeclared
+}
+
+enum TypeActivite {
+  development
+  meeting
+  support
+  training
+  other
+}
+
+enum CategorieCompetence {
+  technical
+  methodology
+  soft_skill
+  business
+}
+
+enum NiveauCompetence {
+  beginner
+  intermediate
+  expert
+  master
+}
+
+enum TypeTiers {
+  individual
+  organisation
+}
+
+enum DureeTachePredefinie {
+  half_day
+  full_day
+  time_slot
+}
+
+// ── Structure organisationnelle — M2 ───────────────────────────────────────
+
+model Direction {
+  id            String       @id @default(uuid()) @db.Uuid
+  nom           String
+  description   String?
+  responsableId String?      @db.Uuid
+  responsable   User?        @relation("DirectionResponsable", fields: [responsableId], references: [id], onDelete: SetNull)
+  departements  Departement[]
+  version       Int          @default(1)
+  creeLe        DateTime     @default(now())
+  modifieLe     DateTime     @updatedAt
+
+  @@unique([nom])
+  @@map("directions")
+}
+
+/// RG-ORG-03 — un département peut exister hors direction.
+model Departement {
+  id            String     @id @default(uuid()) @db.Uuid
+  nom           String
+  description   String?
+  directionId   String?    @db.Uuid
+  direction     Direction? @relation(fields: [directionId], references: [id], onDelete: Restrict)
+  responsableId String?    @db.Uuid
+  responsable   User?      @relation("DepartementResponsable", fields: [responsableId], references: [id], onDelete: SetNull)
+  services      Service[]
+  membres       User[]     @relation("UserDepartement")
+  version       Int        @default(1)
+  creeLe        DateTime   @default(now())
+  modifieLe     DateTime   @updatedAt
+
+  @@unique([nom])
+  @@index([directionId])
+  @@map("departements")
+}
+
+/// RG-ORG-02 — supprimer un département supprime ses services (Cascade).
+/// RG-ORG-03 — un service ne peut exister hors département.
+model Service {
+  id            String        @id @default(uuid()) @db.Uuid
+  nom           String
+  description   String?
+  departementId String        @db.Uuid
+  departement   Departement   @relation(fields: [departementId], references: [id], onDelete: Cascade)
+  managerId     String?       @db.Uuid
+  manager       User?         @relation("ServiceManager", fields: [managerId], references: [id], onDelete: SetNull)
+  membres       UserService[]
+  version       Int           @default(1)
+  creeLe        DateTime      @default(now())
+  modifieLe     DateTime      @updatedAt
+
+  @@unique([departementId, nom])
+  @@index([departementId])
+  @@map("services")
+}
+
+// ── Utilisateurs et droits — M1, M3, M20 ───────────────────────────────────
+
+model User {
+  id                String    @id @default(uuid()) @db.Uuid
+  /// RG-AUTH-08 — l'identifiant de connexion n'est jamais modifiable.
+  login             String    @unique
+  email             String    @unique
+  motDePasseHash    String
+  prenom            String
+  nom               String
+  avatarFichier     String?
+  avatarPredefini   String?
+  langue            String    @default("fr")
+  theme             String    @default("auto")
+  /// RG-AUTH-05 — un utilisateur inactif ne peut pas se connecter.
+  actif             Boolean   @default(true)
+  /// RG-AUTH-07 / EX-AUTH-07 — changement imposé à la première connexion.
+  motDePasseAChanger Boolean  @default(true)
+  derniereConnexion DateTime?
+  echecsConnexion   Int       @default(0)
+  verrouilleJusqua  DateTime?
+
+  departementId String?       @db.Uuid
+  departement   Departement?  @relation("UserDepartement", fields: [departementId], references: [id], onDelete: SetNull)
+  services      UserService[]
+  roleId        String?       @db.Uuid
+  role          Role?         @relation(fields: [roleId], references: [id], onDelete: SetNull)
+
+  directionsDirigees   Direction[]   @relation("DirectionResponsable")
+  departementsDiriges  Departement[] @relation("DepartementResponsable")
+  servicesManages      Service[]     @relation("ServiceManager")
+
+  sessions             Session[]
+  jetonsReinitialisation PasswordResetToken[]
+  projetsCrees         Project[]      @relation("ProjectCreateur")
+  projetsDiriges       Project[]      @relation("ProjectChef")
+  projetsSponsorises   Project[]      @relation("ProjectSponsor")
+  membresProjet        ProjectMember[]
+  tachesAssignees      TaskAssignee[]
+  raci                 TaskRaci[]
+  conges               Leave[]        @relation("CongeAgent")
+  congesValides        Leave[]        @relation("CongeValidateur")
+  soldes               LeaveBalance[]
+  delegationsDonnees   LeaveDelegation[] @relation("Delegant")
+  delegationsRecues    LeaveDelegation[] @relation("Delegue")
+  teletravail          Telework[]
+  reglesTeletravail    TeleworkRule[]
+  assignations         PredefinedTaskAssignment[]
+  participations       EventParticipant[]
+  saisiesTemps         TimeEntry[]
+  competences          UserSkill[]
+  todos                Todo[]
+  notifications        Notification[]
+  documents            Document[]
+  commentaires         Comment[]
+
+  version    Int      @default(1)
+  creeLe     DateTime @default(now())
+  modifieLe  DateTime @updatedAt
+
+  @@index([departementId])
+  @@index([roleId])
+  @@index([actif])
+  @@map("users")
+}
+
+/// RG-ORG-04 — un utilisateur appartient à zéro ou plusieurs services.
+model UserService {
+  userId    String  @db.Uuid
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  serviceId String  @db.Uuid
+  service   Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@id([userId, serviceId])
+  @@index([serviceId])
+  @@map("user_services")
+}
+
+/// EX-AUTH-02, EX-AUTH-03 — session opaque en base, révocable. ADR-0008.
+model Session {
+  id             String   @id @default(uuid()) @db.Uuid
+  jetonHash      String   @unique
+  userId         String   @db.Uuid
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  derniereActivite DateTime @default(now())
+  expireLe       DateTime
+  adresseIp      String?
+  agentUtilisateur String?
+  creeLe         DateTime @default(now())
+
+  @@index([userId])
+  @@index([expireLe])
+  @@map("sessions")
+}
+
+/// RG-AUTH-04 — jeton à usage unique, qui expire. Les deux cas sont distincts.
+model PasswordResetToken {
+  id         String    @id @default(uuid()) @db.Uuid
+  jetonHash  String    @unique
+  userId     String    @db.Uuid
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expireLe   DateTime
+  utiliseLe  DateTime?
+  creeLe     DateTime  @default(now())
+
+  @@index([userId])
+  @@map("password_reset_tokens")
+}
+
+/// RG-DROITS-01 — un modèle de rôle est un point de départ, pas une contrainte.
+/// RG-DROITS-02 — un rôle système n'est ni supprimable ni renommable.
+model Role {
+  id          String           @id @default(uuid()) @db.Uuid
+  code        String           @unique
+  nom         String
+  description String?
+  systeme     Boolean          @default(false)
+  permissions RolePermission[]
+  utilisateurs User[]
+  version     Int              @default(1)
+  creeLe      DateTime         @default(now())
+  modifieLe   DateTime         @updatedAt
+
+  @@map("roles")
+}
+
+/// RG-DROITS-03 — liste blanche stricte : ce qui n'est pas ici est refusé.
+model RolePermission {
+  roleId     String @db.Uuid
+  role       Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission String
+
+  @@id([roleId, permission])
+  @@index([permission])
+  @@map("role_permissions")
+}
+
+// ── Projets — M4, M5 ───────────────────────────────────────────────────────
+
+model Project {
+  id            String       @id @default(uuid()) @db.Uuid
+  nom           String
+  description   String?
+  statut        StatutProjet @default(draft)
+  priorite      Priorite     @default(normal)
+  /// RG-PRJ-01 — la date de fin est postérieure ou égale à la date de début.
+  dateDebut     DateTime     @db.Date
+  dateFin       DateTime     @db.Date
+  budgetHeures  Decimal?     @db.Decimal(10, 2)
+  icone         String?
+  archive       Boolean      @default(false)
+
+  chefId        String?      @db.Uuid
+  chef          User?        @relation("ProjectChef", fields: [chefId], references: [id], onDelete: SetNull)
+  sponsorId     String?      @db.Uuid
+  sponsor       User?        @relation("ProjectSponsor", fields: [sponsorId], references: [id], onDelete: SetNull)
+  createurId    String?      @db.Uuid
+  createur      User?        @relation("ProjectCreateur", fields: [createurId], references: [id], onDelete: SetNull)
+  departementId String?      @db.Uuid
+
+  membres       ProjectMember[]
+  jalons        Milestone[]
+  epopees       Epic[]
+  taches        Task[]
+  evenements    Event[]
+  saisiesTemps  TimeEntry[]
+  clients       ProjectClient[]
+  tiers         ProjectThirdParty[]
+  documents     Document[]
+  commentaires  Comment[]
+  instantanes   ProjectSnapshot[]
+
+  version   Int      @default(1)
+  creeLe    DateTime @default(now())
+  modifieLe DateTime @updatedAt
+
+  @@index([statut])
+  @@index([departementId])
+  @@index([chefId])
+  @@index([archive])
+  @@map("projects")
+}
+
+/// RG-PRJ-06 — un utilisateur ne peut être membre du même projet deux fois.
+model ProjectMember {
+  projectId    String  @db.Uuid
+  project      Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  userId       String  @db.Uuid
+  user         User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  roleProjet   String
+  tauxAllocation Int?
+
+  @@id([projectId, userId])
+  @@index([userId])
+  @@map("project_members")
+}
+
+/// RG-PRJ-09 — instantané périodique, pour les courbes de tendance.
+model ProjectSnapshot {
+  id          String   @id @default(uuid()) @db.Uuid
+  projectId   String   @db.Uuid
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  date        DateTime @db.Date
+  progression Int
+  tachesTotal Int
+  tachesFinies Int
+  heuresConsommees Decimal @db.Decimal(10, 2)
+
+  @@unique([projectId, date])
+  @@index([projectId])
+  @@map("project_snapshots")
+}
+
+/// RG-JAL-01 — le statut est CALCULÉ à partir de l'avancement des tâches.
+/// RG-JAL-02 — un jalon appartient à un et un seul projet.
+model Milestone {
+  id          String      @id @default(uuid()) @db.Uuid
+  nom         String
+  description String?
+  dateEcheance DateTime   @db.Date
+  statut      StatutJalon @default(pending)
+  projectId   String      @db.Uuid
+  project     Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  taches      Task[]
+  version     Int         @default(1)
+  creeLe      DateTime    @default(now())
+  modifieLe   DateTime    @updatedAt
+
+  @@unique([projectId, nom])
+  @@index([projectId])
+  @@index([dateEcheance])
+  @@map("milestones")
+}
+
+model Epic {
+  id          String   @id @default(uuid()) @db.Uuid
+  nom         String
+  description String?
+  projectId   String   @db.Uuid
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  taches      Task[]
+  version     Int      @default(1)
+  creeLe      DateTime @default(now())
+  modifieLe   DateTime @updatedAt
+
+  @@unique([projectId, nom])
+  @@index([projectId])
+  @@map("epics")
+}
+
+// ── Tâches — M6 ────────────────────────────────────────────────────────────
+
+/// RG-TSK-01 — une tâche PEUT ne pas avoir de projet. C'est un cas nominal.
+model Task {
+  id            String      @id @default(uuid()) @db.Uuid
+  titre         String
+  description   String?
+  statut        StatutTache @default(todo)
+  priorite      Priorite    @default(normal)
+  /// RG-TSK-08 — la date de fin est postérieure ou égale à la date de début.
+  dateDebut     DateTime?   @db.Date
+  dateFin       DateTime?   @db.Date
+  heureDebut    String?
+  heureFin      String?
+  estimationHeures Decimal? @db.Decimal(8, 2)
+  avancement    Int         @default(0)
+  /// RG-TSK-13 — une tâche confidentielle n'est pas lisible du seul fait d'y être assigné.
+  confidentielle Boolean    @default(false)
+  interventionExterieure Boolean @default(false)
+
+  projectId   String?    @db.Uuid
+  project     Project?   @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  milestoneId String?    @db.Uuid
+  milestone   Milestone? @relation(fields: [milestoneId], references: [id], onDelete: SetNull)
+  epicId      String?    @db.Uuid
+  epic        Epic?      @relation(fields: [epicId], references: [id], onDelete: SetNull)
+
+  assignes      TaskAssignee[]
+  sousTaches    Subtask[]
+  dependances   TaskDependency[] @relation("TacheDependante")
+  prerequis     TaskDependency[] @relation("TachePrerequise")
+  raci          TaskRaci[]
+  tiers         TaskThirdParty[]
+  saisiesTemps  TimeEntry[]
+  documents     Document[]
+  commentaires  Comment[]
+
+  version   Int      @default(1)
+  creeLe    DateTime @default(now())
+  modifieLe DateTime @updatedAt
+
+  @@index([projectId])
+  @@index([statut])
+  @@index([dateFin])
+  @@index([milestoneId])
+  @@map("tasks")
+}
+
+/// Parti pris n° 8 — assignation multiple seule.
+/// Index portant le budget de RG-PLN-01 : (userId, dateDebut, dateFin) via la tâche.
+model TaskAssignee {
+  taskId String @db.Uuid
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  userId String @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  porteur Boolean @default(false)
+
+  @@id([taskId, userId])
+  @@index([userId])
+  @@map("task_assignees")
+}
+
+model Subtask {
+  id     String  @id @default(uuid()) @db.Uuid
+  taskId String  @db.Uuid
+  task   Task    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  libelle String
+  fait   Boolean @default(false)
+  ordre  Int
+
+  @@unique([taskId, ordre])
+  @@index([taskId])
+  @@map("subtasks")
+}
+
+/// RG-TSK-04 — une dépendance circulaire est refusée (contrôle applicatif).
+/// RG-TSK-05 — une dépendance en doublon est refusée (index unique).
+/// RG-TSK-06 — deux tâches liées appartiennent au même projet.
+model TaskDependency {
+  taskId       String @db.Uuid
+  task         Task   @relation("TacheDependante", fields: [taskId], references: [id], onDelete: Cascade)
+  prerequisId  String @db.Uuid
+  prerequis    Task   @relation("TachePrerequise", fields: [prerequisId], references: [id], onDelete: Restrict)
+
+  @@id([taskId, prerequisId])
+  @@index([prerequisId])
+  @@map("task_dependencies")
+}
+
+/// RG-TSK-10 — un même utilisateur ne porte pas deux fois le même rôle RACI.
+model TaskRaci {
+  taskId String   @db.Uuid
+  task   Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  userId String   @db.Uuid
+  user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role   RoleRaci
+
+  @@id([taskId, userId, role])
+  @@index([userId])
+  @@map("task_raci")
+}
+
+// ── Congés — M10 ───────────────────────────────────────────────────────────
+
+/// RG-CNG-30 — un type système n'est pas supprimable.
+/// RG-CNG-31 — un type utilisé est désactivé, jamais supprimé.
+model LeaveType {
+  id                String   @id @default(uuid()) @db.Uuid
+  code              String   @unique
+  nom               String
+  description       String?
+  icone             String?
+  couleur           String?
+  remunere          Boolean  @default(true)
+  /// RG-CNG-13 — un type sans validation requise est approuvé automatiquement.
+  validationRequise Boolean  @default(true)
+  limiteAnnuelle    Decimal? @db.Decimal(5, 1)
+  ordre             Int      @default(0)
+  actif             Boolean  @default(true)
+  systeme           Boolean  @default(false)
+
+  conges   Leave[]
+  soldes   LeaveBalance[]
+  version  Int      @default(1)
+  creeLe   DateTime @default(now())
+  modifieLe DateTime @updatedAt
+
+  @@map("leave_types")
+}
+
+/// RG-CNG-25..27 — chevauchement refusé. Doublé en base par une contrainte
+/// d'exclusion GiST posée en migration : Prisma ne sait pas la déclarer.
+model Leave {
+  id            String      @id @default(uuid()) @db.Uuid
+  userId        String      @db.Uuid
+  user          User        @relation("CongeAgent", fields: [userId], references: [id], onDelete: Cascade)
+  typeId        String      @db.Uuid
+  type          LeaveType   @relation(fields: [typeId], references: [id], onDelete: Restrict)
+  /// RG-CNG-28 — la date de fin est postérieure ou égale à la date de début.
+  dateDebut     DateTime    @db.Date
+  dateFin       DateTime    @db.Date
+  /// RG-CNG-17 — demi-journée en début et en fin de période.
+  demiJourneeDebut DemiJournee?
+  demiJourneeFin   DemiJournee?
+  /// RG-CNG-16 — jours ouvrés, week-ends et fériés chômés exclus. Calculé.
+  joursOuvres   Decimal     @db.Decimal(5, 1)
+  statut        StatutConge @default(pending)
+  motif         String?
+  motifRefus    String?
+  /// RG-CNG-08 — validateur déterminé à la création.
+  validateurId  String?     @db.Uuid
+  validateur    User?       @relation("CongeValidateur", fields: [validateurId], references: [id], onDelete: SetNull)
+  decideLe      DateTime?
+  /// RG-CNG-09 — l'auto-validation est tracée comme telle.
+  autoValide    Boolean     @default(false)
+
+  repartitions LeaveYearAllocation[]
+
+  version   Int      @default(1)
+  creeLe    DateTime @default(now())
+  modifieLe DateTime @updatedAt
+
+  @@index([userId, dateDebut, dateFin])
+  @@index([statut])
+  @@index([validateurId])
+  @@map("leaves")
+}
+
+/// RG-CNG-19 — une demande à cheval sur deux années est répartie par année,
+/// et chaque année est contrôlée contre son propre solde.
+model LeaveYearAllocation {
+  leaveId String  @db.Uuid
+  leave   Leave   @relation(fields: [leaveId], references: [id], onDelete: Cascade)
+  annee   Int
+  jours   Decimal @db.Decimal(5, 1)
+
+  @@id([leaveId, annee])
+  @@map("leave_year_allocations")
+}
+
+/// RG-CNG-24 — un solde par agent, ou un défaut global (userId nul).
+model LeaveBalance {
+  id       String    @id @default(uuid()) @db.Uuid
+  userId   String?   @db.Uuid
+  user     User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  typeId   String    @db.Uuid
+  type     LeaveType @relation(fields: [typeId], references: [id], onDelete: Cascade)
+  annee    Int
+  joursAttribues Decimal @db.Decimal(5, 1)
+
+  version   Int      @default(1)
+  creeLe    DateTime @default(now())
+  modifieLe DateTime @updatedAt
+
+  @@unique([userId, typeId, annee])
+  @@index([typeId, annee])
+  @@map("leave_balances")
+}
+
+/// RG-CNG-10 — la recherche de délégation est cantonnée au département du demandeur.
+/// RG-CNG-11 — le délégué doit être actif.
+model LeaveDelegation {
+  id          String   @id @default(uuid()) @db.Uuid
+  delegantId  String   @db.Uuid
+  delegant    User     @relation("Delegant", fields: [delegantId], references: [id], onDelete: Cascade)
+  delegueId   String   @db.Uuid
+  delegue     User     @relation("Delegue", fields: [delegueId], references: [id], onDelete: Cascade)
+  dateDebut   DateTime @db.Date
+  dateFin     DateTime @db.Date
+  active      Boolean  @default(true)
+
+  version   Int      @default(1)
+  creeLe    DateTime @default(now())
+  modifieLe DateTime @updatedAt
+
+  @@index([delegantId, active])
+  @@index([delegueId, active])
+  @@map("leave_delegations")
+}
+
+// ── Télétravail — M11 ──────────────────────────────────────────────────────
+
+/// RG-TLT-01 — un seul enregistrement par agent et par date.
+model Telework {
+  id        String          @id @default(uuid()) @db.Uuid
+  userId    String          @db.Uuid
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date      DateTime        @db.Date
+  etat      EtatTeletravail @default(undeclared)
+  /// RG-TLT-04 — un jour issu d'une règle est signalé ; le modifier crée une exception.
+  issuDeRegle Boolean       @default(false)
+  exception   Boolean       @default(false)
+
+  version   Int      @default(1)
+  creeLe    DateTime @default(now())
+  modifieLe DateTime @updatedAt
+
+  @@unique([userId, date])
+  @@index([date])
+  @@map("telework")
+}
+
+/// RG-TLT-03 — unique pour un couple jour de semaine × date de début.
+model TeleworkRule {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @db.Uuid
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jourSemaine Int
+  dateDebut   DateTime @db.Date
+  dateFin     DateTime? @db.Date
+  active      Boolean  @default(true)
+
+  version   Int      @default(1)
+  creeLe    DateTime @default(now())
+  modifieLe DateTime @updatedAt
+
+  @@unique([userId, jourSemaine, dateDebut])
+  @@index([userId, active])
+  @@map("telework_rules")
+}
+
+// ── Activité récurrente — M8 ───────────────────────────────────────────────
+
+model PredefinedTask {
+  id                 String               @id @default(uuid()) @db.Uuid
+  nom                String
+  description        String?
+  couleur            String?
+  icone              String?
+  dureeParDefaut     DureeTachePredefinie @default(full_day)
+  /// RG-ACT-02 — une durée « créneau horaire » exige des horaires.
+  heureDebut         String?
+  heureFin           String?
+  teletravailAutorise Boolean             @default(true)
+  /// Poids de 1 à 5, pour l'équilibrage de charge.
+  poids              Int                  @default(1)
+  /// RG-ACT-05 — inactive, elle n'est plus assignable ; le passé est conservé.
+  actif              Boolean              @default(true)
+
+  assignations PredefinedTaskAssignment[]
+  recurrences  PredefinedTaskRecurrence[]
+
+  version   Int      @default(1)
+  creeLe    DateTime @default(now())
+  modifieLe DateTime @updatedAt
+
+  @@unique([nom])
+  @@map("predefined_tasks")
+}
+
+/// RG-ACT-01 — unique pour agent × tâche × date × période.
+model PredefinedTaskAssignment {
+  id               String         @id @default(uuid()) @db.Uuid
+  predefinedTaskId String         @db.Uuid
+  predefinedTask   PredefinedTask @relation(fields: [predefinedTaskId], references: [id], onDelete: Cascade)
+  userId           String         @db.Uuid
+  user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date             DateTime       @db.Date
+  periode          PeriodeJournee @default(full_day)
+  realisee         Boolean        @default(false)
+
+  version   Int      @default(1)
+  creeLe    DateTime @default(now())
+  modifieLe DateTime @updatedAt
+
+  @@unique([userId, predefinedTaskId, date, periode])
+  @@index([date])
+  @@index([predefinedTaskId, date])
+  @@map("predefined_task_assignments")
+}
+
+/// RG-ACT-04 — mensuelle à date fixe : si le jour n'existe pas, dernier jour du mois.
+model PredefinedTaskRecurrence {
+  id               String         @id @default(uuid()) @db.Uuid
+  predefinedTaskId String         @db.Uuid
+  predefinedTask   PredefinedTask @relation(fields: [predefinedTaskId], references: [id], onDelete: Cascade)
+  type             String
+  frequence        Int            @default(1)
+  jourSemaine      Int?
+  jourMois         Int?
+  ordinal          Int?
+  dateDebut        DateTime       @db.Date
+  dateFin          DateTime?      @db.Date
+  active           Boolean        @default(true)
+
+  version   Int      @default(1)
+  creeLe    DateTime @default(now())
+  modifieLe DateTime @updatedAt
+
+  @@index([predefinedTaskId, active])
+  @@map("predefined_task_recurrences")
+}
+
+// ── Événements — M9 ────────────────────────────────────────────────────────
+
+model Event {
+  id            String   @id @default(uuid()) @db.Uuid
+  titre         String
+  description   String?
+  date          DateTime @db.Date
+  journeeEntiere Boolean @default(false)
+  heureDebut    String?
+  heureFin      String?
+  interventionExterieure Boolean @default(false)
+
+  projectId String?  @db.Uuid
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  /// RG-EVT-03 — seul un événement parent peut voir sa récurrence arrêtée.
+  parentId    String?  @db.Uuid
+  parent      Event?   @relation("Serie", fields: [parentId], references: [id], onDelete: Cascade)
+  occurrences Event[]  @relation("Serie")
+  recurrenceFrequence Int?
+  recurrenceJourSemaine Int?
+  /// RG-EVT-02 — la date de fin ne peut dépasser un horizon maximal paramétré.
+  recurrenceFin DateTime? @db.Date
+
+  participants EventParticipant[]
+
+  version   Int      @default(1)
+  creeLe    DateTime @default(now())
+  modifieLe DateTime @updatedAt
+
+  @@index([date])
+  @@index([projectId])
+  @@index([parentId])
+  @@map("events")
+}
+
+/// RG-EVT-01 — un même utilisateur ne peut être participant deux fois.
+model EventParticipant {
+  eventId String @db.Uuid
+  event   Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  userId  String @db.Uuid
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([eventId, userId])
+  @@index([userId])
+  @@map("event_participants")
+}
+
+// ── Temps passé — M12 ──────────────────────────────────────────────────────
+
+/// RG-TMP-01 — une saisie référence au minimum une tâche ou un projet.
+/// RG-TMP-03 — l'acteur n'est pas modifiable après création.
+model TimeEntry {
+  id           String       @id @default(uuid()) @db.Uuid
+  userId       String?      @db.Uuid
+  user         User?        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  thirdPartyId String?      @db.Uuid
+  thirdParty   ThirdParty?  @relation(fields: [thirdPartyId], references: [id], onDelete: SetNull)
+  date         DateTime     @db.Date
+  heures       Decimal      @db.Decimal(5, 2)
+  typeActivite TypeActivite @default(development)
+  projectId    String?      @db.Uuid
+  project      Project?     @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  taskId       String?      @db.Uuid
+  task         Task?        @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  description  String?
+
+  creeLe DateTime @default(now())
+
+  @@index([userId, date])
+  @@index([projectId])
+  @@index([taskId])
+  @@map("time_entries")
+}
+
+/// RG-TMP-06 — une tâche terminée peut être close SANS déclaration ; cette
+/// validation est enregistrée pour distinguer « oublié » de « rien à déclarer ».
+model TaskTimeWaiver {
+  taskId String   @db.Uuid
+  userId String   @db.Uuid
+  date   DateTime @default(now())
+
+  @@id([taskId, userId])
+  @@map("task_time_waivers")
+}
+
+// ── Compétences — M13 ──────────────────────────────────────────────────────
+
+/// RG-CMP-05 — les noms de compétences sont uniques.
+model Skill {
+  id            String              @id @default(uuid()) @db.Uuid
+  nom           String              @unique
+  categorie     CategorieCompetence
+  description   String?
+  /// RG-CMP-01 — effectif requis pour assurer la couverture.
+  effectifRequis Int                @default(1)
+
+  detenteurs UserSkill[]
+
+  version   Int      @default(1)
+  creeLe    DateTime @default(now())
+  modifieLe DateTime @updatedAt
+
+  @@map("skills")
+}
+
+/// RG-CMP-06 — un agent détient une compétence à un seul niveau.
+model UserSkill {
+  userId  String           @db.Uuid
+  user    User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  skillId String           @db.Uuid
+  skill   Skill            @relation(fields: [skillId], references: [id], onDelete: Restrict)
+  niveau  NiveauCompetence
+
+  @@id([userId, skillId])
+  @@index([skillId])
+  @@map("user_skills")
+}
+
+// ── Tiers et clients — M14 ─────────────────────────────────────────────────
+
+/// RG-TRS-01 — une personne morale ne porte pas de contact nommé.
+/// RG-TRS-02 — un tiers archivé n'est plus assignable.
+model ThirdParty {
+  id           String    @id @default(uuid()) @db.Uuid
+  type         TypeTiers
+  organisation String?
+  contactNom   String?
+  contactEmail String?
+  contactTelephone String?
+  notes        String?
+  actif        Boolean   @default(true)
+
+  projets      ProjectThirdParty[]
+  taches       TaskThirdParty[]
+  saisiesTemps TimeEntry[]
+
+  version   Int      @default(1)
+  creeLe    DateTime @default(now())
+  modifieLe DateTime @updatedAt
+
+  @@map("third_parties")
+}
+
+/// RG-TRS-03 — un tiers ne peut être rattaché deux fois au même projet.
+model ProjectThirdParty {
+  projectId    String     @db.Uuid
+  project      Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  thirdPartyId String     @db.Uuid
+  thirdParty   ThirdParty @relation(fields: [thirdPartyId], references: [id], onDelete: Cascade)
+
+  @@id([projectId, thirdPartyId])
+  @@index([thirdPartyId])
+  @@map("project_third_parties")
+}
+
+/// RG-TRS-03 — ni assigné deux fois à la même tâche.
+/// RG-TRS-04 — assignable seulement s'il est rattaché à la tâche ou à son projet.
+model TaskThirdParty {
+  taskId       String     @db.Uuid
+  task         Task       @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  thirdPartyId String     @db.Uuid
+  thirdParty   ThirdParty @relation(fields: [thirdPartyId], references: [id], onDelete: Cascade)
+
+  @@id([taskId, thirdPartyId])
+  @@index([thirdPartyId])
+  @@map("task_third_parties")
+}
+
+model Client {
+  id        String   @id @default(uuid()) @db.Uuid
+  nom       String
+  contactNom String?
+  contactEmail String?
+  contactTelephone String?
+  adresse   String?
+  notes     String?
+  /// RG-PRJ-10 — seuls les clients actifs sont rattachables.
+  actif     Boolean  @default(true)
+
+  projets ProjectClient[]
+
+  version   Int      @default(1)
+  creeLe    DateTime @default(now())
+  modifieLe DateTime @updatedAt
+
+  @@unique([nom])
+  @@map("clients")
+}
+
+model ProjectClient {
+  projectId String  @db.Uuid
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  clientId  String  @db.Uuid
+  client    Client  @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@id([projectId, clientId])
+  @@index([clientId])
+  @@map("project_clients")
+}
+
+// ── Documents et commentaires — M15 ────────────────────────────────────────
+
+/// Chemin adressé par empreinte, jamais par nom d'origine (C14).
+model Document {
+  id          String   @id @default(uuid()) @db.Uuid
+  nom         String
+  empreinte   String
+  tailleOctets Int
+  typeMime    String
+  auteurId    String?  @db.Uuid
+  auteur      User?    @relation(fields: [auteurId], references: [id], onDelete: SetNull)
+  projectId   String?  @db.Uuid
+  project     Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  taskId      String?  @db.Uuid
+  task        Task?    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  version   Int      @default(1)
+  creeLe    DateTime @default(now())
+  modifieLe DateTime @updatedAt
+
+  @@index([projectId])
+  @@index([taskId])
+  @@map("documents")
+}
+
+model Comment {
+  id        String   @id @default(uuid()) @db.Uuid
+  contenu   String
+  auteurId  String?  @db.Uuid
+  auteur    User?    @relation(fields: [auteurId], references: [id], onDelete: SetNull)
+  projectId String?  @db.Uuid
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  taskId    String?  @db.Uuid
+  task      Task?    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  version   Int      @default(1)
+  creeLe    DateTime @default(now())
+  modifieLe DateTime @updatedAt
+
+  @@index([projectId])
+  @@index([taskId])
+  @@map("comments")
+}
+
+// ── Tableau de bord — M16 ──────────────────────────────────────────────────
+
+/// RG-DSH-01 — les to-do sont strictement privées et plafonnées.
+model Todo {
+  id      String  @id @default(uuid()) @db.Uuid
+  userId  String  @db.Uuid
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  libelle String
+  fait    Boolean @default(false)
+  ordre   Int     @default(0)
+
+  creeLe    DateTime @default(now())
+  modifieLe DateTime @updatedAt
+
+  @@index([userId])
+  @@map("todos")
+}
+
+// ── Calendrier — M19 ───────────────────────────────────────────────────────
+
+/// RG-PRM-01 — un jour férié marqué OUVRÉ compte comme jour travaillé.
+/// RG-PRM-02 — un jour récurrent se reconduit chaque année.
+model Holiday {
+  id        String   @id @default(uuid()) @db.Uuid
+  date      DateTime @db.Date
+  libelle   String
+  type      String   @default("legal")
+  ouvre     Boolean  @default(false)
+  recurrent Boolean  @default(false)
+
+  version   Int      @default(1)
+  creeLe    DateTime @default(now())
+  modifieLe DateTime @updatedAt
+
+  @@unique([date])
+  @@map("holidays")
+}
+
+/// RG-PRM-04 — dates cohérentes : fin postérieure au début.
+model SchoolVacation {
+  id           String   @id @default(uuid()) @db.Uuid
+  libelle      String
+  dateDebut    DateTime @db.Date
+  dateFin      DateTime @db.Date
+  zone         String
+  anneeScolaire String
+  importee     Boolean  @default(false)
+
+  version   Int      @default(1)
+  creeLe    DateTime @default(now())
+  modifieLe DateTime @updatedAt
+
+  @@unique([zone, anneeScolaire, libelle])
+  @@index([dateDebut, dateFin])
+  @@map("school_vacations")
+}
+
+/// Parti pris n° 3 — toute limite fonctionnelle est un paramètre, jamais figée.
+model Setting {
+  cle       String   @id
+  valeur    String
+  public    Boolean  @default(false)
+  version   Int      @default(1)
+  modifieLe DateTime @updatedAt
+
+  @@map("settings")
+}
+
+// ── Notifications — M18 ────────────────────────────────────────────────────
+
+model Notification {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String
+  titre     String
+  contenu   String
+  lien      String?
+  lue       Boolean  @default(false)
+  creeLe    DateTime @default(now())
+
+  @@index([userId, lue])
+  @@index([creeLe])
+  @@map("notifications")
+}
+
+// ── Journal d'audit — M20 ──────────────────────────────────────────────────
+
+/// RG-ADM-01 — table en AJOUT SEUL. Le rôle SQL applicatif n'a que INSERT et
+/// SELECT : UPDATE et DELETE lui sont révoqués en migration. Aucune colonne
+/// `version`, aucun `modifieLe` : rien n'est modifiable ici, par construction.
+///
+/// Partitionnement mensuel et index BRIN sur l'horodatage, posés en migration :
+/// la rétention se règle par détachement de partition, jamais par purge.
+model AuditLog {
+  id         String   @default(uuid()) @db.Uuid
+  horodatage DateTime @default(now())
+  action     String
+  typeEntite String
+  entiteId   String?
+  acteurId   String?  @db.Uuid
+  /// RG-ADM-09 — distinguer une action système d'une action humaine.
+  systeme    Boolean  @default(false)
+  detail     Json?
+
+  @@id([id, horodatage])
+  @@index([typeEntite, entiteId])
+  @@index([acteurId])
+  @@index([action])
+  @@map("audit_log")
 }
