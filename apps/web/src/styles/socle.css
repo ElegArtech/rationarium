@@ -332,3 +332,52 @@ a.eyebrow:hover{ color:var(--ink); }
   .pm-box[aria-pressed="true"],.toggle[aria-pressed="true"]{ forced-color-adjust:none; }
   .bar > i,.mbar,.tchip,.occ,.lvl{ forced-color-adjust:none; }
 }
+
+/* ── 9. PRIMITIVES PARTAGÉES PAR LES VUES ──────────────────────────────────
+ *
+ * Panneau, indicateurs, barre de progression, case à cocher, état vide,
+ * pastille de projet. Portées de `mockups/06`, employées par 8 à 30 vues.
+ *
+ * **Elles ont failli disparaître.** Elles vivaient dans `coquille/coquille.css`,
+ * qui servait à la fois de feuille de coquille et de feuille du tableau de
+ * bord ; la réécriture de la coquille au vocabulaire des maquettes les a
+ * emportées, et quatre contrôles de bout en bout sont tombés — sur des vues
+ * qui n'avaient pas changé. Leur place est ici : une primitive employée par
+ * trente vues n'appartient à aucune.
+ */
+
+.panel{ background:var(--surface); border:1px solid var(--line); border-radius:var(--r); }
+.panel + .panel{ margin-top:16px; }
+.panel-head{ display:flex; align-items:center; justify-content:space-between; gap:12px;
+  padding:11px 14px; border-bottom:1px solid var(--line); }
+.panel-title{ font-size:13.5px; font-weight:600; }
+.panel-body{ padding:14px; }
+.panel-body.is-flush{ padding:0; }
+
+.empty{ text-align:center; padding:24px 16px; }
+.empty p{ margin:0 0 4px; font-size:13px; color:var(--ink); }
+.empty small{ font-size:12px; color:var(--muted); display:block; margin-bottom:10px; }
+
+.kpi-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:18px; }
+.kpi{ background:var(--surface); border:1px solid var(--line); border-radius:var(--r); padding:13px 14px; }
+.kpi-val{ font-family:var(--font-display); font-size:28px; font-weight:600; line-height:1.1; margin:6px 0 2px; }
+.kpi-sub{ font-size:11.5px; color:var(--muted); }
+.kpi.is-alert .kpi-val{ color:var(--st-blocked); }
+.kpi.is-alert .kpi-sub{ color:var(--st-blocked); }
+
+.check{ display:flex; align-items:center; gap:7px; font-size:12.5px; color:var(--muted); white-space:nowrap; }
+.check input{ accent-color:var(--accent); width:15px; height:15px; }
+
+.bar{ height:4px; border-radius:2px; background:var(--line); position:relative; margin-top:6px; }
+.bar > i{ position:absolute; top:0; bottom:0; left:0; border-radius:2px; background:var(--accent); }
+
+/* La pastille de projet porte l'icône du référentiel, jamais une initiale :
+   deux projets peuvent commencer par la même lettre, pas porter la même icône. */
+.pglyph{ display:inline-flex; align-items:center; justify-content:center; flex:none;
+  width:15px; height:15px; border:1px solid var(--line-strong); border-radius:2px;
+  font-family:var(--font-mono); font-size:8px; font-style:normal; color:var(--muted); background:var(--surface); }
+.pgi{ width:64%; height:64%; fill:none; stroke:currentColor; stroke-width:1.7;
+  stroke-linecap:round; stroke-linejoin:round; }
+
+@media (max-width:1180px){ .kpi-grid{ grid-template-columns:repeat(2,1fr); } }
+@media (max-width:520px){ .kpi-grid{ grid-template-columns:1fr 1fr; gap:8px; } }

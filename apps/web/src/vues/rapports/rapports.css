@@ -116,10 +116,9 @@
 @media print {
   @page { size: A4 portrait; margin: 14mm; }
 
-  .sidebar, .topbar, .rep-bar, .tabs, .no-print { display: none !important; }
+  .side, .topbar, .rep-bar, .tabs, .no-print { display: none !important; }
   .app { display: block !important; }
-  .contenu { display: block; }
-  .page { padding: 0; max-width: none; }
+  .page { display: block; padding: 0; max-width: none; }
 
   body, .panel, .kpi, .health-row, .ratio-box {
     background: var(--papier) !important;
