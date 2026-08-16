@@ -4,9 +4,11 @@ Forme opérationnelle du § 5 de `cadrage/04`. C'est le document qu'on ouvre pou
 
 > **Sans DAG, la parallélisation est un pari ; avec, c'est une lecture.**
 
-**État au 2026-08-16** — **25 des 35 vues sont portées.**
+**État au 2026-08-16** — **29 des 35 vues sont portées. La vague 3 bis est close.**
 
-Dix lots repassent de « livré (serveur) » à **« livré »** tout court : leurs vues sont désormais portées, et la mention ne se justifiait que par ce manque. Restent en « livré (serveur) » les trois lots dont les vues appartiennent à L-37 : **L-08** (vues 32, 33), **L-09** (vue 31), **L-17** (vue 34).
+Plus aucun lot ne porte la mention « livré (serveur) » : **L-08** (vues 32, 33), **L-09** (vue 31) et **L-17** (vue 34) repassent en **« livré »** tout court avec la clôture de L-37. La mention ne se justifiait que par des vues manquantes ; elles sont portées.
+
+Restent six vues, toutes dans les vagues 4 et 5 parce qu'elles dépendent de modules serveur non encore écrits : 06 (L-21), 07, 08, 09 (L-20), 15 et 30 (L-22).
 
 Reste ensuite : la vague 4 (L-20, planning unifié) et les vagues 5 et 6. Vague 1 ouvrable dès la clôture de la vague 0 : l'arbitrage bloquant B1 est rendu, les prérequis T1 à T6 sont levés.
 
@@ -56,8 +58,8 @@ Séquentiel, en pair. Aucune délégation : c'est le harnais qui rend la délég
 | --- | --- | --- | --- | --- | --- | --- |
 | ~~**L-06**~~ | Structure organisationnelle **et constructeur de prédicats de périmètre** | M2 | 29 | **Haute** | L-02, L-03 | **livré** |
 | ~~**L-07**~~ | Utilisateurs, annuaire, suivi individuel, contrôle de dépendances | M3 | 27, 28 | **Haute** | L-06 | **livré** |
-| ~~**L-08**~~ | Rôles, matrice de permissions, journal d'audit inaltérable | M20 | 32, 33 | **Haute** | L-06 | **livré** (serveur) |
-| ~~**L-09**~~ | Paramétrage : affichage, planning, jours fériés, vacances scolaires | M19 | 31 | Moyenne | L-05 | **livré** (serveur) |
+| ~~**L-08**~~ | Rôles, matrice de permissions, journal d'audit inaltérable | M20 | 32, 33 | **Haute** | L-06 | **livré** |
+| ~~**L-09**~~ | Paramétrage : affichage, planning, jours fériés, vacances scolaires | M19 | 31 | Moyenne | L-05 | **livré** |
 
 `L-06` d'abord — le périmètre conditionne tout le reste. Puis `L-07 ∥ L-08 ∥ L-09`. **Vague close.**
 
@@ -78,7 +80,7 @@ Séquentiel, en pair. Aucune délégation : c'est le harnais qui rend la délég
 | ~~**L-14**~~ | Événements et récurrences | M9 | 18 | Moyenne | L-07, L-09 | **livré** |
 | ~~**L-15**~~ | Congés : cycle de vie, validation, délégations, soldes, types | M10 | 19 | **Haute** | L-07, L-09 | **livré** |
 | ~~**L-16**~~ | Télétravail : déclaration, règles récurrentes, vue équipe | M11 | 20 | Moyenne | L-07 | **livré** |
-| ~~**L-17**~~ | Activité récurrente : catalogue, assignations, récurrences | M8 | 34 | Moyenne | L-07, L-09 | **livré** (serveur) |
+| ~~**L-17**~~ | Activité récurrente : catalogue, assignations, récurrences | M8 | 34 | Moyenne | L-07, L-09 | **livré** |
 | ~~**L-18**~~ | Temps passé : saisie, plafond, rapports, saisie pour tiers | M12 | 21 | Moyenne | L-10, L-11 | **livré** |
 | ~~**L-19**~~ | Documents et commentaires, avec traçage des accès | M15 | — | Moyenne | L-10, L-11 | **livré** |
 
@@ -107,13 +109,15 @@ Le choix est donc de **nommer la séparation plutôt que de la subir**. Les lots
 | ~~**L-34**~~ | Occupations : événements, congés, télétravail, temps passé | 18, 19, 20, 21 | L-14, L-15, L-16, L-18 | **Haute** | **livré** |
 | ~~**L-35**~~ | Compétences, tiers et clients | 22, 23, 24, 25, 26 | L-13, L-12 | Basse | **livré** |
 | ~~**L-36**~~ | Utilisateurs, suivi individuel, structure organisationnelle | 27, 28, 29 | L-07, L-06 | Moyenne | **livré** |
-| **L-37** | Administration : paramètres, rôles, journal d'audit, tâches prédéfinies | 31, 32, 33, 34 | L-09, L-08, L-17 | Moyenne | délégation |
+| ~~**L-37**~~ | Administration : paramètres, rôles, journal d'audit, tâches prédéfinies | 31, 32, 33, 34 | L-09, L-08, L-17 | Moyenne | **livré** |
 
-`L-30` d'abord, puis `L-31` — sans points d'entrée HTTP ni routeur, aucune vue ne peut être portée. Puis `L-32 → L-37` dans l'ordre des maquettes.
+`L-30` d'abord, puis `L-31` — sans points d'entrée HTTP ni routeur, aucune vue ne peut être portée. Puis `L-32 → L-37` dans l'ordre des maquettes. **Vague close.**
 
 > **Ce que L-30 a révélé.** Les vagues 2 et 3 avaient livré vingt services métier et un seul contrôleur : celui de l'authentification. Les règles étaient écrites, testées sur PostgreSQL réel — et **injoignables**. Le trou ne se voyait dans aucune boucle, parce qu'aucune boucle ne demandait « ces règles sont-elles atteignables ? ». Deux contrôles le ferment désormais : `surface-http.test.ts` refuse une route sans permission déclarée, `surface-http.int.test.ts` prouve que la déclaration produit bien un refus.
 
 **Ce qui reste hors de cette vague** : les vues 06 (L-21), 07/08/09 (L-20), 15 et 30 (L-22) restent dans leurs vagues d'origine, parce qu'elles dépendent de modules serveur non encore écrits.
+
+> **Ce que L-37 a révélé.** `joursFeries(annee)` ne listait que les lignes stockées sur l'année demandée, alors que `joursChomes` **projette** les fériés récurrents sur chaque année. Une année jamais importée s'affichait donc vide en vue 31, pendant que le décompte des congés y voyait bien ses fériés : deux lectures du même calendrier qui se contredisaient, et c'est le paramétrage qui avait tort. La projection est désormais commune aux deux, avec son test de non-régression. **Une contradiction entre deux lectures d'une même donnée ne se voit dans aucune boucle qui n'interroge qu'une des deux.**
 
 ---
 

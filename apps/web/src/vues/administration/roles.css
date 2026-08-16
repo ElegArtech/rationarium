@@ -1,0 +1,80 @@
+/*
+ * Vue 32 — Rôles et permissions. Section 36 des maquettes.
+ *
+ * 255 croisements possibles, 97 valides. Les 158 autres ne sont pas grisés :
+ * ils n'existent pas, et la grille ne les dessine pas.
+ */
+
+.role-grid{ display:grid; grid-template-columns:minmax(0,1fr) 190px 152px 116px 146px; gap:13px; }
+.role-head{ padding:9px 14px; background:var(--surface-2); border-bottom:1px solid var(--line-strong); }
+.role-head span{ font-family:var(--font-mono); font-size:8.5px; font-weight:500; letter-spacing:.12em;
+  text-transform:uppercase; color:var(--muted); }
+.role-row{ padding:11px 14px; border-bottom:1px solid var(--line); align-items:center; }
+.role-row:last-child{ border-bottom:none; }
+.role-row:hover{ background:var(--surface-2); }
+.role-row.is-sel{ background:var(--accent-soft); box-shadow:inset 3px 0 0 var(--accent); }
+.role-n{ font-size:13px; font-weight:600; margin:0; }
+.role-c{ display:block; font-family:var(--font-mono); font-size:9.5px; color:var(--muted); margin-top:3px; }
+.role-perm{ display:flex; align-items:center; gap:9px; }
+.role-perm .bar{ flex:1; margin:0; max-width:110px; }
+.role-pn{ font-family:var(--font-mono); font-size:11px; }
+
+/* Lecture de haut niveau, avant le détail case à case */
+.mx-top{ display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:11px; margin-bottom:14px; }
+.diff-pill{ font-family:var(--font-mono); font-size:9.5px; border:1px solid currentColor;
+  border-radius:2px; padding:1px 6px; }
+.diff-add{ color:var(--st-done); }
+.diff-rem{ color:var(--st-blocked); }
+
+.pm-wrap{ border:1px solid var(--line-strong); border-radius:var(--r); background:var(--surface);
+  overflow:auto; max-height:calc(100vh - 300px); }
+.pm{ display:grid; grid-template-columns:var(--cols); min-width:max-content; }
+.pm-corner{ position:sticky; top:0; left:0; z-index:7; background:var(--surface-2); height:132px;
+  border-right:1px solid var(--line-strong); border-bottom:1px solid var(--line-strong);
+  display:flex; align-items:flex-end; padding:9px 13px; }
+.pm-head{ position:sticky; top:0; z-index:5; background:var(--surface-2); height:132px;
+  border-left:1px solid var(--line); border-bottom:1px solid var(--line-strong);
+  display:flex; align-items:flex-end; justify-content:center; padding-bottom:9px; }
+.pm-head span{ writing-mode:vertical-rl; transform:rotate(180deg); font-family:var(--font-cond);
+  font-size:10.5px; white-space:nowrap; max-height:106px; overflow:hidden; text-overflow:ellipsis; }
+.pm-mod{ position:sticky; left:0; z-index:2; background:var(--surface); display:grid;
+  grid-template-columns:minmax(0,1fr) 92px 26px; gap:10px; align-items:center;
+  border-right:1px solid var(--line-strong); border-bottom:1px solid var(--line); padding:0 13px; height:38px; }
+.pm-mn{ font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.pm-cnt{ display:flex; align-items:center; gap:7px; }
+.pm-cnt .bar{ flex:1; margin:0; }
+.pm-cn{ font-family:var(--font-mono); font-size:9.5px; color:var(--muted); }
+.pm-all{ font-family:var(--font-mono); font-size:11px; color:var(--muted); width:22px; height:22px;
+  border:1px solid var(--line); border-radius:2px; }
+.pm-all:hover{ color:var(--accent); border-color:var(--accent); }
+
+.pm-cell{ height:38px; border-left:1px solid var(--line); border-bottom:1px solid var(--line);
+  display:flex; align-items:center; justify-content:center; }
+/* Croisement inexistant : aucune case, aucune bordure de case, juste du vide traité */
+.pm-cell.is-void{ background:repeating-linear-gradient(135deg,
+  var(--surface) 0 5px, var(--surface-2) 5px 10px); }
+.pm-box{ width:19px; height:19px; border:1px solid var(--line-strong); border-radius:3px;
+  display:flex; align-items:center; justify-content:center; font-family:var(--font-mono);
+  font-size:11px; color:transparent; background:var(--surface); }
+.pm-box[aria-pressed="true"]{ background:var(--accent); border-color:var(--accent); color:var(--on-accent); }
+.pm-box:hover{ border-color:var(--accent); }
+.pm-cell.is-changed .pm-box{ box-shadow:0 0 0 3px color-mix(in srgb, var(--st-review) 40%, transparent); }
+.pm-cell.is-ro .pm-box{ cursor:not-allowed; opacity:.65; }
+
+.tpl-list{ border:1px solid var(--line); border-radius:var(--r); max-height:300px; overflow-y:auto; }
+.tpl-fam{ padding:7px 13px; background:var(--surface-2); border-bottom:1px solid var(--line);
+  font-family:var(--font-mono); font-size:8.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); }
+.tpl{ display:grid; grid-template-columns:18px minmax(0,1fr) 78px; gap:11px; align-items:center;
+  padding:9px 13px; border-bottom:1px solid var(--line); width:100%; text-align:left; }
+.tpl:last-child{ border-bottom:none; }
+.tpl:hover{ background:var(--surface-2); }
+.tpl[aria-pressed="true"]{ background:var(--accent-soft); }
+.tpl-n{ font-family:var(--font-mono); font-size:11.5px; }
+.tpl-d{ display:block; font-size:11px; color:var(--muted); margin-top:3px; }
+
+.impact-row{ display:grid; grid-template-columns:96px minmax(0,1fr); gap:12px; align-items:baseline;
+  padding:9px 0; border-bottom:1px solid var(--line); }
+.impact-row:last-child{ border-bottom:none; }
+.impact-k{ font-family:var(--font-mono); font-size:10px; }
+.impact-t{ font-size:12.5px; }
+.impact-d{ display:block; font-size:11.5px; color:var(--muted); margin-top:3px; line-height:1.5; }

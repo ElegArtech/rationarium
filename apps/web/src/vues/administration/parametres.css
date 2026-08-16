@@ -1,0 +1,62 @@
+/*
+ * Vue 31 — Paramètres. Section 35 des maquettes, reprise verbatim.
+ *
+ * Un jour férié marqué OUVRÉ compte comme travaillé dans le décompte des
+ * congés : le réglage a un effet de bord lointain, et la ligne le signale.
+ */
+
+.dirty-bar{ position:sticky; top:57px; z-index:9; display:flex; align-items:center; gap:12px;
+  background:var(--warn-soft); border:1px solid var(--st-review); border-radius:var(--r);
+  padding:11px 14px; margin-bottom:14px; }
+.dirty-t{ font-size:13px; font-weight:600; color:var(--st-review); }
+.dirty-d{ display:block; font-size:11.5px; color:var(--muted); margin-top:3px; }
+
+.opt-list{ display:flex; flex-direction:column; gap:7px; }
+.opt{ display:grid; grid-template-columns:18px minmax(0,1fr) auto; gap:11px; align-items:center;
+  border:1px solid var(--line); border-radius:var(--r); padding:10px 12px; background:var(--surface);
+  text-align:left; }
+.opt:hover{ border-color:var(--line-strong); }
+.opt[aria-pressed="true"]{ border-color:var(--accent); background:var(--accent-soft); }
+.opt-mark{ width:15px; height:15px; border-radius:50%; border:2px solid var(--line-strong); }
+.opt[aria-pressed="true"] .opt-mark{ border-color:var(--accent); border-width:5px; }
+.opt-n{ font-size:12.5px; }
+.opt-ex{ font-family:var(--font-mono); font-size:11px; color:var(--muted); white-space:nowrap; }
+.opt[aria-pressed="true"] .opt-ex{ color:var(--accent-strong); }
+
+.preview-box{ border:1px solid var(--accent); background:var(--accent-soft); border-radius:var(--r);
+  padding:13px 14px; }
+.preview-l{ display:grid; grid-template-columns:150px 1fr; gap:8px 12px; font-size:12.5px; }
+.preview-l dt{ font-family:var(--font-mono); font-size:9px; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--muted); padding-top:3px; }
+.preview-l dd{ margin:0; font-family:var(--font-mono); font-size:12.5px; }
+
+.days-row{ display:flex; gap:7px; flex-wrap:wrap; }
+.day-opt{ display:flex; flex-direction:column; align-items:center; gap:5px; padding:9px 13px;
+  border:1px solid var(--line-strong); border-radius:var(--r); background:var(--surface); min-width:62px; }
+.day-opt[aria-pressed="true"]{ border-color:var(--accent); background:var(--accent-soft); color:var(--accent); }
+.day-opt[disabled]{ cursor:not-allowed; }
+.day-n{ font-family:var(--font-cond); font-size:11.5px; font-weight:600; text-transform:uppercase; letter-spacing:.07em; }
+.day-s{ font-family:var(--font-mono); font-size:8.5px; color:var(--muted); }
+.day-opt[aria-pressed="true"] .day-s{ color:var(--accent); }
+
+.hol-grid{ display:grid; grid-template-columns:112px minmax(0,1fr) 132px 176px minmax(0,1fr) 120px; gap:13px; }
+.vac-grid{ display:grid; grid-template-columns:minmax(0,1fr) 116px 116px 136px 120px; gap:13px; }
+.set-head{ padding:9px 14px; background:var(--surface-2); border-bottom:1px solid var(--line-strong); }
+.set-head span{ font-family:var(--font-mono); font-size:8.5px; font-weight:500; letter-spacing:.12em;
+  text-transform:uppercase; color:var(--muted); }
+.set-row{ padding:10px 14px; border-bottom:1px solid var(--line); align-items:center; }
+.set-row:last-child{ border-bottom:none; }
+.set-row:hover{ background:var(--surface-2); }
+.set-row.is-work{ background:color-mix(in srgb, var(--st-review) 7%, var(--surface)); }
+
+.toggle{ position:relative; width:38px; height:21px; border-radius:11px; background:var(--line-strong);
+  flex:none; transition:background .15s ease; }
+.toggle::after{ content:''; position:absolute; top:2px; left:2px; width:17px; height:17px;
+  border-radius:50%; background:var(--surface); transition:transform .15s ease; }
+.toggle[aria-pressed="true"]{ background:var(--st-review); }
+.toggle[aria-pressed="true"]::after{ transform:translateX(17px); }
+.toggle-wrap{ display:flex; align-items:center; gap:9px; }
+.toggle-lab{ font-family:var(--font-mono); font-size:9px; color:var(--muted); }
+.toggle[aria-pressed="true"] + .toggle-lab{ color:var(--st-review); }
+
+.set-stats{ display:grid; grid-template-columns:repeat(4,1fr); gap:11px; margin-bottom:14px; }

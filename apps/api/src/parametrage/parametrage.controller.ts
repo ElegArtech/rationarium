@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Query } from "@nestjs/common";
+import { Body, Controller, Get, Post, Put, Query } from "@nestjs/common";
 import { z } from "zod";
 import { CalendrierService } from "./calendrier.service.js";
 import { Demande, RequiertPermission, type ContexteDemande } from "../commun/permissions.garde.js";
@@ -17,6 +17,42 @@ const plage = z.object({ debut: dateSchema, fin: dateSchema });
 @Controller("parametrage")
 export class ParametrageController {
   constructor(private readonly calendrier: CalendrierService) {}
+
+  /** `EX-PRM-01` — les réglages globaux publics. Vue 31. */
+  @Get()
+  @RequiertPermission("settings:read")
+  reglages() {
+    return this.calendrier.reglages();
+  }
+
+  /**
+   * Enregistre les réglages **en bloc**.
+   *
+   * La vue 31 édite quatre onglets et enregistre d'un geste : une écriture
+   * champ par champ laisserait l'application dans un état intermédiaire que
+   * personne n'a choisi.
+   */
+  @Put()
+  @RequiertPermission("settings:update")
+  enregistrer(@Body() corps: unknown, @Demande() d: ContexteDemande) {
+    const { reglages } = valider(
+      z.object({ reglages: z.record(z.string(), z.string()) }),
+      corps,
+    );
+    return this.calendrier.enregistrerReglages(reglages, d.userId);
+  }
+
+  @Get("feries")
+  @RequiertPermission("holidays:read")
+  feries(@Query("annee") annee: string) {
+    return this.calendrier.joursFeries(valider(z.coerce.number().int(), annee));
+  }
+
+  @Get("vacances")
+  @RequiertPermission("school_vacations:read")
+  vacances(@Query("anneeScolaire") anneeScolaire?: string) {
+    return this.calendrier.vacances(anneeScolaire);
+  }
 
   /**
    * La trame de fond du planning : week-ends, fériés, vacances scolaires.

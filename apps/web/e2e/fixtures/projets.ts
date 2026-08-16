@@ -186,7 +186,16 @@ export async function serveur(
       // Correspondance exacte d'abord, suffixe ensuite. Un « contient »
       // ferait répondre la fiche projet à la requête de sa feuille de route,
       // dont le chemin commence par le sien.
-      const trouve = motifs.find((m) => chemin === m) ?? motifs.find((m) => chemin.endsWith(m));
+      //
+      // Un motif qui porte une chaîne de requête est comparé au chemin ET à
+      // sa requête : c'est ce qui permet de distinguer deux réponses d'un même
+      // point d'entrée — `?inclureInactives=true` n'est pas la même demande
+      // que la demande nue. Sans cela, un filtre serveur ne se teste pas.
+      const complet = chemin + new URL(route.request().url()).search;
+      const trouve =
+        motifs.find((m) => complet === m) ??
+        motifs.find((m) => chemin === m) ??
+        motifs.find((m) => chemin.endsWith(m));
       if (!trouve) return route.fulfill({ status: 404, body: "{}" });
       const r = reponses[trouve]!;
       return route.fulfill({

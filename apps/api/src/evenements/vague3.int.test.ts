@@ -324,6 +324,55 @@ describe("RG-ACT-02, RG-ACT-05 — catalogue", () => {
   });
 });
 
+describe("EX-ACT-01 — le catalogue tel que la vue 34 le lit", () => {
+  it("RG-ACT-05 — une tâche désactivée n'est rendue que si on la demande, et garde ses assignations", async () => {
+    const active = await activite.creerTache({ nom: `Zactive ${uuid().slice(0, 6)}` }, acteur);
+    const eteinte = await activite.creerTache({ nom: `Zeteinte ${uuid().slice(0, 6)}` }, acteur);
+    const u = await agent();
+    const p = await globalP();
+    await activite.assigner(eteinte.id, [u], utc("2026-06-08"), "full_day", acteur, p);
+    await prisma.predefinedTask.update({ where: { id: eteinte.id }, data: { actif: false } });
+
+    const parDefaut = await activite.catalogue();
+    expect(parDefaut.map((t) => t.id)).toContain(active.id);
+    expect(parDefaut.map((t) => t.id)).not.toContain(eteinte.id);
+
+    const complet = await activite.catalogue(true);
+    const retrouvee = complet.find((t) => t.id === eteinte.id);
+    // Elle reste au catalogue AVEC son passé : la faire disparaître
+    // rattacherait ces assignations à un objet introuvable.
+    expect(retrouvee?._count.assignations).toBe(1);
+  });
+
+  it("les règles de récurrence accompagnent la tâche, actives d'abord", async () => {
+    const t = await activite.creerTache({ nom: `Zregles ${uuid().slice(0, 6)}` }, acteur);
+    await prisma.predefinedTaskRecurrence.createMany({
+      data: [
+        {
+          predefinedTaskId: t.id, type: "weekly", frequence: 1, jourSemaine: 2,
+          dateDebut: utc("2026-09-01"), active: false,
+        },
+        {
+          predefinedTaskId: t.id, type: "monthly_date", frequence: 1, jourMois: 31,
+          dateDebut: utc("2026-01-01"), active: true,
+        },
+      ],
+    });
+
+    const tache = (await activite.catalogue()).find((x) => x.id === t.id);
+    // La vue 34 rend chaque règle en une phrase : elle a besoin des champs de
+    // chaque type, et de l'ordre qui met l'active en tête.
+    expect(tache?.recurrences.map((r) => r.active)).toEqual([true, false]);
+    expect(tache?.recurrences[0]?.jourMois).toBe(31);
+  });
+
+  it("les tâches actives précèdent les inactives, puis l'ordre est alphabétique", async () => {
+    const noms = (await activite.catalogue(true)).map((t) => t.actif);
+    // Une liste où l'actif et l'inactif s'entremêlent se relit mal.
+    expect([...noms].sort((a, b) => Number(b) - Number(a))).toEqual(noms);
+  });
+});
+
 describe("RG-ACT-03 — l'inéligibilité est NOMMÉE, agent par agent", () => {
   it("dit pourquoi chaque agent est inéligible, plutôt que de les masquer", async () => {
     const t = await activite.creerTache(
