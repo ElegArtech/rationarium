@@ -611,6 +611,69 @@ export class CongesService {
     return delegation;
   }
 
+  /**
+   * `EX-CNG-16` — le catalogue des types, avec leur usage.
+   *
+   * Le compte d'utilisations n'est pas décoratif : `RG-CNG-17` refuse la
+   * suppression d'un type employé et le désactive à la place. Afficher le
+   * nombre AVANT le geste évite de découvrir la règle en la heurtant.
+   */
+  async typesDeConge(inclureInactifs = false) {
+    const types = await this.prisma.leaveType.findMany({
+      where: inclureInactifs ? {} : { actif: true },
+      orderBy: [{ ordre: "asc" }, { nom: "asc" }],
+      include: { _count: { select: { conges: true } } },
+    });
+    return types.map((t) => ({
+      ...t,
+      limiteAnnuelle: t.limiteAnnuelle === null ? null : Number(t.limiteAnnuelle),
+      utilisations: t._count.conges,
+    }));
+  }
+
+  /**
+   * `EX-CNG-13` — tous les soldes d'une personne pour une année.
+   *
+   * « Le solde disponible est l'information la plus attendue au moment de la
+   * demande : il ne doit pas être à chercher » (`cadrage/02`, vue 19). Il est
+   * donc servi en bloc, pas type par type — une vue qui ferait six appels
+   * afficherait six compteurs qui apparaissent l'un après l'autre.
+   */
+  async soldes(userId: string, annee: number) {
+    const types = await this.prisma.leaveType.findMany({
+      where: { actif: true },
+      orderBy: [{ ordre: "asc" }, { nom: "asc" }],
+    });
+    return Promise.all(
+      types.map(async (type) => ({
+        type: {
+          id: type.id, code: type.code, nom: type.nom,
+          couleur: type.couleur, icone: type.icone,
+          validationRequise: type.validationRequise,
+        },
+        solde: await this.solde(userId, type.id, annee),
+      })),
+    );
+  }
+
+  /** `EX-CNG-19` — les délégations, dans les deux sens. */
+  async delegations(userId: string) {
+    const personne = { select: { id: true, prenom: true, nom: true } };
+    const [donnees, recues] = await Promise.all([
+      this.prisma.leaveDelegation.findMany({
+        where: { delegantId: userId },
+        orderBy: { dateDebut: "desc" },
+        include: { delegue: personne },
+      }),
+      this.prisma.leaveDelegation.findMany({
+        where: { delegueId: userId },
+        orderBy: { dateDebut: "desc" },
+        include: { delegant: personne },
+      }),
+    ]);
+    return { donnees, recues };
+  }
+
   /** `RG-CNG-12` — seul le délégant, ou un administrateur, peut désactiver une délégation. */
   async desactiverDelegation(id: string, acteurId: string, permissions: ReadonlySet<string>) {
     const delegation = await this.prisma.leaveDelegation.findUnique({ where: { id } });

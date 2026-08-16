@@ -30,6 +30,10 @@ import { Equipe } from "../vues/projets/Equipe.js";
 import { OngletTaches } from "../vues/taches/OngletTaches.js";
 import { ListeTaches } from "../vues/taches/Liste.js";
 import { FicheTache } from "../vues/taches/Fiche.js";
+import { Evenements } from "../vues/occupations/Evenements.js";
+import { Conges } from "../vues/occupations/Conges.js";
+import { Teletravail } from "../vues/occupations/Teletravail.js";
+import { Temps } from "../vues/occupations/Temps.js";
 
 /**
  * L'arborescence des routes.
@@ -314,6 +318,32 @@ const routeTache = createRoute({
   },
 });
 
+// ── Occupations — vues 18, 19, 20, 21 (L-34) ────────────────────────────────
+
+const routeEvenements = createRoute({
+  getParentRoute: () => routeApplication,
+  path: "/evenements",
+  component: Evenements,
+});
+
+const routeConges = createRoute({
+  getParentRoute: () => routeApplication,
+  path: "/conges",
+  component: Conges,
+});
+
+const routeTeletravail = createRoute({
+  getParentRoute: () => routeApplication,
+  path: "/teletravail",
+  component: Teletravail,
+});
+
+const routeTemps = createRoute({
+  getParentRoute: () => routeApplication,
+  path: "/temps",
+  component: Temps,
+});
+
 const arbre = racine.addChildren([
   routeConnexion,
   routeInscription,
@@ -330,6 +360,10 @@ const arbre = racine.addChildren([
     routeProjetTaches,
     routeTaches,
     routeTache,
+    routeEvenements,
+    routeConges,
+    routeTeletravail,
+    routeTemps,
   ]),
 ]);
 

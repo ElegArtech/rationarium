@@ -1,0 +1,69 @@
+/*
+ * Vue 18 — Événements. Section 22 des maquettes, reprise verbatim.
+ */
+
+.ev-day{ display:flex; align-items:baseline; gap:10px; padding:8px 14px;
+  background:var(--surface-2); border-bottom:1px solid var(--line); border-top:1px solid var(--line); }
+.ev-day:first-child{ border-top:none; }
+.ev-day.is-today{ background:var(--accent-soft); }
+.ev-dnum{ font-family:var(--font-display); font-size:15px; font-weight:600; }
+.ev-dow{ font-family:var(--font-cond); font-size:10.5px; letter-spacing:.09em;
+  text-transform:uppercase; color:var(--muted); }
+.ev-dtoday{ margin-left:auto; font-family:var(--font-mono); font-size:9px; color:var(--accent); }
+
+.ev-row{ display:grid; grid-template-columns:104px minmax(0,1fr) 200px 118px 26px;
+  gap:13px; align-items:center; padding:11px 14px; border-bottom:1px solid var(--line); }
+.ev-row:last-child{ border-bottom:none; }
+.ev-row:hover{ background:var(--surface-2); }
+.ev-time{ font-family:var(--font-mono); font-size:11px; }
+.ev-time.is-all{ color:var(--muted); }
+.ev-name{ font-size:13px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin:0; }
+.ev-sub{ display:flex; align-items:center; gap:6px; margin-top:5px; flex-wrap:wrap; }
+.ev-rec{ display:inline-flex; align-items:center; gap:4px; font-family:var(--font-mono);
+  font-size:8.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--accent);
+  border:1px solid currentColor; border-radius:2px; padding:1px 5px; }
+.ev-part{ font-family:var(--font-mono); font-size:10px; color:var(--muted); }
+.ev-go{ font-family:var(--font-mono); font-size:13px; color:var(--muted); text-align:right; }
+.ev-row:hover .ev-go{ color:var(--accent); }
+
+/* Calendrier simplifié */
+.cal-note{ display:flex; align-items:center; gap:9px; padding:9px 14px;
+  border-bottom:1px solid var(--line); background:var(--surface-2);
+  font-family:var(--font-mono); font-size:9.5px; letter-spacing:.06em; color:var(--muted); }
+.cal{ display:grid; grid-template-columns:repeat(7,1fr); }
+.cal-dow{ font-family:var(--font-cond); font-size:9.5px; font-weight:600; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--muted); text-align:center; padding:8px 0;
+  border-bottom:1px solid var(--line-strong); border-left:1px solid var(--line); }
+.cal-dow:first-child{ border-left:none; }
+.cal-cell{ min-height:96px; border-left:1px solid var(--line); border-bottom:1px solid var(--line);
+  padding:5px 6px; display:flex; flex-direction:column; gap:3px; }
+.cal-cell:nth-child(7n+1){ border-left:none; }
+.cal-cell.is-out{ background:var(--surface-2); }
+.cal-cell.is-today{ background:color-mix(in srgb, var(--accent) 6%, var(--surface)); }
+.cal-n{ font-family:var(--font-mono); font-size:10.5px; color:var(--muted); }
+.cal-cell.is-today .cal-n{ color:var(--accent); font-weight:600; }
+.cal-ev{ display:flex; align-items:center; gap:4px; font-family:var(--font-cond); font-size:10px;
+  padding:2px 5px; border-radius:2px; border-left:3px solid currentColor;
+  background:color-mix(in srgb, currentColor 14%, var(--surface)); text-align:left; width:100%; }
+.cal-ev span{ color:var(--ink); min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.cal-more{ font-family:var(--font-mono); font-size:9px; color:var(--muted); text-align:left; padding-left:5px; }
+
+/* Récurrence dans le formulaire */
+.rec-box{ border:1px solid var(--line); border-radius:var(--r); padding:13px; background:var(--surface-2); }
+.rec-grid{ display:grid; grid-template-columns:110px 1fr 1fr; gap:11px; }
+.rec-prev{ display:flex; gap:9px; align-items:flex-start; margin-top:12px; padding:10px 12px;
+  border:1px solid var(--accent); background:var(--accent-soft); border-radius:var(--r); }
+.rec-prev-t{ font-size:12.5px; font-weight:600; margin:0; }
+.rec-prev-d{ font-size:11.5px; color:var(--muted); margin:4px 0 0; }
+
+/* Choix de portée : occurrence ou série */
+.scope-opts{ display:grid; gap:9px; }
+.scope-opt{ border:1px solid var(--line-strong); border-radius:var(--r); padding:13px;
+  background:var(--surface); text-align:left; display:flex; gap:11px; align-items:flex-start; }
+.scope-opt:hover{ border-color:var(--accent); }
+.scope-opt[aria-pressed="true"]{ border-color:var(--accent); background:var(--accent-soft); }
+.scope-mark{ width:16px; height:16px; border-radius:50%; border:2px solid var(--line-strong);
+  flex:none; margin-top:2px; }
+.scope-opt[aria-pressed="true"] .scope-mark{ border-color:var(--accent); border-width:5px; }
+.scope-t{ font-size:13px; font-weight:600; }
+.scope-d{ display:block; font-size:11.5px; color:var(--muted); margin-top:4px; line-height:1.45; }

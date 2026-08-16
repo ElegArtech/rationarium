@@ -4,7 +4,7 @@ Forme opérationnelle du § 5 de `cadrage/04`. C'est le document qu'on ouvre pou
 
 > **Sans DAG, la parallélisation est un pari ; avec, c'est une lecture.**
 
-**État au 2026-08-16** — vagues 0 à 3 closes côté serveur (L-00 à L-19), surface HTTP (L-30), socle client (L-31), vues projet (L-32) et vues tâches (L-33) livrés. **13 des 35 vues sont portées.** Reste : L-34 à L-37 pour les 16 vues métier restantes, puis les vagues 4 à 6. Vague 1 ouvrable dès la clôture de la vague 0 : l'arbitrage bloquant B1 est rendu, les prérequis T1 à T6 sont levés.
+**État au 2026-08-16** — vagues 0 à 3 closes côté serveur (L-00 à L-19), surface HTTP (L-30), socle client (L-31), vues projet (L-32), vues tâches (L-33) et vues d'occupation (L-34) livrés. **17 des 35 vues sont portées.** Reste : L-35 à L-37 pour les 12 vues métier restantes, puis les vagues 4 à 6. Vague 1 ouvrable dès la clôture de la vague 0 : l'arbitrage bloquant B1 est rendu, les prérequis T1 à T6 sont levés.
 
 ---
 
@@ -100,7 +100,7 @@ Le choix est donc de **nommer la séparation plutôt que de la subir**. Les lots
 | ~~**L-31**~~ | Socle applicatif client : routeur, fournisseurs, session, gardes de route, états transverses | — | L-05 | **Haute** | **livré** |
 | ~~**L-32**~~ | Projets : portefeuille, vue d'ensemble, jalons, équipe | 10, 11, 13, 14 | L-10 | Moyenne | **livré** |
 | ~~**L-33**~~ | Tâches : kanban, vue globale, fiche tâche | 12, 16, 17 | L-11 | **Haute** | **livré** |
-| **L-34** | Occupations : événements, congés, télétravail, temps passé | 18, 19, 20, 21 | L-14, L-15, L-16, L-18 | **Haute** | délégation |
+| ~~**L-34**~~ | Occupations : événements, congés, télétravail, temps passé | 18, 19, 20, 21 | L-14, L-15, L-16, L-18 | **Haute** | **livré** |
 | **L-35** | Compétences, tiers et clients | 22, 23, 24, 25, 26 | L-13, L-12 | Basse | délégation |
 | **L-36** | Utilisateurs, suivi individuel, structure organisationnelle | 27, 28, 29 | L-07, L-06 | Moyenne | délégation |
 | **L-37** | Administration : paramètres, rôles, journal d'audit, tâches prédéfinies | 31, 32, 33, 34 | L-09, L-08, L-17 | Moyenne | délégation |
