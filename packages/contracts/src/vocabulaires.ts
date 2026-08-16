@@ -48,6 +48,39 @@ export const STATUTS_JALON = vocabulaire([
 export type StatutJalon = (typeof STATUTS_JALON)[number]["code"];
 
 /**
+ * Rôles dans l'équipe projet — `cadrage/01 § M4`, dix-sept valeurs énumérées.
+ *
+ * **Le cadrage les énumère, donc ce n'est pas une chaîne libre.** Le contrat
+ * les acceptait pourtant en `z.string().max(80)` : deux projets pouvaient
+ * écrire « Chef de projet » et « chef de projet », et la vue 14 n'avait aucune
+ * liste à proposer — son sélecteur de rôle, que la maquette dessine sur chaque
+ * ligne d'équipe, n'avait pas d'options.
+ *
+ * L'ordre est celui du cadrage : il va du pilotage à l'observation, et c'est
+ * l'ordre dans lequel une équipe se lit.
+ */
+export const ROLES_PROJET = vocabulaire([
+  { code: "sponsor", fr: "Sponsor", en: "Sponsor" },
+  { code: "chef_de_projet", fr: "Chef de projet", en: "Project manager" },
+  { code: "responsable_technique", fr: "Responsable technique", en: "Technical manager" },
+  { code: "architecte", fr: "Architecte", en: "Architect" },
+  { code: "tech_lead", fr: "Tech Lead", en: "Tech lead" },
+  { code: "developpeur_senior", fr: "Développeur senior", en: "Senior developer" },
+  { code: "developpeur", fr: "Développeur", en: "Developer" },
+  { code: "developpeur_junior", fr: "Développeur junior", en: "Junior developer" },
+  { code: "devops", fr: "DevOps", en: "DevOps" },
+  { code: "qa_lead", fr: "QA Lead", en: "QA lead" },
+  { code: "testeur", fr: "Testeur", en: "Tester" },
+  { code: "designer", fr: "UX/UI Designer", en: "UX/UI designer" },
+  { code: "product_owner", fr: "Product Owner", en: "Product owner" },
+  { code: "scrum_master", fr: "Scrum Master", en: "Scrum master" },
+  { code: "analyste_metier", fr: "Analyste métier", en: "Business analyst" },
+  { code: "membre", fr: "Membre", en: "Member" },
+  { code: "observateur", fr: "Observateur", en: "Observer" },
+]);
+export type RoleProjet = (typeof ROLES_PROJET)[number]["code"];
+
+/**
  * Priorité — quatre niveaux (arbitrage B1).
  * « Moyenne » et « Urgente » écartés : la première n'était pas distinguable de
  * « Normale », la seconde faisait doublon avec « Critique ».
@@ -179,6 +212,7 @@ export const VOCABULAIRES = {
   statutTache: STATUTS_TACHE,
   statutJalon: STATUTS_JALON,
   priorite: PRIORITES,
+  roleProjet: ROLES_PROJET,
   roleRaci: ROLES_RACI,
   statutConge: STATUTS_CONGE,
   demiJournee: DEMI_JOURNEES,

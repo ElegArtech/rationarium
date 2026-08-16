@@ -25,6 +25,7 @@ import {
   TYPES_TIERS,
   DUREES_TACHE_PREDEFINIE,
   ROLES_RACI,
+  ROLES_PROJET,
 } from "./vocabulaires.js";
 
 /**
@@ -181,7 +182,13 @@ export const epopeeSchema = z.object({
 
 export const membreProjetSchema = z.object({
   userId: uuid,
-  roleProjet: z.string().min(1).max(80),
+  /*
+   * `cadrage/01 § M4` énumère dix-sept rôles : ce n'est donc pas une chaîne
+   * libre. En l'acceptant comme telle, deux projets pouvaient écrire « Chef de
+   * projet » et « chef de projet », et la vue 14 n'avait aucune liste à
+   * proposer dans son sélecteur.
+   */
+  roleProjet: enumDe(ROLES_PROJET),
   tauxAllocation: z.number().int().min(0).max(100).optional(),
 });
 
