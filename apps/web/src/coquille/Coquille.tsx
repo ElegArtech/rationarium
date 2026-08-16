@@ -90,6 +90,31 @@ export function Coquille({
   const chemin = useRouterState({ select: (etat) => etat.location.pathname });
 
   /*
+   * Le fil d'Ariane est **dérivé de la navigation** quand l'appelant n'en
+   * fournit pas.
+   *
+   * `filAriane` était une propriété que personne n'a jamais passée : le fil se
+   * réduisait à « Trame » sur les trente-cinq vues, alors que les maquettes
+   * disent « Trame / Télétravail ». Rien ne pouvait le voir — une propriété
+   * facultative non transmise ne produit ni erreur ni avertissement.
+   *
+   * La section courante est celle dont le chemin correspond, la plus longue
+   * d'abord : `/taches/<id>` appartient à « Tâches », pas à la racine.
+   */
+  const sectionCourante = groupes
+    .flatMap((g) => g.entrees)
+    .filter(
+      (e) => chemin === e.chemin || (e.chemin !== "/" && chemin.startsWith(`${e.chemin}/`)),
+    )
+    .sort((a, b) => b.chemin.length - a.chemin.length)[0];
+  const ariane =
+    filAriane.length > 0
+      ? filAriane
+      : sectionCourante && sectionCourante.chemin !== "/"
+        ? [{ libelle: t(`entrees.${sectionCourante.cle}`) }]
+        : [];
+
+  /*
    * RGAA 8.6 — **le titre de page doit être pertinent**, et il ne l'était pas :
    * toutes les vues s'appelaient « Trame ». Le titre est **dérivé du `h1`
    * affiché** plutôt que déclaré vue par vue : une liste parallèle finirait par
@@ -195,7 +220,7 @@ export function Coquille({
 
             <p className="crumb">
               <a href="/">Trame</a>
-              {filAriane.map((etape) => (
+              {ariane.map((etape) => (
                 <span key={etape.libelle}>
                   <span aria-hidden="true"> / </span>
                   {etape.chemin ? (

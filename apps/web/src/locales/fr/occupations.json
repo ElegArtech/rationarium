@@ -330,6 +330,7 @@
     "surPlafondChiffre": "{total, number} h / {plafond, number} h",
     "saisirCourt": "Saisir",
     "supprimer": "Supprimer",
-    "surTache": "· {titre}"
+    "surTache": "· {titre}",
+    "supprimerLaSaisie": "Supprimer la saisie du {date}"
   }
 }
