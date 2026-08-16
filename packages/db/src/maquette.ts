@@ -201,6 +201,71 @@ export async function peuplerMaquette(
     }
   }
 
+  /*
+   * ── La fiche de tâche — vue 17 ─────────────────────────────────────────
+   *
+   * Elle montre des sous-tâches, des commentaires, des documents, des rôles
+   * RACI et une dépendance INCOHÉRENTE — un prérequis qui finit après que la
+   * tâche a commencé. Rien de tout cela n'existe dans le jeu de volumétrie :
+   * 4 000 tâches ayant toutes projet, jalon et assigné, et pas une seule
+   * sous-tâche. Il mesure la charge, il n'exerce aucune variante.
+   */
+  const fiche = await prisma.task.findUniqueOrThrow({ where: { id: idStable("t", 0) } });
+  const prerequis = await prisma.task.findUniqueOrThrow({ where: { id: idStable("t", 6) } });
+
+  for (const [i, st] of SOUS_TACHES.entries()) {
+    await prisma.subtask.upsert({
+      where: { id: idStable("u", i) },
+      create: { id: idStable("u", i), taskId: fiche.id, libelle: st.libelle, fait: st.fait, ordre: i },
+      update: { libelle: st.libelle, fait: st.fait },
+    });
+  }
+
+  for (const [i, c] of COMMENTAIRES.entries()) {
+    await prisma.comment.upsert({
+      where: { id: idStable("m", i) },
+      create: {
+        id: idStable("m", i),
+        taskId: fiche.id,
+        auteurId: agents[c.agent]!.id,
+        contenu: c.contenu,
+      },
+      update: { contenu: c.contenu },
+    });
+  }
+
+  for (const [i, d] of DOCUMENTS.entries()) {
+    await prisma.document.upsert({
+      where: { id: idStable("f", i) },
+      create: {
+        id: idStable("f", i),
+        taskId: fiche.id,
+        auteurId: moi.id,
+        nom: d.nom,
+        empreinte: `maq-${i}`,
+        tailleOctets: d.octets,
+        typeMime: d.type,
+      },
+      update: { nom: d.nom },
+    });
+  }
+
+  for (const [i, r] of RACI.entries()) {
+    await prisma.taskRaci.upsert({
+      where: { taskId_userId_role: { taskId: fiche.id, userId: agents[r.agent]!.id, role: r.role } },
+      create: { taskId: fiche.id, userId: agents[r.agent]!.id, role: r.role },
+      update: {},
+    });
+  }
+
+  // La dépendance, et son incohérence : le prérequis finit APRÈS le début de
+  // la tâche. La maquette montre le bandeau d'alerte qui le dit.
+  await prisma.taskDependency.upsert({
+    where: { taskId_prerequisId: { taskId: fiche.id, prerequisId: prerequis.id } },
+    create: { taskId: fiche.id, prerequisId: prerequis.id },
+    update: {},
+  });
+
   // ── Les à-faire personnels — `RG-DSH-01` ────────────────────────────────
   for (const [i, libelle] of TODOS.entries()) {
     await prisma.todo.upsert({
@@ -441,6 +506,29 @@ const CONGES = [
   // Demi-journée : `is-half`, `is-am`, `is-pm` n'ont aucune autre source.
   { agent: 4, debut: 3, fin: 3, jours: 0.5, statut: "approved", demiDebut: "afternoon" },
   { agent: 1, debut: 4, fin: 4, jours: 1, statut: "approved" },
+] as const;
+
+const SOUS_TACHES = [
+  { libelle: "Arborescence des démarches", fait: true },
+  { libelle: "Parcours de dépôt", fait: true },
+  { libelle: "Écrans de suivi", fait: false },
+] as const;
+
+const COMMENTAIRES = [
+  { agent: 1, contenu: "Les parcours de dépôt sont validés côté métier." },
+  { agent: 3, contenu: "Il manque l'écran de confirmation après envoi." },
+] as const;
+
+const DOCUMENTS = [
+  { nom: "Maquettes-portail-v3.pdf", octets: 1_248_000, type: "application/pdf" },
+  { nom: "Compte-rendu-atelier.odt", octets: 42_300, type: "application/vnd.oasis.opendocument.text" },
+] as const;
+
+const RACI = [
+  { agent: 0, role: "responsible" },
+  { agent: 1, role: "accountable" },
+  { agent: 3, role: "consulted" },
+  { agent: 4, role: "informed" },
 ] as const;
 
 const NOTIFICATIONS = [
