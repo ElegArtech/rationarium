@@ -37,10 +37,8 @@
   "entete": {
     "rechercheGlobale": "Recherche globale",
     "langue": "Langue",
-    "theme": "Thème",
     "themeClair": "Thème clair",
     "themeSombre": "Thème sombre",
-    "themeAuto": "Thème automatique",
     "notificationsNonLues": "{n, plural, =0 {aucune notification non lue} one {# notification non lue} other {# notifications non lues}}",
     "menuUtilisateur": "Menu utilisateur",
     "monProfil": "Mon profil",
@@ -79,6 +77,12 @@
     "pourquoiDerniereConnexion": "Relevé automatiquement à chaque ouverture de session.",
     "nonModifiable": "Non modifiable",
     "parAdministrateur": "Administrateur",
-    "autresSessions": "Vos autres sessions resteront ouvertes."
+    "autresSessions": "Vos autres sessions resteront ouvertes.",
+    "preferences": "Préférences d'affichage",
+    "langue": "Langue",
+    "theme": "Thème",
+    "themeClair": "Clair",
+    "themeSombre": "Sombre",
+    "themeAuto": "Automatique"
   }
 }

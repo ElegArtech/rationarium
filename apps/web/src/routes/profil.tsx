@@ -1,5 +1,8 @@
 import { useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
+import { changerLangue, LANGUES } from "../i18n/index.js";
+import { definirTheme, themeCourant, THEMES, type Theme } from "../theme/index.js";
+import i18next from "i18next";
 import { Button } from "react-aria-components";
 import { ChampMotDePasse, PolitiqueMotDePasse } from "../composants/champs.js";
 import { AvatarAgent } from "../composants/pastilles.js";
@@ -117,6 +120,8 @@ function Informations({
   const [prenom, setPrenom] = useState(utilisateur.prenom);
   const [nom, setNom] = useState(utilisateur.nom);
   const [email, setEmail] = useState(utilisateur.email);
+  const [theme, setTheme] = useState<Theme>(themeCourant);
+  const [langue, setLangue] = useState(() => i18next.language);
 
   /*
    * Les champs verrouillés portent CHACUN son motif et son responsable. La
@@ -217,6 +222,65 @@ function Informations({
             <Button className="btn btn-secondary" isDisabled>
               {t("profil.annuler")}
             </Button>
+          </div>
+        </div>
+      </section>
+
+      {/*
+        Les préférences d'affichage — maquette 35, section « Préférences ».
+        Langue et thème en groupes segmentés, formats en listes.
+
+        **Le thème y porte TROIS états** là où la maquette n'en dessine que
+        deux : `cadrage/01 § 7` exige « clair, sombre et automatique », et le
+        troisième n'a de place nulle part ailleurs — une bascule ne sait pas
+        dire trois états, un choix de préférence si. C'est l'écart assumé entre
+        ce que le produit doit faire et ce que la maquette montre.
+      */}
+      <section className="panel">
+        <div className="panel-head">
+          <span className="panel-title">{t("profil.preferences")}</span>
+        </div>
+        <div className="panel-body">
+          <div className="field-block">
+            <label className="field-label">{t("profil.langue")}</label>
+            <div className="seg" role="group" aria-label={t("profil.langue")}>
+              {LANGUES.map((l) => (
+                <Button
+                  key={l}
+                  aria-pressed={langue.startsWith(l)}
+                  onPress={() => {
+                    void changerLangue(l);
+                    setLangue(l);
+                  }}
+                >
+                  {l === "fr" ? "Français" : "English"}
+                </Button>
+              ))}
+            </div>
+          </div>
+
+          <div className="field-block" style={{ margin: 0 }}>
+            <label className="field-label">{t("profil.theme")}</label>
+            <div className="seg" role="group" aria-label={t("profil.theme")}>
+              {THEMES.map((mode) => (
+                <Button
+                  key={mode}
+                  aria-pressed={theme === mode}
+                  onPress={() => {
+                    definirTheme(mode);
+                    setTheme(mode);
+                  }}
+                >
+                  {t(
+                    mode === "clair"
+                      ? "profil.themeClair"
+                      : mode === "sombre"
+                        ? "profil.themeSombre"
+                        : "profil.themeAuto",
+                  )}
+                </Button>
+              ))}
+            </div>
           </div>
         </div>
       </section>

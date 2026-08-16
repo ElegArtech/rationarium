@@ -114,7 +114,14 @@ test.describe("Le socle est bilingue et bithématique", () => {
     await page.goto("/profil");
 
     await expect(page.getByRole("link", { name: "Tâches" })).toBeVisible();
-    await page.getByRole("group", { name: /langue/i }).getByRole("button", { name: "EN" }).click();
+    // La page profil porte désormais elle aussi un groupe « Langue » — celui
+    // des préférences, que la maquette 35 y dessine. On vise celui de la barre
+    // d'en-tête.
+    await page
+      .locator(".topbar")
+      .getByRole("group", { name: /langue/i })
+      .getByRole("button", { name: "EN" })
+      .click();
     await expect(page.getByRole("link", { name: "Tasks" })).toBeVisible();
   });
 
@@ -122,11 +129,19 @@ test.describe("Le socle est bilingue et bithématique", () => {
     await serveur(page, { statut: 200, corps: SESSION });
     await page.goto("/profil");
 
-    await page.getByRole("button", { name: /thème/i }).click();
-    // Le menu de thème est à sélection unique : React Aria en fait des
-    // « menuitemradio », pas des « menuitem ». C'est le rôle juste — l'état
-    // coché doit être annoncé.
-    await page.getByRole("menuitemradio", { name: /thème sombre/i }).click();
+    /*
+     * La bascule de l'en-tête est celle de la maquette : UN bouton, étiqueté
+     * par sa cible. Le menu à trois entrées qui la remplaçait ne figure dans
+     * aucune maquette ; les trois états — dont « automatique », qu'exige
+     * `cadrage/01 § 7` — vivent au profil, dans le groupe segmenté de la
+     * maquette 35.
+     */
+    await page.locator(".topbar").getByRole("button", { name: "Thème sombre" }).click();
     await expect(page.locator("html")).toHaveClass(/dark/);
+
+    // Et le troisième état reste atteignable, là où il a sa place.
+    await expect(
+      page.getByRole("group", { name: /thème/i }).getByRole("button", { name: "Automatique" }),
+    ).toBeVisible();
   });
 });
