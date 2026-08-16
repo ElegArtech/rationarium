@@ -37,12 +37,7 @@ export function CadreProjet({
 }) {
   const { t } = useTranslation("projets");
 
-  /**
-   * Les onglets non encore portés — Gantt (L-22) — sont
-   * **affichés mais inertes** : ils disent que la section existe, sans mener
-   * à une page vide. Les masquer ferait croire que le projet n'a pas de
-   * tâches ; les activer mènerait à une adresse inconnue.
-   */
+  /** Les cinq onglets d'un projet. Le Gantt a rejoint les autres au L-22. */
   const onglets: { cle: Onglet; libelle: string; nombre?: number; chemin?: string }[] = [
     { cle: "ensemble", libelle: t("onglets.ensemble"), chemin: "/projets/$id" },
     { cle: "taches", libelle: t("onglets.taches"), nombre: projet.taches.total, chemin: "/projets/$id/taches" },
@@ -53,7 +48,7 @@ export function CadreProjet({
       nombre: projet.equipe.agents + projet.equipe.tiers + projet.equipe.clients,
       chemin: "/projets/$id/equipe",
     },
-    { cle: "gantt", libelle: t("onglets.gantt") },
+    { cle: "gantt", libelle: t("onglets.gantt"), chemin: "/projets/$id/gantt" },
   ];
 
   return (

@@ -169,7 +169,7 @@ Chaque maquette introduit **exactement une** section CSS, qui devient le module 
 | *extraites de 11–13* : `.filters` · `.f-input` · `.pl-toolbar` · `.scrim-modal` · `.modal*` · `.toasts` · `.pill` · `.agent-av` · `.calc-tag` | — | **`composants/partages.css`** — transverse (L-32) |
 | 14 PORTEFEUILLE · 15 FICHE PROJET · 17 FEUILLE DE ROUTE · 18 ÉQUIPE | vues 10, 11, 13, 14 | L-10 |
 | 16 KANBAN · fenêtre d'import · 20 TÂCHES VUE GLOBALE · 21 FICHE TÂCHE | vues 12, 16, 17 | L-11 |
-| 19 GANTT · 34 RAPPORTS & ANALYTICS | vues 15, 30 | L-22 |
+| 19 GANTT · 34 RAPPORTS & ANALYTICS | vues 15, 30 | L-22 → `vues/rapports/gantt.css`, `rapports.css` |
 | 22 ÉVÉNEMENTS | vue 18 | L-14 |
 | 23 CONGÉS | vue 19 | L-15 |
 | 24 TÉLÉTRAVAIL | vue 20 | L-16 |
@@ -196,5 +196,7 @@ Chaque maquette introduit **exactement une** section CSS, qui devient le module 
 > **Cinquième écart, relevé au portage de L-20 — l'impression et les couleurs littérales.** La feuille d'impression de la vue 09 posait `#fff` et `#000` en littéral. Ce sont bien des constantes — le papier reste blanc dans les deux thèmes —, mais elles passent désormais par `--papier` et `--encre`, ajoutés au bloc des encres constantes du socle. Aucune couleur littérale ne subsiste hors `socle.css`.
 >
 > **Sixième écart, même famille que le troisième — l'en-tête de week-end du mois.** La section 12 atténue `.mo-head.is-off` par `opacity: .65`, ce qui fait tomber le contraste sous AA. La distinction est déjà portée par le fond de toute la colonne : l'en-tête garde `--muted`, conforme. S'y ajoutait la collision déjà rencontrée sur la vue 20 — quand aujourd'hui tombe un samedi, la règle du jour courant et celle du week-end ont le même poids. L'ordre d'écriture est ici **délibéré** : l'accent passe après, donc il gagne.
+
+> **Septième écart, relevé au portage de L-22 — le libellé posé sur une barre de Gantt.** La section 19 pose `.g-bar-lab` en `--ink` directement sur la barre, dont la couleur varie avec le statut **et** avec le taux de remplissage. Le contraste y tombe sous AA sur plusieurs statuts. Le libellé porte donc son propre fond de surface — le même dispositif que l'étiquette « AUJ. » de la même section, qui, elle, l'avait déjà. La maquette se contredisait ; on suit celle de ses deux règles qui satisfait `C5`.
 
 **Ce qui ne se porte jamais** : la section « PANNEAU DE REVUE », explicitement marquée *hors produit* dans les maquettes. C'est l'outil qui pilote les états pour la vérification (`design/etats.json`), pas une partie de l'application.

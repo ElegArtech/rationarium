@@ -51,6 +51,13 @@ import {
 } from "./fixtures/parametrage.js";
 import { SEMAINE, GRILLE_ACTIVITE, ELIGIBILITE as ELIGIBILITE_A11Y } from "./fixtures/planning.js";
 import { TABLEAU } from "./fixtures/tableau.js";
+import {
+  VUE_ENSEMBLE,
+  GANTT,
+  PROJET_GANTT,
+  TACHES_GANTT,
+  ROUTE_GANTT,
+} from "./fixtures/rapports.js";
 
 /** Une session dotée des droits d'écriture : les vues doivent rester conformes
  *  avec leurs actions affichées, pas seulement en lecture seule. */
@@ -111,6 +118,9 @@ const SESSION_COMPLETE = {
     "predefined_tasks:update",
     "planning:export_ics",
     "telework:create",
+    "reports:read",
+    "reports:export",
+    "milestones:read",
   ],
 };
 
@@ -152,6 +162,20 @@ const VUES: {
   { nom: "28 — suivi individuel", chemin: "/utilisateurs/u-autre/suivi", session: "valide" },
   { nom: "29 — départements et services", chemin: "/departements", session: "valide" },
   { nom: "06 — tableau de bord", chemin: "/", session: "valide" },
+  { nom: "30 — rapports, vue d'ensemble", chemin: "/rapports", session: "valide" },
+  {
+    nom: "30 — rapports, analytics avancés",
+    chemin: "/rapports",
+    session: "valide",
+    apres: (page) => page.getByRole("tab", { name: "Analytics avancés" }).click(),
+  },
+  {
+    nom: "30 — Gantt portefeuille",
+    chemin: "/rapports",
+    session: "valide",
+    apres: (page) => page.getByRole("tab", { name: "Gantt Portfolio" }).click(),
+  },
+  { nom: "15 — projet, Gantt", chemin: `/projets/${PROJET_GANTT.id}/gantt`, session: "valide" },
   {
     nom: "06 — tableau de bord, onglet non déclarées",
     chemin: "/",
@@ -229,6 +253,13 @@ async function preparer(page: Page, session: "valide" | "absente", theme: "clair
         "/api/activite/taches": { corps: PREDEFINIES },
         "/api/planning": { corps: SEMAINE },
         "/api/tableau-de-bord": { corps: TABLEAU },
+        "/api/rapports": { corps: VUE_ENSEMBLE },
+        "/api/rapports/gantt": { corps: GANTT },
+        [`/api/projets/${PROJET_GANTT.id}`]: { corps: PROJET_GANTT },
+        [`/api/projets/${PROJET_GANTT.id}/feuille-de-route`]: { corps: ROUTE_GANTT },
+        // Le motif porte sa chaîne de requête : la vue 15 demande les tâches
+        // d'un projet, pas la liste globale servie plus haut.
+        [`/api/taches?projectId=${PROJET_GANTT.id}`]: { corps: TACHES_GANTT },
         "/api/planning/activite": { corps: GRILLE_ACTIVITE },
         "/api/activite/eligibilite": { corps: ELIGIBILITE_A11Y },
       },

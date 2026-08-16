@@ -21,6 +21,7 @@ import { CompetencesController } from "../competences/competences.controller.js"
 import { TiersController, ClientsController } from "../tiers/tiers.controller.js";
 import { PlanningController } from "../planning/planning.controller.js";
 import { TableauController } from "../tableau/tableau.controller.js";
+import { RapportsController } from "../rapports/rapports.controller.js";
 
 /**
  * `RG-DROITS-03` — **aucun point d'entrée n'est ouvert par inadvertance.**
@@ -56,6 +57,7 @@ const CONTROLEURS = [
   TiersController,
   PlanningController,
   TableauController,
+  RapportsController,
 ];
 
 /** Les seules routes autorisées à se passer de permission. */

@@ -1,0 +1,161 @@
+{
+  "surtitre": "Pilotage",
+  "titre": "Rapports & Analytics",
+  "lesDonnees": "les données analytiques",
+  "periode": {
+    "groupe": "Période d'analyse",
+    "semaine": "Cette semaine",
+    "mois": "Ce mois",
+    "trimestre": "Ce trimestre",
+    "annee": "Cette année"
+  },
+  "actions": {
+    "actualiser": "Actualiser",
+    "exporter": "Exporter",
+    "exportPdf": "PDF (impression)",
+    "exportCsv": "CSV (tableur)",
+    "exportJson": "JSON"
+  },
+  "onglets": {
+    "groupe": "Sections des rapports",
+    "ensemble": "Vue d'ensemble",
+    "analytics": "Analytics avancés",
+    "gantt": "Gantt Portfolio"
+  },
+  "alerte": {
+    "titre": "Attention requise —",
+    "texte": "{n, plural, one {# tâche en retard nécessite votre attention} other {# tâches en retard nécessitent votre attention}}. Consultez la page Tâches pour plus de détails."
+  },
+  "sante": {
+    "titre": "Santé des projets",
+    "compte": "{n, plural, one {# projet} other {# projets}}",
+    "vide": "Aucun projet à afficher",
+    "videAide": "Aucune donnée disponible pour cette période.",
+    "colProjet": "Projet",
+    "colCompletion": "% complétion",
+    "colJalons": "Jalons",
+    "colActives": "Tâches actives",
+    "colSante": "Santé",
+    "colDetail": "Détails",
+    "completionDe": "Complétion de {nom} : {n, number} %",
+    "nonAssigne": "Non assigné",
+    "restantes": "{n, plural, one {# tâche restante} other {# tâches restantes}}",
+    "enRetard": "{n, plural, one {# en retard} other {# en retard}}",
+    "finLe": "fin le {date}"
+  },
+  "progression": {
+    "titre": "Progression des projets",
+    "tousLesProjets": "Voir tous les projets",
+    "de": "{nom} : {n, number} %",
+    "vide": "Aucun projet à afficher",
+    "videAide": "Aucune donnée disponible pour cette période.",
+    "tronque": "Affichage limité aux {n, number} premiers projets pour lisibilité — {total, number} au total."
+  },
+  "charge": {
+    "titre": "Répartition de charge",
+    "surchargeDetectee": "{n, plural, one {# surcharge détectée} other {# surcharges détectées}}",
+    "moyenne": "Moyenne de l'équipe : {n, number} tâches",
+    "libelle": "{nom} : {n, number} tâches, pour une moyenne de {moyenne, number}",
+    "libelleSurcharge": "{nom} : {n, number} tâches — surcharge, la moyenne est de {moyenne, number}",
+    "vide": "Aucune tâche active à afficher",
+    "videAide": "Personne n'a de tâche en cours sur ce périmètre."
+  },
+  "tendance": {
+    "titre": "Tendance de progression",
+    "stagnation": "Stagnation détectée",
+    "historiqueCourt": "Historique en cours de construction",
+    "historiqueCourtAide": "Les données seront plus pertinentes après quelques semaines de collecte.",
+    "libelle": "Progression de {debut, number} % à {fin, number} % sur {points, number} relevés"
+  },
+  "jalons": {
+    "titre": "Complétion des jalons",
+    "surEchus": "jalons atteints à temps sur {n, number} échus",
+    "aTemps": "{n, number} à temps",
+    "enRetard": "{n, number} en retard",
+    "aVenir": "{n, number} à venir",
+    "vide": "Aucun jalon défini",
+    "videAide": "Ajoutez des jalons pour suivre les échéances du portefeuille."
+  },
+  "repartitions": {
+    "parPriorite": "Répartition par priorité",
+    "parStatut": "Répartition par statut",
+    "surActives": "sur {n, number} tâches",
+    "libelle": "{quoi} : {n, number} sur {total, number}",
+    "vide": "Aucune tâche active à afficher",
+    "videAide": "Aucune donnée disponible pour cette période."
+  },
+  "activite": {
+    "titre": "Activité récente",
+    "periode": "30 derniers jours",
+    "terminees": "Terminées",
+    "creees": "Créées",
+    "passeesEnRetard": "Passées en retard",
+    "ratio": "Ratio de complétion",
+    "grossit": "Le backlog grossit : il se crée plus de tâches qu'il ne s'en termine.",
+    "resorbe": "Le backlog se résorbe : il se termine plus de tâches qu'il ne s'en crée.",
+    "vide": "Aucune complétion sur la période",
+    "videAide": "Aucune tâche créée sur les trente derniers jours : le ratio n'a pas de sens."
+  },
+  "gantt": {
+    "titre": "Vue d'ensemble des projets",
+    "leGantt": "le Gantt du portefeuille",
+    "colonneProjets": "Projets",
+    "trier": "Trier",
+    "nonAssigne": "Non assigné",
+    "aujourdhui": "Aujourd'hui, {date}",
+    "vide": "Aucun projet actif à afficher",
+    "videAide": "Aucune donnée disponible pour cette période.",
+    "libelleBarre": "{nom} — {progression, number} % · du {debut} au {fin} · chef : {chef} · service : {service} · {rag}",
+    "tri": {
+      "nom": "Nom A→Z",
+      "nom_desc": "Nom Z→A",
+      "progression": "Progression ↑",
+      "progression_desc": "Progression ↓",
+      "fin": "Fin la plus proche",
+      "fin_desc": "Fin la plus lointaine",
+      "priorite": "Priorité (critique d'abord)",
+      "service": "Par service",
+      "chef": "Par chef de projet"
+    }
+  },
+  "ganttProjet": {
+    "leProjet": "le projet",
+    "lesTaches": "les tâches du projet",
+    "colonneTaches": "Tâches",
+    "echelle": "Échelle de temps",
+    "echelle_jour": "Jour",
+    "echelle_semaine": "Semaine",
+    "echelle_mois": "Mois",
+    "indice": "Cliquez sur une tâche pour voir ses dépendances, double-cliquez pour les modifier.",
+    "sansJalon": "Sans jalon",
+    "aujourdhui": "Aujourd'hui",
+    "videTitre": "Aucune tâche avec des dates",
+    "videAide": "Ajoutez des dates de début et de fin aux tâches pour les voir dans le Gantt.",
+    "libelleBarre": "{titre} — {statut}, du {debut} au {fin}, {avancement, number} %"
+  },
+  "santes": {
+    "good": "Bon",
+    "warning": "Attention",
+    "critical": "Critique"
+  },
+  "rag": {
+    "on_track": "On track",
+    "at_risk": "À risque",
+    "late": "En retard",
+    "upcoming": "À venir",
+    "done": "Terminé"
+  },
+  "statuts": {
+    "todo": "À faire",
+    "doing": "En cours",
+    "review": "En révision",
+    "done": "Terminé",
+    "blocked": "Bloquée"
+  },
+  "priorites": {
+    "low": "Basse",
+    "normal": "Normale",
+    "high": "Haute",
+    "critical": "Critique"
+  }
+}
