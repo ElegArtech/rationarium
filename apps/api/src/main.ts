@@ -1,16 +1,34 @@
-/**
- * @trame/api — point d'entrée du serveur.
- *
- * Contenu attendu, produit à partir du lot L-04 (vague 1) :
- *   - modules par domaine, un par module M… de cadrage/01
- *   - garde de permission        @RequirePermission('leaves:approve')
- *   - garde de périmètre         prédicat injecté dans chaque lecture
- *   - intercepteur d'audit       après la garde de permission, et sur son échec
- *   - intercepteur de concurrence optimiste → HTTP 409
- *
- * Voir cadrage/03 § 4, D5 et § 5.4.
- *
- * Vague 0 : squelette seul, aucun module.
- */
+import "reflect-metadata";
+import { NestFactory } from "@nestjs/core";
+import { FastifyAdapter, type NestFastifyApplication } from "@nestjs/platform-fastify";
+import fastifyCookie from "@fastify/cookie";
+import helmet from "@fastify/helmet";
+import rateLimit from "@fastify/rate-limit";
+import { AppModule } from "./app.module.js";
 
-export {};
+/**
+ * Point d'entrée du serveur — NestJS sur adaptateur Fastify (ADR-0005).
+ *
+ * C1 : aucune ressource distante. Les en-têtes de sécurité sont posés ici et
+ * la limitation d'essais protège la connexion (RG-AUTH-01) au niveau du
+ * transport, en complément du verrouillage de compte au niveau métier.
+ */
+export async function creerApplication(): Promise<NestFastifyApplication> {
+  const app = await NestFactory.create<NestFastifyApplication>(
+    AppModule,
+    new FastifyAdapter({ trustProxy: true }),
+    { logger: ["error", "warn"] },
+  );
+
+  await app.register(helmet as never, { contentSecurityPolicy: false });
+  await app.register(fastifyCookie as never, { secret: process.env.COOKIE_SECRET ?? "trame-dev" });
+  await app.register(rateLimit as never, { max: 300, timeWindow: "1 minute" });
+
+  app.setGlobalPrefix("api");
+  return app;
+}
+
+if (process.env.NODE_ENV !== "test") {
+  const app = await creerApplication();
+  await app.listen({ port: Number(process.env.PORT ?? 3000), host: "0.0.0.0" });
+}

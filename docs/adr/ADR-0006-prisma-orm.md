@@ -45,7 +45,9 @@ Trois contraintes permanentes, opposables à toute image et à toute chaîne d'i
 2. **Le binaire de moteur de schéma est embarqué et épinglé**, via `PRISMA_SCHEMA_ENGINE_BINARY` pointant sur le fichier livré dans l'image. On ne compte jamais sur la détection automatique.
 3. **L'installation hors ligne est contrôlée en intégration continue**, sur réseau `--internal`, et le contrôle porte sur `generate` **et** `migrate deploy` — pas sur le seul succès de `pnpm install`, qui ne prouve rien.
 
-Autre conséquence, sans rapport avec le réseau : **en Prisma 7, l'URL de connexion ne vit plus dans le bloc `datasource` du schéma.** Elle est déclarée dans `prisma.config.ts` pour les commandes de migration, et fournie au client par un adaptateur de pilote. Le schéma qui porte `url = env("DATABASE_URL")` est refusé avec l'erreur `P1012`. Cela ajoute une dépendance d'adaptateur non listée en `03 § 9`, à arrêter en L-02.
+Autre conséquence, sans rapport avec le réseau : **en Prisma 7, l'URL de connexion ne vit plus dans le bloc `datasource` du schéma.** Elle est déclarée dans `prisma.config.ts` pour les commandes de migration, et fournie au client par un adaptateur de pilote. Le schéma qui porte `url = env("DATABASE_URL")` est refusé avec l'erreur `P1012`. Cela ajoute une dépendance d'adaptateur non listée en `03 § 9`.
+
+> **Arrêtée au lot L-04, le 2026-08-16 : `@prisma/adapter-pg` 7.9.1**, aligné sur la version du client. Le constructeur `PrismaClient` **exige** désormais un adaptateur : `datasourceUrl` n'existe plus et son emploi lève une `PrismaClientConstructorValidationError`. Une fabrique `creerClient(url)` est exposée par `@trame/db` pour que le reste du dépôt n'ait pas à connaître ce détail.
 
 ## Alternatives écartées
 
