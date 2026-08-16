@@ -2,7 +2,6 @@ packages:
   - "apps/*"
   - "packages/*"
 
-
 # Scripts de post-installation autorisés. Toute autorisation est une décision,
 # motivée ici, et confrontée à C1 (réseau fermé). Voir docs/adr/ADR-0013.
 allowBuilds:
@@ -21,3 +20,7 @@ allowBuilds:
   # Génération de types au moment du développement du paquet ; le paquet publié
   # embarque déjà ses fichiers. Rien à produire à l'installation.
   protobufjs: false
+
+  # Télémétrie d'installation. Aucune fonction produit, et une requête sortante
+  # à l'installation : refusé sans hésiter (C1, ADR-0013).
+  "@scarf/scarf": false
