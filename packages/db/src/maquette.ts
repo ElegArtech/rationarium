@@ -79,7 +79,21 @@ export async function peuplerMaquette(
   };
 
   // ── Les personnes ───────────────────────────────────────────────────────
-  const moi = await prisma.user.findUniqueOrThrow({ where: { login: compteConnecte } });
+  /*
+   * Le jeu se pose SUR une instance amorcée : il ne crée pas le premier
+   * administrateur, sous peine d'en faire une seconde source de vérité à côté
+   * de l'amorçage, qui pose aussi le référentiel des 26 rôles.
+   *
+   * `findUniqueOrThrow` rendait ici une trace Prisma illisible sur une base
+   * neuve — un message technique là où `RG-GEN-03` veut une phrase qui dit
+   * quoi faire.
+   */
+  const moi = await prisma.user.findUnique({ where: { login: compteConnecte } });
+  if (!moi) {
+    throw new Error(
+      `Le compte « ${compteConnecte} » n'existe pas. Le jeu des maquettes se pose sur une instance déjà amorcée : amorcez-la d'abord, ou indiquez un compte existant.`,
+    );
+  }
   await prisma.user.update({
     where: { id: moi.id },
     data: { prenom: AGENTS[0].prenom, nom: AGENTS[0].nom },
