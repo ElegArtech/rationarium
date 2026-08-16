@@ -28,4 +28,3 @@ apps/web/.playwright/
 .env
 .env.local
 *.log
-design/references/
