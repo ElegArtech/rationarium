@@ -17,7 +17,7 @@ import { BibliothequeIcones, Icone } from "./icones.js";
 import { BibliothequeIconesProjet } from "../composants/icones-projet.js";
 import { navigationVisible } from "./navigation.js";
 import { changerLangue, LANGUES } from "../i18n/index.js";
-import { definirTheme, themeCourant, THEMES, type Theme } from "../theme/index.js";
+import { definirTheme } from "../theme/index.js";
 import "./coquille.css";
 
 /**
@@ -77,15 +77,24 @@ export function Coquille({
   const [repliee, setRepliee] = useState(false);
   // Mobile : la barre latérale devient un tiroir (§ B, états).
   const [tiroirOuvert, setTiroirOuvert] = useState(false);
-  const [theme, setThemeEtat] = useState<Theme>(themeCourant);
+  /*
+   * L'état EFFECTIF, pas la préférence : en « auto », c'est le système qui
+   * décide, et l'étiquette doit dire ce que le clic va PRODUIRE. Il est tenu
+   * en état plutôt que lu à chaque rendu — sinon la bascule change la classe
+   * du document sans que React s'en aperçoive, et l'étiquette ment jusqu'au
+   * rendu suivant.
+   */
+  const [sombre, setSombre] = useState(() =>
+    document.documentElement.classList.contains("dark"),
+  );
 
   const groupes = navigationVisible(permissions);
   const initiales = `${utilisateur.prenom[0] ?? ""}${utilisateur.nom[0] ?? ""}`.toUpperCase();
   const entrees = groupes.reduce((n, g) => n + g.entrees.length, 0);
 
-  const appliquerTheme = (nouveau: Theme) => {
-    definirTheme(nouveau);
-    setThemeEtat(nouveau);
+  const basculer = () => {
+    definirTheme(sombre ? "clair" : "sombre");
+    setSombre(!sombre);
   };
 
   const chemin = useRouterState({ select: (etat) => etat.location.pathname });
@@ -255,28 +264,20 @@ export function Coquille({
                 ))}
               </div>
 
-              <MenuTrigger>
-                <Button className="chip-btn">{t("entete.theme")}</Button>
-                <Popover>
-                  <Menu
-                    onAction={(cle) => appliquerTheme(cle as Theme)}
-                    selectionMode="single"
-                    selectedKeys={[theme]}
-                  >
-                    {THEMES.map((mode) => (
-                      <MenuItem key={mode} id={mode}>
-                        {t(
-                          mode === "clair"
-                            ? "entete.themeClair"
-                            : mode === "sombre"
-                              ? "entete.themeSombre"
-                              : "entete.themeAuto",
-                        )}
-                      </MenuItem>
-                    ))}
-                  </Menu>
-                </Popover>
-              </MenuTrigger>
+              {/*
+                La bascule de thème de la maquette : un bouton, étiqueté par sa
+                CIBLE — « Thème sombre » quand on est en clair. C'est ce que
+                l'utilisateur va obtenir, pas l'état où il se trouve.
+
+                `cadrage/01 § 7` exige pourtant TROIS thèmes — clair, sombre et
+                automatique — que la maquette n'offre nulle part, ni ici, ni en
+                vue 31, ni en vue 35. Le troisième vit donc au profil, dans le
+                groupe segmenté que la maquette 35 y dessine : une bascule ne
+                sait pas dire trois états, un choix de préférence si.
+              */}
+              <Button className="chip-btn" onPress={basculer}>
+                {t(sombre ? "entete.themeClair" : "entete.themeSombre")}
+              </Button>
 
               <div className="has-pop">
                 <DialogTrigger>

@@ -37,10 +37,8 @@
   "entete": {
     "rechercheGlobale": "Global search",
     "langue": "Language",
-    "theme": "Theme",
     "themeClair": "Light theme",
     "themeSombre": "Dark theme",
-    "themeAuto": "Automatic theme",
     "notificationsNonLues": "{n, plural, =0 {no unread notifications} one {# unread notification} other {# unread notifications}}",
     "menuUtilisateur": "User menu",
     "monProfil": "My profile",
@@ -79,6 +77,12 @@
     "pourquoiDerniereConnexion": "Recorded automatically at every sign-in.",
     "nonModifiable": "Not editable",
     "parAdministrateur": "Administrator",
-    "autresSessions": "Your other sessions stay open."
+    "autresSessions": "Your other sessions stay open.",
+    "preferences": "Display preferences",
+    "langue": "Language",
+    "theme": "Theme",
+    "themeClair": "Light",
+    "themeSombre": "Dark",
+    "themeAuto": "Automatic"
   }
 }
