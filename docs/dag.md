@@ -169,13 +169,15 @@ Aucun parallélisme. **Vague close.**
 | Lot | Contenu | Vues | Criticité | Mode |
 | --- | --- | --- | --- | --- |
 | ~~**L-25**~~ | Audit RGAA sur les 35 vues, deux thèmes, clavier complet | toutes | **Haute** | **livré** |
-| **L-26** | Audit de performance : budgets tenus à la volumétrie cible, seuils bloquants | 06, 07, 08, 22, 30, 32 | **Haute** | pair |
+| ~~**L-26**~~ | Audit de performance : budgets tenus à la volumétrie cible, seuils bloquants | 06, 07, 08, 22, 30, 32 | **Haute** | **livré** |
 | **L-27** | Impression et export PDF : planning, grille d'activité, rapports | 07, 09, 30 | Moyenne | délégation |
 | **L-28** | Bilingue complet, formats de date et d'heure, exhaustivité | toutes | Moyenne | délégation large |
 | **L-29** | Déploiement, sauvegarde, restauration éprouvée, réversibilité | — | **Haute** | pair |
 
 Un audit **balaie exhaustivement**, jamais par échantillon, et ses correctifs sont ouverts comme tâches à part entière — jamais appliqués au fil de l'audit.
 
+> **Ce que L-26 a trouvé** — rapport en `docs/audits/L-26-performance.md`. Deux trous, et les mesures. **`pnpm perf` exécutait un projet Playwright sans aucun fichier de contrôle** : il passait au vert en ne mesurant rien. **Le jeu de données de volumétrie n'existait pas**, alors que la définition de terminé d'une tâche de schéma l'exige — tous les contrôles tournaient sur quelques dizaines de lignes, c'est-à-dire sur une base où aucun plan d'exécution ne ressemble à celui de production. Les deux sont comblés ; les budgets tiennent avec **deux ordres de grandeur de marge** (planning d'un service sur une semaine : 6 ms pour 1 600 ms de seuil). Le projet Playwright `perf` est retiré : le garder aurait laissé croire à une mesure là où il n'y en avait pas.
+>
 > **Ce que L-25 a trouvé** — rapport complet en `docs/audits/L-25-rgaa.md`. Quatre défauts, **tous invisibles à `axe`** : la vue 05 n'avait jamais été balayée (la liste des vues était tenue à la main) ; le lien d'évitement était stylé dans le socle et jamais rendu ; la fenêtre modale ne prenait pas le focus à l'ouverture — donc Échap ne la fermait pas et le clavier repartait en tête de document ; le titre de page ne distinguait pas les vues. La couverture est désormais **dérivée de l'inventaire gelé** et vérifiée par un test : ajouter une vue sans l'auditer fait échouer la suite. **Un audit qui repose sur une liste tenue à la main audite la liste, pas le produit.**
 
 **B4 avant L-25** (périmètre mobile) · **B5 avant L-29** (cible de déploiement).

@@ -11,7 +11,6 @@
     "test": "vitest run --passWithNoTests",
     "e2e": "playwright test",
     "a11y": "playwright test --project=a11y",
-    "perf": "playwright test --project=perf",
     "dev": "vite"
   },
   "dependencies": {
