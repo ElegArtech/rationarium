@@ -290,7 +290,7 @@ export class UtilisateursService {
      * une règle du domaine — elle se tient dans le service, pas seulement à la
      * frontière HTTP. Un test l'a montré en une ligne.
      */
-    const { version, serviceIds } = donnees;
+    const { serviceIds } = donnees;
     const user = await this.prisma.user.update({
       where: { id },
       data: {
