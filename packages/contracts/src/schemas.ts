@@ -27,8 +27,17 @@ import {
   ROLES_RACI,
 } from "./vocabulaires.js";
 
-const enumDe = <T extends readonly { code: string }[]>(v: T) =>
-  z.enum(v.map((t) => t.code) as [string, ...string[]]);
+/**
+ * Le schéma Zod d'un vocabulaire de `cadrage/01 § 4.1`.
+ *
+ * Le type de sortie est **l'union littérale des codes**, pas `string` : c'est
+ * ce qui permet à un contrôleur de passer directement le résultat validé à un
+ * service typé, sans transtypage. Un `string` obligerait à réaffirmer à la
+ * main ce que le schéma vient de vérifier — et ce genre d'affirmation survit
+ * aux changements de vocabulaire sans broncher.
+ */
+export const enumDe = <T extends readonly { code: string }[]>(v: T) =>
+  z.enum(v.map((t) => t.code) as [T[number]["code"], ...T[number]["code"][]]);
 
 // ── Primitives métier ───────────────────────────────────────────────────────
 

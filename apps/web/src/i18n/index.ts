@@ -5,9 +5,11 @@ import { initReactI18next } from "react-i18next";
 import communFr from "../locales/fr/commun.json";
 import authFr from "../locales/fr/auth.json";
 import coquilleFr from "../locales/fr/coquille.json";
+import erreursFr from "../locales/fr/erreurs.json";
 import communEn from "../locales/en/commun.json";
 import authEn from "../locales/en/auth.json";
 import coquilleEn from "../locales/en/coquille.json";
+import erreursEn from "../locales/en/erreurs.json";
 
 /**
  * Internationalisation — RG-GEN-08, ADR-0011.
@@ -38,10 +40,10 @@ await i18next
     lng: detecter(),
     fallbackLng: "fr",
     defaultNS: "commun",
-    ns: ["commun", "auth", "coquille"],
+    ns: ["commun", "auth", "coquille", "erreurs"],
     resources: {
-      fr: { commun: communFr, auth: authFr, coquille: coquilleFr },
-      en: { commun: communEn, auth: authEn, coquille: coquilleEn },
+      fr: { commun: communFr, auth: authFr, coquille: coquilleFr, erreurs: erreursFr },
+      en: { commun: communEn, auth: authEn, coquille: coquilleEn, erreurs: erreursEn },
     },
     interpolation: { escapeValue: false },
   });

@@ -376,4 +376,43 @@ export class AuthService {
     });
     return user.id;
   }
+
+  /**
+   * Le profil complet de la session : identité, rôle et **permissions
+   * effectives**.
+   *
+   * Les permissions sont résolues côté serveur à chaque appel, jamais lues
+   * depuis un jeton porté par le client (`ADR-0008`). Elles servent à la
+   * coquille pour masquer ce qui serait refusé (`RG-GEN-06`) — une courtoisie,
+   * pas un contrôle : le contrôle reste la garde, côté serveur.
+   */
+  async profil(userId: string) {
+    const u = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        prenom: true,
+        nom: true,
+        email: true,
+        login: true,
+        avatarFichier: true,
+        avatarPredefini: true,
+        langue: true,
+        theme: true,
+        derniereConnexion: true,
+        role: { select: { code: true, nom: true, permissions: { select: { permission: true } } } },
+      },
+    });
+    if (!u) throw new ErreurAuth("identifiants_invalides");
+
+    const { role, ...identite } = u;
+    return {
+      ...identite,
+      role: role ? { code: role.code, nom: role.nom } : null,
+      // Un compte sans rôle n'a AUCUNE permission : la liste blanche
+      // appliquée au cas dégradé.
+      permissions: role?.permissions.map((p) => p.permission) ?? [],
+    };
+  }
+
 }

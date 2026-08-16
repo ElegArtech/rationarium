@@ -1,0 +1,94 @@
+import { Body, Controller, Delete, Get, Param, Post, Query } from "@nestjs/common";
+import { z } from "zod";
+import { motDePasse } from "@trame/contracts";
+import { UtilisateursService } from "./utilisateurs.service.js";
+import { Demande, RequiertPermission, type ContexteDemande } from "../commun/permissions.garde.js";
+import { valider, dateSchema } from "../commun/http.js";
+
+/** M3 — comptes, annuaire, suivi individuel. Vues 27 et 28. */
+
+@Controller("utilisateurs")
+export class UtilisateursController {
+  constructor(private readonly utilisateurs: UtilisateursService) {}
+
+  /** `EX-USR-01` — l'annuaire, borné au périmètre de l'appelant. */
+  @Get()
+  @RequiertPermission("users:read")
+  lister(@Demande() d: ContexteDemande, @Query() requete: unknown) {
+    const filtres = valider(
+      z.object({
+        recherche: z.string().max(120).optional(),
+        departementId: z.uuid().optional(),
+        serviceId: z.uuid().optional(),
+        roleId: z.uuid().optional(),
+        actif: z.stringbool().optional(),
+      }),
+      requete,
+    );
+    return this.utilisateurs.lister(d.perimetre, filtres);
+  }
+
+  /** `EX-USR-06` — qui est là aujourd'hui : présent, en congé, en télétravail. */
+  @Get("presence")
+  @RequiertPermission("users:read")
+  presence(@Demande() d: ContexteDemande, @Query("jour") jour?: string) {
+    const j = jour ? valider(dateSchema, jour) : new Date();
+    return this.utilisateurs.presenceDuJour(d.perimetre, j);
+  }
+
+  @Post()
+  @RequiertPermission("users:create")
+  creer(@Body() corps: unknown, @Demande() d: ContexteDemande) {
+    const donnees = valider(
+      z.object({
+        prenom: z.string().min(1).max(80),
+        nom: z.string().min(1).max(80),
+        email: z.email(),
+        login: z.string().min(3).max(60),
+        motDePasse,
+        roleId: z.uuid().nullish(),
+        departementId: z.uuid().nullish(),
+        serviceIds: z.array(z.uuid()).optional(),
+      }),
+      corps,
+    );
+    return this.utilisateurs.creer(donnees, d.userId);
+  }
+
+  /**
+   * `RG-GEN-10` — désactiver et supprimer sont **deux gestes distincts**, donc
+   * deux points d'entrée et deux permissions. Les confondre ferait de
+   * l'irréversible le chemin par défaut.
+   */
+  @Post(":id/desactiver")
+  @RequiertPermission("users:deactivate")
+  desactiver(@Param("id") id: string, @Demande() d: ContexteDemande) {
+    return this.utilisateurs.desactiver(id, d.userId);
+  }
+
+  @Post(":id/reactiver")
+  @RequiertPermission("users:deactivate")
+  reactiver(@Param("id") id: string, @Demande() d: ContexteDemande) {
+    return this.utilisateurs.reactiver(id, d.userId);
+  }
+
+  /** L'inventaire de ce qui sera perdu — présenté **avant** la confirmation. */
+  @Get(":id/impact")
+  @RequiertPermission("users:delete_permanently")
+  impact(@Param("id") id: string) {
+    return this.utilisateurs.impactSuppression(id);
+  }
+
+  @Delete(":id")
+  @RequiertPermission("users:delete_permanently")
+  supprimer(@Param("id") id: string, @Demande() d: ContexteDemande) {
+    return this.utilisateurs.supprimerDefinitivement(id, d.userId);
+  }
+
+  @Post(":id/mot-de-passe")
+  @RequiertPermission("users:reset_password")
+  reinitialiser(@Param("id") id: string, @Body() corps: unknown, @Demande() d: ContexteDemande) {
+    const { nouveau } = valider(z.object({ nouveau: motDePasse }), corps);
+    return this.utilisateurs.reinitialiserMotDePasse(id, nouveau, d.userId);
+  }
+}

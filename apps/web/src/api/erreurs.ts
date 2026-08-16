@@ -14,7 +14,15 @@ import { ErreurApi } from "./client.js";
  * Les clés arrivent ici à l'exécution, donc invisibles à l'analyse statique.
  * On les déclare, plutôt que d'affaiblir le contrôle :
  *
- * i18n-familles: auth:erreurs.
+ * i18n-familles: auth:erreurs., erreurs:
+ *
+ * Les deux familles correspondent aux deux tables du serveur :
+ * `auth/messages.ts` pour l'authentification, `commun/messages-metier.ts` pour
+ * tout le reste. Le test `messages-metier.test.ts` garantit qu'aucun code
+ * d'échec ne sort de la table ; le contrôle i18n garantit que la table a bien
+ * sa traduction dans les deux langues. Les deux contrôles se complètent : le
+ * premier voit ce que le serveur peut dire, le second ce que le client sait
+ * afficher.
  */
 export const messageErreur = (e: unknown, t: TFunction, repli: string): string => {
   if (!(e instanceof ErreurApi)) return repli;
