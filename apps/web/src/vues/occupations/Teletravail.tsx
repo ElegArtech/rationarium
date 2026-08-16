@@ -307,7 +307,10 @@ export function Teletravail() {
                   <span>{t("teletravail.teletravailRecurrent")}</span>
                 </span>
                 <span className="tt-l">
-                  <span className="tt-mark is-exc">{t("teletravail.marqueException")}</span>
+                  <span className="tt-mark is-exc">
+                    <span aria-hidden="true">⌁</span>
+                    <span>{t("teletravail.exception")}</span>
+                  </span>
                 </span>
               </div>
             </section>
