@@ -2,5 +2,17 @@
   "droits": {
     "permissionRequise": "Permission required",
     "actionIndisponible": "This action is not available to you"
+  },
+  "etats": {
+    "chargement": "Loading {quoi}…",
+    "laSession": "your session",
+    "erreurTitre": "Loading failed",
+    "erreurRepli": "The data could not be loaded. Try again in a moment.",
+    "reessayer": "Try again",
+    "refusPermission": "You do not have permission to open this page.",
+    "refusPerimetre": "This page exists, but it is outside your scope.",
+    "retourAccueil": "Back to home",
+    "introuvableTitre": "This address does not match any page",
+    "introuvableExplication": "The link may be incomplete, or the page was renamed."
   }
 }

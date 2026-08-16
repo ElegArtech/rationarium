@@ -35,10 +35,20 @@ const CONNUS: Record<string, string[]> = JSON.parse(
 for (const [vue, meta] of Object.entries(MANIFESTE)) {
   for (const theme of ["clair", "sombre"] as const) {
     test(`vue ${vue} — ${meta.titre} — thème ${theme}`, async ({ page }) => {
-      await page.goto("file://" + path.join(RACINE, meta.fichier));
+      // Le thème est posé AVANT le premier rendu, et non après le chargement :
+      // basculer la classe une fois la page peinte laisse axe mesurer, par
+      // moments, la palette claire. Un contrôle qui échoue une fois sur vingt
+      // n'est plus lu — il devient du décor.
       if (theme === "sombre") {
-        await page.evaluate(() => document.documentElement.classList.add("dark"));
+        await page.addInitScript(() => {
+          document.addEventListener("DOMContentLoaded", () =>
+            document.documentElement.classList.add("dark"),
+          );
+          document.documentElement.classList.add("dark");
+        });
       }
+      await page.goto("file://" + path.join(RACINE, meta.fichier));
+      await page.waitForLoadState("load");
 
       const resultat = await new AxeBuilder({ page })
         .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])

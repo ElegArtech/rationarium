@@ -1,0 +1,53 @@
+/*
+ * Les états transverses : chargement, erreur, vide, refus.
+ *
+ * Ils ne viennent d'aucune section de maquette parce qu'aucune maquette ne les
+ * dessine isolément : ils apparaissent *dans* les vues, et chaque maquette les
+ * montre à sa manière. La forme retenue est la plus sobre commune à toutes —
+ * un bloc centré, la même échelle typographique que le reste, aucun ornement.
+ *
+ * Aucune couleur littérale : uniquement des jetons du socle.
+ */
+
+.etat-chargement,
+.etat-erreur,
+.etat-vide,
+.etat-refus {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 48px 24px;
+  text-align: center;
+  /* La largeur est bornée : une explication en pleine largeur d'écran large
+     est plus difficile à lire qu'une colonne. */
+  max-width: 52ch;
+  margin-inline: auto;
+  color: var(--muted);
+}
+
+.etat-titre {
+  font-family: var(--font-display);
+  font-size: 1.0625rem;
+  color: var(--ink);
+  margin: 0;
+}
+
+.etat-explication {
+  margin: 0;
+  line-height: 1.55;
+}
+
+.etat-sortie {
+  margin-top: 4px;
+}
+
+/* Le message d'erreur porte l'encre normale : gris sur gris se lit mal, et le
+   contraste est contractuel (C5). */
+.etat-erreur p:not(.etat-titre),
+.etat-refus p:not(.etat-titre) {
+  color: var(--ink);
+  margin: 0;
+  line-height: 1.55;
+}

@@ -16,6 +16,27 @@ export default defineConfig({
   use: {
     ...devices["Desktop Chrome"],
     viewport: { width: 1600, height: 1000 },
+    baseURL: "http://localhost:4173",
+    /**
+     * Le client suit la langue du navigateur quand aucune préférence n'est
+     * mémorisée. Sans cette ligne, les tests s'exécutaient en anglais — ce que
+     * le premier lancement a révélé, et qui est le comportement voulu, pas un
+     * défaut. La fixer ici rend les attentes lisibles ; le bilinguisme se teste
+     * en basculant explicitement.
+     */
+    locale: "fr-FR",
+  },
+  /**
+   * L'application est servie par Vite pour les tests qui l'exercent.
+   * Les contrôles a11y de la vague 0 portent sur les maquettes gelées, lues
+   * depuis le disque : ils n'ont pas besoin du serveur, mais le partager ne
+   * leur coûte rien.
+   */
+  webServer: {
+    command: "pnpm dev --port 4173 --strictPort",
+    url: "http://localhost:4173",
+    reuseExistingServer: !process.env.CI,
+    timeout: 120_000,
   },
   projects: [
     { name: "a11y", testMatch: /.*\.a11y\.spec\.ts/ },
