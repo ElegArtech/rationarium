@@ -1,0 +1,55 @@
+/*
+ * Vue 21 — Temps passé. Section 25 des maquettes, reprise verbatim.
+ *
+ * Une corvée quotidienne : la vue doit rendre visible ce qui manque
+ * (jours non saisis) autant que ce qui a été déclaré.
+ */
+
+.te-sum{ display:grid; grid-template-columns:repeat(auto-fit,minmax(178px,1fr)); gap:12px; margin-bottom:14px; }
+
+.split-bar{ display:flex; height:9px; border-radius:2px; overflow:hidden; background:var(--line); }
+.split-bar i{ display:block; height:100%; }
+.split-legend{ display:flex; gap:15px; flex-wrap:wrap; margin-top:11px; }
+.sl{ display:flex; align-items:center; gap:6px; font-size:11.5px; }
+.sl-sw{ width:9px; height:9px; border-radius:2px; flex:none; }
+.sl-n{ font-family:var(--font-mono); font-size:10.5px; color:var(--muted); }
+
+.te-day{ display:grid; grid-template-columns:186px 78px minmax(0,1fr) auto; gap:14px;
+  align-items:center; padding:9px 14px; background:var(--surface-2);
+  border-top:1px solid var(--line); border-bottom:1px solid var(--line); }
+.te-day:first-child{ border-top:none; }
+.te-dlab{ display:flex; align-items:baseline; gap:9px; }
+.te-dnum{ font-family:var(--font-display); font-size:15px; font-weight:600; }
+.te-dow{ font-family:var(--font-cond); font-size:10.5px; letter-spacing:.08em;
+  text-transform:uppercase; color:var(--muted); }
+.te-dtot{ font-family:var(--font-mono); font-size:12px; text-align:right; }
+.te-cap{ display:flex; align-items:center; gap:9px; }
+.te-cap .bar{ flex:1; margin:0; max-width:230px; }
+.te-caplab{ font-family:var(--font-mono); font-size:9px; color:var(--muted); }
+.te-day.is-over .te-dtot{ color:var(--st-blocked); font-weight:600; }
+.te-day.is-over .te-caplab{ color:var(--st-blocked); }
+.te-day.is-empty{ background:repeating-linear-gradient(135deg,
+  var(--surface-2) 0 6px, var(--surface) 6px 12px); }
+.te-day.is-empty .te-dnum, .te-day.is-empty .te-dow{ opacity:.6; }
+
+.te-row{ display:grid; grid-template-columns:186px 78px minmax(0,1fr) auto;
+  gap:14px; align-items:center; padding:10px 14px; border-bottom:1px solid var(--line); }
+.te-row:last-child{ border-bottom:none; }
+.te-row:hover{ background:var(--surface-2); }
+.te-act{ display:flex; align-items:center; gap:8px; }
+.te-h{ font-family:var(--font-mono); font-size:12.5px; text-align:right; }
+.te-desc{ font-size:12.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.te-meta{ display:flex; align-items:center; gap:8px; margin-top:5px; flex-wrap:wrap; }
+.te-created{ font-family:var(--font-mono); font-size:9px; color:var(--muted); }
+.te-actor{ display:inline-flex; align-items:center; gap:5px; font-family:var(--font-mono);
+  font-size:8.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--st-review);
+  border:1px dashed currentColor; border-radius:2px; padding:1px 5px; }
+
+/* Contrôle du plafond dans la fenêtre de saisie */
+.cap-check{ border:1px solid var(--line); border-radius:var(--r); padding:12px 13px; }
+.cap-line{ display:grid; grid-template-columns:1fr auto; gap:10px; font-size:12px; padding:2px 0; }
+.cap-line b{ font-family:var(--font-mono); font-weight:600; }
+.cap-line.is-total{ border-top:1px solid var(--line); margin-top:6px; padding-top:7px; }
+.cap-bad b{ color:var(--st-blocked); }
+.cap-bar{ margin-top:10px; }
+.cap-bar .bar{ height:7px; }

@@ -121,6 +121,20 @@ export class TeletravailService {
   }
 
   /**
+   * Les règles récurrentes d'une personne, actives ou non.
+   *
+   * Les inactives restent visibles : une règle désactivée explique pourquoi
+   * les jours qu'elle produisait ont cessé d'apparaître. La faire disparaître
+   * laisserait l'utilisateur devant un calendrier qui a changé sans raison.
+   */
+  async regles(userId: string) {
+    return this.prisma.teleworkRule.findMany({
+      where: { userId },
+      orderBy: [{ active: "desc" }, { jourSemaine: "asc" }],
+    });
+  }
+
+  /**
    * `EX-TLT-04`, `RG-TLT-03` — une règle est unique pour un couple jour de
    * semaine × date de début.
    */

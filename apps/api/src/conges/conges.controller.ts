@@ -35,6 +35,36 @@ export class CongesController {
     return this.conges.lister(d.perimetre, filtres, d.userId);
   }
 
+  /** `EX-CNG-16` — le catalogue des types de congé, avec leur usage. */
+  @Get("types")
+  @RequiertPermission("leaves:read")
+  types(@Query("inclureInactifs") inclureInactifs?: string) {
+    return this.conges.typesDeConge(inclureInactifs === "true");
+  }
+
+  /** `EX-CNG-19` — les délégations données et reçues. */
+  @Get("delegations")
+  @RequiertPermission("leaves:read")
+  delegations(@Demande() d: ContexteDemande, @Query("userId") userId?: string) {
+    return this.conges.delegations(userId ?? d.userId);
+  }
+
+  /**
+   * Tous les soldes d'une personne pour une année, en un appel.
+   *
+   * Six appels afficheraient six compteurs qui arrivent l'un après l'autre,
+   * là où la vue 19 les montre ensemble.
+   */
+  @Get("soldes")
+  @RequiertPermission("leaves:read")
+  soldes(@Demande() d: ContexteDemande, @Query() requete: unknown) {
+    const q = valider(
+      z.object({ userId: z.uuid().optional(), annee: z.coerce.number().int() }),
+      requete,
+    );
+    return this.conges.soldes(q.userId ?? d.userId, q.annee);
+  }
+
   /**
    * `EX-CNG-13` — le solde d'un type, pour une année.
    *

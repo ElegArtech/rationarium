@@ -20,6 +20,16 @@ import AxeBuilder from "@axe-core/playwright";
 
 import { PROJET, LIGNE_PROJET, ROUTE, EQUIPE, serveur, SESSION } from "./fixtures/projets.js";
 import { LISTE, FICHE } from "./fixtures/taches.js";
+import {
+  EVENEMENTS,
+  TYPES_CONGE,
+  SOLDES,
+  DEMANDES,
+  DELEGATIONS,
+  PLANNING_TELETRAVAIL,
+  REGLES_TELETRAVAIL,
+  SAISIES,
+} from "./fixtures/occupations.js";
 
 /** Une session dotée des droits d'écriture : les vues doivent rester conformes
  *  avec leurs actions affichées, pas seulement en lecture seule. */
@@ -33,6 +43,21 @@ const SESSION_COMPLETE = {
     "tasks:manage_dependencies",
     "tasks:manage_raci",
     "comments:create",
+    "leaves:read",
+    "leaves:create",
+    "leaves:approve",
+    "leaves:readAll",
+    "leaves:manage_types",
+    "leaves:manage_delegations",
+    "leaves:request_cancellation",
+    "telework:read",
+    "telework:create",
+    "telework:manage_rules",
+    "time_tracking:read",
+    "time_tracking:create",
+    "time_tracking:delete",
+    "events:read",
+    "events:create",
   ],
 };
 
@@ -50,6 +75,10 @@ const VUES: { nom: string; chemin: string; session: "valide" | "absente" }[] = [
   { nom: "12 — kanban du projet", chemin: `/projets/${PROJET.id}/taches`, session: "valide" },
   { nom: "16 — tâches, vue globale", chemin: "/taches", session: "valide" },
   { nom: "17 — fiche tâche", chemin: `/taches/${FICHE.id}`, session: "valide" },
+  { nom: "18 — événements", chemin: "/evenements", session: "valide" },
+  { nom: "19 — congés", chemin: "/conges", session: "valide" },
+  { nom: "20 — télétravail", chemin: "/teletravail", session: "valide" },
+  { nom: "21 — temps passé", chemin: "/temps", session: "valide" },
   { nom: "adresse inconnue", chemin: "/adresse-inexistante", session: "valide" },
 ];
 
@@ -65,6 +94,14 @@ async function preparer(page: Page, session: "valide" | "absente", theme: "clair
         "/api/taches": { corps: LISTE },
         [`/api/taches/${FICHE.id}`]: { corps: FICHE },
         "/utilisateurs": { corps: { utilisateurs: [] } },
+        "/api/evenements": { corps: EVENEMENTS },
+        "/api/conges/soldes": { corps: SOLDES },
+        "/api/conges/types": { corps: TYPES_CONGE },
+        "/api/conges/delegations": { corps: DELEGATIONS },
+        "/api/conges": { corps: DEMANDES },
+        "/api/teletravail/regles": { corps: REGLES_TELETRAVAIL },
+        "/api/teletravail": { corps: PLANNING_TELETRAVAIL },
+        "/api/temps": { corps: SAISIES },
       },
     });
   } else {

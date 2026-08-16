@@ -8,12 +8,14 @@ import coquilleFr from "../locales/fr/coquille.json";
 import erreursFr from "../locales/fr/erreurs.json";
 import projetsFr from "../locales/fr/projets.json";
 import tachesFr from "../locales/fr/taches.json";
+import occupationsFr from "../locales/fr/occupations.json";
 import communEn from "../locales/en/commun.json";
 import authEn from "../locales/en/auth.json";
 import coquilleEn from "../locales/en/coquille.json";
 import erreursEn from "../locales/en/erreurs.json";
 import projetsEn from "../locales/en/projets.json";
 import tachesEn from "../locales/en/taches.json";
+import occupationsEn from "../locales/en/occupations.json";
 
 /**
  * Internationalisation — RG-GEN-08, ADR-0011.
@@ -44,10 +46,10 @@ await i18next
     lng: detecter(),
     fallbackLng: "fr",
     defaultNS: "commun",
-    ns: ["commun", "auth", "coquille", "erreurs", "projets", "taches"],
+    ns: ["commun", "auth", "coquille", "erreurs", "projets", "taches", "occupations"],
     resources: {
-      fr: { commun: communFr, auth: authFr, coquille: coquilleFr, erreurs: erreursFr, projets: projetsFr, taches: tachesFr },
-      en: { commun: communEn, auth: authEn, coquille: coquilleEn, erreurs: erreursEn, projets: projetsEn, taches: tachesEn },
+      fr: { commun: communFr, auth: authFr, coquille: coquilleFr, erreurs: erreursFr, projets: projetsFr, taches: tachesFr, occupations: occupationsFr },
+      en: { commun: communEn, auth: authEn, coquille: coquilleEn, erreurs: erreursEn, projets: projetsEn, taches: tachesEn, occupations: occupationsEn },
     },
     interpolation: { escapeValue: false },
   });

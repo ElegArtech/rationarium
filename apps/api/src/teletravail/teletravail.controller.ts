@@ -61,6 +61,12 @@ export class TeletravailController {
 
   // ── Règles récurrentes — EX-TLT-03 ───────────────────────────────────────
 
+  @Get("regles")
+  @RequiertPermission("telework:read")
+  regles(@Demande() d: ContexteDemande, @Query("userId") userId?: string) {
+    return this.teletravail.regles(userId ?? d.userId);
+  }
+
   /**
    * L'aperçu d'une règle **avant** de la créer.
    *

@@ -1,0 +1,90 @@
+/*
+ * Vue 20 — Télétravail. Section 24 des maquettes, reprise verbatim.
+ *
+ * Quatre états s'excluent — télétravail, bureau, non déclaré, week-end —
+ * et deux qualificatifs s'y ajoutent : issu d'une règle, exception.
+ */
+
+.tt-cal{ display:grid; grid-template-columns:repeat(7,1fr); }
+.tt-dow{ font-family:var(--font-cond); font-size:9.5px; font-weight:600; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--muted); text-align:center; padding:9px 0;
+  border-bottom:1px solid var(--line-strong); border-left:1px solid var(--line); }
+.tt-dow:first-child{ border-left:none; }
+
+.tt-cell{ min-height:86px; border-left:1px solid var(--line); border-bottom:1px solid var(--line);
+  padding:7px 8px; display:flex; flex-direction:column; gap:5px; align-items:flex-start;
+  background:var(--surface); width:100%; text-align:left; position:relative; }
+.tt-cell:nth-child(7n+1){ border-left:none; }
+.tt-n{ font-family:var(--font-mono); font-size:11.5px; color:var(--muted); }
+/*
+ * ÉCART ASSUMÉ CONTRE LA MAQUETTE — contraste.
+ *
+ * La maquette éteint les numéros de week-end et de débord par `opacity: .45`
+ * et `.4`. Deux raisons de ne pas les reprendre.
+ *
+ * D'abord le contraste : `--muted` atténué tombe sous le seuil AA, et même le
+ * jeton `--placeholder` reste juste en dessous sur `--surface-2` à cette
+ * taille de texte. Ensuite la collision : quand aujourd'hui TOMBE un week-end
+ * — le cas se produit deux jours sur sept — la règle du jour courant met
+ * l'accent et celle du week-end l'éteint, avec le même poids de sélecteur.
+ * La dernière écrite gagne, et le résultat est illisible.
+ *
+ * Le week-end reste distingué par le FOND de la case, qui ne porte aucun
+ * texte : la distinction survit sans coûter de lisibilité.
+ *
+ * Troisième occurrence de la même famille (écart 5 de `mockups/GEL.md`) : la
+ * maquette est la référence de forme, le socle celle du contraste.
+ */
+.tt-cell.is-today .tt-n{ color:var(--accent); font-weight:700; }
+.tt-cell.is-out{ background:var(--surface-2); }
+
+/* État 1 — télétravail */
+.tt-cell.is-tt{ background:color-mix(in srgb, var(--telework) 13%, var(--surface));
+  box-shadow:inset 3px 0 0 var(--telework); }
+/* État 2 — bureau déclaré */
+.tt-cell.is-office{ box-shadow:inset 3px 0 0 var(--line-strong); }
+/* État 3 — non déclaré : rien, sinon le numéro */
+/* État 4 — week-end */
+.tt-cell.is-we{ background:var(--surface-2); cursor:default; }
+
+.tt-cell:not(.is-we):not(.is-out):hover{ outline:1px solid var(--accent); outline-offset:-1px; }
+.tt-cell:focus-visible{ outline:2px solid var(--accent); outline-offset:-2px; z-index:2; }
+
+.tt-tag{ display:inline-flex; align-items:center; gap:4px; font-family:var(--font-cond);
+  font-size:10px; padding:2px 6px; border-radius:2px; border:1px solid currentColor; }
+.tt-tag.is-tt{ color:var(--telework); background:color-mix(in srgb, var(--telework) 12%, var(--surface)); }
+.tt-tag.is-office{ color:var(--muted); }
+/* Qualificatifs — ils se surajoutent, ils ne remplacent pas l'état */
+.tt-mark{ font-family:var(--font-mono); font-size:8px; letter-spacing:.06em; text-transform:uppercase;
+  color:var(--accent); display:flex; align-items:center; gap:3px; }
+.tt-mark.is-exc{ color:var(--st-review); }
+.tt-ferie{ font-family:var(--font-cond); font-size:9.5px; color:var(--st-review); }
+
+.tt-legend{ display:flex; gap:18px; flex-wrap:wrap; padding:12px 14px; }
+.tt-l{ display:flex; align-items:center; gap:8px; font-size:11.5px; }
+.tt-sw{ width:26px; height:18px; border-radius:2px; border:1px solid var(--line); flex:none; }
+.tt-sw.is-tt{ background:color-mix(in srgb, var(--telework) 13%, var(--surface));
+  box-shadow:inset 3px 0 0 var(--telework); }
+.tt-sw.is-office{ box-shadow:inset 3px 0 0 var(--line-strong); background:var(--surface); }
+.tt-sw.is-none{ background:var(--surface); }
+.tt-sw.is-we{ background:var(--surface-2); }
+.tt-sw.is-rec{ background:color-mix(in srgb, var(--telework) 13%, var(--surface));
+  box-shadow:inset 3px 0 0 var(--telework); position:relative; }
+.tt-sw.is-rec::after{ content: "↻"; position:absolute; right:2px; top:0; font-family:var(--font-mono);
+  font-size:9px; color:var(--accent); }
+
+/* Règles récurrentes */
+.rule{ display:grid; grid-template-columns:minmax(0,1fr) 108px 96px; gap:13px; align-items:center;
+  padding:12px 14px; border-bottom:1px solid var(--line); }
+.rule:last-of-type{ border-bottom:none; }
+.rule-nl{ font-size:12.5px; }
+.rule-sub{ display:block; font-family:var(--font-mono); font-size:9px; color:var(--muted); margin-top:4px; }
+.rule.is-off{ opacity:.55; }
+.gen-box{ border-top:1px solid var(--line); padding:13px 14px; background:var(--surface-2); }
+.gen-row{ display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap; }
+
+/* Vue équipe */
+.team-row{ display:grid; grid-template-columns:216px minmax(0,1fr) 148px; gap:13px;
+  align-items:center; padding:11px 14px; border-bottom:1px solid var(--line); }
+.team-row:last-child{ border-bottom:none; }
+.team-sum{ display:flex; gap:20px; flex-wrap:wrap; padding:12px 15px; }
