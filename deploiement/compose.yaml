@@ -1,0 +1,123 @@
+# ════════════════════════════════════════════════════════════════════════════
+# Déploiement sur site — une machine, Docker Compose.
+#
+# **Portée.** `cadrage/03 § 8.2` laisse ouverte la cible de déploiement
+# (question B5 du DAG) : machine unique, ou orchestrateur existant de la
+# collectivité. Ce fichier couvre la première hypothèse, qui est celle que
+# `cadrage/03 § 3.1` retient par défaut. Ce que la seconde ajouterait est
+# énuméré dans `README.md § 6` — ce n'est pas une variante de ce fichier, c'est
+# une décision à prendre puis à éprouver.
+#
+# Trois services et un seul état persistant : la base. C'est `C1` appliqué —
+# chaque service supplémentaire est une pièce à installer, sauvegarder,
+# superviser et redémarrer (`cadrage/03 § 231`).
+# ════════════════════════════════════════════════════════════════════════════
+
+name: trame
+
+services:
+  base:
+    image: postgres:18.6-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_UTILISATEUR:?utilisateur de base requis}
+      POSTGRES_PASSWORD: ${POSTGRES_MOTDEPASSE:?mot de passe de base requis}
+      POSTGRES_DB: ${POSTGRES_BASE:-trame}
+      # Les dates métier n'ont ni heure ni fuseau (ADR-0010), mais les
+      # horodatages d'audit en ont un : il est fixé, pas hérité de l'hôte.
+      TZ: ${TRAME_FUSEAU:-Europe/Paris}
+    volumes:
+      # `/var/lib/postgresql`, PAS `/var/lib/postgresql/data`. Depuis
+      # PostgreSQL 18, l'image officielle range les données dans un
+      # sous-répertoire par version majeure, pour rendre `pg_upgrade --link`
+      # possible sans franchir une limite de point de montage. Un volume monté
+      # à l'ancien emplacement fait REFUSER le démarrage : le conteneur voit
+      # des données à un endroit qu'il n'utilise plus et s'arrête plutôt que de
+      # les ignorer — ce qui est le bon comportement, et une panne au premier
+      # déploiement pour qui recopie un fichier Compose écrit pour la 17.
+      - donnees:/var/lib/postgresql
+    healthcheck:
+      # `pg_isready` sur la base nommée, pas sur le port : un port ouvert
+      # pendant la reprise après incident dirait « prêt » à tort.
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  # Les migrations sont un service à part, exécuté une fois et attendu.
+  # Les faire au démarrage du serveur ferait migrer autant de fois qu'il y a
+  # d'exemplaires, en concurrence — et c'est exactement ce que B5 rendrait
+  # possible sans qu'on y pense.
+  migrations:
+    build:
+      context: ..
+      dockerfile: deploiement/Dockerfile.api
+    restart: "no"
+    depends_on:
+      base:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_UTILISATEUR}:${POSTGRES_MOTDEPASSE}@base:5432/${POSTGRES_BASE:-trame}
+    working_dir: /trame/packages/db
+    # Le chemin du binaire est celui de l'espace de travail `@trame/db`, pas
+    # celui de la racine : pnpm n'installe le lien que là où la dépendance est
+    # déclarée. Un `pnpm exec` conviendrait aussi, mais il relance une
+    # vérification de cohérence des dépendances au démarrage — inutile ici, et
+    # une raison d'échouer de plus le jour du déploiement.
+    command: ["/trame/packages/db/node_modules/.bin/prisma", "migrate", "deploy"]
+
+  api:
+    build:
+      context: ..
+      dockerfile: deploiement/Dockerfile.api
+    restart: unless-stopped
+    depends_on:
+      base:
+        condition: service_healthy
+      migrations:
+        condition: service_completed_successfully
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_UTILISATEUR}:${POSTGRES_MOTDEPASSE}@base:5432/${POSTGRES_BASE:-trame}
+      COOKIE_SECRET: ${COOKIE_SECRET:?secret de session requis}
+      TRAME_FUSEAU: ${TRAME_FUSEAU:-Europe/Paris}
+      TRAME_CRON_ALERTES: ${TRAME_CRON_ALERTES:-0 7 * * *}
+      SMTP_HOTE: ${SMTP_HOTE:-}
+      SMTP_PORT: ${SMTP_PORT:-25}
+      SMTP_TLS: ${SMTP_TLS:-false}
+      SMTP_UTILISATEUR: ${SMTP_UTILISATEUR:-}
+      SMTP_MOTDEPASSE: ${SMTP_MOTDEPASSE:-}
+    healthcheck:
+      # La sonde de DISPONIBILITÉ, pas celle de vivacité : Compose s'en sert
+      # pour savoir quand relayer le trafic. Voir `sante.controller.ts`, où la
+      # distinction entre les deux est motivée.
+      test:
+        - CMD-SHELL
+        - "node -e \"fetch('http://127.0.0.1:3000/api/sante/pret').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""
+      interval: 15s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
+
+  web:
+    build:
+      context: ..
+      dockerfile: deploiement/Dockerfile.web
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      TRAME_HOTE: ${TRAME_HOTE:-localhost}
+      TRAME_API: api:3000
+    ports:
+      - "${TRAME_PORT_HTTP:-80}:80"
+      - "${TRAME_PORT_HTTPS:-443}:443"
+    volumes:
+      # L'autorité locale de Caddy : sans persistance, chaque redémarrage
+      # régénère la racine, et tous les postes revoient un avertissement.
+      - caddy:/data
+
+volumes:
+  donnees:
+  caddy:

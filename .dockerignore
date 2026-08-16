@@ -1,0 +1,40 @@
+# Ce que la construction d'image ne doit jamais recevoir — L-29.
+#
+# Sans ce fichier, `COPY . .` recopie le `node_modules` de la machine de
+# développement PAR-DESSUS celui que l'image vient d'installer. Les deux ne
+# sont pas interchangeables : liens symboliques absolus, binaires compilés pour
+# une autre plateforme, et une réserve pnpm que l'image ne connaît pas. Le
+# symptôme observé est trompeur — pnpm détecte l'incohérence et veut
+# réinstaller, ce qui échoue faute de terminal.
+
+node_modules
+**/node_modules
+
+# Produits de construction : ils sont refaits dans l'image, et ceux de l'hôte
+# viendraient d'une autre version de TypeScript ou d'un autre système.
+dist
+**/dist
+packages/db/src/generated
+
+# Historique, outillage local, sorties de contrôle.
+.git
+.gitignore
+.claude
+test-results
+**/test-results
+playwright-report
+**/playwright-report
+**/.turbo
+**/*.tsbuildinfo
+
+# Secrets : jamais dans une couche d'image.
+.env
+**/.env
+deploiement/.env
+
+# Documentation et références : elles n'entrent dans aucune image.
+cadrage
+mockups
+docs
+guide
+design

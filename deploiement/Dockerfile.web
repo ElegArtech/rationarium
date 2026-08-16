@@ -1,0 +1,36 @@
+# ════════════════════════════════════════════════════════════════════════════
+# Image de la façade — L-29.
+#
+# Caddy sert les fichiers statiques, termine TLS et relaie `/api` vers le
+# serveur applicatif (`cadrage/03 § 3.1`). L'application monopage est construite
+# ici puis **figée dans l'image** : aucun montage de volume, donc aucun écart
+# possible entre ce qui a été construit et ce qui est servi.
+#
+# `C1` — la construction n'atteint aucune ressource distante : `assetsInlineLimit`
+# est à 0 et les polices sont embarquées par `@fontsource`.
+# ════════════════════════════════════════════════════════════════════════════
+
+FROM node:24-bookworm AS construction
+ENV PNPM_HOME=/pnpm
+ENV PATH=$PNPM_HOME:$PATH
+# `CI=true` : pnpm 11 refuse de purger un `node_modules` incohérent sans
+# terminal, et s'arrête. Dans une image, il n'y a jamais de terminal.
+ENV CI=true
+RUN corepack enable && corepack prepare pnpm@11.22.0 --activate
+WORKDIR /trame
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/api/package.json apps/api/
+COPY apps/web/package.json apps/web/
+COPY packages/db/package.json packages/db/
+COPY packages/contracts/package.json packages/contracts/
+RUN pnpm install --frozen-lockfile
+
+COPY . .
+RUN pnpm --filter @trame/contracts build && pnpm --filter @trame/web build
+
+# ── Service ─────────────────────────────────────────────────────────────────
+FROM caddy:2-alpine AS execution
+COPY --from=construction /trame/apps/web/dist /srv
+COPY deploiement/Caddyfile /etc/caddy/Caddyfile
+EXPOSE 80 443

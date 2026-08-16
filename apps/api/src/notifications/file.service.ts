@@ -40,10 +40,37 @@ export const FILE_COURRIEL = "courriel";
 export class FileService implements OnModuleInit, OnModuleDestroy {
   private readonly journal = new Logger(FileService.name);
   private boss: PgBoss | null = null;
-  /** Les travaux déclarés avant le démarrage de la file, rejoués ensuite. */
-  private readonly enAttente: TravailPeriodique[] = [];
+  /** Le démarrage en cours, partagé par tous ceux qui l'attendent. */
+  private demarrage: Promise<void> | null = null;
 
   async onModuleInit(): Promise<void> {
+    await this.demarrerUneFois();
+  }
+
+  /**
+   * **Le démarrage est attendu, jamais supposé.**
+   *
+   * NestJS appelle les `onModuleInit` des fournisseurs d'un même module **en
+   * parallèle** (`Promise.all`). `CourrielService` s'abonnait donc à sa file
+   * pendant que ce service démarrait la sienne : l'abonnement partait sur un
+   * schéma `pgboss` pas encore créé, échouait, et l'échec était avalé par le
+   * `try` de `consommer` — écrit précisément pour ne pas faire échouer le
+   * démarrage.
+   *
+   * Conséquence, invisible en développement comme en test : les courriels
+   * étaient **mis en file et jamais consommés**. Aucune alerte, aucune erreur
+   * après le démarrage, et une file qui grossit.
+   *
+   * D'où cette promesse unique, que tout appelant attend. Elle est amorcée par
+   * le premier qui la demande, et non par un ordre d'initialisation entre
+   * fournisseurs — un ordre que rien dans le cadre ne garantit.
+   */
+  private demarrerUneFois(): Promise<void> {
+    this.demarrage ??= this.demarrer();
+    return this.demarrage;
+  }
+
+  private async demarrer(): Promise<void> {
     const url = process.env["DATABASE_URL"];
     if (!url) {
       this.journal.warn(
@@ -53,22 +80,24 @@ export class FileService implements OnModuleInit, OnModuleDestroy {
     }
 
     try {
-      /*
-       * `createSchema` vaut FAUX par défaut en pg-boss 12 : `start()` migre,
-       * mais refuse de créer le schéma. Sans ce drapeau, le démarrage réussit
-       * et la première file échoue sur « schema "pgboss" does not exist » —
-       * un succès suivi d'un échec, à un autre endroit, plus tard.
-       */
-      this.boss = new PgBoss({ connectionString: url, schema: "pgboss", createSchema: true });
-      this.boss.on("error", (e: unknown) => this.journal.error(`file : ${String(e)}`));
-      await this.boss.start();
-      for (const travail of this.enAttente) await this.installer(travail);
-      this.enAttente.length = 0;
+      const boss = new PgBoss({ connectionString: url, schema: "pgboss", createSchema: true });
+      boss.on("error", (e: unknown) => this.journal.error(`file : ${String(e)}`));
+      await boss.start();
+      // Affecté SEULEMENT une fois `start()` terminé : tant que le champ est
+      // nul, `publier` journalise au lieu d'échouer, ce qui est le
+      // comportement voulu — et non un abonnement sur un schéma absent.
+      this.boss = boss;
     } catch (e) {
       // Le démarrage de la file n'est pas une condition de service.
       this.boss = null;
       this.journal.error(`la file n'a pas démarré : ${String(e)}`);
     }
+  }
+
+  /** La file, une fois démarrée. `null` si elle n'a pas pu l'être. */
+  private async pret(): Promise<PgBoss | null> {
+    await this.demarrerUneFois();
+    return this.boss;
   }
 
   async onModuleDestroy(): Promise<void> {
@@ -88,12 +117,13 @@ export class FileService implements OnModuleInit, OnModuleDestroy {
    * une raison qui ne la concerne pas.
    */
   async publier(nom: string, donnees: Record<string, unknown>): Promise<string | null> {
-    if (!this.boss) {
+    const boss = await this.pret();
+    if (!boss) {
       this.journal.log(`file inactive — travail « ${nom} » journalisé : ${JSON.stringify(donnees)}`);
       return null;
     }
     try {
-      return await this.boss.send(nom, donnees, {
+      return await boss.send(nom, donnees, {
         retryLimit: 5,
         // Temporisation croissante : un relais SMTP qui redémarre revient en
         // quelques minutes, et cinq tentatives immédiates ne l'attendraient pas.
@@ -119,10 +149,11 @@ export class FileService implements OnModuleInit, OnModuleDestroy {
     nom: string,
     traitement: (donnees: T) => Promise<void>,
   ): Promise<void> {
-    if (!this.boss) return;
+    const boss = await this.pret();
+    if (!boss) return;
     try {
-      await this.boss.createQueue(nom);
-      await this.boss.work<T>(nom, async (travaux: Job<T>[]) => {
+      await boss.createQueue(nom);
+      await boss.work<T>(nom, async (travaux: Job<T>[]) => {
         for (const travail of travaux) await traitement(travail.data);
       });
     } catch (e) {
@@ -133,27 +164,20 @@ export class FileService implements OnModuleInit, OnModuleDestroy {
   /**
    * `RG-NTF-01`, `RG-NTF-02` — un travail périodique, à instance unique.
    *
-   * Déclarable avant le démarrage de la file : les modules métier s'enregistrent
-   * dans leur `onModuleInit`, dont l'ordre n'est pas garanti.
+   * Déclarable avant le démarrage de la file : l'appel attend celui-ci, au lieu
+   * de dépendre d'un ordre d'initialisation entre fournisseurs.
    */
   async planifier(travail: TravailPeriodique): Promise<void> {
-    if (!this.boss) {
-      this.enAttente.push(travail);
-      return;
-    }
-    await this.installer(travail);
-  }
-
-  private async installer(travail: TravailPeriodique): Promise<void> {
-    if (!this.boss) return;
+    const boss = await this.pret();
+    if (!boss) return;
     try {
-      await this.boss.createQueue(travail.nom);
-      await this.boss.work(travail.nom, async () => {
+      await boss.createQueue(travail.nom);
+      await boss.work(travail.nom, async () => {
         await travail.traitement();
       });
       // `singletonKey` : deux instances déclarant le même travail n'en
       // exécutent qu'un. C'est `RG-NTF-02`, et il est natif.
-      await this.boss.schedule(travail.nom, travail.cron, {} as never, {
+      await boss.schedule(travail.nom, travail.cron, {} as never, {
         singletonKey: travail.nom,
         tz: process.env["TRAME_FUSEAU"] ?? "Europe/Paris",
       });

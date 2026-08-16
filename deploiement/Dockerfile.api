@@ -1,0 +1,76 @@
+# ════════════════════════════════════════════════════════════════════════════
+# Image du serveur applicatif — L-29.
+#
+# Trois contraintes portées par `ADR-0006`, et elles sont opposables :
+#
+#   1. **`node:24-bookworm`, jamais `-slim`.** Sans OpenSSL 3, Prisma se trompe
+#      de plateforme, se rabat sur `debian-openssl-1.1.x`, ignore le binaire
+#      embarqué et tente de le télécharger. En réseau fermé, la migration
+#      échoue — et elle échoue au déploiement, pas à la construction.
+#   2. **Le moteur de schéma est embarqué et épinglé** par
+#      `PRISMA_SCHEMA_ENGINE_BINARY`. On ne compte jamais sur la détection
+#      automatique : c'est elle qui déclenche le téléchargement.
+#   3. **`DATABASE_URL` est nécessaire à la CONSTRUCTION.** En Prisma 7, l'URL
+#      vit dans `prisma.config.ts`, et le fichier de configuration est chargé
+#      par *toute* commande `prisma`, y compris `generate`, qui ne s'en sert
+#      pas. Une valeur fictive suffit et ne sort jamais de l'étape de
+#      construction.
+# ════════════════════════════════════════════════════════════════════════════
+
+FROM node:24-bookworm AS base
+ENV PNPM_HOME=/pnpm
+ENV PATH=$PNPM_HOME:$PATH
+# `CI=true` : pnpm 11 refuse de purger un `node_modules` incohérent sans
+# terminal, et s'arrête. Dans une image, il n'y a jamais de terminal.
+ENV CI=true
+RUN corepack enable && corepack prepare pnpm@11.22.0 --activate
+WORKDIR /trame
+
+# ── Dépendances ─────────────────────────────────────────────────────────────
+# Les manifestes d'abord : tant qu'ils ne changent pas, la couche d'install est
+# réutilisée. Copier tout le dépôt ici referait l'installation à chaque ligne
+# de code modifiée.
+FROM base AS dependances
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/api/package.json apps/api/
+COPY apps/web/package.json apps/web/
+COPY packages/db/package.json packages/db/
+COPY packages/contracts/package.json packages/contracts/
+RUN pnpm install --frozen-lockfile
+
+# ── Construction ────────────────────────────────────────────────────────────
+FROM dependances AS construction
+COPY . .
+ENV DATABASE_URL=postgres://construction:construction@127.0.0.1:5432/construction
+RUN pnpm --filter @trame/contracts build \
+ && pnpm --filter @trame/db exec prisma generate \
+ && pnpm --filter @trame/db build \
+ && pnpm --filter @trame/api build
+
+# ── Exécution ───────────────────────────────────────────────────────────────
+FROM base AS execution
+
+# Le binaire de moteur de schéma, sorti de la réserve pnpm et posé à un chemin
+# stable. Il est de 22 Mo et spécifique à la plateforme : le laisser dans
+# `node_modules/.pnpm` le rendrait dépendant d'un chemin haché.
+COPY --from=dependances \
+  /trame/node_modules/.pnpm/@prisma+engines@7.9.1/node_modules/@prisma/engines/schema-engine-debian-openssl-3.0.x \
+  /usr/local/lib/prisma/schema-engine
+ENV PRISMA_SCHEMA_ENGINE_BINARY=/usr/local/lib/prisma/schema-engine
+
+COPY --from=construction /trame/node_modules /trame/node_modules
+COPY --from=construction /trame/package.json /trame/pnpm-workspace.yaml ./
+COPY --from=construction /trame/packages/contracts /trame/packages/contracts
+COPY --from=construction /trame/packages/db /trame/packages/db
+COPY --from=construction /trame/apps/api /trame/apps/api
+
+# Le conteneur ne tourne pas en `root`. Voir aussi le piège de propriété des
+# fichiers montés, consigné dans `CLAUDE.md`.
+USER node
+
+ENV NODE_ENV=production
+ENV PORT=3000
+EXPOSE 3000
+
+WORKDIR /trame/apps/api
+CMD ["node", "dist/main.js"]
