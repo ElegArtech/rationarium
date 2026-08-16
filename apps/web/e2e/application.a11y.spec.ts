@@ -38,6 +38,7 @@ import {
   CLIENTS,
   FICHE_CLIENT,
 } from "./fixtures/referentiels.js";
+import { UTILISATEURS, SUIVI, ARBORESCENCE } from "./fixtures/administration.js";
 
 /** Une session dotée des droits d'écriture : les vues doivent rester conformes
  *  avec leurs actions affichées, pas seulement en lecture seule. */
@@ -76,6 +77,16 @@ const SESSION_COMPLETE = {
     "clients:read",
     "clients:create",
     "clients:delete",
+    "users:read",
+    "users:create",
+    "users:deactivate",
+    "users:delete_permanently",
+    "users:read_individual_tracking",
+    "departments:read",
+    "departments:delete",
+    "directions:read",
+    "directions:delete",
+    "services:read",
   ],
 };
 
@@ -102,6 +113,9 @@ const VUES: { nom: string; chemin: string; session: "valide" | "absente" }[] = [
   { nom: "24 — fiche tiers", chemin: `/tiers/${FICHE_TIERS.id}`, session: "valide" },
   { nom: "25 — clients", chemin: "/clients", session: "valide" },
   { nom: "26 — fiche client", chemin: `/clients/${FICHE_CLIENT.id}`, session: "valide" },
+  { nom: "27 — utilisateurs", chemin: "/utilisateurs", session: "valide" },
+  { nom: "28 — suivi individuel", chemin: "/utilisateurs/u-autre/suivi", session: "valide" },
+  { nom: "29 — départements et services", chemin: "/departements", session: "valide" },
   { nom: "adresse inconnue", chemin: "/adresse-inexistante", session: "valide" },
 ];
 
@@ -131,6 +145,9 @@ async function preparer(page: Page, session: "valide" | "absente", theme: "clair
         [`/api/tiers/${FICHE_TIERS.id}`]: { corps: FICHE_TIERS },
         "/api/clients": { corps: CLIENTS },
         [`/api/clients/${FICHE_CLIENT.id}`]: { corps: FICHE_CLIENT },
+        "/api/utilisateurs": { corps: UTILISATEURS },
+        "/suivi": { corps: SUIVI },
+        "/api/organisation": { corps: ARBORESCENCE },
       },
     });
   } else {

@@ -87,6 +87,106 @@ export class UtilisateursService {
   }
 
   /**
+   * `EX-USR-07` — le suivi individuel : tout ce qui concerne un agent, sur une
+   * période. Vue 28.
+   *
+   * **La période commande les six onglets à la fois**, et c'est justement ce
+   * qui rend l'agrégat délicat : certains chiffres n'ont de sens que sur la
+   * période demandée (heures saisies, jours de télétravail), d'autres sur
+   * l'année civile (le solde de congés), d'autres à l'instant (les tâches
+   * actives). Les mélanger sous un même en-tête « cette semaine » produirait
+   * des nombres justes séparément et faux ensemble.
+   *
+   * Chaque bloc porte donc son **étendue**, et la vue l'affiche à côté du
+   * chiffre plutôt que dans une note de bas de page.
+   */
+  async suiviIndividuel(userId: string, fenetre: { debut: Date; fin: Date }) {
+    const agent = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true, prenom: true, nom: true, email: true, login: true, actif: true,
+        creeLe: true, derniereConnexion: true,
+        role: { select: { code: true, nom: true } },
+        departement: { select: { id: true, nom: true } },
+        services: { select: { service: { select: { id: true, nom: true } } } },
+      },
+    });
+    if (!agent) throw new ErreurUtilisateur("introuvable");
+
+    const annee = fenetre.fin.getUTCFullYear();
+    const dansLaPeriode = { gte: fenetre.debut, lte: fenetre.fin };
+
+    const [taches, conges, teletravail, temps, competences] = await Promise.all([
+      this.prisma.task.findMany({
+        where: { assignes: { some: { userId } } },
+        orderBy: [{ dateFin: "asc" }],
+        select: {
+          id: true, titre: true, statut: true, priorite: true, avancement: true, dateFin: true,
+          project: { select: { id: true, nom: true } },
+        },
+      }),
+      this.prisma.leave.findMany({
+        where: { userId },
+        orderBy: { dateDebut: "desc" },
+        select: {
+          id: true, statut: true, dateDebut: true, dateFin: true, joursOuvres: true,
+          type: { select: { id: true, nom: true, couleur: true } },
+          repartitions: { where: { annee }, select: { annee: true, jours: true } },
+        },
+      }),
+      this.prisma.telework.findMany({
+        where: { userId, date: dansLaPeriode, etat: "telework" },
+        orderBy: { date: "asc" },
+        select: { date: true, etat: true, issuDeRegle: true },
+      }),
+      this.prisma.timeEntry.findMany({
+        where: { userId, date: dansLaPeriode },
+        orderBy: { date: "desc" },
+        select: {
+          id: true, date: true, heures: true, typeActivite: true, description: true,
+          project: { select: { id: true, nom: true } },
+        },
+      }),
+      this.prisma.userSkill.findMany({
+        where: { userId },
+        select: {
+          niveau: true,
+          skill: { select: { id: true, nom: true, categorie: true } },
+        },
+      }),
+    ]);
+
+    const actives = taches.filter((t) => t.statut !== "done");
+
+    return {
+      agent: { ...agent, services: agent.services.map((s) => s.service) },
+      periode: { debut: fenetre.debut, fin: fenetre.fin, annee },
+      taches,
+      conges,
+      teletravail,
+      temps,
+      competences: competences.map((c) => ({ ...c.skill, niveau: c.niveau })),
+      statistiques: {
+        /** À l'instant : « actives » n'a pas de sens sur une période passée. */
+        tachesActives: actives.length,
+        tachesTerminees: taches.length - actives.length,
+        tachesBloquees: taches.filter((t) => t.statut === "blocked").length,
+        /** Sur la période demandée. */
+        joursTeletravail: teletravail.length,
+        heuresSaisies: temps.reduce((n, e) => n + Number(e.heures), 0),
+        /** Sur l'année civile : un solde de congés ne se découpe pas. */
+        congesAnnee: conges
+          .flatMap((c) => c.repartitions)
+          .reduce((n, r) => n + Number(r.jours), 0),
+        projetsActifs: new Set(
+          actives.map((t) => t.project?.id).filter((x): x is string => Boolean(x)),
+        ).size,
+        competences: competences.length,
+      },
+    };
+  }
+
+  /**
    * `EX-USR-09` — la présence du jour : qui est là, en congé, en télétravail.
    *
    * Une seule sollicitation, comme le planning : trois requêtes indexées, pas

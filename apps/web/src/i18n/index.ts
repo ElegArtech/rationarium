@@ -10,6 +10,7 @@ import projetsFr from "../locales/fr/projets.json";
 import tachesFr from "../locales/fr/taches.json";
 import occupationsFr from "../locales/fr/occupations.json";
 import referentielsFr from "../locales/fr/referentiels.json";
+import administrationFr from "../locales/fr/administration.json";
 import communEn from "../locales/en/commun.json";
 import authEn from "../locales/en/auth.json";
 import coquilleEn from "../locales/en/coquille.json";
@@ -18,6 +19,7 @@ import projetsEn from "../locales/en/projets.json";
 import tachesEn from "../locales/en/taches.json";
 import occupationsEn from "../locales/en/occupations.json";
 import referentielsEn from "../locales/en/referentiels.json";
+import administrationEn from "../locales/en/administration.json";
 
 /**
  * Internationalisation — RG-GEN-08, ADR-0011.
@@ -48,10 +50,10 @@ await i18next
     lng: detecter(),
     fallbackLng: "fr",
     defaultNS: "commun",
-    ns: ["commun", "auth", "coquille", "erreurs", "projets", "taches", "occupations", "referentiels"],
+    ns: ["commun", "auth", "coquille", "erreurs", "projets", "taches", "occupations", "referentiels", "administration"],
     resources: {
-      fr: { commun: communFr, auth: authFr, coquille: coquilleFr, erreurs: erreursFr, projets: projetsFr, taches: tachesFr, occupations: occupationsFr, referentiels: referentielsFr },
-      en: { commun: communEn, auth: authEn, coquille: coquilleEn, erreurs: erreursEn, projets: projetsEn, taches: tachesEn, occupations: occupationsEn, referentiels: referentielsEn },
+      fr: { commun: communFr, auth: authFr, coquille: coquilleFr, erreurs: erreursFr, projets: projetsFr, taches: tachesFr, occupations: occupationsFr, referentiels: referentielsFr, administration: administrationFr },
+      en: { commun: communEn, auth: authEn, coquille: coquilleEn, erreurs: erreursEn, projets: projetsEn, taches: tachesEn, occupations: occupationsEn, referentiels: referentielsEn, administration: administrationEn },
     },
     interpolation: { escapeValue: false },
   });

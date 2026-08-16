@@ -78,6 +78,8 @@ Enrichi à chaque capitalisation. Un piège rencontré deux fois sans être cons
 - **Le cache de Turborepo ignore les fichiers non suivis par git.** `packages/db/src/generated` est ignoré : régénérer le client Prisma ne change pas la clé de cache, et `typecheck` rejoue un résultat qui ne décrit plus l'arbre. Les fichiers générés sont déclarés en `inputs` dans `turbo.json` ; ne pas les en retirer.
 - **`**/api/**` dans Playwright intercepte aussi les modules de Vite.** `/src/api/client.ts` reçoit alors du JSON là où le navigateur attend un module : page blanche, sans erreur parlante. Intercepter par prédicat ancré à la racine — `(url) => url.pathname.startsWith("/api/")`.
 - **Le compte de tests Playwright se lit à l'état de sortie, pas à la dernière ligne.** Le rapporteur `line` réécrit sa ligne de progression : un `tail -1` peut attraper `[96/100]` sur une suite entièrement verte.
+- **Les tests de bout en bout servent le lot CONSTRUIT, pas le serveur de développement.** Le serveur de développement transforme à la demande : sous onze ouvriers en parallèle et à froid, les dernières vues dépassaient cinq secondes et quatre tests tombaient — reproductible, mais seulement au premier lancement après un redémarrage. Un échec qui n'arrive qu'une fois sur trois apprend à relancer plutôt qu'à chercher.
+- **Une année ne se formate pas comme un nombre.** `{annee, number}` en ICU rend « l'année 2 026 » en français, séparateur de milliers compris. Interpoler la chaîne telle quelle.
 - **L'opacité ne sert jamais à atténuer du texte.** Les maquettes le font ; le contraste tombe sous le seuil AA à chaque fois. Employer un jeton, ou laisser le fond porter la distinction. Voir `docs/design/DESIGN.md § 4`.
 
 ## Convention de commit
