@@ -4,7 +4,7 @@ Forme opérationnelle du § 5 de `cadrage/04`. C'est le document qu'on ouvre pou
 
 > **Sans DAG, la parallélisation est un pari ; avec, c'est une lecture.**
 
-**État au 2026-08-16** — vague 1 close (L-02 à L-05) · vague 2 : L-06, L-07, L-08 livrés. Vague 1 ouvrable dès la clôture de la vague 0 : l'arbitrage bloquant B1 est rendu, les prérequis T1 à T6 sont levés.
+**État au 2026-08-16** — **vagues 0, 1 et 2 closes** (L-00 à L-09). Vague 3 ouvrable. Vague 1 ouvrable dès la clôture de la vague 0 : l'arbitrage bloquant B1 est rendu, les prérequis T1 à T6 sont levés.
 
 ---
 
@@ -53,9 +53,11 @@ Séquentiel, en pair. Aucune délégation : c'est le harnais qui rend la délég
 | ~~**L-06**~~ | Structure organisationnelle **et constructeur de prédicats de périmètre** | M2 | 29 | **Haute** | L-02, L-03 | **livré** |
 | ~~**L-07**~~ | Utilisateurs, annuaire, suivi individuel, contrôle de dépendances | M3 | 27, 28 | **Haute** | L-06 | **livré** — serveur et socle d'import |
 | ~~**L-08**~~ | Rôles, matrice de permissions, journal d'audit inaltérable | M20 | 32, 33 | **Haute** | L-06 | **livré** |
-| **L-09** | Paramétrage : affichage, planning, jours fériés, vacances scolaires | M19 | 31 | Moyenne | L-05 | délégation |
+| ~~**L-09**~~ | Paramétrage : affichage, planning, jours fériés, vacances scolaires | M19 | 31 | Moyenne | L-05 | **livré** |
 
-`L-06` d'abord — le périmètre conditionne tout le reste. Puis `L-07 ∥ L-08 ∥ L-09`.
+`L-06` d'abord — le périmètre conditionne tout le reste. Puis `L-07 ∥ L-08 ∥ L-09`. **Vague close.**
+
+> Le calendrier (L-09) porte une responsabilité que le reste du produit consomme sans la connaître : **définir ce qu'est un jour ouvré**. Le décompte des congés, la génération des assignations et la trame du planning en dépendent. C'est pourquoi `joursOuvres` et `repartitionParAnnee` vivent ici et non dans le module congés : la notion leur préexiste.
 
 ---
 
