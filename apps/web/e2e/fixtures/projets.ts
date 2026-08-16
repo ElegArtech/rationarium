@@ -100,7 +100,16 @@ export const ROUTE = {
       dateEcheance: "2026-04-30",
       statut: "done",
       taches: [
-        { id: "t1", titre: "Ateliers usagers", statut: "done", avancement: 100, dateFin: "2026-04-20" },
+        {
+          id: "t1",
+          titre: "Ateliers usagers",
+          statut: "done",
+          priorite: "normal",
+          avancement: 100,
+          dateFin: "2026-04-20",
+          estimationHeures: 8,
+          assignes: [{ user: { id: "a1", prenom: "Camille", nom: "Roussel" } }],
+        },
       ],
     },
     {
@@ -110,7 +119,17 @@ export const ROUTE = {
       dateEcheance: "2026-11-28",
       statut: "doing",
       taches: [
-        { id: "t2", titre: "Jeux d'essai", statut: "doing", avancement: 45, dateFin: "2026-11-10" },
+        {
+          id: "t2",
+          titre: "Jeux d'essai",
+          statut: "doing",
+          priorite: "high",
+          avancement: 45,
+          dateFin: "2026-11-10",
+          estimationHeures: null,
+          // Personne : l'état « sans porteur » existe, et la vue le dit.
+          assignes: [],
+        },
       ],
     },
     {
@@ -122,7 +141,25 @@ export const ROUTE = {
       taches: [],
     },
   ],
-  indicateurs: { total: 3, termines: 1, enCours: 1, taches: 2 },
+  /*
+   * `RG-JAL-05` — les tâches détachées d'un jalon supprimé. Le jeu d'essai
+   * DOIT porter la forme exacte du serveur : trois défauts de ce projet
+   * viennent d'un jeu d'essai qui recopiait une forme inventée par le client,
+   * et validait donc l'erreur au lieu de la trouver.
+   */
+  sansJalon: [
+    {
+      id: "t9",
+      titre: "Reprise des libellés",
+      statut: "todo",
+      priorite: "normal",
+      avancement: 0,
+      dateFin: null,
+      estimationHeures: 4,
+      assignes: [{ user: { id: "a2", prenom: "Driss", nom: "Amrani" } }],
+    },
+  ],
+  indicateurs: { total: 3, termines: 1, enCours: 1, taches: 3, sansJalon: 1 },
 };
 
 export const EQUIPE = {

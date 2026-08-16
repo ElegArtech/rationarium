@@ -49,8 +49,14 @@ function Assignes({ tache }: { tache: api.TacheDeJalon }) {
   // niveaux de parenthèses. Une clé qu'il ne voit pas est déclarée orpheline.
   const gens = tache.assignes.map((a) => `${a.user.prenom} ${a.user.nom}`).join(", ");
   const libelle = t("jalons.assignesDe", { nom: tache.titre, gens });
+  /*
+   * `role="img"` n'est pas un ornement : `aria-label` est INTERDIT sur un
+   * élément générique — `axe` le refuse en « serious » (aria-prohibited-attr).
+   * La pile d'avatars est bien une image au sens ARIA : trois initiales qui ne
+   * se lisent pas une par une, et dont le sens tient dans le libellé.
+   */
   return (
-    <span className="avs" aria-label={libelle}>
+    <span className="avs" role="img" aria-label={libelle}>
       {montres.map((a) => (
         <span className="agent-av" key={a.user.id} aria-hidden="true">
           {`${a.user.prenom[0] ?? ""}${a.user.nom[0] ?? ""}`.toUpperCase()}
