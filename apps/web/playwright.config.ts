@@ -39,11 +39,18 @@ export default defineConfig({
    * Servir le lot de construction supprime la classe entière du problème, et
    * teste au passage l'artefact que les utilisateurs recevront — pas une
    * version transformée à la volée.
+   *
+   * **`reuseExistingServer` est faux, y compris hors intégration continue.**
+   * Il valait `!process.env.CI`, et un aperçu resté vivant d'un lancement
+   * précédent servait alors un lot **périmé** : la suite tombait sur du code
+   * qui n'existait plus, et l'échec ressemblait à un défaut de test. Le coût
+   * d'une reconstruction est de quelques secondes ; celui d'un faux échec est
+   * une demi-heure de recherche au mauvais endroit.
    */
   webServer: {
     command: "pnpm build && pnpm exec vite preview --port 4173 --strictPort",
     url: "http://localhost:4173",
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: false,
     timeout: 180_000,
   },
   projects: [

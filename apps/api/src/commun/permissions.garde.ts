@@ -50,6 +50,27 @@ export const RequiertPermission = (permission: string) => {
 export const CLE_PUBLIC = "trame:public";
 export const Public = () => SetMetadata(CLE_PUBLIC, true);
 
+/**
+ * Marque un point d'entrée comme **strictement personnel** : il exige une
+ * session, mais aucune permission.
+ *
+ * Le cas existe et il est étroit : une donnée qui n'appartient qu'à son auteur
+ * et que personne d'autre ne lit jamais. Les to-do de `RG-DSH-01` en sont le
+ * seul exemple à ce jour — le cadrage les dit « strictement privées », et les
+ * vingt-quatre domaines de permissions de `cadrage/01 § 3.2` n'en comportent
+ * pas pour elles. Inventer un domaine hors catalogue serait pire.
+ *
+ * Ce n'est **pas** `@Public()`, qui signifie « avant la session ». La garde se
+ * comporte déjà ainsi pour une route sans permission ; ce marqueur ne change
+ * rien à l'exécution — il rend l'intention **déclarée**, donc vérifiable par
+ * `surface-http.test.ts`, qui refuse toute route nue.
+ *
+ * Le contrôle réel est ailleurs, et il est le seul qui compte : chaque requête
+ * est bornée à `d.userId`. Une permission n'y ajouterait rien.
+ */
+export const CLE_PERSONNEL = "trame:personnel";
+export const Personnel = () => SetMetadata(CLE_PERSONNEL, true);
+
 export type ContexteDemande = {
   userId: string;
   permissions: ReadonlySet<string>;

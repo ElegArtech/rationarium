@@ -4,7 +4,6 @@ import {
   createRoute,
   createRouter,
   Outlet,
-  redirect,
   useNavigate,
   useParams,
   useSearch,
@@ -47,6 +46,7 @@ import { Audit } from "../vues/administration/Audit.js";
 import { Predefinies } from "../vues/administration/Predefinies.js";
 import { Planning } from "../vues/planning/Planning.js";
 import { Activite } from "../vues/planning/Activite.js";
+import { TableauDeBord } from "../vues/tableau/TableauDeBord.js";
 
 /**
  * L'arborescence des routes.
@@ -242,19 +242,16 @@ function CoquilleDeSession({ surDeconnexion }: { surDeconnexion: () => void }) {
 // ── Vues internes portées à ce jour ─────────────────────────────────────────
 
 /**
- * L'accueil.
+ * L'accueil — le tableau de bord (vue 06), depuis L-21.
  *
- * Le tableau de bord (vue 06) appartient au lot L-21 : tant qu'il n'est pas
- * porté, l'accueil renvoie sur le profil plutôt que d'afficher une page
- * inventée. Une page d'attente aurait toutes les chances de survivre à sa
- * raison d'être.
+ * Il renvoyait au profil tant que la vue n'était pas portée. La redirection est
+ * levée : c'est **la page la plus consultée du produit**, et pour un
+ * contributeur la seule qu'il ouvre.
  */
 const routeAccueil = createRoute({
   getParentRoute: () => routeApplication,
   path: "/",
-  beforeLoad: () => {
-    throw redirect({ to: "/profil" });
-  },
+  component: TableauDeBord,
 });
 
 const routeProfil = createRoute({

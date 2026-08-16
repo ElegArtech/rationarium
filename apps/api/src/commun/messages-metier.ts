@@ -316,4 +316,15 @@ export const MESSAGES_METIER: Record<string, Message> = {
     "erreurs:jourDejaDeclare",
     "Ce jour est déjà déclaré au calendrier.",
   ),
+
+  // ── Tableau de bord — M16 ────────────────────────────────────────────────
+  /**
+   * `RG-DSH-01` — le message dit la limite ET ce qu'il faut faire. « Limite
+   * atteinte » tout court laisserait chercher laquelle, et quoi en faire.
+   */
+  limite_todos: m(
+    422,
+    "erreurs:limiteTodos",
+    "Vous avez atteint la limite de to-dos. Terminez-en ou supprimez-en une pour en ajouter.",
+  ),
 };

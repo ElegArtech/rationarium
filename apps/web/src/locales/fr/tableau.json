@@ -1,0 +1,95 @@
+{
+  "surtitre": "Accueil",
+  "letableau": "le tableau de bord",
+  "bonjour": "Bonjour {prenom}",
+  "apercu": "Voici un aperçu de votre activité.",
+  "kpi": {
+    "projetsActifs": "Projets actifs",
+    "surNProjets": "{n, plural, =0 {aucun projet} one {sur # projet} other {sur # projets}}",
+    "tachesEnCours": "Tâches en cours",
+    "surNTaches": "{n, plural, =0 {aucune tâche} one {sur # tâche} other {sur # tâches}}",
+    "tachesTerminees": "Tâches terminées",
+    "pourcentageCompletees": "{n, number} % complétées",
+    "tachesEnRetard": "Tâches en retard",
+    "echeanceDepassee": "Échéance dépassée",
+    "aucunRetard": "Aucune échéance dépassée"
+  },
+  "planning": {
+    "titre": "Mon planning",
+    "ouvrir": "Ouvrir le planning",
+    "teletravail": "Télétravail",
+    "rien": "—"
+  },
+  "taches": {
+    "titre": "Mes tâches",
+    "ongletAVenir": "À venir",
+    "ongletNonDeclarees": "Non déclarées",
+    "videAVenir": "Aucune tâche assignée",
+    "videAVenirAide": "Les tâches qui vous sont confiées apparaîtront ici.",
+    "videNonDeclarees": "Aucune tâche en attente de validation",
+    "videNonDeclareesAide": "Tout votre temps est déclaré, ou dispensé de déclaration.",
+    "enRetard": "En retard",
+    "sansProjet": "Sans projet",
+    "estimation": "{n, number} h estimées",
+    "statutDe": "Statut de la tâche {titre}",
+    "heuresSur": "Heures à déclarer sur la tâche {titre}",
+    "unite": "h",
+    "dejaDeclare": "{n, number} h déjà déclarées",
+    "statutEnregistre": "Statut enregistré.",
+    "echecStatut": "Le statut n'a pas pu être enregistré.",
+    "tempsSaisi": "Temps enregistré.",
+    "echecTemps": "Le temps n'a pas pu être enregistré.",
+    "validerSansDeclaration": "Valider sans déclaration",
+    "valideeSansDeclaration": "Tâche close sans déclaration.",
+    "echecValidation": "La validation n'a pas abouti."
+  },
+  "todo": {
+    "titre": "Ma to-do",
+    "prive": "Privée",
+    "nouvelle": "Nouvelle to-do",
+    "placeholder": "Ajouter une to-do…",
+    "ajouter": "Ajouter",
+    "vide": "Aucune to-do pour le moment",
+    "videAide": "Double-cliquer pour éditer.",
+    "completees": "{n, plural, one {# complétée} other {# complétées}}",
+    "limiteAtteinte": "Limite de {n, number} to-dos atteinte.",
+    "basculer": "Marquer « {libelle} » comme faite ou à faire",
+    "editer": "Modifier « {libelle} »",
+    "supprimer": "Supprimer « {libelle} »",
+    "echecAjout": "La to-do n'a pas pu être ajoutée.",
+    "echecModification": "La to-do n'a pas pu être modifiée.",
+    "echecSuppression": "La to-do n'a pas pu être supprimée."
+  },
+  "projets": {
+    "titre": "Mes projets",
+    "tous": "Tous les projets",
+    "vide": "Aucun projet assigné",
+    "videAide": "Vous n'êtes membre d'aucun projet actif.",
+    "nTaches": "{n, plural, =0 {aucune tâche} one {# tâche} other {# tâches}}"
+  },
+  "statuts": {
+    "todo": "À faire",
+    "doing": "En cours",
+    "review": "En revue",
+    "done": "Terminée",
+    "blocked": "Bloquée"
+  },
+  "statutsProjet": {
+    "draft": "Brouillon",
+    "active": "Actif",
+    "paused": "Suspendu",
+    "done": "Terminé",
+    "cancelled": "Annulé"
+  },
+  "jours": {
+    "court": {
+      "0": "Dim",
+      "1": "Lun",
+      "2": "Mar",
+      "3": "Mer",
+      "4": "Jeu",
+      "5": "Ven",
+      "6": "Sam"
+    }
+  }
+}

@@ -252,3 +252,13 @@ export const saisirTemps = (donnees: {
 
 export const supprimerTemps = (id: string) =>
   appeler<void>(`/temps/${id}`, { methode: "DELETE" });
+
+/**
+ * `EX-TMP-06`, `EX-DSH-06` — clore une tâche terminée **sans** déclaration.
+ *
+ * Ce n'est pas « déclarer zéro heure » : c'est dire que la question ne se pose
+ * pas. La distinction compte pour les rapports, qui excluent les renoncements
+ * au lieu de compter des zéros.
+ */
+export const validerSansDeclaration = (taskId: string) =>
+  appeler<void>(`/temps/renoncement/${taskId}`, { methode: "POST" });

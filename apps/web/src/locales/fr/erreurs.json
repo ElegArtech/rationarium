@@ -64,5 +64,6 @@
   "supprimeeAvecDependantes": "D'autres tâches dépendent de celle-ci. Retirez ces dépendances d'abord.",
   "tacheInactive": "Cette tâche prédéfinie est désactivée : elle ne peut plus être assignée.",
   "tiersArchive": "Ce tiers est archivé : il n'accepte plus de modification.",
-  "typeInactif": "Ce type de congé est désactivé : il ne peut plus être demandé."
+  "typeInactif": "Ce type de congé est désactivé : il ne peut plus être demandé.",
+  "limiteTodos": "Vous avez atteint la limite de to-dos. Terminez-en ou supprimez-en une pour en ajouter."
 }

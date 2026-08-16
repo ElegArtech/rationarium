@@ -127,6 +127,9 @@
 .tabs{ display:flex; gap:2px; }
 .tab{ font-size:12.5px; padding:5px 10px; border:1px solid transparent; border-radius:var(--r); color:var(--muted); }
 .tab[aria-selected="true"]{ background:var(--accent-soft); color:var(--accent); font-weight:600; }
+/* `react-aria-components` marque l'onglet actif par data-selected ; la maquette
+   par aria-selected. Les deux valent, et le style suit les deux. */
+.tab[data-selected]{ background:var(--accent-soft); color:var(--accent); font-weight:600; }
 .trow{ display:grid; grid-template-columns:minmax(0,1fr) auto auto; gap:12px; align-items:center;
   padding:10px 14px; border-bottom:1px solid var(--line); }
 .trow:last-child{ border-bottom:none; }
@@ -163,7 +166,11 @@
 .todo-label{ flex:1; font-size:13px; cursor:text; }
 .todo-item.is-done .todo-label{ color:var(--muted); text-decoration:line-through; }
 .todo-del{ font-family:var(--font-mono); font-size:12px; color:var(--muted); opacity:0; }
-.todo-item:hover .todo-del{ opacity:1; }
+/* Révélée au survol ET au focus : une action qui ne se montre qu'à la souris
+   n'existe pas au clavier. Même correction qu'au bouton d'ajout de cellule du
+   planning. */
+.todo-item:hover .todo-del,
+.todo-del:focus-visible{ opacity:1; }
 .todo-del:hover{ color:var(--st-blocked); }
 .todo-sep{ display:flex; align-items:center; gap:8px; padding:8px 14px; border-bottom:1px solid var(--line);
   background:var(--surface-2); }

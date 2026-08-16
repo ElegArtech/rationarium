@@ -4,11 +4,11 @@ Forme opérationnelle du § 5 de `cadrage/04`. C'est le document qu'on ouvre pou
 
 > **Sans DAG, la parallélisation est un pari ; avec, c'est une lecture.**
 
-**État au 2026-08-16** — **32 des 35 vues sont portées. Les vagues 3 bis et 4 sont closes.**
+**État au 2026-08-16** — **33 des 35 vues sont portées. Les vagues 3 bis et 4 sont closes ; la vague 5 est ouverte.**
 
 Plus aucun lot ne porte la mention « livré (serveur) » : **L-08** (vues 32, 33), **L-09** (vue 31) et **L-17** (vue 34) repassent en **« livré »** tout court avec la clôture de L-37. La mention ne se justifiait que par des vues manquantes ; elles sont portées.
 
-Restent trois vues, dans la vague 5, parce qu'elles dépendent de modules serveur non encore écrits : 06 (L-21), 15 et 30 (L-22).
+Restent deux vues, dans la vague 5, parce qu'elles dépendent d'un module serveur non encore écrit : 15 et 30 (L-22).
 
 Reste ensuite : les vagues 5 et 6. Vague 1 ouvrable dès la clôture de la vague 0 : l'arbitrage bloquant B1 est rendu, les prérequis T1 à T6 sont levés.
 
@@ -139,12 +139,18 @@ Aucun parallélisme. **Vague close.**
 
 | Lot | Contenu | Modules | Vues | Criticité | Dépend de | Mode |
 | --- | --- | --- | --- | --- | --- | --- |
-| **L-21** | Tableau de bord | M16 | 06 | Moyenne | L-11, L-18, L-20 | délégation |
+| ~~**L-21**~~ | Tableau de bord | M16 | 06 | Moyenne | L-11, L-18, L-20 | **livré** |
 | **L-22** | Rapports, analytics, Gantt de projet et de portefeuille, instantanés | M17 | 15, 30 | Moyenne | L-10, L-11, L-18 | délégation |
 | **L-23** | Notifications, courriel, traitements planifiés à instance unique | M18 | — | **Haute** | L-15, L-11 | pair |
 | **L-24** | Imports et exports : six formats CSV, ICS, Excel, PDF | M21 | — | **Haute** | L-07, L-10, L-11, L-15, L-13 | pair |
 
 `L-21 ∥ L-22 ∥ L-24`, `L-23` en pair. **B3 doit être rendu avant l'ouverture** : quels modules dans la première livraison.
+
+> **Ce que L-21 a révélé.** Deux choses, de natures opposées.
+>
+> D'abord un **trou de nomenclature** : les to-do de `RG-DSH-01` sont « strictement privées », et les vingt-quatre domaines de permissions de `cadrage/01 § 3.2` n'en comportent aucun pour elles. Inventer un domaine hors catalogue aurait été pire que le trou. Un marqueur `@Personnel()` déclare désormais l'intention — session exigée, aucune permission —, et `surface-http.test.ts` en énumère la liste, comme il le fait des routes publiques. Le contrôle réel reste le `userId` de la session, et un test le prouve en tentant de modifier la to-do d'autrui.
+>
+> Ensuite un **faux échec récurrent** : `reuseExistingServer` valait `!CI`, et un aperçu resté vivant servait un lot périmé. La suite tombait sur du code qui n'existait plus. Reconstruire coûte quelques secondes ; chercher au mauvais endroit coûte une demi-heure.
 
 ---
 
