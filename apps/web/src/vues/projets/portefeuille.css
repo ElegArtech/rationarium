@@ -6,15 +6,11 @@
  * les tâches et le Gantt : elle est traitée comme une donnée, pas un ornement.
  */
 
-.picon {
-  width: 19px;
-  height: 19px;
-  fill: none;
-  stroke: currentcolor;
-  stroke-width: 1.3;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
+/*
+ * `.picon` et `.picon-box` ont rejoint `composants/partages.css` : l'icône de
+ * projet est un repère d'identification réutilisé par le planning, les tâches,
+ * le Gantt **et** la santé du portefeuille de la vue 30.
+ */
 
 .pcount {
   font-family: var(--font-mono);
@@ -49,18 +45,6 @@
 }
 .prow-card.is-cancelled {
   opacity: 0.6;
-}
-.picon-box {
-  width: 38px;
-  height: 38px;
-  border: 1px solid var(--line);
-  border-radius: var(--r);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--accent);
-  background: var(--accent-soft);
-  flex: none;
 }
 .prow-main {
   min-width: 0;

@@ -46,6 +46,8 @@ export function Predefinies() {
   if (requete.isError)
     return <ErreurDeChargement erreur={requete.error} surReessai={() => void requete.refetch()} />;
 
+  const nombreDeRegles = requete.data.reduce((s, x) => s + x.recurrences.length, 0);
+
   return (
     <div className="page">
       <div className="pl-toolbar">
@@ -56,35 +58,37 @@ export function Predefinies() {
         </div>
       </div>
 
-      <div className="filters">
-        <label className="check">
-          <input
-            type="checkbox"
-            checked={inactives}
-            onChange={(e) => setInactives(e.target.checked)}
-          />
-          <span>{t("predefinies.afficherInactives")}</span>
-        </label>
-      </div>
-
-      {requete.data.length === 0 ? (
-        <div className="empty empty-large">
-          <p>{t("predefinies.videTitre")}</p>
-          <small>{t("predefinies.videExplication")}</small>
+      <section className="panel">
+        <div className="panel-head">
+          <span className="panel-title">{t("predefinies.catalogue")}</span>
+          <span className="eyebrow">{t("predefinies.compte", { n: requete.data.length })}</span>
+          <label className="check check-espace">
+            <input
+              type="checkbox"
+              checked={inactives}
+              onChange={(e) => setInactives(e.target.checked)}
+            />
+            <span>{t("predefinies.afficherInactives")}</span>
+          </label>
         </div>
-      ) : (
-        <>
-          <div className="tlist">
-            <div className="pt-row pt-head" aria-hidden="true">
-              <span />
-              <span>{t("predefinies.colNom")}</span>
-              <span>{t("predefinies.colDuree")}</span>
-              <span>{t("predefinies.colPoids")}</span>
-              <span>{t("predefinies.colTeletravail")}</span>
-              <span>{t("predefinies.colStatut")}</span>
-              <span>{t("predefinies.colAssignations")}</span>
-            </div>
 
+        <div className="pt-row pt-head">
+          <span />
+          <span>{t("predefinies.colNom")}</span>
+          <span>{t("predefinies.colDuree")}</span>
+          <span>{t("predefinies.colTeletravail")}</span>
+          <span>{t("predefinies.colPoids")}</span>
+          <span>{t("predefinies.colStatut")}</span>
+          <span>{t("predefinies.colAssignations")}</span>
+        </div>
+
+        {requete.data.length === 0 ? (
+          <div className="empty">
+            <p>{t("predefinies.videTitre")}</p>
+            <small>{t("predefinies.videExplication")}</small>
+          </div>
+        ) : (
+          <>
             {requete.data.map((tache) => (
               <div className={`pt-row${tache.actif ? "" : " is-off"}`} key={tache.id}>
                 <span
@@ -113,21 +117,23 @@ export function Predefinies() {
                   ) : null}
                 </span>
 
-                <Poids valeur={tache.poids} />
-
-                <span
-                  className={`tt-ok ${tache.teletravailAutorise ? "is-yes" : "is-no"}`}
-                >
-                  {tache.teletravailAutorise
-                    ? t("predefinies.teletravailOui")
-                    : t("predefinies.teletravailNon")}
+                <span>
+                  <span className={`tt-ok ${tache.teletravailAutorise ? "is-yes" : "is-no"}`}>
+                    {tache.teletravailAutorise
+                      ? t("predefinies.teletravailOui")
+                      : t("predefinies.teletravailNon")}
+                  </span>
                 </span>
 
-                <span
-                  className="pill"
-                  style={{ color: tache.actif ? "var(--st-done)" : "var(--muted)" }}
-                >
-                  {tache.actif ? t("predefinies.active") : t("predefinies.inactive")}
+                <Poids valeur={tache.poids} />
+
+                <span>
+                  <span
+                    className="pill"
+                    style={{ color: tache.actif ? "var(--st-done)" : "var(--muted)" }}
+                  >
+                    {tache.actif ? t("predefinies.active") : t("predefinies.inactive")}
+                  </span>
                 </span>
 
                 <span className="us-org">
@@ -135,17 +141,26 @@ export function Predefinies() {
                 </span>
               </div>
             ))}
-          </div>
+          </>
+        )}
+      </section>
 
-          <section className="panel matrice-espace">
-            <div className="panel-head">
-              <span className="panel-title">{t("predefinies.reglesTitre")}</span>
+      <section className="panel matrice-espace">
+        <div className="panel-head">
+          <span className="panel-title">{t("predefinies.reglesTitre")}</span>
+          <span className="eyebrow">{t("predefinies.compteRegles", { n: nombreDeRegles })}</span>
+        </div>
+        <div className="panel-body">
+          {/* Une règle décrit un rythme ; elle ne crée rien. Le dire ici évite
+              d'attendre des assignations qui ne viendront qu'à la génération. */}
+          <p className="field-hint hint-regles">{t("predefinies.reglesAide")}</p>
+          {requete.data.every((x) => x.recurrences.length === 0) ? (
+            <div className="empty">
+              <p>{t("predefinies.aucuneRegle")}</p>
+              <small>{t("predefinies.aucuneRegleAide")}</small>
             </div>
-            <div className="panel-body">
-              {requete.data.every((x) => x.recurrences.length === 0) ? (
-                <p className="dep-none">{t("predefinies.aucuneRegle")}</p>
-              ) : (
-                requete.data.flatMap((tache) =>
+          ) : (
+            requete.data.flatMap((tache) =>
                   tache.recurrences.map((r) => (
                     <div
                       className={`rule-card${r.active ? "" : " is-off"}`}
@@ -180,13 +195,11 @@ export function Predefinies() {
                         {r.active ? t("predefinies.regleActive") : t("predefinies.regleInactive")}
                       </span>
                     </div>
-                  )),
-                )
-              )}
-            </div>
-          </section>
-        </>
-      )}
+              )),
+            )
+          )}
+        </div>
+      </section>
     </div>
   );
 }

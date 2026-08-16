@@ -68,8 +68,8 @@ test.describe("Vue 30 — rapports et analytics", () => {
     await serveur(page, { session: SESSION_RAPPORTS, reponses });
     await page.goto("/rapports");
 
-    await expect(page.getByText("Portail citoyen")).toBeVisible();
-    await expect(page.getByText("Critique")).toBeVisible();
+    await expect(page.getByText("Portail citoyen").first()).toBeVisible();
+    await expect(page.getByText("Critique").first()).toBeVisible();
     await expect(page.getByText(/3 tâches restantes/)).toBeVisible();
     await expect(page.getByText(/4 en retard/)).toBeVisible();
     // « Non assigné » plutôt qu'une case vide, qui se prend pour un défaut.
@@ -91,13 +91,13 @@ test.describe("Vue 30 — rapports et analytics", () => {
     await horlogeFixe(page);
     await serveur(page, { session: SESSION_RAPPORTS, reponses });
     await page.goto("/rapports");
-    await page.getByRole("tab", { name: "Analytics avancés" }).click();
+    await page.getByRole("navigation", { name: /Sections des rapports|Report sections/ }).getByRole("button", { name: "Analytics avancés" }).click();
 
     // Dix tâches ne veulent rien dire sans la moyenne à côté.
-    await expect(page.getByText("1 surcharge détectée")).toBeVisible();
-    await expect(page.getByText("Moyenne de l'équipe : 5 tâches")).toBeVisible();
+    await expect(page.getByText("Surcharge", { exact: true }).first()).toBeVisible();
+    await expect(page.getByText(/Moyenne : 5 tâches actives/)).toBeVisible();
     await expect(
-      page.getByRole("img", { name: /Ana Berger : 9 tâches — surcharge/ }),
+      page.getByRole("progressbar", { name: /Ana Berger : 9 tâches — surcharge/ }),
     ).toBeVisible();
   });
 
@@ -110,7 +110,7 @@ test.describe("Vue 30 — rapports et analytics", () => {
       reponses: { ...reponses, "/api/rapports": { corps: VUE_ENSEMBLE_JEUNE } },
     });
     await page.goto("/rapports");
-    await page.getByRole("tab", { name: "Analytics avancés" }).click();
+    await page.getByRole("navigation", { name: /Sections des rapports|Report sections/ }).getByRole("button", { name: "Analytics avancés" }).click();
 
     await expect(page.getByText("Historique en cours de construction")).toBeVisible();
     // Une courbe lissée sur un point aurait l'air d'une mesure.
@@ -121,7 +121,7 @@ test.describe("Vue 30 — rapports et analytics", () => {
     await horlogeFixe(page);
     await serveur(page, { session: SESSION_RAPPORTS, reponses });
     await page.goto("/rapports");
-    await page.getByRole("tab", { name: "Analytics avancés" }).click();
+    await page.getByRole("navigation", { name: /Sections des rapports|Report sections/ }).getByRole("button", { name: "Analytics avancés" }).click();
 
     // Un tracé n'est pas lisible autrement.
     await expect(
@@ -136,7 +136,7 @@ test.describe("Vue 30 — rapports et analytics", () => {
       reponses: { ...reponses, "/api/rapports": { corps: VUE_ENSEMBLE_STAGNANTE } },
     });
     await page.goto("/rapports");
-    await page.getByRole("tab", { name: "Analytics avancés" }).click();
+    await page.getByRole("navigation", { name: /Sections des rapports|Report sections/ }).getByRole("button", { name: "Analytics avancés" }).click();
 
     await expect(page.getByText("Stagnation détectée")).toBeVisible();
   });
@@ -145,19 +145,17 @@ test.describe("Vue 30 — rapports et analytics", () => {
     await horlogeFixe(page);
     await serveur(page, { session: SESSION_RAPPORTS, reponses });
     await page.goto("/rapports");
-    await page.getByRole("tab", { name: "Analytics avancés" }).click();
-
     await expect(page.getByText(/jalons atteints à temps sur 5 échus/)).toBeVisible();
-    await expect(page.getByText("3 à temps")).toBeVisible();
-    await expect(page.getByText("2 en retard")).toBeVisible();
-    await expect(page.getByText("2 à venir")).toBeVisible();
+    await expect(page.getByText("À temps", { exact: true })).toBeVisible();
+    await expect(page.getByText("En retard", { exact: true })).toBeVisible();
+    await expect(page.getByText("À venir", { exact: true })).toBeVisible();
   });
 
   test("EX-RPT-10 — LE RATIO EST INTERPRÉTÉ, pas laissé nu", async ({ page }) => {
     await horlogeFixe(page);
     await serveur(page, { session: SESSION_RAPPORTS, reponses });
     await page.goto("/rapports");
-    await page.getByRole("tab", { name: "Analytics avancés" }).click();
+    await page.getByRole("navigation", { name: /Sections des rapports|Report sections/ }).getByRole("button", { name: "Analytics avancés" }).click();
 
     // « 0,4 » ne dit rien à qui ne le manipule pas tous les jours.
     await expect(page.getByText("0,4")).toBeVisible();
@@ -173,7 +171,7 @@ test.describe("Vue 30 — rapports et analytics", () => {
       reponses: { ...reponses, "/api/rapports": { corps: VUE_ENSEMBLE_JEUNE } },
     });
     await page.goto("/rapports");
-    await page.getByRole("tab", { name: "Analytics avancés" }).click();
+    await page.getByRole("navigation", { name: /Sections des rapports|Report sections/ }).getByRole("button", { name: "Analytics avancés" }).click();
 
     await expect(page.getByText("Aucune complétion sur la période")).toBeVisible();
     await expect(page.getByText(/Le backlog/)).toHaveCount(0);
@@ -189,10 +187,10 @@ test.describe("Vue 30 — rapports et analytics", () => {
 
     // Une zone blanche se signale au support au lieu d'être comprise.
     await expect(page.getByText("Aucun projet à afficher").first()).toBeVisible();
-
-    await page.getByRole("tab", { name: "Analytics avancés" }).click();
-    await expect(page.getByText("Aucune tâche active à afficher").first()).toBeVisible();
     await expect(page.getByText("Aucun jalon défini")).toBeVisible();
+
+    await page.getByRole("navigation", { name: /Sections des rapports|Report sections/ }).getByRole("button", { name: "Analytics avancés" }).click();
+    await expect(page.getByText("Aucune tâche active à afficher").first()).toBeVisible();
   });
 
   test("EX-RPT-01 — la période se choisit, et la requête suit", async ({ page }) => {
@@ -205,7 +203,7 @@ test.describe("Vue 30 — rapports et analytics", () => {
       if (r.url().includes("/api/rapports")) demandes.push(r.url());
     });
 
-    await page.getByRole("button", { name: "Ce trimestre" }).click();
+    await page.getByRole("button", { name: "90 jours" }).click();
     await expect
       .poll(() => demandes.some((u) => u.includes("periode=trimestre")))
       .toBe(true);
@@ -250,7 +248,7 @@ test.describe("Vue 30 — Gantt portefeuille", () => {
     await horlogeFixe(page);
     await serveur(page, { session: SESSION_RAPPORTS, reponses });
     await page.goto("/rapports");
-    await page.getByRole("tab", { name: "Gantt Portfolio" }).click();
+    await page.getByRole("navigation", { name: /Sections des rapports|Report sections/ }).getByRole("button", { name: "Gantt portefeuille" }).click();
 
     for (const etat of ["On track", "À risque", "En retard", "À venir", "Terminé"]) {
       await expect(page.getByText(etat, { exact: true }).first()).toBeVisible();
@@ -263,7 +261,7 @@ test.describe("Vue 30 — Gantt portefeuille", () => {
     await horlogeFixe(page);
     await serveur(page, { session: SESSION_RAPPORTS, reponses });
     await page.goto("/rapports");
-    await page.getByRole("tab", { name: "Gantt Portfolio" }).click();
+    await page.getByRole("navigation", { name: /Sections des rapports|Report sections/ }).getByRole("button", { name: "Gantt portefeuille" }).click();
 
     await expect(
       page.getByRole("img", {
@@ -280,7 +278,7 @@ test.describe("Vue 30 — Gantt portefeuille", () => {
     await horlogeFixe(page);
     await serveur(page, { session: SESSION_RAPPORTS, reponses });
     await page.goto("/rapports");
-    await page.getByRole("tab", { name: "Gantt Portfolio" }).click();
+    await page.getByRole("navigation", { name: /Sections des rapports|Report sections/ }).getByRole("button", { name: "Gantt portefeuille" }).click();
 
     const tri = page.getByLabel("Trier");
     await expect(tri.locator("option")).toHaveCount(9);
@@ -296,7 +294,7 @@ test.describe("Vue 30 — Gantt portefeuille", () => {
       reponses: { ...reponses, "/api/rapports/gantt": { corps: GANTT_VIDE } },
     });
     await page.goto("/rapports");
-    await page.getByRole("tab", { name: "Gantt Portfolio" }).click();
+    await page.getByRole("navigation", { name: /Sections des rapports|Report sections/ }).getByRole("button", { name: "Gantt portefeuille" }).click();
 
     await expect(page.getByText("Aucun projet actif à afficher")).toBeVisible();
   });

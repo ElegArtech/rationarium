@@ -44,3 +44,9 @@
 .au-ctx{ border:1px solid var(--line); border-radius:var(--r); background:var(--surface-2);
   padding:11px 12px; font-family:var(--font-mono); font-size:11px; line-height:1.7; margin-top:14px; }
 .au-ctx b{ color:var(--muted); font-weight:500; }
+
+/* Ce que la maquette pose en style en ligne, et qui devient une classe. */
+.lede-vue{ margin-top:4px; }
+.label-inline{ margin:0; }
+.titre-tiroir{ margin:5px 0 0; font-size:15px; }
+.hint-tiroir{ margin-top:14px; }

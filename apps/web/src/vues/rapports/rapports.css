@@ -62,7 +62,7 @@
 
 /* Activité récente */
 .act3{ display:grid; grid-template-columns:repeat(3,1fr); gap:11px; margin-bottom:14px; }
-.act3 .kpi{ padding:13px; }
+.act3 .rep{ padding:13px; }
 .ratio-box{ border:1px solid currentColor; border-radius:var(--r); padding:13px 14px;
   display:flex; align-items:center; gap:13px; }
 .ratio-v{ font-family:var(--font-display); font-size:25px; font-weight:600; line-height:1; }
@@ -85,7 +85,12 @@
   display:flex; align-items:center; padding-left:7px; overflow:hidden; }
 .pg-row{ display:flex; align-items:center; gap:10px; height:38px; padding:0 14px;
   border-bottom:1px solid var(--line); }
+.pg-row.is-mile{ height:28px; padding-left:38px; background:var(--surface-2); }
 .pg-n{ font-size:12.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex:1; }
+.pg-n.is-mile{ font-size:11.5px; color:var(--muted); }
+.pg-mile-mk{ position:absolute; width:9px; height:9px; transform:rotate(45deg);
+  background:var(--surface); border:2px solid var(--st-doing); }
+.pg-mile-mk.is-done{ background:var(--st-done); border-color:var(--st-done); }
 .pg-body{ position:relative; }
 .pg-bar{ position:absolute; height:16px; border-radius:3px; border:1px solid currentColor;
   background:color-mix(in srgb, currentColor 24%, var(--surface)); overflow:hidden; }
@@ -100,6 +105,21 @@
 /* `RG-RPT-02` — le troncage est ANNONCÉ, jamais silencieux. */
 .trunc{ display:flex; align-items:center; gap:9px; padding:10px 14px; border-top:1px solid var(--line);
   background:var(--warn-soft); font-size:12px; color:var(--st-review); }
+
+/*
+ * Ce que la maquette pose en style en ligne, et qui devient une classe : le
+ * balisage du produit ne porte pas d'attribut `style` calculé à la main.
+ */
+.ligne-icone{ display:flex; align-items:center; gap:8px; }
+.picon-box-sm{ width:24px; height:24px; }
+.alert-corps{ flex:1; }
+.panel-espace-haut{ margin-top:14px; }
+
+/* L'erreur de chargement des analytiques, rédigée sur place : elle nomme le
+   service en cause ET ce qui reste accessible. */
+.empty-encadre-erreur{ padding:56px 20px; border:1px dashed var(--st-blocked);
+  border-radius:var(--r); }
+.texte-erreur{ color:var(--st-blocked); }
 
 /* ── Impression et PDF — vue 30 ──────────────────────────────────────────── */
 /*
@@ -116,7 +136,10 @@
 @media print {
   @page { size: A4 portrait; margin: 14mm; }
 
-  .side, .topbar, .rep-bar, .tabs, .no-print { display: none !important; }
+  /* `.tabbar`, pas `.tabs` : la barre de sections porte le vocabulaire de la
+     maquette depuis le portage de la vue 30. Un sélecteur sans correspondance
+     n'est jamais rouge — celui-ci laissait les onglets s'imprimer. */
+  .side, .topbar, .rep-bar, .tabbar, .no-print { display: none !important; }
   .app { display: block !important; }
   .page { display: block; padding: 0; max-width: none; }
 
@@ -141,3 +164,4 @@
   .chart .serie { stroke: var(--encre) !important; }
   .chart .dot { fill: var(--encre) !important; }
 }
+.picon-box-sm .picon-glyphe{ font-size:13px; }

@@ -19,7 +19,7 @@ import i18next from "i18next";
  * lieu** : dans un test unitaire qui n'importe pas la configuration, ou au
  * tout premier rendu. Le défaut français est explicite plutôt que subi.
  */
-const locale = (): string => (i18next.language?.startsWith("en") ? "en-GB" : "fr-FR");
+const langueInterface = (): string => (i18next.language?.startsWith("en") ? "en-GB" : "fr-FR");
 
 /**
  * ────────────────────────────────────────────────────────────────────────────
@@ -45,6 +45,19 @@ export const appliquerReglages = (valeurs: Record<string, string>): void => {
 
 /** Le réglage courant, ou son défaut. */
 const reglage = (cle: string, defaut: string): string => reglages[cle] ?? defaut;
+
+/*
+ * La région se règle en vue 31 (« Langue et région ») et **s'applique ici**.
+ * Elle décide du nom des mois et des jours de la semaine — exactement ce que
+ * l'aide du réglage annonce. Sans ce branchement, le réglage s'enregistrerait
+ * sans rien changer : le défaut trouvé par l'audit L-28, sur cette vue-là.
+ *
+ * Non réglée, la région suit la langue de l'interface, comme auparavant.
+ */
+const locale = (): string => {
+  const choisie = reglage("display.locale", "");
+  return choisie === "" ? langueInterface() : choisie;
+};
 
 /**
  * Le premier jour de la semaine — `0` dimanche, `1` lundi.

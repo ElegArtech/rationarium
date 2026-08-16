@@ -14,6 +14,7 @@ import { Pastille, Barre, MarqueurCalcule } from "../../composants/pastilles.js"
 import { formaterDate, joursAvant } from "../../formats.js";
 import { FenetreCreationTache } from "../taches/FenetreCreationTache.js";
 import { CadreProjet } from "./Fiche.js";
+import "../../composants/partages.css";
 import "./fiche.css";
 import "./jalons.css";
 
