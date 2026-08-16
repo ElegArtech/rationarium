@@ -168,3 +168,21 @@ export const ajouterMembre = (
   projectId: string,
   donnees: { userId: string; roleProjet: string; tauxAllocation?: number },
 ) => appeler<unknown>(`/projets/${projectId}/membres`, { methode: "POST", corps: donnees });
+
+/**
+ * `EX-PRJ-09` — changer le rôle ou l'allocation d'un membre EN PLACE.
+ *
+ * Sans ce point d'entrée, corriger un rôle imposait de retirer la personne
+ * puis de la rajouter : un lien rompu pour être refait, avec la notification
+ * d'ajout qui prévient quelqu'un qu'il rejoint un projet qu'il n'a jamais
+ * quitté.
+ */
+export const changerRoleMembre = (
+  projectId: string,
+  userId: string,
+  donnees: { roleProjet?: string; tauxAllocation?: number | null },
+) =>
+  appeler<unknown>(`/projets/${projectId}/membres/${userId}`, {
+    methode: "PATCH",
+    corps: donnees,
+  });

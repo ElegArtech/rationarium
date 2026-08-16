@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
+import { ROLES_PROJET } from "@trame/contracts";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "react-aria-components";
 import { appeler } from "../../api/client.js";
@@ -9,7 +10,7 @@ import { usePeut } from "../../session/session.js";
 import { Chargement, ErreurDeChargement } from "../../composants/etats.js";
 import { Fenetre } from "../../composants/fenetre.js";
 import { useMessages } from "../../composants/messages.js";
-import { Barre } from "../../composants/pastilles.js";
+import { Barre, useLibelle } from "../../composants/pastilles.js";
 import { formaterNombre } from "../../formats.js";
 import { CadreProjet } from "./Fiche.js";
 import "../../composants/partages.css";
@@ -49,26 +50,12 @@ type Equipe = {
   allocationCumulee: number;
 };
 
-/** `cadrage/02`, vue 14 — la liste est fermée et vient du brief, pas d'un choix. */
-const ROLES_PROJET = [
-  "sponsor",
-  "chefDeProjet",
-  "responsableTechnique",
-  "architecte",
-  "techLead",
-  "developpeurSenior",
-  "developpeur",
-  "developpeurJunior",
-  "devops",
-  "qaLead",
-  "testeur",
-  "designer",
-  "productOwner",
-  "scrumMaster",
-  "analysteMetier",
-  "membre",
-  "observateur",
-] as const;
+/*
+ * La liste des rôles vit dans `@trame/contracts` : `cadrage/01 § M4` l'énumère,
+ * ce n'est donc pas une liste locale. Elle en était une ici — dix-sept chaînes
+ * recopiées avec leurs propres clés de traduction, à côté d'un contrat qui
+ * acceptait n'importe quelle chaîne.
+ */
 
 export function Equipe({ projetId }: { projetId: string }) {
   const { t } = useTranslation("projets");
@@ -265,6 +252,23 @@ function LigneAgent({
   const nomComplet = `${membre.utilisateur.prenom} ${membre.utilisateur.nom}`;
   const allocation = membre.tauxAllocation ?? 0;
 
+  const libelle = useLibelle();
+
+  /*
+   * `EX-PRJ-09` — le changement de rôle, sans retrait ni réajout. La
+   * notification d'ajout n'est PAS renvoyée : on ne prévient pas quelqu'un
+   * qu'il rejoint un projet qu'il n'a jamais quitté.
+   */
+  const changementRole = useMutation({
+    mutationFn: (roleProjet: string) =>
+      api.changerRoleMembre(projetId, membre.userId, { roleProjet }),
+    onSuccess: () => {
+      annoncer("ok", t("equipe.roleChange", { nom: nomComplet }));
+      void client.invalidateQueries({ queryKey: ["projet", projetId] });
+    },
+    onError: (e) => annoncer("err", messageErreur(e, tErreurs, t("fiche.echecAction"))),
+  });
+
   const retrait = useMutation({
     mutationFn: () =>
       appeler<void>(`/projets/${projetId}/membres/${membre.userId}`, { methode: "DELETE" }),
@@ -289,7 +293,29 @@ function LigneAgent({
         </span>
       </div>
 
-      <span className="mini-select-libelle">{t(`equipe.role_${membre.roleProjet}`, membre.roleProjet)}</span>
+      {/*
+        Le sélecteur de rôle de la maquette 14, sur chaque ligne. Il n'existait
+        pas — le rôle s'affichait en texte figé — et le point d'entrée qui
+        l'aurait changé n'existait pas non plus : corriger un rôle imposait de
+        retirer la personne puis de la rajouter.
+      */}
+      {peut("projects:manage_members") ? (
+        <select
+          className="mini-select"
+          value={membre.roleProjet}
+          aria-label={t("equipe.roleDe", { nom: nomComplet })}
+          disabled={changementRole.isPending}
+          onChange={(e) => changementRole.mutate(e.target.value)}
+        >
+          {ROLES_PROJET.map((r) => (
+            <option key={r.code} value={r.code}>
+              {libelle(r.code, ROLES_PROJET)}
+            </option>
+          ))}
+        </select>
+      ) : (
+        <span className="mini-select-libelle">{libelle(membre.roleProjet, ROLES_PROJET)}</span>
+      )}
 
       <div className="malloc">
         <span className="prow-pct">{allocation} %</span>
@@ -370,6 +396,7 @@ function FenetreAjout({
   const [nature, setNature] = useState<"agent" | "tiers" | "client">("agent");
   const [qui, setQui] = useState("");
   const [role, setRole] = useState<string>("membre");
+  const libelleAjout = useLibelle();
   const [allocation, setAllocation] = useState(50);
   const [erreur, setErreur] = useState<string | null>(null);
 
@@ -496,8 +523,8 @@ function FenetreAjout({
               onChange={(e) => setRole(e.target.value)}
             >
               {ROLES_PROJET.map((r) => (
-                <option key={r} value={r}>
-                  {t(`equipe.role_${r}`)}
+                <option key={r.code} value={r.code}>
+                  {libelleAjout(r.code, ROLES_PROJET)}
                 </option>
               ))}
             </select>

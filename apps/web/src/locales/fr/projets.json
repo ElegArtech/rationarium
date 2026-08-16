@@ -200,22 +200,7 @@
     "aucuneDonneeSupprimee": "Aucune donnée n'est supprimée",
     "type_individual": "Personne physique",
     "type_organization": "Organisation",
-    "role_sponsor": "Sponsor",
-    "role_chefDeProjet": "Chef de projet",
-    "role_responsableTechnique": "Responsable technique",
-    "role_architecte": "Architecte",
-    "role_techLead": "Tech Lead",
-    "role_developpeurSenior": "Développeur Senior",
-    "role_developpeur": "Développeur",
-    "role_developpeurJunior": "Développeur Junior",
-    "role_devops": "DevOps",
-    "role_qaLead": "QA Lead",
-    "role_testeur": "Testeur",
-    "role_designer": "UX/UI Designer",
-    "role_productOwner": "Product Owner",
-    "role_scrumMaster": "Scrum Master",
-    "role_analysteMetier": "Analyste métier",
-    "role_membre": "Membre",
-    "role_observateur": "Observateur"
+    "roleDe": "Rôle de {nom} dans le projet",
+    "roleChange": "Rôle de {nom} modifié"
   }
 }
