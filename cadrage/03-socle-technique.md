@@ -13,6 +13,8 @@ Il est subordonné aux deux précédents. Aucune contrainte technique énoncée 
 
 **Les versions indiquées ont été vérifiées le 15 août 2026** contre le registre npm et les annonces officielles des éditeurs. Elles sont datées : toute reprise ultérieure de ce document doit les revalider.
 
+> **Revalidées le 16 août 2026**, au montage des espaces de travail : les dix-neuf briques contrôlées correspondaient exactement au registre. Deux corrections ont été portées à ce document à l'issue de la levée des risques R1 et R2 — la ligne TypeScript (§ 3.1 et § 9) et la portée de l'acquis Prisma (§ 4, D6). Elles sont signalées en place.
+
 **Comment le lire.** La section 1 dérive du cadrage les contraintes techniques qui ne se négocient pas. La section 2 énonce le principe de sélection. La section 3 est la pile elle-même, version par version. La section 4 justifie les douze décisions structurantes et nomme les options écartées. La section 5 traite les points d'architecture directement dictés par des règles de gestion. Les sections 6 à 8 rassemblent les risques, les écarts constatés dans les maquettes et ce qui reste à arbitrer.
 
 ---
@@ -71,7 +73,7 @@ Versions vérifiées le **15 août 2026**.
 | Brique | Version | Rôle |
 | --- | --- | --- |
 | **Node.js** | **24 LTS** (Active LTS jusqu'en octobre 2026, puis maintenance) | Exécution serveur et outillage |
-| **TypeScript** | **7.0.2** | Typage de bout en bout |
+| **TypeScript** | **6.0.3** | Typage de bout en bout |
 | **pnpm** | **11.22.0** | Gestionnaire de paquets, dépôt en espaces de travail |
 | **Turborepo** | **2.10.10** | Orchestration des tâches du dépôt |
 | **PostgreSQL** | **18.6** | Base de données unique |
@@ -80,7 +82,9 @@ Versions vérifiées le **15 août 2026**.
 
 **Node 24 plutôt que 26.** Node 26 est sorti mais reste en ligne *Current* : il ne passe en Active LTS qu'en octobre 2026. Démarrer sur 24 et basculer sur 26 dès sa promotion est la trajectoire sûre — d'autant que Node 26 est le dernier à suivre l'ancien modèle de publication, le nouveau (une majeure par an en avril, promotion LTS en octobre, toutes les versions devenant LTS) prenant effet avec Node 27.
 
-**TypeScript 7.** Le compilateur natif écrit en Go est disponible en version stable depuis le 8 juillet 2026, avec des gains de vérification de type d'un ordre de grandeur. Réserve à lever au démarrage (§ 6) : l'API programmatique n'est stabilisée qu'en 7.1, ce qui affecte les outils qui l'utilisent — au premier rang desquels `typescript-eslint`. Le repli est TypeScript 6.x, sans autre conséquence que la vitesse de compilation.
+**TypeScript 6 et non 7 — réserve levée, repli appliqué.** La version 7, compilateur natif écrit en Go, est stable depuis le 8 juillet 2026 et apporte des gains de vérification de type d'un ordre de grandeur. La réserve portée au risque **R1** était que l'API programmatique n'est stabilisée qu'en 7.1, ce qui affecte les outils qui l'utilisent — au premier rang desquels `typescript-eslint`.
+
+> **Vérifié le 16 août 2026 : la réserve est fondée, et plus lourde que prévu.** `typescript-eslint` 8.67.0 ne se dégrade pas sur TypeScript 7, il **lève une erreur fatale au chargement** — pour toutes ses règles, pas seulement les règles typées. Trois montages de cohabitation TS 6 / TS 7 ont été essayés sans succès. Le repli annoncé est donc appliqué : **TypeScript 6.0.3**, avec les règles typées actives. `tsc` 7.0.2 fonctionnait parfaitement : le blocage vient de l'outillage tiers, pas du compilateur. Bascule prévue dès que TypeScript 7.1 et une version compatible de `typescript-eslint` seront publiées. Voir `docs/adr/ADR-0014`.
 
 **PostgreSQL 18 et pas 19.** La 19 est en bêta, sortie attendue en septembre/octobre 2026. La 18 apporte le nouveau sous-système d'entrées/sorties asynchrones et une couverture d'index élargie ; c'est la base d'une mise en production en 2027.
 
@@ -133,7 +137,11 @@ Versions vérifiées le **15 août 2026**.
 | **@fastify/multipart** | 10.1.1 | Téléversement de documents et d'avatars |
 | **@fastify/rate-limit** | 11.2.0 | Limitation d'essais (`RG-AUTH-01`) |
 
-**Prisma 7 et non Prisma 6.** La version 7 abandonne le moteur Rust au profit d'un client entièrement TypeScript. Ce détail d'implémentation a une conséquence décisive sous **C1** : plus de binaire de moteur à télécharger à l'installation ni à embarquer par plateforme. À vérifier au premier jour néanmoins (§ 6) : que `prisma generate` et `prisma migrate` fonctionnent hors ligne dans l'image de construction.
+**Prisma 7 et non Prisma 6.** La version 7 abandonne le moteur Rust au profit d'un client entièrement TypeScript. Sous **C1**, l'acquis est réel : le **moteur de requêtes** ne s'installe plus comme binaire par plateforme.
+
+> **Vérifié le 16 août 2026, sur réseau fermé : concluant, mais la portée de l'acquis était surestimée.** Le **moteur de schéma**, lui, reste un binaire de 22 Mo spécifique à la plateforme, téléchargé en post-installation et nécessaire à toute commande `migrate`. Il est téléchargé en `failSilent` : **une installation hors ligne paraît réussir et casse à la première migration.** `generate`, `migrate deploy` et `migrate dev` fonctionnent bien sans accès sortant, à deux conditions — OpenSSL 3 présent dans l'image, sans quoi Prisma se trompe de plateforme et va chercher le binaire en ligne ; et moteur embarqué puis épinglé par `PRISMA_SCHEMA_ENGINE_BINARY`. Conséquence de méthode : le contrôle d'intégration continue doit porter sur le **comportement** — engendrer, migrer — jamais sur le seul succès de l'installation. Voir `docs/adr/ADR-0006` et `ADR-0013`.
+>
+> Autre point relevé, sans rapport avec le réseau : en Prisma 7, l'URL de connexion ne vit plus dans le bloc `datasource` du schéma mais dans un `prisma.config.ts`, et le client la reçoit par un adaptateur de pilote. Un schéma portant `url = env(…)` est refusé (`P1012`). L'adaptateur est une dépendance à arrêter en L-02.
 
 **Requêtes chaudes en SQL.** Le planning agrégé, les rapports et la matrice de compétences ne passent pas par le constructeur de requêtes : ce sont des vues SQL et des requêtes typées, écrites à la main, exécutées via Prisma. On garde le client typé pour les 95 % d'accès ordinaires et le SQL pour les 5 % qui portent le budget de performance.
 
@@ -161,7 +169,7 @@ Versions vérifiées le **15 août 2026**.
 | **@axe-core/playwright** | 4.13.0 | Contrôle d'accessibilité automatisé sur chaque vue |
 | **Storybook** | 10.5.8 | Catalogue de composants, **support des états vides et des variantes de droits** |
 | **ESLint** | 10.8.1 | Règles de code |
-| **typescript-eslint** | 8.67.0 | Règles typées *(compatibilité TS 7 à valider — § 6)* |
+| **typescript-eslint** | 8.67.0 | Règles typées *(exige TypeScript ≤ 6.0.x — ADR-0014)* |
 | **oxlint** | 1.78.0 | Passe rapide en pré-validation *(optionnel)* |
 
 **Storybook n'est pas un luxe ici.** Le § D des briefs recense une quarantaine d'états vides distincts, chacun avec son texte et sa sortie, et exige que chaque vue soit crédible « en version minimale comme en version administrateur ». Ces états ne sont pas atteignables en naviguant dans l'application : il faut un banc où les instancier. Les maquettes l'avaient d'ailleurs anticipé, avec leur panneau de revue permettant de basculer entre *normal*, *chargement*, *aucune donnée* et *données périmées*.
@@ -336,8 +344,8 @@ Deux mécanismes distincts, jamais confondus, comme l'exige le § D.4 :
 
 | # | Risque | Vérification | Repli |
 | --- | --- | --- | --- |
-| R1 | **TypeScript 7 et l'outillage typé** — l'API programmatique n'est stable qu'en 7.1 ; `typescript-eslint` 8.67.0 peut ne pas suivre | Monter un projet témoin : `tsc`, règles typées ESLint, `vite build`, Storybook | TypeScript 6.x, sans autre effet que la vitesse |
-| R2 | **Prisma hors ligne** — vérifier qu'aucune étape ne sollicite le réseau | `prisma generate` et `prisma migrate deploy` dans un conteneur sans accès sortant | Engendrer le client à la construction et le figer dans l'image |
+| ~~R1~~ | **Levé le 2026-08-16 — repli appliqué.** `typescript-eslint` lève une erreur fatale sur TS 7.0 ; cohabitation impraticable | Projet témoin monté : `tsc`, règles typées ESLint, `vite build` | **TypeScript 6.0.3 retenu.** Voir ADR-0014 |
+| ~~R2~~ | **Levé le 2026-08-16 — concluant sous conditions.** Le moteur de schéma reste un binaire téléchargé, en échec silencieux | Vérifié sur réseau Docker `--internal` : `generate`, `migrate deploy`, `migrate dev` | **OpenSSL 3 dans l'image + moteur embarqué et épinglé.** Voir ADR-0006 |
 | R3 | **NestJS v12 au troisième trimestre 2026** — passage aux modules ES | Écrire dès le départ en modules ES ; surveiller la publication | Rester en 11.x, maintenue |
 | R4 | **Base UI en `1.0.0-rc.0`** — écarté aujourd'hui, à réévaluer | Suivre la sortie de la 1.0 stable | Aucun : React Aria couvre le besoin |
 | R5 | **Densité de la vue Mois** (22 colonnes × N lignes) — le point dur du produit | Prototyper la vue 08 **en premier**, à la volumétrie cible, avant tout autre écran | Virtualisation par TanStack Virtual ; repli des services par défaut |
@@ -385,7 +393,7 @@ Vérifié le **15 août 2026**. À revalider avant tout démarrage ultérieur.
 | Domaine | Brique | Version |
 | --- | --- | --- |
 | Exécution | Node.js | 24 LTS |
-| | TypeScript | 7.0.2 |
+| | TypeScript | 6.0.3 |
 | | pnpm | 11.22.0 |
 | | Turborepo | 2.10.10 |
 | | PostgreSQL | 18.6 |
