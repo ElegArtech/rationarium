@@ -98,7 +98,11 @@ export function Jalons({ projetId }: { projetId: string }) {
   if (route.isError)
     return <ErreurDeChargement erreur={route.error} surReessai={() => void route.refetch()} />;
 
-  const { jalons, sansJalon, indicateurs } = route.data;
+  const { jalons, indicateurs } = route.data;
+  // Repli sur une liste vide : un serveur antérieur à `RG-JAL-05` ne rend pas
+  // ce champ, et une page blanche est le pire des modes de défaillance — bien
+  // pire que le bloc manquant qu'elle remplacerait.
+  const sansJalon = route.data.sansJalon ?? [];
   const sansDate = jalons.filter((j) => !j.dateEcheance).length;
   const enRetard = jalons.filter(
     (j) => j.statut !== "done" && (joursAvant(j.dateEcheance) ?? 1) < 0,
