@@ -21,6 +21,9 @@ export class ProjetsController {
         statut: enumDe(STATUTS_PROJET).optional(),
         priorite: enumDe(PRIORITES).optional(),
         archive: z.stringbool().optional(),
+        /* Maquette 10 — « Mes projets ». Un resserrement de lecture, pas un
+           droit : le périmètre s'applique de toute façon en amont. */
+        mesProjets: z.stringbool().optional(),
       }),
       requete,
     );
