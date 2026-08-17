@@ -56,6 +56,16 @@ const SELECTION_TACHE_JALON = {
   avancement: true,
   dateFin: true,
   estimationHeures: true,
+  /*
+   * `RG-GEN-07` — la version lue accompagne l'écriture.
+   *
+   * La maquette 13 rend le statut de chaque tâche **modifiable en ligne**
+   * (`select.mini-select`), et `cadrage/02` le confirme : « Chaque tâche
+   * affiche titre, statut modifiable en ligne, assignés, estimation ». Sans la
+   * version ici, le client n'aurait rien à opposer à une écriture concurrente
+   * et ne pourrait modifier qu'en « dernier arrivé gagne » — interdit.
+   */
+  version: true,
   assignes: {
     select: { user: { select: { id: true, prenom: true, nom: true } } },
   },

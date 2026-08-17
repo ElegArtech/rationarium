@@ -1,16 +1,18 @@
 import { useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { adresseExportJalons } from "../../api/imports.js";
+import * as apiImports from "../../api/imports.js";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "react-aria-components";
 import { STATUTS_JALON, STATUTS_TACHE } from "@trame/contracts";
 import * as api from "../../api/projets.js";
+import * as apiTaches from "../../api/taches.js";
 import { messageErreur } from "../../api/erreurs.js";
 import { usePeut } from "../../session/session.js";
 import { Chargement, ErreurDeChargement } from "../../composants/etats.js";
 import { Fenetre } from "../../composants/fenetre.js";
+import { FenetreImport } from "../../composants/Import.js";
 import { useMessages } from "../../composants/messages.js";
-import { Pastille, Barre, MarqueurCalcule } from "../../composants/pastilles.js";
+import { Pastille, Barre, MarqueurCalcule, useLibelle } from "../../composants/pastilles.js";
 import { formaterDate, joursAvant } from "../../formats.js";
 import { FenetreCreationTache } from "../taches/FenetreCreationTache.js";
 import { CadreProjet } from "./Fiche.js";
@@ -82,12 +84,112 @@ function Charge({ tache }: { tache: api.TacheDeJalon }) {
   );
 }
 
+/**
+ * Une ligne de tâche de la chronologie — `.tk`, maquette 13.
+ *
+ * **Le statut de la tâche se saisit ici, à la différence de celui du jalon.**
+ * La maquette pose l'opposition dans le même écran : `select.mini-select` sur
+ * la tâche, `pill` + `calc-tag` sur le jalon. `cadrage/02` la reprend — « Chaque
+ * tâche affiche titre, statut modifiable en ligne, assignés, estimation ». Une
+ * pastille figée aurait rendu la même image et perdu le geste.
+ *
+ * Sans le droit d'écrire, la liste déroulante reste, désactivée : `RG-GEN-06`
+ * demande de désactiver par courtoisie, pas d'escamoter — et une ligne qui
+ * change de forme selon les droits fait douter de ce qu'on lit.
+ */
+function LigneTache({
+  tache,
+  modifiable,
+  surStatut,
+}: {
+  tache: api.TacheDeJalon;
+  modifiable: boolean;
+  surStatut: (statut: string) => void;
+}) {
+  const { t } = useTranslation("projets");
+  const libelle = useLibelle();
+  /*
+   * La seconde ligne dit l'AVANCEMENT, pas l'échéance — maquette 13, `tk-sub`.
+   *
+   * Ce que la ligne doit faire lire, c'est où en est la tâche : la colonne du
+   * statut donne déjà l'étape, le pourcentage donne la distance qui reste. La
+   * date, elle, est portée par le jalon juste au-dessus, et la répéter par
+   * tâche remplissait la ligne sans rien apprendre.
+   */
+  const enRetard = tache.statut !== "done" && (joursAvant(tache.dateFin) ?? 1) < 0;
+
+  return (
+    <div className="tk">
+      <div className="bloc-etroit">
+        <span className="tk-name">{tache.titre}</span>
+        <span className={`tk-sub${enRetard ? " is-late" : ""}`}>
+          {t("jalons.avancementPourcent", { pct: tache.avancement })}
+          {enRetard ? t("jalons.etEnRetard") : ""}
+        </span>
+      </div>
+      <select
+        className="mini-select"
+        value={tache.statut}
+        disabled={!modifiable}
+        aria-label={t("jalons.statutDe", { titre: tache.titre })}
+        onChange={(e) => surStatut(e.target.value)}
+      >
+        {STATUTS_TACHE.map((s) => (
+          <option key={s.code} value={s.code}>
+            {libelle(s.code, STATUTS_TACHE)}
+          </option>
+        ))}
+      </select>
+      <Assignes tache={tache} />
+      <Charge tache={tache} />
+    </div>
+  );
+}
+
+/**
+ * La fenêtre d'import des jalons — action « Importer CSV » de la maquette 13.
+ *
+ * Les colonnes sont celles que `cadrage/01 § M21` impose pour « Jalons d'un
+ * projet » : `name*`, `description`, `dueDate*`. Ce sont exactement celles que
+ * l'export de la vue produit, donc le fichier exporté se réimporte tel quel.
+ *
+ * **La route serveur d'exécution n'existe pas encore.** `POST /imports/jalons`
+ * est absent du contrôleur M21, qui n'expose que l'aperçu (`analyser`, qui
+ * connaît bien le type `jalons`) et l'export. Même situation, et même parti
+ * pris, que `importerCompetences` : le manque est remonté au cadrage plutôt
+ * que comblé ici.
+ */
+function ImportJalons({ projetId, surFermer }: { projetId: string; surFermer: () => void }) {
+  // Nommé `tImports` et non `t` : le contrôle i18n attribue les clés au
+  // namespace de LA liaison qui les porte, et deux `t` nus le rendraient aveugle.
+  const { t: tImports } = useTranslation("imports");
+  const client = useQueryClient();
+
+  return (
+    <FenetreImport
+      type="jalons"
+      titre={tImports("titreJalons")}
+      colonnes={["name", "description", "dueDate"]}
+      surExecuter={async (contenu) => {
+        const rendu = await apiImports.importerJalons(projetId, contenu);
+        await client.invalidateQueries({ queryKey: ["projet", projetId] });
+        return rendu;
+      }}
+      surFermer={surFermer}
+    />
+  );
+}
+
 export function Jalons({ projetId }: { projetId: string }) {
   const { t } = useTranslation("projets");
   const { t: tImports } = useTranslation("imports");
+  const { t: tErreurs } = useTranslation("erreurs");
   const peut = usePeut();
+  const annoncer = useMessages();
+  const client = useQueryClient();
   const [creationOuverte, setCreationOuverte] = useState(false);
   const [tacheOuverte, setTacheOuverte] = useState(false);
+  const [importOuvert, setImportOuvert] = useState(false);
   /*
    * Dépliés d'emblée, ceux qui portent des tâches.
    *
@@ -107,6 +209,30 @@ export function Jalons({ projetId }: { projetId: string }) {
   const route = useQuery({
     queryKey: ["projet", projetId, "route"],
     queryFn: () => api.feuilleDeRoute(projetId),
+  });
+
+  /*
+   * `RG-JAL-01` — changer le statut d'une tâche **recalcule celui de son
+   * jalon**. C'est tout l'objet du geste dans cette vue, et le message le dit :
+   * sans lui, la frise se réordonne sous les yeux sans qu'on sache pourquoi.
+   *
+   * `RG-GEN-07` — la version lue part avec l'écriture ; un 409 est rendu tel
+   * quel, jamais rejoué en silence.
+   *
+   * Déclarée **avant** les retours anticipés ci-dessous : un `useMutation` placé
+   * après eux n'est pas appelé au premier rendu, et React s'arrête sur « rendered
+   * more hooks than during the previous render » — une page morte, pour un
+   * déplacement de quinze lignes.
+   */
+  const changerStatut = useMutation({
+    mutationFn: ({ tache, statut }: { tache: api.TacheDeJalon; statut: string }) =>
+      apiTaches.modifier(tache.id, { version: tache.version, statut }),
+    onSuccess: () => {
+      annoncer("ok", t("jalons.statutMisAJour"));
+      void client.invalidateQueries({ queryKey: ["projet", projetId] });
+      void client.invalidateQueries({ queryKey: ["taches"] });
+    },
+    onError: (e) => annoncer("err", messageErreur(e, tErreurs, t("jalons.echecStatut"))),
   });
 
   if (projet.isPending || route.isPending) return <Chargement quoi={t("jalons.laFeuille")} />;
@@ -146,9 +272,16 @@ export function Jalons({ projetId }: { projetId: string }) {
         <div className="ligne-actions-fin">
           {/* La réversibilité : le CSV exporté se réimporte tel quel. */}
           {peut("tasks:export") ? (
-            <a className="chip-btn" href={adresseExportJalons(projetId)} download>
+            <a className="chip-btn" href={apiImports.adresseExportJalons(projetId)} download>
               {tImports("exporterJalons")}
             </a>
+          ) : null}
+          {/* `cadrage/02`, vue 13 — « Importer CSV » ferme la boucle de
+              l'export ci-dessus : mêmes colonnes, même fichier. */}
+          {peut("tasks:import") ? (
+            <Button className="chip-btn" onPress={() => setImportOuvert(true)}>
+              {tImports("importerCsv")}
+            </Button>
           ) : null}
           {/* `cadrage/02`, vue 13 — la barre d'actions porte « + Nouveau jalon,
               + Nouvelle tâche, Importer CSV ». La création de tâche emploie la
@@ -207,6 +340,7 @@ export function Jalons({ projetId }: { projetId: string }) {
               jalon={j}
               deplie={ouverts.has(j.id)}
               surBascule={() => basculer(j.id, ouverts)}
+              surStatut={(tache, statut) => changerStatut.mutate({ tache, statut })}
             />
           ))}
         </div>
@@ -228,35 +362,42 @@ export function Jalons({ projetId }: { projetId: string }) {
         **hors de la chronologie** : une tâche rattachée à rien n'a pas de
         place sur une frise, mais elle a une place à l'écran. C'est même celle
         qu'on oublie le plus sûrement.
+
+        Il paraît **dès que la chronologie porte des jalons**, et non seulement
+        quand il a des lignes : c'est la règle de la maquette, qui le lie à la
+        présence de données (`orphan.hidden = !hasData`) et jamais au décompte.
+        Un bloc qui n'apparaît qu'une fois peuplé n'apprend rien tant qu'il est
+        vide, et surprend le jour où il surgit — alors qu'à zéro il répond déjà
+        à la question qu'on se pose : « ai-je oublié quelque chose ? ».
       */}
-      {sansJalon.length > 0 ? (
+      {jalons.length > 0 ? (
         <div className="orphan">
           <div className="orphan-head">
             <span className="panel-title">{t("jalons.sansJalonTitre")}</span>
             <span className="kcol-n">{sansJalon.length}</span>
-            <Button
-              className="ms-toggle"
-              style={{ marginLeft: "auto" }}
-              aria-expanded={orphelinesOuvertes}
-              onPress={() => setOrphelinesOuvertes((o) => !o)}
-            >
-              {t(orphelinesOuvertes ? "jalons.masquer" : "jalons.afficher")}
-            </Button>
+            {/* Rien à déplier quand il n'y a rien : la maquette pose la bascule
+                sans jamais montrer ce cas, et une commande sans effet est pire
+                qu'une commande absente. */}
+            {sansJalon.length > 0 ? (
+              <Button
+                className="ms-toggle"
+                style={{ marginLeft: "auto" }}
+                aria-expanded={orphelinesOuvertes}
+                onPress={() => setOrphelinesOuvertes((o) => !o)}
+              >
+                {t(orphelinesOuvertes ? "jalons.masquer" : "jalons.afficher")}
+              </Button>
+            ) : null}
           </div>
-          {orphelinesOuvertes ? (
+          {orphelinesOuvertes && sansJalon.length > 0 ? (
             <div className="ms-tasks">
               {sansJalon.map((tache) => (
-                <div className="tk" key={tache.id}>
-                  <div className="bloc-etroit">
-                    <span className="tk-name">{tache.titre}</span>
-                    <span className="tk-sub">
-                      {tache.dateFin ? formaterDate(tache.dateFin) : t("jalons.sansDate")}
-                    </span>
-                  </div>
-                  <Pastille code={tache.statut} vocabulaire={STATUTS_TACHE} />
-                  <Assignes tache={tache} />
-                  <Charge tache={tache} />
-                </div>
+                <LigneTache
+                  key={tache.id}
+                  tache={tache}
+                  modifiable={peut("tasks:update")}
+                  surStatut={(statut) => changerStatut.mutate({ tache, statut })}
+                />
               ))}
             </div>
           ) : null}
@@ -275,6 +416,10 @@ export function Jalons({ projetId }: { projetId: string }) {
         ouverte={creationOuverte}
         surFermeture={() => setCreationOuverte(false)}
       />
+
+      {importOuvert ? (
+        <ImportJalons projetId={projetId} surFermer={() => setImportOuvert(false)} />
+      ) : null}
     </CadreProjet>
   );
 }
@@ -284,11 +429,13 @@ function LigneJalon({
   jalon,
   deplie,
   surBascule,
+  surStatut,
 }: {
   projetId: string;
   jalon: api.Jalon;
   deplie: boolean;
   surBascule: () => void;
+  surStatut: (tache: api.TacheDeJalon, statut: string) => void;
 }) {
   const { t } = useTranslation("projets");
   const { t: tErreurs } = useTranslation("erreurs");
@@ -374,17 +521,12 @@ function LigneJalon({
           <div className="ms-tasks">
             {jalon.taches.length > 0 ? (
               jalon.taches.map((tache) => (
-                <div className="tk" key={tache.id}>
-                  <div className="bloc-etroit">
-                    <span className="tk-name">{tache.titre}</span>
-                    <span className="tk-sub">
-                      {tache.dateFin ? formaterDate(tache.dateFin) : t("jalons.sansDate")}
-                    </span>
-                  </div>
-                  <Pastille code={tache.statut} vocabulaire={STATUTS_TACHE} />
-                  <Assignes tache={tache} />
-                  <Charge tache={tache} />
-                </div>
+                <LigneTache
+                  key={tache.id}
+                  tache={tache}
+                  modifiable={peut("tasks:update")}
+                  surStatut={(statut) => surStatut(tache, statut)}
+                />
               ))
             ) : (
               <p className="ms-none">{t("jalons.aucuneTache")}</p>

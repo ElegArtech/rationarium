@@ -147,7 +147,12 @@
     "sansAssigne": "Nobody",
     "assignesDe": "Assignees of {nom}: {gens}",
     "heures": "{n} h",
-    "sansJalonTitre": "Tasks without a milestone"
+    "sansJalonTitre": "Tasks without a milestone",
+    "avancementPourcent": "{pct, number}%",
+    "etEnRetard": " · overdue",
+    "statutDe": "Status of {titre}",
+    "statutMisAJour": "Status updated. The milestone was recomputed.",
+    "echecStatut": "The status could not be changed."
   },
   "equipe": {
     "lEquipe": "the team",

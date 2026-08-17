@@ -147,7 +147,12 @@
     "sansAssigne": "Personne",
     "assignesDe": "Assignés de {nom} : {gens}",
     "heures": "{n} h",
-    "sansJalonTitre": "Tâches sans jalon"
+    "sansJalonTitre": "Tâches sans jalon",
+    "avancementPourcent": "{pct, number} %",
+    "etEnRetard": " · en retard",
+    "statutDe": "Statut de {titre}",
+    "statutMisAJour": "Statut mis à jour. Le jalon a été recalculé.",
+    "echecStatut": "Le statut n'a pas pu être modifié."
   },
   "equipe": {
     "lEquipe": "l'équipe",
