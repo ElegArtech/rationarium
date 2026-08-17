@@ -400,13 +400,18 @@ function SanteDuPortefeuille({ lignes }: { lignes: api.SanteLigne[] }) {
             >
               <div className="bloc-etroit">
                 <div className="ligne-icone">
-                  {/* La maquette pose ici un `<svg class="picon">` tiré d'un
-                      jeu d'icônes de projet qui n'existe pas dans le produit :
-                      l'icône d'un projet y est un GLYPHE stocké en base. On
-                      suit la convention du portefeuille (`Portefeuille.tsx`)
-                      plutôt que de dessiner une boîte vide. */}
+                  {/* Le jeu `p-*` existe : `icone` porte un CODE de symbole
+                      (`p-database`), pas un glyphe. Le rendre en texte
+                      affichait « p-database » dans la pastille — un défaut que
+                      ni `axe`, ni le typage, ni les parcours ne regardent. */}
                   <span className="picon-box picon-box-sm" aria-hidden="true">
-                    <span className="picon-glyphe">{l.icone ?? "◇"}</span>
+                    {l.icone ? (
+                      <svg className="picon">
+                        <use href={`#${l.icone}`} />
+                      </svg>
+                    ) : (
+                      <span className="picon-glyphe">◇</span>
+                    )}
                   </span>
                   <p className="hp-n">{l.nom}</p>
                 </div>
@@ -508,11 +513,34 @@ function Progression({ progression }: { progression: api.VueEnsemble["progressio
                   aria-valuenow={p.progression}
                   aria-valuemin={0}
                   aria-valuemax={100}
-                  aria-label={t("progression.de", { nom: p.nom, n: p.progression })}
+                  aria-label={t(p.ecart > 0 ? "progression.deEnRetard" : "progression.de", {
+                    nom: p.nom,
+                    n: p.progression,
+                    attendu: p.attendu,
+                  })}
                 >
                   <i style={{ width: `${p.progression}%` }} />
+                  {/*
+                   * Le repère de l'avancement attendu. Le panneau s'intitule
+                   * « Avancement réel et attendu » et sa légende décrit un
+                   * repère vertical — qui n'était jamais dessiné. Une légende
+                   * sans son marqueur ne devient rouge nulle part.
+                   */}
+                  <div
+                    className="avg-line"
+                    style={{ left: `${p.attendu}%` }}
+                    title={t("progression.attendu", { n: p.attendu })}
+                    aria-hidden="true"
+                  />
                 </div>
-                <span className="hbar-v">{t("kpi.pourcent", { n: p.progression })}</span>
+                {/* La maquette colore la valeur quand le réel est sous
+                    l'attendu ; elle le fait en style, sans classe dédiée. */}
+                <span
+                  className="hbar-v"
+                  style={p.ecart > 0 ? { color: "var(--st-review)" } : undefined}
+                >
+                  {t("kpi.pourcent", { n: p.progression })}
+                </span>
               </div>
             ))}
             <div className="avg-cap">

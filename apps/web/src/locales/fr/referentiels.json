@@ -170,7 +170,20 @@
     "contactNomme": "Contact nommé",
     "sansObjetPersonneMorale": "Sans objet pour une personne morale",
     "modifie": "Tiers modifié",
-    "modifier": "Modifier le tiers"
+    "modifier": "Modifier le tiers",
+    "archiver": "Archiver",
+    "reactiver": "Réactiver",
+    "archiveFait": "Tiers archivé.",
+    "reactiveFait": "Tiers réactivé.",
+    "echecAction": "L'action n'a pas abouti.",
+    "heures": "{n, number} h",
+    "periodeIntervention": "Période d'intervention",
+    "premiereDerniere": "première intervention · dernière le {date}",
+    "aucuneIntervention": "aucune intervention déclarée",
+    "tacheIndependante": "Hors projet",
+    "finLe": "Fin : {date}",
+    "sansEcheance": "Sans échéance",
+    "autresSaisies": "{n, plural, one {… et # autre saisie} other {… et # autres saisies}}"
   },
   "clients": {
     "surtitre": "Référentiels",
@@ -250,7 +263,8 @@
     "reactiver": "Réactiver",
     "renduInactif": "Bénéficiaire rendu inactif.",
     "reactive": "Bénéficiaire réactivé.",
-    "echecAction": "L'action n'a pas abouti."
+    "echecAction": "L'action n'a pas abouti.",
+    "aucunProjetCourt": "Aucun projet"
   },
   "reinitialiser": "Réinitialiser",
   "reinitialiserFiltres": "Réinitialiser les filtres",

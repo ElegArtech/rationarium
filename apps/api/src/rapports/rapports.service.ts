@@ -42,6 +42,22 @@ const FACTEUR_SURCHARGE = 1.5;
 
 const jour = (d: Date): string => d.toISOString().slice(0, 10);
 
+/**
+ * `EX-RPT-04` — l'avancement **attendu** d'un projet à une date donnée.
+ *
+ * Au prorata de la durée écoulée, borné aux deux extrémités : avant le début un
+ * projet n'a rien à montrer, après la fin il devait être terminé. C'est ce
+ * repère qui donne son sens à la barre — 40 % ne dit rien sans savoir si on en
+ * attendait 20 ou 80.
+ */
+export function attenduA(debut: Date, fin: Date, reference: Date): number {
+  const duree = fin.getTime() - debut.getTime();
+  if (duree <= 0) return reference.getTime() >= fin.getTime() ? 100 : 0;
+  if (reference.getTime() <= debut.getTime()) return 0;
+  if (reference.getTime() >= fin.getTime()) return 100;
+  return Math.round(((reference.getTime() - debut.getTime()) / duree) * 100);
+}
+
 /** Le début de la période demandée, à partir d'une date de référence. */
 export function debutDe(periode: Periode, reference: Date): Date {
   const d = new Date(reference);
@@ -96,7 +112,7 @@ export class RapportsService {
       activite,
     ] = await Promise.all([
       this.tachesEnRetard(ids, reference),
-      this.progressionProjets(projets),
+      this.progressionProjets(projets, reference),
       this.chargeParCollaborateur(ids),
       this.santeProjets(projets, reference, services),
       this.tendance(ids, debut),
@@ -186,17 +202,33 @@ export class RapportsService {
    * **annoncé** : une liste silencieusement coupée fait conclure qu'il n'y a
    * que dix projets, ce qui est une erreur de pilotage, pas d'affichage.
    */
-  private progressionProjets(projets: Awaited<ReturnType<RapportsService["projetsVisibles"]>>) {
-    const calculees = projets.map((p) => ({
-      id: p.id,
-      nom: p.nom,
-      icone: p.icone,
-      progression:
-        p.taches.length === 0
-          ? 0
-          : Math.round(p.taches.reduce((n, t) => n + t.avancement, 0) / p.taches.length),
-      taches: p.taches.length,
-    }));
+  private progressionProjets(
+    projets: Awaited<ReturnType<RapportsService["projetsVisibles"]>>,
+    reference: Date,
+  ) {
+    const calculees = projets
+      .map((p) => {
+        const progression =
+          p.taches.length === 0
+            ? 0
+            : Math.round(p.taches.reduce((n, t) => n + t.avancement, 0) / p.taches.length);
+        const attendu = attenduA(p.dateDebut, p.dateFin, reference);
+        return {
+          id: p.id,
+          nom: p.nom,
+          icone: p.icone,
+          progression,
+          /** `EX-RPT-04` — l'avancement attendu, au prorata de la durée écoulée. */
+          attendu,
+          /** Positif quand le projet est en retard sur son calendrier. */
+          ecart: attendu - progression,
+          taches: p.taches.length,
+        };
+      })
+      // Le titre du panneau promet « réel et attendu » et le pied annonce un
+      // troncage : couper dans l'ordre alphabétique masquerait justement les
+      // projets qu'on vient chercher. Le plus en retard passe devant.
+      .sort((a, b) => b.ecart - a.ecart || a.nom.localeCompare(b.nom));
 
     return {
       projets: calculees.slice(0, PLAFOND_GRAPHIQUE),
@@ -252,12 +284,20 @@ export class RapportsService {
    * restantes, tâches en retard, jalons à venir. Une santé saisie à la main
    * dirait ce que le chef de projet veut bien en dire ; celle-ci dit ce que
    * les données montrent.
+   *
+   * **La liste est rendue triée par criticité.** La vue l'annonce — « Trié par
+   * criticité », « Affichage limité aux 10 projets les plus critiques » — et
+   * coupait pourtant dans l'ordre alphabétique servi par la base : le panneau
+   * affirmait un tri qu'il ne faisait pas, et le troncage écartait les projets
+   * qu'on venait précisément chercher. Le tri appartient au calcul de la santé,
+   * pas au composant qui l'affiche.
    */
   private santeProjets(
     projets: Awaited<ReturnType<RapportsService["projetsVisibles"]>>,
     reference: Date,
     services: Map<string, string>,
   ) {
+    const poids: Record<SanteProjet, number> = { critical: 2, warning: 1, good: 0 };
     return projets.map((p) => {
       const restantes = p.taches.filter((t) => t.statut !== "done").length;
       const enRetard = p.taches.filter(
@@ -294,7 +334,11 @@ export class RapportsService {
         service: p.departementId ? (services.get(p.departementId) ?? null) : null,
         sante,
       };
-    });
+    })
+      .sort(
+        (a, b) =>
+          poids[b.sante] - poids[a.sante] || b.enRetard - a.enRetard || a.nom.localeCompare(b.nom),
+      );
   }
 
   /**

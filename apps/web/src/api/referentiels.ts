@@ -92,10 +92,31 @@ export type Tiers = {
   _count: { projets: number; taches: number };
 };
 
+/** Une saisie de temps portée au nom du tiers — vue 24, panneau « Temps déclaré ». */
+export type SaisieTiers = {
+  id: string;
+  date: string;
+  heures: number;
+  typeActivite: string;
+  description: string | null;
+};
+
 export type FicheTiers = Omit<Tiers, "_count"> & {
-  projets: { id: string; nom: string; statut: string }[];
-  taches: { id: string; titre: string; statut: string }[];
+  projets: { id: string; nom: string; statut: string; icone: string | null }[];
+  taches: {
+    id: string;
+    titre: string;
+    statut: string;
+    dateFin: string | null;
+    projet: { id: string; nom: string; icone: string | null } | null;
+  }[];
+  /** La **somme** des heures. Le nombre de lignes, c'est `saisies`. */
   heuresDeclarees: number;
+  saisies: number;
+  saisiesRecentes: SaisieTiers[];
+  saisiesRestantes: number;
+  premiereIntervention: string | null;
+  derniereIntervention: string | null;
   creeLe: string;
   modifieLe: string;
 };

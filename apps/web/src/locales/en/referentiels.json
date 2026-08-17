@@ -170,7 +170,20 @@
     "contactNomme": "Named contact",
     "sansObjetPersonneMorale": "Not applicable for a legal entity",
     "modifie": "Third party updated",
-    "modifier": "Edit third party"
+    "modifier": "Edit third party",
+    "archiver": "Archive",
+    "reactiver": "Reactivate",
+    "archiveFait": "Partner archived.",
+    "reactiveFait": "Partner reactivated.",
+    "echecAction": "The action did not complete.",
+    "heures": "{n, number} h",
+    "periodeIntervention": "Engagement period",
+    "premiereDerniere": "first engagement · last on {date}",
+    "aucuneIntervention": "no engagement logged",
+    "tacheIndependante": "Standalone",
+    "finLe": "End: {date}",
+    "sansEcheance": "No due date",
+    "autresSaisies": "{n, plural, one {… and # more entry} other {… and # more entries}}"
   },
   "clients": {
     "surtitre": "Reference data",
@@ -250,7 +263,8 @@
     "reactiver": "Reactivate",
     "renduInactif": "Beneficiary made inactive.",
     "reactive": "Beneficiary reactivated.",
-    "echecAction": "The action did not go through."
+    "echecAction": "The action did not go through.",
+    "aucunProjetCourt": "No project"
   },
   "reinitialiser": "Reset",
   "reinitialiserFiltres": "Reset filters",

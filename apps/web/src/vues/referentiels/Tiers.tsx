@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { Button } from "react-aria-components";
-import { TYPES_TIERS, STATUTS_PROJET, STATUTS_TACHE } from "@trame/contracts";
+import { TYPES_TIERS, STATUTS_PROJET, STATUTS_TACHE, TYPES_ACTIVITE } from "@trame/contracts";
 import * as api from "../../api/referentiels.js";
 import { messageErreur } from "../../api/erreurs.js";
 import { usePeut } from "../../session/session.js";
@@ -12,6 +12,7 @@ import { formaterDate } from "../../formats.js";
 import { Fenetre } from "../../composants/fenetre.js";
 import { useMessages } from "../../composants/messages.js";
 import { MarqueurCalcule, Pastille, useLibelle } from "../../composants/pastilles.js";
+import { IconeProjet } from "../../composants/icones-projet.js";
 import * as apiProjets from "../../api/projets.js";
 import "../../composants/partages.css";
 /*
@@ -252,13 +253,32 @@ function LigneTiers({ tiers }: { tiers: api.Tiers }) {
 /** Vue 24 — Fiche tiers : ses rattachements, et le temps déclaré pour lui. */
 export function FicheTiers({ tiersId }: { tiersId: string }) {
   const { t } = useTranslation("referentiels");
+  const { t: tErreurs } = useTranslation("erreurs");
   const libelle = useLibelle();
   const peut = usePeut();
+  const annoncer = useMessages();
+  const cache = useQueryClient();
   const [suppressionOuverte, setSuppressionOuverte] = useState(false);
+  const [modificationOuverte, setModificationOuverte] = useState(false);
 
   const requete = useQuery({
     queryKey: ["tiers", tiersId],
     queryFn: () => api.ficheTiers(tiersId),
+  });
+
+  /*
+   * `EX-TRS-02` — **l'archivage est réversible**, et c'est ce qui le distingue
+   * de la suppression : un tiers archivé reste consultable et garde son temps
+   * déclaré. La valeur envoyée se lit sur la donnée servie, jamais sur un état
+   * local qui pourrait la contredire.
+   */
+  const bascule = useMutation({
+    mutationFn: () => api.modifierTiers(tiersId, { actif: !requete.data?.actif }),
+    onSuccess: () => {
+      annoncer("ok", requete.data?.actif ? t("tiers.archiveFait") : t("tiers.reactiveFait"));
+      void cache.invalidateQueries({ queryKey: ["tiers"] });
+    },
+    onError: (e) => annoncer("err", messageErreur(e, tErreurs, t("tiers.echecAction"))),
   });
 
   /* L'avancement n'est pas servi par la fiche tiers : il l'est par le
@@ -293,6 +313,16 @@ export function FicheTiers({ tiersId }: { tiersId: string }) {
             ⌸
           </span>
           <span style={{ flex: 1 }}>{t("tiers.bandeauArchive")}</span>
+          {peut("third_parties:update") ? (
+            <Button
+              className="chip-btn"
+              style={{ flex: "none" }}
+              isPending={bascule.isPending}
+              onPress={() => bascule.mutate()}
+            >
+              {t("tiers.reactiver")}
+            </Button>
+          ) : null}
         </div>
       )}
 
@@ -318,8 +348,25 @@ export function FicheTiers({ tiersId }: { tiersId: string }) {
             </span>
           </div>
         </div>
-        {peut("third_parties:delete") ? (
-          <div className="proj-acts">
+        {/* `RG-GEN-06` — le client masque par courtoisie ; le contrôle reste au
+            serveur. Un tiers déjà archivé n'offre plus « Archiver » : c'est le
+            bandeau qui porte alors « Réactiver ». */}
+        <div className="proj-acts">
+          {peut("third_parties:update") ? (
+            <Button className="chip-btn" onPress={() => setModificationOuverte(true)}>
+              {t("modifier")}
+            </Button>
+          ) : null}
+          {peut("third_parties:update") && tiers.actif ? (
+            <Button
+              className="chip-btn"
+              isPending={bascule.isPending}
+              onPress={() => bascule.mutate()}
+            >
+              {t("tiers.archiver")}
+            </Button>
+          ) : null}
+          {peut("third_parties:delete") ? (
             <Button
               className="chip-btn"
               style={{ color: "var(--st-blocked)", borderColor: "var(--st-blocked)" }}
@@ -327,8 +374,8 @@ export function FicheTiers({ tiersId }: { tiersId: string }) {
             >
               {t("supprimer")}
             </Button>
-          </div>
-        ) : null}
+          ) : null}
+        </div>
       </div>
 
       <div className="kpi-grid">
@@ -349,8 +396,25 @@ export function FicheTiers({ tiersId }: { tiersId: string }) {
             <span className="eyebrow">{t("tiers.heuresDeclarees")}</span>
             <MarqueurCalcule explication={t("tiers.heuresCalcul")} />
           </div>
-          <p className="kpi-val">{tiers.heuresDeclarees} h</p>
-          <span className="kpi-sub">{t("tiers.saisies", { n: tiers.heuresDeclarees })}</span>
+          <p className="kpi-val">{t("tiers.heures", { n: tiers.heuresDeclarees })}</p>
+          <span className="kpi-sub">{t("tiers.saisies", { n: tiers.saisies })}</span>
+        </div>
+
+        {/* La période d'intervention se lit sur les saisies, pas sur une date
+            saisie à la main : c'est la première et la dernière fois que ce
+            tiers a été porté sur une déclaration de temps. */}
+        <div className="kpi">
+          <span className="eyebrow">{t("tiers.periodeIntervention")}</span>
+          <p className="kpi-val" style={{ fontSize: "19px" }}>
+            {tiers.premiereIntervention ? formaterDate(tiers.premiereIntervention) : "—"}
+          </p>
+          <span className="kpi-sub">
+            {tiers.derniereIntervention
+              ? t("tiers.premiereDerniere", {
+                  date: formaterDate(tiers.derniereIntervention),
+                })
+              : t("tiers.aucuneIntervention")}
+          </span>
         </div>
       </div>
 
@@ -368,14 +432,9 @@ export function FicheTiers({ tiersId }: { tiersId: string }) {
             <div>
               {tiers.projets.map((p) => (
                 <Link to="/projets/$id" params={{ id: p.id }} className="lnk-row" key={p.id}>
-                  <span className="picon-box" aria-hidden="true">
-                    {/* La maquette pose une icône SVG de projet ; le jeu porté
-                        n'a que celles de la navigation. `#i-projects` dit la
-                        même chose ; le manque du jeu `p-*` est remonté. */}
-                    <svg className="picon">
-                      <use href="#i-projects" />
-                    </svg>
-                  </span>
+                  {/* Le jeu `p-*` existe désormais (`@trame/contracts`) : la
+                      pastille rend le SYMBOLE du projet, pas son code. */}
+                  <IconeProjet icone={p.icone} nom={p.nom} />
                   <span style={{ minWidth: 0 }}>
                     <p className="lnk-n">{p.nom}</p>
                     <span className="lnk-s">{libelle(p.statut, STATUTS_PROJET)}</span>
@@ -414,11 +473,34 @@ export function FicheTiers({ tiersId }: { tiersId: string }) {
                   <div style={{ minWidth: 0 }}>
                     <p className="lnk-n">{x.titre}</p>
                   </div>
-                  <div />
+                  {/* `RG-TRS-05` — une tâche assignée l'est toujours dans un
+                      projet auquel le tiers est rattaché : la pastille du
+                      projet dit lequel, sans quoi la liste est illisible. */}
+                  <div style={{ minWidth: 0 }}>
+                    {x.projet ? (
+                      <span className="pchip" title={x.projet.nom}>
+                        {x.projet.icone ? (
+                          <svg className="picon" aria-hidden="true">
+                            <use href={`#${x.projet.icone}`} />
+                          </svg>
+                        ) : null}
+                        <span>{x.projet.nom}</span>
+                      </span>
+                    ) : (
+                      <span className="pchip is-indep">
+                        <span className="dot-ind" aria-hidden="true" />
+                        <span>{t("tiers.tacheIndependante")}</span>
+                      </span>
+                    )}
+                  </div>
                   <div>
                     <Pastille code={x.statut} vocabulaire={STATUTS_TACHE} />
                   </div>
-                  <span className="lnk-s">{libelle(x.statut, STATUTS_TACHE)}</span>
+                  <span className="lnk-s">
+                    {x.dateFin
+                      ? t("tiers.finLe", { date: formaterDate(x.dateFin) })
+                      : t("tiers.sansEcheance")}
+                  </span>
                 </div>
               ))}
             </div>
@@ -431,15 +513,15 @@ export function FicheTiers({ tiersId }: { tiersId: string }) {
           </section>
 
           {/*
-           * Temps déclaré — le panneau existe, son détail n'est pas servi.
-           * `GET /tiers/:id` ne rend que le TOTAL des heures ; la maquette
-           * montre le détail par saisie. Le manque est remonté au cadrage,
-           * l'en-tête de tableau et l'état vide sont portés tels quels.
+           * Temps déclaré — les saisies les plus récentes, et le reste annoncé.
+           * Le panneau vivait sur le seul total : « 184 h » sans une ligne de
+           * détail ne permet ni de reconnaître une saisie erronée, ni de savoir
+           * sur quoi le tiers est intervenu.
            */}
           <section className="panel">
             <div className="panel-head">
               <span className="panel-title">{t("tiers.tempsDeclarePour")}</span>
-              <span className="eyebrow">{tiers.heuresDeclarees} h</span>
+              <span className="eyebrow">{t("tiers.heures", { n: tiers.heuresDeclarees })}</span>
             </div>
             <div className="tm-row tm-head">
               <span>{t("tiers.colDate")}</span>
@@ -447,10 +529,31 @@ export function FicheTiers({ tiersId }: { tiersId: string }) {
               <span>{t("tiers.colActivite")}</span>
               <span>{t("tiers.colObjet")}</span>
             </div>
-            <div className="empty">
-              <p>{t("tiers.aucunTemps")}</p>
-              <small>{t("tiers.aucunTempsExplication")}</small>
+            <div>
+              {tiers.saisiesRecentes.map((s) => (
+                <div className="tm-row" key={s.id}>
+                  <span className="lv-when">{formaterDate(s.date)}</span>
+                  <span className="te-h">{t("tiers.heures", { n: s.heures })}</span>
+                  <div>
+                    <Pastille code={s.typeActivite} vocabulaire={TYPES_ACTIVITE} />
+                  </div>
+                  <span className="te-desc">{s.description ?? t("nonRenseigne")}</span>
+                </div>
+              ))}
+              {/* `RG-RPT-02` d'esprit : une liste coupée en silence ferait
+                  conclure que le tiers n'a que cinq saisies. */}
+              {tiers.saisiesRestantes > 0 ? (
+                <p className="prev-more">
+                  {t("tiers.autresSaisies", { n: tiers.saisiesRestantes })}
+                </p>
+              ) : null}
             </div>
+            {tiers.saisiesRecentes.length === 0 ? (
+              <div className="empty">
+                <p>{t("tiers.aucunTemps")}</p>
+                <small>{t("tiers.aucunTempsExplication")}</small>
+              </div>
+            ) : null}
           </section>
         </div>
 
@@ -491,7 +594,16 @@ export function FicheTiers({ tiersId }: { tiersId: string }) {
               </dd>
 
               <dt>{t("tiers.tempsDeclare")}</dt>
-              <dd>{t("tiers.saisies", { n: tiers.heuresDeclarees })}</dd>
+              <dd>{t("tiers.saisies", { n: tiers.saisies })}</dd>
+              {/*
+               * La maquette 28 pose encore trois lignes ici — SIRET, Adresse,
+               * Rôle — que le modèle de données ne porte pas : `ThirdParty`
+               * n'a ni l'un, ni l'autre, ni le troisième
+               * (`packages/db/prisma/schema.prisma`). Elles ne sont pas
+               * rendues : un libellé suivi d'un « non renseigné » que rien ne
+               * peut jamais remplir vaut moins qu'une absence assumée. Le
+               * manque exige une tâche de schéma dédiée (`cadrage/04 § 5.3`).
+               */}
             </dl>
           </section>
 
@@ -533,11 +645,17 @@ export function FicheTiers({ tiersId }: { tiersId: string }) {
         surFermeture={() => setRattachementOuvert(false)}
       />
 
+      <FenetreCreation
+        ouverte={modificationOuverte}
+        surFermeture={() => setModificationOuverte(false)}
+        tiers={tiers}
+      />
+
       <FenetreSuppressionTiers
         id={tiers.id}
         projets={tiers.projets.length}
         taches={tiers.taches.length}
-        heures={tiers.heuresDeclarees}
+        heures={tiers.saisies}
         surSuccesRediriger
         ouverte={suppressionOuverte}
         surFermeture={() => setSuppressionOuverte(false)}
