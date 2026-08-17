@@ -38,6 +38,8 @@ export type SanteLigne = {
   dateFin: string;
   chef: { id: string; prenom: string; nom: string } | null;
   service: string | null;
+  /** Le budget d'heures du projet, quand il est renseigné. */
+  budgetHeures: number | null;
   sante: "good" | "warning" | "critical";
 };
 

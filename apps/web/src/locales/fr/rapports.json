@@ -47,7 +47,8 @@
     "toutAffiche": "Tous les projets sont affichés.",
     "limite": "Affichage limité aux {n, number} projets les plus critiques — {reste, number} non affiché(s).",
     "toutAfficher": "Tout afficher",
-    "revenirA": "Revenir à {n, number}"
+    "revenirA": "Revenir à {n, number}",
+    "budgetHeures": "{n, number} h"
   },
   "progression": {
     "titre": "Avancement réel et attendu",
