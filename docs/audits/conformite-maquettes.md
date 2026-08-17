@@ -20,12 +20,18 @@ une liste d'exceptions nommées.
 exigeait « conformité de rendu » sans dire contre quoi ni comment. Une exigence
 dont le contrôle n'existe pas est une exigence qui se déclare tenue.
 
-## 2. Contradictions entre sources gelées
+## 2. Écarts entre sources gelées
 
 Ni `mockups/` ni `cadrage/` ne se modifient par effet de bord d'une session.
-Ces écarts se tranchent en amont, par décision humaine tracée.
+Mais **tout écart mesurable n'est pas une décision** : un contrôle qui compare
+les textes à la lettre voit une préposition, ce qui n'en fait pas un sujet.
+Confondre « mesurable » et « arbitrable » remplit le bureau de qui décide et
+noie ce qui compte vraiment.
 
-### 2.1 « Cliquez une tâche » — vue 15
+Ne remonte donc ici comme **décision** que ce qui change le produit. Le reste
+est tranché, et consigné pour mémoire.
+
+### 2.1 « Cliquez une tâche » — vue 15 · **tranché, pour mémoire**
 
 | Source | Texte |
 | --- | --- |
@@ -36,11 +42,15 @@ Ce n'est pas une coquille isolée : `mockups/09-planning-activite.html:1103`
 porte « Cliquez le marqueur pour le faire évoluer », même tournure sans
 préposition. C'est un parti pris de rédaction des maquettes.
 
-**Porté** : le texte de la maquette, puisque c'est elle que mesure la boucle et
-qu'elle fait loi dans cette campagne. **À arbitrer** : lequel des deux corpus
-porte la rédaction contractuelle des textes d'aide.
+**Tranché** : le texte de la maquette. Elle fait loi, c'est elle que mesure la
+boucle, et une préposition ne change ni la structure, ni le sens, ni le
+comportement. Aucune décision n'est demandée.
 
-### 2.2 `.form-card--wide` est inerte dans la maquette elle-même
+Ce qui vaudrait d'être noté un jour, sans urgence : lequel des deux corpus
+porte la rédaction contractuelle des textes d'aide. À traiter lors d'une
+relecture d'ensemble, pas à l'unité.
+
+### 2.2 `.form-card--wide` est inerte dans la maquette elle-même · **tranché, pour mémoire**
 
 `mockups/02-inscription.html` déclare `.form-card--wide{ max-width:400px; }`
 en ligne 176, puis `.form-card{ width:100%; max-width:380px; }` en ligne 255.
@@ -48,12 +58,14 @@ Spécificité égale, la seconde règle est postérieure : **elle gagne**. La
 variante large ne fait rien, dans la maquette, depuis toujours — alors qu'elle
 est posée sur un élément (`class="form-card form-card--wide"`, ligne 533).
 
-**À arbitrer** : la variante doit-elle valoir 400 px, ou disparaître ? Le
-produit ne peut pas le décider — reproduire fidèlement veut dire reproduire
-l'inertie, ce qui rend la classe inutile ; « corriger » veut dire changer le
-rendu de la maquette gelée.
+**Tranché** : l'inertie est reproduite. La règle est annulée dans la maquette
+elle-même, donc la porter ou non ne change **aucun pixel** — le rendu est
+identique dans les deux cas. Aucune décision n'est demandée.
 
-### 2.3 « Tâche supprimée » — vue 17, le dernier écart
+À signaler seulement si la maquette est un jour dégelée : la variante large ne
+fait rien depuis l'origine, et son auteur voulait probablement 400 px.
+
+### 2.3 « Tâche supprimée » — vue 17 · **DÉCISION ATTENDUE**
 
 C'est le seul écart de conformité qui reste, et il ne se ferme par aucune
 correction de code. Les deux sources gelées se contredisent :
