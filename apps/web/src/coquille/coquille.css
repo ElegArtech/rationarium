@@ -386,6 +386,10 @@
   font-size: 12.5px;
   color: var(--ink);
   text-decoration: none;
+  /* Ajout du 2026-08-17 : la maquette n'en pose pas, parce qu'elle n'emploie
+     `.pop-action` que sur des `<a href>`, qui portent le curseur nativement.
+     Le portage l'emploie aussi sur des `MenuItem`, rendus en `<div>`. */
+  cursor: pointer;
 }
 
 .pop-action:hover {
@@ -394,6 +398,94 @@
 
 .pop-action + .pop-action {
   border-top: 1px solid var(--line);
+}
+
+/*
+ * COMPLÉMENT DU 2026-08-17 — les états qu'un MENU demande et qu'un panneau de
+ * notifications n'avait pas.
+ *
+ * `.pop-action` vient de la maquette (`07 § 7`), où il ne sert qu'aux deux liens
+ * du menu utilisateur : un intitulé, un survol, rien de plus. Le portage l'emploie
+ * aussi pour les menus contextuels — occupation du planning, colonne de kanban,
+ * barre de Gantt, filtre de services — et ceux-là ont trois états que la maquette
+ * n'avait jamais eu à dessiner. Ils se posent donc sur les attributs que
+ * `react-aria-components` publie, ce qui n'invente aucun nom de classe.
+ *
+ * Le repère clavier n'est PAS ici : les items prennent un focus DOM réel et la
+ * règle `:focus-visible` du socle s'y applique déjà. Vérifié, pas supposé.
+ *
+ * Aucune ombre portée non plus, alors qu'un menu flottant en appellerait une :
+ * `DESIGN.md § 3` règle 2 tranche pour « bordures nettes plutôt qu'ombres
+ * diffuses », et `.pop` porte déjà `--line-strong`.
+ */
+
+/* Le séparateur d'un menu : il détache les actions destructrices (vue 27) ou une
+   sortie du chemin rapide (« Une autre date… », vue 07). Remonté de
+   `utilisateurs.css`, où il ne s'appliquait que sur les routes chargeant cette
+   feuille. */
+.menu-sep {
+  border-top: 1px solid var(--line);
+  margin-top: 4px;
+  padding-top: 4px;
+}
+
+/* Un élément qui ouvre un sous-menu doit le dire autrement que par les points
+   de suspension de son intitulé — lesquels ne sont qu'une convention de texte. */
+.pop-action[aria-haspopup] {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.pop-action[aria-haspopup]::after {
+  content: "›";
+  font-size: 15px;
+  line-height: 1;
+  color: var(--muted);
+}
+
+/* `RG-GEN-06` — une action indisponible se montre désactivée, avec sa raison,
+   jamais proposée puis refusée. Cas d'emploi : « la date est verrouillée » sur
+   une tâche multi-assignée (`RG-TSK-11`). */
+.pop-action[data-disabled],
+.pop-action[aria-disabled="true"] {
+  color: var(--muted);
+  cursor: not-allowed;
+}
+
+.pop-action[data-disabled]:hover,
+.pop-action[aria-disabled="true"]:hover {
+  background: none;
+}
+
+/*
+ * Menu à sélection multiple — le filtre de services de la vue 07.
+ *
+ * `react-aria` rend ces items en `role="menuitemcheckbox"` et porte l'état sur
+ * `aria-checked`. Sans règle en face, le menu était **muet sur sa propre
+ * sélection** : trois services cochés ou aucun se ressemblaient trait pour
+ * trait. La marque occupe sa place en permanence, sinon les intitulés se
+ * décalent d'un cran au premier clic.
+ */
+.pop-action[aria-checked] {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.pop-action[aria-checked]::before {
+  content: "✓";
+  width: 11px;
+  flex: none;
+  font-size: 12px;
+  line-height: 1;
+  color: var(--accent);
+  visibility: hidden;
+}
+
+.pop-action[aria-checked="true"]::before {
+  visibility: visible;
 }
 
 /* ── 8. Gabarit de page ─────────────────────────────────────────────────── */

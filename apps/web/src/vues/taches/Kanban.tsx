@@ -254,9 +254,9 @@ function Carte({
             <span aria-hidden="true">⇄</span>
           </Button>
           <Popover>
-            <Menu onAction={(cle) => surDeplacement(String(cle))}>
+            <Menu className="pop pop-sm" onAction={(cle) => surDeplacement(String(cle))}>
               {STATUTS_TACHE.filter((s) => s.code !== tache.statut).map((s) => (
-                <MenuItem key={s.code} id={s.code}>
+                <MenuItem className="pop-action" key={s.code} id={s.code}>
                   {t("kanban.deplacerVers", { colonne: libelle(s.code, STATUTS_TACHE) })}
                 </MenuItem>
               ))}
