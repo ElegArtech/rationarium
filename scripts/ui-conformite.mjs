@@ -128,7 +128,23 @@ const DONNEES_MAQUETTE = [
 /** Relève d'une page ce qui est comparable sans ambiguïté. */
 async function relever(page) {
   return page.evaluate(() => {
-    const hors = (el) => el.closest("#review, .rv-body, .toasts, [hidden]");
+    /*
+     * `.um-name` et `.um-role` portent **l'identité de la personne connectée**.
+     * Côté maquette c'est une persona — « Inès Rocher », « Manager de service »,
+     * « Direction » ; côté produit c'est le compte réel qui mesure. Ni l'un ni
+     * l'autre n'est un libellé contractuel : les comparer fait de chaque
+     * persona un écart bloquant sur toutes les vues à la fois.
+     *
+     * Le cas s'est produit deux fois. « Direction » coïncidait avec
+     * `organisation.nature_direction` ; puis l'ajout d'un libellé de rôle au
+     * catalogue a fait apparaître « Manager de service » comme écart sur
+     * VINGT ET UNE vues d'un coup, sans qu'aucune ligne de vue ait changé.
+     *
+     * Le bloc est donc exclu DES DEUX CÔTÉS — c'est une donnée, jamais un
+     * gabarit. Sa structure reste comparée : seules ses valeurs sortent.
+     */
+    const hors = (el) =>
+      el.closest("#review, .rv-body, .toasts, [hidden], .um-name, .um-role, #uname, #urole");
     const visible = (el) => {
       const s = getComputedStyle(el);
       return s.display !== "none" && s.visibility !== "hidden";
