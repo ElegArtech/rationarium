@@ -59,6 +59,9 @@ afterAll(async () => {
   await pg?.stop();
 });
 
+/** Le projet que mesurent les vues 11, 13 et 15. */
+const PROJET_MESURE = "0000700a-0000-4000-8000-000000000000";
+
 const compter = async (table: string): Promise<number> => {
   const { rows } = await db.query(`SELECT count(*)::int AS n FROM ${table}`);
   return rows[0].n as number;
@@ -138,6 +141,60 @@ describe("le jeu de données des maquettes", () => {
     }
   }, 300_000);
 
+  it("UNE LIGNE CORROMPUE EST RESTAURÉE PAR LE REJEU — le contrôle générique", async () => {
+    /*
+     * Le piège qui s'est payé CINQ fois dans ce fichier : un champ absent de la
+     * clause `update` d'un `upsert` ne change jamais. Les identifiants sont
+     * stables, donc la ligne existe et paraît juste — seule la valeur ment.
+     *
+     * Aucun des contrôles précédents ne pouvait le voir : ils rejouent le jeu
+     * sur lui-même, où rien n'a divergé. Celui-ci CORROMPT d'abord, puis
+     * rejoue, puis vérifie la restauration. Il ne connaît aucun des cinq cas
+     * nommément — il les attrape tous, et attrapera le sixième.
+     */
+    const prisma = creerClient(url);
+    try {
+      await peuplerMaquette(prisma);
+
+      const avant = {
+        statutProjet: (await db.query(
+          `SELECT statut FROM projects WHERE id = $1`, [PROJET_MESURE],
+        )).rows[0].statut,
+        jalonTache: (await db.query(
+          `SELECT "milestoneId" FROM tasks WHERE titre = 'Plan de tests'`,
+        )).rows[0].milestoneId,
+        evenementExterne: (await db.query(
+          `SELECT "interventionExterieure" FROM events WHERE titre = 'Comité · EXT'`,
+        )).rows[0].interventionExterieure,
+        roleMembre: (await db.query(
+          `SELECT "roleProjet" FROM project_members WHERE "projectId" = $1 ORDER BY "roleProjet" LIMIT 1`,
+          [PROJET_MESURE],
+        )).rows[0].roleProjet,
+      };
+
+      // On casse. Chacune de ces colonnes a déjà menti en vrai.
+      await db.query(`UPDATE projects SET statut = 'draft' WHERE id = $1`, [PROJET_MESURE]);
+      await db.query(`UPDATE tasks SET "milestoneId" = NULL WHERE titre = 'Plan de tests'`);
+      await db.query(`UPDATE events SET "interventionExterieure" = false WHERE titre = 'Comité · EXT'`);
+      await db.query(`UPDATE project_members SET "roleProjet" = 'observateur' WHERE "projectId" = $1`, [PROJET_MESURE]);
+
+      await peuplerMaquette(prisma);
+
+      expect((await db.query(`SELECT statut FROM projects WHERE id = $1`, [PROJET_MESURE])).rows[0].statut)
+        .toBe(avant.statutProjet);
+      expect((await db.query(`SELECT "milestoneId" FROM tasks WHERE titre = 'Plan de tests'`)).rows[0].milestoneId)
+        .toBe(avant.jalonTache);
+      expect((await db.query(`SELECT "interventionExterieure" FROM events WHERE titre = 'Comité · EXT'`)).rows[0].interventionExterieure)
+        .toBe(avant.evenementExterne);
+      expect((await db.query(
+        `SELECT "roleProjet" FROM project_members WHERE "projectId" = $1 ORDER BY "roleProjet" LIMIT 1`,
+        [PROJET_MESURE],
+      )).rows[0].roleProjet).toBe(avant.roleMembre);
+    } finally {
+      await prisma.$disconnect();
+    }
+  }, 300_000);
+
   it("rattache CHAQUE agent à un service — sinon le filtre s'affiche vide", async () => {
     /*
      * Un sélecteur vide se lit « il n'y a pas de service », pas « personne
@@ -190,7 +247,7 @@ describe("le jeu de données des maquettes", () => {
      * contraire. Une couverture qui ne se lit pas là où on regarde n'en est
      * pas une.
      */
-    const projetMesure = "0000700a-0000-4000-8000-000000000000";
+    const projetMesure = PROJET_MESURE;
 
     const { rows: priorites } = await db.query(
       `SELECT DISTINCT priorite FROM tasks WHERE "projectId" = $1`,

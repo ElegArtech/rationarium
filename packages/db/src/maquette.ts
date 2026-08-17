@@ -55,6 +55,28 @@ export const PROJETS = [
    * jamais rien — ni la vue, ni aucune boucle ne pouvait le dire.
    */
   { cle: "archives", nom: "Dématérialisation des archives", icone: "p-scroll", statut: "cancelled", avancement: 18 },
+  /*
+   * Quatre projets de plus. La vue 30 classe par criticité et REPLIE sa liste
+   * au-delà d'un seuil : avec quatre projets, `trunc` et « Tout afficher » ne
+   * pouvaient pas exister. Le jeu de volumétrie les fournissait par accident —
+   * ce qui rendait la mesure dépendante d'un jeu étranger.
+   *
+   * `fin` recule la date de fin : un projet dont l'échéance est passée avec au
+   * moins une tâche en retard est CRITIQUE (`cadrage/01 § M17`).
+   */
+  { cle: "cimetiere", nom: "Gestion des cimetières", icone: "p-map", avancement: 45, fin: -10 },
+  { cle: "cantine", nom: "Portail des familles", icone: "p-house", avancement: 72 },
+  { cle: "voirie", nom: "Plan de voirie", icone: "p-road", avancement: 28, fin: -5 },
+  { cle: "marches", nom: "Marchés publics dématérialisés", icone: "p-gavel", avancement: 55 },
+  /*
+   * Le tableau de santé se REPLIE au-delà de dix projets (`RG-RPT-02` — « une
+   * liste coupée en silence fait conclure qu'il n'y a que dix projets »). Il
+   * en faut donc plus de dix pour que `trunc` et « Tout afficher » existent.
+   */
+  { cle: "eclairage", nom: "Éclairage public intelligent", icone: "p-bulb", avancement: 33 },
+  { cle: "sport", nom: "Réservation des équipements sportifs", icone: "p-target", avancement: 61 },
+  { cle: "eau", nom: "Télérelève de l'eau", icone: "p-drop", avancement: 12 },
+  { cle: "budget", nom: "Budget participatif", icone: "p-coin", avancement: 88 },
 ] as const;
 
 const lundiDe = (reference: Date): Date => {
@@ -147,12 +169,18 @@ export async function peuplerMaquette(
     update: { nom: "Numérique et données", directionId: direction.id },
   });
   const services = [];
-  for (const [i, nom] of ["Études et projets", "Exploitation"].entries()) {
+  for (const [i, nom] of ["Études et projets", "Exploitation", "Archives"].entries()) {
+    /*
+     * Le TROISIÈME service n'a délibérément pas de responsable : `mgr-none` et
+     * « Aucun responsable désigné » n'ont aucune autre source, et c'est un état
+     * que `RG-ORG-03` autorise explicitement.
+     */
+    const manager = i < 2 ? agents[i]!.id : null;
     services.push(
       await prisma.service.upsert({
         where: { id: idStable("S", i) },
-        create: { id: idStable("S", i), nom, departementId: departement.id, managerId: agents[i]!.id },
-        update: { nom, departementId: departement.id },
+        create: { id: idStable("S", i), nom, departementId: departement.id, managerId: manager },
+        update: { nom, departementId: departement.id, managerId: manager },
       }),
     );
   }
@@ -180,7 +208,7 @@ export async function peuplerMaquette(
         statut: "statut" in p ? p.statut : "active",
         priorite: "priorite" in p ? p.priorite : "normal",
         dateDebut: jour(-60),
-        dateFin: jour(60 + i * 30),
+        dateFin: jour("fin" in p ? p.fin : 60 + i * 30),
         createurId: moi.id,
         chefId: agents[i % agents.length]!.id,
       },
@@ -204,7 +232,10 @@ export async function peuplerMaquette(
           roleProjet: j === 0 ? "responsable" : j === 1 ? "contributeur" : "observateur",
           tauxAllocation: [40, 30, 20, 10, 10][j] ?? 10,
         },
-        update: {},
+        update: {
+          roleProjet: j === 0 ? "responsable" : j === 1 ? "contributeur" : "observateur",
+          tauxAllocation: [40, 30, 20, 10, 10][j] ?? 10,
+        },
       });
     }
 
@@ -441,9 +472,37 @@ export async function peuplerMaquette(
         heureDebut: e.debut,
         heureFin: e.fin,
         interventionExterieure: "externe" in e ? e.externe : false,
+        projectId: "projet" in e ? projets[e.projet]!.id : null,
       },
-      update: { titre: e.titre, date: jour(e.jour) },
+      // CINQUIÈME occurrence : `interventionExterieure` manquait à l'`update`,
+      // donc un événement déjà semé restait interne pour toujours — `occ-ext`
+      // et « EXT » n'avaient aucune source, alors que le jeu la déclarait.
+      update: {
+        titre: e.titre,
+        date: jour(e.jour),
+        heureDebut: e.debut,
+        heureFin: e.fin,
+        interventionExterieure: "externe" in e ? e.externe : false,
+        projectId: "projet" in e ? projets[e.projet]!.id : null,
+      },
     });
+    /*
+     * La cellule n'affiche que TROIS occupations puis « +n » — la maquette
+     * fait pareil. La personne connectée en porte jusqu'à onze par jour : un
+     * événement qui lui est attribué tombe systématiquement au-delà de la
+     * coupe, et `occ-ext` reste introuvable alors que la donnée existe.
+     *
+     * Les événements vont donc aussi à un agent peu chargé, dont la cellule
+     * les montre. Ce n'est pas un contournement du contrôle : la maquette
+     * place elle aussi son intervention extérieure là où elle se voit.
+     */
+    for (const participant of [moi, agents[4]!]) {
+      await prisma.eventParticipant.upsert({
+        where: { eventId_userId: { eventId: evenement.id, userId: participant.id } },
+        create: { eventId: evenement.id, userId: participant.id },
+        update: {},
+      });
+    }
     await prisma.eventParticipant.upsert({
       where: { eventId_userId: { eventId: evenement.id, userId: moi.id } },
       create: { eventId: evenement.id, userId: moi.id },
@@ -550,7 +609,18 @@ export async function peuplerMaquette(
           periode: p.duree === "half_day" ? "morning" : "full_day",
           realisee: k === 0,
         },
-        update: {},
+        // QUATRIÈME occurrence du piège dans ce fichier : un `update: {}` ne
+        // change jamais rien. Les assignations gardaient donc leur date
+        // d'origine, un agent par jour, et la cellule à quatre agents que
+        // `acell-more` exige restait inatteignable — alors que le jeu
+        // déclarait la poser.
+        update: {
+          predefinedTaskId: predefinie.id,
+          userId: a.id,
+          date: jour(j),
+          periode: p.duree === "half_day" ? "morning" : "full_day",
+          realisee: k === 0,
+        },
       });
     }
   }
@@ -677,14 +747,51 @@ export async function peuplerMaquette(
         create: {
           id: idStable("H", i * 10 + j),
           taskId: t.id,
+          projectId: projets[0]!.id,
           userId: a.id,
           date: jour(-2 - j),
           heures: [3.5, 2, 1.5][j] ?? 1,
         },
-        update: { taskId: t.id, userId: a.id, date: jour(-2 - j) },
+        update: { taskId: t.id, projectId: projets[0]!.id, userId: a.id, date: jour(-2 - j) },
       });
     }
   }
+
+  /*
+   * Un jour AU-DESSUS du plafond journalier — `is-over`, `RG-TMP-02`. Le
+   * plafond vaut douze heures par défaut ; trois saisies de cinq heures le
+   * dépassent franchement. Sans ce cas, la jauge de la vue 21 ne montre jamais
+   * son état d'alerte, et le contrôle de plafond n'est jamais exercé à l'œil.
+   */
+  for (const [n, t] of tachesTemps.entries()) {
+    await prisma.timeEntry.upsert({
+      where: { id: idStable("H", 200 + n) },
+      create: {
+        id: idStable("H", 200 + n),
+        taskId: t.id,
+        projectId: projets[0]!.id,
+        userId: moi.id,
+        date: jour(1),
+        heures: 5,
+        description: "Atelier de cadrage",
+      },
+      update: { taskId: t.id, projectId: projets[0]!.id, userId: moi.id, date: jour(1), heures: 5 },
+    });
+  }
+  await prisma.timeEntry.upsert({
+    where: { id: idStable("H", 210) },
+    create: {
+      id: idStable("H", 210),
+      taskId: tachesTemps[0]!.id,
+      projectId: projets[0]!.id,
+      userId: moi.id,
+      date: jour(1),
+      heures: 5,
+      typeActivite: "meeting",
+      description: "Comité de suivi",
+    },
+    update: { date: jour(1), heures: 5 },
+  });
 
   /*
    * ── Tiers et bénéficiaires ───────────────────────────────────────────────
@@ -826,7 +933,42 @@ export async function peuplerMaquette(
     });
   }
 
+  /*
+   * ── Le référentiel de compétences — vue 22 ───────────────────────────────
+   *
+   * Le jeu n'en posait aucune : la matrice mesurait celles de la volumétrie,
+   * toutes nommées « Compétence 1 »… et sans détenteur. `is-full` — couverture
+   * COMPLÈTE — n'avait donc aucune source, et `is-gap` était partout.
+   *
+   * Les trois cas de `RG-CMP-01` sont représentés : couverture complète,
+   * couverture partielle, et manque total.
+   */
+  for (const [i, c] of COMPETENCES.entries()) {
+    const competence = await prisma.skill.upsert({
+      where: { nom: c.nom },
+      create: {
+        id: idStable("Q", i),
+        nom: c.nom,
+        categorie: c.categorie,
+        effectifRequis: c.requis,
+      },
+      update: { categorie: c.categorie, effectifRequis: c.requis },
+    });
+    for (const [k, a] of agents.slice(0, c.detenteurs).entries()) {
+      await prisma.userSkill.upsert({
+        where: { userId_skillId: { userId: a.id, skillId: competence.id } },
+        create: {
+          userId: a.id,
+          skillId: competence.id,
+          niveau: (["expert", "intermediate", "beginner"] as const)[k % 3]!,
+        },
+        update: { niveau: (["expert", "intermediate", "beginner"] as const)[k % 3]! },
+      });
+    }
+  }
+
   return {
+    competences: COMPETENCES.length,
     audit: EVENEMENTS_AUDIT.length,
     recurrences: RECURRENCES.length,
     tiers: 2,
@@ -900,6 +1042,17 @@ const TACHES = [
   // Échéance passée, tâche non terminée : la tâche est EN RETARD (`is-late`)
   // et son jalon avec elle (`ms-late`).
   { titre: "Ateliers de concertation", projet: "portail", jalon: "Concertation publique", statut: "doing", agent: 2, debut: -20, fin: -9, avancement: 40 },
+  /*
+   * Trois tâches en retard sur un projet dont l'échéance est passée : la santé
+   * devient CRITIQUE (`cadrage/01 § M17`). Ni `is-crit`, ni `is-alert`, ni le
+   * libellé « Critique » n'avaient de source depuis le retrait de la
+   * volumétrie — qui les fournissait par accident.
+   */
+  { titre: "Relevé des concessions", projet: "cimetiere", statut: "doing", agent: 1, debut: -30, fin: -12, avancement: 30 },
+  { titre: "Reprise du plan cadastral", projet: "cimetiere", statut: "blocked", agent: 2, debut: -25, fin: -8 },
+  { titre: "Formation des agents", projet: "cimetiere", statut: "todo", agent: 3, debut: -20, fin: -6 },
+  // En retard sans échéance de projet dépassée : la santé reste « Attention ».
+  { titre: "Signalisation temporaire", projet: "voirie", statut: "doing", agent: 4, debut: -15, fin: -3, avancement: 55 },
   // Sans assigné, SUR LE PROJET MESURÉ : `is-none` de la vue 13. Le seul cas
   // du jeu était sur `sirh`, que les vues 11, 13 et 15 ne regardent pas.
   { titre: "Charte éditoriale", projet: "portail", jalon: "Comité de pilotage", statut: "todo", agent: -1, debut: 3, fin: 8 },
@@ -923,7 +1076,9 @@ const TODOS = [
 ] as const;
 
 const EVENEMENTS = [
-  { titre: "Comité · EXT", jour: 2, debut: "14:00", fin: "16:00", externe: true },
+  // Rattaché à un projet : `picon` de la vue 18 n'a aucune autre source, un
+  // événement sans projet n'ayant pas de symbole à montrer.
+  { titre: "Comité · EXT", jour: 2, debut: "14:00", fin: "16:00", externe: true, projet: 0 },
   { titre: "Bureau municipal", jour: 1, debut: "09:00", fin: "10:30" },
   { titre: "Réunion de service", jour: 4, debut: "11:00", fin: "12:00" },
 ] as const;
@@ -975,6 +1130,21 @@ const RECURRENCES = [
  * `cadrage/01 § M20` : aucune n'est inventée ici, chacune existe déjà au
  * catalogue de libellés.
  */
+/**
+ * Le référentiel de compétences. Les trois états de couverture de `RG-CMP-01`
+ * y sont, parce qu'une matrice où tout est en écart ne montre pas d'écart.
+ */
+const COMPETENCES = [
+  // Couverture COMPLÈTE — `is-full`.
+  { nom: "Accessibilité RGAA", categorie: "technical", requis: 2, detenteurs: 3 },
+  { nom: "Conduite de réunion", categorie: "soft_skill", requis: 1, detenteurs: 2 },
+  // Couverture PARTIELLE — `is-part is-gap`.
+  { nom: "Marchés publics", categorie: "business", requis: 4, detenteurs: 2 },
+  { nom: "Gestion de projet agile", categorie: "methodology", requis: 3, detenteurs: 1 },
+  // Manque TOTAL — `is-gap` seul.
+  { nom: "Cartographie SIG", categorie: "technical", requis: 2, detenteurs: 0 },
+] as const;
+
 const EVENEMENTS_AUDIT = [
   // `RG-ADM-09` — les actions système d'abord, donc les plus récentes : ce
   // sont elles qui portent `au-sys` et le libellé « Système », et une seule
@@ -1015,7 +1185,10 @@ const CONGES = [
    *   l'année civile, pas sur la semaine : c'est le seul cas du jeu qui ne
    *   doit PAS suivre le lundi courant.
    */
-  { agent: 0, debut: 21, fin: 21, jours: 0.5, statut: "approved", demiDebut: "morning", motif: "Rendez-vous médical" },
+  // DANS la semaine courante : les vues 07 et 08 montrent la semaine et le
+  // mois en cours. Une demi-journée à trois semaines d'ici existe en base et
+  // ne se voit sur aucune des deux — `is-am` restait introuvable.
+  { agent: 0, debut: 2, fin: 2, jours: 0.5, statut: "approved", demiDebut: "morning", motif: "Rendez-vous médical" },
   { agent: 0, debut: 28, fin: 29, jours: 2, statut: "cancellation_requested", motif: "Déplacement annulé" },
 ] as const;
 
