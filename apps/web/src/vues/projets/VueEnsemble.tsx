@@ -9,7 +9,8 @@ import { usePeut } from "../../session/session.js";
 import { Chargement, ErreurDeChargement } from "../../composants/etats.js";
 import { Fenetre } from "../../composants/fenetre.js";
 import { useMessages } from "../../composants/messages.js";
-import { Barre, MarqueurCalcule } from "../../composants/pastilles.js";
+import { STATUTS_JALON } from "@trame/contracts";
+import { Pastille, Barre, MarqueurCalcule } from "../../composants/pastilles.js";
 import { formaterDate, formaterNombre } from "../../formats.js";
 import { CadreProjet } from "./Fiche.js";
 import "../../composants/partages.css";
@@ -302,6 +303,13 @@ function ApercuJalon({ jalon }: { jalon: api.Jalon }) {
         <span className="rm-date">
           {jalon.dateEcheance ? formaterDate(jalon.dateEcheance) : t("jalons.sansDate")}
         </span>
+        {/*
+          Le statut du jalon, en toutes lettres — maquette 11, `rm-top`.
+          La pastille de la frise (`rm-dot`) ne distingue que par la couleur :
+          seule, elle ne dit rien à qui ne la voit pas. `RG-JAL-01` rappelle que
+          ce statut est calculé, jamais saisi.
+        */}
+        <Pastille code={jalon.statut} vocabulaire={STATUTS_JALON} />
       </div>
       <div className="rm-line">
         <Barre
