@@ -16,7 +16,11 @@
     "deplacerCette": "Déplacer la tâche {titre}",
     "deplacerVers": "Déplacer vers {colonne}",
     "statutMisAJour": "Statut mis à jour.",
-    "echecStatut": "Erreur lors de la mise à jour du statut."
+    "echecStatut": "Erreur lors de la mise à jour du statut.",
+    "indice": "Glissez une carte, ou sélectionnez-la et utilisez Alt + ← / → pour la déplacer.",
+    "deplaceeVers": "« {titre} » déplacée vers {colonne}",
+    "echecRetour": "Échec : la carte revient dans {colonne}",
+    "creerDans": "Créer une tâche dans la colonne {colonne}"
   },
   "liste": {
     "surtitre": "Toutes les tâches",
@@ -145,7 +149,9 @@
   "onglet": {
     "titre": "Tableau des tâches",
     "rechercher": "Rechercher une tâche…",
-    "nouvelleTache": "+ Nouvelle tâche"
+    "nouvelleTache": "+ Nouvelle tâche",
+    "jalon": "Jalon",
+    "tousLesJalons": "Tous les jalons"
   },
   "ext": "EXT",
   "interventionExterieure": "Intervention extérieure",
