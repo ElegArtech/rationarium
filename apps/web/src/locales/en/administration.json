@@ -436,7 +436,7 @@
     "lectureSeule": "Read-only register",
     "lectureSeuleExplication": "This view offers no write action, and the database application role holds only read and insert rights on the log. The absence is the guarantee.",
     "typeEntite": "Entity type",
-    "tousTypes": "All types",
+    "tousTypes": "All entity types",
     "action": "Action",
     "toutesActions": "All actions",
     "depuis": "From",
@@ -587,7 +587,11 @@
     "type_TeleworkRule": "Remote work rule",
     "type_ThirdParty": "Third party",
     "type_TimeEntry": "Time entry",
-    "type_User": "User"
+    "type_User": "User",
+    "entiteId": "Entity id",
+    "acteurId": "Actor id",
+    "acteurInconnu": "Unidentified actor",
+    "compteEvenements": "{n, plural, =0 {no event} one {# event} other {# events}}"
   },
   "predefinies": {
     "surtitre": "Administration",
