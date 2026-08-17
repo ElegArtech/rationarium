@@ -1,6 +1,11 @@
 import { Body, Controller, Get, Param, Patch, Post, Query } from "@nestjs/common";
 import { z } from "zod";
-import { enumDe, DUREES_TACHE_PREDEFINIE, PERIODES_JOURNEE } from "@trame/contracts";
+import {
+  enumDe,
+  DUREES_TACHE_PREDEFINIE,
+  PERIODES_JOURNEE,
+  TYPES_RECURRENCE,
+} from "@trame/contracts";
 import { ActiviteService } from "./activite.service.js";
 import { Demande, RequiertPermission, type ContexteDemande } from "../commun/permissions.garde.js";
 import { valider, dateSchema } from "../commun/http.js";
@@ -83,13 +88,19 @@ export class ActiviteController {
    * Elles étaient LUES et exploitées par la génération ; rien ne permettait
    * d'en créer une. « Générer les assignations » n'avait donc jamais rien à
    * générer, et le catalogue montrait ses cartes de règle vides.
+   *
+   * **Le type suit désormais `TYPES_RECURRENCE`**, qui est ce que le moteur de
+   * génération sait lire. Ce point d'entrée acceptait `daily`, `weekly` et
+   * `monthly` : sur les trois, seul `weekly` était produit par le moteur. Une
+   * règle mensuelle se créait donc avec succès et ne générait jamais rien,
+   * sans la moindre erreur. Voir le commentaire du vocabulaire.
    */
   @Post("taches/:id/recurrences")
   @RequiertPermission("predefined_tasks:update")
   creerRecurrence(@Param("id") id: string, @Body() corps: unknown, @Demande() d: ContexteDemande) {
     const donnees = valider(
       z.object({
-        type: z.enum(["daily", "weekly", "monthly"]),
+        type: enumDe(TYPES_RECURRENCE),
         frequence: z.number().int().min(1).max(52).optional(),
         jourSemaine: z.number().int().min(0).max(6).nullish(),
         jourMois: z.number().int().min(1).max(31).nullish(),

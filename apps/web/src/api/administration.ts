@@ -374,3 +374,57 @@ export type TachePredefinie = {
 
 export const cataloguePredefini = (inclureInactives = false) =>
   appeler<TachePredefinie[]>(`/activite/taches${params({ inclureInactives })}`);
+
+/** Ce qu'une tâche prédéfinie porte de modifiable — `EX-ACT-01`, `EX-ACT-02`. */
+export type SaisieTachePredefinie = {
+  nom: string;
+  description?: string | null;
+  couleur?: string | null;
+  dureeParDefaut?: string;
+  heureDebut?: string | null;
+  heureFin?: string | null;
+  teletravailAutorise?: boolean;
+  poids?: number;
+};
+
+export const creerTachePredefinie = (donnees: SaisieTachePredefinie) =>
+  appeler<TachePredefinie>("/activite/taches", { methode: "POST", corps: donnees });
+
+export const modifierTachePredefinie = (
+  id: string,
+  donnees: Partial<SaisieTachePredefinie> & { actif?: boolean },
+) => appeler<TachePredefinie>(`/activite/taches/${id}`, { methode: "PATCH", corps: donnees });
+
+/** `RG-ACT-08` — une règle décrit un rythme ; elle ne crée rien par elle-même. */
+export type SaisieRecurrence = {
+  type: string;
+  frequence?: number;
+  jourSemaine?: number | null;
+  jourMois?: number | null;
+  ordinal?: number | null;
+  dateDebut: string;
+  dateFin?: string | null;
+};
+
+export const creerRecurrencePredefinie = (tacheId: string, donnees: SaisieRecurrence) =>
+  appeler<RecurrencePredefinie>(`/activite/taches/${tacheId}/recurrences`, {
+    methode: "POST",
+    corps: donnees,
+  });
+
+export const basculerRecurrencePredefinie = (id: string, active: boolean) =>
+  appeler<RecurrencePredefinie>(`/activite/recurrences/${id}`, {
+    methode: "PATCH",
+    corps: { active },
+  });
+
+/** `EX-ACT-05`, `RG-ACT-06` — la génération rend compte des créées ET des ignorées. */
+export const genererAssignations = (donnees: {
+  predefinedTaskId: string;
+  debut: string;
+  fin: string;
+  userIds: string[];
+}) => appeler<{ crees: number; ignores: number }>("/activite/generer", {
+  methode: "POST",
+  corps: donnees,
+});
