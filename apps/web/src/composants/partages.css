@@ -62,6 +62,40 @@
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
+/*
+ * Les cases de la barre de filtres — « couches » du planning, « Afficher
+ * toutes les dépendances » du Gantt.
+ *
+ * Elles vivaient dans `vues/planning/semaine.css` parce que la vue 07 est la
+ * première de la lignée à en avoir eu besoin. La maquette les pose pourtant
+ * dans le même bloc que `.filters` et `.f-input`, déjà transverses ici, et la
+ * section 19 les reprend telles quelles : la vue 15 les emploie sans porter
+ * une ligne de grille de planning. Même mouvement que la correction du
+ * 2026-08-16 consignée en `DESIGN.md § 4`.
+ */
+.layers {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  flex-wrap: wrap;
+}
+.layer {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.layer input {
+  accent-color: var(--accent);
+  width: 14px;
+  height: 14px;
+}
+.layer.is-on {
+  color: var(--ink);
+}
+
 /* ── Fenêtre modale ────────────────────────────────────────────────────── */
 
 .scrim-modal {

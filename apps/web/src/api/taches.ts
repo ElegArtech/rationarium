@@ -147,8 +147,38 @@ export const supprimerSousTache = (sousTacheId: string) =>
 export const reordonnerSousTaches = (id: string, ids: string[]) =>
   appeler<SousTache[]>(`/taches/${id}/sous-taches/ordre`, { methode: "PUT", corps: { ids } });
 
+/**
+ * Les liens d'une tâche, sans sa fiche complète.
+ *
+ * Le Gantt en a besoin pour **toutes** les tâches datées à la fois, afin de
+ * dresser le bandeau d'incohérences : passer par `fiche()` rapporterait
+ * assignés, sous-tâches, commentaires et documents pour n'en lire que deux
+ * tableaux. L'appel n'est fait que sur les tâches dont `_count.dependances`
+ * annonce au moins un prérequis.
+ */
+export const dependances = (id: string) =>
+  appeler<{ dependDe: LienDependance[]; bloque: LienDependance[] }>(`/taches/${id}/dependances`);
+
 export const ajouterDependance = (id: string, prerequisId: string) =>
   appeler<void>(`/taches/${id}/dependances`, { methode: "POST", corps: { prerequisId } });
+
+/**
+ * `EX-TSK-13` — l'aperçu du décalage en cascade, **avant** de l'exécuter.
+ *
+ * Le brief de la vue 15 exige « Décaler aussi {n} tâche(s) dépendante(s) ? » :
+ * la question ne peut se poser qu'avec le nombre en main.
+ */
+export const apercuCascade = (id: string, jours: number) =>
+  appeler<{ id: string; titre: string }[]>(
+    `/taches/${id}/cascade${params({ jours: String(jours) })}`,
+  );
+
+/** Décale la tâche **et** ses dépendantes, en une seule transaction serveur. */
+export const decalerEnCascade = (id: string, jours: number) =>
+  appeler<{ decalees: number; touchees: { id: string; titre: string }[] }>(
+    `/taches/${id}/cascade`,
+    { methode: "POST", corps: { jours } },
+  );
 
 export const retirerDependance = (id: string, prerequisId: string) =>
   appeler<void>(`/taches/${id}/dependances/${prerequisId}`, { methode: "DELETE" });
