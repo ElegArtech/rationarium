@@ -503,12 +503,28 @@ export async function peuplerMaquette(
       create: {
         id: idStable("q", i),
         nom: p.nom,
+        description: p.description,
+        icone: p.icone,
         dureeParDefaut: p.duree,
         heureDebut: p.debut,
         heureFin: p.fin,
         poids: p.poids,
+        teletravailAutorise: p.teletravail,
+        actif: p.actif,
       },
-      update: { nom: p.nom },
+      // L'`update` reflète le `create` : un champ qu'il omet est un champ qui
+      // ne change jamais. Le piège s'est déjà payé trois fois dans ce fichier.
+      update: {
+        nom: p.nom,
+        description: p.description,
+        icone: p.icone,
+        dureeParDefaut: p.duree,
+        heureDebut: p.debut,
+        heureFin: p.fin,
+        poids: p.poids,
+        teletravailAutorise: p.teletravail,
+        actif: p.actif,
+      },
     });
     /*
      * Le repli `acell-more` exige une cellule à QUATRE agents au moins : la
@@ -741,7 +757,78 @@ export async function peuplerMaquette(
     update: {},
   });
 
+  /*
+   * Les règles de récurrence. Le catalogue en portait ZÉRO : `rule-card`,
+   * `rule-meta` et `rule-nl2` étaient inatteignables, et la vue 34 ne pouvait
+   * pas montrer ce qu'elle sait engendrer.
+   */
+  for (const [i, r] of RECURRENCES.entries()) {
+    const tache = await prisma.predefinedTask.findUniqueOrThrow({
+      where: { nom: PERMANENCES[r.tache]!.nom },
+    });
+    await prisma.predefinedTaskRecurrence.upsert({
+      where: { id: idStable("R", i) },
+      create: {
+        id: idStable("R", i),
+        predefinedTaskId: tache.id,
+        type: r.type,
+        frequence: r.frequence,
+        jourSemaine: "jourSemaine" in r ? r.jourSemaine : null,
+        jourMois: "jourMois" in r ? r.jourMois : null,
+        ordinal: "ordinal" in r ? r.ordinal : null,
+        dateDebut: jour(-30),
+        active: "active" in r ? r.active : true,
+      },
+      update: {
+        predefinedTaskId: tache.id,
+        type: r.type,
+        frequence: r.frequence,
+        jourSemaine: "jourSemaine" in r ? r.jourSemaine : null,
+        jourMois: "jourMois" in r ? r.jourMois : null,
+        ordinal: "ordinal" in r ? r.ordinal : null,
+        dateDebut: jour(-30),
+        active: "active" in r ? r.active : true,
+      },
+    });
+  }
+
+  /*
+   * Le journal d'audit — vue 33.
+   *
+   * L'instance n'avait jamais tracé qu'un `role.seed` et des connexions : les
+   * six libellés d'action que la maquette montre n'avaient AUCUNE ligne, et
+   * `au-sys` — la marque d'une action système, `RG-ADM-09` — restait
+   * introuvable puisque le seul événement système était enseveli.
+   *
+   * Le journal est en AJOUT SEUL : le rôle applicatif n'y a que `INSERT` et
+   * `SELECT` (`RG-ADM-01`). Un jeu de données ne peut donc pas y être
+   * idempotent par `upsert` — il se rejoue en effaçant d'abord par la
+   * connexion propriétaire, ce qui est légitime ici et impossible depuis
+   * l'application.
+   */
+  await prisma.auditLog.deleteMany({ where: { typeEntite: "Demonstration" } });
+  for (const [i, e] of EVENEMENTS_AUDIT.entries()) {
+    await prisma.auditLog.create({
+      data: {
+        action: e.action,
+        typeEntite: "Demonstration",
+        entiteId: idStable("A", i),
+        acteurId: "systeme" in e ? null : agents[e.agent]!.id,
+        systeme: "systeme" in e,
+        /*
+         * À la MINUTE, pas à l'heure : le journal de volumétrie porte des
+         * centaines de lignes des dernières heures, et un événement de
+         * démonstration daté d'il y a huit heures est enseveli avant d'avoir
+         * été vu. La première page du journal est ce que la vue 33 montre.
+         */
+        horodatage: new Date(aujourdhui.getTime() - (i + 1) * 60_000),
+      },
+    });
+  }
+
   return {
+    audit: EVENEMENTS_AUDIT.length,
+    recurrences: RECURRENCES.length,
     tiers: 2,
     clients: clients.length,
     agents: agents.length,
@@ -841,9 +928,66 @@ const EVENEMENTS = [
   { titre: "Réunion de service", jour: 4, debut: "11:00", fin: "12:00" },
 ] as const;
 
+/**
+ * Le catalogue d'activité récurrente — vue 34.
+ *
+ * Deux tâches nues n'exerçaient presque rien : ni description (`pt-d`), ni
+ * icône (`picon`), aucune inactive (`is-off`), aucune interdite au télétravail
+ * (`is-no`), et **les cinq poids ne se lisaient pas**, donc « Très légère »,
+ * « Légère » et « Lourde » n'existaient nulle part.
+ *
+ * Six tâches couvrent les cinq poids, avec leurs deux cas de bord — une
+ * inactive dont `RG-ACT-05` conserve le passé, deux « sur site » — parce que
+ * chaque état de la maquette veut sa donnée.
+ */
 const PERMANENCES = [
-  { nom: "Accueil du public", duree: "half_day", debut: "09:00", fin: "12:00", poids: 3 },
-  { nom: "Astreinte technique", duree: "full_day", debut: null, fin: null, poids: 5 },
+  { nom: "Accueil du public", duree: "half_day", debut: "09:00", fin: "12:00", poids: 3,
+    description: "Guichet unique, hall d'entrée", icone: "p-cityhall", teletravail: false, actif: true },
+  { nom: "Astreinte technique", duree: "full_day", debut: null, fin: null, poids: 5,
+    description: "Intervention sur alerte, jour et nuit", icone: "p-bolt", teletravail: true, actif: true },
+  { nom: "Permanence téléphonique", duree: "half_day", debut: "14:00", fin: "17:00", poids: 2,
+    description: "Standard de la direction", icone: "p-badge", teletravail: true, actif: true },
+  { nom: "Revue de presse", duree: "time_slot", debut: "08:30", fin: "09:00", poids: 1,
+    description: "Veille quotidienne, diffusée au comité", icone: "p-book", teletravail: true, actif: true },
+  { nom: "Ouverture de la médiathèque", duree: "full_day", debut: null, fin: null, poids: 4,
+    description: "Accueil du public et régie", icone: "p-house", teletravail: false, actif: true },
+  // `RG-ACT-05` — inactive : plus assignable, mais son passé est conservé.
+  { nom: "Régie des salles", duree: "half_day", debut: "09:00", fin: "12:00", poids: 2,
+    description: "Suspendue depuis la réorganisation", icone: "p-map", teletravail: true, actif: false },
+] as const;
+
+/**
+ * Les trois types de récurrence de `TYPES_RECURRENCE`. Aucun n'avait de
+ * donnée : `rule-card`, `rule-meta` et `rule-nl2` étaient inatteignables, et
+ * la vue ne pouvait pas montrer ce qu'elle sait engendrer.
+ */
+const RECURRENCES = [
+  { tache: 0, type: "weekly", jourSemaine: 1, frequence: 1 },
+  { tache: 0, type: "weekly", jourSemaine: 4, frequence: 1 },
+  { tache: 1, type: "monthly_fixed", jourMois: 1, frequence: 1 },
+  { tache: 2, type: "monthly_ordinal", jourSemaine: 2, ordinal: 3, frequence: 1 },
+  // Arrêtée : la maquette distingue une règle active d'une règle suspendue.
+  { tache: 4, type: "weekly", jourSemaine: 5, frequence: 2, active: false },
+] as const;
+
+/**
+ * Les actions du journal que la maquette 33 montre. La liste est FERMÉE par
+ * `cadrage/01 § M20` : aucune n'est inventée ici, chacune existe déjà au
+ * catalogue de libellés.
+ */
+const EVENEMENTS_AUDIT = [
+  // `RG-ADM-09` — les actions système d'abord, donc les plus récentes : ce
+  // sont elles qui portent `au-sys` et le libellé « Système », et une seule
+  // ligne enfouie ne prouve rien.
+  { action: "role.seed", systeme: true },
+  { action: "notification.digest", systeme: true },
+  { action: "leave.approve", agent: 0 },
+  { action: "leave.cancellation_request", agent: 2 },
+  { action: "document.download", agent: 1 },
+  { action: "delegation.create", agent: 0 },
+  { action: "access_denied", agent: 3 },
+  { action: "project.update", agent: 0 },
+  { action: "user.update", agent: 1 },
 ] as const;
 
 const CONGES = [
