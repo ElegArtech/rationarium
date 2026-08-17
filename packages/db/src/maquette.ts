@@ -725,6 +725,19 @@ export async function peuplerMaquette(
       dateFin: new Date(Date.UTC(annee + 1, 0, 4)),
       joursOuvres: CONGE_A_CHEVAL.jours,
       statut: CONGE_A_CHEVAL.statut,
+      /*
+       * `RG-CNG-19` — la répartition par année civile est ce qui distingue ce
+       * congé de tous les autres, et c'est elle que la vue 19 montre
+       * (`lv-split`). Le service la calcule à la création ; ce jeu écrit
+       * directement en base, donc il doit la POSER, sinon il fabrique une
+       * ligne que le produit n'aurait jamais pu produire.
+       */
+      repartitions: {
+        create: [
+          { annee, jours: 2 },
+          { annee: annee + 1, jours: 4 },
+        ],
+      },
     },
   });
 
@@ -1015,7 +1028,10 @@ const JALONS = [
 ] as const;
 
 const TACHES = [
-  { titre: "Maquettes portail", projet: "portail", jalon: "Recette", statut: "doing", agent: 0, debut: 0, fin: 1, avancement: 60, heures: 12 },
+  // Priorité HAUTE : c'est la tâche que `design/routes.json` mesure pour la
+  // vue 17, et la maquette y montre « Haute ». En « Normale », le libellé
+  // n'apparaissait sur aucune fiche.
+  { titre: "Maquettes portail", projet: "portail", jalon: "Recette", statut: "doing", agent: 0, debut: 0, fin: 1, avancement: 60, heures: 12, priorite: "high" },
   // Cinq assignés : la pile montre trois visages, puis « +2 » (`avs-more`).
   { titre: "Recette portail", projet: "portail", jalon: "Recette", statut: "todo", agent: 0, equipe: true, debut: 4, fin: 4, heures: 8 },
   // Personne : `is-none`. Une tâche sans porteur est un état qui existe.
@@ -1188,7 +1204,13 @@ const CONGES = [
   // DANS la semaine courante : les vues 07 et 08 montrent la semaine et le
   // mois en cours. Une demi-journée à trois semaines d'ici existe en base et
   // ne se voit sur aucune des deux — `is-am` restait introuvable.
-  { agent: 0, debut: 2, fin: 2, jours: 0.5, statut: "approved", demiDebut: "morning", motif: "Rendez-vous médical" },
+  /*
+   * SANS motif, et c'est délibéré : la maquette rend « Matin » SEUL dans
+   * `lv-motif`. Le produit y concatène le motif quand il existe — « Matin ·
+   * Rendez-vous médical » — et le nœud de texte cesse alors de correspondre.
+   * Le motif est porté par le congé en annulation demandée, juste en dessous.
+   */
+  { agent: 0, debut: 2, fin: 2, jours: 0.5, statut: "approved", demiDebut: "morning" },
   { agent: 0, debut: 28, fin: 29, jours: 2, statut: "cancellation_requested", motif: "Déplacement annulé" },
 ] as const;
 
