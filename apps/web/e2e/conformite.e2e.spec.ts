@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { readFileSync } from "node:fs";
+import { execSync } from "node:child_process";
 import path from "node:path";
 
 const RACINE = path.resolve(import.meta.dirname, "../../..");
@@ -76,6 +77,32 @@ test.describe("la boucle de conformité de rendu", () => {
     }
     // Et il sort en 1 dès qu'il en trouve une.
     expect(source).toContain("process.exit(ecarts === 0 ? 0 : 1)");
+  });
+
+  test("L'ESPACE `acces` NE SERT QUE LES VUES 01 À 05 — l'invariant du cloisonnement", () => {
+    /*
+     * Le comparateur retire `acces` du catalogue des vues 06 et suivantes,
+     * parce que le panneau de marque de la vue 01 rend une grille illustrative
+     * — « Accueil · matin », « Astreinte », « Comité · EXT » — que les autres
+     * maquettes réemploient comme décor. Ces chaînes sont de vrais libellés là,
+     * et de la fiction partout ailleurs.
+     *
+     * Le cloisonnement ne vaut que si l'invariant tient. Il se VÉRIFIE ici, au
+     * lieu de se supposer : qu'une vue de données charge un jour `acces` et le
+     * comparateur cesserait de voir un vrai manque de libellé.
+     */
+    const fichiers = execSync(
+      `grep -rl 'useTranslation("acces")' ${path.join(RACINE, "apps/web/src")} || true`,
+      { encoding: "utf8" },
+    )
+      .split("\n")
+      .filter(Boolean)
+      .map((f) => path.relative(RACINE, f));
+
+    expect(fichiers.length).toBeGreaterThan(0);
+    for (const f of fichiers) {
+      expect(f.startsWith("apps/web/src/routes/")).toBe(true);
+    }
   });
 
   test("L'IDENTITÉ DE LA PERSONNE CONNECTÉE EST UNE DONNÉE, JAMAIS UN GABARIT", () => {
