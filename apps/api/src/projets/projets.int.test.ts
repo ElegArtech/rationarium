@@ -482,3 +482,81 @@ describe("RG-PRJ-09 — instantanés d'avancement", () => {
     expect(snaps[0]!.progression).toBe(100);
   });
 });
+
+/**
+ * `EX-PRJ-05` — « Modifier un projet ».
+ *
+ * L'exigence est au cadrage depuis le premier lot et la maquette 11 pose le
+ * bouton. Aucune route ne l'a jamais servi : corriger une date de fin ou un
+ * chef de projet imposait de SUPPRIMER le projet, donc d'en perdre les
+ * tâches, les jalons et l'équipe.
+ *
+ * Troisième occurrence du même trou après `EX-ORG-02` et `EX-CLI-02` : une
+ * exigence « créer, modifier, supprimer » livrée sans son verbe du milieu.
+ */
+describe("EX-PRJ-05 — modifier un projet", () => {
+  it("change le nom, les dates et le chef, et le relit depuis la base", async () => {
+    const p = await projets.creer(nouveauProjet(), chef);
+    const r = await projets.modifier(
+      p.id,
+      { nom: "Refonte du portail", dateFin: utc("2027-06-30"), chefId: chef, version: p.version },
+      chef,
+    );
+    expect(r.nom).toBe("Refonte du portail");
+
+    const relu = await prisma.project.findUniqueOrThrow({ where: { id: p.id } });
+    expect(relu.nom).toBe("Refonte du portail");
+    expect(relu.chefId).toBe(chef);
+  });
+
+  it("REFUSE une fin antérieure au début DÉJÀ EN BASE, pas seulement dans le corps reçu", async () => {
+    /*
+     * Le cas qu'un contrôle sur le seul corps reçu ne peut pas voir : ne
+     * changer que `dateFin` est licite requête par requête, et interdit en
+     * résultat. Le contrôle porte donc sur l'état résultant.
+     */
+    const p = await projets.creer(
+      nouveauProjet({ dateDebut: utc("2026-06-01"), dateFin: utc("2026-12-31") }),
+      chef,
+    );
+    await expect(
+      projets.modifier(p.id, { dateFin: utc("2026-03-01"), version: p.version }, chef),
+    ).rejects.toMatchObject({ code: "dates_incoherentes" });
+  });
+
+  it("RG-PRJ-04 — REFUSE de modifier un projet annulé, mais laisse le RESTAURER", async () => {
+    const p = await projets.creer(nouveauProjet(), chef);
+    await projets.annuler(p.id, chef);
+    const annule = await prisma.project.findUniqueOrThrow({ where: { id: p.id } });
+
+    await expect(
+      projets.modifier(p.id, { nom: "Tentative", version: annule.version }, chef),
+    ).rejects.toMatchObject({ code: "projet_annule" });
+
+    // Sans cette exception, restaurer serait lui-même refusé — la règle
+    // enfermerait le projet dans l'état qu'elle prétend protéger.
+    await expect(
+      projets.modifier(p.id, { statut: "active", version: annule.version }, chef),
+    ).resolves.toBeTruthy();
+  });
+
+  it("RG-GEN-07 — deux écritures concurrentes ne s'écrasent pas en silence", async () => {
+    const p = await projets.creer(nouveauProjet(), chef);
+    await projets.modifier(p.id, { nom: "Première", version: p.version }, chef);
+    await expect(
+      projets.modifier(p.id, { nom: "Seconde", version: p.version }, chef),
+    ).rejects.toMatchObject({ code: "conflit_de_version" });
+
+    const relu = await prisma.project.findUniqueOrThrow({ where: { id: p.id } });
+    expect(relu.nom).toBe("Première");
+  });
+
+  it("M20 — la modification est tracée au journal d'audit", async () => {
+    const p = await projets.creer(nouveauProjet(), chef);
+    await projets.modifier(p.id, { nom: "Tracée", version: p.version }, chef);
+    const traces = await prisma.auditLog.findMany({
+      where: { entiteId: p.id, action: "project.update" },
+    });
+    expect(traces).toHaveLength(1);
+  });
+});

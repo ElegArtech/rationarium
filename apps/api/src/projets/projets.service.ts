@@ -281,6 +281,79 @@ export class ProjetsService {
   }
 
   /**
+   * `EX-PRJ-05` — **modifier un projet.**
+   *
+   * L'exigence est au cadrage et la maquette 11 pose le bouton « Modifier »
+   * sur la fiche. Aucune route ne l'a jamais servi : corriger une date de fin
+   * ou un chef de projet était impossible sans supprimer le projet, donc sans
+   * perdre ses tâches, ses jalons et son équipe.
+   *
+   * Troisième occurrence du même trou après `EX-ORG-02` et `EX-CLI-02` : une
+   * exigence « créer, modifier, supprimer » livrée sans son verbe du milieu.
+   * La chaîne de traçabilité était vraie dans le sens descendant ; rien ne
+   * vérifiait qu'un verbe déclaré soit atteignable.
+   *
+   * `RG-PRJ-04` — un projet annulé se restaure avant d'être modifié. Le
+   * changement de statut est la seule exception : sans elle, restaurer serait
+   * lui-même refusé.
+   *
+   * `RG-GEN-07` — la version lue conditionne l'écriture.
+   */
+  async modifier(
+    id: string,
+    donnees: {
+      nom?: string; description?: string | null; statut?: StatutProjet; priorite?: Priorite;
+      dateDebut?: Date; dateFin?: Date; budgetHeures?: number | null; icone?: string | null;
+      chefId?: string | null; sponsorId?: string | null; departementId?: string | null;
+      version: number;
+    },
+    acteurId: string,
+  ) {
+    const avant = await this.prisma.project.findUnique({ where: { id } });
+    if (!avant) throw new ErreurProjet("introuvable");
+    if (avant.statut === "cancelled" && donnees.statut === undefined) {
+      throw new ErreurProjet("projet_annule");
+    }
+
+    /*
+     * Les dates se contrôlent sur l'état RÉSULTANT, jamais sur le seul corps
+     * reçu : ne changer que `dateFin` pour la faire passer avant un `dateDebut`
+     * déjà en base est licite requête par requête, et interdit en résultat.
+     */
+    const debut = donnees.dateDebut ?? avant.dateDebut;
+    const fin = donnees.dateFin ?? avant.dateFin;
+    if (fin < debut) throw new ErreurProjet("dates_incoherentes");
+
+    const { count } = await this.prisma.project.updateMany({
+      where: { id, version: donnees.version },
+      data: {
+        ...(donnees.nom !== undefined ? { nom: donnees.nom } : {}),
+        ...(donnees.description !== undefined ? { description: donnees.description } : {}),
+        ...(donnees.statut !== undefined ? { statut: donnees.statut } : {}),
+        ...(donnees.priorite !== undefined ? { priorite: donnees.priorite } : {}),
+        ...(donnees.dateDebut !== undefined ? { dateDebut: donnees.dateDebut } : {}),
+        ...(donnees.dateFin !== undefined ? { dateFin: donnees.dateFin } : {}),
+        ...(donnees.budgetHeures !== undefined ? { budgetHeures: donnees.budgetHeures } : {}),
+        ...(donnees.icone !== undefined ? { icone: donnees.icone } : {}),
+        ...(donnees.chefId !== undefined ? { chefId: donnees.chefId } : {}),
+        ...(donnees.sponsorId !== undefined ? { sponsorId: donnees.sponsorId } : {}),
+        ...(donnees.departementId !== undefined ? { departementId: donnees.departementId } : {}),
+        version: { increment: 1 },
+      },
+    });
+    if (count === 0) throw new ErreurProjet("conflit_de_version");
+
+    await this.audit.tracer({
+      action: "project.update",
+      typeEntite: "Project",
+      entiteId: id,
+      acteurId,
+      detail: { avant: avant.nom },
+    });
+    return this.prisma.project.findUniqueOrThrow({ where: { id } });
+  }
+
+  /**
    * `RG-PRJ-04` — **un projet annulé doit être restauré avant toute
    * modification.** Le contrôle est ici, pas dans chaque méthode : le placer
    * une fois évite qu'un point d'entrée l'oublie.

@@ -147,6 +147,27 @@ export const creerProjet = (donnees: {
   departementId?: string | null;
 }) => appeler<{ id: string }>("/projets", { methode: "POST", corps: donnees });
 
+/**
+ * `EX-PRJ-05` — modifier un projet.
+ *
+ * La maquette 11 pose « Modifier » sur la fiche ; aucune route ne l'a jamais
+ * servi. Tous les champs sont facultatifs sauf `version` : la fiche enregistre
+ * bloc par bloc, et `RG-GEN-07` veut la version lue avec chaque écriture.
+ */
+export const modifierProjet = (
+  id: string,
+  donnees: {
+    nom?: string;
+    description?: string | null;
+    statut?: string;
+    priorite?: string;
+    dateDebut?: string;
+    dateFin?: string;
+    budgetHeures?: number | null;
+    version: number;
+  },
+) => appeler<{ id: string }>(`/projets/${id}`, { methode: "PATCH", corps: donnees });
+
 export const archiverProjet = (id: string, archive: boolean) =>
   appeler<void>(`/projets/${id}/archiver`, { methode: "POST", corps: { archive } });
 

@@ -251,12 +251,30 @@ export async function peuplerMaquette(
         ...(projet ? { projectId: projet.id } : {}),
         ...(jalon ? { milestoneId: jalon.id } : {}),
       },
+      /*
+       * L'`update` REFLÈTE le `create`, valeur nulle comprise.
+       *
+       * `...(jalon ? … : {})` omettait le champ quand la tâche n'a plus de
+       * jalon : la ligne gardait donc l'ancien. Une tâche retirée du jalon
+       * « Cadrage » y restait attachée à chaque rejeu, ce qui empêchait le
+       * calcul « Terminé » (`RG-JAL-01`) — et `is-done` restait introuvable
+       * sur trois vues alors que le jeu déclarait le contraire.
+       *
+       * C'est la TROISIÈME fois que ce piège se paie ici, après le statut du
+       * projet et les deux colonnes du congé. Un champ absent de l'`update`
+       * est un champ qui ne change jamais, et les identifiants stables
+       * rendent l'oubli invisible : la ligne existe et paraît juste.
+       */
       update: {
         titre: t.titre,
         statut: t.statut,
+        priorite: "priorite" in t ? t.priorite : "normal",
         dateDebut: jour(t.debut),
         dateFin: jour(t.fin),
-        ...(jalon ? { milestoneId: jalon.id } : {}),
+        avancement: "avancement" in t ? t.avancement : 0,
+        estimationHeures: "heures" in t ? t.heures : null,
+        projectId: projet ? projet.id : null,
+        milestoneId: jalon ? jalon.id : null,
       },
     });
     /*
@@ -672,6 +690,13 @@ const JALONS = [
    * et aucun jalon du jeu ne l'exerçait.
    */
   { nom: "Ouverture au public", dans: null },
+  /*
+   * ÉCHU et non terminé : `ms-late` et `is-late`. Il faut les DEUX cas à la
+   * fois — un jalon terminé et un jalon en retard — et ils s'excluent sur un
+   * même jalon. Retirer la tâche en retard de « Cadrage » pour le rendre
+   * terminable avait donc supprimé le cas « en retard » du même coup.
+   */
+  { nom: "Concertation publique", dans: -7 },
 ] as const;
 
 const TACHES = [
@@ -699,6 +724,9 @@ const TACHES = [
    * vue 13, qui n'avait rien à montrer sur ce projet.
    */
   { titre: "Comptes rendus de juillet", projet: "portail", statut: "doing", agent: 0, debut: -14, fin: -5, priorite: "high" },
+  // Échéance passée, tâche non terminée : la tâche est EN RETARD (`is-late`)
+  // et son jalon avec elle (`ms-late`).
+  { titre: "Ateliers de concertation", projet: "portail", jalon: "Concertation publique", statut: "doing", agent: 2, debut: -20, fin: -9, avancement: 40 },
   // Sans assigné, SUR LE PROJET MESURÉ : `is-none` de la vue 13. Le seul cas
   // du jeu était sur `sirh`, que les vues 11, 13 et 15 ne regardent pas.
   { titre: "Charte éditoriale", projet: "portail", jalon: "Comité de pilotage", statut: "todo", agent: -1, debut: 3, fin: 8 },
