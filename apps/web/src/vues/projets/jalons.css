@@ -165,6 +165,13 @@
   color: var(--muted);
   margin-top: 3px;
 }
+/* La maquette 13 pose ce rouge en style en ligne sur la seconde ligne d'une
+   tâche en retard (`sub.style.color = 'var(--st-blocked)'`). Repris ici en
+   modificateur : `is-late` est déjà le mot de la maquette pour cet état, sur
+   `.ms` comme sur `.tl-dot`. */
+.tk-sub.is-late {
+  color: var(--st-blocked);
+}
 .tk-est {
   font-family: var(--font-mono);
   font-size: 10px;

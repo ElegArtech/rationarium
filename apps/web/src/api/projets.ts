@@ -69,6 +69,8 @@ export type TacheDeJalon = {
   priorite: string;
   avancement: number;
   dateFin: string | null;
+  /** `RG-GEN-07` — accompagne la modification du statut en ligne (vue 13). */
+  version: number;
   /** La charge estimée — la maquette la pose sur chaque ligne. */
   estimationHeures: string | number | null;
   /** Qui la porte. Sans eux, la feuille de route ne dit pas si un jalon tiendra. */

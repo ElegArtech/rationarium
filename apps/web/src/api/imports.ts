@@ -65,6 +65,23 @@ export const importerTaches = (projetId: string, contenu: string) =>
     corps: { contenu },
   });
 
+/**
+ * L'import des jalons d'un projet — vue 13, action « Importer CSV ».
+ *
+ * **La route serveur n'existe pas encore.** `cadrage/01 § M21` impose pourtant
+ * l'objet « Jalons d'un projet » (`name*`, `description`, `dueDate*`), et le
+ * contrôleur M21 en connaît déjà les deux extrémités : l'aperçu accepte le type
+ * `jalons`, et `GET /imports/export/projet/:id/jalons` produit exactement ces
+ * colonnes. Il manque l'exécution au milieu. Même situation, et même parti pris,
+ * que `importerCompetences` : le manque est remonté au cadrage plutôt que
+ * comblé ici.
+ */
+export const importerJalons = (projetId: string, contenu: string) =>
+  appeler<CompteRendu>(`/imports/projet/${projetId}/jalons`, {
+    methode: "POST",
+    corps: { contenu },
+  });
+
 export const volumesRemplacement = (projetId: string) =>
   appeler<{ jalons: number; taches: number; sousTaches: number }>(
     `/imports/projet/${projetId}/volumes`,
