@@ -4,7 +4,17 @@ Forme opérationnelle du § 5 de `cadrage/04`. C'est le document qu'on ouvre pou
 
 > **Sans DAG, la parallélisation est un pari ; avec, c'est une lecture.**
 
-**État au 2026-08-16** — **les 35 vues sont portées.** Les vagues 3 bis et 4 sont closes ; la vague 5 est ouverte.
+**État au 2026-08-17** — **les 35 vues sont portées ; elles ne sont pas toutes CONFORMES.** La distinction n'est pas de langue : elle a coûté un projet entier de fausse assurance.
+
+> **Ce que la campagne de conformité a révélé — et qui invalide une partie de ce document.** `pnpm ui:diff` **sortait en zéro sans jamais comparer**. La « conformité de rendu » exigée par la définition de terminé de `CLAUDE.md` a donc été déclarée pour trente-cinq vues sur un contrôle vide, lot après lot. Le comparateur existe désormais (`scripts/ui-conformite.mjs`) et mesure réellement : vocabulaire de classes, classes inertes, textes contractuels, repères ARIA.
+>
+> À la première mesure honnête : **3 039 écarts**. Les vues 01 à 05 étaient portées sans une ligne de CSS ; la coquille employait un vocabulaire inventé, répété sur les trente-cinq vues — c'était aussi la vraie cause du défaut d'impression de L-27, « corrigé » dans la mauvaise direction.
+>
+> **Un lot marqué « livré » ci-dessous l'est sur huit boucles, pas sur neuf.** Le repasser en « livré » de plein droit est une décision humaine, pas un effet de bord de cette campagne. L'état par vue se lit par `node scripts/ui-conformite.mjs toutes`, seule source qui ne se raconte rien.
+>
+> Corollaire mesuré : **une classe manquante à l'écran a désigné treize capacités serveur absentes**, dont le module de congés entièrement inutilisable — rien n'écrivait jamais `leaveBalance`, donc `RG-CNG-20` refusait chaque demande, et une règle qui refuse tout passe tous ses tests de refus. Voir `docs/audits/conformite-maquettes.md`.
+
+Les vagues 3 bis et 4 sont closes ; la vague 5 est ouverte.
 
 Plus aucun lot ne porte la mention « livré (serveur) » : **L-08** (vues 32, 33), **L-09** (vue 31) et **L-17** (vue 34) repassent en **« livré »** tout court avec la clôture de L-37. La mention ne se justifiait que par des vues manquantes ; elles sont portées.
 
