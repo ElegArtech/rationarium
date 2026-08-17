@@ -298,6 +298,14 @@ export function FicheTiers({ tiersId }: { tiersId: string }) {
 
   const tiers = requete.data;
   const morale = tiers.type === "organisation";
+  /*
+   * Les rôles tenus, dédupliqués : la ligne d'informations donne la lecture
+   * d'ensemble, chaque projet porte le sien. Un tiers peut n'en avoir aucun.
+   */
+  const roles =
+    [...new Set(tiers.projets.map((p) => p.role).filter((r): r is string => Boolean(r)))].join(
+      " · ",
+    ) || null;
   const enCours = tiers.projets.filter((p) => p.statut === "active").length;
   const terminees = tiers.taches.filter((x) => x.statut === "done").length;
 
@@ -437,7 +445,10 @@ export function FicheTiers({ tiersId }: { tiersId: string }) {
                   <IconeProjet icone={p.icone} nom={p.nom} />
                   <span style={{ minWidth: 0 }}>
                     <p className="lnk-n">{p.nom}</p>
-                    <span className="lnk-s">{libelle(p.statut, STATUTS_PROJET)}</span>
+                    <span className="lnk-s">
+                      {libelle(p.statut, STATUTS_PROJET)}
+                      {p.role ? ` · ${p.role}` : ""}
+                    </span>
                   </span>
                   <span className="prow-progline">
                     <span className="bar">
@@ -595,14 +606,25 @@ export function FicheTiers({ tiersId }: { tiersId: string }) {
 
               <dt>{t("tiers.tempsDeclare")}</dt>
               <dd>{t("tiers.saisies", { n: tiers.saisies })}</dd>
+              <dt>{t("tiers.adresse")}</dt>
+              <dd className={tiers.adresse ? "" : "is-none"}>
+                {tiers.adresse ?? t("nonRenseigne")}
+              </dd>
+
               {/*
-               * La maquette 28 pose encore trois lignes ici — SIRET, Adresse,
-               * Rôle — que le modèle de données ne porte pas : `ThirdParty`
-               * n'a ni l'un, ni l'autre, ni le troisième
-               * (`packages/db/prisma/schema.prisma`). Elles ne sont pas
-               * rendues : un libellé suivi d'un « non renseigné » que rien ne
-               * peut jamais remplir vaut moins qu'une absence assumée. Le
-               * manque exige une tâche de schéma dédiée (`cadrage/04 § 5.3`).
+               * Le RÔLE est celui du rattachement, pas du tiers : le même
+               * prestataire peut être « développement » ici et « AMO »
+               * ailleurs. La ligne d'informations en donne donc la lecture
+               * d'ensemble, et chaque projet porte le sien sur sa ligne.
+               */}
+              <dt>{t("tiers.role")}</dt>
+              <dd className={roles ? "" : "is-none"}>{roles ?? t("nonRenseigne")}</dd>
+
+              {/*
+               * Le SIRET reste absent : le modèle ne le porte pas. Un libellé
+               * suivi d'un « non renseigné » que rien ne peut jamais remplir
+               * vaut moins qu'une absence assumée. Voir
+               * `docs/audits/conformite-maquettes.md § 3`.
                */}
             </dl>
           </section>

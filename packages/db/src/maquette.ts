@@ -355,6 +355,7 @@ export async function peuplerMaquette(
       type: "organisation",
       organisation: "Atelier Numérique SARL",
       contactEmail: "contact@atelier-numerique.fr",
+      adresse: "8 zone des Garrigues, Roqueville",
     },
     update: { organisation: "Atelier Numérique SARL" },
   });
@@ -832,8 +833,10 @@ export async function peuplerMaquette(
   for (const [rang, t] of [tiers, tiersPhysique].entries()) {
     await prisma.projectThirdParty.upsert({
       where: { projectId_thirdPartyId: { projectId: projets[rang]!.id, thirdPartyId: t.id } },
-      create: { projectId: projets[rang]!.id, thirdPartyId: t.id },
-      update: {},
+      // Le rôle est celui du RATTACHEMENT : le même prestataire n'a pas le
+      // même rôle d'un projet à l'autre.
+      create: { projectId: projets[rang]!.id, thirdPartyId: t.id, role: ["Développement", "Assistance à maîtrise d'ouvrage"][rang] ?? null },
+      update: { role: ["Développement", "Assistance à maîtrise d'ouvrage"][rang] ?? null },
     });
   }
 
@@ -845,12 +848,19 @@ export async function peuplerMaquette(
       create: {
         id: idStable("H", 100 + n),
         thirdPartyId: tiers.id,
+        // QUI a posé la saisie. Sans lui, elle n'apparaît dans le journal de
+        // personne — pas même de celui qui l'a saisie (`te-actor`, vue 21).
+        creeParId: moi.id,
         projectId: projets[0]!.id,
-        date: jour(-n - 1),
+        // DANS la semaine courante : la vue 21 filtre sur la période affichée,
+        // et une saisie de la semaine passée n'y paraît pas — `te-actor`
+        // restait introuvable alors que la donnée existait.
+        date: jour(n % 5),
         heures: 2 + (n % 3),
         description: "Appui au prestataire — accès annuaire",
       },
-      update: { date: jour(-n - 1), thirdPartyId: tiers.id },
+      // L'`update` reflète le `create` — sixième fois que l'oubli se paie ici.
+      update: { date: jour(n % 5), thirdPartyId: tiers.id, creeParId: moi.id, projectId: projets[0]!.id },
     });
   }
 
@@ -859,8 +869,8 @@ export async function peuplerMaquette(
     clients.push(
       await prisma.client.upsert({
         where: { id: idStable("K", i) },
-        create: { id: idStable("K", i), nom: c.nom, contactNom: c.contact, adresse: c.adresse, actif: c.actif },
-        update: { nom: c.nom, contactNom: c.contact, adresse: c.adresse, actif: c.actif },
+        create: { id: idStable("K", i), nom: c.nom, contactNom: c.contact, adresse: c.adresse, actif: c.actif, nature: c.nature },
+        update: { nom: c.nom, contactNom: c.contact, adresse: c.adresse, actif: c.actif, nature: c.nature },
       }),
     );
   }
@@ -1220,11 +1230,13 @@ const CONGES = [
  * suivre le lundi courant : elle est absolue.
  */
 const CLIENTS = [
-  { nom: "Direction de la culture", contact: "Sylvie Nardin", adresse: "12 place de la Mairie, Roqueville", actif: true },
+  { nom: "Direction de la culture", contact: "Sylvie Nardin", adresse: "12 place de la Mairie, Roqueville", actif: true, nature: "internal" },
   // Sans projet : la puce « Aucun projet » de la vue 25.
-  { nom: "Office de tourisme", contact: "Paul Lambert", adresse: "3 rue des Remparts, Roqueville", actif: true },
-  // Inactif : la ligne atténuée et le filtre « Inactifs ».
-  { nom: "Syndicat des eaux", contact: null, adresse: null, actif: false },
+  { nom: "Office de tourisme", contact: "Paul Lambert", adresse: "3 rue des Remparts, Roqueville", actif: true, nature: "internal" },
+  // EXTÉRIEUR — `is-ext`. `design/etats.json` déclare l'axe « Direction
+  // interne / Organisme extérieur » pour la vue 25 ; il n'avait aucune source.
+  { nom: "Syndicat des eaux", contact: null, adresse: null, actif: false, nature: "external" },
+  { nom: "Communauté d'agglomération", contact: "Nadia Kaufmann", adresse: "1 rue du Port, Roqueville", actif: true, nature: "external" },
 ] as const;
 
 const CONGE_A_CHEVAL = { agent: 0, jours: 6, statut: "approved" as const };

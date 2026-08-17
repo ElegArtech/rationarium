@@ -183,7 +183,9 @@
     "tacheIndependante": "Hors projet",
     "finLe": "Fin : {date}",
     "sansEcheance": "Sans échéance",
-    "autresSaisies": "{n, plural, one {… et # autre saisie} other {… et # autres saisies}}"
+    "autresSaisies": "{n, plural, one {… et # autre saisie} other {… et # autres saisies}}",
+    "adresse": "Adresse",
+    "role": "Rôle"
   },
   "clients": {
     "surtitre": "Référentiels",
