@@ -153,6 +153,7 @@ Le comportement et l'accessibilité s'achètent (React Aria Components, `03 § 4
 5. **Sur les grilles** : colonne de gauche figée au défilement horizontal, ligne d'en-tête figée au défilement vertical.
 6. **Prévoir l'anglais 30 % plus long** que le français (`02 § D.7`). Aucune largeur calée sur un libellé français.
 7. **Les deux thèmes sont traités partout**, y compris sur les codes couleur porteurs de sens (`02 § D.8`).
+8. **La vue active occupe toute la largeur disponible, avec la même gouttière des deux côtés.** `.page` ne porte **aucun** `max-width`. Les maquettes en portent un — `1360px`, sans centrage — et c'est un écart assumé du portage, décidé le 2026-08-17 : au-delà de 1602 px de fenêtre le contenu s'arrêtait avant le bord que la barre du haut atteint, soit 318 px perdus sur un écran de 1920 et 958 sur un 2560. Le retrait de gouttière à gauche est voulu et se lit comme une marge ; le même vide à droite se lit comme un manque. Ce vide ne réservait rien : les panneaux de détail des vues 07, 08, 18 et 33 sont des `position:fixed; right:0` qui **survolent** le contenu. Ni un plafond non centré — il recrée le défaut — ni un plafond centré — il double la gouttière gauche et fait flotter la page — ne sont acceptables : c'est la gouttière qui borne, pas la largeur.
 
 ---
 

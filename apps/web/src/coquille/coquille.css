@@ -404,9 +404,30 @@
   flex-direction: column;
 }
 
+/*
+ * ÉCART ASSUMÉ CONTRE LA RÉFÉRENCE GELÉE — 2026-08-17.
+ *
+ * Les 35 maquettes portent `max-width:1360px` sur `.page`, sans centrage. La
+ * barre du haut, elle, occupe toute la largeur de `.main`. Au-delà de 1602 px
+ * de fenêtre (242 de barre latérale + 1360), le contenu s'arrête donc avant le
+ * bord que la barre du haut atteint : 318 px perdus sur un écran de 1920, 958
+ * sur un 2560. Le retrait de gouttière à gauche est voulu et lisible ; à droite
+ * le même vide se lit comme un manque.
+ *
+ * Ce vide n'était réservé à rien : le panneau de détail des vues 07, 08 et 33
+ * est un `position:fixed; right:0` qui SURVOLE le contenu (maquette 07 § 9). Le
+ * récupérer n'hypothèque donc aucune intégration ultérieure.
+ *
+ * La règle retenue : pas de plafond, et la même gouttière de 24 px des deux
+ * côtés — celle dont la version gauche fait déjà autorité visuellement. Cohérent
+ * avec `docs/design/DESIGN.md § 3` règle 4, « les vues denses sont optimisées
+ * pour le poste de travail ».
+ *
+ * Ne pas rétablir de `max-width` ici : un plafond non centré recrée le défaut,
+ * et un plafond centré double la gouttière gauche — les deux ont été écartés.
+ */
 .page {
   padding: 22px 24px 40px;
-  max-width: 1360px;
   width: 100%;
 }
 
