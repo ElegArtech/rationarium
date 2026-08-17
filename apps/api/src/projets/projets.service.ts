@@ -83,7 +83,13 @@ export class ProjetsService {
   async portefeuille(
     perimetre: Perimetre,
     permissions: ReadonlySet<string>,
-    filtres: { recherche?: string; statut?: StatutProjet; priorite?: Priorite; archive?: boolean } = {},
+    filtres: {
+      recherche?: string;
+      statut?: StatutProjet;
+      priorite?: Priorite;
+      archive?: boolean;
+      mesProjets?: boolean;
+    } = {},
   ) {
     const visibilite = this.perimetres.filtreProjet(perimetre, permissions);
     const clauses: Record<string, unknown>[] = [visibilite];
@@ -98,6 +104,13 @@ export class ProjetsService {
     }
     if (filtres.statut) clauses.push({ statut: filtres.statut });
     if (filtres.priorite) clauses.push({ priorite: filtres.priorite });
+    /*
+     * « Mes projets » se **cumule** avec la visibilité, il ne la remplace pas :
+     * un resserrement de lecture ne peut pas élargir ce qu'on a le droit de
+     * voir. Pour qui n'a pas de droit global, les deux prédicats coïncident et
+     * le bouton ne change rien — ce qui est la lecture attendue.
+     */
+    if (filtres.mesProjets) clauses.push(this.perimetres.filtreMesProjets(perimetre.userId));
     clauses.push({ archive: filtres.archive ?? false });
 
     const [projets, total] = await Promise.all([

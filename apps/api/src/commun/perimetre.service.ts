@@ -167,12 +167,26 @@ export class PerimetreService {
     if (p.global || permissions.has("projects:manage_any") || permissions.has("projects:readAll")) {
       return {};
     }
+    return this.filtreMesProjets(p.userId);
+  }
+
+  /**
+   * Les projets d'une personne : ceux qu'elle a créés, qu'elle dirige, dont
+   * elle est sponsor, ou dont elle est membre.
+   *
+   * C'est le **même prédicat** que celui du périmètre projet, extrait pour
+   * être réutilisable : la vue 10 propose « Mes projets » à qui voit tout, et
+   * ce bouton doit resserrer sur exactement le même ensemble que celui qu'un
+   * utilisateur sans droit global verrait. Deux définitions divergeraient au
+   * premier ajout de rôle.
+   */
+  filtreMesProjets(userId: string): Record<string, unknown> {
     return {
       OR: [
-        { createurId: p.userId },
-        { chefId: p.userId },
-        { sponsorId: p.userId },
-        { membres: { some: { userId: p.userId } } },
+        { createurId: userId },
+        { chefId: userId },
+        { sponsorId: userId },
+        { membres: { some: { userId } } },
       ],
     };
   }

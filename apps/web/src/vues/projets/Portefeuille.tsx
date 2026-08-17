@@ -44,10 +44,17 @@ export function Portefeuille() {
   const [recherche, setRecherche] = useState("");
   const [statut, setStatut] = useState("");
   const [priorite, setPriorite] = useState("");
+  /*
+   * Maquette 10 — « Mes projets ». Le brief en fait une VARIANTE : sans droit
+   * de gestion globale, on ne voit déjà que ses projets et le bouton ne change
+   * rien ; avec ce droit, il resserre la lecture sur les siens. Le filtrage
+   * reste au serveur — le client ne trie pas une liste qu'il a déjà reçue.
+   */
+  const [mesProjets, setMesProjets] = useState(false);
   const [creationOuverte, setCreationOuverte] = useState(false);
 
-  const filtres = { recherche, statut, priorite };
-  const filtre = Boolean(recherche || statut || priorite);
+  const filtres = { recherche, statut, priorite, ...(mesProjets ? { mesProjets } : {}) };
+  const filtre = Boolean(recherche || statut || priorite || mesProjets);
 
   const requete = useQuery({
     queryKey: ["projets", filtres],
@@ -58,6 +65,7 @@ export function Portefeuille() {
     setRecherche("");
     setStatut("");
     setPriorite("");
+    setMesProjets(false);
   };
 
   return (
@@ -121,6 +129,19 @@ export function Portefeuille() {
             </option>
           ))}
         </select>
+
+        <span className="vsep" />
+
+        {/* `RG-GEN-06` — un resserrement de lecture, pas un contrôle de droit :
+            l'état courant se dit par `aria-pressed`, le bouton reste un bouton
+            bascule et le serveur reste seul juge de ce qui est visible. */}
+        <Button
+          className="chip-btn"
+          aria-pressed={mesProjets}
+          onPress={() => setMesProjets((v) => !v)}
+        >
+          {t("portefeuille.mesProjets")}
+        </Button>
       </div>
 
       {requete.isPending ? <Chargement quoi={t("portefeuille.lesProjets")} /> : null}

@@ -117,6 +117,13 @@ export const portefeuille = (filtres: {
   statut?: string;
   priorite?: string;
   archive?: boolean;
+  /**
+   * Maquette 10 — le bouton « Mes projets ». C'est un **confort de lecture**,
+   * pas un contrôle : le périmètre s'applique de toute façon au serveur, et
+   * ce drapeau ne fait que le resserrer sur les projets dont on est créateur,
+   * chef, sponsor ou membre (`cadrage/02 § vue 10`, variantes).
+   */
+  mesProjets?: boolean;
 }) => appeler<Portefeuille>(`/projets${params(filtres)}`);
 
 export const fiche = (id: string) => appeler<FicheProjet>(`/projets/${id}`);
