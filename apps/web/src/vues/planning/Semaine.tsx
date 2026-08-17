@@ -1,6 +1,7 @@
 import { useState, type CSSProperties, type DragEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { Button, Menu, MenuItem, MenuTrigger, Popover, SubmenuTrigger } from "react-aria-components";
+import { IconeProjet } from "../../composants/icones-projet.js";
 import type { Planning, PersonnePlanning } from "../../api/planning.js";
 import { CELLULE_VIDE, initiales, joursAffiches, type Cellule } from "./grille.js";
 import { cleGroupe } from "./Planning.js";
@@ -498,7 +499,10 @@ function Occupation({
         style={
           p.predefinedTask.couleur
             ? ({ color: p.predefinedTask.couleur } as CSSProperties)
-            : { color: "var(--st-activity, var(--accent))" }
+            : // La maquette colore la permanence par `--activity`. Le repli
+              // visait `--st-activity`, qui n'existe pas : la pastille
+              // retombait sur l'accent et se confondait avec le reste.
+              { color: "var(--activity)" }
         }
       >
         <span>{p.predefinedTask.nom}</span>
@@ -507,12 +511,17 @@ function Occupation({
   }
 
   const tache = occupation.tache;
+  /*
+   * La pastille de projet est le SYMBOLE du référentiel, pas son code.
+   * Le cadre posait `<i class="pglyph">{icone}</i>`, ce qui affichait la
+   * chaîne « p-screen » en toutes lettres dans la cellule : la maquette y
+   * dessine `<svg class="pgi"><use href="#p-screen"/></svg>`. `IconeProjet`
+   * porte ce balisage, et il est déjà celui du tableau de bord.
+   */
   const contenu = (
     <>
-      {tache.project?.icone ? (
-        <i className="pglyph" aria-hidden="true">
-          {tache.project.icone}
-        </i>
+      {tache.project ? (
+        <IconeProjet icone={tache.project.icone} nom={tache.project.nom} petite />
       ) : null}
       <span>{tache.titre}</span>
     </>
