@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { ROLES_PROJET } from "@trame/contracts";
+import { ROLES_PROJET, TYPES_TIERS } from "@trame/contracts";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "react-aria-components";
 import { appeler } from "../../api/client.js";
@@ -144,18 +144,7 @@ export function Equipe({ projetId }: { projetId: string }) {
         vide={{ titre: t("equipe.aucunTiers"), explication: t("equipe.aucunTiersExplication") }}
       >
         {tiers.map((x) => (
-          <div className="mrow" key={x.id}>
-            <span className="mav is-ext" aria-hidden="true">
-              ◇
-            </span>
-            <div className="bloc-etroit">
-              <p className="mname">{x.organisation ?? x.contactNom ?? "—"}</p>
-              <span className="msub">{t(`equipe.type_${x.type}`)}</span>
-            </div>
-            <span className="malloc-na">{t("equipe.sansAllocation")}</span>
-            <span />
-            <span />
-          </div>
+          <LigneTiers key={x.id} tiers={x} />
         ))}
       </Section>
 
@@ -177,8 +166,13 @@ export function Equipe({ projetId }: { projetId: string }) {
               <p className="mname">{c.nom}</p>
               {c.contactNom ? <span className="msub">{c.contactNom}</span> : null}
             </div>
+            {/* La maquette dit la nature du rattachement sur la ligne même :
+                un bénéficiaire n'est pas un contributeur, et la colonne
+                d'allocation ne suffit pas à le dire. */}
+            <div>
+              <span className="pill pill-muted">{t("equipe.beneficiaire")}</span>
+            </div>
             <span className="malloc-na">{t("equipe.neContribuePas")}</span>
-            <span />
             <span />
           </div>
         ))}
@@ -235,6 +229,39 @@ function Section({
   );
 }
 
+/**
+ * La ligne d'un intervenant extérieur.
+ *
+ * **Le type vient de `TYPES_TIERS`, pas d'une clé i18n locale.** Il en venait :
+ * `equipe.type_${x.type}` cherchait `type_organization` quand le vocabulaire de
+ * `cadrage/01 § 4.1` code `organisation` — la clé ne résolvait pas et **le
+ * produit affichait `equipe.type_organisation` à l'écran**. Une énumération
+ * locale doublant un vocabulaire du cadrage est un interdit structurel ; ici
+ * elle avait en plus divergé, et rien ne pouvait le dire.
+ */
+function LigneTiers({ tiers }: { tiers: Equipe["tiers"][number] }) {
+  const { t } = useTranslation("projets");
+  const libelle = useLibelle();
+
+  return (
+    <div className="mrow">
+      <span className="mav is-ext" aria-hidden="true">
+        {tiers.type === "organisation" ? "⌷" : "◇"}
+      </span>
+      <div className="bloc-etroit">
+        <p className="mname">{tiers.organisation ?? tiers.contactNom ?? "—"}</p>
+        <span className="msub">
+          {libelle(tiers.type, TYPES_TIERS)}
+          {tiers.type !== "organisation" && tiers.contactNom ? ` · ${tiers.contactNom}` : ""}
+        </span>
+      </div>
+      <span className="malloc-na">{t("equipe.sansAllocation")}</span>
+      <span />
+      <span />
+    </div>
+  );
+}
+
 function LigneAgent({
   projetId,
   membre,
@@ -251,6 +278,11 @@ function LigneAgent({
 
   const nomComplet = `${membre.utilisateur.prenom} ${membre.utilisateur.nom}`;
   const allocation = membre.tauxAllocation ?? 0;
+  /*
+   * La saisie est une CHAÎNE, jamais un nombre : `Number("")` vaut zéro, et un
+   * champ vidé le temps de retaper « 80 » vaudrait 0 % à la première frappe.
+   */
+  const [saisieAllocation, setSaisieAllocation] = useState(String(allocation));
 
   const libelle = useLibelle();
 
@@ -267,6 +299,21 @@ function LigneAgent({
       void client.invalidateQueries({ queryKey: ["projet", projetId] });
     },
     onError: (e) => annoncer("err", messageErreur(e, tErreurs, t("fiche.echecAction"))),
+  });
+
+  const changementAllocation = useMutation({
+    mutationFn: (tauxAllocation: number) =>
+      api.changerRoleMembre(projetId, membre.userId, { tauxAllocation }),
+    onSuccess: () => {
+      annoncer("ok", t("equipe.allocationChangee", { nom: nomComplet }));
+      void client.invalidateQueries({ queryKey: ["projet", projetId] });
+    },
+    onError: (e) => {
+      annoncer("err", messageErreur(e, tErreurs, t("fiche.echecAction")));
+      // La valeur revient à celle du serveur : on ne garde pas à l'écran un
+      // chiffre que la base a refusé.
+      setSaisieAllocation(String(allocation));
+    },
   });
 
   const retrait = useMutation({
@@ -317,9 +364,39 @@ function LigneAgent({
         <span className="mini-select-libelle">{libelle(membre.roleProjet, ROLES_PROJET)}</span>
       )}
 
+      {/*
+        L'allocation se corrige sur la ligne, comme le rôle : la maquette pose
+        un champ de saisie, son unité et sa barre. Elle était affichée en texte
+        figé — « modifier » figure pourtant aux actions du brief, et le point
+        d'entrée `PATCH …/membres/:userId` accepte déjà `tauxAllocation`.
+        L'écriture part à la validation (`onBlur`), pas à chaque frappe : une
+        requête par caractère saisi ferait dix écritures pour « 100 ».
+      */}
       <div className="malloc">
-        <span className="prow-pct">{allocation} %</span>
-        <Barre valeur={allocation} libelle={t("equipe.allocationDe", { nom: nomComplet })} />
+        {peut("projects:manage_members") ? (
+          <input
+            type="number"
+            min={0}
+            max={100}
+            step={5}
+            value={saisieAllocation}
+            aria-label={t("equipe.allocationDe", { nom: nomComplet })}
+            onChange={(e) => setSaisieAllocation(e.target.value)}
+            onBlur={() => {
+              const valeur = Math.max(0, Math.min(100, Number(saisieAllocation)));
+              if (saisieAllocation !== "" && valeur !== allocation) {
+                changementAllocation.mutate(valeur);
+              }
+            }}
+          />
+        ) : (
+          <span className="prow-pct">{allocation}</span>
+        )}
+        <span className="hours-unit">%</span>
+        <Barre
+          valeur={Number(saisieAllocation) || 0}
+          libelle={t("equipe.allocationDe", { nom: nomComplet })}
+        />
       </div>
 
       {peut("projects:manage_members") ? (

@@ -199,9 +199,9 @@
     "confirmerRetrait": "Voulez-vous vraiment retirer {nom} de l'équipe ?",
     "effetRetrait": "Le temps déclaré et les tâches assignées sont conservés : seul le rattachement au projet est retiré.",
     "aucuneDonneeSupprimee": "Aucune donnée n'est supprimée",
-    "type_individual": "Personne physique",
-    "type_organization": "Organisation",
     "roleDe": "Rôle de {nom} dans le projet",
-    "roleChange": "Rôle de {nom} modifié"
+    "roleChange": "Rôle de {nom} modifié",
+    "beneficiaire": "Bénéficiaire",
+    "allocationChangee": "Allocation de {nom} mise à jour."
   }
 }
