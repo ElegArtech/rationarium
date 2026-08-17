@@ -372,7 +372,12 @@ test.describe("Vue 21 — temps passé", () => {
   test("état vide", async ({ page }) => {
     await serveur(page, {
       session: CAMILLE,
-      reponses: { ...reponses, "/api/temps": { corps: { saisies: [], cumul: { entrees: 0, heures: 0 } } } },
+      reponses: {
+        ...reponses,
+        "/api/temps": {
+          corps: { saisies: [], cumul: { entrees: 0, heures: 0, plafondJournalier: 12 } },
+        },
+      },
     });
     await page.goto("/temps");
 

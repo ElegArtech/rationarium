@@ -275,5 +275,8 @@ export const SAISIES = {
       thirdParty: { id: "x1", organisation: "Presta SA", contactNom: null },
     },
   ],
-  cumul: { entrees: 3, heures: 17.5 },
+  /* `RG-TMP-02` — le plafond vient du serveur, la vue n'en garde pas de copie.
+     Douze heures : la journée du 12 août en cumule 13,5 et doit donc ressortir
+     en dépassement. */
+  cumul: { entrees: 3, heures: 17.5, plafondJournalier: 12 },
 };
