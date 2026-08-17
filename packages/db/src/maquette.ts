@@ -211,8 +211,8 @@ export async function peuplerMaquette(
     for (const j of JALONS) {
       await prisma.milestone.upsert({
         where: { projectId_nom: { projectId: projet.id, nom: j.nom } },
-        create: { projectId: projet.id, nom: j.nom, dateEcheance: jour(j.dans) },
-        update: { dateEcheance: jour(j.dans) },
+        create: { projectId: projet.id, nom: j.nom, dateEcheance: j.dans === null ? null : jour(j.dans) },
+        update: { dateEcheance: j.dans === null ? null : jour(j.dans) },
       });
     }
   }
@@ -365,6 +365,25 @@ export async function peuplerMaquette(
 
   // La dépendance, et son incohérence : le prérequis finit APRÈS le début de
   // la tâche. La maquette montre le bandeau d'alerte qui le dit.
+  /*
+   * Une seconde dépendance, INTERNE au projet mesuré.
+   *
+   * La première pointe vers une tâche de `sirh` : elle nourrit bien le bandeau
+   * d'incohérences du Gantt, mais le prérequis n'a aucune ligne sur la frise
+   * de `portail`. `.g-arrows path`, `path.is-conflict` et l'atténuation des
+   * barres sans lien n'étaient donc JAMAIS exercés — ni par la vue, ni par
+   * aucun contrôle. Une dépendance dont les deux extrémités sont visibles est
+   * la seule qui dessine une flèche.
+   */
+  const prerequisInterne = await prisma.task.findUniqueOrThrow({
+    where: { id: idStable("t", 5) },
+  });
+  await prisma.taskDependency.upsert({
+    where: { taskId_prerequisId: { taskId: fiche.id, prerequisId: prerequisInterne.id } },
+    create: { taskId: fiche.id, prerequisId: prerequisInterne.id },
+    update: {},
+  });
+
   await prisma.taskDependency.upsert({
     where: { taskId_prerequisId: { taskId: fiche.id, prerequisId: prerequis.id } },
     create: { taskId: fiche.id, prerequisId: prerequis.id },
@@ -550,18 +569,74 @@ export async function peuplerMaquette(
         joursOuvres: c.jours,
         statut: c.statut,
         ...("demiDebut" in c ? { demiJourneeDebut: c.demiDebut } : {}),
+        ...("motif" in c ? { motif: c.motif } : {}),
       },
       // Le titulaire fait partie de la reprise : les identifiants sont
       // stables, donc une entrée qui change de propriétaire garderait l'ancien
       // si l'`update` l'omettait — et le congé de la personne connectée
       // resterait celui de quelqu'un d'autre.
+      // `joursOuvres` et `demiJourneeDebut` font partie de la reprise : sans
+      // eux, un rejeu laissait une ligne à « 0,5 j / après-midi » là où le jeu
+      // déclare « 1 j, pas de demi-journée ». Le jeu n'était pas reproductible
+      // sur ces deux colonnes, et c'est une valeur périmée qui s'affichait.
       update: {
         userId: agents[c.agent]!.id,
+        joursOuvres: c.jours,
+        demiJourneeDebut: "demiDebut" in c ? c.demiDebut : null,
+        motif: "motif" in c ? c.motif : null,
         dateDebut: jour(c.debut),
         dateFin: jour(c.fin),
         statut: c.statut,
       },
     });
+  }
+
+  /*
+   * Le congé à cheval sur le 31 décembre — `RG-CNG-19`, `lv-split`.
+   * Il est posé à part parce que sa date est ABSOLUE : ancré sur le lundi
+   * courant, il cesserait de chevaucher l'année dès la semaine suivante.
+   */
+  const annee = lundi.getUTCFullYear();
+  const idCheval = idStable("c", 90);
+  await prisma.leave.deleteMany({ where: { id: idCheval } });
+  await prisma.leave.create({
+    data: {
+      id: idCheval,
+      userId: agents[CONGE_A_CHEVAL.agent]!.id,
+      typeId: typeConge.id,
+      dateDebut: new Date(Date.UTC(annee, 11, 28)),
+      dateFin: new Date(Date.UTC(annee + 1, 0, 4)),
+      joursOuvres: CONGE_A_CHEVAL.jours,
+      statut: CONGE_A_CHEVAL.statut,
+    },
+  });
+
+  /*
+   * Des saisies de temps. Le jeu n'en créait AUCUNE : `hours-note` de la
+   * vue 06 — « du temps a déjà été déclaré sur cette tâche, tous
+   * contributeurs confondus » (`RG-TMP-07`) — n'avait rien à annoncer, et la
+   * vue 21 s'ouvrait vide quoi qu'on y fasse.
+   *
+   * Plusieurs contributeurs sur la même tâche : c'est le « tous contributeurs
+   * confondus » qui compte, et une seule personne ne le démontre pas.
+   */
+  const tachesTemps = await prisma.task.findMany({
+    where: { id: { in: [idStable("t", 0), idStable("t", 1)] } },
+  });
+  for (const [i, t] of tachesTemps.entries()) {
+    for (const [j, a] of agents.slice(0, 3).entries()) {
+      await prisma.timeEntry.upsert({
+        where: { id: idStable("H", i * 10 + j) },
+        create: {
+          id: idStable("H", i * 10 + j),
+          taskId: t.id,
+          userId: a.id,
+          date: jour(-2 - j),
+          heures: [3.5, 2, 1.5][j] ?? 1,
+        },
+        update: { taskId: t.id, userId: a.id, date: jour(-2 - j) },
+      });
+    }
   }
 
   return {
@@ -591,6 +666,12 @@ const JALONS = [
   { nom: "Cadrage", dans: -21 },
   { nom: "Recette", dans: 14 },
   { nom: "Comité de pilotage", dans: 60 },
+  /*
+   * SANS échéance : `is-none` de la vue 13 n'a aucune autre source. Le schéma
+   * la dit facultative — « un jalon sans date reste en fin de chronologie » —
+   * et aucun jalon du jeu ne l'exerçait.
+   */
+  { nom: "Ouverture au public", dans: null },
 ] as const;
 
 const TACHES = [
@@ -607,7 +688,20 @@ const TACHES = [
   { titre: "Reprise des libellés", projet: "sirh", jalon: "Cadrage", statut: "blocked", agent: 0, debut: 1, fin: 3, priorite: "high" },
   // En retard : échéance dépassée, statut non terminé. C'est `badge-late`.
   // Échéance dépassée sur un jalon échu : le jalon passe EN RETARD (`ms-late`).
-  { titre: "Comptes rendus de juillet", projet: "portail", jalon: "Cadrage", statut: "doing", agent: 0, debut: -14, fin: -5, priorite: "high" },
+  /*
+   * SANS jalon, et c'est délibéré : elle portait « Cadrage », le seul jalon de
+   * `portail` dont toutes les autres tâches sont terminées. Une tâche en cours
+   * suffit à empêcher le calcul « Terminé » (`RG-JAL-01`), donc `is-done` et
+   * « Terminé » n'existaient nulle part — le jeu se contredisait lui-même,
+   * deux commentaires revendiquant les deux issues pour le même jalon.
+   *
+   * Sans jalon, elle alimente en plus le bloc « Tâches sans jalon » de la
+   * vue 13, qui n'avait rien à montrer sur ce projet.
+   */
+  { titre: "Comptes rendus de juillet", projet: "portail", statut: "doing", agent: 0, debut: -14, fin: -5, priorite: "high" },
+  // Sans assigné, SUR LE PROJET MESURÉ : `is-none` de la vue 13. Le seul cas
+  // du jeu était sur `sirh`, que les vues 11, 13 et 15 ne regardent pas.
+  { titre: "Charte éditoriale", projet: "portail", jalon: "Comité de pilotage", statut: "todo", agent: -1, debut: 3, fin: 8 },
   // Hors projet : ni pastille ni projet. C'est `badge-indep` et `tchip-indep`.
   { titre: "Réunion de service", projet: null, statut: "todo", agent: 0, debut: 2, fin: 2 },
   { titre: "Accueil · matin", projet: null, statut: "doing", agent: 2, debut: 0, fin: 0 },
@@ -647,7 +741,32 @@ const CONGES = [
   // Demi-journée : `is-half`, `is-am`, `is-pm` n'ont aucune autre source.
   { agent: 4, debut: 3, fin: 3, jours: 0.5, statut: "approved", demiDebut: "afternoon" },
   { agent: 1, debut: 4, fin: 4, jours: 1, statut: "approved" },
+  /*
+   * Les quatre cas de la vue 19 que le jeu n'exerçait pas — TOUS sur la
+   * personne connectée, parce que la vue montre d'abord ses congés à elle :
+   * un congé de quelqu'un d'autre ne prouve rien.
+   *
+   * · demi-journée du MATIN — `is-am` et « matin ». La seule demi-journée du
+   *   jeu était `afternoon`, et sur un autre agent : `is-pm` vivait, `is-am`
+   *   était mort-né alors que le commentaire du jeu revendiquait les deux.
+   * · motif — `lv-motif` n'avait aucune source.
+   * · annulation demandée — « Annulation demandée » et « En attente de
+   *   décision » étaient injoignables ; c'est aussi ce qui a masqué que la vue
+   *   testait `cancelling` là où le schéma dit `cancellation_requested`.
+   * · à cheval sur le 31 décembre — `lv-split` et `RG-CNG-19`. Ancré sur
+   *   l'année civile, pas sur la semaine : c'est le seul cas du jeu qui ne
+   *   doit PAS suivre le lundi courant.
+   */
+  { agent: 0, debut: 21, fin: 21, jours: 0.5, statut: "approved", demiDebut: "morning", motif: "Rendez-vous médical" },
+  { agent: 0, debut: 28, fin: 29, jours: 2, statut: "cancellation_requested", motif: "Déplacement annulé" },
 ] as const;
+
+/**
+ * `RG-CNG-19` — un congé à cheval sur deux années civiles se scinde au 31
+ * décembre. `lv-split` n'a aucune autre source, et cette date ne peut pas
+ * suivre le lundi courant : elle est absolue.
+ */
+const CONGE_A_CHEVAL = { agent: 0, jours: 6, statut: "approved" as const };
 
 const SOUS_TACHES = [
   { libelle: "Arborescence des démarches", fait: true },
