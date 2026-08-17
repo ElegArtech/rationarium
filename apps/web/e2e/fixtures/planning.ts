@@ -237,13 +237,19 @@ export const GRILLE_ACTIVITE = {
         agents:
           i === 0
             ? [
+                /* Le rattachement de service accompagne l'agent : c'est ce
+                   que filtre le sélecteur « Tous les services » de la
+                   maquette 09. Ana relève des études, Bruno n'est rattaché
+                   à rien — les deux cas doivent tenir. */
                 {
                   id: "u-ana", prenom: "Ana", nom: "Berger",
                   assignationId: "as1", periode: "full_day", realisee: true,
+                  services: [{ service: { id: "s1", nom: "Études et développement" } }],
                 },
                 {
                   id: "u-bruno", prenom: "Bruno", nom: "Costa",
                   assignationId: "as2", periode: "full_day", realisee: false,
+                  services: [],
                 },
               ]
             : [],
