@@ -192,12 +192,26 @@ test.describe("Vue 24 — fiche tiers", () => {
     await page.goto(`/tiers/${FICHE_TIERS.id}`);
 
     await expect(page.getByRole("heading", { name: "Presta SA", level: 1 })).toBeVisible();
-    await expect(page.getByText("Refonte du portail citoyen")).toBeVisible();
+    /*
+     * Le projet paraît DEUX fois désormais : en lien dans la liste des
+     * rattachements, et en colonne de la tâche assignée — la colonne était
+     * un `<div/>` vide avant. On vise donc les deux distinctement plutôt que
+     * d'affaiblir l'assertion, qui sinon cesserait de dire lequel manque.
+     */
+    await expect(
+      page.getByRole("link", { name: "Refonte du portail citoyen" }),
+    ).toBeVisible();
     await expect(page.getByText("Audit d'accessibilité")).toBeVisible();
     // Le nombre de saisies est porté deux fois : sous le compteur d'heures
     // (`kpi-sub` de la maquette 24) et dans la fiche d'informations. On vise
     // le compteur, sinon la recherche est ambiguë.
-    await expect(page.locator(".kpi-sub").filter({ hasText: "18 saisies" })).toBeVisible();
+    /*
+     * `heuresDeclarees` est la SOMME, `saisies` le NOMBRE de lignes. La fiche
+     * affichait la même valeur aux deux places — 18 h ET « sur 18 saisies » —
+     * donc fausse dans l'une des deux à coup sûr. Le contrôle les distingue :
+     * trois saisies pour dix-huit heures.
+     */
+    await expect(page.locator(".kpi-sub").filter({ hasText: "3 saisies" })).toBeVisible();
   });
 
   test("le contact nommé n'apparaît pas pour une personne morale", async ({ page }) => {
@@ -253,8 +267,9 @@ test.describe("Vue 24 — fiche tiers", () => {
       fenetre.getByText("Voici ce à quoi ce tiers est rattaché aujourd'hui."),
     ).toBeVisible();
     await expect(fenetre.getByText("Deux issues, deux conséquences")).toBeVisible();
-    // Le compte de saisies chiffre l'enjeu, il n'est pas seulement évoqué.
-    await expect(fenetre.getByText("18", { exact: true })).toBeVisible();
+    // Le compte de SAISIES chiffre l'enjeu, il n'est pas seulement évoqué —
+    // et c'est bien le nombre de lignes, pas la somme des heures.
+    await expect(fenetre.getByText("3", { exact: true })).toBeVisible();
   });
 });
 
@@ -278,7 +293,9 @@ test.describe("Vues 25 et 26 — clients", () => {
     await page.getByLabel("Statut", { exact: true }).selectOption("");
 
     await expect(page.getByText("Association des usagers")).toBeVisible();
-    await expect(page.getByText("Aucun projet rattaché")).toBeVisible();
+    // La ligne de liste porte la forme COURTE — la colonne est étroite. La
+    // forme longue reste celle de l'état vide de la fiche.
+    await expect(page.getByText("Aucun projet", { exact: true })).toBeVisible();
     await expect(page.getByText("Inactif", { exact: true })).toBeVisible();
   });
 

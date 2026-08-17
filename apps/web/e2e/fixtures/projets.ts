@@ -24,6 +24,15 @@ export const SESSION = {
   langue: "fr",
   theme: "auto",
   derniereConnexion: "2026-08-15T08:12:00.000Z",
+  /*
+   * `EX-AUTH-09` — le profil dit désormais le rattachement organisationnel.
+   * Le jeu d'essai avait pris du retard sur le contrat : sans ces trois
+   * champs, la coquille tombait et VINGT-SIX contrôles de bout en bout
+   * échouaient sur des symptômes qui ne ressemblaient pas à leur cause.
+   */
+  departement: "Numérique et données",
+  services: ["Études et projets"],
+  membreDepuis: "2024-03-01T00:00:00.000Z",
   role: { code: "ENCADREMENT", nom: "Encadrement" },
   permissions: [
     "planning:read",

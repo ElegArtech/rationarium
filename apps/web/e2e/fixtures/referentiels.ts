@@ -128,9 +128,28 @@ export const FICHE_TIERS = {
   contactTelephone: null,
   notes: TIERS_MORALE.notes,
   actif: true,
-  projets: [{ id: "p1", nom: "Refonte du portail citoyen", statut: "active" }],
-  taches: [{ id: "k1", titre: "Audit d'accessibilité", statut: "doing" }],
+  projets: [{ id: "p1", nom: "Refonte du portail citoyen", statut: "active", icone: "p-screen" }],
+  taches: [
+    { id: "k1", titre: "Audit d'accessibilité", statut: "doing", dateFin: "2026-09-30", projet: { id: "p1", nom: "Refonte du portail citoyen", icone: "p-screen" } },
+  ],
+  /*
+   * `heuresDeclarees` est la SOMME, `saisies` le NOMBRE de lignes. La fiche
+   * affichait la même valeur aux deux places — donc fausse dans l'une des
+   * deux. Le jeu d'essai les distingue désormais, sinon il consacrerait le
+   * défaut au lieu de le trouver.
+   */
   heuresDeclarees: 18,
+  saisies: 3,
+  saisiesRecentes: [
+    { id: "h1", date: "2026-08-14", heures: 7, typeActivite: "development", description: "Atelier de cadrage" },
+    { id: "h2", date: "2026-08-12", heures: 6, typeActivite: "meeting", description: "Recette" },
+    { id: "h3", date: "2026-08-10", heures: 5, typeActivite: "support", description: null },
+  ],
+  saisiesRestantes: 0,
+  premiereIntervention: "2026-08-10",
+  derniereIntervention: "2026-08-14",
+  creeLe: "2026-01-05T00:00:00.000Z",
+  modifieLe: "2026-08-14T00:00:00.000Z",
 };
 
 export const FICHE_TIERS_VIDE = {
@@ -140,6 +159,11 @@ export const FICHE_TIERS_VIDE = {
   projets: [],
   taches: [],
   heuresDeclarees: 0,
+  saisies: 0,
+  saisiesRecentes: [],
+  saisiesRestantes: 0,
+  premiereIntervention: null,
+  derniereIntervention: null,
 };
 
 // ── Vues 25 et 26 — Clients ─────────────────────────────────────────────────

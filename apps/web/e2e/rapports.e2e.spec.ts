@@ -338,19 +338,43 @@ test.describe("Vue 15 — projet, onglet Gantt", () => {
     ).toBeVisible();
   });
 
-  test("l'indice du brief est là, mot pour mot", async ({ page }) => {
+  /*
+   * CONTRADICTION ENTRE SOURCES GELÉES, non tranchée — voir
+   * `docs/audits/conformite-maquettes.md § 2.1`.
+   *
+   *   mockups/15-projet-gantt.html:1549   « Cliquez UNE tâche… »
+   *   cadrage/02 …:509                    « Cliquez SUR une tâche… »
+   *
+   * La vue porte la maquette, qui fait loi dans cette campagne et que mesure
+   * la boucle de conformité. Le contrôle suit donc la maquette — et cite la
+   * contradiction, pour qu'un changement d'arbitrage se voie ici.
+   */
+  test("l'indice de la maquette est là, mot pour mot", async ({ page }) => {
     await horlogeFixe(page);
     await serveur(page, { session: SESSION_RAPPORTS, reponses: reponsesProjet });
     await page.goto("/projets/p1/gantt");
 
     await expect(
       page.getByText(
-        "Cliquez sur une tâche pour voir ses dépendances, double-cliquez pour les modifier.",
+        "Cliquez une tâche pour voir ses dépendances, double-cliquez pour les modifier.",
       ),
     ).toBeVisible();
   });
 
-  test("LES DÉPENDANCES NE SE CHARGENT QU'À LA SÉLECTION", async ({ page }) => {
+  /*
+   * La règle a changé de forme, pas d'intention.
+   *
+   * Le bandeau d'incohérences de dates (`conf-list`, `is-conflict`) que la
+   * maquette 15 exige a besoin du GRAPHE, pas de la seule branche
+   * sélectionnée : il ne peut pas attendre un clic. Ce qui reste interdit —
+   * et c'est tout l'enjeu — est de lire les dépendances de CHAQUE ligne : le
+   * `_count.dependances` servi par la liste dit lesquelles en ont, et les
+   * autres ne déclenchent aucun appel.
+   *
+   * Le contrôle vérifie donc la borne, qui est la propriété coûteuse, et non
+   * plus le moment, qui ne l'est pas.
+   */
+  test("LES DÉPENDANCES NE SE LISENT QUE POUR LES TÂCHES QUI EN ONT", async ({ page }) => {
     await horlogeFixe(page);
     await serveur(page, { session: SESSION_RAPPORTS, reponses: reponsesProjet });
 
@@ -364,12 +388,17 @@ test.describe("Vue 15 — projet, onglet Gantt", () => {
     // figure deux fois : dans le groupe et sur la graduation. On vise le
     // groupe, qui est ce que la règle demande.
     await expect(page.locator(".g-grp-name", { hasText: /^Lancement$/ })).toBeVisible();
-    // Rien tant qu'on n'a rien choisi : le graphe entier n'est pas rapporté
-    // pour n'en dessiner qu'une branche.
-    expect(appels).toHaveLength(0);
+    /*
+     * Une seule tâche du jeu porte des prérequis : un seul appel, avant comme
+     * après la sélection. Si le nombre grimpait avec la taille de la frise,
+     * c'est que la borne a sauté — et le coût redeviendrait linéaire en
+     * nombre de lignes.
+     */
+    await expect.poll(() => appels.length).toBe(1);
 
     await page.getByRole("button", { name: /Développement — En cours/ }).click();
-    await expect.poll(() => appels.length).toBeGreaterThan(0);
+    await expect(page.getByText(/dépend/i).first()).toBeVisible();
+    expect(appels).toHaveLength(1);
   });
 
   test("l'échelle se change, et le choix est annoncé", async ({ page }) => {
