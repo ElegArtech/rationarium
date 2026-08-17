@@ -24,9 +24,19 @@ export type Selection =
 
 export function PanneauDetail({
   selection,
+  genreParDefaut,
   surFermer,
 }: {
   selection: Selection | null;
+  /**
+   * La nature que le panneau annonce **avant** toute sélection.
+   *
+   * Les maquettes 07 et 08 la portent en dur dans le balisage du tiroir, et
+   * elles n'y mettent pas la même : « Tâche de projet » en semaine, où l'on
+   * ouvre une occupation, « Journée » en mois, où la cellule entière est le
+   * seul objet ouvrable. Le surtitre nomme donc ce que CETTE vue fait lire.
+   */
+  genreParDefaut: Selection["genre"];
   surFermer: () => void;
 }) {
   const { t } = useTranslation("planning");
@@ -55,7 +65,7 @@ export function PanneauDetail({
       <div className="drawer-head">
         <div>
           <span className="eyebrow">
-            {selection ? t(`detail.genre_${selection.genre}`) : t("detail.titre")}
+            {t(`detail.genre_${selection ? selection.genre : genreParDefaut}`)}
           </span>
           <p className="panel-title modal-titre">
             {selection ? <TitreDetail selection={selection} /> : t("detail.aucuneSelection")}
@@ -202,7 +212,7 @@ function Corps({ selection }: { selection: Selection | null }) {
                 ? `var(--st-${o.tache.statut})`
                 : o.genre === "evenement"
                   ? "var(--event)"
-                  : "var(--accent)",
+                  : "var(--activity)",
           }}
         >
           <span>

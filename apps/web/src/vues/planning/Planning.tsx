@@ -393,7 +393,11 @@ export function Planning({ mode }: { mode: Mode }) {
         surCouches={setCouches}
       />
 
-      <PanneauDetail selection={selection} surFermer={() => setSelection(null)} />
+      <PanneauDetail
+        selection={selection}
+        genreParDefaut={mode === "mois" ? "cellule" : "tache"}
+        surFermer={() => setSelection(null)}
+      />
     </div>
   );
 }

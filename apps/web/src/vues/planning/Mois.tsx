@@ -23,7 +23,13 @@ import type { Selection } from "./Detail.js";
  * jours au défilement vertical.
  */
 
-const MAX_BARRES = 4;
+/**
+ * Trois barres, puis le compte — c'est le seuil de la maquette 08
+ * (`occ.slice(0, 3)` puis `mcount` au-delà). Il valait quatre ici : la
+ * quatrième occupation s'affichait au lieu d'être comptée, et `mcount`
+ * n'apparaissait qu'à cinq.
+ */
+const MAX_BARRES = 3;
 
 export function GrilleMois({
   donnees,
@@ -202,6 +208,14 @@ function MicroCellule({
   const { t } = useTranslation("planning");
   const weekend = jourSemaine === 0 || jourSemaine === 6;
 
+  /*
+   * Un congé de DEMI-JOURNÉE ne vide pas la cellule : la maquette 08 dessine
+   * l'aplat sur la moitié concernée **et** les barres de l'autre moitié
+   * (`if(!leave || leave.half)`). Traiter la demi-journée comme une journée
+   * entière faisait disparaître le travail réellement prévu ce matin-là.
+   */
+  const occupationsVisibles = !cellule.conge || cellule.demiJournee !== null;
+
   /**
    * Le libellé d'assistance porte **tout** ce que la texture ne dit pas.
    * Sur cette vue, l'écran est muet par construction : si le libellé ne le
@@ -240,33 +254,35 @@ function MicroCellule({
           }`}
           aria-hidden="true"
         />
-      ) : (
-        cellule.occupations
-          .slice(0, MAX_BARRES)
-          .map((o) => (
-            <span
-              key={o.cle}
-              className={`mbar${o.genre === "tache" && o.tache.horsProjet ? " is-indep" : ""}`}
-              style={{
-                color:
-                  o.genre === "tache"
-                    ? `var(--st-${o.tache.statut})`
-                    : o.genre === "evenement"
-                      ? "var(--event)"
-                      : "var(--accent)",
-              }}
-              aria-hidden="true"
-            />
-          ))
-      )}
+      ) : null}
 
-      {!cellule.conge && cellule.occupations.length > MAX_BARRES ? (
+      {occupationsVisibles
+        ? cellule.occupations
+            .slice(0, MAX_BARRES)
+            .map((o) => (
+              <span
+                key={o.cle}
+                className={`mbar${o.genre === "tache" && o.tache.horsProjet ? " is-indep" : ""}`}
+                style={{
+                  color:
+                    o.genre === "tache"
+                      ? `var(--st-${o.tache.statut})`
+                      : o.genre === "evenement"
+                        ? "var(--event)"
+                        : "var(--activity)",
+                }}
+                aria-hidden="true"
+              />
+            ))
+        : null}
+
+      {occupationsVisibles && cellule.occupations.length > MAX_BARRES ? (
         <span className="mcount" aria-hidden="true">
           {cellule.occupations.length}
         </span>
       ) : null}
 
-      {!cellule.conge && cellule.lieu ? (
+      {occupationsVisibles && cellule.lieu ? (
         <span
           className={`mplace${cellule.lieu.etat === "office" ? " is-office" : ""}`}
           aria-hidden="true"
