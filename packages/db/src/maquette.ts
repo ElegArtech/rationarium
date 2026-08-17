@@ -693,11 +693,13 @@ export async function peuplerMaquette(
     },
     update: { contactNom: "Yanis Berthelot" },
   });
-  await prisma.projectThirdParty.upsert({
-    where: { projectId_thirdPartyId: { projectId: projets[0]!.id, thirdPartyId: tiers.id } },
-    create: { projectId: projets[0]!.id, thirdPartyId: tiers.id },
-    update: {},
-  });
+  for (const [rang, t] of [tiers, tiersPhysique].entries()) {
+    await prisma.projectThirdParty.upsert({
+      where: { projectId_thirdPartyId: { projectId: projets[rang]!.id, thirdPartyId: t.id } },
+      create: { projectId: projets[rang]!.id, thirdPartyId: t.id },
+      update: {},
+    });
+  }
 
   // Huit saisies sur le tiers : au-delà des cinq que la maquette affiche, donc
   // le pied « et 7 autres » a de quoi compter. Une seule ne replie rien.
