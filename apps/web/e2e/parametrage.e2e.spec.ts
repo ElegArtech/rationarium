@@ -1,6 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { serveur, SESSION_LECTURE } from "./fixtures/projets.js";
 import {
+  SESSION_ACTIVITE,
   SESSION_CONFIG,
   SESSION_CONFIG_LECTURE,
   REGLAGES,
@@ -280,7 +281,13 @@ test.describe("Vue 33 — journal d'audit", () => {
     await serveur(page, { session: SESSION_CONFIG, reponses });
     await page.goto("/audit");
 
-    await expect(page.getByText("Congé approuvé")).toBeVisible();
+    /*
+     * Le libellé paraît DEUX fois : dans la ligne du journal et dans la
+     * liste déroulante de filtre, que la vue a gagnée. On vise la ligne —
+     * `getByText` nu résoudrait deux éléments et ferait échouer le contrôle
+     * sur une ambiguïté, pas sur un défaut.
+     */
+    await expect(page.locator("span.au-lab", { hasText: "Congé approuvé" })).toBeVisible();
     // Le code brut sert au support, la traduction sert à la lecture.
     // Le code apparaît aussi dans la liste déroulante de filtre, qui est
     // repliée : on vise la ligne du journal, pas l'option.
@@ -308,7 +315,11 @@ test.describe("Vue 33 — journal d'audit", () => {
 
     await expect(page.getByText("Aucun événement", { exact: true })).toBeVisible();
     await expect(page.getByText("Aucun événement ne correspond aux filtres actifs.")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Réinitialiser" })).toBeVisible();
+    // « Réinitialiser » et « Réinitialiser les filtres » cohabitent : sans
+    // `exact`, le sélecteur en trouve deux et échoue sur l'ambiguïté.
+    await expect(
+      page.getByRole("button", { name: "Réinitialiser", exact: true }),
+    ).toBeVisible();
   });
 
   test("sans audit:read, l'accès est refusé — et ce refus est lui-même tracé", async ({ page }) => {
@@ -338,8 +349,16 @@ test.describe("Vue 34 — tâches prédéfinies", () => {
     await expect(page.getByText("Le 31 de chaque mois")).toBeVisible();
     await expect(page.getByText("Le 3e mardi de chaque mois")).toBeVisible();
     // La règle porte sa fenêtre d'application.
-    await expect(page.getByText("À partir du 01/09/2026").first()).toBeVisible();
-    await expect(page.getByText("Du 01/01/2026 au 31/12/2026")).toBeVisible();
+    /*
+     * « À partir du » est un LIBELLÉ DE FORMULAIRE dans la maquette 34, pas la
+     * phrase d'une carte de règle : celle-ci dit « sans date de fin » quand la
+     * règle n'en a pas. Le contrôle consacrait un rendu que la maquette ne
+     * montre nulle part.
+     */
+    await expect(page.getByText("sans date de fin").first()).toBeVisible();
+    // La carte de règle porte sa BORNE DE FIN, pas un intervalle : la maquette
+    // met la date de début dans le formulaire, jamais dans la phrase.
+    await expect(page.getByText("jusqu'au 31/12/2026").first()).toBeVisible();
   });
 
   test("RG-ACT-04 — le 31 dit ce qu'il devient dans un mois qui n'en a pas", async ({ page }) => {
@@ -367,15 +386,21 @@ test.describe("Vue 34 — tâches prédéfinies", () => {
 
     // Le nom apparaît deux fois : au catalogue et sous la phrase de règle.
     await expect(page.getByText("Permanence accueil").first()).toBeVisible();
-    await expect(page.getByText("08:30 – 12:30")).toBeVisible();
-    await expect(page.getByText("Demi-journée")).toBeVisible();
+    // La maquette sépare les horaires par une FLÈCHE (`t.h1 + ' → ' + t.h2`),
+    // pas par un tiret. Le contrôle figeait l'ancien rendu.
+    await expect(page.getByText("08:30 → 12:30")).toBeVisible();
+    // « Demi-journée » paraît deux fois : en pastille de la tâche et dans la
+    // phrase de sa règle. `exact` vise la pastille.
+    await expect(page.getByText("Demi-journée", { exact: true })).toBeVisible();
     await expect(page.getByText("Sur site")).toBeVisible();
   });
 
   test("RG-ACT-05 — une tâche désactivée reste au catalogue, avec ses assignations", async ({
     page,
   }) => {
-    await serveur(page, { session: SESSION_CONFIG, reponses });
+    // Session AVEC écriture : sans `predefined_tasks:update`, `RG-GEN-06`
+    // masque les commandes et la fenêtre qui porte le compte n'existe pas.
+    await serveur(page, { session: SESSION_ACTIVITE, reponses });
     await page.goto("/taches-predefinies");
 
     // Absente tant qu'on ne la demande pas…
@@ -386,7 +411,14 @@ test.describe("Vue 34 — tâches prédéfinies", () => {
     // les rattacherait à un objet introuvable.
     await expect(page.getByText("Astreinte week-end")).toBeVisible();
     await expect(page.getByText("Inactive", { exact: true }).first()).toBeVisible();
-    await expect(page.getByText("118")).toBeVisible();
+    /*
+     * Le compte d'assignations n'est plus une colonne : la maquette 34 nomme
+     * la septième « Actions », et la colonne « Assignations » avait été
+     * inventée. Le chiffre se lit désormais là où il DÉCIDE — dans la fenêtre
+     * de désactivation, qui dit ce qu'elle conserve (`RG-ACT-05`).
+     */
+    await page.getByRole("button", { name: "Réactiver" }).first().click();
+    await expect(page.getByRole("dialog").getByText(/118/)).toBeVisible();
   });
 
   test("sans predefined_tasks:read, l'accès est refusé", async ({ page }) => {

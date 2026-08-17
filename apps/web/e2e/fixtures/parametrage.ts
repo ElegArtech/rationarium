@@ -24,6 +24,19 @@ export const SESSION_CONFIG = {
   ],
 };
 
+/**
+ * Les mêmes droits, PLUS l'écriture sur le catalogue d'activité.
+ *
+ * `RG-GEN-06` — sans `predefined_tasks:update`, la vue 34 masque ses
+ * commandes : le compte d'assignations conservées, qui vit dans la fenêtre de
+ * désactivation, devient alors inatteignable. C'est le comportement voulu, pas
+ * un défaut — il faut donc une session qui écrit pour l'observer.
+ */
+export const SESSION_ACTIVITE = {
+  ...SESSION_CONFIG,
+  permissions: [...SESSION_CONFIG.permissions, "predefined_tasks:update"],
+};
+
 /** Les mêmes droits, sans l'écriture : la vue doit rester crédible. */
 export const SESSION_CONFIG_LECTURE = {
   ...SESSION_CONFIG,
@@ -264,7 +277,14 @@ export const PREDEFINIES = [
         // Le 31 : le mois qui n'en a pas ramène au dernier jour. La règle doit
         // être dite ici, pas découverte sur une date inattendue.
         id: "rc2",
-        type: "monthly_date",
+        /*
+         * `monthly_fixed`, et non `monthly_date`. Trois orthographes ont
+         * cohabité pour le même type : le moteur lit `monthly_fixed`, le
+         * point d'entrée n'acceptait que `monthly`, la vue lisait
+         * `monthly_date`. Une règle mensuelle se créait AVEC SUCCÈS et
+         * n'engendrait jamais rien. `TYPES_RECURRENCE` tranche.
+         */
+        type: "monthly_fixed",
         frequence: 1,
         jourSemaine: null,
         jourMois: 31,
