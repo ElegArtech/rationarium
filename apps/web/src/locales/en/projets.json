@@ -199,9 +199,9 @@
     "confirmerRetrait": "Do you really want to remove {nom} from the team?",
     "effetRetrait": "Logged time and assigned tasks are kept: only the link to the project is removed.",
     "aucuneDonneeSupprimee": "No data is deleted",
-    "type_individual": "Individual",
-    "type_organization": "Organisation",
     "roleDe": "{nom}'s role on the project",
-    "roleChange": "{nom}'s role updated"
+    "roleChange": "{nom}'s role updated",
+    "beneficiaire": "Beneficiary",
+    "allocationChangee": "Allocation for {nom} updated."
   }
 }
