@@ -21,6 +21,17 @@ export type EchecTiers =
   | "client_inactif"
   | "introuvable";
 
+/** Un jour civil, sans fuseau : la date d'une saisie n'est pas un instant. */
+const jour = (d: Date): string => d.toISOString().slice(0, 10);
+
+/**
+ * Le détail des saisies affiché sur la fiche d'un tiers.
+ *
+ * La maquette 28 en montre cinq et annonce le reste. Un panneau latéral qui
+ * déverserait tout l'historique cesserait d'être lisible au premier tiers actif.
+ */
+const PLAFOND_SAISIES = 5;
+
 export class ErreurTiers extends Error {
   constructor(
     readonly code: EchecTiers,
@@ -265,22 +276,79 @@ export class TiersService {
     });
   }
 
-  /** `EX-TRS-03` — la fiche d'un tiers et ses rattachements. */
+  /**
+   * `EX-TRS-03` — la fiche d'un tiers et ses rattachements.
+   *
+   * **Les heures déclarées sont une SOMME, pas un compte de lignes.** Le champ
+   * rendait `_count.saisiesTemps` et la vue 24 l'affichait à la fois en « 184 h »
+   * et en « sur 12 saisies » : deux libellés, un seul nombre, faux dans l'un des
+   * deux. Les deux grandeurs sont désormais distinctes.
+   *
+   * Le détail des saisies est plafonné : la fiche montre les plus récentes et
+   * annonce le reste (`prev-more` de la maquette), elle ne déverse pas un
+   * historique de plusieurs centaines de lignes dans un panneau latéral.
+   */
   async ficheTiers(id: string) {
     const tiers = await this.prisma.thirdParty.findUnique({
       where: { id },
       include: {
-        projets: { include: { project: { select: { id: true, nom: true, statut: true } } } },
-        taches: { include: { task: { select: { id: true, titre: true, statut: true } } } },
+        projets: { include: { project: { select: { id: true, nom: true, statut: true, icone: true } } } },
+        taches: {
+          include: {
+            task: {
+              select: {
+                id: true,
+                titre: true,
+                statut: true,
+                dateFin: true,
+                project: { select: { id: true, nom: true, icone: true } },
+              },
+            },
+          },
+        },
         _count: { select: { saisiesTemps: true } },
       },
     });
     if (!tiers) throw new ErreurTiers("introuvable");
+
+    const agregat = await this.prisma.timeEntry.aggregate({
+      where: { thirdPartyId: id },
+      _sum: { heures: true },
+      _min: { date: true },
+      _max: { date: true },
+    });
+
+    const saisies = await this.prisma.timeEntry.findMany({
+      where: { thirdPartyId: id },
+      orderBy: { date: "desc" },
+      take: PLAFOND_SAISIES,
+      select: { id: true, date: true, heures: true, typeActivite: true, description: true },
+    });
+
     return {
       ...tiers,
       projets: tiers.projets.map((p) => p.project),
-      taches: tiers.taches.map((t) => t.task),
-      heuresDeclarees: tiers._count.saisiesTemps,
+      taches: tiers.taches.map((t) => ({
+        id: t.task.id,
+        titre: t.task.titre,
+        statut: t.task.statut,
+        dateFin: t.task.dateFin === null ? null : jour(t.task.dateFin),
+        projet: t.task.project,
+      })),
+      heuresDeclarees: Number(agregat._sum.heures ?? 0),
+      saisies: tiers._count.saisiesTemps,
+      /** Ce que le panneau montre, et ce qu'il reste à dire. */
+      saisiesRecentes: saisies.map((s) => ({
+        id: s.id,
+        date: jour(s.date),
+        heures: Number(s.heures),
+        typeActivite: s.typeActivite,
+        description: s.description,
+      })),
+      saisiesRestantes: Math.max(0, tiers._count.saisiesTemps - saisies.length),
+      /** `EX-TRS-03` — la période d'intervention, du premier au dernier jour déclaré. */
+      premiereIntervention: agregat._min.date === null ? null : jour(agregat._min.date),
+      derniereIntervention: agregat._max.date === null ? null : jour(agregat._max.date),
     };
   }
 

@@ -45,7 +45,17 @@ export type VueEnsemble = {
   periode: { nature: Periode; debut: string; fin: string };
   alerte: { tachesEnRetard: number };
   progression: {
-    projets: { id: string; nom: string; icone: string | null; progression: number; taches: number }[];
+    projets: {
+      id: string;
+      nom: string;
+      icone: string | null;
+      progression: number;
+      /** `EX-RPT-04` — l'avancement attendu au prorata de la durée écoulée. */
+      attendu: number;
+      /** Positif quand le réel est en retard sur l'attendu. */
+      ecart: number;
+      taches: number;
+    }[];
     total: number;
     /** `RG-RPT-02` — annoncé, jamais silencieux. */
     tronque: boolean;

@@ -137,6 +137,7 @@ function LigneClient({ client }: { client: api.Client }) {
   const { t } = useTranslation("referentiels");
   const peut = usePeut();
   const [suppressionOuverte, setSuppressionOuverte] = useState(false);
+  const [modificationOuverte, setModificationOuverte] = useState(false);
 
   return (
     <div className={`cl-grid cl-row${client.actif ? "" : " is-off"}`}>
@@ -163,8 +164,10 @@ function LigneClient({ client }: { client: api.Client }) {
       </div>
 
       <div className="cl-projs">
+        {/* La cellule est étroite : le texte y est court (« Aucun projet »),
+            là où l'état vide du panneau de la fiche est rédigé en entier. */}
         {client.projets.length === 0 ? (
-          <span className="cl-more">{t("clients.aucunProjet")}</span>
+          <span className="cl-more">{t("clients.aucunProjetCourt")}</span>
         ) : (
           <>
             {client.projets.slice(0, 2).map((p) => (
@@ -189,12 +192,25 @@ function LigneClient({ client }: { client: api.Client }) {
         <Link to="/clients/$id" params={{ id: client.id }} className="ms-toggle">
           {t("fiche")}
         </Link>
+        {/* « Modifier » depuis la liste : corriger une adresse imposait sinon
+            d'ouvrir la fiche, alors que la maquette 29 le propose ici. */}
+        {peut("clients:update") ? (
+          <Button className="ms-toggle" onPress={() => setModificationOuverte(true)}>
+            {t("modifier")}
+          </Button>
+        ) : null}
         {peut("clients:delete") ? (
           <Button className="ms-toggle" onPress={() => setSuppressionOuverte(true)}>
             {t("supprimer")}
           </Button>
         ) : null}
       </div>
+
+      <FenetreCreation
+        ouverte={modificationOuverte}
+        existant={client}
+        surFermeture={() => setModificationOuverte(false)}
+      />
 
       <FenetreSuppression
         id={client.id}
@@ -620,7 +636,15 @@ function FenetreCreation({
   surFermeture,
 }: {
   ouverte: boolean;
-  existant?: api.FicheClient | null;
+  /* Les seuls champs que le formulaire lit : la liste (vue 25) et la fiche
+     (vue 26) ouvrent la même fenêtre, avec des objets de forme différente. */
+  existant?: {
+    id: string;
+    nom: string;
+    contactNom: string | null;
+    contactEmail: string | null;
+    adresse: string | null;
+  } | null;
   surFermeture: () => void;
 }) {
   const { t } = useTranslation("referentiels");

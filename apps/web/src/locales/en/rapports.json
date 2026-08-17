@@ -55,7 +55,9 @@
     "de": "{nom}: {n, number} %",
     "vide": "No ongoing project",
     "repere": "The vertical mark shows the progress expected today, prorated over elapsed duration.",
-    "tronque": "Limited to the first {n, number} projects for readability — {total, number} in all."
+    "tronque": "Limited to the first {n, number} projects for readability — {total, number} in all.",
+    "attendu": "Expected: {n, number} %",
+    "deEnRetard": "{nom}: {n, number} % — expected {attendu, number} %"
   },
   "charge": {
     "titre": "Workload distribution",

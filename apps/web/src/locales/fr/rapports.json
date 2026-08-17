@@ -55,7 +55,9 @@
     "de": "{nom} : {n, number} %",
     "vide": "Aucun projet en cours",
     "repere": "Le repère vertical marque l’avancement attendu à la date du jour, au prorata de la durée écoulée.",
-    "tronque": "Affichage limité aux {n, number} premiers projets pour lisibilité — {total, number} au total."
+    "tronque": "Affichage limité aux {n, number} premiers projets pour lisibilité — {total, number} au total.",
+    "attendu": "Attendu : {n, number} %",
+    "deEnRetard": "{nom} : {n, number} % — attendu {attendu, number} %"
   },
   "charge": {
     "titre": "Répartition de charge",
