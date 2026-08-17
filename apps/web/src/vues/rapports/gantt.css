@@ -93,6 +93,45 @@
 .conf-list li{ display:flex; gap:10px; align-items:baseline; font-size:12.5px; }
 .conf-k{ font-family:var(--font-mono); font-size:9px; color:var(--st-blocked); flex:none; }
 
+/* Modification des dépendances (fenêtre) */
+.dep-list{ border:1px solid var(--line); border-radius:var(--r); max-height:260px; overflow-y:auto; }
+.dep{ display:flex; align-items:center; gap:10px; padding:9px 13px; border-bottom:1px solid var(--line); }
+.dep:last-child{ border-bottom:none; }
+.dep input{ accent-color:var(--accent); width:15px; height:15px; }
+.dep-name{ font-size:12.5px; }
+.dep-sub{ display:block; font-family:var(--font-mono); font-size:9px; color:var(--muted); margin-top:2px; }
+.dep-warn{ margin-left:auto; font-family:var(--font-mono); font-size:8.5px; color:var(--st-blocked);
+  border:1px solid currentColor; border-radius:2px; padding:1px 5px; white-space:nowrap; }
+
+/* ── Ajustements de mise en page ───────────────────────────────────────── */
+/* La maquette les porte en style en ligne ; les nommer ici les garde sous
+   stylelint, comme le fait déjà `composants/partages.css`. */
+
+/* L'alerte de conflits porte trois blocs — icône, texte, bouton de repli —
+   là où `.alert` du socle aligne un seul niveau : la maquette la repasse en
+   `display:block` et met la disposition dans son contenu. */
+.bandeau-conflits{ display:block; }
+.bandeau-conflits-corps{ display:flex; gap:10px; align-items:flex-start; }
+.bandeau-conflits-texte{ flex:1; }
+.bandeau-conflits .chip-btn{ flex:none; }
+.champ-large{ width:100%; margin-bottom:11px; }
+.aide-fenetre{ margin:0 0 11px; }
+.question-cascade{ margin:0 0 13px; font-size:13.5px; line-height:1.55; }
+.alerte-lisibilite{ margin:0; color:var(--st-review); }
+
+/*
+ * `C6` — l'alternative clavier au glisser-déposer, sur le modèle de `.kmove`
+ * du kanban : elle n'est pas cachée, elle apparaît au survol ET au focus, et
+ * reste atteignable à la tabulation. Un décalage qui n'existerait qu'à la
+ * souris rendrait la frise inutilisable au clavier.
+ */
+.gmove{ flex:none; width:21px; height:21px; border-radius:2px; color:var(--muted);
+  font-family:var(--font-mono); font-size:12px; line-height:1; opacity:0; }
+.g-row:hover .gmove,
+.g-row:focus-within .gmove,
+.gmove:focus-visible{ opacity:1; }
+.gmove:hover{ color:var(--accent); background:var(--surface-2); }
+
 /* `.g-echelle` et `.g-indice` vivaient ici : deux noms qu'aucune des trente-cinq
    maquettes ne porte. La section 19 met la barre d'échelle dans `.filters`, avec
    `.panel-title`, `.vsep` et `.field-hint` — tous portés par le socle et par

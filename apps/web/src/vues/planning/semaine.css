@@ -44,31 +44,9 @@
   border-color: var(--accent);
 }
 
-.layers {
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  flex-wrap: wrap;
-}
-
-.layer {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  color: var(--muted);
-  white-space: nowrap;
-}
-
-.layer input {
-  accent-color: var(--accent);
-  width: 14px;
-  height: 14px;
-}
-
-.layer.is-on {
-  color: var(--ink);
-}
+/* `.layers`, `.layer` et `.layer.is-on` sont remontés dans
+   `composants/partages.css` : la vue 15 les emploie aussi, et la maquette les
+   pose dans le même bloc que `.filters`, déjà transverse. */
 
 /* ── Cadre de grille ────────────────────────────────────────────────────── */
 
