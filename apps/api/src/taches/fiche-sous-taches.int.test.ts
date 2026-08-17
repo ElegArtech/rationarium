@@ -9,6 +9,14 @@ import { NotificationsService } from "../notifications/notifications.service.js"
 import { FileService } from "../notifications/file.service.js";
 import { PerimetreService } from "../commun/perimetre.service.js";
 
+/*
+ * Un périmètre GLOBAL et toutes les permissions : ces suites éprouvent la
+ * fiche, pas le cloisonnement. Celui-ci a sa propre suite — sans quoi chaque
+ * test porterait deux sujets et n'en prouverait aucun.
+ */
+const PERIMETRE_TOTAL = { userId: "00000000-0000-4000-8000-000000000000", global: true, confidentiel: true } as never;
+const PERMISSIONS_TOTALES = new Set(["tasks:readAll", "tasks:manage_any"]) as ReadonlySet<string>;
+
 /**
  * L-33 — les points d'entrée ajoutés pour les vues 12, 16 et 17 : fiche
  * agrégée, modification versionnée, sous-tâches ordonnées.
@@ -82,7 +90,7 @@ describe("EX-TSK-13 — la fiche rassemble les objets liés", () => {
     await taches.ajouterSousTache(t.id, "Première étape", acteur);
     await prisma.comment.create({ data: { contenu: "Un mot", taskId: t.id, auteurId: a } });
 
-    const fiche = await taches.fiche(t.id);
+    const fiche = await taches.fiche(t.id, PERIMETRE_TOTAL, PERMISSIONS_TOTALES);
 
     expect(fiche.sousTaches).toHaveLength(1);
     expect(fiche.raci[0]?.role).toBe("responsible");
@@ -93,14 +101,16 @@ describe("EX-TSK-13 — la fiche rassemble les objets liés", () => {
   });
 
   it("une tâche inexistante est refusée, pas rendue vide", async () => {
-    await expect(taches.fiche(crypto.randomUUID())).rejects.toMatchObject({
+    await expect(
+      taches.fiche(crypto.randomUUID(), PERIMETRE_TOTAL, PERMISSIONS_TOTALES),
+    ).rejects.toMatchObject({
       code: "introuvable",
     });
   });
 
   it("le hors-projet est NOMMÉ, pas déduit d'un champ vide", async () => {
     const t = await prisma.task.create({ data: { titre: "Réunion transverse" } });
-    const fiche = await taches.fiche(t.id);
+    const fiche = await taches.fiche(t.id, PERIMETRE_TOTAL, PERMISSIONS_TOTALES);
     expect(fiche.horsProjet).toBe(true);
     expect(fiche.project).toBeNull();
   });
@@ -161,7 +171,7 @@ describe("EX-TSK-09 — les sous-tâches portent un ordre explicite", () => {
     await taches.ajouterSousTache(t.id, "Deux", acteur);
     await taches.ajouterSousTache(t.id, "Trois", acteur);
 
-    const fiche = await taches.fiche(t.id);
+    const fiche = await taches.fiche(t.id, PERIMETRE_TOTAL, PERMISSIONS_TOTALES);
     expect(fiche.sousTaches.map((s) => s.libelle)).toEqual(["Un", "Deux", "Trois"]);
     expect(fiche.sousTaches.map((s) => s.ordre)).toEqual([0, 1, 2]);
   });
@@ -185,7 +195,7 @@ describe("EX-TSK-09 — les sous-tâches portent un ordre explicite", () => {
     await taches.ajouterSousTache(t.id, "Intacte", acteur);
 
     await taches.basculerSousTache(a.id, true);
-    const fiche = await taches.fiche(t.id);
+    const fiche = await taches.fiche(t.id, PERIMETRE_TOTAL, PERMISSIONS_TOTALES);
     expect(fiche.sousTaches.map((s) => s.fait)).toEqual([true, false]);
   });
 
@@ -223,7 +233,7 @@ describe("EX-TSK-11, EX-TSK-14 — retirer un lien", () => {
     await taches.attribuerRaci(t.id, a, "consulted", acteur);
 
     await taches.retirerRaci(t.id, a, "responsible", acteur);
-    const fiche = await taches.fiche(t.id);
+    const fiche = await taches.fiche(t.id, PERIMETRE_TOTAL, PERMISSIONS_TOTALES);
     expect(fiche.raci.map((r) => r.role)).toEqual(["consulted"]);
   });
 

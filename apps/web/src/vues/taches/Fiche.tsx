@@ -570,20 +570,34 @@ function Dependances({ tache }: { tache: api.FicheTache }) {
       {liens.length === 0 ? (
         <p className="dep-none">{vide}</p>
       ) : (
-        liens.map((l) => (
-          <div className="dep-item" key={l.id}>
-            <div className="bloc-etroit">
-              <span className="dep-t">{l.titre}</span>
-              <span className={`dep-e${incoherent.has(l.id) ? " is-bad" : ""}`}>
-                {libelle(l.statut, STATUTS_TACHE)}
-                {dateLibelle(l) ? ` · ${dateLibelle(l)}` : ""}
-              </span>
+        liens.map((l) =>
+          /*
+           * `RG-SCOPE-04` — un lien vers une tâche que le lecteur ne peut pas
+           * voir GARDE SON ENTRÉE, sans son titre. La retirer changerait le
+           * compte annoncé — « Dépend de (2) » avec une seule ligne — et
+           * laisserait croire à un défaut d'affichage plutôt qu'à un
+           * cloisonnement. La maquette 17 traite ce cas : entrée atténuée,
+           * en italique, sans lien (`is-gone`).
+           */
+          l.lisible === false ? (
+            <div className="dep-item is-gone" key={l.id}>
+              <span className="dep-t">{t("fiche.dependanceMasquee")}</span>
             </div>
-            <Link to="/taches/$id" params={{ id: l.id }} className="dep-go">
-              {t("fiche.voirDetails")}
-            </Link>
-          </div>
-        ))
+          ) : (
+            <div className="dep-item" key={l.id}>
+              <div className="bloc-etroit">
+                <span className="dep-t">{l.titre}</span>
+                <span className={`dep-e${incoherent.has(l.id) ? " is-bad" : ""}`}>
+                  {libelle(l.statut ?? "", STATUTS_TACHE)}
+                  {dateLibelle(l) ? ` · ${dateLibelle(l)}` : ""}
+                </span>
+              </div>
+              <Link to="/taches/$id" params={{ id: l.id }} className="dep-go">
+                {t("fiche.voirDetails")}
+              </Link>
+            </div>
+          ),
+        )
       )}
     </div>
   );

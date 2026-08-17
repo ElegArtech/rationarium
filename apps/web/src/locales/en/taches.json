@@ -144,7 +144,8 @@
     "estimation": "Estimate",
     "telecharger": "Download",
     "heuresEtSaisies": "{heures, number} h · {n, plural, one {# entry} other {# entries}}",
-    "modifierIndisponible": "The full edit form is not ported yet; title, status and progress are edited in place on this page."
+    "modifierIndisponible": "The full edit form is not ported yet; title, status and progress are edited in place on this page.",
+    "dependanceMasquee": "Task not visible"
   },
   "onglet": {
     "titre": "Task board",

@@ -30,6 +30,7 @@ export type EchecTache =
   | "deja_assigne"
   | "dates_incoherentes"
   | "introuvable"
+  | "hors_perimetre"
   | "conflit_de_version";
 
 export class ErreurTache extends Error {
@@ -201,7 +202,7 @@ export class TachesService {
    * d'éviter que la page se remplisse par morceaux, chacun avec son propre
    * clignotement.
    */
-  async fiche(taskId: string) {
+  async fiche(taskId: string, perimetre: Perimetre, permissions: ReadonlySet<string>) {
     const tache = await this.prisma.task.findUnique({
       where: { id: taskId },
       include: {
@@ -235,8 +236,24 @@ export class TachesService {
     });
     if (!tache) throw new ErreurTache("introuvable");
 
+    /*
+     * `RG-SCOPE-04` — permission PUIS périmètre. La fiche n'avait que la
+     * première : `tasks:read` suffisait à lire N'IMPORTE QUELLE tâche par son
+     * identifiant, confidentielle comprise. Le cloisonnement se contournait
+     * donc par une URL devinée, et aucune boucle ne pouvait le voir puisque
+     * les listes, elles, filtrent correctement.
+     *
+     * « Hors périmètre » et non « introuvable » : le message est celui du
+     * catalogue partagé, et il ne renseigne pas sur l'existence de la ligne.
+     */
+    const lisible = await this.prisma.task.findFirst({
+      where: { AND: [{ id: taskId }, this.perimetres.filtreTache(perimetre, permissions)] },
+      select: { id: true },
+    });
+    if (!lisible) throw new ErreurTache("hors_perimetre");
+
     const [liens, incoherences] = await Promise.all([
-      this.dependances(taskId),
+      this.dependances(taskId, perimetre, permissions),
       this.incoherences(taskId),
     ]);
 
@@ -435,7 +452,23 @@ export class TachesService {
   }
 
   /** `EX-TSK-11` — ce dont une tâche dépend, et ce qu'elle bloque. */
-  async dependances(taskId: string) {
+  /**
+   * `RG-TSK-04` — les deux sens d'une dépendance.
+   *
+   * **Ce point d'entrée n'avait AUCUN périmètre.** Il vérifiait la permission
+   * `tasks:read` et rendait ensuite le titre de n'importe quelle tâche liée,
+   * fût-elle confidentielle ou hors du périmètre du lecteur. `RG-SCOPE-04` est
+   * précisément la règle « la plus facile à rater » — et elle l'a été ici,
+   * dans le seul point d'entrée qui nomme des tâches qu'on n'a pas demandées.
+   *
+   * Une entrée hors périmètre n'est pas RETIRÉE : elle reste visible sans son
+   * titre. La retirer changerait le compte annoncé — « Dépend de (3) » avec
+   * deux lignes — et laisserait croire à un défaut d'affichage. La maquette 17
+   * traite déjà ce cas : l'entrée demeure, atténuée (`is-gone`).
+   */
+  async dependances(taskId: string, perimetre: Perimetre, permissions: ReadonlySet<string>) {
+    const visible = this.perimetres.filtreTache(perimetre, permissions);
+
     const [depend, bloque] = await Promise.all([
       this.prisma.taskDependency.findMany({
         where: { taskId },
@@ -446,9 +479,37 @@ export class TachesService {
         include: { task: { select: { id: true, titre: true, statut: true, dateDebut: true } } },
       }),
     ]);
+
+    /*
+     * Une seconde lecture, bornée au périmètre, dit lesquelles sont
+     * nommables. Deux requêtes plutôt qu'une jointure filtrée : le filtre doit
+     * porter sur la TÂCHE liée, pas sur la dépendance, et il faut connaître
+     * les deux ensembles pour distinguer « absente » de « invisible ».
+     */
+    const ids = [...depend.map((d) => d.prerequisId), ...bloque.map((d) => d.taskId)];
+    const nommables = new Set(
+      (
+        await this.prisma.task.findMany({
+          where: { AND: [{ id: { in: ids } }, visible] },
+          select: { id: true },
+        })
+      ).map((t) => t.id),
+    );
+
+    /*
+     * La forme reste la MÊME, nommable ou non : seuls les champs identifiants
+     * passent à `null`. Une forme qui change selon le droit obligerait chaque
+     * appelant à connaître la règle de cloisonnement — et le premier qui
+     * l'oublierait afficherait « undefined » au lieu de rien.
+     */
+    const masquer = <T extends { id: string; titre: string; statut: string }>(t: T) =>
+      nommables.has(t.id)
+        ? { ...t, lisible: true as const }
+        : { id: t.id, titre: null, statut: null, lisible: false as const };
+
     return {
-      dependDe: depend.map((d) => d.prerequis),
-      bloque: bloque.map((d) => d.task),
+      dependDe: depend.map((d) => masquer(d.prerequis)),
+      bloque: bloque.map((d) => masquer(d.task)),
     };
   }
 

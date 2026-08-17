@@ -33,10 +33,13 @@ export type SousTache = { id: string; libelle: string; fait: boolean; ordre: num
 
 export type LienDependance = {
   id: string;
-  titre: string;
-  statut: string;
+  /** `null` quand le lien pointe une tâche que le lecteur ne peut pas voir. */
+  titre: string | null;
+  statut: string | null;
   dateFin?: string | null;
   dateDebut?: string | null;
+  /** `RG-SCOPE-04` — la tâche liée est-elle nommable pour ce lecteur ? */
+  lisible: boolean;
 };
 
 export type FicheTache = LigneTache & {

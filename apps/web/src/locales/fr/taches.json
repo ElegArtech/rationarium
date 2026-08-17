@@ -144,7 +144,8 @@
     "estimation": "Estimation",
     "telecharger": "Télécharger",
     "heuresEtSaisies": "{heures, number} h · {n, plural, one {# saisie} other {# saisies}}",
-    "modifierIndisponible": "Le formulaire complet de modification n'est pas encore porté ; le titre, le statut et l'avancement s'éditent directement sur la fiche."
+    "modifierIndisponible": "Le formulaire complet de modification n'est pas encore porté ; le titre, le statut et l'avancement s'éditent directement sur la fiche.",
+    "dependanceMasquee": "Tâche non visible"
   },
   "onglet": {
     "titre": "Tableau des tâches",
