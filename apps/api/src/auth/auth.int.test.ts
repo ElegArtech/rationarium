@@ -463,5 +463,70 @@ describe("EX-AUTH-09 — modifier son profil", () => {
     expect(apres.login).toBe(avant.login);
     expect(apres.motDePasseHash).toBe(avant.motDePasseHash);
     expect(apres.actif).toBe(true);
+describe("EX-AUTH-09 — le profil dit à quelle organisation appartient l'agent", () => {
+  /**
+   * La vue 35 affiche « Département », « Services » et « Membre depuis » en
+   * lecture seule. Ils venaient de nulle part : le profil ne les exposait pas,
+   * et la vue les avait simplement omis. Le test porte donc sur ce que le
+   * profil doit CONTENIR, pas sur ce qu'il contenait.
+   */
+  /* Les noms de direction et de département sont uniques en base : chaque
+     appel pose les siens, sinon le second test échoue sur une contrainte et
+     l'échec ne parle pas de ce qu'on teste. */
+  async function rattacher() {
+    const c = await poserUnCompte();
+    const marque = uuid().slice(0, 8);
+    const direction = await prisma.direction.create({
+      data: { id: uuid(), nom: `Direction ${marque}` },
+    });
+    const departement = await prisma.departement.create({
+      data: { id: uuid(), nom: `Services numériques ${marque}`, directionId: direction.id },
+    });
+    // Deux services, posés dans le DÉSORDRE : la sortie doit être ordonnée.
+    const si = await prisma.service.create({
+      data: { id: uuid(), nom: "Systèmes d'information", departementId: departement.id },
+    });
+    const ac = await prisma.service.create({
+      data: { id: uuid(), nom: "Applications citoyennes", departementId: departement.id },
+    });
+    await prisma.user.update({
+      where: { id: c.id },
+      data: {
+        departementId: departement.id,
+        services: { create: [{ serviceId: si.id }, { serviceId: ac.id }] },
+      },
+    });
+    return { ...c, departement: departement.nom };
+  }
+
+  it("rend le département, TOUS les services et la date d'entrée", async () => {
+    const c = await rattacher();
+    const p = await auth.profil(c.id);
+    expect(p.departement).toBe(c.departement);
+    // Plusieurs services : la vue les énumère, elle n'en choisit pas un.
+    expect(p.services).toEqual(["Applications citoyennes", "Systèmes d'information"]);
+    expect(p.membreDepuis).toBeInstanceOf(Date);
+  });
+
+  it("un agent sans rattachement rend null et une liste vide, jamais une erreur", async () => {
+    const c = await poserUnCompte();
+    const p = await auth.profil(c.id);
+    expect(p.departement).toBeNull();
+    expect(p.services).toEqual([]);
+  });
+
+  it("ne rend JAMAIS que le compte demandé : deux agents rattachés différemment", async () => {
+    /*
+     * Le périmètre de cette lecture est le compte lui-même. Le vérifier exige
+     * deux agents : avec un seul, n'importe quelle requête passerait le test.
+     */
+    const a = await rattacher();
+    const b = await poserUnCompte();
+    const pa = await auth.profil(a.id);
+    const pb = await auth.profil(b.id);
+    expect(pa.id).toBe(a.id);
+    expect(pb.id).toBe(b.id);
+    expect(pb.departement).toBeNull();
+    expect(pb.services).toEqual([]);
   });
 });

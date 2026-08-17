@@ -334,6 +334,19 @@ export async function peuplerMaquette(
     create: { taskId: fiche.id, thirdPartyId: tiers.id },
     update: {},
   });
+  /*
+   * Deux tâches de plus sur le tiers, l'une TERMINÉE l'autre À FAIRE : la
+   * fiche de la vue 24 range ses tâches par statut, et une seule tâche
+   * « en cours » ne fait apparaître aucun des deux autres libellés.
+   */
+  for (const n of [1, 5]) {
+    const autre = await prisma.task.findUniqueOrThrow({ where: { id: idStable("t", n) } });
+    await prisma.taskThirdParty.upsert({
+      where: { taskId_thirdPartyId: { taskId: autre.id, thirdPartyId: tiers.id } },
+      create: { taskId: autre.id, thirdPartyId: tiers.id },
+      update: {},
+    });
+  }
   const prerequis = await prisma.task.findUniqueOrThrow({ where: { id: idStable("t", 6) } });
 
   for (const [i, st] of SOUS_TACHES.entries()) {
@@ -657,7 +670,78 @@ export async function peuplerMaquette(
     }
   }
 
+  /*
+   * ── Tiers et bénéficiaires ───────────────────────────────────────────────
+   *
+   * Le jeu n'en créait AUCUN : les vues 23 à 26 mesuraient les lignes du jeu
+   * de volumétrie, et trois états n'avaient aucune source.
+   *
+   * · une PERSONNE PHYSIQUE, parce que le seul type posé était `organisation`
+   *   et que la contrainte `third_parties_contact_selon_type` en fait deux
+   *   formes d'identité distinctes ;
+   * · un bénéficiaire SANS PROJET, pour la puce « Aucun projet » de la vue 25 ;
+   * · assez de saisies sur un même tiers pour que la liste se replie
+   *   (`prev-more` : la maquette 24 en montre cinq puis « et 7 autres »).
+   */
+  const tiersPhysique = await prisma.thirdParty.upsert({
+    where: { id: idStable("T", 1) },
+    create: {
+      id: idStable("T", 1),
+      type: "individual",
+      contactNom: "Yanis Berthelot",
+      contactEmail: "y.berthelot@independant.fr",
+    },
+    update: { contactNom: "Yanis Berthelot" },
+  });
+  await prisma.projectThirdParty.upsert({
+    where: { projectId_thirdPartyId: { projectId: projets[0]!.id, thirdPartyId: tiers.id } },
+    create: { projectId: projets[0]!.id, thirdPartyId: tiers.id },
+    update: {},
+  });
+
+  // Huit saisies sur le tiers : au-delà des cinq que la maquette affiche, donc
+  // le pied « et 7 autres » a de quoi compter. Une seule ne replie rien.
+  for (let n = 0; n < 8; n += 1) {
+    await prisma.timeEntry.upsert({
+      where: { id: idStable("H", 100 + n) },
+      create: {
+        id: idStable("H", 100 + n),
+        thirdPartyId: tiers.id,
+        projectId: projets[0]!.id,
+        date: jour(-n - 1),
+        heures: 2 + (n % 3),
+        description: "Appui au prestataire — accès annuaire",
+      },
+      update: { date: jour(-n - 1), thirdPartyId: tiers.id },
+    });
+  }
+
+  const clients = [];
+  for (const [i, c] of CLIENTS.entries()) {
+    clients.push(
+      await prisma.client.upsert({
+        where: { id: idStable("K", i) },
+        create: { id: idStable("K", i), nom: c.nom, contactNom: c.contact, adresse: c.adresse, actif: c.actif },
+        update: { nom: c.nom, contactNom: c.contact, adresse: c.adresse, actif: c.actif },
+      }),
+    );
+  }
+  // Le premier porte des projets, le deuxième AUCUN : « Aucun projet » n'a pas
+  // d'autre source. Le troisième est inactif.
+  await prisma.projectClient.upsert({
+    where: { projectId_clientId: { projectId: projets[0]!.id, clientId: clients[0]!.id } },
+    create: { projectId: projets[0]!.id, clientId: clients[0]!.id },
+    update: {},
+  });
+  await prisma.projectClient.upsert({
+    where: { projectId_clientId: { projectId: projets[1]!.id, clientId: clients[0]!.id } },
+    create: { projectId: projets[1]!.id, clientId: clients[0]!.id },
+    update: {},
+  });
+
   return {
+    tiers: 2,
+    clients: clients.length,
     agents: agents.length,
     projets: projets.length,
     taches: TACHES.length,
@@ -794,6 +878,14 @@ const CONGES = [
  * décembre. `lv-split` n'a aucune autre source, et cette date ne peut pas
  * suivre le lundi courant : elle est absolue.
  */
+const CLIENTS = [
+  { nom: "Direction de la culture", contact: "Sylvie Nardin", adresse: "12 place de la Mairie, Roqueville", actif: true },
+  // Sans projet : la puce « Aucun projet » de la vue 25.
+  { nom: "Office de tourisme", contact: "Paul Lambert", adresse: "3 rue des Remparts, Roqueville", actif: true },
+  // Inactif : la ligne atténuée et le filtre « Inactifs ».
+  { nom: "Syndicat des eaux", contact: null, adresse: null, actif: false },
+] as const;
+
 const CONGE_A_CHEVAL = { agent: 0, jours: 6, statut: "approved" as const };
 
 const SOUS_TACHES = [
