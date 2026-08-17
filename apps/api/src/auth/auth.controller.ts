@@ -19,7 +19,7 @@ import {
 } from "@trame/contracts";
 import { z } from "zod";
 import { AuthService, ErreurAuth } from "./auth.service.js";
-import { Public } from "../commun/permissions.garde.js";
+import { Public, Personnel, Demande, type ContexteDemande } from "../commun/permissions.garde.js";
 import { MESSAGES } from "./messages.js";
 
 const COOKIE = "trame_session";
@@ -199,23 +199,22 @@ export class AuthController {
    * s'appliquait, mais ne suivait personne d'une machine à l'autre, alors que
    * la colonne l'attendait en base.
    *
-   * Pas de `@RequirePermission` : le catalogue des vingt-quatre domaines est
-   * FERMÉ par `cadrage/01 § 3.2`, et modifier son propre profil n'y trouve pas
-   * de domaine — en inventer un serait ajouter au catalogue par initiative. Le
-   * cloisonnement est ici l'identité de la session : on n'écrit que sur la
-   * ligne dont on tient le jeton, jamais sur un identifiant reçu du client.
+   * `@Personnel()` et non `@Public()` : le catalogue des vingt-quatre domaines
+   * est FERMÉ par `cadrage/01 § 3.2` et modifier son propre profil n'y trouve
+   * pas de domaine — en inventer un serait ajouter au catalogue par
+   * initiative. Mais `@Public()` signifie « AVANT la session », et cette route
+   * en exige une. `surface-http.test.ts` l'a refusée sur-le-champ : sa liste
+   * blanche de routes publiques est nominative, et une route de plus s'y voit.
+   *
+   * Le cloisonnement est l'identité de la session : on n'écrit que sur la ligne
+   * dont on tient le jeton, jamais sur un identifiant reçu du client.
    */
-  @Public()
+  @Personnel()
   @Patch("me")
-  async modifierProfil(@Body() corps: unknown, @Req() req: FastifyRequest) {
-    const jeton = req.cookies?.[COOKIE];
-    const session = jeton ? await this.auth.resoudreSession(jeton) : null;
-    if (!session)
-      throw new HttpException({ cle: "auth:erreurs.sessionRequise", message: "Session requise" }, 401);
-
+  async modifierProfil(@Body() corps: unknown, @Demande() demande: ContexteDemande) {
     const d = valider(modificationProfilSchema, corps);
     try {
-      return await this.auth.modifierProfil(session.userId, d);
+      return await this.auth.modifierProfil(demande.userId, d);
     } catch (e) {
       return traduire(e);
     }
