@@ -78,6 +78,23 @@ test.describe("la boucle de conformité de rendu", () => {
     expect(source).toContain("process.exit(ecarts === 0 ? 0 : 1)");
   });
 
+  test("L'IDENTITÉ DE LA PERSONNE CONNECTÉE EST UNE DONNÉE, JAMAIS UN GABARIT", () => {
+    /*
+     * `.um-name` et `.um-role` portent la persona côté maquette — « Inès
+     * Rocher », « Manager de service », « Direction » — et le compte réel côté
+     * produit. Les comparer fait de chaque persona un écart bloquant.
+     *
+     * Mesuré : l'ajout d'un seul libellé de rôle au catalogue a fait
+     * apparaître « Manager de service » comme écart sur VINGT ET UNE vues à la
+     * fois, sans qu'une ligne de vue ait changé. Le bloc est exclu des deux
+     * côtés ; l'oublier ferait revenir la vague entière.
+     */
+    const source = readFileSync(path.join(RACINE, "scripts/ui-conformite.mjs"), "utf8");
+    for (const bloc of [".um-name", ".um-role", "#uname", "#urole"]) {
+      expect(source).toContain(bloc);
+    }
+  });
+
   test("L'EXCLUSION D'INERTIE SE LIT SUR LA MAQUETTE, JAMAIS SUR UNE LISTE", () => {
     /*
      * Le comparateur ne compte plus comme inerte une classe que la maquette
