@@ -53,6 +53,45 @@ produit ne peut pas le décider — reproduire fidèlement veut dire reproduire
 l'inertie, ce qui rend la classe inutile ; « corriger » veut dire changer le
 rendu de la maquette gelée.
 
+### 2.3 « Tâche supprimée » — vue 17, le dernier écart
+
+C'est le seul écart de conformité qui reste, et il ne se ferme par aucune
+correction de code. Les deux sources gelées se contredisent :
+
+| Source | Ce qu'elle dit |
+| --- | --- |
+| `cadrage/02:566` | *Tâche prérequise supprimée* : « Tâche supprimée » (l'entrée reste visible) |
+| `cadrage/01:413` (`RG-TSK-07`) | Une tâche **dont d'autres dépendent** ne peut pas être supprimée |
+| `schema.prisma`, `TaskDependency.prerequis` | `onDelete: Restrict` — la base le garantit |
+
+La première décrit un état ; les deux autres garantissent qu'il ne peut pas
+se produire. **La donnée est interdite par construction.**
+
+Ce qui a été fait, et qui est acquis : l'entrée d'un prérequis **non lisible**
+— confidentiel ou hors périmètre — garde sa ligne, atténuée, sans titre.
+`is-gone` a donc désormais un déclencheur réel et éprouvé, alors que la classe
+était inerte. Le trou de cloisonnement trouvé en chemin est fermé (§ 4).
+
+Ce qui reste ouvert, et pourquoi il ne se tranche pas ici :
+
+1. **Écrire « Tâche supprimée » sur une tâche seulement invisible serait
+   faux**, et laisserait croire qu'un travail a été détruit. Un message se
+   rédige et il est actionnable (`RG-GEN-03`) ; celui-là serait mensonger.
+2. **La boucle mesure sous le compte ADMINISTRATEUR.** Rien ne lui est
+   masqué : l'état existe dans le produit, il ne se produit pas sous ses yeux.
+   `cadrage/02 § D.3` exige pourtant que chaque vue soit crédible en « droits
+   minimaux » **et** en « administrateur » — la boucle ne couvre que la
+   seconde variante, sur les trente-cinq vues.
+
+Trois issues possibles, toutes des décisions :
+
+- **retirer l'état du cadrage**, puisque le modèle l'interdit ;
+- **prévoir une suppression logique des tâches**, ce qui change `RG-TSK-07` ;
+- **mesurer certaines vues en droits minimaux**, ce qui comblerait la variante
+  manquante de `§ D.3` — au prix d'écarts attendus sur tout ce que `RG-GEN-06`
+  masque légitimement à un lecteur restreint. La passe restreinte n'aurait
+  donc pas le même critère que la passe administrateur.
+
 ## 3. Manques au modèle de données
 
 Un champ affiché depuis une valeur inventée côté client serait pire que son
@@ -61,10 +100,12 @@ absence. Le schéma ne se modifie pas dans une tâche de fonctionnalité
 
 | Champ | Où la maquette l'affiche | État |
 | --- | --- | --- |
-| `siret` | `mockups/24-fiche-tiers.html` | absent de `schema.prisma` |
-| `adresse` d'un tiers | `mockups/24-fiche-tiers.html` | présent (`schema.prisma:958`) |
-| nature d'un client | maquettes 25–26 | à confirmer |
-| budget cumulé | maquettes 24, 30 | `budgetHeures` existe (`schema.prisma:338`) — le **cumul** est à confirmer |
+| `siret` | `mockups/24-fiche-tiers.html` | **absent**, et non bloquant : le comparateur le classe en contenu de démonstration |
+| `adresse` d'un tiers | `mockups/24-fiche-tiers.html` | **ajouté** — tâche de schéma du 2026-08-17 |
+| rôle d'un rattachement | `mockups/24-fiche-tiers.html` | **ajouté** sur `ProjectThirdParty`, pas sur le tiers : le rôle varie d'un projet à l'autre |
+| nature d'un client | maquettes 25–26 | **ajouté** — `Client.nature`, avec son vocabulaire au contrat |
+| auteur d'une saisie | `mockups/21-temps-passe.html` | **ajouté** — `TimeEntry.creeParId` |
+| budget cumulé | maquettes 24, 30 | `budgetHeures` existe (`schema.prisma:338`) — le **cumul** reste à confirmer |
 
 ## 4. Ce que la mesure a trouvé et qui n'était pas du rendu
 
