@@ -54,6 +54,8 @@ export type ProjetTableau = {
   statut: string;
   icone: string | null;
   dateFin: string;
+  /** `RG-PRJ-07` — moyenne des avancements de tâches, en pourcentage entier. */
+  progression: number;
   _count: { taches: number };
 };
 

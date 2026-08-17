@@ -184,9 +184,21 @@ export class TableauService {
     }));
   }
 
-  /** `EX-DSH-07` — ses projets, tels qu'il les retrouve d'un clic. */
+  /**
+   * `EX-DSH-07` — ses projets, tels qu'il les retrouve d'un clic.
+   *
+   * Chaque ligne porte sa **progression** : la maquette 06 dessine une jauge
+   * sous le nom du projet, et sans elle la liste ne dit que « ces projets
+   * existent ». `RG-PRJ-07` la définit une fois pour toutes — moyenne des
+   * avancements de tâches, jamais ratio de tâches terminées : une tâche à
+   * 90 % compte pour ce qu'elle vaut.
+   *
+   * Un seul `groupBy` pour les huit projets : une agrégation par ligne
+   * rejouerait la même requête huit fois sur la page la plus consultée du
+   * produit.
+   */
   private async projets(userId: string) {
-    return this.prisma.project.findMany({
+    const projets = await this.prisma.project.findMany({
       where: {
         archive: false,
         OR: [{ chefId: userId }, { membres: { some: { userId } } }],
@@ -198,6 +210,19 @@ export class TableauService {
       orderBy: { dateFin: "asc" },
       take: 8,
     });
+
+    const avancements = await this.prisma.task.groupBy({
+      by: ["projectId"],
+      where: { projectId: { in: projets.map((p) => p.id) } },
+      _avg: { avancement: true },
+    });
+    const parProjet = new Map(
+      avancements.map((a) => [a.projectId, Math.round(a._avg.avancement ?? 0)]),
+    );
+
+    // Un projet sans tâche est à 0, pas à 100 : c'est ce que donnerait une
+    // moyenne vide mal gardée, et la jauge annoncerait un projet fini.
+    return projets.map((p) => ({ ...p, progression: parProjet.get(p.id) ?? 0 }));
   }
 
   // ── To-do — `EX-DSH-04`, `RG-DSH-01` à `RG-DSH-03` ────────────────────────
