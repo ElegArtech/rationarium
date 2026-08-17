@@ -70,7 +70,8 @@
     "tous": "All →",
     "vide": "No project assigned",
     "videAide": "You are not a member of any project yet.",
-    "nTaches": "{n, plural, =0 {no task} one {# task} other {# tasks}}"
+    "nTaches": "{n, plural, =0 {no task} one {# task} other {# tasks}}",
+    "pourcent": "{n} %"
   },
   "jours": {
     "court": {

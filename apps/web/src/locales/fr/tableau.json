@@ -70,7 +70,8 @@
     "tous": "Tous →",
     "vide": "Aucun projet assigné",
     "videAide": "Vous n'êtes membre d'aucun projet pour l'instant.",
-    "nTaches": "{n, plural, =0 {aucune tâche} one {# tâche} other {# tâches}}"
+    "nTaches": "{n, plural, =0 {aucune tâche} one {# tâche} other {# tâches}}",
+    "pourcent": "{n} %"
   },
   "jours": {
     "court": {

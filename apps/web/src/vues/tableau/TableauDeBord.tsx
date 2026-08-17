@@ -695,8 +695,16 @@ function MesProjets({ projets }: { projets: api.ProjetTableau[] }) {
                   {libelleDe(projet.statut, STATUTS_PROJET)} ·{" "}
                   {t("projets.nTaches", { n: projet._count.taches })}
                 </span>
+                {/* `RG-PRJ-07` — la jauge de la maquette. La liste disait
+                    jusqu'ici que ces projets existent ; elle dit maintenant
+                    où ils en sont, ce qui est la question qu'on se pose en
+                    les regardant. Le chiffre est à côté : une barre seule ne
+                    se lit ni au clavier, ni en niveaux de gris. */}
+                <div className="bar" aria-hidden="true">
+                  <i style={{ width: `${projet.progression}%` }} />
+                </div>
               </div>
-              <span className="prow-pct">{formaterDate(projet.dateFin)}</span>
+              <span className="prow-pct">{t("projets.pourcent", { n: projet.progression })}</span>
             </a>
           ))
         )}

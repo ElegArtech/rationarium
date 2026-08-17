@@ -243,6 +243,51 @@ describe("EX-DSH-03 — l'extrait de planning", () => {
   });
 });
 
+describe("EX-DSH-07 — mes projets, et où ils en sont", () => {
+  beforeEach(async () => {
+    await prisma.taskAssignee.deleteMany();
+    await prisma.task.deleteMany();
+    await prisma.project.deleteMany();
+  });
+
+  it("RG-PRJ-07 — la progression est la MOYENNE des avancements, pas le ratio de tâches terminées", async () => {
+    // Le piège que cette assertion garde : deux tâches sur trois terminées
+    // donnerait 67 % au ratio. La règle dit 97 % — (100 + 100 + 90) / 3 —
+    // parce qu'une tâche à 90 % compte pour ce qu'elle vaut. Les deux
+    // formules se ressemblent assez pour qu'on ne voie pas la différence
+    // sans un jeu qui les sépare.
+    const projet = await prisma.project.create({
+      data: {
+        nom: `Portail ${uuid().slice(0, 6)}`, statut: "active",
+        dateDebut: utc("2026-01-01"), dateFin: utc("2026-12-31"), chefId: moi,
+      },
+    });
+    await prisma.task.createMany({
+      data: [
+        { titre: "A", projectId: projet.id, statut: "done", avancement: 100 },
+        { titre: "B", projectId: projet.id, statut: "done", avancement: 100 },
+        { titre: "C", projectId: projet.id, statut: "doing", avancement: 90 },
+      ],
+    });
+
+    const ligne = (await accueil()).projets.find((p) => p.id === projet.id);
+    expect(ligne?.progression).toBe(97);
+  });
+
+  it("RG-PRJ-07 — un projet SANS TÂCHE est à 0, pas à 100", async () => {
+    // Une moyenne vide mal gardée rend `null`, et la jauge de la maquette 06
+    // annoncerait un projet terminé le jour de son ouverture.
+    const projet = await prisma.project.create({
+      data: {
+        nom: `Vide ${uuid().slice(0, 6)}`, statut: "active",
+        dateDebut: utc("2026-01-01"), dateFin: utc("2026-12-31"), chefId: moi,
+      },
+    });
+    const ligne = (await accueil()).projets.find((p) => p.id === projet.id);
+    expect(ligne?.progression).toBe(0);
+  });
+});
+
 describe("RG-DSH-01 à RG-DSH-03 — les to-do", () => {
   beforeEach(async () => {
     await prisma.todo.deleteMany();
