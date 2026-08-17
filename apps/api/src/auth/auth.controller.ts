@@ -4,6 +4,7 @@ import {
   HttpCode,
   HttpException,
   Post,
+  Patch,
   Get,
   Req,
   Res,
@@ -13,6 +14,7 @@ import {
   connexionSchema,
   inscriptionSchema,
   changementMotDePasseSchema,
+  modificationProfilSchema,
   motDePasse as politiqueMotDePasse,
 } from "@trame/contracts";
 import { z } from "zod";
@@ -187,5 +189,35 @@ export class AuthController {
       ...(await this.auth.profil(session.userId)),
       motDePasseAChanger: session.motDePasseAChanger,
     };
+  }
+
+  /**
+   * `EX-AUTH-09` — modifier son profil.
+   *
+   * L'exigence disait « consulter **et** modifier » ; seule la consultation
+   * existait. Le thème ne vivait que dans le stockage local du navigateur : il
+   * s'appliquait, mais ne suivait personne d'une machine à l'autre, alors que
+   * la colonne l'attendait en base.
+   *
+   * Pas de `@RequirePermission` : le catalogue des vingt-quatre domaines est
+   * FERMÉ par `cadrage/01 § 3.2`, et modifier son propre profil n'y trouve pas
+   * de domaine — en inventer un serait ajouter au catalogue par initiative. Le
+   * cloisonnement est ici l'identité de la session : on n'écrit que sur la
+   * ligne dont on tient le jeton, jamais sur un identifiant reçu du client.
+   */
+  @Public()
+  @Patch("me")
+  async modifierProfil(@Body() corps: unknown, @Req() req: FastifyRequest) {
+    const jeton = req.cookies?.[COOKIE];
+    const session = jeton ? await this.auth.resoudreSession(jeton) : null;
+    if (!session)
+      throw new HttpException({ cle: "auth:erreurs.sessionRequise", message: "Session requise" }, 401);
+
+    const d = valider(modificationProfilSchema, corps);
+    try {
+      return await this.auth.modifierProfil(session.userId, d);
+    } catch (e) {
+      return traduire(e);
+    }
   }
 }

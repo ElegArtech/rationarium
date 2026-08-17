@@ -347,3 +347,121 @@ describe("RG-AUTH-03 — inscription autonome", () => {
     });
   });
 });
+
+/**
+ * `EX-AUTH-09` — « Consulter **et** modifier son profil : identité, avatar,
+ * langue, thème. »
+ *
+ * Seule la consultation existait. `GET /auth/me` répondait depuis le premier
+ * lot, aucune route n'écrivait jamais : le thème ne vivait que dans le
+ * stockage local du navigateur — il s'appliquait, mais ne suivait personne
+ * d'une machine à l'autre, alors que la colonne l'attendait en base.
+ *
+ * Trouvé en relisant l'exigence, pas par une boucle : aucune ne vérifiait
+ * qu'une exigence à deux verbes ait bien ses deux moitiés.
+ */
+describe("EX-AUTH-09 — modifier son profil", () => {
+  it("enregistre l'identité, la langue et le thème, et les relit", async () => {
+    const u = await poserUnCompte();
+    const avant = await auth.profil(u.id);
+    expect(avant.theme).toBe("auto");
+
+    const apres = await auth.modifierProfil(u.id, {
+      prenom: "Camille",
+      nom: "Durand-Roche",
+      langue: "en",
+      theme: "sombre",
+      version: 1,
+    });
+
+    expect(apres.nom).toBe("Durand-Roche");
+    expect(apres.langue).toBe("en");
+    expect(apres.theme).toBe("sombre");
+
+    // Relu depuis la base, pas depuis la valeur renvoyée : un service qui
+    // rend ce qu'on lui a passé sans écrire passerait le test précédent.
+    const relu = await prisma.user.findUniqueOrThrow({ where: { id: u.id } });
+    expect(relu.theme).toBe("sombre");
+    expect(relu.langue).toBe("en");
+  });
+
+  it("RG-AUTH-09 — REFUSE un avatar à la fois fichier ET prédéfini", async () => {
+    const u = await poserUnCompte();
+    await expect(
+      auth.modifierProfil(u.id, {
+        avatarFichier: "photo.webp",
+        avatarPredefini: "a-07",
+        version: 1,
+      }),
+    ).rejects.toMatchObject({ code: "avatar_ambigu" });
+  });
+
+  it("RG-AUTH-09 — refuse aussi quand l'AMBIGUÏTÉ NAÎT DE L'ÉTAT DÉJÀ EN BASE", async () => {
+    /*
+     * Le cas que le schéma seul ne peut pas voir : le corps ne porte qu'UN
+     * avatar, donc il est valide ; c'est l'état résultant qui en compte deux.
+     * Sans ce contrôle dans le service, deux requêtes licites successives
+     * fabriquaient l'état que la règle interdit.
+     */
+    const u = await poserUnCompte();
+    await auth.modifierProfil(u.id, { avatarPredefini: "a-07", version: 1 });
+    await expect(
+      auth.modifierProfil(u.id, { avatarFichier: "photo.webp", version: 2 }),
+    ).rejects.toMatchObject({ code: "avatar_ambigu" });
+  });
+
+  it("RG-AUTH-09 — accepte de remplacer un avatar par l'autre en une requête", async () => {
+    const u = await poserUnCompte();
+    await auth.modifierProfil(u.id, { avatarPredefini: "a-07", version: 1 });
+    const r = await auth.modifierProfil(u.id, {
+      avatarPredefini: null,
+      avatarFichier: "photo.webp",
+      version: 2,
+    });
+    expect(r.avatarFichier).toBe("photo.webp");
+    expect(r.avatarPredefini).toBeNull();
+  });
+
+  it("RG-GEN-07 — DEUX ÉCRITURES CONCURRENTES ne s'écrasent pas en silence", async () => {
+    const u = await poserUnCompte();
+    // Deux onglets lisent la version 1.
+    await auth.modifierProfil(u.id, { prenom: "Première", version: 1 });
+    await expect(
+      auth.modifierProfil(u.id, { prenom: "Seconde", version: 1 }),
+    ).rejects.toMatchObject({ code: "conflit_de_version" });
+
+    const relu = await prisma.user.findUniqueOrThrow({ where: { id: u.id } });
+    expect(relu.prenom).toBe("Première");
+  });
+
+  it("RG-USR-01 — refuse un email déjà pris par quelqu'un d'autre", async () => {
+    const a = await poserUnCompte();
+    const b = await poserUnCompte();
+    await expect(
+      auth.modifierProfil(b.id, { email: a.email, version: 1 }),
+    ).rejects.toMatchObject({ code: "email_deja_pris" });
+  });
+
+  it("NE TOUCHE JAMAIS AU LOGIN NI AU MOT DE PASSE, quoi qu'on lui passe", async () => {
+    /*
+     * `RG-AUTH-08` — le mot de passe ne se change que par le point d'entrée
+     * dédié, avec l'actuel. Un `...champs` diffusé depuis le corps a DÉJÀ
+     * laissé passer `login` dans ce service : les champs sont désormais
+     * énumérés, et ce test l'exige depuis le service, pas depuis la frontière
+     * HTTP — une règle du domaine qui ne vit qu'au contrôleur tombe dès qu'un
+     * autre appelant arrive.
+     */
+    const u = await poserUnCompte();
+    const avant = await prisma.user.findUniqueOrThrow({ where: { id: u.id } });
+
+    await auth.modifierProfil(
+      u.id,
+      { prenom: "Camille", login: "usurpateur", motDePasseHash: "x", actif: false, version: 1 } as never,
+    );
+
+    const apres = await prisma.user.findUniqueOrThrow({ where: { id: u.id } });
+    expect(apres.login).toBe(avant.login);
+    expect(apres.motDePasseHash).toBe(avant.motDePasseHash);
+    expect(apres.actif).toBe(true);
+  });
+});

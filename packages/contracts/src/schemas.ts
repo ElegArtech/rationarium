@@ -110,6 +110,35 @@ export const changementMotDePasseSchema = z
     path: ["confirmation"],
   });
 
+/**
+ * `EX-AUTH-09` — modifier son propre profil : identité, avatar, langue, thème.
+ *
+ * Tous les champs sont facultatifs : la vue 35 enregistre bloc par bloc, et
+ * exiger l'objet entier ferait écraser par une valeur relue ce qu'un autre
+ * onglet vient d'écrire — un « dernier arrivé gagne » déguisé en formulaire.
+ *
+ * `RG-AUTH-09` — l'avatar est **soit** un fichier téléversé, **soit** un
+ * visuel prédéfini, **soit** rien. Jamais les deux : la règle se tient ici
+ * ET dans le service, parce qu'une règle du domaine qui ne vit qu'à la
+ * frontière HTTP tombe dès qu'un autre appelant arrive.
+ */
+export const modificationProfilSchema = z
+  .object({
+    prenom: z.string().min(1).max(80).optional(),
+    nom: z.string().min(1).max(80).optional(),
+    email: z.email().max(160).optional(),
+    langue: z.enum(["fr", "en"]).optional(),
+    theme: z.enum(["clair", "sombre", "auto"]).optional(),
+    avatarFichier: z.string().max(255).nullish(),
+    avatarPredefini: z.string().max(60).nullish(),
+    /** `RG-GEN-07` — la version lue accompagne l'écriture. */
+    version: z.number().int().positive(),
+  })
+  .refine((v) => !(v.avatarFichier && v.avatarPredefini), {
+    message: "L'avatar est soit un fichier, soit un visuel prédéfini, jamais les deux",
+    path: ["avatarPredefini"],
+  });
+
 // ── Organisation — M2 ───────────────────────────────────────────────────────
 
 export const directionSchema = z.object({

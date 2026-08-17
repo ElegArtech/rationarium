@@ -65,4 +65,19 @@ export const MESSAGES: Record<EchecAuth, { statut: number; cle: string; message:
     cle: "auth:erreurs.inscriptionDesactivee",
     message: "La création de compte autonome est désactivée",
   },
+  /*
+   * `RG-AUTH-09` — l'avatar est soit un fichier, soit un visuel prédéfini,
+   * soit rien. Le message dit quoi faire, pas ce qui a échoué : « conflit
+   * d'état » serait vrai et inutilisable (`RG-GEN-03`).
+   */
+  avatar_ambigu: {
+    statut: 409,
+    cle: "auth:erreurs.avatarAmbigu",
+    message: "Choisissez un visuel prédéfini ou une image téléversée, pas les deux. Retirez l'un des deux, puis enregistrez.",
+  },
+  conflit_de_version: {
+    statut: 409,
+    cle: "erreurs:conflitDeVersion",
+    message: "Quelqu'un a modifié votre profil pendant votre saisie. Rechargez pour voir la version à jour, puis reprenez votre modification.",
+  },
 };
