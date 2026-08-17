@@ -268,20 +268,37 @@ function LigneProjet({ projet }: { projet: api.LigneProjet }) {
 }
 
 /**
- * La fenêtre de création.
+ * La fenêtre de création — **et de modification**.
+ *
+ * `existant` vaut `null` en création. Deux fenêtres pour les mêmes champs
+ * finiraient par diverger : une règle ajoutée d'un côté manquerait de l'autre,
+ * et rien ne le dirait. C'est le parti pris déjà retenu pour l'organisation
+ * (vue 29) et les bénéficiaires (vue 26).
  *
  * Les champs obligatoires sont validés **avant** l'envoi, et le message
  * d'ensemble est celui de la maquette. La validation locale ne remplace pas
  * celle du serveur : elle évite un aller-retour pour une erreur que le
  * formulaire connaît déjà.
  */
-function FenetreCreation({
+export function FenetreCreation({
   ouverte,
+  existant = null,
   surFermeture,
   surSucces,
   traduireErreur,
 }: {
   ouverte: boolean;
+  existant?: {
+    id: string;
+    nom: string;
+    description: string | null;
+    statut: string;
+    priorite: string;
+    dateDebut: string;
+    dateFin: string;
+    budgetHeures: number | null;
+    version: number;
+  } | null;
   surFermeture: () => void;
   surSucces: () => void;
   traduireErreur: (e: unknown) => string;
@@ -300,10 +317,42 @@ function FenetreCreation({
   });
   const [manquants, setManquants] = useState<ChampObligatoire[]>([]);
   const [erreur, setErreur] = useState<string | null>(null);
+  /*
+   * Les champs ne se rechargent qu'à l'OUVERTURE : sans cette clé, chaque
+   * rendu écraserait la saisie en cours par la valeur d'origine, et le champ
+   * paraîtrait refuser la frappe.
+   */
+  const [ouvertSur, setOuvertSur] = useState<string | null>(null);
+  const cle = ouverte ? (existant?.id ?? "nouveau") : null;
+  if (cle !== ouvertSur) {
+    setOuvertSur(cle);
+    setValeurs({
+      nom: existant?.nom ?? "",
+      description: existant?.description ?? "",
+      statut: existant?.statut ?? "active",
+      priorite: existant?.priorite ?? "normal",
+      dateDebut: existant?.dateDebut?.slice(0, 10) ?? "",
+      dateFin: existant?.dateFin?.slice(0, 10) ?? "",
+      budgetHeures: existant?.budgetHeures != null ? String(existant.budgetHeures) : "",
+    });
+    setManquants([]);
+    setErreur(null);
+  }
 
   const creation = useMutation({
     mutationFn: () =>
-      api.creerProjet({
+      existant
+        ? api.modifierProjet(existant.id, {
+            nom: valeurs.nom,
+            description: valeurs.description || null,
+            statut: valeurs.statut,
+            priorite: valeurs.priorite,
+            dateDebut: valeurs.dateDebut,
+            dateFin: valeurs.dateFin,
+            budgetHeures: valeurs.budgetHeures ? Number(valeurs.budgetHeures) : null,
+            version: existant.version,
+          })
+        : api.creerProjet({
         nom: valeurs.nom,
         ...(valeurs.description ? { description: valeurs.description } : {}),
         statut: valeurs.statut,
@@ -311,7 +360,7 @@ function FenetreCreation({
         dateDebut: valeurs.dateDebut,
         dateFin: valeurs.dateFin,
         ...(valeurs.budgetHeures ? { budgetHeures: Number(valeurs.budgetHeures) } : {}),
-      }),
+          }),
     onSuccess: surSucces,
     onError: (e) => setErreur(traduireErreur(e)),
   });
@@ -343,7 +392,7 @@ function FenetreCreation({
       ouverte={ouverte}
       surFermeture={surFermeture}
       categorie={t("portefeuille.nouveauProjet")}
-      titre={t("portefeuille.creer")}
+      titre={existant ? t("portefeuille.modifier") : t("portefeuille.creer")}
       large
       mention={t("champsObligatoires")}
       actions={

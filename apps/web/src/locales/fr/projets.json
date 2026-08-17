@@ -55,7 +55,8 @@
     "budgetHeures": "Budget en heures",
     "champsObligatoires": "Veuillez remplir tous les champs obligatoires.",
     "cree": "Projet créé.",
-    "echecCreation": "Le projet n'a pas pu être créé."
+    "echecCreation": "Le projet n'a pas pu être créé.",
+    "modifier": "Modifier le projet"
   },
   "fiche": {
     "leProjet": "le projet",
@@ -96,7 +97,9 @@
     "supprimerDefinitivement": "Supprimer définitivement",
     "suppressionRefusee": "Impossible de supprimer définitivement ce projet : des données historiques y sont rattachées.",
     "suppressionRefuseeExplication": "Supprimer le projet effacerait du temps déclaré, qui doit rester traçable. Archivez-le plutôt : il disparaîtra des listes actives sans perdre son historique.",
-    "archiverLeProjet": "Archiver le projet"
+    "archiverLeProjet": "Archiver le projet",
+    "modifier": "Modifier",
+    "modifie": "Projet enregistré."
   },
   "jalons": {
     "laFeuille": "la feuille de route",

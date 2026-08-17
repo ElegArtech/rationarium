@@ -72,6 +72,41 @@ export class ProjetsController {
   }
 
   /**
+   * `EX-PRJ-05` — modifier un projet.
+   *
+   * L'exigence est au cadrage, la maquette 11 pose le bouton, et aucune route
+   * ne l'a jamais servi : corriger une date de fin imposait de supprimer le
+   * projet, donc d'en perdre les tâches, les jalons et l'équipe.
+   *
+   * Tous les champs sont facultatifs sauf `version` : la fiche enregistre bloc
+   * par bloc, et exiger l'objet entier ferait écraser par une valeur relue ce
+   * qu'une autre personne vient d'écrire — un « dernier arrivé gagne » déguisé
+   * en formulaire.
+   */
+  @Patch(":id")
+  @RequiertPermission("projects:update")
+  modifier(@Param("id") id: string, @Body() corps: unknown, @Demande() d: ContexteDemande) {
+    const donnees = valider(
+      z.object({
+        nom: z.string().min(1).max(160).optional(),
+        description: z.string().max(5000).nullish(),
+        statut: enumDe(STATUTS_PROJET).optional(),
+        priorite: enumDe(PRIORITES).optional(),
+        dateDebut: dateSchema.optional(),
+        dateFin: dateSchema.optional(),
+        budgetHeures: z.number().min(0).nullish(),
+        icone: z.string().max(20).nullish(),
+        chefId: z.uuid().nullish(),
+        sponsorId: z.uuid().nullish(),
+        departementId: z.uuid().nullish(),
+        version: z.number().int().positive(),
+      }),
+      corps,
+    );
+    return this.projets.modifier(id, donnees, d.userId);
+  }
+
+  /**
    * `RG-GEN-10` — trois gestes distincts, trois points d'entrée : annuler,
    * archiver, supprimer définitivement. Le premier est réversible par
    * `restaurer`, le deuxième aussi, le troisième non — et c'est pourquoi il

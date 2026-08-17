@@ -55,7 +55,8 @@
     "budgetHeures": "Budget in hours",
     "champsObligatoires": "Please fill in all required fields.",
     "cree": "Project created.",
-    "echecCreation": "The project could not be created."
+    "echecCreation": "The project could not be created.",
+    "modifier": "Edit project"
   },
   "fiche": {
     "leProjet": "the project",
@@ -96,7 +97,9 @@
     "supprimerDefinitivement": "Delete permanently",
     "suppressionRefusee": "This project cannot be permanently deleted: historical data is attached to it.",
     "suppressionRefuseeExplication": "Deleting it would erase logged time, which must stay auditable. Archive it instead: it leaves the active lists without losing its history.",
-    "archiverLeProjet": "Archive the project"
+    "archiverLeProjet": "Archive the project",
+    "modifier": "Edit",
+    "modifie": "Project saved."
   },
   "jalons": {
     "laFeuille": "the roadmap",

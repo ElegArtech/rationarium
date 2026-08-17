@@ -8,6 +8,7 @@ import { messageErreur } from "../../api/erreurs.js";
 import { usePeut } from "../../session/session.js";
 import { Chargement, ErreurDeChargement } from "../../composants/etats.js";
 import { Fenetre } from "../../composants/fenetre.js";
+import { FenetreCreation } from "./Portefeuille.js";
 import { useMessages } from "../../composants/messages.js";
 import { STATUTS_JALON } from "@trame/contracts";
 import { Pastille, Barre, MarqueurCalcule } from "../../composants/pastilles.js";
@@ -32,6 +33,7 @@ export function VueEnsemble({ projetId }: { projetId: string }) {
   const annoncer = useMessages();
   const client = useQueryClient();
   const [suppressionOuverte, setSuppressionOuverte] = useState(false);
+  const [editionOuverte, setEditionOuverte] = useState(false);
 
   const requete = useQuery({
     queryKey: ["projet", projetId],
@@ -95,6 +97,16 @@ export function VueEnsemble({ projetId }: { projetId: string }) {
       }
       actions={
         <>
+          {/*
+            `EX-PRJ-05` — la maquette 11 pose « Modifier » ici. La fenêtre est
+            celle du portefeuille : créer ou modifier, mêmes champs, mêmes
+            règles. Deux fenêtres finiraient par diverger.
+          */}
+          {peut("projects:update") && projet.statut !== "cancelled" ? (
+            <Button className="chip-btn" onPress={() => setEditionOuverte(true)}>
+              {t("fiche.modifier")}
+            </Button>
+          ) : null}
           {peut("projects:archive") && !projet.archive && projet.statut !== "cancelled" ? (
             <Button className="chip-btn" onPress={() => cycleDeVie.mutate("archiver")}>
               {t("fiche.archiver")}
@@ -257,6 +269,28 @@ export function VueEnsemble({ projetId }: { projetId: string }) {
           </div>
         </section>
       </div>
+
+      <FenetreCreation
+        ouverte={editionOuverte}
+        existant={{
+          id: projet.id,
+          nom: projet.nom,
+          description: projet.description,
+          statut: projet.statut,
+          priorite: projet.priorite,
+          dateDebut: projet.dateDebut,
+          dateFin: projet.dateFin,
+          budgetHeures: projet.budgetHeures === null ? null : Number(projet.budgetHeures),
+          version: projet.version,
+        }}
+        surFermeture={() => setEditionOuverte(false)}
+        surSucces={() => {
+          setEditionOuverte(false);
+          annoncer("ok", t("fiche.modifie"));
+          void client.invalidateQueries({ queryKey: ["projets"] });
+        }}
+        traduireErreur={(e) => messageErreur(e, tErreurs, t("fiche.echecAction"))}
+      />
 
       <FenetreSuppression
         projet={projet}
