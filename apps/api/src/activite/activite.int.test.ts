@@ -163,4 +163,61 @@ describe("RG-ACT-08 — les règles de récurrence SE POSENT", () => {
     expect(arretee.active).toBe(false);
     expect(await prisma.predefinedTaskRecurrence.count({ where: { id: regle.id } })).toBe(1);
   });
+
+  /**
+   * `RG-ACT-04` — les trois types de `cadrage/02` doivent tous ENGENDRER.
+   *
+   * Le point d'entrée de création n'acceptait que `daily`, `weekly` et
+   * `monthly` ; le moteur ne lit que `weekly`, `monthly_fixed` et
+   * `monthly_ordinal`. Une règle mensuelle se créait donc sans erreur et ne
+   * produisait rien. Chaque type avait son test — mais aucun ne CONFRONTAIT
+   * la valeur écrite à celle que le moteur relit, et c'est là qu'était le
+   * défaut.
+   */
+  it.each([
+    ["monthly_fixed", { jourMois: 15 }],
+    ["monthly_ordinal", { jourSemaine: 2, ordinal: 3 }],
+  ] as const)("le type %s est accepté ET engendre des assignations", async (type, champs) => {
+    const acteur = await agent();
+    const porteur = await agent();
+    const t = await activite.creerTache({ nom: nom("Guichet") }, acteur);
+
+    const regle = await activite.creerRecurrence(
+      t.id,
+      { type, ...champs, dateDebut: utc("2026-06-01") },
+      acteur,
+    );
+    // La valeur relue en base est celle que le moteur reconnaît, à la lettre.
+    expect(regle.type).toBe(type);
+
+    const bilan = await activite.genererDepuisRecurrences(
+      t.id,
+      utc("2026-06-01"),
+      utc("2026-08-31"),
+      [porteur],
+      acteur,
+    );
+    expect(bilan.crees).toBeGreaterThan(0);
+  });
+
+  it("RG-ACT-04 — un 31 dans un mois court est ramené au dernier jour, jamais sauté", async () => {
+    const acteur = await agent();
+    const porteur = await agent();
+    const t = await activite.creerTache({ nom: nom("Régie") }, acteur);
+
+    await activite.creerRecurrence(
+      t.id,
+      { type: "monthly_fixed", jourMois: 31, dateDebut: utc("2026-02-01") },
+      acteur,
+    );
+    // Février n'a pas de 31 : la règle doit tout de même produire une date.
+    const bilan = await activite.genererDepuisRecurrences(
+      t.id,
+      utc("2026-02-01"),
+      utc("2026-02-28"),
+      [porteur],
+      acteur,
+    );
+    expect(bilan.crees).toBe(1);
+  });
 });

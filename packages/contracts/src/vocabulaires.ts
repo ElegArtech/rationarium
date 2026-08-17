@@ -183,6 +183,35 @@ export const DUREES_TACHE_PREDEFINIE = vocabulaire([
 ]);
 export type DureeTachePredefinie = (typeof DUREES_TACHE_PREDEFINIE)[number]["code"];
 
+/**
+ * Type de règle de récurrence — `cadrage/02`, vue 34.
+ *
+ * **Trois orthographes coexistaient pour la même notion**, et aucune ne
+ * recouvrait les autres :
+ *
+ *   · le moteur de génération (`activite.service.ts`) reconnaît `weekly`,
+ *     `monthly_fixed` et `monthly_ordinal` ;
+ *   · le point d'entrée de création n'acceptait que `daily`, `weekly` et
+ *     `monthly` ;
+ *   · la vue 34 lisait `weekly` et `monthly_date`.
+ *
+ * Une règle mensuelle créée par l'API était donc enregistrée sous un type que
+ * le moteur ignore : « Générer les assignations » n'en tirait rien, sans
+ * erreur — le silence exact d'une valeur qui traverse trois couches sans que
+ * deux d'entre elles soient d'accord. Le moteur fait foi, parce qu'il est le
+ * seul endroit où la valeur a un COMPORTEMENT ; les deux autres s'alignent, et
+ * ce vocabulaire est désormais l'unique définition.
+ *
+ * `daily` disparaît : `cadrage/02` n'énumère que trois types, et le moteur
+ * n'a jamais su le produire.
+ */
+export const TYPES_RECURRENCE = vocabulaire([
+  { code: "weekly", fr: "Hebdomadaire", en: "Weekly" },
+  { code: "monthly_fixed", fr: "Mensuelle à date fixe", en: "Monthly, fixed date" },
+  { code: "monthly_ordinal", fr: "Mensuelle ordinale", en: "Monthly, ordinal" },
+]);
+export type TypeRecurrence = (typeof TYPES_RECURRENCE)[number]["code"];
+
 /** Santé de projet — `cadrage/01 § M17`, calculée, jamais saisie. */
 export const SANTES_PROJET = vocabulaire([
   { code: "good", fr: "Bon", en: "Good" },
@@ -223,6 +252,7 @@ export const VOCABULAIRES = {
   niveauCompetence: NIVEAUX_COMPETENCE,
   typeTiers: TYPES_TIERS,
   dureeTachePredefinie: DUREES_TACHE_PREDEFINIE,
+  typeRecurrence: TYPES_RECURRENCE,
   santeProjet: SANTES_PROJET,
   etatRag: ETATS_RAG,
 } as const;
