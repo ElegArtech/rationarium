@@ -27,7 +27,9 @@ export type EchecAuth =
   | "email_deja_pris"
   | "login_deja_pris"
   | "domaine_non_autorise"
-  | "inscription_desactivee";
+  | "inscription_desactivee"
+  | "avatar_ambigu"
+  | "conflit_de_version";
 
 export class ErreurAuth extends Error {
   constructor(readonly code: EchecAuth) {
@@ -420,4 +422,71 @@ export class AuthService {
     };
   }
 
+  /**
+   * `EX-AUTH-09` — **modifier** son profil : identité, avatar, langue, thème.
+   *
+   * L'exigence dit « consulter ET modifier ». Seule la consultation existait :
+   * `GET /auth/me` répondait depuis le premier lot, aucune route n'écrivait
+   * jamais. Le thème ne vivait donc que dans le stockage local du navigateur —
+   * il s'appliquait, mais ne suivait personne d'une machine à l'autre, alors
+   * que la colonne l'attendait en base.
+   *
+   * Aucune permission n'est exigée : c'est **son** profil. Le périmètre est
+   * l'identité de la session, pas un prédicat organisationnel — on ne modifie
+   * que la ligne dont on tient le jeton.
+   *
+   * Les champs sont ÉNUMÉRÉS, jamais diffusés depuis le corps de la requête.
+   * Un `...champs` a déjà laissé passer `login` ici, et une règle du domaine se
+   * tient dans le service, pas seulement à la frontière HTTP.
+   */
+  async modifierProfil(
+    userId: string,
+    d: {
+      prenom?: string | undefined;
+      nom?: string | undefined;
+      email?: string | undefined;
+      langue?: string | undefined;
+      theme?: string | undefined;
+      avatarFichier?: string | null | undefined;
+      avatarPredefini?: string | null | undefined;
+      version: number;
+    },
+  ) {
+    const avant = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!avant) throw new ErreurAuth("identifiants_invalides");
+
+    /*
+     * `RG-AUTH-09` — l'avatar est soit un fichier, soit un visuel prédéfini,
+     * soit rien. Le contrôle porte sur l'état RÉSULTANT, pas sur le corps
+     * reçu : poser un fichier sans effacer le prédéfini déjà là produirait les
+     * deux à la fois, et le schéma seul ne peut pas le voir.
+     */
+    const fichier = d.avatarFichier !== undefined ? d.avatarFichier : avant.avatarFichier;
+    const predefini = d.avatarPredefini !== undefined ? d.avatarPredefini : avant.avatarPredefini;
+    if (fichier && predefini) throw new ErreurAuth("avatar_ambigu");
+
+    if (d.email && d.email !== avant.email) {
+      const pris = await this.prisma.user.findUnique({ where: { email: d.email } });
+      if (pris) throw new ErreurAuth("email_deja_pris");
+    }
+
+    // `RG-GEN-07` — la version lue conditionne l'écriture. Jamais « dernier
+    // arrivé gagne » : deux onglets ouverts sur le même profil se détectent.
+    const { count } = await this.prisma.user.updateMany({
+      where: { id: userId, version: d.version },
+      data: {
+        ...(d.prenom !== undefined ? { prenom: d.prenom } : {}),
+        ...(d.nom !== undefined ? { nom: d.nom } : {}),
+        ...(d.email !== undefined ? { email: d.email } : {}),
+        ...(d.langue !== undefined ? { langue: d.langue } : {}),
+        ...(d.theme !== undefined ? { theme: d.theme } : {}),
+        ...(d.avatarFichier !== undefined ? { avatarFichier: d.avatarFichier } : {}),
+        ...(d.avatarPredefini !== undefined ? { avatarPredefini: d.avatarPredefini } : {}),
+        version: { increment: 1 },
+      },
+    });
+    if (count === 0) throw new ErreurAuth("conflit_de_version");
+
+    return this.profil(userId);
+  }
 }
