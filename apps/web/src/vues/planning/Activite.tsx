@@ -27,12 +27,29 @@ import "./activite.css";
  * terminé, et elle est en noir et blanc lisible (voir `activite.css`).
  */
 
-const MAX_AGENTS = 4;
+/**
+ * Le seuil au-delà duquel la cellule replie ses agents en « + {n} autres ».
+ *
+ * Trois, comme la maquette (`MAXSHOW`) : la hauteur de la cellule est calée
+ * dessus, et un quatrième nom la ferait grandir jusqu'à décaler la ligne
+ * entière — sur une grille imprimée et affichée en salle de service, c'est la
+ * mise en page qui se casse, pas seulement le confort.
+ */
+const MAX_AGENTS = 3;
 
 export function Activite() {
   const { t } = useTranslation("planning");
   const peut = usePeut();
   const [ancre, setAncre] = useState(() => iso(new Date()));
+  /*
+   * Maquette 09 — le sélecteur de service de la barre d'outils. Il resserre la
+   * LECTURE de la grille, il ne change rien à ce qui est assigné : la grille
+   * reste celle de la semaine, seuls les agents d'un autre service cessent
+   * d'être listés. Le filtrage est local parce que la grille est déjà entière
+   * en mémoire — la borner au serveur ferait un aller-retour par changement de
+   * service pour un résultat identique.
+   */
+  const [service, setService] = useState("");
   const [ajout, setAjout] = useState<{ tache: api.GrilleActivite["colonnes"][number]; date: string } | null>(null);
 
   const periode = periodeDe("activite", ancre);
@@ -50,6 +67,23 @@ export function Activite() {
 
   const { colonnes, lignes, trame } = requete.data;
   const aujourdhui = iso(new Date());
+
+  /* Les services connus se lisent sur la grille ENTIÈRE, jamais sur la grille
+     déjà filtrée : sinon le choix courant effacerait les autres options et le
+     filtre deviendrait un aller sans retour. */
+  const servicesConnus = [
+    ...new Map(
+      lignes
+        .flatMap((l) => l.cellules)
+        .flatMap((c) => c.agents)
+        .flatMap((a) => a.services)
+        .map(({ service: s }) => [s.id, s] as const),
+    ).values(),
+  ].sort((a, b) => a.nom.localeCompare(b.nom));
+
+  const retenu = (agent: { services: { service: { id: string } }[] }) =>
+    service === "" || agent.services.some((s) => s.service.id === service);
+
   const style = { "--cols": `170px repeat(${colonnes.length}, minmax(160px, 1fr))` } as CSSProperties;
 
   return (
@@ -110,6 +144,21 @@ export function Activite() {
         </span>
 
         <div className="ligne-actions-fin">
+          {/* La grille est affichée en salle de service : on y cherche « qui
+              tient l'accueil chez nous », pas « qui le tient dans la ville ». */}
+          <select
+            className="f-input no-print"
+            aria-label={t("filtres.service")}
+            value={service}
+            onChange={(e) => setService(e.target.value)}
+          >
+            <option value="">{t("filtres.tousServices")}</option>
+            {servicesConnus.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.nom}
+              </option>
+            ))}
+          </select>
           <Button className="btn btn-primary no-print" onPress={() => window.print()}>
             {t("activite.imprimer")}
           </Button>
@@ -207,6 +256,7 @@ export function Activite() {
 
                   {ligne.cellules.map((cellule) => {
                     const tache = colonnes.find((c) => c.id === cellule.tacheId);
+                    const agents = cellule.agents.filter(retenu);
                     return (
                       <div
                         key={cellule.tacheId}
@@ -214,20 +264,20 @@ export function Activite() {
                           weekend || ferie ? " is-off" : ""
                         }`}
                       >
-                        {cellule.agents.length === 0 ? (
+                        {agents.length === 0 ? (
                           <span className="acell-none" aria-label={t("activite.aucunAgent")}>
                             —
                           </span>
                         ) : (
-                          cellule.agents.slice(0, MAX_AGENTS).map((agent) => (
-                            <LigneAgent key={agent.assignationId} agent={agent} />
-                          ))
+                          agents
+                            .slice(0, MAX_AGENTS)
+                            .map((agent) => <LigneAgent key={agent.assignationId} agent={agent} />)
                         )}
 
-                        {cellule.agents.length > MAX_AGENTS ? (
+                        {agents.length > MAX_AGENTS ? (
                           <span className="acell-more">
                             {t("activite.agentsSupplementaires", {
-                              n: cellule.agents.length - MAX_AGENTS,
+                              n: agents.length - MAX_AGENTS,
                             })}
                           </span>
                         ) : null}

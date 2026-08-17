@@ -473,7 +473,22 @@ export class ActiviteService {
         date: { gte: debut, lte: fin },
         ...(perimetre.global ? {} : { userId: { in: [...perimetre.utilisateurs] } }),
       },
-      include: { user: { select: { id: true, prenom: true, nom: true } } },
+      include: {
+        user: {
+          select: {
+            id: true, prenom: true, nom: true,
+            /*
+             * Le rattachement de service accompagne l'agent : la vue 09 filtre
+             * la grille par service (maquette 09, sélecteur « Tous les
+             * services »), et sans cette information elle devrait interroger
+             * l'annuaire une seconde fois pour recomposer un lien qu'elle a
+             * déjà sous les yeux. Une personne peut relever de plusieurs
+             * services — c'est la même lecture qu'en vue 07 (`EX-PLN-04`).
+             */
+            services: { select: { service: { select: { id: true, nom: true } } } },
+          },
+        },
+      },
       orderBy: { user: { nom: "asc" } },
     });
 

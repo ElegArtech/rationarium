@@ -26,6 +26,7 @@
     "libelle_mois": "{mois}"
   },
   "filtres": {
+    "service": "Team",
     "tousServices": "All teams",
     "nServices": "{n, plural, one {# team} other {# teams}}",
     "departement": "Department",

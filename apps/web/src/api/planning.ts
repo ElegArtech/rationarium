@@ -197,6 +197,10 @@ export type GrilleActivite = {
         assignationId: string;
         periode: string;
         realisee: boolean;
+        /** Le rattachement de l'agent — une personne peut relever de plusieurs
+         *  services. C'est ce qui rend le filtre « Service » de la vue 09
+         *  possible sans un second appel. */
+        services: { service: { id: string; nom: string } }[];
       }[];
     }[];
   }[];
