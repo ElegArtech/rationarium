@@ -187,11 +187,6 @@
     "demandeDeposee": "Request submitted.",
     "echecDepot": "The request could not be submitted.",
     "commentEvolue": "How does a request evolve?",
-    "statut_pending": "Pending",
-    "statut_approved": "Approved",
-    "statut_refused": "Refused",
-    "statut_cancelling": "Cancellation requested",
-    "statut_cancelled": "Cancelled",
     "retourApprouve": "back to Approved",
     "cycleExplication": "An approved leave cannot be cancelled directly: it goes through a cancellation request, itself subject to approval.",
     "creerPremiere": "Create my first request",
@@ -206,7 +201,12 @@
     "compte": "{n, plural, =0 {no request} one {# request} other {# requests}}",
     "videDelegationsDonneesExplication": "Delegate your approval authority while you are away.",
     "videDelegationsRecuesExplication": "Nobody has delegated their approval authority to you.",
-    "referentielDesTypes": "Leave type catalogue"
+    "referentielDesTypes": "Leave type catalogue",
+    "modifier": "Edit",
+    "modifierLaDemande": "Edit request",
+    "enregistrer": "Save",
+    "demandeModifiee": "Request updated.",
+    "demiJourneesDeuxBouts": "{debut} on the first day · {fin} on the last"
   },
   "teletravail": {
     "surtitre": "Human resources",

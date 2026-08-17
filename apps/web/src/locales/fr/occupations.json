@@ -187,11 +187,6 @@
     "demandeDeposee": "Demande déposée.",
     "echecDepot": "La demande n'a pas pu être déposée.",
     "commentEvolue": "Comment évolue une demande ?",
-    "statut_pending": "En attente",
-    "statut_approved": "Approuvé",
-    "statut_refused": "Refusé",
-    "statut_cancelling": "Annulation demandée",
-    "statut_cancelled": "Annulé",
     "retourApprouve": "retour Approuvé",
     "cycleExplication": "Un congé approuvé ne s'annule pas directement : il passe par une demande d'annulation, elle-même soumise à validation.",
     "creerPremiere": "Créer ma première demande",
@@ -206,7 +201,12 @@
     "compte": "{n, plural, =0 {aucune demande} one {# demande} other {# demandes}}",
     "videDelegationsDonneesExplication": "Déléguez votre pouvoir de validation pendant vos absences.",
     "videDelegationsRecuesExplication": "Personne ne vous a confié son pouvoir de validation.",
-    "referentielDesTypes": "Référentiel des types de congés"
+    "referentielDesTypes": "Référentiel des types de congés",
+    "modifier": "Modifier",
+    "modifierLaDemande": "Modifier la demande",
+    "enregistrer": "Enregistrer",
+    "demandeModifiee": "Demande modifiée.",
+    "demiJourneesDeuxBouts": "{debut} le premier jour · {fin} le dernier"
   },
   "teletravail": {
     "surtitre": "Ressources humaines",
