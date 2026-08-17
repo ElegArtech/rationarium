@@ -27,6 +27,10 @@ export type Session = {
   langue: string;
   theme: string;
   derniereConnexion: string | null;
+  /** `EX-AUTH-09` — rattachement organisationnel, en lecture seule (vue 35). */
+  departement: string | null;
+  services: string[];
+  membreDepuis: string;
   role: { code: string; nom: string } | null;
   permissions: string[];
   motDePasseAChanger: boolean;

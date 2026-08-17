@@ -392,6 +392,19 @@ export class AuthService {
    * depuis un jeton porté par le client (`ADR-0008`). Elles servent à la
    * coquille pour masquer ce qui serait refusé (`RG-GEN-06`) — une courtoisie,
    * pas un contrôle : le contrôle reste la garde, côté serveur.
+   *
+   * **Le rattachement organisationnel en fait partie** (`EX-AUTH-09`, vue 35).
+   * Département, services et date d'entrée sont en lecture seule pour le
+   * porteur du compte : ils déterminent son validateur de congés et son
+   * périmètre de visibilité, et relèvent de la gestion RH, jamais du profil.
+   * Les omettre laissait la vue 35 incapable de dire à l'agent à quelle
+   * organisation il appartient — la question à laquelle cette page répond.
+   *
+   * Aucune permission n'est exigée et aucun périmètre ne s'applique : la
+   * lecture porte **exclusivement** sur `userId`, qui vient de la session
+   * résolue depuis le cookie et jamais d'un paramètre d'appel. C'est une
+   * donnée strictement personnelle, sans domaine au catalogue de
+   * `cadrage/01 § 3.2`.
    */
   async profil(userId: string) {
     const u = await this.prisma.user.findUnique({
@@ -407,15 +420,24 @@ export class AuthService {
         langue: true,
         theme: true,
         derniereConnexion: true,
+        creeLe: true,
+        departement: { select: { nom: true } },
+        services: { select: { service: { select: { nom: true } } } },
         role: { select: { code: true, nom: true, permissions: { select: { permission: true } } } },
       },
     });
     if (!u) throw new ErreurAuth("identifiants_invalides");
 
-    const { role, ...identite } = u;
+    const { role, creeLe, departement, services, ...identite } = u;
     return {
       ...identite,
       role: role ? { code: role.code, nom: role.nom } : null,
+      /* Un agent peut appartenir à PLUSIEURS services : la vue les énumère,
+         elle n'en choisit pas un. */
+      departement: departement?.nom ?? null,
+      services: services.map((s) => s.service.nom).sort((a, b) => a.localeCompare(b)),
+      /** `EX-AUTH-09` — « Membre depuis » : la date de création du compte. */
+      membreDepuis: creeLe,
       // Un compte sans rôle n'a AUCUNE permission : la liste blanche
       // appliquée au cas dégradé.
       permissions: role?.permissions.map((p) => p.permission) ?? [],

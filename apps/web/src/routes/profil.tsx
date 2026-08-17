@@ -39,6 +39,9 @@ export function Profil({
     role: string;
     roleCode: string;
     derniereConnexion: string | null;
+    departement: string | null;
+    services: string[];
+    membreDepuis: string;
   };
 }) {
   const { t } = useTranslation("coquille");
@@ -112,6 +115,9 @@ function Informations({
     role: string;
     roleCode: string;
     derniereConnexion: string | null;
+    departement: string | null;
+    services: string[];
+    membreDepuis: string;
   };
 }) {
   const { t } = useTranslation("coquille");
@@ -124,10 +130,16 @@ function Informations({
   const [langue, setLangue] = useState(() => i18next.language);
 
   /*
-   * Les champs verrouillés portent CHACUN son motif et son responsable. La
-   * maquette en liste cinq ; la session n'en expose que trois — département,
-   * services et date d'entrée n'y figurent pas. On affiche ce qu'on sait, on
-   * n'invente pas le reste.
+   * Les champs verrouillés portent CHACUN son motif et son responsable — et
+   * chacun nomme **qui** peut le changer, ce qui n'est pas toujours la même
+   * personne : le login n'est modifiable par personne, le rôle par un
+   * administrateur, le département par les ressources humaines, les services
+   * par le manager de service. Un champ grisé sans motif se lit comme un
+   * défaut de l'outil ; avec son motif, comme une règle de l'organisation.
+   *
+   * Les cinq de la maquette y sont. Département, services et date d'entrée ont
+   * longtemps manqué **parce que la session ne les exposait pas** — ils sont
+   * désormais rendus par `/auth/me` (`EX-AUTH-09`).
    */
   const verrouilles: { cle: string; valeur: string; mono: boolean; pourquoi: string; par: string }[] =
     [
@@ -144,6 +156,32 @@ function Informations({
         mono: true,
         pourquoi: t("profil.pourquoiRole"),
         par: t("profil.parAdministrateur"),
+      },
+      {
+        cle: t("profil.champDepartement"),
+        // Un agent peut n'être rattaché à aucun département (`RG-ORG-03`) :
+        // le dire vaut mieux qu'une ligne vide.
+        valeur: utilisateur.departement ?? t("profil.aucunDepartement"),
+        mono: false,
+        pourquoi: t("profil.pourquoiDepartement"),
+        par: t("profil.parRessourcesHumaines"),
+      },
+      {
+        cle: t("profil.champServices"),
+        valeur:
+          utilisateur.services.length > 0
+            ? utilisateur.services.join(", ")
+            : t("profil.aucunService"),
+        mono: false,
+        pourquoi: t("profil.pourquoiServices"),
+        par: t("profil.parManagerService"),
+      },
+      {
+        cle: t("profil.membreDepuis"),
+        valeur: formaterDateLongue(utilisateur.membreDepuis),
+        mono: true,
+        pourquoi: t("profil.pourquoiMembreDepuis"),
+        par: t("profil.nonModifiable"),
       },
       {
         cle: t("profil.derniereConnexion"),

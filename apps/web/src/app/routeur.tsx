@@ -404,6 +404,9 @@ const routeProfil = createRoute({
           role: session.role?.nom ?? "",
           roleCode: session.role?.code ?? "",
           derniereConnexion: session.derniereConnexion,
+          departement: session.departement,
+          services: session.services,
+          membreDepuis: session.membreDepuis,
         }}
       />
     );

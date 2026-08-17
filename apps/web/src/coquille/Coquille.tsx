@@ -117,12 +117,20 @@ export function Coquille({
       (e) => chemin === e.chemin || (e.chemin !== "/" && chemin.startsWith(`${e.chemin}/`)),
     )
     .sort((a, b) => b.chemin.length - a.chemin.length)[0];
+  /*
+   * `/profil` n'est PAS une entrée de navigation — on y arrive par le menu
+   * utilisateur —, donc la dérivation ci-dessus ne le trouve pas et le fil se
+   * réduisait à « Trame » là où la maquette 35 dit « Trame / Mon profil ».
+   * Une vue hors navigation se nomme par le libellé qui y mène.
+   */
   const ariane =
     filAriane.length > 0
       ? filAriane
       : sectionCourante && sectionCourante.chemin !== "/"
         ? [{ libelle: t(`entrees.${sectionCourante.cle}`) }]
-        : [];
+        : chemin === "/profil"
+          ? [{ libelle: t("entete.monProfil") }]
+          : [];
 
   /*
    * RGAA 8.6 — **le titre de page doit être pertinent**, et il ne l'était pas :
