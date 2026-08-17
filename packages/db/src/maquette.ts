@@ -41,7 +41,12 @@ export const AGENTS = [
 
 /** Les trois projets du portefeuille, avec leur icône et leur santé. */
 export const PROJETS = [
-  { cle: "portail", nom: "Refonte du portail citoyen", icone: "p-screen", avancement: 62 },
+  /*
+   * Les maquettes 11 à 15 montrent ce projet en priorité « Haute ». Sans
+   * elle, tout projet naît « Normale » et le libellé n'existait nulle part —
+   * cinq vues comptaient un texte manquant qui n'était qu'une donnée absente.
+   */
+  { cle: "portail", nom: "Refonte du portail citoyen", icone: "p-screen", avancement: 62, priorite: "high" },
   { cle: "sirh", nom: "Migration SIRH", icone: "p-database", avancement: 31 },
   { cle: "schema", nom: "Schéma directeur numérique", icone: "p-flow", avancement: 12 },
   /*
@@ -118,6 +123,49 @@ export async function peuplerMaquette(
     );
   }
 
+  /*
+   * ── Le rattachement organisationnel ──────────────────────────────────────
+   *
+   * Les cinq agents n'appartenaient à AUCUN service. Le sélecteur « Tous les
+   * services » de la vue 09 et le filtre de la vue 07 n'avaient donc rien à
+   * proposer : ils s'affichaient vides, ce qui se lit comme « il n'y a pas de
+   * service » et non comme « personne n'y est rattaché ».
+   */
+  const direction = await prisma.direction.upsert({
+    where: { id: idStable("D", 0) },
+    create: { id: idStable("D", 0), nom: "Direction des systèmes d'information", responsableId: moi.id },
+    update: { nom: "Direction des systèmes d'information" },
+  });
+  const departement = await prisma.departement.upsert({
+    where: { id: idStable("E", 0) },
+    create: {
+      id: idStable("E", 0),
+      nom: "Numérique et données",
+      directionId: direction.id,
+      responsableId: moi.id,
+    },
+    update: { nom: "Numérique et données", directionId: direction.id },
+  });
+  const services = [];
+  for (const [i, nom] of ["Études et projets", "Exploitation"].entries()) {
+    services.push(
+      await prisma.service.upsert({
+        where: { id: idStable("S", i) },
+        create: { id: idStable("S", i), nom, departementId: departement.id, managerId: agents[i]!.id },
+        update: { nom, departementId: departement.id },
+      }),
+    );
+  }
+  for (const [i, a] of agents.entries()) {
+    const service = services[i % services.length]!;
+    await prisma.user.update({ where: { id: a.id }, data: { departementId: departement.id } });
+    await prisma.userService.upsert({
+      where: { userId_serviceId: { userId: a.id, serviceId: service.id } },
+      create: { userId: a.id, serviceId: service.id },
+      update: {},
+    });
+  }
+
   // ── Les projets ─────────────────────────────────────────────────────────
   const projets = [];
   for (const [i, p] of PROJETS.entries()) {
@@ -130,6 +178,7 @@ export async function peuplerMaquette(
         nom: p.nom,
         icone: p.icone,
         statut: "statut" in p ? p.statut : "active",
+        priorite: "priorite" in p ? p.priorite : "normal",
         dateDebut: jour(-60),
         dateFin: jour(60 + i * 30),
         createurId: moi.id,
@@ -137,7 +186,12 @@ export async function peuplerMaquette(
       },
       // Le statut est dans la mise à jour : sans lui, un projet qui change
       // d'état garde l'ancien à chaque rejeu du jeu de données.
-      update: { nom: p.nom, icone: p.icone, statut: "statut" in p ? p.statut : "active" },
+      update: {
+        nom: p.nom,
+        icone: p.icone,
+        statut: "statut" in p ? p.statut : "active",
+        priorite: "priorite" in p ? p.priorite : "normal",
+      },
     });
     projets.push(projet);
 
@@ -232,7 +286,36 @@ export async function peuplerMaquette(
    * 4 000 tâches ayant toutes projet, jalon et assigné, et pas une seule
    * sous-tâche. Il mesure la charge, il n'exerce aucune variante.
    */
+  /*
+   * Un tiers, rattaché à la tâche que mesure la vue 17.
+   *
+   * `dot-ind` et `is-indep` n'ont aucune autre source : ce sont les marques
+   * d'un intervenant extérieur sur une tâche. Le jeu ne créait AUCUN
+   * `TaskThirdParty`, donc la fiche ne pouvait pas les rendre — et l'écart se
+   * lisait comme un défaut de balisage.
+   *
+   * Pas de `contactNom` : la contrainte `third_parties_contact_selon_type`
+   * l'interdit sur un tiers de type `organisation` — l'identité vient du champ
+   * `organisation`, le contact nominatif est réservé à la personne physique.
+   * Un garde-fou `C15` que le code seul ne dit pas.
+   */
+  const tiers = await prisma.thirdParty.upsert({
+    where: { id: idStable("T", 0) },
+    create: {
+      id: idStable("T", 0),
+      type: "organisation",
+      organisation: "Atelier Numérique SARL",
+      contactEmail: "contact@atelier-numerique.fr",
+    },
+    update: { organisation: "Atelier Numérique SARL" },
+  });
+
   const fiche = await prisma.task.findUniqueOrThrow({ where: { id: idStable("t", 0) } });
+  await prisma.taskThirdParty.upsert({
+    where: { taskId_thirdPartyId: { taskId: fiche.id, thirdPartyId: tiers.id } },
+    create: { taskId: fiche.id, thirdPartyId: tiers.id },
+    update: {},
+  });
   const prerequis = await prisma.task.findUniqueOrThrow({ where: { id: idStable("t", 6) } });
 
   for (const [i, st] of SOUS_TACHES.entries()) {
@@ -377,16 +460,29 @@ export async function peuplerMaquette(
       },
       update: { nom: p.nom },
     });
-    for (const [j, a] of agents.slice(0, 3).entries()) {
+    /*
+     * Le repli `acell-more` exige une cellule à QUATRE agents au moins : la
+     * grille montre trois visages puis « +n ». Le jeu posait un agent par
+     * jour — une cellule n'en contenait jamais qu'un, et la classe était
+     * inatteignable par construction, pas absente du balisage.
+     *
+     * La première permanence pose donc les cinq agents sur LE MÊME jour ;
+     * les suivantes gardent l'étalement, sinon le cas « un seul » disparaît.
+     */
+    const etalees =
+      i === 0
+        ? agents.map((a, k) => ({ a, j: 0, k }))
+        : agents.slice(0, 3).map((a, k) => ({ a, j: k, k }));
+    for (const { a, j, k } of etalees) {
       await prisma.predefinedTaskAssignment.upsert({
-        where: { id: idStable(String.fromCharCode(97 + i), 40 + j) },
+        where: { id: idStable(String.fromCharCode(97 + i), 40 + k) },
         create: {
-          id: idStable(String.fromCharCode(97 + i), 40 + j),
+          id: idStable(String.fromCharCode(97 + i), 40 + k),
           predefinedTaskId: predefinie.id,
           userId: a.id,
           date: jour(j),
           periode: p.duree === "half_day" ? "morning" : "full_day",
-          realisee: j === 0,
+          realisee: k === 0,
         },
         update: {},
       });
@@ -427,6 +523,21 @@ export async function peuplerMaquette(
     update: { joursAttribues: 28 },
   });
 
+  /*
+   * `RG-CNG-25` — la base refuse deux congés qui se chevauchent pour la même
+   * personne, par contrainte d'exclusion `GiST`. Or **tout ce jeu est ancré
+   * sur le lundi de la semaine courante** : rejoué une semaine plus tard, les
+   * nouvelles dates chevauchent celles que le rejeu n'a pas encore réécrites,
+   * et l'insertion est refusée à mi-parcours.
+   *
+   * L'idempotence ne valait donc qu'À DATE CONSTANTE — ce qu'un rejeu le même
+   * jour ne peut pas révéler. Les congés du jeu sont effacés avant d'être
+   * reposés : ils portent des identifiants stables et connus, donc rien
+   * d'autre n'est touché.
+   */
+  await prisma.leave.deleteMany({
+    where: { id: { in: CONGES.map((_, i) => idStable("c", i)) } },
+  });
   for (const [i, c] of CONGES.entries()) {
     await prisma.leave.upsert({
       where: { id: idStable("c", i) },
