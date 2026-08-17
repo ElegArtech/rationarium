@@ -436,7 +436,7 @@
     "lectureSeule": "Registre en lecture seule",
     "lectureSeuleExplication": "Cette vue n'offre aucune action d'écriture, et le rôle applicatif de la base n'a que les droits de lecture et d'insertion sur le journal. L'absence est la garantie.",
     "typeEntite": "Type d'entité",
-    "tousTypes": "Tous les types",
+    "tousTypes": "Tous les types d'entité",
     "action": "Action",
     "toutesActions": "Toutes les actions",
     "depuis": "Du",
@@ -587,7 +587,11 @@
     "type_TeleworkRule": "Règle de télétravail",
     "type_ThirdParty": "Tiers",
     "type_TimeEntry": "Temps passé",
-    "type_User": "Utilisateur"
+    "type_User": "Utilisateur",
+    "entiteId": "Id d'entité",
+    "acteurId": "Id d'acteur",
+    "acteurInconnu": "Acteur non identifié",
+    "compteEvenements": "{n, plural, =0 {aucun événement} one {# événement} other {# événements}}"
   },
   "predefinies": {
     "surtitre": "Administration",

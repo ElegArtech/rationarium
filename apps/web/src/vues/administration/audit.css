@@ -48,5 +48,8 @@
 /* Ce que la maquette pose en style en ligne, et qui devient une classe. */
 .lede-vue{ margin-top:4px; }
 .label-inline{ margin:0; }
+.f-input-recherche{ width:150px; }
+/* Le compte à gauche, la pagination poussée à droite — maquette 33. */
+.pager-compte{ margin-right:auto; }
 .titre-tiroir{ margin:5px 0 0; font-size:15px; }
 .hint-tiroir{ margin-top:14px; }

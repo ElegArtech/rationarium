@@ -54,11 +54,24 @@ export function Audit() {
   const [curseurs, setCurseurs] = useState<api.Curseur[]>([]);
 
   const curseur = curseurs[curseurs.length - 1];
+
+  /*
+   * L'identifiant d'acteur est un UUID côté serveur. Une saisie en cours — six
+   * caractères tapés sur trente-six — n'est pas un filtre : la transmettre
+   * ferait tomber la page entière en erreur à chaque frappe. Elle n'agit donc
+   * qu'une fois complète. Ce n'est pas un contrôle de validité qui remplacerait
+   * celui du serveur : le serveur valide toujours ce qu'il reçoit.
+   */
+  const acteurUtilisable = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+    filtres.acteurId,
+  );
+
   const requete = useQuery({
-    queryKey: ["audit", filtres, curseur],
+    queryKey: ["audit", filtres, acteurUtilisable, curseur],
     queryFn: () =>
       api.journal({
         ...filtres,
+        acteurId: acteurUtilisable ? filtres.acteurId : "",
         ...(curseur
           ? { curseurHorodatage: curseur.horodatage, curseurId: curseur.id }
           : {}),
@@ -83,6 +96,20 @@ export function Audit() {
       setFiltres((f) => ({ ...f, [cle]: e.target.value }));
     },
   });
+
+  /* `RG-GEN-04` — l'état vide propose l'action suivante ; sur une vue de
+     consultation filtrée, cette action est de relâcher les filtres. */
+  const reinitialiser = () => {
+    setCurseurs([]);
+    setFiltres({
+      typeEntite: "",
+      entiteId: "",
+      acteurId: "",
+      action: "",
+      depuis: "",
+      jusqua: "",
+    });
+  };
 
   return (
     <div className="page">
@@ -124,10 +151,38 @@ export function Audit() {
           <option value="">{t("audit.toutesActions")}</option>
           {(facettes.data?.actions ?? []).map((x) => (
             <option key={x} value={x}>
-              {x}
+              {/*
+                `RG-GEN-03` — un code technique n'est pas un libellé. Ce menu
+                n'offrait que `auth.login.success` : lisible pour qui a écrit
+                le serveur, opaque pour l'administrateur qui cherche « Congé
+                approuvé ». Le code reste affiché à côté, comme la maquette le
+                fait, parce que c'est lui qu'on retrouve dans un signalement.
+              */}
+              {t(`audit.action_${x.replaceAll(".", "_")}`, x)} · {x}
             </option>
           ))}
         </select>
+        {/*
+          `EX-ADM-08` — « filtrer par type d'entité, ENTITÉ, ACTEUR, action,
+          plage de dates ». Les deux champs du milieu existaient dans l'état de
+          la vue et n'avaient **aucun contrôle** : le filtre était déclaré,
+          jamais atteignable. C'est le genre d'absence qu'aucune boucle ne voit,
+          parce que l'état par défaut d'un filtre vide est un filtre inactif.
+        */}
+        <input
+          className="f-input f-input-recherche"
+          type="search"
+          aria-label={t("audit.entiteId")}
+          placeholder={t("audit.entiteId")}
+          {...champ("entiteId")}
+        />
+        <input
+          className="f-input f-input-recherche"
+          type="search"
+          aria-label={t("audit.acteurId")}
+          placeholder={t("audit.acteurId")}
+          {...champ("acteurId")}
+        />
         <label className="field-label label-inline" htmlFor="audit-depuis">
           {t("audit.du")}
         </label>
@@ -148,20 +203,7 @@ export function Audit() {
           aria-label={t("audit.jusqua")}
           {...champ("jusqua")}
         />
-        <Button
-          className="chip-btn"
-          onPress={() => {
-            setCurseurs([]);
-            setFiltres({
-              typeEntite: "",
-              entiteId: "",
-              acteurId: "",
-              action: "",
-              depuis: "",
-              jusqua: "",
-            });
-          }}
-        >
+        <Button className="chip-btn" onPress={reinitialiser}>
           {t("audit.reinitialiser")}
         </Button>
       </div>
@@ -177,6 +219,9 @@ export function Audit() {
             <div className="empty">
               <p>{t("audit.videTitre")}</p>
               <small>{t("audit.videExplication")}</small>
+              <Button className="chip-btn" onPress={reinitialiser}>
+                {t("reinitialiserFiltres")}
+              </Button>
             </div>
           </section>
         ) : (
@@ -224,15 +269,32 @@ export function Audit() {
                 </span>
 
                 <span className="au-who">
-                  {/* `RG-ADM-09` — une action système n'est pas une action
-                      humaine, et un acteur supprimé laisse sa trace : l'entrée
-                      survit à la personne, c'est le point d'un journal. */}
-                  {e.systeme || !e.acteur ? (
+                  {/*
+                    `RG-ADM-09` — une action système n'est pas une action
+                    humaine, et un acteur supprimé laisse sa trace : l'entrée
+                    survit à la personne, c'est le point d'un journal.
+
+                    **Trois cas, pas deux.** « Système » et « acteur inconnu »
+                    étaient confondus (`e.systeme || !e.acteur`), si bien qu'un
+                    `auth.login.failed` — une tentative HUMAINE, par définition
+                    non authentifiée, donc sans acteur — s'affichait « Système ».
+                    Le journal affirmait alors qu'un traitement automatique
+                    avait échoué à se connecter. Un journal d'audit qui se
+                    trompe d'auteur ne vaut rien.
+                  */}
+                  {e.systeme ? (
                     <>
                       <span className="au-sys" aria-hidden="true">
                         SYS
                       </span>
                       <span className="au-wn">{t("audit.systeme")}</span>
+                    </>
+                  ) : !e.acteur ? (
+                    <>
+                      <span className="agent-av" aria-hidden="true">
+                        ?
+                      </span>
+                      <span className="au-wn">{t("audit.acteurInconnu")}</span>
                     </>
                   ) : e.acteur.supprime ? (
                     <span className="au-wn">{t("audit.acteurSupprime")}</span>
@@ -249,6 +311,13 @@ export function Audit() {
             ))}
 
             <div className="pager">
+              {/* Le brief pose « {n} événement(s) » à gauche de la pagination.
+                  Le compte est celui de la PAGE : sur une table partitionnée
+                  qui grossit en continu, un total exact coûterait un balayage
+                  complet à chaque frappe de filtre. Le libellé le dit. */}
+              <span className="pager-n pager-compte">
+                {t("audit.compteEvenements", { n: requete.data.entrees.length })}
+              </span>
               <Button
                 className="chip-btn"
                 isDisabled={curseurs.length === 0}
@@ -308,13 +377,17 @@ function TiroirEvenement({
     if (evenement) fermeture.current?.focus();
   }, [evenement]);
 
+  /* Les mêmes trois cas que la ligne, et pour la même raison : le tiroir ne
+     peut pas nommer un auteur autrement que la ligne qui l'a ouvert. */
   const acteur = !evenement
     ? ""
-    : evenement.systeme || !evenement.acteur
+    : evenement.systeme
       ? t("audit.systeme")
-      : evenement.acteur.supprime
-        ? t("audit.acteurSupprime")
-        : `${evenement.acteur.prenom ?? ""} ${evenement.acteur.nom ?? ""}`.trim();
+      : !evenement.acteur
+        ? t("audit.acteurInconnu")
+        : evenement.acteur.supprime
+          ? t("audit.acteurSupprime")
+          : `${evenement.acteur.prenom ?? ""} ${evenement.acteur.nom ?? ""}`.trim();
 
   const lignes: [string, string][] = evenement
     ? [
