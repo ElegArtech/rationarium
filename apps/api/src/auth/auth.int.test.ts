@@ -463,6 +463,9 @@ describe("EX-AUTH-09 — modifier son profil", () => {
     expect(apres.login).toBe(avant.login);
     expect(apres.motDePasseHash).toBe(avant.motDePasseHash);
     expect(apres.actif).toBe(true);
+  });
+});
+
 describe("EX-AUTH-09 — le profil dit à quelle organisation appartient l'agent", () => {
   /**
    * La vue 35 affiche « Département », « Services » et « Membre depuis » en
