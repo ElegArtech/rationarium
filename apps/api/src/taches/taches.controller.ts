@@ -45,8 +45,8 @@ export class TachesController {
   /** `EX-TSK-13` — la fiche complète. Vue 17. */
   @Get(":id")
   @RequiertPermission("tasks:read")
-  fiche(@Param("id") id: string) {
-    return this.taches.fiche(id);
+  fiche(@Param("id") id: string, @Demande() d: ContexteDemande) {
+    return this.taches.fiche(id, d.perimetre, d.permissions);
   }
 
   @Post()
@@ -165,8 +165,10 @@ export class TachesController {
 
   @Get(":id/dependances")
   @RequiertPermission("tasks:read")
-  dependances(@Param("id") id: string) {
-    return this.taches.dependances(id);
+  dependances(@Param("id") id: string, @Demande() d: ContexteDemande) {
+    // Permission PUIS périmètre. Le second manquait : ce point d'entrée
+    // nommait des tâches confidentielles à qui n'a pas le droit de les lire.
+    return this.taches.dependances(id, d.perimetre, d.permissions);
   }
 
   @Get(":id/incoherences")

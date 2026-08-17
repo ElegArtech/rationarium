@@ -9,6 +9,14 @@ import { NotificationsService } from "../notifications/notifications.service.js"
 import { FileService } from "../notifications/file.service.js";
 import { PerimetreService } from "../commun/perimetre.service.js";
 
+/*
+ * Un périmètre GLOBAL et toutes les permissions : ces suites éprouvent la
+ * fiche, pas le cloisonnement. Celui-ci a sa propre suite — sans quoi chaque
+ * test porterait deux sujets et n'en prouverait aucun.
+ */
+const PERIMETRE_TOTAL = { userId: "00000000-0000-4000-8000-000000000000", global: true, confidentiel: true } as never;
+const PERMISSIONS_TOTALES = new Set(["tasks:readAll", "tasks:manage_any"]) as ReadonlySet<string>;
+
 /** L-11 — tâches, dépendances, RACI, cascade. Criticité haute. */
 
 const RACINE_DB = path.resolve(import.meta.dirname, "../../../../packages/db");
@@ -182,7 +190,7 @@ describe("EX-TSK-11, EX-TSK-12 — lire le graphe et ses incohérences", () => {
     await taches.ajouterDependance(milieu.id, amont.id, acteur);
     await taches.ajouterDependance(aval.id, milieu.id, acteur);
 
-    const g = await taches.dependances(milieu.id);
+    const g = await taches.dependances(milieu.id, PERIMETRE_TOTAL, PERMISSIONS_TOTALES);
     expect(g.dependDe.map((t) => t.titre)).toEqual(["Amont"]);
     expect(g.bloque.map((t) => t.titre)).toEqual(["Aval"]);
   });
@@ -504,5 +512,72 @@ describe("RG-SCOPE-04 — la confidentialité se change APRÈS COUP", () => {
 
     const rendue = await taches.modifier(t, { version: apres.version, confidentielle: false }, a);
     expect(rendue.confidentielle).toBe(false);
+  });
+});
+
+/**
+ * `RG-SCOPE-04` — **permission PUIS périmètre, sur la fiche comme ailleurs.**
+ *
+ * Ces deux points d'entrée n'avaient que la permission. `tasks:read` suffisait
+ * à lire n'importe quelle tâche par son identifiant, confidentielle comprise,
+ * et la liste des dépendances nommait des tâches qu'on n'avait pas le droit de
+ * voir. Le cloisonnement se contournait par une URL devinée.
+ *
+ * Aucune boucle ne pouvait le voir : les LISTES filtrent correctement, et
+ * c'est ce qui rendait le trou invisible — on vérifiait ce qui marchait.
+ */
+describe("RG-SCOPE-04 — la fiche et les dépendances sont bornées au périmètre", () => {
+  /** Un lecteur ordinaire : ni global, ni habilité au confidentiel. */
+  const lecteur = (userId: string) =>
+    ({ userId, global: false, confidentiel: false }) as never;
+  const LECTURE = new Set(["tasks:read"]) as ReadonlySet<string>;
+
+  it("REFUSE la fiche d'une tâche confidentielle à qui n'y est qu'assigné", async () => {
+    const a = await agent();
+    const t = await creerTache([a]);
+    await taches.modifier(t, { version: 1, confidentielle: true }, a);
+
+    // L'intuition dit qu'un assigné voit sa tâche. `RG-SCOPE-04` dit non.
+    await expect(taches.fiche(t, lecteur(a), LECTURE)).rejects.toMatchObject({
+      code: "hors_perimetre",
+    });
+  });
+
+  it("la rend à qui détient la permission explicite", async () => {
+    const a = await agent();
+    const t = await creerTache([a]);
+    await taches.modifier(t, { version: 1, confidentielle: true }, a);
+
+    const habilite = { userId: a, global: false, confidentiel: true } as never;
+    await expect(taches.fiche(t, habilite, LECTURE)).resolves.toBeTruthy();
+  });
+
+  it("NE NOMME PAS un prérequis hors périmètre — mais garde son entrée", async () => {
+    /*
+     * L'entrée demeure, sans son titre. La retirer changerait le compte
+     * annoncé — « Dépend de (2) » avec une seule ligne — et laisserait croire
+     * à un défaut d'affichage plutôt qu'à un cloisonnement.
+     */
+    const a = await agent();
+    const amont = await creerTache([a]);
+    const aval = await creerTache([a]);
+    await taches.ajouterDependance(aval, amont, a);
+    await taches.modifier(amont, { version: 1, confidentielle: true }, a);
+
+    const g = await taches.dependances(aval, lecteur(a), LECTURE);
+    expect(g.dependDe).toHaveLength(1);
+    expect(g.dependDe[0]!.titre).toBeNull();
+    expect(g.dependDe[0]!.lisible).toBe(false);
+  });
+
+  it("le nomme dès que le périmètre le permet — sinon le test ne prouverait rien", async () => {
+    const a = await agent();
+    const amont = await creerTache([a]);
+    const aval = await creerTache([a]);
+    await taches.ajouterDependance(aval, amont, a);
+
+    const g = await taches.dependances(aval, PERIMETRE_TOTAL, PERMISSIONS_TOTALES);
+    expect(g.dependDe[0]!.titre).toBe("Tâche");
+    expect(g.dependDe[0]!.lisible).toBe(true);
   });
 });
