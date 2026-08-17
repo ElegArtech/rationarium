@@ -418,6 +418,12 @@ function SanteDuPortefeuille({ lignes }: { lignes: api.SanteLigne[] }) {
                 <span className="hp-s">
                   {l.chef ? `${l.chef.prenom} ${l.chef.nom}` : t("sante.nonAssigne")}
                   {l.service ? ` · ${l.service}` : ""}
+                  {/* Le budget d'heures dit l'ordre de grandeur du projet :
+                      « 3 en retard » ne pèse pas pareil sur 300 h et sur
+                      2 400 h. La maquette le range sur cette même ligne. */}
+                  {l.budgetHeures === null
+                    ? ""
+                    : ` · ${t("sante.budgetHeures", { n: l.budgetHeures })}`}
                 </span>
               </div>
 

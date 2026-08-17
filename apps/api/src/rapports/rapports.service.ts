@@ -156,7 +156,7 @@ export class RapportsService {
       },
       select: {
         id: true, nom: true, statut: true, priorite: true, icone: true,
-        dateDebut: true, dateFin: true,
+        dateDebut: true, dateFin: true, budgetHeures: true,
         chef: { select: { id: true, prenom: true, nom: true } },
         // `Project` porte `departementId` sans relation déclarée : le nom se
         // résout en une passe, plus bas, plutôt qu'en une jointure par ligne.
@@ -332,6 +332,9 @@ export class RapportsService {
         dateFin: jour(p.dateFin),
         chef: p.chef,
         service: p.departementId ? (services.get(p.departementId) ?? null) : null,
+        /** La maquette 34 range le budget d'heures sur la même ligne que le
+         *  chef et le service : c'est l'ordre de grandeur du projet. */
+        budgetHeures: p.budgetHeures === null ? null : Number(p.budgetHeures),
         sante,
       };
     })
