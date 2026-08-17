@@ -103,19 +103,49 @@ const CATALOGUE = (() => {
    * n'était corrigeable côté vue — et un contrôle qu'on ne peut pas satisfaire
    * cesse d'être lu. Avec elle, ce qui reste est ce qu'on peut corriger.
    */
-  const valeurs = new Set();
-  const aplatir = (o) => {
+  const parEspace = new Map();
+  const aplatir = (o, valeurs) => {
     for (const v of Object.values(o)) {
       if (typeof v === "string") valeurs.add(v.toLowerCase().replace(/\s+/g, " ").trim());
-      else if (v && typeof v === "object") aplatir(v);
+      else if (v && typeof v === "object") aplatir(v, valeurs);
     }
   };
   const dossier = path.join(RACINE, "apps/web/src/locales/fr");
   for (const f of fs.readdirSync(dossier)) {
-    aplatir(JSON.parse(fs.readFileSync(path.join(dossier, f), "utf8")));
+    const valeurs = new Set();
+    aplatir(JSON.parse(fs.readFileSync(path.join(dossier, f), "utf8")), valeurs);
+    parEspace.set(path.basename(f, ".json"), valeurs);
+  }
+  return parEspace;
+})();
+
+/**
+ * Les vues d'accès — 01 à 05 — sont les SEULES à charger l'espace `acces`.
+ *
+ * L'invariant est vérifié mécaniquement par `conformite.e2e.spec.ts` :
+ * `useTranslation("acces")` n'apparaît que sous `apps/web/src/routes/`.
+ *
+ * Il compte parce que le panneau de marque de la vue 01 rend une **grille
+ * illustrative** — « Accueil · matin », « Astreinte », « Comité · EXT » —,
+ * fiction choisie pour ressembler au produit. Ces chaînes sont de vrais
+ * libellés là, et de la fiction de maquette partout ailleurs : les garder au
+ * catalogue global faisait de chaque réemploi décoratif un écart bloquant, sur
+ * des vues qui ne peuvent structurellement pas les dire.
+ *
+ * C'est le défaut de fond que trois agents ont rencontré séparément : un
+ * catalogue global compare une chaîne à un espace de noms qui n'est pas le
+ * sien. Le remède est le CLOISONNEMENT, pas une liste de chaînes muselées.
+ */
+const VUES_ACCES = new Set(["01", "02", "03", "04", "05"]);
+
+const catalogueDe = (vue) => {
+  const valeurs = new Set();
+  for (const [espace, chaines] of CATALOGUE) {
+    if (espace === "acces" && !VUES_ACCES.has(vue)) continue;
+    for (const c of chaines) valeurs.add(c);
   }
   return valeurs;
-})();
+};
 
 const DONNEES_MAQUETTE = [
   "c. durand", "d. amrani", "f. berthier", "h. nguyen", "i. rocher",
@@ -251,10 +281,12 @@ function comparer(vue, maquette, rendu) {
     .filter((t) => !DONNEES_MAQUETTE.some((d) => t.includes(d)))
     .filter((t) => !textesRendu.has(t));
 
-  // Le produit sait le dire et ne le dit pas : défaut.
-  const textesManquants = absents.filter((t) => CATALOGUE.has(t));
+  // Le produit sait le dire et ne le dit pas : défaut. Le catalogue est celui
+  // de CETTE vue — voir `catalogueDe`.
+  const catalogue = catalogueDe(vue);
+  const textesManquants = absents.filter((t) => catalogue.has(t));
   // Le produit ne le dira jamais : contenu de la maquette.
-  const contenuMaquette = absents.filter((t) => !CATALOGUE.has(t));
+  const contenuMaquette = absents.filter((t) => !catalogue.has(t));
 
   // 4. Les repères.
   const reperes = [];
