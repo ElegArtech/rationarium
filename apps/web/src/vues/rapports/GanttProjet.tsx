@@ -576,16 +576,27 @@ function Grille({
                       </Button>
                       <Popover>
                         <Menu
+                          className="pop pop-sm"
                           onAction={(cle) => {
                             if (cle === "deps") surDependances(tache);
                             else surDecalage(tache, Number(cle));
                           }}
                         >
-                          <MenuItem id="-7">{t("ganttProjet.decalerSemaineAvant")}</MenuItem>
-                          <MenuItem id="-1">{t("ganttProjet.decalerJourAvant")}</MenuItem>
-                          <MenuItem id="1">{t("ganttProjet.decalerJourApres")}</MenuItem>
-                          <MenuItem id="7">{t("ganttProjet.decalerSemaineApres")}</MenuItem>
-                          <MenuItem id="deps">{t("ganttProjet.modifierDependances")}</MenuItem>
+                          <MenuItem className="pop-action" id="-7">
+                            {t("ganttProjet.decalerSemaineAvant")}
+                          </MenuItem>
+                          <MenuItem className="pop-action" id="-1">
+                            {t("ganttProjet.decalerJourAvant")}
+                          </MenuItem>
+                          <MenuItem className="pop-action" id="1">
+                            {t("ganttProjet.decalerJourApres")}
+                          </MenuItem>
+                          <MenuItem className="pop-action" id="7">
+                            {t("ganttProjet.decalerSemaineApres")}
+                          </MenuItem>
+                          <MenuItem className="pop-action" id="deps">
+                            {t("ganttProjet.modifierDependances")}
+                          </MenuItem>
                         </Menu>
                       </Popover>
                     </MenuTrigger>

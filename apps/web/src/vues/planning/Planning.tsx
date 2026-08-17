@@ -237,7 +237,7 @@ export function Planning({ mode }: { mode: Mode }) {
               onSelectionChange={(cles) => setServices(new Set([...cles].map(String)))}
             >
               {servicesConnus.map((s) => (
-                <MenuItem key={s.id} id={s.id}>
+                <MenuItem className="pop-action" key={s.id} id={s.id}>
                   {s.nom}
                 </MenuItem>
               ))}
@@ -489,12 +489,12 @@ function BarreOutils({
             <Popover>
               <Menu className="pop pop-sm">
                 {peut("tasks:create") ? (
-                  <MenuItem id="tache" href="/taches">
+                  <MenuItem className="pop-action" id="tache" href="/taches">
                     {t("actions.creerTache")}
                   </MenuItem>
                 ) : null}
                 {peut("events:create") ? (
-                  <MenuItem id="evenement" href="/evenements">
+                  <MenuItem className="pop-action" id="evenement" href="/evenements">
                     {t("actions.creerEvenement")}
                   </MenuItem>
                 ) : null}

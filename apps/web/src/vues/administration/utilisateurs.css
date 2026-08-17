@@ -28,10 +28,19 @@
 .us-svc{ display:block; font-family:var(--font-mono); font-size:9px; color:var(--muted); margin-top:3px;
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 
-/* Le menu sépare les actions courantes des actions destructrices */
-.menu-sep{ border-top:1px solid var(--line); margin-top:4px; padding-top:4px; }
 .pop-action.is-danger{ color:var(--st-blocked); }
-.pop-action[aria-disabled="true"]{ color:var(--muted); cursor:not-allowed; }
+/*
+ * `.menu-sep` a suivi le même chemin que l'état désactivé, le 2026-08-17 : c'est
+ * un séparateur de MENU, pas un ornement de la vue 27, et le planning s'en sert
+ * désormais pour détacher « Une autre date… » de la liste des jours.
+ */
+/*
+ * L'état désactivé de `.pop-action` a été REMONTÉ au socle le 2026-08-17
+ * (`coquille/coquille.css § 7`). Il vivait ici, dans un fichier de vue, alors
+ * qu'il décrit une primitive de coquille : il ne s'appliquait donc que sur les
+ * routes qui chargent cette feuille, et le même item désactivé était nu ailleurs
+ * — au planning notamment. Ne pas le redéfinir ici.
+ */
 .pop-why{ display:block; font-family:var(--font-mono); font-size:8.5px; color:var(--muted); margin-top:3px; }
 
 /* Séquence de suppression définitive */
