@@ -33,6 +33,28 @@ async function focalise(page: Page): Promise<{ role: string; texte: string }> {
   });
 }
 
+/**
+ * Le retour du focus au déclencheur — **attendu, pas lu une fois**.
+ *
+ * Ces deux contrôles lisaient `document.activeElement` dans l'instant qui suit
+ * la disparition de la surcouche. Or `react-aria` rend le focus au tour suivant :
+ * la lecture arrivait parfois avant, trouvait `BODY`, et le test échouait sur un
+ * produit correct. Mesuré sur la branche INTACTE, à un seul ouvrier :
+ * **7 échecs sur 72 passages**, toujours sur ces deux tests — donc une course
+ * dans le contrôle, pas un défaut du produit.
+ *
+ * Le contrôle garde toute sa force : il échoue toujours si le focus ne revient
+ * jamais. Il cesse seulement d'exiger qu'il revienne dans la même milliseconde.
+ */
+async function attendreFocusSur(page: Page, texte: string) {
+  await expect
+    .poll(async () => (await focalise(page)).texte, {
+      message: `le focus n'est jamais revenu sur « ${texte} »`,
+      timeout: 5000,
+    })
+    .toContain(texte);
+}
+
 test.describe("Le lien d'évitement", () => {
   test("IL EST LE PREMIER ARRÊT DE TABULATION, et il mène au contenu", async ({ page }) => {
     await serveur(page, { session: SESSION, reponses: {} });
@@ -97,8 +119,7 @@ test.describe("Les fenêtres modales — piège de focus et retour au déclenche
 
     // Sans ce retour, le focus repart au début du document : on doit
     // retraverser toute la page pour reprendre là où on en était.
-    const apres = await focalise(page);
-    expect(apres.texte).toContain("Créer un utilisateur");
+    await attendreFocusSur(page, "Créer un utilisateur");
   });
 
   test("le focus reste PIÉGÉ dans la fenêtre tant qu'elle est ouverte", async ({ page }) => {
@@ -158,7 +179,7 @@ test.describe("Les menus s'ouvrent et se parcourent au clavier", () => {
     await page.keyboard.press("Escape");
     await expect(page.getByRole("menu")).toHaveCount(0);
     // Le focus revient au déclencheur, comme pour une fenêtre.
-    expect((await focalise(page)).texte).toContain("Actions pour Camille Roussel");
+    await attendreFocusSur(page, "Actions pour Camille Roussel");
   });
 });
 
