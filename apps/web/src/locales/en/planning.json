@@ -1,4 +1,5 @@
 {
+  "annuler": "Cancel",
   "titre": "Resource schedule",
   "leplanning": "the schedule",
   "lagrille": "the activity grid",
@@ -55,9 +56,13 @@
     "deplacerVers": "Move to…",
     "reassignerA": "Reassign to…",
     "dateVerrouillee": "Date cannot be moved: task has several assignees",
+    "aucunAutreJour": "Cannot move: no other day displayed",
+    "aucunAutreAgent": "Cannot reassign: no other person available",
     "basculerTeletravail": "{nom}, {date} — currently {etat}. Switch to {suivant}",
     "imprimer": "Print",
-    "creerIci": "Create here — {nom}, {date}"
+    "creerIci": "Create here — {nom}, {date}",
+    "uneAutreDate": "Another date…",
+    "deplacer": "Move"
   },
   "groupe": {
     "effectif": "{n, plural, one {# person} other {# people}}",
@@ -231,5 +236,9 @@
       "6": "Saturday"
     }
   },
-  "grilleRegion": "Schedule grid — scrollable area, move through it with the arrow keys"
+  "grilleRegion": "Schedule grid — scrollable area, move through it with the arrow keys",
+  "fenetreDate": {
+    "nouvelleDate": "New date",
+    "mention": "The task stays assigned to the same person"
+  }
 }

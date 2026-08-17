@@ -1,4 +1,5 @@
 {
+  "annuler": "Annuler",
   "titre": "Planning des ressources",
   "leplanning": "le planning",
   "lagrille": "la grille d'activité",
@@ -55,9 +56,13 @@
     "deplacerVers": "Déplacer vers…",
     "reassignerA": "Réassigner à…",
     "dateVerrouillee": "Date non déplaçable : tâche multi-assignée",
+    "aucunAutreJour": "Déplacement impossible : aucun autre jour affiché",
+    "aucunAutreAgent": "Réassignation impossible : aucun autre agent disponible",
     "basculerTeletravail": "{nom}, {date} — actuellement {etat}. Basculer vers {suivant}",
     "imprimer": "Imprimer",
-    "creerIci": "Créer ici — {nom}, {date}"
+    "creerIci": "Créer ici — {nom}, {date}",
+    "uneAutreDate": "Une autre date…",
+    "deplacer": "Déplacer"
   },
   "groupe": {
     "effectif": "{n, plural, one {# personne} other {# personnes}}",
@@ -231,5 +236,9 @@
       "6": "Samedi"
     }
   },
-  "grilleRegion": "Grille du planning — zone défilante, parcourez-la avec les flèches du clavier"
+  "grilleRegion": "Grille du planning — zone défilante, parcourez-la avec les flèches du clavier",
+  "fenetreDate": {
+    "nouvelleDate": "Nouvelle date",
+    "mention": "La tâche reste assignée à la même personne"
+  }
 }

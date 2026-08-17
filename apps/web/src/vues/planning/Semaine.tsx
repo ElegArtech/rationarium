@@ -2,6 +2,8 @@ import { useState, type CSSProperties, type DragEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { Button, Menu, MenuItem, MenuTrigger, Popover, SubmenuTrigger } from "react-aria-components";
 import { IconeProjet } from "../../composants/icones-projet.js";
+import { Fenetre } from "../../composants/fenetre.js";
+import { formaterDateAvecJour } from "../../formats.js";
 import type { Planning, PersonnePlanning } from "../../api/planning.js";
 import { CELLULE_VIDE, initiales, joursAffiches, type Cellule } from "./grille.js";
 import { cleGroupe } from "./Planning.js";
@@ -474,6 +476,16 @@ function Occupation({
 }) {
   const { t } = useTranslation("planning");
 
+  /*
+   * La date choisie librement, hors de la semaine affichée.
+   *
+   * Les hooks sont déclarés AVANT les retours anticipés ci-dessous : un
+   * événement et une permanence sortent plus tôt, et React exige un ordre
+   * d'appel constant.
+   */
+  const [fenetreDate, setFenetreDate] = useState(false);
+  const [dateLibre, setDateLibre] = useState("");
+
   if (occupation.genre === "evenement") {
     const e = occupation.evenement;
     return (
@@ -539,7 +551,36 @@ function Occupation({
     );
   }
 
+  /*
+   * Les deux listes du menu, calculées AVANT le rendu — parce qu'une liste vide
+   * ne doit pas produire un sous-menu vide, mais une raison.
+   *
+   * Portée : le brief de la vue 07 définit le déplacement comme « autre colonne »
+   * et « autre ligne ». Le menu étant le doublage clavier du glisser (`C6`), il
+   * mime cette portée — pour les DATES, c'est le chemin rapide, doublé d'une
+   * entrée « Une autre date… » qui ouvre le choix libre : aucune règle ne borne
+   * la date d'une tâche à la semaine affichée.
+   *
+   * Pour les AGENTS, la portée reste la grille. Le brief dit « autre ligne », et
+   * `RG-TSK-15` — les membres du projet — vaut là où l'on CHOISIT un assigné,
+   * c'est-à-dire le formulaire de tâche, qui l'applique déjà.
+   */
+  const joursCibles = jours.filter((j) => j !== jour);
+
+  /*
+   * `RG-GEN-06` — une action interdite n'est jamais proposée puis refusée. Les
+   * agents DÉJÀ assignés à la tâche étaient offerts : le serveur les refusait
+   * ensuite au titre de `RG-PLN-06` (« l'assignation d'un agent déjà affecté est
+   * refusée »). Le filtre ne retirait que la personne de la ligne courante, ce
+   * qui suffisait sur une tâche à un seul assigné et laissait passer les autres
+   * sur une tâche multi-assignée. `RG-PLN-06` reste le filet côté serveur.
+   */
+  const agentsCibles = personnes.filter(
+    (p) => p.id !== personne.id && !tache.assignes.includes(p.id),
+  );
+
   return (
+    <>
     <MenuTrigger>
       {/* `react-aria-components` ne relaie pas les gestionnaires de glissement :
           l'enveloppe les porte. Le bouton reste le point d'entrée clavier — le
@@ -559,9 +600,20 @@ function Occupation({
           {contenu}
         </Button>
       </span>
+      {/* `.pop.pop-sm` + `.pop-action` : le vocabulaire que la maquette donne à
+          une liste d'actions flottante (`07 § 7`, menu utilisateur et menu
+          « Créer »). Ce menu-ci n'existe dans aucune maquette — il naît de `C6`,
+          qui exige un doublage clavier du glisser-déposer — mais un composant
+          sans référence n'autorise pas un style sans référence : il emprunte
+          l'idiome le plus proche, celui-là, comme le font déjà la coquille, les
+          rapports et la vue 27. */}
       <Popover>
-        <Menu className="pop">
-          <MenuItem id="detail" onAction={() => surSelection({ genre: "tache", tache })}>
+        <Menu className="pop pop-sm">
+          <MenuItem
+            className="pop-action"
+            id="detail"
+            onAction={() => surSelection({ genre: "tache", tache })}
+          >
             {t("actions.voirDetail")}
           </MenuItem>
 
@@ -569,56 +621,153 @@ function Occupation({
               pas depuis le planning. L'action est absente, et la raison est
               dite : proposer puis refuser ferait perdre le geste. */}
           {tache.multiAssignee ? (
-            <MenuItem id="raison" isDisabled>
+            <MenuItem className="pop-action" id="raison" isDisabled>
               {t("actions.dateVerrouillee")}
+            </MenuItem>
+          ) : joursCibles.length === 0 ? (
+            /*
+             * `RG-PLN-03` autorise « au moins un jour » : avec un seul jour
+             * affiché, il n'existe aucune autre colonne où déposer la tâche. Le
+             * sous-menu s'ouvrait alors en languette VIDE de 190 × 2 px — une
+             * zone blanche que `RG-GEN-04` interdit. On dit la raison, comme
+             * pour la date verrouillée juste au-dessus (`RG-GEN-06`).
+             */
+            <MenuItem className="pop-action" id="sansJour" isDisabled>
+              {t("actions.aucunAutreJour")}
             </MenuItem>
           ) : (
             <SubmenuTrigger>
-              <MenuItem id="deplacer">{t("actions.deplacerVers")}</MenuItem>
+              <MenuItem className="pop-action" id="deplacer">
+                {t("actions.deplacerVers")}
+              </MenuItem>
               <Popover>
                 <Menu
-                  className="pop"
-                  onAction={(cle) =>
-                    surDeplacer({ taskId: tache.id, nouvelleDate: String(cle) })
-                  }
+                  className="pop pop-sm"
+                  onAction={(cle) => {
+                    if (cle === "autre") {
+                      setDateLibre(tache.dateDebut ?? jour);
+                      setFenetreDate(true);
+                      return;
+                    }
+                    surDeplacer({ taskId: tache.id, nouvelleDate: String(cle) });
+                  }}
                 >
-                  {jours
-                    .filter((j) => j !== jour)
-                    .map((j) => (
-                      <MenuItem key={j} id={j}>
-                        {j}
-                      </MenuItem>
-                    ))}
+                  {joursCibles.map((j) => (
+                    /* `RG-GEN-09` — la clé reste la date ISO, ce que l'appel
+                       attend ; l'intitulé passe par le formatage global. Il
+                       affichait « 2026-08-18 » : une valeur de transport
+                       montrée à l'utilisateur. */
+                    <MenuItem className="pop-action" key={j} id={j}>
+                      {formaterDateAvecJour(j)}
+                    </MenuItem>
+                  ))}
+                  {/*
+                   * La sortie de la semaine.
+                   *
+                   * Les jours ci-dessus recopient la portée du glisser-déposer —
+                   * « autre colonne », brief de la vue 07 — et c'est le chemin
+                   * rapide. Mais AUCUNE règle ne borne la date d'une tâche à la
+                   * semaine affichée : s'arrêter là était une limite héritée du
+                   * geste à la souris, pas une contrainte métier. Cette entrée
+                   * ouvre le choix libre.
+                   */}
+                  <MenuItem className="pop-action menu-sep" id="autre">
+                    {t("actions.uneAutreDate")}
+                  </MenuItem>
                 </Menu>
               </Popover>
             </SubmenuTrigger>
           )}
 
-          <SubmenuTrigger>
-            <MenuItem id="reassigner">{t("actions.reassignerA")}</MenuItem>
-            <Popover>
-              <Menu
-                className="pop"
-                onAction={(cle) =>
-                  surDeplacer({
-                    taskId: tache.id,
-                    nouvelAssigneId: String(cle),
-                    ancienAssigneId: personne.id,
-                  })
-                }
-              >
-                {personnes
-                  .filter((p) => p.id !== personne.id)
-                  .map((p) => (
-                    <MenuItem key={p.id} id={p.id}>
+          {agentsCibles.length === 0 ? (
+            <MenuItem className="pop-action" id="sansAgent" isDisabled>
+              {t("actions.aucunAutreAgent")}
+            </MenuItem>
+          ) : (
+            <SubmenuTrigger>
+              <MenuItem className="pop-action" id="reassigner">
+                {t("actions.reassignerA")}
+              </MenuItem>
+              <Popover>
+                {/*
+                 * `.pop-list` — le primitif de défilement de la maquette
+                 * (`07 § 7`, la liste de notifications). Sans lui, la liste des
+                 * agents n'avait ni `max-height` ni `overflow` : rangée de 38 px
+                 * contre un survol plafonné à ~600 px, donc au-delà d'une
+                 * quinzaine d'agents les dernières entrées débordaient de leur
+                 * boîte sans qu'aucun défilement permette de les atteindre. Le
+                 * brief prend pour référence « 20 lignes × 5 colonnes ».
+                 */}
+                <Menu
+                  className="pop pop-sm pop-list"
+                  onAction={(cle) =>
+                    surDeplacer({
+                      taskId: tache.id,
+                      nouvelAssigneId: String(cle),
+                      ancienAssigneId: personne.id,
+                    })
+                  }
+                >
+                  {agentsCibles.map((p) => (
+                    <MenuItem className="pop-action" key={p.id} id={p.id}>
                       {p.prenom} {p.nom}
                     </MenuItem>
                   ))}
-              </Menu>
-            </Popover>
-          </SubmenuTrigger>
+                </Menu>
+              </Popover>
+            </SubmenuTrigger>
+          )}
         </Menu>
       </Popover>
     </MenuTrigger>
+
+    {/*
+     * Le choix libre de la date. `Fenetre` porte déjà le piège de focus, le
+     * retour au déclencheur et la prise de focus sur le premier champ.
+     *
+     * Le champ est un `<input type="date">`, la convention du produit — 23
+     * emplois ailleurs. `DESIGN.md § 2` inscrit bien un sélecteur de dates
+     * `react-aria`, mais il n'est employé nulle part : introduire ici le premier
+     * ferait deux écritures pour un même geste.
+     */}
+    <Fenetre
+      ouverte={fenetreDate}
+      surFermeture={() => setFenetreDate(false)}
+      categorie={t("actions.deplacerVers")}
+      titre={tache.titre}
+      mention={t("fenetreDate.mention")}
+      actions={
+        <>
+          <Button className="btn btn-secondary" onPress={() => setFenetreDate(false)}>
+            {t("annuler")}
+          </Button>
+          <Button
+            className="btn btn-primary"
+            isDisabled={!dateLibre}
+            onPress={() => {
+              if (!dateLibre) return;
+              surDeplacer({ taskId: tache.id, nouvelleDate: dateLibre });
+              setFenetreDate(false);
+            }}
+          >
+            {t("actions.deplacer")}
+          </Button>
+        </>
+      }
+    >
+      <div className="field-block">
+        <label className="field-label" htmlFor={`pl-date-${tache.id}-${personne.id}`}>
+          {t("fenetreDate.nouvelleDate")}
+        </label>
+        <input
+          className="field"
+          id={`pl-date-${tache.id}-${personne.id}`}
+          type="date"
+          value={dateLibre}
+          onChange={(e) => setDateLibre(e.target.value)}
+        />
+      </div>
+    </Fenetre>
+    </>
   );
 }
