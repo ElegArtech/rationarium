@@ -110,6 +110,48 @@ describe("le jeu de données des maquettes", () => {
     }
   }, 300_000);
 
+  it("REJOUÉ UNE SEMAINE PLUS TARD, il se réancre sans se refuser lui-même", async () => {
+    /*
+     * Le défaut que ce test a trouvé, et que le rejeu à date constante ne
+     * pouvait pas voir : **tout le jeu est ancré sur le lundi de la semaine
+     * courante**. Rejoué une semaine plus tard, les nouvelles dates de congés
+     * chevauchaient celles que le rejeu n'avait pas encore réécrites, et la
+     * contrainte d'exclusion `RG-CNG-25` refusait l'insertion à mi-parcours.
+     *
+     * L'idempotence ne valait donc qu'à date constante. Un jeu ancré sur
+     * « aujourd'hui » pourrit avec le calendrier — c'est le genre de défaut
+     * qui n'apparaît qu'un lundi, sur la machine de quelqu'un d'autre.
+     */
+    const prisma = creerClient(url);
+    try {
+      const base = new Date("2026-03-02T00:00:00Z");
+      await peuplerMaquette(prisma, "admin", base);
+      const semaineSuivante = new Date("2026-03-09T00:00:00Z");
+      await expect(peuplerMaquette(prisma, "admin", semaineSuivante)).resolves.toBeTruthy();
+      const encoreApres = new Date("2026-03-30T00:00:00Z");
+      await expect(peuplerMaquette(prisma, "admin", encoreApres)).resolves.toBeTruthy();
+
+      // Et il faut revenir à aujourd'hui : les tests suivants lisent le jeu.
+      await peuplerMaquette(prisma);
+    } finally {
+      await prisma.$disconnect();
+    }
+  }, 300_000);
+
+  it("rattache CHAQUE agent à un service — sinon le filtre s'affiche vide", async () => {
+    /*
+     * Un sélecteur vide se lit « il n'y a pas de service », pas « personne
+     * n'y est rattaché ». Les cinq agents n'appartenaient à aucun service :
+     * les filtres des vues 07 et 09 n'avaient rien à proposer.
+     */
+    const { rows } = await db.query(
+      `SELECT count(DISTINCT us."userId")::int AS n
+       FROM user_services us JOIN users u ON u.id = us."userId"
+       WHERE u.login = 'admin' OR u.email LIKE '%@roqueville.fr'`,
+    );
+    expect(rows[0].n).toBeGreaterThanOrEqual(5);
+  });
+
   it("porte LES QUATRE PRIORITÉS et LES CINQ STATUTS de tâche", async () => {
     /*
      * Sans cette couverture, « Basse », « Critique », « Bloqué » et « En revue »
