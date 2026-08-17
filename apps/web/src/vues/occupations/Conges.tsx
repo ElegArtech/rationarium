@@ -218,26 +218,37 @@ function CarteSolde({ entree }: { entree: api.SoldeParType }) {
  */
 function CycleDeVie() {
   const { t } = useTranslation("occupations");
+  /*
+   * Les cinq états viennent de `STATUTS_CONGE`, **pas d'un jeu de clés
+   * parallèle**. Le catalogue en portait un — `statut_pending`,
+   * `statut_approved`, `statut_cancelling`… —, c'est-à-dire une seconde
+   * définition d'un vocabulaire de `cadrage/01 § 4.1`, ce que le contrat
+   * interdit. Et elle avait déjà divergé : le schéma dit
+   * `cancellation_requested`, ce double disait `cancelling`.
+   */
+  const libelle = useLibelle();
   return (
     <div className="conges-flow">
       <div className="flow">
-        <span className="fnode fnode-attente">{t("conges.statut_pending")}</span>
+        <span className="fnode fnode-attente">{libelle("pending", STATUTS_CONGE)}</span>
         <span className="farrow" aria-hidden="true">
           →
         </span>
         <div className="fbranch">
-          <span className="fnode fnode-approuve">{t("conges.statut_approved")}</span>
-          <span className="fnode fnode-refuse">{t("conges.statut_refused")}</span>
+          <span className="fnode fnode-approuve">{libelle("approved", STATUTS_CONGE)}</span>
+          <span className="fnode fnode-refuse">{libelle("refused", STATUTS_CONGE)}</span>
         </div>
         <span className="farrow" aria-hidden="true">
           →
         </span>
-        <span className="fnode fnode-attente">{t("conges.statut_cancelling")}</span>
+        <span className="fnode fnode-attente">
+          {libelle("cancellation_requested", STATUTS_CONGE)}
+        </span>
         <span className="farrow" aria-hidden="true">
           →
         </span>
         <div className="fbranch">
-          <span className="fnode fnode-neutre">{t("conges.statut_cancelled")}</span>
+          <span className="fnode fnode-neutre">{libelle("cancelled", STATUTS_CONGE)}</span>
           <span className="fnode fnode-approuve">{t("conges.retourApprouve")}</span>
         </div>
       </div>
@@ -299,6 +310,29 @@ function MesDemandes({ userId }: { userId: string }) {
   );
 }
 
+/**
+ * La demi-journée d'une demande, rendue lisible.
+ *
+ * Trois cas : rien (journée complète), une seule extrémité, les deux. Le
+ * décompte en jours ne les distingue pas — « 0,5 j » ne dit pas *quelle*
+ * moitié —, et c'est précisément ce que la personne vérifie avant de partir.
+ */
+function useDemiJournees(): (demande: api.DemandeConge) => string | null {
+  const { t } = useTranslation("occupations");
+  const libelle = useLibelle();
+  return (demande) => {
+    const { demiJourneeDebut: debut, demiJourneeFin: fin } = demande;
+    if (!debut && !fin) return null;
+    if (debut && fin) {
+      return t("conges.demiJourneesDeuxBouts", {
+        debut: libelle(debut, DEMI_JOURNEES),
+        fin: libelle(fin, DEMI_JOURNEES),
+      });
+    }
+    return libelle((debut ?? fin)!, DEMI_JOURNEES);
+  };
+}
+
 function LigneDemande({
   demande,
   avecActions = false,
@@ -312,9 +346,11 @@ function LigneDemande({
 }) {
   const { t } = useTranslation("occupations");
   const { t: tErreurs } = useTranslation("erreurs");
+  const demiJournees = useDemiJournees();
   const annoncer = useMessages();
   const client = useQueryClient();
   const [refusOuvert, setRefusOuvert] = useState(false);
+  const [modificationOuverte, setModificationOuverte] = useState(false);
 
   const rafraichir = () => {
     void client.invalidateQueries({ queryKey: ["conges"] });
@@ -368,7 +404,18 @@ function LigneDemande({
             fin: formaterDate(demande.dateFin),
           })}
         </span>
-        {demande.motif ? <span className="lv-motif">{demande.motif}</span> : null}
+        {/*
+          La ligne secondaire de la période : la demi-journée d'abord, le motif
+          ensuite. **Un congé d'une demi-journée doit dire laquelle** — « 0,5 j »
+          seul ne se vérifie contre rien, et c'est exactement ce que la maquette
+          porte sur sa ligne d'une demi-journée. Les deux informations partagent
+          la même place : elles répondent à la même question, « quoi au juste ».
+        */}
+        {demiJournees(demande) === null && !demande.motif ? null : (
+          <span className="lv-motif">
+            {[demiJournees(demande), demande.motif].filter(Boolean).join(" · ")}
+          </span>
+        )}
       </span>
 
       <span>
@@ -407,6 +454,14 @@ function LigneDemande({
           )}
           {avecActions ? (
             <span className="lv-acts">
+              {/* `EX-CNG-05` — une demande **en attente** se corrige. Le serveur
+                  refuse tout autre statut : ne proposer le geste que là où il
+                  aboutit, c'est `RG-GEN-06`. */}
+              {demande.statut === "pending" ? (
+                <Button className="ms-toggle" onPress={() => setModificationOuverte(true)}>
+                  {t("conges.modifier")}
+                </Button>
+              ) : null}
               {demande.statut === "pending" || demande.statut === "refused" ? (
                 <Button className="ms-toggle" onPress={() => action.mutate("supprimer")}>
                   {t("conges.supprimer")}
@@ -420,8 +475,13 @@ function LigneDemande({
                 </Button>
               ) : null}
               {/* Une annulation transmise n'offre aucun geste : elle attend une
-                  décision, et le dit plutôt que de laisser une case vide. */}
-              {demande.statut === "cancelling" ? (
+                  décision, et le dit plutôt que de laisser une case vide.
+                  Le code est `cancellation_requested` — celui du schéma et de
+                  `STATUTS_CONGE`. La vue en testait un autre, `cancelling`, que
+                  le serveur n'écrit jamais : la branche était morte, et rien ne
+                  pouvait le dire puisque le jeu de données n'a aucune demande
+                  d'annulation à lui opposer. */}
+              {demande.statut === "cancellation_requested" ? (
                 <span className="lv-val">{t("conges.enAttenteDeDecision")}</span>
               ) : null}
             </span>
@@ -434,6 +494,16 @@ function LigneDemande({
         ouverte={refusOuvert}
         surFermeture={() => setRefusOuvert(false)}
       />
+      {/* Montée à l'ouverture seulement : les champs repartent de la demande
+          telle qu'elle est, pas de celle qu'elle était au premier rendu. */}
+      {modificationOuverte ? (
+        <FenetreDemande
+          ouverte
+          surFermeture={() => setModificationOuverte(false)}
+          annee={new Date(demande.dateDebut).getUTCFullYear()}
+          demande={demande}
+        />
+      ) : null}
     </div>
   );
 }
@@ -779,10 +849,21 @@ function FenetreDemande({
   ouverte,
   surFermeture,
   annee,
+  demande,
 }: {
   ouverte: boolean;
   surFermeture: () => void;
   annee: number;
+  /**
+   * La demande à corriger, quand la fenêtre sert à modifier.
+   *
+   * `EX-CNG-05` — c'est **la même fenêtre**, avec les mêmes contrôles de solde
+   * et de chevauchement : deux formulaires auraient divergé, et c'est celui
+   * qu'on emprunte quatre fois par an qui aurait pris du retard. Seul le type
+   * de congé n'y est pas modifiable — en changer, c'est un autre solde, donc
+   * une autre demande.
+   */
+  demande?: api.DemandeConge;
 }) {
   const { t } = useTranslation("occupations");
   const { t: tErreurs } = useTranslation("erreurs");
@@ -790,12 +871,12 @@ function FenetreDemande({
   const annoncer = useMessages();
   const client = useQueryClient();
 
-  const [typeId, setTypeId] = useState("");
-  const [dateDebut, setDateDebut] = useState("");
-  const [dateFin, setDateFin] = useState("");
-  const [demiDebut, setDemiDebut] = useState("");
-  const [demiFin, setDemiFin] = useState("");
-  const [motif, setMotif] = useState("");
+  const [typeId, setTypeId] = useState(demande?.type.id ?? "");
+  const [dateDebut, setDateDebut] = useState(demande?.dateDebut.slice(0, 10) ?? "");
+  const [dateFin, setDateFin] = useState(demande?.dateFin.slice(0, 10) ?? "");
+  const [demiDebut, setDemiDebut] = useState(demande?.demiJourneeDebut ?? "");
+  const [demiFin, setDemiFin] = useState(demande?.demiJourneeFin ?? "");
+  const [motif, setMotif] = useState(demande?.motif ?? "");
   const [erreur, setErreur] = useState<string | null>(null);
 
   const types = useQuery({
@@ -821,20 +902,24 @@ function FenetreDemande({
   }, [dateDebut, dateFin]);
 
   const depot = useMutation({
-    mutationFn: () =>
-      api.deposerConge({
-        typeId,
+    mutationFn: async () => {
+      const plage = {
         dateDebut,
         dateFin,
         ...(demiDebut ? { demiJourneeDebut: demiDebut } : {}),
         ...(demiFin ? { demiJourneeFin: demiFin } : {}),
         ...(motif ? { motif } : {}),
-      }),
+      };
+      if (demande) return api.modifierConge(demande.id, plage);
+      await api.deposerConge({ typeId, ...plage });
+    },
     onSuccess: () => {
-      annoncer("ok", t("conges.demandeDeposee"));
-      setDateDebut("");
-      setDateFin("");
-      setMotif("");
+      annoncer("ok", demande ? t("conges.demandeModifiee") : t("conges.demandeDeposee"));
+      if (!demande) {
+        setDateDebut("");
+        setDateFin("");
+        setMotif("");
+      }
       surFermeture();
       void client.invalidateQueries({ queryKey: ["conges"] });
     },
@@ -855,7 +940,7 @@ function FenetreDemande({
       ouverte={ouverte}
       surFermeture={surFermeture}
       categorie={t("conges.demande")}
-      titre={t("conges.nouvelleDemande")}
+      titre={demande ? t("conges.modifierLaDemande") : t("conges.nouvelleDemande")}
       large
       mention={t("champsObligatoires")}
       actions={
@@ -864,7 +949,7 @@ function FenetreDemande({
             {t("annuler")}
           </Button>
           <Button className="btn btn-primary" isPending={depot.isPending} onPress={valider}>
-            {t("conges.deposer")}
+            {demande ? t("conges.enregistrer") : t("conges.deposer")}
           </Button>
         </>
       }
@@ -887,6 +972,7 @@ function FenetreDemande({
             className="field"
             id="cg-type"
             value={typeId}
+            disabled={demande !== undefined}
             onChange={(e) => setTypeId(e.target.value)}
           >
             <option value="">{t("selectionner")}</option>

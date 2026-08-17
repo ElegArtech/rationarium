@@ -146,6 +146,24 @@ export const deposerConge = (donnees: {
   userId?: string;
 }) => appeler<{ id: string }>("/conges", { methode: "POST", corps: donnees });
 
+/**
+ * `EX-CNG-05` — modifier une demande **encore en attente**.
+ *
+ * Le serveur refuse tout autre statut (`statut_incompatible`) : une demande
+ * décidée ne se réécrit pas, elle s'annule. Le type de congé n'est pas
+ * modifiable — changer de type, c'est une autre demande, avec un autre solde.
+ */
+export const modifierConge = (
+  id: string,
+  donnees: {
+    dateDebut: string;
+    dateFin: string;
+    demiJourneeDebut?: string | null;
+    demiJourneeFin?: string | null;
+    motif?: string;
+  },
+) => appeler<void>(`/conges/${id}`, { methode: "PATCH", corps: donnees });
+
 export const approuverConge = (id: string) =>
   appeler<void>(`/conges/${id}/approuver`, { methode: "POST" });
 
