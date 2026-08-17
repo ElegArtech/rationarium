@@ -32,5 +32,6 @@
   "exporterTaches": "Exporter les tâches",
   "exporterJalons": "Exporter les jalons",
   "titreCompetences": "Importer des compétences",
-  "importerCsv": "Importer CSV"
+  "importerCsv": "Importer CSV",
+  "titreTaches": "Import CSV des tâches"
 }

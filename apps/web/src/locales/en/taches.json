@@ -16,7 +16,11 @@
     "deplacerCette": "Move task {titre}",
     "deplacerVers": "Move to {colonne}",
     "statutMisAJour": "Status updated.",
-    "echecStatut": "Error while updating the status."
+    "echecStatut": "Error while updating the status.",
+    "indice": "Drag a card, or select it and press Alt + ← / → to move it.",
+    "deplaceeVers": "“{titre}” moved to {colonne}",
+    "echecRetour": "Failed: card returned to {colonne}",
+    "creerDans": "Create a task in the {colonne} column"
   },
   "liste": {
     "surtitre": "All tasks",
@@ -145,7 +149,9 @@
   "onglet": {
     "titre": "Task board",
     "rechercher": "Search a task…",
-    "nouvelleTache": "+ New task"
+    "nouvelleTache": "+ New task",
+    "jalon": "Milestone",
+    "tousLesJalons": "All milestones"
   },
   "ext": "EXT",
   "interventionExterieure": "External work",

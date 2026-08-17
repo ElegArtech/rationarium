@@ -41,10 +41,21 @@ export function Kanban({
   taches,
   surRechargement,
   cleRequete,
+  surAnnonce,
+  surCreation,
 }: {
   taches: api.LigneTache[];
   surRechargement: () => void;
   cleRequete: readonly unknown[];
+  /**
+   * La région vive de la vue — `<p class="sr-only" aria-live="polite">` dans la
+   * maquette. Elle ne double pas la bulle de confirmation : celle-ci dit
+   * l'issue (« Statut mis à jour. »), celle-là dit **où la carte a atterri**,
+   * que la bulle ne porte pas. La maquette dit les deux, dans cet ordre.
+   */
+  surAnnonce?: (message: string) => void;
+  /** Le « + » de l'en-tête de colonne : créer une tâche dans ce statut. */
+  surCreation?: (statut: string) => void;
 }) {
   const { t } = useTranslation("taches");
   const { t: tErreurs } = useTranslation("erreurs");
@@ -57,12 +68,21 @@ export function Kanban({
   const deplacer = useMutation({
     mutationFn: ({ tache, statut }: { tache: api.LigneTache; statut: string }) =>
       api.modifier(tache.id, { version: tache.version, statut }),
-    onSuccess: () => {
+    onSuccess: (_donnees, { tache, statut }) => {
       annoncer("ok", t("kanban.statutMisAJour"));
+      surAnnonce?.(
+        t("kanban.deplaceeVers", {
+          titre: tache.titre,
+          colonne: libelle(statut, STATUTS_TACHE),
+        }),
+      );
       void client.invalidateQueries({ queryKey: cleRequete });
     },
-    onError: (e) => {
+    onError: (e, { tache }) => {
       annoncer("err", messageErreur(e, tErreurs, t("kanban.echecStatut")));
+      surAnnonce?.(
+        t("kanban.echecRetour", { colonne: libelle(tache.statut, STATUTS_TACHE) }),
+      );
       // La carte revient à sa place : on recharge plutôt que de deviner.
       surRechargement();
     },
@@ -99,6 +119,17 @@ export function Kanban({
               <span className="kcol-dot" aria-hidden="true" />
               <span className="kcol-name">{libelle(colonne.code, STATUTS_TACHE)}</span>
               <span className="kcol-n">{cartes.length}</span>
+              {surCreation ? (
+                <Button
+                  className="kcol-add"
+                  aria-label={t("kanban.creerDans", {
+                    colonne: libelle(colonne.code, STATUTS_TACHE),
+                  })}
+                  onPress={() => surCreation(colonne.code)}
+                >
+                  <span aria-hidden="true">+</span>
+                </Button>
+              ) : null}
             </div>
 
             <div className="kcol-body">
@@ -109,8 +140,15 @@ export function Kanban({
                   <Carte
                     key={tache.id}
                     tache={tache}
+                    colonne={libelle(colonne.code, STATUTS_TACHE)}
                     modifiable={modifiable}
                     surDeplacement={(statut) => deplacer.mutate({ tache, statut })}
+                    surDecalage={(pas) => {
+                      const ordre: string[] = STATUTS_TACHE.map((s) => s.code);
+                      const i = ordre.indexOf(tache.statut);
+                      const cible = ordre[i + pas];
+                      if (cible) deplacer.mutate({ tache, statut: cible });
+                    }}
                   />
                 ))
               )}
@@ -124,12 +162,17 @@ export function Kanban({
 
 function Carte({
   tache,
+  colonne,
   modifiable,
   surDeplacement,
+  surDecalage,
 }: {
   tache: api.LigneTache;
+  colonne: string;
   modifiable: boolean;
   surDeplacement: (statut: string) => void;
+  /** Alt + ← / → : −1 pour la colonne précédente, +1 pour la suivante. */
+  surDecalage: (pas: number) => void;
 }) {
   const { t } = useTranslation("taches");
   const libelle = useLibelle();
@@ -142,6 +185,27 @@ function Carte({
     <div
       className={`kcard${tache.enRetard ? " is-late" : ""}${saisie ? " is-dragging" : ""}`}
       draggable={modifiable}
+      /*
+       * La carte est un `article` focalisable, comme dans la maquette : c'est
+       * elle qui porte le raccourci Alt + ← / →, l'alternative clavier au
+       * glisser-déposer annoncée par l'indice de la barre d'outils (`C6`).
+       * Sans `tabIndex`, l'indice mentirait — aucun moyen de « sélectionner »
+       * la carte.
+       */
+      role="article"
+      tabIndex={0}
+      aria-label={`${tache.titre} — ${colonne}`}
+      onKeyDown={(e) => {
+        if (!e.altKey || !modifiable) return;
+        if (e.key === "ArrowRight") {
+          e.preventDefault();
+          surDecalage(1);
+        }
+        if (e.key === "ArrowLeft") {
+          e.preventDefault();
+          surDecalage(-1);
+        }
+      }}
       onDragStart={(e) => {
         e.dataTransfer.setData("text/plain", tache.id);
         setSaisie(true);

@@ -52,8 +52,16 @@ export function CadreProjet({
     { cle: "gantt", libelle: t("onglets.gantt"), chemin: "/projets/$id/gantt" },
   ];
 
+  /*
+   * PAS DE `.page` ICI. La coquille rend déjà `<main class="page">`, et les
+   * maquettes 11 à 15 n'en portent qu'un : `.main > .page > …`. Le second
+   * doublait les 24 px de marge intérieure, décalait la grille du kanban de
+   * 24 px vers la droite et faisait **déborder la page horizontalement** — la
+   * maquette tient à 1440 px au pixel près (266 + 5×226 + 4×11 = 1440), le
+   * produit sortait à 1464. Un débordement qu'aucune règle ne signalait.
+   */
   return (
-    <div className="page">
+    <>
       {/* `activeProps` neutralisé : le routeur ajoute sa propre classe `active`
           quand le lien correspond à l'adresse courante — et `/projets` la
           reçoit sur toute la lignée `/projets/$id`. Cette classe n'existe dans
@@ -114,6 +122,6 @@ export function CadreProjet({
       </nav>
 
       {children}
-    </div>
+    </>
   );
 }

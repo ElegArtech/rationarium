@@ -49,6 +49,22 @@ export const importerUtilisateurs = (contenu: string) =>
 export const importerCompetences = (contenu: string) =>
   appeler<CompteRendu>("/imports/competences", { methode: "POST", corps: { contenu } });
 
+/**
+ * L'import CSV des seules tâches d'un projet — vue 12, bouton « Importer CSV ».
+ *
+ * **La route serveur n'existe pas encore.** Le contrôleur M21 expose l'aperçu
+ * (`POST /imports/apercu?type=taches`, qui fonctionne : le modèle et l'analyse
+ * connaissent le type `taches`), l'import projet complet et les exports — mais
+ * aucun `POST /imports/projet/:id/taches`. Même situation, et même traitement,
+ * que `importerCompetences` : le manque est remonté au cadrage plutôt que
+ * comblé ici, un module serveur n'étant pas la sortie d'une tâche de vue.
+ */
+export const importerTaches = (projetId: string, contenu: string) =>
+  appeler<CompteRendu>(`/imports/projet/${projetId}/taches`, {
+    methode: "POST",
+    corps: { contenu },
+  });
+
 export const volumesRemplacement = (projetId: string) =>
   appeler<{ jalons: number; taches: number; sousTaches: number }>(
     `/imports/projet/${projetId}/volumes`,
