@@ -44,6 +44,7 @@ const CORRESPONDANCE: Record<string, string> = {
   categorieCompetence: "CategorieCompetence",
   niveauCompetence: "NiveauCompetence",
   typeTiers: "TypeTiers",
+  natureClient: "NatureClient",
   dureeTachePredefinie: "DureeTachePredefinie",
 };
 

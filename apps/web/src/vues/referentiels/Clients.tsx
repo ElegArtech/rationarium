@@ -141,7 +141,10 @@ function LigneClient({ client }: { client: api.Client }) {
 
   return (
     <div className={`cl-grid cl-row${client.actif ? "" : " is-off"}`}>
-      <div className="cl-ic">
+      {/* `is-ext` — un organisme EXTÉRIEUR se distingue d'une direction
+          interne au trait, pas au texte : c'est ce que fait la maquette 25
+          (`'cl-ic' + (c.nat === 'ext' ? ' is-ext' : '')`). */}
+      <div className={`cl-ic${client.nature === "external" ? " is-ext" : ""}`}>
         {/*
          * La maquette pose une icône SVG de bâtiment (`#p-cityhall`). Le jeu
          * de symboles porté ne contient que les icônes de navigation : on

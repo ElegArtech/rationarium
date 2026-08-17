@@ -169,6 +169,19 @@ export type NiveauCompetence = (typeof NIVEAUX_COMPETENCE)[number]["code"];
 
 // ── Tiers, activité récurrente, santé ───────────────────────────────────────
 
+/**
+ * Nature d'un bénéficiaire — `cadrage/02`, vue 25.
+ *
+ * Une direction de la collectivité ou un organisme extérieur. La distinction
+ * change la lecture du portefeuille : elle dit si le projet sert la maison ou
+ * un partenaire, et la maquette 25 la marque au trait (`is-ext`).
+ */
+export const NATURES_CLIENT = vocabulaire([
+  { code: "internal", fr: "Direction interne", en: "Internal division" },
+  { code: "external", fr: "Organisme extérieur", en: "External body" },
+]);
+export type NatureClient = (typeof NATURES_CLIENT)[number]["code"];
+
 export const TYPES_TIERS = vocabulaire([
   { code: "individual", fr: "Personne physique", en: "Individual" },
   { code: "organisation", fr: "Personne morale", en: "Organisation" },
@@ -251,6 +264,7 @@ export const VOCABULAIRES = {
   categorieCompetence: CATEGORIES_COMPETENCE,
   niveauCompetence: NIVEAUX_COMPETENCE,
   typeTiers: TYPES_TIERS,
+  natureClient: NATURES_CLIENT,
   dureeTachePredefinie: DUREES_TACHE_PREDEFINIE,
   typeRecurrence: TYPES_RECURRENCE,
   santeProjet: SANTES_PROJET,

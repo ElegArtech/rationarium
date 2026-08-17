@@ -124,6 +124,14 @@ enum TypeTiers {
   organisation
 }
 
+/// `cadrage/02`, vue 25 — un bénéficiaire est une direction de la collectivité
+/// ou un organisme extérieur. La distinction change la lecture du
+/// portefeuille : elle dit si le projet sert la maison ou un partenaire.
+enum NatureClient {
+  internal
+  external
+}
+
 enum DureeTachePredefinie {
   half_day
   full_day
@@ -237,6 +245,8 @@ model User {
   assignations         PredefinedTaskAssignment[]
   participations       EventParticipant[]
   saisiesTemps         TimeEntry[]
+  /// Les saisies que cette personne a POSÉES, y compris pour un tiers.
+  saisiesPosees        TimeEntry[] @relation("SaisiePar")
   competences          UserSkill[]
   todos                Todo[]
   notifications        Notification[]
@@ -845,6 +855,12 @@ model TimeEntry {
   project      Project?     @relation(fields: [projectId], references: [id], onDelete: SetNull)
   taskId       String?      @db.Uuid
   task         Task?        @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  /// QUI a déclaré, par opposition à POUR QUI. La table porte `userId` OU
+  /// `thirdPartyId`, jamais les deux : une saisie posée pour un tiers n'avait
+  /// donc aucun auteur, et n'apparaissait dans le journal de personne — de la
+  /// donnée en écriture seule. La vue 21 la montre (`te-actor`).
+  creeParId    String?      @db.Uuid
+  creePar      User?        @relation("SaisiePar", fields: [creeParId], references: [id], onDelete: SetNull)
   description  String?
 
   creeLe DateTime @default(now())
@@ -910,6 +926,9 @@ model ThirdParty {
   contactNom   String?
   contactEmail String?
   contactTelephone String?
+  /// La maquette 24 l'affiche en ligne d'informations. Le client la portait
+  /// déjà ; le tiers non, et la fiche montrait un champ que rien ne remplit.
+  adresse      String?
   notes        String?
   actif        Boolean   @default(true)
 
@@ -930,6 +949,10 @@ model ProjectThirdParty {
   project      Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
   thirdPartyId String     @db.Uuid
   thirdParty   ThirdParty @relation(fields: [thirdPartyId], references: [id], onDelete: Cascade)
+  /// Le rôle est celui du RATTACHEMENT, pas du tiers : le même prestataire
+  /// peut être « développement » sur un projet et « AMO » sur un autre. Le
+  /// porter sur le tiers le figerait — et la maquette 24 le montre par projet.
+  role         String?
 
   @@id([projectId, thirdPartyId])
   @@index([thirdPartyId])
@@ -952,6 +975,10 @@ model TaskThirdParty {
 model Client {
   id        String   @id @default(uuid()) @db.Uuid
   nom       String
+  /// `design/etats.json` déclare pour la vue 25 l'axe « Direction interne /
+  /// Organisme extérieur », avec ses deux pilotes. Le manifeste exigeait un
+  /// état que le modèle ne pouvait pas porter : `is-ext` était inatteignable.
+  nature    NatureClient @default(internal)
   contactNom String?
   contactEmail String?
   contactTelephone String?

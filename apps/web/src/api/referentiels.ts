@@ -86,6 +86,7 @@ export type Tiers = {
   contactNom: string | null;
   contactEmail: string | null;
   contactTelephone: string | null;
+  adresse: string | null;
   notes: string | null;
   /** `actif: false` est ce que le produit appelle « archivé ». */
   actif: boolean;
@@ -99,10 +100,13 @@ export type SaisieTiers = {
   heures: number;
   typeActivite: string;
   description: string | null;
+  /** QUI a déclaré, par opposition à POUR QUI. */
+  creePar: { id: string; prenom: string; nom: string } | null;
 };
 
 export type FicheTiers = Omit<Tiers, "_count"> & {
-  projets: { id: string; nom: string; statut: string; icone: string | null }[];
+  /** `role` est celui du RATTACHEMENT, pas du tiers. */
+  projets: { id: string; nom: string; statut: string; icone: string | null; role: string | null }[];
   taches: {
     id: string;
     titre: string;
@@ -130,6 +134,8 @@ export type Client = {
   adresse: string | null;
   notes: string | null;
   actif: boolean;
+  /** `internal` ou `external` — vue 25, l'axe de `design/etats.json`. */
+  nature: string;
   projets: { project: { id: string; nom: string } }[];
   _count: { projets: number };
 };

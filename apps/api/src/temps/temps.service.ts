@@ -102,6 +102,12 @@ export class TempsService {
         projectId: donnees.projectId ?? null,
         taskId: donnees.taskId ?? null,
         description: donnees.description ?? null,
+        /*
+         * L'auteur, toujours. C'est la seule information qui rattachait la
+         * saisie d'un tiers à quelqu'un : sans elle, elle n'apparaissait dans
+         * le journal de personne, pas même de celui qui l'avait posée.
+         */
+        creeParId: acteurId,
       },
     });
 
@@ -152,9 +158,29 @@ export class TempsService {
     clauses.push(
       surAutrui || permissions.has("time_tracking:readAll")
         ? this.perimetres.filtreParAgent(perimetre)
-        : { userId: perimetre.userId },
+        : {
+            /*
+             * `RG-TMP-05` — la vue personnelle montre ce que j'ai déclaré,
+             * pour moi OU pour un tiers. Le seul `userId` excluait mes saisies
+             * posées pour un prestataire, dont `userId` est nul par
+             * construction : elles étaient de la donnée EN ÉCRITURE SEULE,
+             * invisible dans le journal de celui-là même qui l'avait saisie.
+             */
+            OR: [{ userId: perimetre.userId }, { creeParId: perimetre.userId }],
+          },
     );
-    if (filtres.userId) clauses.push({ userId: filtres.userId });
+    /*
+     * Le journal d'une personne montre ce QU'ELLE A DÉCLARÉ, y compris pour un
+     * tiers. Le seul `userId` l'excluait : une saisie posée pour un
+     * prestataire a `userId` nul par construction — elle n'apparaissait donc
+     * dans le journal de personne, pas même de son auteur.
+     *
+     * Le filtre reprend la même disjonction que le périmètre par défaut,
+     * sinon les deux chemins diraient deux choses de la même question.
+     */
+    if (filtres.userId) {
+      clauses.push({ OR: [{ userId: filtres.userId }, { creeParId: filtres.userId }] });
+    }
     if (filtres.projectId) clauses.push({ projectId: filtres.projectId });
     if (filtres.debut) clauses.push({ date: { gte: filtres.debut } });
     if (filtres.fin) clauses.push({ date: { lte: filtres.fin } });
@@ -168,6 +194,8 @@ export class TempsService {
           task: { select: { id: true, titre: true } },
           user: { select: { id: true, prenom: true, nom: true } },
           thirdParty: { select: { id: true, organisation: true, contactNom: true } },
+          // QUI a déclaré, par opposition à POUR QUI (`te-actor`, maquette 21).
+          creePar: { select: { id: true, prenom: true, nom: true } },
         },
       }),
       this.plafondJournalier(),

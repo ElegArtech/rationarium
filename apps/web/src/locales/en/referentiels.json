@@ -183,7 +183,9 @@
     "tacheIndependante": "Standalone",
     "finLe": "End: {date}",
     "sansEcheance": "No due date",
-    "autresSaisies": "{n, plural, one {… and # more entry} other {… and # more entries}}"
+    "autresSaisies": "{n, plural, one {… and # more entry} other {… and # more entries}}",
+    "adresse": "Address",
+    "role": "Role"
   },
   "clients": {
     "surtitre": "Reference data",

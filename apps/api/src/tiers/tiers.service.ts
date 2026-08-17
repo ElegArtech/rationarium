@@ -292,6 +292,11 @@ export class TiersService {
     const tiers = await this.prisma.thirdParty.findUnique({
       where: { id },
       include: {
+        /*
+         * Le rôle vit sur le RATTACHEMENT, pas sur le tiers : le même
+         * prestataire peut être « développement » ici et « AMO » ailleurs.
+         * Il voyage donc avec le projet, jamais à côté.
+         */
         projets: { include: { project: { select: { id: true, nom: true, statut: true, icone: true } } } },
         taches: {
           include: {
@@ -322,12 +327,21 @@ export class TiersService {
       where: { thirdPartyId: id },
       orderBy: { date: "desc" },
       take: PLAFOND_SAISIES,
-      select: { id: true, date: true, heures: true, typeActivite: true, description: true },
+      select: {
+        id: true,
+        date: true,
+        heures: true,
+        typeActivite: true,
+        description: true,
+        // QUI a déclaré, par opposition à POUR QUI. Sans lui, une saisie posée
+        // pour un tiers n'apparaissait dans le journal de personne.
+        creePar: { select: { id: true, prenom: true, nom: true } },
+      },
     });
 
     return {
       ...tiers,
-      projets: tiers.projets.map((p) => p.project),
+      projets: tiers.projets.map((p) => ({ ...p.project, role: p.role })),
       taches: tiers.taches.map((t) => ({
         id: t.task.id,
         titre: t.task.titre,
