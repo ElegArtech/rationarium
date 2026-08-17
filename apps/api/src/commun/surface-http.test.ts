@@ -99,6 +99,17 @@ const PERSONNELLES_ATTENDUES = new Set([
   "NotificationsController.lister",
   "NotificationsController.marquerLue",
   "NotificationsController.toutMarquerLu",
+  /*
+   * `EX-AUTH-09` — son propre profil. Le catalogue des vingt-quatre domaines
+   * de `cadrage/01 § 3.2` n'en comporte pas pour « modifier son identité, sa
+   * langue, son thème » : inventer un domaine hors catalogue serait pire.
+   *
+   * La route est bornée à `d.userId` — jamais à un identifiant reçu du client.
+   * Une permission n'y ajouterait rien, et `@Public()` aurait menti : elle
+   * signifie « AVANT la session », or celle-ci en exige une. Ce test a refusé
+   * les deux erreurs successivement.
+   */
+  "AuthController.modifierProfil",
 ]);
 
 type Route = {
