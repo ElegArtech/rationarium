@@ -263,9 +263,17 @@ export const temps = (filtres: {
   debut?: string;
   fin?: string;
 }) =>
-  appeler<{ saisies: SaisieTemps[]; cumul: { entrees: number; heures: number } }>(
-    `/temps${params(filtres)}`,
-  );
+  appeler<{
+    saisies: SaisieTemps[];
+    cumul: {
+      entrees: number;
+      heures: number;
+      /** `RG-TMP-02` — le plafond journalier en vigueur. Il vient du serveur,
+       *  parce que c'est un paramètre d'administration : la vue n'en garde
+       *  aucune copie. */
+      plafondJournalier: number;
+    };
+  }>(`/temps${params(filtres)}`);
 
 export const saisirTemps = (donnees: {
   date: string;

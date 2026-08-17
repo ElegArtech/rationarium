@@ -159,22 +159,43 @@ export class TempsService {
     if (filtres.debut) clauses.push({ date: { gte: filtres.debut } });
     if (filtres.fin) clauses.push({ date: { lte: filtres.fin } });
 
-    const saisies = await this.prisma.timeEntry.findMany({
-      where: { AND: clauses },
-      orderBy: { date: "desc" },
-      include: {
-        project: { select: { id: true, nom: true } },
-        task: { select: { id: true, titre: true } },
-        user: { select: { id: true, prenom: true, nom: true } },
-        thirdParty: { select: { id: true, organisation: true, contactNom: true } },
-      },
-    });
+    const [saisies, plafondJournalier] = await Promise.all([
+      this.prisma.timeEntry.findMany({
+        where: { AND: clauses },
+        orderBy: { date: "desc" },
+        include: {
+          project: { select: { id: true, nom: true } },
+          task: { select: { id: true, titre: true } },
+          user: { select: { id: true, prenom: true, nom: true } },
+          thirdParty: { select: { id: true, organisation: true, contactNom: true } },
+        },
+      }),
+      this.plafondJournalier(),
+    ]);
 
     return {
       saisies,
       cumul: {
         entrees: saisies.length,
         heures: saisies.reduce((n, s) => n + Number(s.heures), 0),
+        /*
+         * **Le plafond voyage avec le cumul.**
+         *
+         * `cadrage/01 § parti-pris 3` — une limite fonctionnelle est un
+         * paramètre d'administration, jamais une valeur figée. Or il n'est pas
+         * exposé par `GET /parametrage`, qui ne rend que les réglages publics
+         * (« la table porte aussi des limites internes… qu'un écran de
+         * préférences n'a pas à exposer ») : la vue 21 en gardait donc une
+         * COPIE en dur, qui ne bougeait pas quand l'exploitant changeait le
+         * réglage. Le serveur refusait au-delà de 8 pendant que la vue traçait
+         * une jauge sur 12, sans jamais annoncer de dépassement.
+         *
+         * Le rendre ici n'expose rien de plus que ce que le refus de saisie
+         * annonce déjà (`RG-TMP-02` : « refusé avec le total constaté et le
+         * plafond »), et supprime la seule valeur métier écrite en dur côté
+         * client.
+         */
+        plafondJournalier,
       },
     };
   }

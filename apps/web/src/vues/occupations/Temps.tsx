@@ -35,11 +35,14 @@ import "./temps.css";
 /**
  * Le plafond journalier est un **paramètre serveur**
  * (`time_tracking.plafondJournalier`, `RG-TMP-02`), pas une constante de vue.
- * Il n'est lisible que par `settings:read` ; à défaut, la vue affiche la
- * valeur par défaut du produit et le contrôle reste, comme toujours, au
- * serveur. Question remontée : le plafond gagnerait à voyager avec le cumul.
+ *
+ * Il voyage désormais avec le cumul : la vue n'en garde plus de copie. La
+ * valeur ci-dessous ne sert qu'au premier rendu, avant la réponse — jamais à
+ * juger d'un dépassement, qui se lit sur le plafond reçu. Une copie en dur
+ * laissait la jauge tracer sur douze heures pendant que le serveur refusait
+ * au-delà de huit : le réglage s'enregistrait sans jamais s'appliquer.
  */
-const PLAFOND_PAR_DEFAUT = 12;
+const PLAFOND_AVANT_REPONSE = 12;
 
 /** Le mois d'une date ISO, en clé de traduction courte : `aout`, `sept`… */
 const ABREGES_JOURS = ["dim", "lun", "mar", "mer", "jeu", "ven", "sam"] as const;
@@ -105,6 +108,7 @@ export function Temps() {
 
   const total = [...heuresParJour.values()].reduce((n, h) => n + h, 0);
   const joursSaisis = heuresParJour.size;
+  const plafond = requete.data?.cumul.plafondJournalier ?? PLAFOND_AVANT_REPONSE;
 
   /**
    * Les jours ouvrés sans saisie, sur la période visible et **jusqu'à
@@ -258,7 +262,7 @@ export function Temps() {
               <p className="kpi-val">
                 {joursSaisis ? t("heures", { n: total / joursSaisis }) : "—"}
               </p>
-              <span className="kpi-sub">{t("temps.plafondParJour", { n: PLAFOND_PAR_DEFAUT })}</span>
+              <span className="kpi-sub">{t("temps.plafondParJour", { n: plafond })}</span>
             </div>
             <div className={`kpi${joursSansSaisie.length > 2 ? " is-alert" : ""}`}>
               <span className="eyebrow">{t("temps.joursSansSaisie")}</span>
@@ -330,7 +334,7 @@ export function Temps() {
             <div className="panel-head">
               <span className="panel-title">{t("temps.saisies")}</span>
               <span className="eyebrow">
-                {t("temps.groupeesParJour", { n: PLAFOND_PAR_DEFAUT })}
+                {t("temps.groupeesParJour", { n: plafond })}
               </span>
             </div>
 
@@ -350,7 +354,7 @@ export function Temps() {
                   key={jour}
                   jour={jour}
                   saisies={saisies.filter((s) => s.date.slice(0, 10) === jour)}
-                  plafond={PLAFOND_PAR_DEFAUT}
+                  plafond={plafond}
                   surSaisie={() => setSaisieOuverte(true)}
                 />
               ))
