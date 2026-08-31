@@ -586,3 +586,121 @@ test.describe("Vue 17 — modifier les dépendances", () => {
     await expect(page.getByRole("button", { name: "Modifier les dépendances" })).toHaveCount(0);
   });
 });
+
+/**
+ * **L-48** — trois capacités serveur que la fiche tâche n'atteignait pas.
+ *
+ * Les trois routes existent, gardées et testées côté serveur. La vue affichait
+ * les documents sans pouvoir en déposer, les commentaires sans pouvoir les
+ * corriger, et les tiers assignés sans pouvoir en assigner. Une capacité sans
+ * client ne fait échouer aucun contrôle : c'est ce que le lot L-39 mesure
+ * désormais, et ces trois-là en sortaient.
+ */
+test.describe("Vue 17 — trois gestes que la fiche n'offrait pas", () => {
+  const SESSION_DOC = {
+    ...SESSION_TACHES,
+    permissions: [
+      ...SESSION_TACHES.permissions,
+      "documents:create",
+      "documents:read",
+      "documents:download",
+      "comments:update",
+      "comments:delete",
+    ],
+  };
+
+  test("EX-DOC-01 — la zone de dépôt EST un champ de fichier, pas un paragraphe", async ({
+    page,
+  }) => {
+    let recu: Record<string, unknown> | null = null;
+    await serveur(page, {
+      session: SESSION_DOC,
+      reponses: { [`/api/taches/${FICHE.id}`]: { corps: FICHE } },
+    });
+    await page.route(
+      (url) => url.pathname === "/api/documents",
+      (route) => {
+        if (route.request().method() !== "POST") return route.fallback();
+        recu = route.request().postDataJSON() as Record<string, unknown>;
+        return route.fulfill({ status: 201, contentType: "application/json", body: '{"id":"d1"}' });
+      },
+    );
+    await page.goto(`/taches/${FICHE.id}`);
+
+    await page
+      .getByLabel("Déposez un fichier ici, ou cliquez pour parcourir.")
+      .setInputFiles({ name: "note.txt", mimeType: "text/plain", buffer: Buffer.from("bonjour") });
+
+    await expect.poll(() => recu).not.toBeNull();
+    expect(recu).toMatchObject({ nom: "note.txt", typeMime: "text/plain", taskId: FICHE.id });
+    // Le contenu part en base64 — c'est ce que la route attend.
+    expect(Buffer.from(String(recu!["contenuBase64"]), "base64").toString()).toBe("bonjour");
+  });
+
+  test("RG-GEN-06 — sans documents:create, la zone de dépôt n'est pas proposée", async ({
+    page,
+  }) => {
+    await serveur(page, {
+      session: SESSION_TACHES,
+      reponses: { [`/api/taches/${FICHE.id}`]: { corps: FICHE } },
+    });
+    await page.goto(`/taches/${FICHE.id}`);
+    await expect(
+      page.getByLabel("Déposez un fichier ici, ou cliquez pour parcourir."),
+    ).toHaveCount(0);
+  });
+
+  test("EX-DOC-04 — on modifie et supprime SES commentaires, pas ceux des autres", async ({
+    page,
+  }) => {
+    /*
+     * `RG-DOC-01` — « un utilisateur modifie et supprime ses propres
+     * contributions ». Le client masque par courtoisie ce que le serveur
+     * refuserait de toute façon : les commandes n'apparaissent que sur ses
+     * propres commentaires.
+     */
+    let patch: Record<string, unknown> | null = null;
+    const mien = { ...SESSION_DOC };
+    const fiche = {
+      ...FICHE,
+      commentaires: [
+        {
+          id: "c-moi",
+          contenu: "À moi",
+          creeLe: "2026-08-10T09:15:00.000Z",
+          auteur: { id: mien.id, prenom: "Camille", nom: "Roussel" },
+        },
+        {
+          id: "c-autre",
+          contenu: "À quelqu'un d'autre",
+          creeLe: "2026-08-10T10:00:00.000Z",
+          auteur: { id: "a1", prenom: "Driss", nom: "Amrani" },
+        },
+      ],
+    };
+
+    await serveur(page, { session: mien, reponses: { [`/api/taches/${FICHE.id}`]: { corps: fiche } } });
+    await page.route(
+      (url) => url.pathname.startsWith("/api/documents/commentaires/"),
+      (route) => {
+        if (route.request().method() !== "PATCH") return route.fallback();
+        patch = route.request().postDataJSON() as Record<string, unknown>;
+        return route.fulfill({ status: 200, contentType: "application/json", body: "{}" });
+      },
+    );
+    await page.goto(`/taches/${FICHE.id}`);
+
+    // Une seule paire de commandes, et elle est DANS le commentaire qui est le
+    // mien. Viser la page entière attraperait le « Modifier » de la fiche.
+    const actions = page.locator(".cmt-acts");
+    await expect(actions).toHaveCount(1);
+    await expect(actions.getByRole("button", { name: "Supprimer" })).toBeVisible();
+
+    await actions.getByRole("button", { name: "Modifier" }).click();
+    await page.getByLabel("Modifier", { exact: true }).fill("Corrigé");
+    await page.getByRole("button", { name: "Enregistrer", exact: true }).click();
+
+    await expect.poll(() => patch).not.toBeNull();
+    expect(patch).toMatchObject({ contenu: "Corrigé" });
+  });
+});

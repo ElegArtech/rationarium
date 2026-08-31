@@ -384,3 +384,28 @@ différemment.
 Cinq tests, dont le rejeu d'un fichier de jalons (`RG-IMP-04` : ignorés, pas
 dupliqués) et la cellule obligatoire vide distinguée de la colonne absente. Le retrait
 des deux routes fait rougir le test de sens inverse — vérifié.
+
+---
+
+## L-48 — La fiche tâche affichait sans permettre d'ajouter
+
+| Route | Ce qu'elle débloque |
+| --- | --- |
+| `POST /documents` | `EX-DOC-01`. La zone de dépôt était **un paragraphe** : ni champ de fichier, ni gestionnaire. On téléchargeait sans pouvoir déposer, et la moitié d'`EX-TSK-17` — « commenter **et** joindre » — n'était pas servie. |
+| `PATCH` et `DELETE /documents/commentaires/:id` | `EX-DOC-04`, `RG-DOC-01`. On commentait **sans pouvoir se corriger ni se rétracter**. La maquette 17 pose les deux commandes dans `.cmt-acts`, révélées au survol et seulement pour l'auteur. |
+
+### Décisions
+
+- **La zone de dépôt est un `<label>` qui enveloppe un `<input type="file">`**, et non un `<div>` avec un `onClick`. Le curseur et le focus clavier viennent du champ ; un div cliquable aurait été inatteignable au clavier, et `axe` ne l'aurait pas vu. Le champ est masqué par `position: absolute` et `opacity: 0`, **jamais** par `display: none` — qui le retirerait de l'ordre de tabulation.
+- **Le contenu part en base64**, ce que la route exige : cela lui permet de rester une route JSON comme les autres, sans multipart.
+- `RG-GEN-06` — sans `documents:create`, la zone **disparaît** au lieu de proposer un geste refusé. Testé.
+
+### Non fait, et pourquoi
+
+`POST /tiers/taches/:taskId/assigner` (`EX-TRS-02`, `RG-TRS-04`) **reste dans
+`SANS_CLIENT`**. La brancher demande une liste de tiers rattachés au projet parent —
+`RG-TRS-04` : « un tiers ne peut être assigné que s'il est rattaché à la tâche ou à son
+projet parent » — et **aucune route ne l'expose**. C'est le même manque que celui que
+L-45 a comblé pour les dépendances : le geste unitaire existe, la liste de candidats
+non. J'ai retiré le code client que j'avais préparé plutôt que de laisser une fonction
+morte ; la route reste déclarée « à brancher », ce qui est vrai.

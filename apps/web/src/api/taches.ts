@@ -259,6 +259,40 @@ export const attribuerRaci = (id: string, userId: string, role: string) =>
 export const retirerRaci = (id: string, userId: string, role: string) =>
   appeler<void>(`/taches/${id}/raci/${userId}/${role}`, { methode: "DELETE" });
 
+/**
+ * `EX-DOC-04`, `RG-DOC-01` — « un utilisateur modifie et supprime ses propres
+ * contributions ; agir sur celles d'autrui exige une permission dédiée. »
+ *
+ * Les deux routes existaient et **aucun écran ne les appelait** : on commentait
+ * sans pouvoir se corriger ni se rétracter. La maquette 17 pose pourtant les
+ * deux commandes dans `.cmt-acts`, révélées au survol et **seulement pour
+ * l'auteur** — c'est le client qui masque par courtoisie ; le refus
+ * `pas_son_contenu` reste au serveur.
+ */
+export const modifierCommentaire = (id: string, contenu: string) =>
+  appeler<void>(`/documents/commentaires/${id}`, { methode: "PATCH", corps: { contenu } });
+
+export const supprimerCommentaire = (id: string) =>
+  appeler<void>(`/documents/commentaires/${id}`, { methode: "DELETE" });
+
+/**
+ * `EX-DOC-01` — joindre un document à une tâche ou à un projet.
+ *
+ * `POST /documents` existait, gardée par `documents:create`, et la zone de dépôt
+ * de la fiche tâche était **purement décorative** : un paragraphe, sans champ de
+ * fichier ni gestionnaire. On téléchargeait sans pouvoir déposer.
+ *
+ * Le contenu voyage en base64 — le serveur l'exige, et c'est ce qui permet à la
+ * route de rester une route JSON comme les autres.
+ */
+export const televerserDocument = (donnees: {
+  nom: string;
+  contenuBase64: string;
+  typeMime: string;
+  taskId?: string;
+  projectId?: string;
+}) => appeler<{ id: string }>("/documents", { methode: "POST", corps: donnees });
+
 export const commenter = (taskId: string, contenu: string) =>
   appeler<{ id: string }>("/documents/commentaires", {
     methode: "POST",

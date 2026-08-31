@@ -162,7 +162,13 @@
     "enregistrerDependances": "Enregistrer les dépendances",
     "dependancesEnregistrees": "Dépendances enregistrées.",
     "echecDependances": "L'enregistrement des dépendances a échoué.",
-    "chargementCandidats": "Chargement des tâches…"
+    "chargementCandidats": "Chargement des tâches…",
+    "modifierCommentaire": "Modifier",
+    "supprimerCommentaire": "Supprimer",
+    "enregistrerCommentaire": "Enregistrer",
+    "documentDepose": "Document déposé.",
+    "echecDepot": "Le dépôt a échoué.",
+    "depotEnCours": "Dépôt en cours…"
   },
   "onglet": {
     "titre": "Tableau des tâches",

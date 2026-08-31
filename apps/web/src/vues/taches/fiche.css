@@ -443,7 +443,14 @@
 .side-dl dd {
   margin: 0;
 }
+/*
+ * La zone de dépôt est un `<label>` qui enveloppe un champ de fichier : le
+ * curseur et le focus clavier viennent du champ, l'apparence du label. Un
+ * `<div>` avec un `onClick` aurait été inatteignable au clavier.
+ */
 .doc-dz {
+  cursor: pointer;
+  display: block;
   margin: 12px 14px 14px;
   border: 1px dashed var(--line-strong);
   border-radius: var(--r);
@@ -574,4 +581,30 @@
 .recherche-dependances {
   width: 100%;
   margin-bottom: 11px;
+}
+
+/*
+ * Le champ de fichier natif est masqué SANS être retiré de l'ordre de
+ * tabulation : `display:none` le rendrait inatteignable au clavier, ce que
+ * `.doc-dz` existe précisément pour éviter.
+ */
+.champ-fichier {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  overflow: hidden;
+}
+
+.doc-dz:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* L'édition d'un commentaire, en place. */
+.cmt-edition {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 6px;
 }
