@@ -622,7 +622,7 @@
             "libelle": "Hugo"
           }
         ],
-        "note": "1 onglet, 4 onglets, 6 onglets."
+        "note": "1 onglet, 3 onglets, 6 onglets. Le sixième onglet de Hugo est « Soldes », que seul `leaves:manage_balances` ouvre : la maquette compte deux onglets de délégations là où la vue n'en rend qu'un, à deux listes. Arbitrage écrit dans `cadrage/02` § vue 19 le 2026-08-31."
       },
       {
         "axe": "Cas de la demande",
@@ -648,6 +648,32 @@
             "libelle": "Validation auto"
           }
         ]
+      },
+      {
+        "axe": "Onglet Soldes — portée de l'attribution",
+        "options": [
+          {
+            "pilote": "onglet « Soldes », bénéficiaire « Défaut global (tous les agents) »",
+            "libelle": "Défaut global"
+          },
+          {
+            "pilote": "onglet « Soldes », bénéficiaire = un agent qui a son allocation propre",
+            "libelle": "Allocation propre"
+          },
+          {
+            "pilote": "onglet « Soldes », bénéficiaire = un agent sans allocation propre",
+            "libelle": "Hérité du défaut global"
+          },
+          {
+            "pilote": "onglet « Soldes » sur une instance sans type de congé actif",
+            "libelle": "Aucun type actif (état vide)"
+          },
+          {
+            "pilote": "réponse 409 `allocation_modifiee` sur `PUT /conges/soldes`",
+            "libelle": "Allocation modifiée par quelqu'un d'autre"
+          }
+        ],
+        "note": "`RG-CNG-24` — l'allocation propre à l'agent surclasse le défaut global. L'écran doit DIRE laquelle des deux porte le chiffre affiché : les deux ne se corrigent pas au même endroit. Sans `leaves:manage_balances`, l'onglet n'apparaît pas."
       },
       {
         "axe": "Thème",

@@ -112,6 +112,9 @@ const SESSION_COMPLETE = {
     "leaves:approve",
     "leaves:readAll",
     "leaves:manage_types",
+    // `EX-CNG-10` — sans elle, le sixième onglet de la vue 19 n'existe pas, et
+    // `axe` ne verrait jamais l'écran d'attribution des soldes.
+    "leaves:manage_balances",
     "leaves:manage_delegations",
     "leaves:request_cancellation",
     "telework:read",
@@ -196,6 +199,20 @@ const VUES: {
   { nom: "17 — fiche tâche", chemin: `/taches/${FICHE.id}`, session: "valide" },
   { nom: "18 — événements", chemin: "/evenements", session: "valide" },
   { nom: "19 — congés", chemin: "/conges", session: "valide" },
+  /*
+   * La conformité relève la page AU REPOS : sans cette entrée, `axe` ne verrait
+   * jamais l'onglet « Soldes », qui n'est pas celui qui s'ouvre par défaut.
+   */
+  {
+    nom: "19 — congés, onglet soldes",
+    chemin: "/conges",
+    session: "valide",
+    apres: (page) =>
+      page
+        .getByRole("navigation", { name: "Sections des congés" })
+        .getByRole("link", { name: "Soldes" })
+        .click(),
+  },
   { nom: "20 — télétravail", chemin: "/teletravail", session: "valide" },
   { nom: "21 — temps passé", chemin: "/temps", session: "valide" },
   { nom: "22 — compétences (matrice)", chemin: "/competences", session: "valide" },

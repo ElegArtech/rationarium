@@ -221,7 +221,7 @@ describe("cadrage/01 § M18 — les six déclencheurs", () => {
     );
     await prisma.notification.deleteMany();
 
-    await conges.approuver(conge.id, validateur, new Set(["leaves:approve"]));
+    await conges.approuver(conge.id, validateur, new Set(["leaves:approve"]), conge.version);
 
     const recues = await notifsDe(agent);
     expect(recues.map((n) => n.type)).toEqual(["conge_decide"]);
@@ -238,7 +238,7 @@ describe("cadrage/01 § M18 — les six déclencheurs", () => {
     );
     await prisma.notification.deleteMany();
 
-    await conges.refuser(conge.id, "Effectif insuffisant sur la période", validateur);
+    await conges.refuser(conge.id, "Effectif insuffisant sur la période", validateur, conge.version);
 
     const recues = await notifsDe(agent);
     expect(recues[0]?.contenu).toContain("Effectif insuffisant sur la période");
@@ -255,7 +255,7 @@ describe("cadrage/01 § M18 — les six déclencheurs", () => {
     await prisma.notification.deleteMany();
 
     // L'agent s'approuve lui-même : `autoValide` vaut vrai.
-    await conges.approuver(conge.id, agent, new Set(["leaves:self_approve"]));
+    await conges.approuver(conge.id, agent, new Set(["leaves:self_approve"]), conge.version);
     expect(await notifsDe(agent)).toEqual([]);
   });
 
