@@ -534,10 +534,13 @@ describe("aucune route serveur sans appel client", () => {
 
   it("aucun écran n'appelle un point d'entrée qui n'existe pas", () => {
     // Le sens inverse : un chemin client sans route en face est un 404 que
-    // seule l'action de l'utilisateur révèle. Les deux restants sont documentés
-    // à leur point d'appel, dans `apps/web/src/api/imports.ts` ; ils sont
-    // l'objet de L-44. `POST /imports/competences` en est sorti en L-43, avec
-    // `POST /imports/conges` qui n'a jamais eu à y entrer.
+    // seule l'action de l'utilisateur révèle — ni le typage, ni les parcours,
+    // ni aucune autre boucle ne peut le voir.
+    //
+    // **La liste est vide, et elle doit le rester.** Elle en portait trois à
+    // l'ouverture de la vague 7 : `POST /imports/competences` en est sorti en
+    // L-43, `/projet/:id/taches` et `/projet/:id/jalons` en L-44. Un quatrième
+    // ferait rougir ce test, et c'est tout ce qu'on lui demande.
     const dansLeVide = appels
       .filter((a) => {
         const segments = a.segments;
@@ -545,10 +548,7 @@ describe("aucune route serveur sans appel client", () => {
         return !routes.some((r) => r.verbe === a.verbe && apparie(r.segments, segments));
       })
       .map((a) => `${a.verbe} ${a.brut}`);
-    expect([...new Set(dansLeVide)].sort()).toEqual([
-      "POST /imports/projet/*/jalons",
-      "POST /imports/projet/*/taches",
-    ]);
+    expect([...new Set(dansLeVide)].sort()).toEqual([]);
   });
 });
 

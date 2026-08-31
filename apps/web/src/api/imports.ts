@@ -61,14 +61,15 @@ export const importerConges = (contenu: string) =>
   appeler<CompteRendu>("/imports/conges", { methode: "POST", corps: { contenu } });
 
 /**
- * L'import CSV des seules tâches d'un projet — vue 12, bouton « Importer CSV ».
+ * `EX-TSK-18` — l'import CSV des seules tâches d'un projet, vue 12.
  *
- * **La route serveur n'existe pas encore.** Le contrôleur M21 expose l'aperçu
- * (`POST /imports/apercu?type=taches`, qui fonctionne : le modèle et l'analyse
- * connaissent le type `taches`), l'import projet complet et les exports — mais
- * aucun `POST /imports/projet/:id/taches`. Même situation, et même traitement,
- * que `importerCompetences` : le manque est remonté au cadrage plutôt que
- * comblé ici, un module serveur n'étant pas la sortie d'une tâche de vue.
+ * Cette fonction a vécu des mois en appelant une route qui n'existait pas : un
+ * **404 que seule l'action de l'utilisateur révélait**. Ni le typage, ni les
+ * parcours, ni aucune boucle ne peut voir un appel client sans route en face —
+ * c'est le test de sens inverse de `surface-http.test.ts` qui l'a trouvée.
+ *
+ * Un jalon nommé dans `milestoneName` est retrouvé en base, jamais créé : c'est
+ * ce qui distingue cet import de celui du projet entier.
  */
 export const importerTaches = (projetId: string, contenu: string) =>
   appeler<CompteRendu>(`/imports/projet/${projetId}/taches`, {
@@ -77,15 +78,13 @@ export const importerTaches = (projetId: string, contenu: string) =>
   });
 
 /**
- * L'import des jalons d'un projet — vue 13, action « Importer CSV ».
+ * `EX-JAL-06` — l'import des jalons d'un projet, vue 13.
  *
- * **La route serveur n'existe pas encore.** `cadrage/01 § M21` impose pourtant
- * l'objet « Jalons d'un projet » (`name*`, `description`, `dueDate*`), et le
- * contrôleur M21 en connaît déjà les deux extrémités : l'aperçu accepte le type
- * `jalons`, et `GET /imports/export/projet/:id/jalons` produit exactement ces
- * colonnes. Il manque l'exécution au milieu. Même situation, et même parti pris,
- * que `importerCompetences` : le manque est remonté au cadrage plutôt que
- * comblé ici.
+ * Même histoire que `importerTaches` : le contrôleur connaissait les deux
+ * extrémités — l'aperçu accepte le type `jalons`, et l'export produit
+ * exactement ces colonnes — et l'exécution manquait au milieu. Un jalon dont le
+ * nom existe déjà est **ignoré**, pas dupliqué : rejouer un fichier est un
+ * usage normal (`RG-IMP-04`).
  */
 export const importerJalons = (projetId: string, contenu: string) =>
   appeler<CompteRendu>(`/imports/projet/${projetId}/jalons`, {
