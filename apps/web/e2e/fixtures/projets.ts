@@ -56,6 +56,20 @@ export const SESSION = {
   motDePasseAChanger: false,
 };
 
+/**
+ * `EX-PRJ-13` — la session qui peut LIRE l'historique des instantanés.
+ *
+ * `reports:read` reste hors de `SESSION` à dessein : `SESSION_TABLEAU` en
+ * dérive (`fixtures/tableau.ts`), et son contrôle « sans reports:read, la
+ * capture n'est pas proposée » repose sur cette absence. L'ajouter au socle
+ * commun faisait tomber ce contrôle-là — une permission de plus dans un jeu
+ * d'essai partagé se paie deux fichiers plus loin.
+ */
+export const SESSION_RAPPORTS = {
+  ...SESSION,
+  permissions: [...SESSION.permissions, "reports:read"],
+};
+
 /** Une session en lecture seule : aucun bouton d'action ne doit apparaître. */
 export const SESSION_LECTURE = {
   ...SESSION,
@@ -88,6 +102,47 @@ export const PROJET = {
   clients: [{ id: "cl1", nom: "Direction de la relation citoyen" }],
   dernierInstantane: { date: "2026-08-11", progression: 61 },
 };
+
+/**
+ * `EX-PRJ-13` — l'historique des instantanés, **calqué sur la signature du
+ * service**, jamais sur ce que le client croit recevoir.
+ *
+ * `GET /projets/:id/instantanes` rend les lignes `ProjectSnapshot` telles
+ * quelles, du plus récent au plus ancien. `heuresConsommees` est une colonne
+ * `Decimal` : une CHAÎNE en JSON, comme `budgetHeures`. La lire comme un
+ * nombre marcherait à l'affichage et casserait à la première comparaison —
+ * c'est exactement le couple client/fixture que les vues 14 et 27 ont déjà
+ * payé deux fois.
+ */
+export const INSTANTANES = [
+  {
+    id: "sn3",
+    projectId: PROJET.id,
+    date: "2026-08-11",
+    progression: 61,
+    tachesTotal: 34,
+    tachesFinies: 19,
+    heuresConsommees: "744.00",
+  },
+  {
+    id: "sn2",
+    projectId: PROJET.id,
+    date: "2026-07-31",
+    progression: 48,
+    tachesTotal: 31,
+    tachesFinies: 12,
+    heuresConsommees: "602.50",
+  },
+  {
+    id: "sn1",
+    projectId: PROJET.id,
+    date: "2026-06-30",
+    progression: 22,
+    tachesTotal: 24,
+    tachesFinies: 5,
+    heuresConsommees: "310.00",
+  },
+];
 
 export const LIGNE_PROJET = {
   id: PROJET.id,

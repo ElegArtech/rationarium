@@ -422,6 +422,9 @@ Cette vue est **imprimée et affichée en salle de service** : la version imprim
 3. **Quatre indicateurs** — Progression · Tâches (« {n} en cours, {n} bloquées ») · Budget (« sur {total} h, {n} h restantes ») · Équipe (« {n} épopées, {n} jalons »).
 4. **Informations du projet** — Date de début · Date de fin · Budget heures · Créé le · Créé par. Valeurs absentes : « Non renseigné ».
 5. **Feuille de route** — aperçu des jalons.
+6. **Historique des instantanés** (`EX-PRJ-13`) — liste chronologique décroissante des relevés d'avancement : date du relevé, progression, tâches terminées sur total, heures consommées. Un relevé est capturé automatiquement chaque nuit (`RG-PRJ-09`) ; l'action « Capturer un instantané » de l'en-tête fige l'avancement du jour sans attendre.
+
+**Sélecteur d'icône** — La fenêtre « Modifier » est celle de la vue 10, sélecteur d'icône compris : l'icône se change après la création, elle ne se choisit pas une fois pour toutes.
 
 **Fenêtre de suppression** — Titre « Supprimer le projet » · « Êtes-vous sûr de vouloir supprimer définitivement le projet "{nom}" ? » · Encart d'avertissement : « Cette action est irréversible. Le projet et toutes ses données (tâches, jalons, membres) seront supprimés définitivement. » · Bouton « Supprimer définitivement ».
 
@@ -429,8 +432,11 @@ Cette vue est **imprimée et affichée en salle de service** : la version imprim
 - *Projet annulé* : bandeau « Ce projet est annulé. Utilisez le point de restauration dédié pour le réactiver. » — toute modification bloquée.
 - *Projet archivé* : bandeau, avec action « Désarchiver ».
 - *Suppression définitive impossible* : « Impossible de supprimer définitivement ce projet : des données historiques y sont rattachées. Archivez-le plutôt. »
+- *Aucun instantané* : « Aucun instantané pour ce projet » — avec sa sortie : le relevé nocturne remplira la liste, et l'action d'en-tête n'attend pas la nuit.
 
 **Attention** — Trois états d'existence coexistent (actif, annulé, archivé) et doivent être visuellement immédiats. La progression et le budget consommé sont **calculés**, jamais saisis : ne pas suggérer qu'ils sont modifiables.
+
+**Arbitrage — où vit l'historique des instantanés.** Le cadrage était muet ; deux hôtes se défendaient. L'onglet Gantt (vue 15) répond à « **quand** » : il place des tâches dans le temps et n'a aucune commande de capture. La vue d'ensemble répond à « **où en est-on** », porte déjà l'action « Capturer un instantané » et l'indicateur « Dernier instantané » — qui n'en montrait qu'un seul point. L'historique est donc rendu ici, **sous la commande qui le produit** : capturer et voir la ligne apparaître est ce qui prouve que le produit écrit ce qu'il dit écrire. Décidé à l'implémentation, vague 7-5.
 
 ---
 

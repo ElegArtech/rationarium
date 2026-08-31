@@ -1,6 +1,6 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from "@nestjs/common";
 import { z } from "zod";
-import { enumDe, STATUTS_PROJET, PRIORITES } from "@rationarium/contracts";
+import { enumDe, iconeProjetSchema, STATUTS_PROJET, PRIORITES } from "@rationarium/contracts";
 import { ProjetsService } from "./projets.service.js";
 import { Demande, RequiertPermission, type ContexteDemande } from "../commun/permissions.garde.js";
 import { valider, dateSchema } from "../commun/http.js";
@@ -61,14 +61,18 @@ export class ProjetsController {
         dateDebut: dateSchema,
         dateFin: dateSchema,
         budgetHeures: z.number().min(0).optional(),
-        icone: z.string().max(20).optional(),
+        /* `EX-PRJ-04` — la bibliothèque est un vocabulaire FERMÉ. Une chaîne
+           libre produisait une pastille vide que rien ne signalait. */
+        icone: iconeProjetSchema.optional(),
         chefId: z.uuid().nullish(),
         sponsorId: z.uuid().nullish(),
         departementId: z.uuid().nullish(),
       }),
       corps,
     );
-    return this.projets.creer(donnees, d.userId);
+    /* `RG-SCOPE-02` — `chefId` et `sponsorId` sont gouvernés à la création
+       comme à la modification : le service les confronte à `d.permissions`. */
+    return this.projets.creer(donnees, d.userId, d.permissions);
   }
 
   /**
@@ -95,7 +99,9 @@ export class ProjetsController {
         dateDebut: dateSchema.optional(),
         dateFin: dateSchema.optional(),
         budgetHeures: z.number().min(0).nullish(),
-        icone: z.string().max(20).nullish(),
+        /* `EX-PRJ-04` — même vocabulaire fermé à la modification. `nullish`
+           laisse retirer l'icône ; il ne laisse pas en inventer une. */
+        icone: iconeProjetSchema.nullish(),
         chefId: z.uuid().nullish(),
         sponsorId: z.uuid().nullish(),
         departementId: z.uuid().nullish(),
@@ -292,5 +298,26 @@ export class ProjetsController {
   instantane(@Param("id") id: string, @Body() corps: unknown) {
     const { date } = valider(z.object({ date: dateSchema }), corps);
     return this.projets.capturerInstantane(id, date);
+  }
+
+  /**
+   * `EX-PRJ-13` — **consulter** l'historique des instantanés.
+   *
+   * L'exigence porte deux verbes, et seul « capturer » était servi : la seule
+   * lecture d'instantanés du produit était `tendance()`, privée aux rapports,
+   * qui moyenne `date` et `progression` sur un LOT de projets et jette
+   * `tachesTotal`, `tachesFinies` et `heuresConsommees`. Un projet écrivait
+   * donc un historique que personne ne pouvait relire.
+   *
+   * Permission **puis** périmètre, dans cet ordre : `reports:read` est celle de
+   * la capture — le client masque sur celle-là (`RG-GEN-06`) —, et le service
+   * confronte ensuite le projet au prédicat de `RG-SCOPE-02`. Une lecture par
+   * `findMany({ where: { projectId } })` aurait rendu l'historique d'un projet
+   * hors périmètre à qui en devine l'identifiant.
+   */
+  @Get(":id/instantanes")
+  @RequiertPermission("reports:read")
+  instantanes(@Param("id") id: string, @Demande() d: ContexteDemande) {
+    return this.projets.instantanes(id, d.perimetre, d.permissions);
   }
 }

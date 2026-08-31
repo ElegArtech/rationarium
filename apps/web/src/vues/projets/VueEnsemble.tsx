@@ -43,6 +43,22 @@ export function VueEnsemble({ projetId }: { projetId: string }) {
     queryKey: ["projet", projetId, "route"],
     queryFn: () => api.feuilleDeRoute(projetId),
   });
+  /*
+   * `EX-PRJ-13` — l'historique des instantanés.
+   *
+   * Il se lit ICI, sous la commande qui les produit et sous l'indicateur
+   * « Dernier instantané » qui n'en montrait qu'un. Le raccord entre la
+   * lecture et l'écriture est le sujet : capturer puis voir la ligne
+   * apparaître est ce qui prouve que le produit écrit ce qu'il dit écrire.
+   *
+   * `reports:read` est la permission de la route ; le client masque sur
+   * celle-là, pas sur une plus stricte choisie ici (`RG-GEN-06`).
+   */
+  const historique = useQuery({
+    queryKey: ["projet", projetId, "instantanes"],
+    queryFn: () => api.instantanes(projetId),
+    enabled: peut("reports:read"),
+  });
 
   const cycleDeVie = useMutation({
     mutationFn: (geste: "archiver" | "desarchiver" | "restaurer" | "annuler") =>
@@ -88,6 +104,10 @@ export function VueEnsemble({ projetId }: { projetId: string }) {
         }),
       );
       void client.invalidateQueries({ queryKey: ["projet", projetId] });
+      // L'historique juste en dessous doit MONTRER la ligne qu'on vient
+      // d'écrire : sans cette invalidation, la capture se dirait faite au-
+      // dessus d'un tableau qui ne la porte pas.
+      void client.invalidateQueries({ queryKey: ["projet", projetId, "instantanes"] });
     },
     onError: (e) => annoncer("err", messageErreur(e, tErreurs, t("fiche.echecInstantane"))),
   });
@@ -332,6 +352,117 @@ export function VueEnsemble({ projetId }: { projetId: string }) {
         </section>
       </div>
 
+      {/*
+        `EX-PRJ-13` — **consulter l'historique des instantanés.**
+
+        L'exigence porte deux verbes ; seul « capturer » était servi. La fiche
+        ne montrait que `dernierInstantane` — un point sur une courbe —, et la
+        tendance des rapports moyenne `progression` par date sur un LOT de
+        projets, en jetant les tâches et les heures. Un projet écrivait donc un
+        historique que personne ne pouvait relire.
+
+        Il est ici, sous la commande qui le produit, et non dans l'onglet
+        Gantt : le Gantt répond à « quand », l'historique à « où en étions-nous
+        le 12 mars ». Décision portée dans `cadrage/02`, vue 11.
+      */}
+      {peut("reports:read") ? (
+        <section className="panel">
+          <div className="panel-head">
+            <span className="panel-title">{t("fiche.historiqueInstantanes")}</span>
+            {historique.data && historique.data.length > 0 ? (
+              <span className="eyebrow">
+                {t("fiche.instantanesCompte", { n: historique.data.length })}
+              </span>
+            ) : null}
+          </div>
+          <div className="panel-body is-flush">
+            {historique.isPending ? (
+              <div className="panel-body">
+                <Chargement quoi={t("fiche.lHistorique")} />
+              </div>
+            ) : null}
+            {historique.isError ? (
+              <div className="panel-body">
+                <ErreurDeChargement
+                  erreur={historique.error}
+                  surReessai={() => void historique.refetch()}
+                />
+              </div>
+            ) : null}
+            {historique.data ? (
+              historique.data.length > 0 ? (
+                <>
+                  {/* Le motif de liste tabulaire du produit — celui du journal
+                      d'audit (vue 33) : un en-tête en grille, des lignes de
+                      même grille. Un `<table>` réintroduirait une seconde
+                      manière d'aligner des colonnes. */}
+                  <div className="snap-grid snap-head">
+                    <span>{t("fiche.instantaneDate")}</span>
+                    <span>{t("fiche.progression")}</span>
+                    <span>{t("onglets.taches")}</span>
+                    <span>{t("fiche.budgetConsomme")}</span>
+                  </div>
+                  {/* Le cadre défile : sans `tabIndex` ni nom, `axe` le refuse
+                      en « serious » (`scrollable-region-focusable`) — rien
+                      dedans ne prend le focus, donc rien ne l'atteint au
+                      clavier. */}
+                  <div
+                    className="snap-liste"
+                    role="region"
+                    aria-label={t("fiche.historiqueInstantanes")}
+                    tabIndex={0}
+                  >
+                    {historique.data.map((i) => (
+                      <div key={i.id} className="snap-grid snap-row">
+                        {/* La date est la clé de la ligne : `(projet, date)`
+                            est unique en base, une seconde capture le même
+                            jour rafraîchit celle-ci. */}
+                        <span className="snap-date">{formaterDate(i.date)}</span>
+                        <span className="snap-prog">
+                          <Barre
+                            valeur={i.progression}
+                            libelle={t("fiche.progressionAu", {
+                              date: formaterDate(i.date),
+                            })}
+                            classe="bar snap-bar"
+                          />
+                          <span className="prow-pct">{i.progression} %</span>
+                        </span>
+                        {/* « finies sur total », pas un pourcentage : c'est ce
+                            qui distingue une progression qui monte parce qu'on
+                            a fini des tâches d'une qui monte parce qu'on en a
+                            supprimé. */}
+                        <span className="snap-taches">
+                          {t("fiche.tachesFiniesSur", {
+                            finies: i.tachesFinies,
+                            total: i.tachesTotal,
+                          })}
+                        </span>
+                        <span className="snap-heures">
+                          {t("heures", { n: Number(i.heuresConsommees) })}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                /*
+                  `RG-GEN-04` — l'état vide dit sa sortie. Deux sorties, en
+                  fait : la capture nocturne remplira ce tableau toute seule, et
+                  la commande d'en-tête n'attend pas la nuit.
+                */
+                <div className="panel-body">
+                  <div className="empty">
+                    <p>{t("fiche.historiqueVide")}</p>
+                    <small>{t("fiche.historiqueVideExplication")}</small>
+                  </div>
+                </div>
+              )
+            ) : null}
+          </div>
+        </section>
+      ) : null}
+
       <FenetreCreation
         ouverte={editionOuverte}
         existant={{
@@ -343,6 +474,10 @@ export function VueEnsemble({ projetId }: { projetId: string }) {
           dateDebut: projet.dateDebut,
           dateFin: projet.dateFin,
           budgetHeures: projet.budgetHeures === null ? null : Number(projet.budgetHeures),
+          /* `EX-PRJ-04` — l'exigence dit « choisir », pas « choisir une fois » :
+             sans cette ligne la fenêtre rouvrirait sur « Aucune icône » et
+             l'enregistrement effacerait celle du projet. */
+          icone: projet.icone,
           version: projet.version,
         }}
         surFermeture={() => setEditionOuverte(false)}
