@@ -147,7 +147,6 @@
     "estimation": "Estimation",
     "telecharger": "Télécharger",
     "heuresEtSaisies": "{heures, number} h · {n, plural, one {# saisie} other {# saisies}}",
-    "modifierIndisponible": "Le formulaire complet de modification n'est pas encore porté ; le titre, le statut et l'avancement s'éditent directement sur la fiche.",
     "dependanceMasquee": "Tâche non visible",
     "assignesEnregistres": "Assignés enregistrés.",
     "echecAssignes": "L'enregistrement des assignés a échoué.",
@@ -197,7 +196,18 @@
     "echecAssignationTiers": "L'assignation a échoué.",
     "lesTiers": "les tiers",
     "aucunTiersDuProjet": "Aucun tiers rattaché à ce projet n'est encore assignable. Rattachez-en un au projet d'abord.",
-    "aucunTiers": "Aucun tiers actif n'est encore assignable à cette tâche."
+    "aucunTiers": "Aucun tiers actif n'est encore assignable à cette tâche.",
+    "categorie": "Tâche",
+    "modifierTitre": "Modifier la tâche",
+    "modifiee": "Tâche modifiée.",
+    "priorite": "Priorité",
+    "dateDebut": "Date de début",
+    "dateFin": "Date de fin",
+    "datesInversees": "La date de fin précède la date de début.",
+    "jalon": "Jalon",
+    "aucunJalon": "Aucun jalon",
+    "jalonDuProjet": "Seuls les jalons de ce projet sont proposés.",
+    "confidentielleAide": "Une tâche confidentielle n'est lisible qu'avec la permission dédiée — y être assigné ne suffit pas."
   },
   "onglet": {
     "titre": "Tableau des tâches",
@@ -208,5 +218,6 @@
   },
   "ext": "EXT",
   "interventionExterieure": "Intervention extérieure",
-  "pourcent": "{n, number} %"
+  "pourcent": "{n, number} %",
+  "enregistrer": "Enregistrer"
 }

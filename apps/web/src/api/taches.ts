@@ -150,6 +150,13 @@ export const modifier = (
     projectId?: string | null;
     milestoneId?: string | null;
     epicId?: string | null;
+    /**
+     * `RG-SCOPE-04` — la confidentialité se change APRÈS COUP. Le serveur
+     * l'accepte depuis L-38 ; le client ne l'envoyait pas, donc une tâche
+     * marquée par erreur restait invisible pour toujours à qui n'a pas la
+     * permission de lecture confidentielle.
+     */
+    confidentielle?: boolean;
   },
 ) => appeler<{ version: number }>(`/taches/${id}`, { methode: "PATCH", corps: donnees });
 

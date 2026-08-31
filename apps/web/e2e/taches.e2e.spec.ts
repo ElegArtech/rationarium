@@ -1339,3 +1339,154 @@ test.describe("Vue 17 — les horaires et le rattachement, à l'écran", () => {
     await expect(page.getByLabel("Écrire un commentaire…")).toHaveCount(0);
   });
 });
+
+/**
+ * `EX-TSK-07` — le formulaire complet de modification d'une tâche.
+ *
+ * Le bouton « Modifier » a vécu plusieurs lots **désactivé**, derrière un
+ * motif qui disait vrai — `PATCH /taches/:id` existe, c'est le formulaire qui
+ * manquait — et qui n'en laissait pas moins quatre champs joignables par aucun
+ * chemin : les dates, l'estimation, le jalon et la confidentialité.
+ */
+test.describe("Vue 17 — le formulaire complet de modification", () => {
+  const ROUTE_JALONS = {
+    jalons: [
+      { id: "j1", nom: "Cadrage", description: null, dateEcheance: "2026-04-30", statut: "done", version: 1, taches: [] },
+      { id: "j2", nom: "Recette fonctionnelle", description: null, dateEcheance: "2026-11-28", statut: "doing", version: 1, taches: [] },
+    ],
+    sansJalon: [],
+    indicateurs: { total: 2, termines: 1, enCours: 1, taches: 0, sansJalon: 0 },
+  };
+
+  const reponses = {
+    [`/api/taches/${FICHE.id}`]: { corps: FICHE },
+    "/feuille-de-route": { corps: ROUTE_JALONS },
+    "/api/projets": { corps: { projets: [{ id: PROJET.id, nom: PROJET.nom }], affiches: 1, total: 1 } },
+  };
+
+  async function journal(page: Page) {
+    const envois: Record<string, unknown>[] = [];
+    await page.route(
+      (url) => /^\/api\/taches\/[0-9a-f-]+$/.test(url.pathname),
+      (route) => {
+        if (route.request().method() !== "PATCH") return route.fallback();
+        envois.push(route.request().postDataJSON() as Record<string, unknown>);
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ version: FICHE.version + 1 }),
+        });
+      },
+    );
+    return envois;
+  }
+
+  async function ouvrir(page: Page) {
+    await page.goto(`/taches/${FICHE.id}`);
+    await page.getByRole("button", { name: "Modifier", exact: true }).click();
+    await expect(page.getByRole("dialog", { name: "Modifier la tâche" })).toBeVisible();
+  }
+
+  test("EX-TSK-07 — le bouton « Modifier » OUVRE le formulaire, il n'est plus inerte", async ({
+    page,
+  }) => {
+    await serveur(page, { session: SESSION_TACHES, reponses });
+    await ouvrir(page);
+
+    // Les quatre champs qui n'étaient joignables par aucun chemin.
+    await expect(page.getByLabel("Date de début")).toHaveValue("2026-03-02");
+    await expect(page.getByLabel("Date de fin")).toHaveValue("2026-11-30");
+    await expect(page.getByLabel("Estimation", { exact: true })).toHaveValue("14");
+    await expect(page.getByLabel("Confidentielle", { exact: true })).not.toBeChecked();
+  });
+
+  test("EX-TSK-07 — enregistrer transmet les quatre champs ET la version lue", async ({ page }) => {
+    await serveur(page, { session: SESSION_TACHES, reponses });
+    const envois = await journal(page);
+    await ouvrir(page);
+
+    await page.getByLabel("Date de fin").fill("2026-12-15");
+    await page.getByLabel("Estimation", { exact: true }).fill("20");
+    await page.getByRole("button", { name: "Enregistrer" }).click();
+
+    await expect.poll(() => envois.length).toBe(1);
+    expect(envois[0]).toMatchObject({
+      version: FICHE.version,
+      dateFin: "2026-12-15",
+      estimationHeures: 20,
+    });
+  });
+
+  test("RG-SCOPE-04 — la confidentialité se change APRÈS COUP", async ({ page }) => {
+    /*
+     * Le serveur l'accepte depuis L-38 ; le client ne l'envoyait pas. Une
+     * tâche marquée par erreur restait donc invisible pour toujours à qui n'a
+     * pas la permission de lecture confidentielle — y compris à celui qui
+     * l'avait marquée.
+     */
+    await serveur(page, { session: SESSION_TACHES, reponses });
+    const envois = await journal(page);
+    await ouvrir(page);
+
+    await page.getByLabel("Confidentielle", { exact: true }).check();
+    await page.getByRole("button", { name: "Enregistrer" }).click();
+
+    await expect.poll(() => envois.length).toBe(1);
+    expect(envois[0]).toMatchObject({ confidentielle: true });
+  });
+
+  test("RG-JAL-03 — le sélecteur ne propose que les jalons DU PROJET de la tâche", async ({
+    page,
+  }) => {
+    await serveur(page, { session: SESSION_TACHES, reponses });
+    const envois = await journal(page);
+    await ouvrir(page);
+
+    const jalon = page.getByLabel("Jalon", { exact: true });
+    await expect(jalon).toHaveValue("j2");
+    await expect(jalon.locator("option[value='j1']")).toHaveCount(1);
+
+    await jalon.selectOption("j1");
+    await page.getByRole("button", { name: "Enregistrer" }).click();
+    await expect.poll(() => envois.length).toBe(1);
+    expect(envois[0]).toMatchObject({ milestoneId: "j1" });
+  });
+
+  test("EX-TSK-07 — une date de fin AVANT le début est refusée sans aller-retour", async ({
+    page,
+  }) => {
+    await serveur(page, { session: SESSION_TACHES, reponses });
+    const envois = await journal(page);
+    await ouvrir(page);
+
+    await page.getByLabel("Date de fin").fill("2026-01-01");
+    await page.getByRole("button", { name: "Enregistrer" }).click();
+
+    await expect(page.getByText("La date de fin précède la date de début.")).toBeVisible();
+    expect(envois).toHaveLength(0);
+  });
+
+  test("EX-TSK-07 — vider l'estimation la RETIRE, elle ne vaut pas zéro", async ({ page }) => {
+    /*
+     * `Number("")` vaut zéro : le filtre porte sur la chaîne. Une estimation
+     * vidée qui repartirait à `0` dirait « cette tâche ne coûte rien », ce qui
+     * n'est pas « on ne sait pas ».
+     */
+    await serveur(page, { session: SESSION_TACHES, reponses });
+    const envois = await journal(page);
+    await ouvrir(page);
+
+    await page.getByLabel("Estimation", { exact: true }).fill("");
+    await page.getByRole("button", { name: "Enregistrer" }).click();
+
+    await expect.poll(() => envois.length).toBe(1);
+    expect(envois[0]).toMatchObject({ estimationHeures: null });
+  });
+
+  test("RG-GEN-06 — sans tasks:update, « Modifier » n'est pas proposé", async ({ page }) => {
+    await serveur(page, { session: SESSION_LECTURE, reponses });
+    await page.goto(`/taches/${FICHE.id}`);
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Modifier", exact: true })).toHaveCount(0);
+  });
+});
