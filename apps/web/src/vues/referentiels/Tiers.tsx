@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { Button } from "react-aria-components";
-import { TYPES_TIERS, STATUTS_PROJET, STATUTS_TACHE, TYPES_ACTIVITE } from "@trame/contracts";
+import { TYPES_TIERS, STATUTS_PROJET, STATUTS_TACHE, TYPES_ACTIVITE } from "@rationarium/contracts";
 import * as api from "../../api/referentiels.js";
 import { messageErreur } from "../../api/erreurs.js";
 import { usePeut } from "../../session/session.js";
@@ -440,7 +440,7 @@ export function FicheTiers({ tiersId }: { tiersId: string }) {
             <div>
               {tiers.projets.map((p) => (
                 <Link to="/projets/$id" params={{ id: p.id }} className="lnk-row" key={p.id}>
-                  {/* Le jeu `p-*` existe désormais (`@trame/contracts`) : la
+                  {/* Le jeu `p-*` existe désormais (`@rationarium/contracts`) : la
                       pastille rend le SYMBOLE du projet, pas son code. */}
                   <IconeProjet icone={p.icone} nom={p.nom} />
                   <span style={{ minWidth: 0 }}>

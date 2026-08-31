@@ -2,7 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma.service.js";
 import { AuditService } from "../commun/audit.service.js";
 import { PerimetreService, type Perimetre } from "../commun/perimetre.service.js";
-import type { EtatTeletravail } from "@trame/contracts";
+import type { EtatTeletravail } from "@rationarium/contracts";
 
 /**
  * Télétravail — M11, vue 20.

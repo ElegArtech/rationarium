@@ -1,5 +1,5 @@
 /**
- * @trame/db — schéma, migrations et client typé.
+ * @rationarium/db — schéma, migrations et client typé.
  *
  * Le client est engendré par Prisma dans `src/generated` (non versionné,
  * reproductible par `pnpm db:generate`). Ce module le réexporte pour que le

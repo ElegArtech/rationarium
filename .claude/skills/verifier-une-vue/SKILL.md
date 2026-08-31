@@ -1,16 +1,18 @@
 ---
-description: Contrôle une vue portée contre sa maquette gelée, état par état, et rend un tableau de conformité.
+description: Contrôle la finition d'une vue portée, état par état, et rend un tableau de jugement. La maquette sert d'intention, plus de verdict.
 argument-hint: "[NN]"
 ---
 
 # Vérifier la vue $0
 
-## Étage 1 — mécanique, bloquant
+## Étage 1 — mécanique
 
 ```bash
-pnpm ui:diff $0
-pnpm a11y -- $0
+pnpm a11y -- $0     # bloquant : aucune violation, dans les deux thèmes
+pnpm ui:diff $0     # relevé, NON bloquant depuis le dégel du 2026-08-31
 ```
+
+`ui:diff` ne prononce plus. Sa sortie se lit ligne à ligne : chaque écart est soit un défaut à corriger, soit une évolution assumée du produit — et c'est toi qui tranches, en le disant.
 
 Ce qui est contrôlé, et pourquoi seulement cela : les textes contractuels, les jetons employés, les repères d'accessibilité, le débordement. Une comparaison au pixel contre la maquette produirait un flot de faux positifs — polices, lissage, données d'exemple, barres de défilement.
 

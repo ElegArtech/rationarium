@@ -9,7 +9,7 @@ import { memo } from "react";
  *
  * Le produit rangeait jusqu'ici un CARACTÈRE dans `icone` et l'affichait tel
  * quel à 8 px : la pastille montrait une lettre là où la maquette dessine un
- * symbole. Le vocabulaire vit dans `@trame/contracts` ; les tracés vivent ici.
+ * symbole. Le vocabulaire vit dans `@rationarium/contracts` ; les tracés vivent ici.
  */
 export const BibliothequeIconesProjet = memo(function BibliothequeIconesProjet() {
   return (

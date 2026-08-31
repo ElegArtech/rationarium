@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ════════════════════════════════════════════════════════════════════════════
-# Sauvegarde de Trame — L-29.
+# Sauvegarde de Rationarium — L-29.
 #
 # Une sauvegarde qu'on n'a jamais restaurée n'est pas une sauvegarde : c'est une
 # intention. Le cycle complet est rejoué par
@@ -22,7 +22,7 @@
 #   ./sauvegarde.sh                 # dans le répertoire deploiement/, avec .env
 #
 # Depuis cron, une fois par nuit :
-#   30 2 * * * cd /opt/trame/deploiement && ./sauvegarde.sh >> /var/log/trame-sauvegarde.log 2>&1
+#   30 2 * * * cd /opt/rationarium/deploiement && ./sauvegarde.sh >> /var/log/rationarium-sauvegarde.log 2>&1
 # ════════════════════════════════════════════════════════════════════════════
 
 set -euo pipefail
@@ -37,16 +37,16 @@ if [ -f .env ]; then
   set +a
 fi
 
-destination="${TRAME_SAUVEGARDES:-/var/sauvegardes/trame}"
-retention="${TRAME_RETENTION:-30}"
-base="${POSTGRES_BASE:-trame}"
+destination="${RATIONARIUM_SAUVEGARDES:-/var/sauvegardes/rationarium}"
+retention="${RATIONARIUM_RETENTION:-30}"
+base="${POSTGRES_BASE:-rationarium}"
 utilisateur="${POSTGRES_UTILISATEUR:?POSTGRES_UTILISATEUR manquant}"
 horodatage="$(date -u +%Y%m%dT%H%M%SZ)"
 
 mkdir -p "$destination"
 
-archive="$destination/trame-$horodatage.dump"
-roles="$destination/trame-$horodatage.roles.sql"
+archive="$destination/rationarium-$horodatage.dump"
+roles="$destination/rationarium-$horodatage.roles.sql"
 
 echo "── sauvegarde $horodatage ──"
 
@@ -60,16 +60,16 @@ echo "── sauvegarde $horodatage ──"
 # loup, et un contrôle auquel on ne croit plus ne sert à rien.
 docker compose exec -T base \
   pg_dump --username "$utilisateur" --dbname "$base" --format=custom --compress=9 \
-  --file=/tmp/trame-sauvegarde.dump
+  --file=/tmp/rationarium-sauvegarde.dump
 
 # 2. La relecture immédiate, à la source. `--list` échoue sur une archive
 #    tronquée ou corrompue, ce qui est le mode de défaillance le plus courant :
 #    un disque plein rend un fichier de taille plausible.
-entrees="$(docker compose exec -T base pg_restore --list /tmp/trame-sauvegarde.dump | grep -c ';' || true)"
+entrees="$(docker compose exec -T base pg_restore --list /tmp/rationarium-sauvegarde.dump | grep -c ';' || true)"
 
 # 3. La sortie du conteneur, puis les rôles — hors de portée de pg_dump.
-docker compose cp base:/tmp/trame-sauvegarde.dump "$archive"
-docker compose exec -T base rm -f /tmp/trame-sauvegarde.dump
+docker compose cp base:/tmp/rationarium-sauvegarde.dump "$archive"
+docker compose exec -T base rm -f /tmp/rationarium-sauvegarde.dump
 
 docker compose exec -T base \
   pg_dumpall --username "$utilisateur" --roles-only \
@@ -81,8 +81,8 @@ echo "rôles   : $roles"
 
 # 4. La rétention. `-mtime +N` ne supprime que les fichiers de sauvegarde de ce
 #    répertoire : le motif est nommé, jamais un `*`.
-supprimes="$(find "$destination" -maxdepth 1 -name 'trame-*.dump' -mtime "+$retention" -print -delete | wc -l)"
-find "$destination" -maxdepth 1 -name 'trame-*.roles.sql' -mtime "+$retention" -delete
+supprimes="$(find "$destination" -maxdepth 1 -name 'rationarium-*.dump' -mtime "+$retention" -print -delete | wc -l)"
+find "$destination" -maxdepth 1 -name 'rationarium-*.roles.sql' -mtime "+$retention" -delete
 echo "rétention $retention jours : $supprimes archive(s) supprimée(s)"
 
 # 5. Ce que ce script NE fait pas, et qui doit être décidé (`cadrage/03 § 8.3`) :

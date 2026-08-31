@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import "reflect-metadata";
 import { PATH_METADATA, METHOD_METADATA } from "@nestjs/common/constants.js";
-import { estAuCatalogue } from "@trame/contracts";
+import { estAuCatalogue } from "@rationarium/contracts";
 import { CLE_PERMISSION, CLE_PERSONNEL, CLE_PUBLIC } from "./permissions.garde.js";
 
 import { AuthController } from "../auth/auth.controller.js";

@@ -4,7 +4,7 @@ import { IconeProjet } from "../../composants/icones-projet.js";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { Button } from "react-aria-components";
-import { STATUTS_PROJET, PRIORITES } from "@trame/contracts";
+import { STATUTS_PROJET, PRIORITES } from "@rationarium/contracts";
 import * as api from "../../api/projets.js";
 import { messageErreur } from "../../api/erreurs.js";
 import { usePeut } from "../../session/session.js";

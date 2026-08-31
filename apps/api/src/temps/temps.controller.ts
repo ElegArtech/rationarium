@@ -1,6 +1,6 @@
 import { Body, Controller, Delete, Get, Param, Post, Query } from "@nestjs/common";
 import { z } from "zod";
-import { enumDe, TYPES_ACTIVITE } from "@trame/contracts";
+import { enumDe, TYPES_ACTIVITE } from "@rationarium/contracts";
 import { TempsService } from "./temps.service.js";
 import { Demande, RequiertPermission, type ContexteDemande } from "../commun/permissions.garde.js";
 import { valider, dateSchema } from "../commun/http.js";

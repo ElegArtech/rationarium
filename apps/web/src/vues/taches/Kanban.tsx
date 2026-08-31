@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { Button, Menu, MenuItem, MenuTrigger, Popover } from "react-aria-components";
-import { STATUTS_TACHE, PRIORITES } from "@trame/contracts";
+import { STATUTS_TACHE, PRIORITES } from "@rationarium/contracts";
 import * as api from "../../api/taches.js";
 import { messageErreur } from "../../api/erreurs.js";
 import { usePeut } from "../../session/session.js";

@@ -17,7 +17,7 @@ L'OpenAPI reste engendré par `@nestjs/swagger`, mais **à titre documentaire et
 
 ## Ce qui est désormais interdit
 
-- Définir une énumération de vocabulaire ailleurs que dans `@trame/contracts`. Tenu par une règle ESLint (`no-restricted-syntax` sur `TSEnumDeclaration`).
+- Définir une énumération de vocabulaire ailleurs que dans `@rationarium/contracts`. Tenu par une règle ESLint (`no-restricted-syntax` sur `TSEnumDeclaration`).
 - Redéclarer un type de réponse côté client. Il se dérive du schéma.
 - Traiter l'OpenAPI engendré comme une source : il est une sortie, pas une entrée.
 

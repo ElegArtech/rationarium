@@ -21,7 +21,7 @@ export async function creerApplication(): Promise<NestFastifyApplication> {
   );
 
   await app.register(helmet as never, { contentSecurityPolicy: false });
-  await app.register(fastifyCookie as never, { secret: process.env.COOKIE_SECRET ?? "trame-dev" });
+  await app.register(fastifyCookie as never, { secret: process.env.COOKIE_SECRET ?? "rationarium-dev" });
   await app.register(rateLimit as never, { max: 300, timeWindow: "1 minute" });
 
   app.setGlobalPrefix("api");

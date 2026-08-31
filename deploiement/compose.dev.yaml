@@ -8,23 +8,23 @@
 # version que la production (`Testcontainers`, `postgres:18`).
 #
 # Le port 55432 et non 5432 : une PostgreSQL déjà installée sur le poste ne
-# doit pas entrer en conflit, ni recevoir par erreur les migrations de Trame.
+# doit pas entrer en conflit, ni recevoir par erreur les migrations de Rationarium.
 #
 #     docker compose -f deploiement/compose.dev.yaml up -d
 #
 # Voir le README de la racine pour la marche complète.
 # ════════════════════════════════════════════════════════════════════════════
 
-name: trame-dev
+name: rationarium-dev
 
 services:
   base:
     image: postgres:18.6-bookworm
     restart: unless-stopped
     environment:
-      POSTGRES_USER: trame
-      POSTGRES_PASSWORD: trame
-      POSTGRES_DB: trame
+      POSTGRES_USER: rationarium
+      POSTGRES_PASSWORD: rationarium
+      POSTGRES_DB: rationarium
       TZ: Europe/Paris
     ports:
       - "55432:5432"
@@ -33,7 +33,7 @@ services:
       # dans `compose.yaml`, il vaut ici aussi.
       - donnees-dev:/var/lib/postgresql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U trame -d trame"]
+      test: ["CMD-SHELL", "pg_isready -U rationarium -d rationarium"]
       interval: 5s
       timeout: 5s
       retries: 12

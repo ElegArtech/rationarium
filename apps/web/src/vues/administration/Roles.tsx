@@ -2,7 +2,7 @@ import { useMemo, useState, type CSSProperties } from "react";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Tooltip, TooltipTrigger } from "react-aria-components";
-import { NOMBRE_PERMISSIONS } from "@trame/contracts";
+import { NOMBRE_PERMISSIONS } from "@rationarium/contracts";
 import * as api from "../../api/administration.js";
 import { messageErreur } from "../../api/erreurs.js";
 import { usePeut } from "../../session/session.js";
@@ -25,7 +25,7 @@ import "./roles.css";
  * plutôt qu'à une combinaison qui n'a pas de sens.
  *
  * C'est **le serveur** qui distingue les trois états d'une case — accordée,
- * refusée, inexistante — à partir du catalogue de `@trame/contracts`. Le
+ * refusée, inexistante — à partir du catalogue de `@rationarium/contracts`. Le
  * reconstruire ici créerait une seconde source de vérité, qui divergerait au
  * premier ajout de permission.
  *

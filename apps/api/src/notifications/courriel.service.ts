@@ -62,7 +62,7 @@ export class CourrielService implements OnModuleInit {
       return;
     }
     await this.transport.sendMail({
-      from: process.env["SMTP_EXPEDITEUR"] ?? "trame@localhost",
+      from: process.env["SMTP_EXPEDITEUR"] ?? "rationarium@localhost",
       to: travail.destinataire,
       subject: travail.sujet,
       text: travail.corps,

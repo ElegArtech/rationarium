@@ -222,7 +222,7 @@ export function PolitiqueMotDePasse({ valeur, id }: { valeur: string; id?: strin
   );
 }
 
-/** Les quatre critères de `politiqueMotDePasse` (`@trame/contracts`), côté client. */
+/** Les quatre critères de `politiqueMotDePasse` (`@rationarium/contracts`), côté client. */
 export const politiqueTenue = (valeur: string): boolean =>
   valeur.length >= 8 &&
   /[A-ZÀ-Þ]/.test(valeur) &&

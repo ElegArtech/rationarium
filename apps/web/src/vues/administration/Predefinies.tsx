@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Tooltip, TooltipTrigger } from "react-aria-components";
-import { DUREES_TACHE_PREDEFINIE, TYPES_RECURRENCE } from "@trame/contracts";
+import { DUREES_TACHE_PREDEFINIE, TYPES_RECURRENCE } from "@rationarium/contracts";
 import * as api from "../../api/administration.js";
 import * as apiPlanning from "../../api/planning.js";
 import { messageErreur } from "../../api/erreurs.js";

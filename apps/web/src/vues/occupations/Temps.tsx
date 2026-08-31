@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "react-aria-components";
-import { TYPES_ACTIVITE } from "@trame/contracts";
+import { TYPES_ACTIVITE } from "@rationarium/contracts";
 import * as api from "../../api/occupations.js";
 import * as apiProjets from "../../api/projets.js";
 import * as apiTaches from "../../api/taches.js";

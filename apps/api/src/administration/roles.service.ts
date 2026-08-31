@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma.service.js";
 import { AuditService } from "../commun/audit.service.js";
-import { MODELES_ROLES, PERMISSIONS, DOMAINES, estAuCatalogue } from "@trame/contracts";
+import { MODELES_ROLES, PERMISSIONS, DOMAINES, estAuCatalogue } from "@rationarium/contracts";
 
 /**
  * Rôles et permissions — M20, `cadrage/01 § M20`, vue 32.

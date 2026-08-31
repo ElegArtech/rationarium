@@ -20,7 +20,7 @@ const RACINE_DB = path.resolve(import.meta.dirname, "../../../../packages/db");
 
 let pg: StartedPostgreSqlContainer;
 let app: NestFastifyApplication;
-let prisma: import("@trame/db").PrismaClient;
+let prisma: import("@rationarium/db").PrismaClient;
 
 let jetonSansDroit: string;
 let idSansDroit: string;
@@ -29,7 +29,7 @@ const appel = (methode: string, url: string, options: { jeton?: string; corps?: 
   app.inject({
     method: methode as "GET",
     url,
-    ...(options.jeton ? { cookies: { trame_session: options.jeton } } : {}),
+    ...(options.jeton ? { cookies: { rationarium_session: options.jeton } } : {}),
     ...(options.corps ? { payload: options.corps as object } : {}),
   });
 
@@ -47,7 +47,7 @@ beforeAll(async () => {
   await app.init();
   await app.getHttpAdapter().getInstance().ready();
 
-  const { creerClient } = await import("@trame/db");
+  const { creerClient } = await import("@rationarium/db");
   prisma = creerClient(pg.getConnectionUri());
 
   // Un compte sans rôle : le cas dégradé de la liste blanche. La session est
@@ -72,7 +72,7 @@ beforeAll(async () => {
     payload: { identifiant: "sans.droit", motDePasse: "Corr3ct-Horse-Battery!" },
   });
   if (connexion.statusCode !== 200) throw new Error(`connexion refusée : ${connexion.body}`);
-  jetonSansDroit = connexion.cookies.find((c) => c.name === "trame_session")!.value;
+  jetonSansDroit = connexion.cookies.find((c) => c.name === "rationarium_session")!.value;
 }, 300_000);
 
 afterAll(async () => {

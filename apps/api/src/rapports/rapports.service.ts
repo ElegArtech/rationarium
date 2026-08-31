@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import type { SanteProjet, EtatRag } from "@trame/contracts";
+import type { SanteProjet, EtatRag } from "@rationarium/contracts";
 import { PrismaService } from "../prisma.service.js";
 import { PerimetreService, type Perimetre } from "../commun/perimetre.service.js";
 import { AuditService } from "../commun/audit.service.js";

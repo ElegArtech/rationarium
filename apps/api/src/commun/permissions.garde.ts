@@ -9,7 +9,7 @@ import {
 } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
 import type { FastifyRequest } from "fastify";
-import { estAuCatalogue } from "@trame/contracts";
+import { estAuCatalogue } from "@rationarium/contracts";
 import { PrismaService } from "../prisma.service.js";
 import { AuditService } from "./audit.service.js";
 import { AuthService } from "../auth/auth.service.js";
@@ -102,7 +102,7 @@ export class GardePermission implements CanActivate {
     >();
 
     // 1. La session.
-    const jeton = requete.cookies?.["trame_session"];
+    const jeton = requete.cookies?.["rationarium_session"];
     const session = jeton ? await this.auth.resoudreSession(jeton) : null;
     if (!session) throw new UnauthorizedException({ cle: "auth:erreurs.sessionRequise" });
 

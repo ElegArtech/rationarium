@@ -116,7 +116,7 @@ export function genererIcs(evenements: EvenementIcs[], estampille: Date): string
   const lignes: string[] = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//Trame//Planning//FR",
+    "PRODID:-//Rationarium//Planning//FR",
     "CALSCALE:GREGORIAN",
     "METHOD:PUBLISH",
   ];

@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vites
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
 import { execFileSync } from "node:child_process";
 import path from "node:path";
-import { creerClient, type PrismaClient } from "@trame/db";
+import { creerClient, type PrismaClient } from "@rationarium/db";
 import { NotificationsService, ErreurNotification } from "./notifications.service.js";
 import { FileService, FILE_COURRIEL } from "./file.service.js";
 import { CongesService } from "../conges/conges.service.js";

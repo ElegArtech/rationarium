@@ -5,7 +5,7 @@ import * as apiImports from "../../api/imports.js";
 import { FenetreImport } from "../../composants/Import.js";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "react-aria-components";
-import { CATEGORIES_COMPETENCE, NIVEAUX_COMPETENCE } from "@trame/contracts";
+import { CATEGORIES_COMPETENCE, NIVEAUX_COMPETENCE } from "@rationarium/contracts";
 import * as api from "../../api/referentiels.js";
 import { messageErreur } from "../../api/erreurs.js";
 import { usePeut } from "../../session/session.js";

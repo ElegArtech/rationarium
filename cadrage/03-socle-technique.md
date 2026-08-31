@@ -1,6 +1,6 @@
 # Socle technique
 
-**Trame — Plateforme de pilotage des projets et des ressources humaines**
+**Rationarium — Plateforme de pilotage des projets et des ressources humaines**
 Choix de pile, versions et partis pris d'architecture
 
 ---
@@ -56,7 +56,7 @@ Les 35 maquettes ne sont pas des illustrations : ce sont des prototypes fonction
 
 Trois conséquences directes :
 
-1. **Le CSS des maquettes est repris tel quel**, pas réinterprété. Les jetons (`--accent`, `--st-doing`, `--leave-pending`, `--trame-ferie`, `--font-cond`…) deviennent le contrat de style de l'application. Cela exclut Tailwind et toute bibliothèque de composants stylés (Material, Ant, Chakra, shadcn/ui) : leur adoption reviendrait à jeter le travail de conception pour le refaire dans un autre vocabulaire.
+1. **Le CSS des maquettes est repris tel quel**, pas réinterprété. Les jetons (`--accent`, `--st-doing`, `--leave-pending`, `--trame-ferie`, `--font-cond`…) deviennent le contrat de style de l'application. *(Amendé le 2026-08-31, au dégel des maquettes : le contrat de style est désormais porté par `apps/web/src/styles/socle.css` et `docs/design/DESIGN.md`, dont les maquettes sont l'origine et non plus l'arbitre. Le reste du point — l'exclusion de Tailwind et des bibliothèques de composants stylés — tient inchangé, et pour la même raison.)* Cela exclut Tailwind et toute bibliothèque de composants stylés (Material, Ant, Chakra, shadcn/ui) : leur adoption reviendrait à jeter le travail de conception pour le refaire dans un autre vocabulaire.
 2. **Les composants interactifs sont pris « sans habillage »** (*headless*) : on achète le comportement et l'accessibilité, on apporte le style.
 3. **Les briques dont le rendu n'est pas pilotable sont écartées** : bibliothèques de graphiques à DOM imposé, composants de Gantt, planificateurs clés en main.
 

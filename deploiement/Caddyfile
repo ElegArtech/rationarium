@@ -1,7 +1,7 @@
 # ════════════════════════════════════════════════════════════════════════════
 # Façade — terminaison TLS, fichiers statiques, relais de l'API.
 #
-# `TRAME_HOTE` porte le nom du service. En réseau fermé, une autorité publique
+# `RATIONARIUM_HOTE` porte le nom du service. En réseau fermé, une autorité publique
 # ne peut pas émettre de certificat : `tls internal` fait signer par l'autorité
 # locale de Caddy, dont la racine est à distribuer aux postes. C'est la seule
 # option qui ne demande **aucun accès sortant** (`C1`) — un `tls` par défaut
@@ -14,7 +14,7 @@
 	auto_https disable_redirects
 }
 
-{$TRAME_HOTE:localhost} {
+{$RATIONARIUM_HOTE:localhost} {
 	tls internal
 
 	encode zstd gzip
@@ -24,7 +24,7 @@
 	# qui revient en HTML est un défaut long à diagnostiquer, parce que le
 	# client la lit comme une réponse valide.
 	handle /api/* {
-		reverse_proxy {$TRAME_API:api:3000}
+		reverse_proxy {$RATIONARIUM_API:api:3000}
 	}
 
 	handle {

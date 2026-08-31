@@ -80,8 +80,8 @@ export async function peupler(
   prisma: PrismaClient,
   cible: CibleVolumetrie = CIBLE,
   /**
-   * Le catalogue de permissions, injecté plutôt qu'importé : `@trame/db` ne
-   * dépend pas de `@trame/contracts`, et l'inverser pour un jeu de données
+   * Le catalogue de permissions, injecté plutôt qu'importé : `@rationarium/db` ne
+   * dépend pas de `@rationarium/contracts`, et l'inverser pour un jeu de données
    * serait payer une dépendance pour une commodité.
    */
   permissions: readonly string[] = [],

@@ -5,7 +5,7 @@ import { TachesService } from "../taches/taches.service.js";
 import { TeletravailService } from "../teletravail/teletravail.service.js";
 import { Demande, RequiertPermission, type ContexteDemande } from "../commun/permissions.garde.js";
 import { valider, dateSchema } from "../commun/http.js";
-import { enumDe, ETATS_TELETRAVAIL } from "@trame/contracts";
+import { enumDe, ETATS_TELETRAVAIL } from "@rationarium/contracts";
 
 /**
  * M7 — le planning unifié. Vues 07, 08, 09.

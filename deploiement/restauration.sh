@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ════════════════════════════════════════════════════════════════════════════
-# Restauration de Trame — L-29.
+# Restauration de Rationarium — L-29.
 #
 # **Cette procédure détruit la base en place.** Elle est écrite pour être
 # exécutée un jour de panne, par quelqu'un qui ne l'a pas écrite, sous
@@ -16,7 +16,7 @@
 #     rien ne le signale.
 #
 # Emploi :
-#   ./restauration.sh /var/sauvegardes/trame/trame-20260816T023000Z.dump
+#   ./restauration.sh /var/sauvegardes/rationarium/rationarium-20260816T023000Z.dump
 #
 # L'épreuve du cycle complet — sauvegarde, destruction, restauration,
 # vérification des garde-fous — est rejouée à chaque boucle par
@@ -47,7 +47,7 @@ if [ -f .env ]; then
   set +a
 fi
 
-base="${POSTGRES_BASE:-trame}"
+base="${POSTGRES_BASE:-rationarium}"
 utilisateur="${POSTGRES_UTILISATEUR:?POSTGRES_UTILISATEUR manquant}"
 roles="${archive%.dump}.roles.sql"
 
@@ -58,12 +58,12 @@ roles="${archive%.dump}.roles.sql"
 # file header » sur une archive saine : le tube d'entrée n'arrive pas intact.
 # Le découvrir un jour de panne coûterait une heure — et donnerait à croire que
 # la sauvegarde est perdue.
-docker compose cp "$archive" base:/tmp/trame-restauration.dump
-nettoyer() { docker compose exec -T base rm -f /tmp/trame-restauration.dump >/dev/null 2>&1 || true; }
+docker compose cp "$archive" base:/tmp/rationarium-restauration.dump
+nettoyer() { docker compose exec -T base rm -f /tmp/rationarium-restauration.dump >/dev/null 2>&1 || true; }
 trap nettoyer EXIT
 
 echo "archive     : $archive"
-echo "objets      : $(docker compose exec -T base pg_restore --list /tmp/trame-restauration.dump | grep -c ';' || true) entrées"
+echo "objets      : $(docker compose exec -T base pg_restore --list /tmp/rationarium-restauration.dump | grep -c ';' || true) entrées"
 echo "base cible  : $base (elle sera DÉTRUITE puis recréée)"
 [ -r "$roles" ] && echo "rôles       : $roles" || echo "rôles       : ABSENT — les privilèges ne seront pas restaurés"
 
@@ -80,7 +80,7 @@ docker compose stop api web
 # ── 2. Les rôles d'abord ────────────────────────────────────────────────────
 # `CREATE ROLE` est global à l'instance : sur une instance neuve, le rôle
 # applicatif n'existe pas, et les `GRANT` de l'archive échoueraient en silence
-# — laissant `trame_app` sans restriction sur le journal d'audit.
+# — laissant `rationarium_app` sans restriction sur le journal d'audit.
 if [ -r "$roles" ]; then
   echo "── restauration des rôles ──"
   docker compose exec -T base psql --username "$utilisateur" --dbname postgres < "$roles" > /dev/null
@@ -96,7 +96,7 @@ docker compose exec -T base psql --username "$utilisateur" --dbname postgres \
 echo "── restauration des données ──"
 docker compose exec -T base \
   pg_restore --username "$utilisateur" --dbname "$base" --no-owner --exit-on-error \
-  /tmp/trame-restauration.dump
+  /tmp/rationarium-restauration.dump
 
 # ── 5. Vérification — la partie qu'on saute quand tout a l'air d'aller ──────
 echo "── vérification ──"
@@ -105,10 +105,10 @@ docker compose exec -T base psql --username "$utilisateur" --dbname "$base" --tu
 SELECT count(*) FROM users;
 \echo 'contraintes d''exclusion (RG-CNG-25, doit être > 0) :'
 SELECT count(*) FROM pg_constraint WHERE contype = 'x';
-\echo 'droits de trame_app sur audit_log (attendu : INSERT et SELECT, RIEN d''autre) :'
+\echo 'droits de rationarium_app sur audit_log (attendu : INSERT et SELECT, RIEN d''autre) :'
 SELECT string_agg(privilege_type, ', ' ORDER BY privilege_type)
 FROM information_schema.table_privileges
-WHERE grantee = 'trame_app' AND table_name = 'audit_log';
+WHERE grantee = 'rationarium_app' AND table_name = 'audit_log';
 SQL
 
 # ── 6. Redémarrage ──────────────────────────────────────────────────────────

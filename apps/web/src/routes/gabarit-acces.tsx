@@ -184,7 +184,7 @@ export function GabaritAcces({
         <aside className="brand-panel">
           <div>
             <div className="wordmark">
-              <span className="wordmark-name">Trame</span>
+              <span className="wordmark-name">Rationarium</span>
               <span className="eyebrow on-brand-eyebrow">{t("panneau.organisation")}</span>
             </div>
             <p className="brand-sub">{t("panneau.signature")}</p>

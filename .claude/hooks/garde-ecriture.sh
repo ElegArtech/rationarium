@@ -1,11 +1,15 @@
 #!/usr/bin/env bash
-# Garde d'écriture — hook PreToolUse sur Edit|Write.
+# Garde d'écriture — DÉBRANCHÉE le 2026-08-31.
 #
-# Tient mécaniquement trois interdits structurels de CLAUDE.md. Un interdit
-# tenu par un hook s'applique quoi que décide le modèle ; un interdit tenu par
-# une consigne dépend de son attention. Ceux-ci ne peuvent pas en dépendre.
+# Le gel de `mockups/` et de `cadrage/` est levé : le produit entre en finition
+# poussée, la maquette n'est plus l'étalon. Ce script n'est plus câblé dans
+# `.claude/settings.json` ; il est conservé pour pouvoir être rebranché d'une
+# seule ligne si un nouveau point fixe devait être posé.
 #
-# Sortie 2 = blocage, stderr renvoyé à l'agent comme motif.
+# Ce qu'il tenait, et qui n'est plus tenu :
+#   - écriture sous mockups/            (référence gelée)
+#   - écriture sous cadrage/            (décision humaine tracée)
+#   - schema.prisma hors tâche de schéma (vagues parallèles)
 
 set -euo pipefail
 

@@ -36,7 +36,7 @@ export default tseslint.config(
         {
           selector: "TSEnumDeclaration",
           message:
-            "Les vocabulaires sont définis une seule fois dans @trame/contracts (cadrage/01 § 4.1). Pas d'énumération locale.",
+            "Les vocabulaires sont définis une seule fois dans @rationarium/contracts (cadrage/01 § 4.1). Pas d'énumération locale.",
         },
       ],
     },

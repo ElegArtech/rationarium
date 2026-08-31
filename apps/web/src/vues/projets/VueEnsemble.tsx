@@ -10,7 +10,7 @@ import { Chargement, ErreurDeChargement } from "../../composants/etats.js";
 import { Fenetre } from "../../composants/fenetre.js";
 import { FenetreCreation } from "./Portefeuille.js";
 import { useMessages } from "../../composants/messages.js";
-import { STATUTS_JALON } from "@trame/contracts";
+import { STATUTS_JALON } from "@rationarium/contracts";
 import { Pastille, Barre, MarqueurCalcule } from "../../composants/pastilles.js";
 import { formaterDate, formaterNombre } from "../../formats.js";
 import { CadreProjet } from "./Fiche.js";

@@ -1,4 +1,4 @@
-import type { Permission } from "@trame/contracts";
+import type { Permission } from "@rationarium/contracts";
 
 /**
  * Structure de la barre latérale — `cadrage/02 § B`.
