@@ -115,6 +115,14 @@ const ENCADREMENT = [
   "telework:manage_any",
   "telework:manage_rules",
   "time_tracking:read_team",
+  /*
+   * `RG-TMP-04` — déclarer du temps pour quelqu'un d'autre. La permission
+   * existait au catalogue et **aucun modèle de rôle ne la détenait** : la règle
+   * était donc inapplicable, et le service ne l'appliquait pas. Elle rejoint
+   * l'encadrement, qui porte déjà `leaves:declare_for_other` — le même geste,
+   * pour l'autre domaine.
+   */
+  "time_tracking:declare_for_third_party",
   "planning:read_team",
   "users:read",
   "users:read_individual_tracking",
