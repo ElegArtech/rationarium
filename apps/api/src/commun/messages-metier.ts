@@ -24,6 +24,17 @@ const m = (statut: number, cle: string, message: string): Message => ({ statut, 
 export const MESSAGES_METIER: Record<string, Message> = {
   // ── Transverses ──────────────────────────────────────────────────────────
   introuvable: m(404, "erreurs:introuvable", "Cet élément n'existe pas ou plus."),
+  /*
+   * `RG-DROITS-03` — la liste blanche vaut aussi À L'INTÉRIEUR d'un point
+   * d'entrée. La garde protège la route ; ce refus protège le champ. Le message
+   * nomme la permission manquante : « refusé » sans dire laquelle oblige à
+   * deviner qui demander.
+   */
+  champ_hors_permission: m(
+    403,
+    "erreurs:champHorsPermission",
+    "Ce champ demande une permission que vous n'avez pas. Le reste de votre modification n'a pas été enregistré.",
+  ),
   conflit_de_version: m(
     409,
     "erreurs:conflitDeVersion",
