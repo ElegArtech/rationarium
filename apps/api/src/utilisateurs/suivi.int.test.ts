@@ -60,7 +60,14 @@ afterAll(async () => {
 
 const AOUT = { debut: utc("2026-08-01"), fin: utc("2026-08-31") };
 
-describe("EX-USR-07 — chaque chiffre porte son étendue", () => {
+/*
+ * Le titre citait `EX-USR-07`, qui est « réinitialiser le mot de passe d'un
+ * utilisateur ». Cette suite n'en fait rien : elle exerce la **fiche de suivi
+ * individuel**, c'est-à-dire `EX-USR-10`. La citation fausse comptait deux
+ * fois : elle déclarait couverte une exigence que personne n'exerçait, et
+ * laissait en dette celle que ces huit contrôles prouvent depuis toujours.
+ */
+describe("EX-USR-10 — la fiche de suivi individuel : chaque chiffre porte son étendue", () => {
   it("les heures saisies suivent la PÉRIODE, pas tout l'historique", async () => {
     await prisma.timeEntry.createMany({
       data: [

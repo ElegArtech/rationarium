@@ -257,7 +257,7 @@ describe("EX-AUTH-07, EX-AUTH-08 — mot de passe", () => {
   });
 });
 
-describe("RG-AUTH-04 — jeton de réinitialisation : trois échecs distincts", () => {
+describe("EX-AUTH-06, RG-AUTH-04 — définir un nouveau mot de passe depuis le lien reçu ; le jeton est à usage unique et il expire", () => {
   it("EX-AUTH-05 — la demande ne révèle pas si l'adresse existe", async () => {
     await expect(auth.demanderReinitialisation("inconnu@nulle-part.fr")).resolves.toBeNull();
     const c = await poserUnCompte();
@@ -302,7 +302,7 @@ describe("RG-AUTH-04 — jeton de réinitialisation : trois échecs distincts", 
   });
 });
 
-describe("RG-AUTH-03 — inscription autonome", () => {
+describe("EX-AUTH-04, RG-AUTH-03 — créer un compte en autonomie, activable et désactivable", () => {
   const nouveau = () => ({
     prenom: "Léa",
     nom: "Fabre",

@@ -428,3 +428,78 @@ describe("EX-NTF-04 — le courriel, pour les notifications critiques seulement"
     envois.mockRestore();
   });
 });
+
+// ════════════════════════════════════════════════════════════════════════════
+// Vague 7-4 — dette de traçabilité.
+// ════════════════════════════════════════════════════════════════════════════
+
+describe("RG-NTF-02 — le traitement planifié est protégé contre les exécutions concurrentes : une seule instance envoie", () => {
+  /**
+   * Une file de substitution : elle n'exécute rien, elle **enregistre ce qu'on
+   * lui demande**. C'est le seul moyen d'observer le verrou, qui est une
+   * option passée à `pg-boss` et non un comportement qu'on puisse déclencher.
+   */
+  function fileEspionnee() {
+    const planifications: { nom: string; cron: string; options: Record<string, unknown> }[] = [];
+    const faussaire = {
+      createQueue: async () => undefined,
+      work: async () => undefined,
+      schedule: async (nom: string, cron: string, _donnees: unknown, options: Record<string, unknown>) => {
+        planifications.push({ nom, cron, options });
+      },
+    };
+    const service = new FileService();
+    // La file est réputée démarrée : c'est l'état dans lequel `planifier`
+    // s'exécute en production, et `demarrer()` n'est pas le sujet ici.
+    const interne = service as unknown as { boss: unknown; demarrage: Promise<void> };
+    interne.boss = faussaire;
+    interne.demarrage = Promise.resolve();
+    return { service, planifications };
+  }
+
+  it("le travail périodique est déclaré avec un VERROU D'INSTANCE UNIQUE, pas seulement avec un cron", async () => {
+    /*
+     * Sans `singletonKey`, deux exemplaires de l'application déclarant le même
+     * travail l'exécuteraient tous les deux à 7 h : chaque agent recevrait
+     * l'alerte en double, et l'idempotence journalière ne rattraperait rien
+     * puisque les deux exécutions se lisent avant de s'écrire.
+     *
+     * Le verrou ne s'observe pas en le déclenchant — il vit chez `pg-boss`.
+     * Ce qui se vérifie ici, c'est qu'on le DEMANDE.
+     */
+    const { service, planifications } = fileEspionnee();
+
+    await service.planifier({
+      nom: "notifications.alertes-echeance",
+      cron: "0 7 * * *",
+      traitement: async () => undefined,
+    });
+
+    expect(planifications).toHaveLength(1);
+    expect(planifications[0]!.options["singletonKey"]).toBe("notifications.alertes-echeance");
+  });
+
+  it("RG-NTF-01 — et le fuseau accompagne le cron : « 7 h » n'est pas une heure sans fuseau", async () => {
+    const { service, planifications } = fileEspionnee();
+    await service.planifier({ nom: "t", cron: "0 7 * * *", traitement: async () => undefined });
+    expect(planifications[0]!.options["tz"]).toBeTruthy();
+  });
+
+  it("deux déclarations du MÊME travail portent la MÊME clé — un verrou ne vaut que s'il est partagé", async () => {
+    /*
+     * Une clé dérivée du nom du travail, et non de l'instance : si chaque
+     * exemplaire fabriquait la sienne, il y aurait autant de verrous que
+     * d'instances, donc aucun verrou.
+     */
+    const a = fileEspionnee();
+    const b = fileEspionnee();
+    const travail = { nom: "notifications.alertes-echeance", cron: "0 7 * * *", traitement: async () => undefined };
+
+    await a.service.planifier(travail);
+    await b.service.planifier(travail);
+
+    expect(a.planifications[0]!.options["singletonKey"]).toBe(
+      b.planifications[0]!.options["singletonKey"],
+    );
+  });
+});
