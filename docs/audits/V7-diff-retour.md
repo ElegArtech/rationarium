@@ -52,3 +52,46 @@ Sept tests nommés, tous **vérifiés rouges sans le correctif** :
 - `REFUSE de même sponsorId — les deux donnent la visibilité`
 
 `pnpm verif` vert · `pnpm test:int` : 546 tests, 28 fichiers, verts.
+
+---
+
+## L-40 — Commandes inertes et champs gouvernés déclarés
+
+### Ce que le balayage a trouvé, et qui n'était pas au plan
+
+| Trouvaille | Traitement |
+| --- | --- |
+| **`RG-ADM-02` n'était tenue que côté client.** `Roles.tsx` désactive « Enregistrer les permissions » sur un rôle système ; `definirPermissions` ne regardait pas `systeme`. Une requête forgée sur `PUT /administration/roles/:id/permissions` **vidait `ADMIN`** — et nul ne pouvait le restaurer, puisque restaurer exige `users:manage_permissions`, qui vit dedans. | **Corrigé dans ce lot.** Le raisonnement était déjà écrit douze lignes plus haut, sur `renommer`. Le discriminant existait aussi : l'alignement du référentiel appelle sans acteur, la route HTTP avec. Deux tests, vérifiés rouges sans le correctif. |
+| **Douze commandes inertes, pas deux.** Le plan en annonçait deux ; le balayage exhaustif en trouve douze. Sept sont légitimes (branches conditionnelles, composant `RG-GEN-06`). Cinq portent un motif d'absence, dont **un partiellement faux** : `Fiche.tsx · modifier` dit qu'aucune route n'existe alors que `PATCH /taches/:id` existe — c'est le formulaire complet qui n'est pas porté. | Déclarées et motivées une par une dans `design/inoperants.json`. |
+| **`RG-TLT-07` est atteinte par trois routes, pas une.** `POST /teletravail`, `PATCH /planning/teletravail` et `POST /teletravail/generer` passent toutes par l'absence de contrôle. | Ouvert. La correction devra fermer les trois, pas la seule que l'audit nommait. |
+| **`profil.tsx` porte le seul inerte du produit sans aucune explication** — ni infobulle ni `aria-description`, alors que `RG-GEN-06` dit « désactivée **avec** explication ». | Ouvert. |
+| **Citation fausse** dans `conges.controller.ts` : `POST /conges` cite `EX-CNG-11` (« déléguer son pouvoir de validation ») ; le geste est `EX-CNG-08` (« déclarer pour un collaborateur »). | Ouvert — vague 7-4. |
+| **`POST /conges` gouverne `userId` par sa propre voie** (`verifierDeclarationPourAutrui`), antérieure à `champs-gouvernes.ts`. La gouvernance est réelle mais dupliquée. | Ouvert : à résorber dans la déclaration unique. |
+
+### Décision tranchée
+
+L'agent a déclaré **six** identifiants non testables là où le plan en suggérait onze,
+et a refusé d'inventer les cinq autres : « chaque identifiant rangé à tort en
+`nonTestable` est un test qui ne sera jamais écrit — c'est la seule liste dont
+l'inflation est silencieusement nuisible ». Décision retenue. Les cinq restants sont
+en dette avec leur note.
+
+### Décision tranchée — L-41
+
+Une plage (`describe("RG-CNG-01 à 07")`) ne cite personne au sens de la règle, mais un
+`describe` dédié à une seule règle, si. Les deux lectures ont été mesurées : `it`
+seul donnait 130 identifiants couverts, `it` + `describe` en donne 238. La seconde est
+retenue — `describe("RG-CNG-20 — le solde compte les ENGAGÉS")` **est** une suite
+dédiée à cette règle. L'exclusion ne porte que sur les plages.
+
+## Défaut de coordination de la vague 1, à corriger avant la vague 2
+
+Les trois arbres de travail isolés ont été taillés **cinq commits en retard sur
+`main`** : ni les gabarits de contrôle, ni `champs-gouvernes.ts`, ni le renommage n'y
+existaient. Fusionner les branches aurait annulé la journée. Les fichiers ont été
+repris à la main et réadaptés. Un agent a rebasé de lui-même ; les deux autres ont
+travaillé sur une base périmée et l'un a recréé un `package.json` déjà branché.
+
+Par ailleurs `packages/db/src/generated` étant ignoré par git, `pnpm typecheck` échoue
+sur tout arbre neuf tant que `prisma generate` n'a pas été rejoué. Les trois agents
+s'y sont cognés.

@@ -94,6 +94,45 @@ describe("RG-DROITS-02 — les rôles système sont protégés", () => {
     });
   });
 
+  /*
+   * `RG-ADM-02` — « ni supprimables ni MODIFIABLES DANS LEUR STRUCTURE ».
+   *
+   * Les deux premiers tiers étaient tenus, le troisième non. Le raisonnement
+   * était pourtant écrit dans le service, sur `renommer` : « sans cela, un
+   * administrateur pourrait vider ADMIN de ses permissions et se verrouiller
+   * définitivement hors de l'administration ». `Roles.tsx` désactivait le
+   * bouton — mais un client qui désactive est une courtoisie, jamais un
+   * contrôle. Une requête forgée vidait `ADMIN`, et nul ne pouvait le
+   * restaurer : restaurer exige `users:manage_permissions`, qui vit dedans.
+   */
+  it("RG-ADM-02 — un rôle système ne se VIDE PAS de ses permissions", async () => {
+    const admin = await prisma.role.findUniqueOrThrow({ where: { code: "ADMIN" } });
+    const avant = await prisma.rolePermission.count({ where: { roleId: admin.id } });
+
+    await expect(roles.definirPermissions(admin.id, [], karim)).rejects.toMatchObject({
+      code: "role_systeme_non_modifiable",
+    });
+
+    // Et rien n'a bougé : un refus qui laisse la table à moitié vidée serait pire.
+    const apres = await prisma.rolePermission.count({ where: { roleId: admin.id } });
+    expect(apres).toBe(avant);
+    expect(apres).toBe(NOMBRE_PERMISSIONS);
+  });
+
+  it("RG-ADM-02 — mais le RÉALIGNEMENT du référentiel passe, lui", async () => {
+    /*
+     * Le refus porte sur la demande d'un acteur, pas sur l'alignement interne :
+     * `initialiserReferentiel` appelle sans acteur et doit continuer de remettre
+     * un rôle système sur son modèle. Sans ce test, un refus trop large aurait
+     * gelé le référentiel au premier amorçage.
+     */
+    const admin = await prisma.role.findUniqueOrThrow({ where: { code: "ADMIN" } });
+    await expect(roles.definirPermissions(admin.id, ["projects:read"])).resolves.toBeUndefined();
+    await roles.initialiserReferentiel();
+    const remis = await prisma.rolePermission.count({ where: { roleId: admin.id } });
+    expect(remis).toBe(NOMBRE_PERMISSIONS);
+  });
+
   it("un rôle dupliqué depuis un modèle système N'EST PAS système", async () => {
     // Sans cette règle, on fabriquerait un rôle indélébile par duplication.
     const copie = await roles.creer(
