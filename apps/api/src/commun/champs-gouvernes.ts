@@ -96,7 +96,14 @@ export function autruiRefuse(
 }
 
 /** `RG-TMP-04` — déclarer du temps pour un tiers. */
-export const PERMISSION_TEMPS_AUTRUI = "time_tracking:declare_for_other";
+/**
+ * `RG-TMP-04`. Le catalogue la nomme `declare_for_third_party` et non
+ * `declare_for_other` comme le domaine des congés : les deux domaines ont été
+ * écrits à des moments différents. On emploie le nom réel du catalogue —
+ * l'harmoniser serait une modification du catalogue fermé, donc une décision à
+ * part.
+ */
+export const PERMISSION_TEMPS_AUTRUI = "time_tracking:declare_for_third_party";
 
 /** `RG-TLT-07` — agir sur le télétravail d'autrui. */
 export const PERMISSION_TELETRAVAIL_AUTRUI = "telework:manage_any";

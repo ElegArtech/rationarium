@@ -80,7 +80,7 @@ export class TempsController {
     // Sans acteur nommé, la saisie est la sienne. Le service refusera si les
     // deux acteurs sont donnés, ou aucun.
     const acteurDonne = donnees.userId ?? donnees.thirdPartyId;
-    return this.temps.saisir(acteurDonne ? donnees : { ...donnees, userId: d.userId }, d.userId);
+    return this.temps.saisir(acteurDonne ? donnees : { ...donnees, userId: d.userId }, d.userId, d.permissions);
   }
 
   @Delete(":id")

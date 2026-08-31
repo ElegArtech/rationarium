@@ -169,3 +169,39 @@ Motif du choix : supprimer une capacité calculée et testée a un coût, et
 indicateur après une saisie de temps — une vue future le voudra. La raison de leur
 existence est désormais écrite là où un lecteur la rencontrera, et le garde-fou de
 L-39 refuse toute route qui ne serait ni appelée ni déclarée. Le lot est clos.
+
+---
+
+## RG-TMP-04 — trois branches qui se contredisaient
+
+Ouverte par L-38, fermée ici. C'était le cas le plus enchevêtré des trois :
+
+- la **règle** est au cadrage depuis le début ;
+- la **permission** `time_tracking:declare_for_third_party` est au catalogue ;
+- **aucun modèle de rôle ne la détenait**, et **aucun code ne l'exigeait**.
+
+Pire : `temps.service.ts` **calculait** `pourAutrui` pour le journal d'audit sans
+jamais rien refuser. La trace disait exactement ce que le contrôle aurait dû
+empêcher — et un journal qui décrit une situation que rien n'interdit donne
+l'impression que la règle est tenue.
+
+### Décisions
+
+| # | Décision | Motivation | Écriture au cadrage |
+| --- | --- | --- | --- |
+| 1 | « Tiers » désigne **toute personne autre que soi-même**, collègue ou intervenant extérieur. | `RG-TMP-03` écrit « l'acteur d'une saisie (agent **ou** tiers) » : les deux sont des sortes d'acteur. Ne gouverner que `thirdPartyId` aurait laissé ouvert le cas le plus courant — déclarer sur le compte d'un collègue. | **Oui** : `RG-TMP-04` précisée dans `cadrage/01`, avec la date et le lot. |
+| 2 | La permission rejoint le bloc `ENCADREMENT` du catalogue de rôles. | Elle existait sans porteur : la règle était donc **inapplicable**, ce qui explique qu'elle n'ait jamais été appliquée. L'encadrement porte déjà `leaves:declare_for_other`, le même geste pour l'autre domaine. | Non — modèle de rôle, pas cadrage. |
+| 3 | On garde le nom `declare_for_third_party` plutôt que de l'aligner sur `declare_for_other` des congés. | Harmoniser deux noms d'un catalogue **fermé** est une décision à part entière, pas un effet de bord d'un correctif. Consigné comme incohérence de nommage à arbitrer. | Non. |
+
+Le correctif ne casse rien côté client : `Temps.tsx` ne déclare que pour soi, et
+aucune vue n'envoie `thirdPartyId` sur une saisie — vérifié.
+
+Cinq tests, deux vérifiés rouges sans le correctif, dans un fichier neuf
+`apps/api/src/temps/temps.int.test.ts`. Le garde-fou de L-40 a lui-même attrapé la
+conséquence : l'admission `POST /temps · userId` est devenue orpheline et devait
+sortir de `design/inoperants.json`.
+
+**Les trois cas ouverts par L-38 sont désormais tous fermés** : `RG-TMP-04`,
+`RG-TLT-07`, et le `chefId`/`sponsorId` de `POST /projets` — ce dernier reste
+volontairement admis, nommer un chef à la création étant le geste nominal
+(`EX-PRJ-03`).

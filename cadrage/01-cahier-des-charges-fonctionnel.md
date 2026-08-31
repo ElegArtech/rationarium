@@ -625,7 +625,7 @@ Le module le plus riche en règles.
 - **RG-TMP-01** — Une saisie référence au minimum une tâche ou un projet.
 - **RG-TMP-02** — Le total d'heures déclarées sur une même journée ne peut dépasser un plafond ; le dépassement est refusé avec le total constaté et le plafond.
 - **RG-TMP-03** — L'acteur d'une saisie (agent ou tiers) n'est pas modifiable après création ; il faut supprimer et recréer.
-- **RG-TMP-04** — Déclarer pour un tiers exige une permission dédiée.
+- **RG-TMP-04** — Déclarer pour un tiers exige une permission dédiée. *(Précisé le 2026-08-31, lot vague 7 : « tiers » désigne **toute personne autre que soi-même**, collègue ou intervenant extérieur — `RG-TMP-03` traite déjà les deux comme des sortes d'acteur. La permission est `time_tracking:declare_for_third_party`.)*
 - **RG-TMP-05** — Filtrer sur un autre utilisateur exige une permission dédiée.
 - **RG-TMP-06** — Une tâche terminée peut être close **sans déclaration** ; cette validation est enregistrée pour distinguer « oublié » de « rien à déclarer ».
 - **RG-TMP-07** — La saisie rapide indique si du temps a déjà été déclaré sur la tâche, tous contributeurs confondus.

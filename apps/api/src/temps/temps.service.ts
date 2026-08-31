@@ -1,4 +1,5 @@
 import { Injectable } from "@nestjs/common";
+import { autruiRefuse, PERMISSION_TEMPS_AUTRUI } from "../commun/champs-gouvernes.js";
 import { PrismaService } from "../prisma.service.js";
 import { AuditService } from "../commun/audit.service.js";
 import { PerimetreService, type Perimetre } from "../commun/perimetre.service.js";
@@ -21,6 +22,7 @@ import type { TypeActivite } from "@rationarium/contracts";
  */
 
 export type EchecTemps =
+  | "autrui_sans_permission"
   | "rattachement_requis"
   | "acteur_ambigu"
   | "plafond_journalier"
@@ -68,8 +70,34 @@ export class TempsService {
       projectId?: string | null; taskId?: string | null; description?: string;
     },
     acteurId: string,
+    permissions: ReadonlySet<string> = new Set(),
   ) {
     if (!donnees.projectId && !donnees.taskId) throw new ErreurTemps("rattachement_requis");
+
+    /*
+     * `RG-TMP-04` — « Déclarer pour un tiers exige une permission dédiée. »
+     *
+     * Elle n'était appliquée nulle part. Pire : le service **calculait**
+     * `pourAutrui` pour le journal d'audit — la trace disait exactement ce que
+     * le contrôle aurait dû empêcher. Et la permission dédiée,
+     * `time_tracking:declare_for_third_party`, existait au catalogue sans
+     * qu'aucun modèle de rôle ne la détienne : règle, permission et rôles se
+     * contredisaient sur trois branches.
+     *
+     * `RG-TMP-03` écrit « l'acteur d'une saisie (agent **ou** tiers) » : les
+     * deux sont des sortes d'acteur, donc « déclarer pour un tiers » couvre
+     * aussi bien un collègue qu'un intervenant extérieur. Déclarer pour
+     * quelqu'un d'autre que soi, quelle qu'en soit la nature, demande la
+     * permission. Clarification portée dans `cadrage/01`, journalisée en
+     * `docs/audits/V7-diff-retour.md`.
+     */
+    const pourUnTiers = Boolean(donnees.thirdPartyId);
+    const refus = pourUnTiers
+      ? permissions.has(PERMISSION_TEMPS_AUTRUI)
+        ? null
+        : { champ: "thirdPartyId", permission: PERMISSION_TEMPS_AUTRUI }
+      : autruiRefuse(donnees.userId, acteurId, PERMISSION_TEMPS_AUTRUI, permissions);
+    if (refus) throw new ErreurTemps("autrui_sans_permission", refus);
 
     const aUnAgent = Boolean(donnees.userId);
     const aUnTiers = Boolean(donnees.thirdPartyId);
