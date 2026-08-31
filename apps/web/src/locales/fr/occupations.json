@@ -197,6 +197,7 @@
     "motif": "Motif",
     "approuveAutomatiquement": "Ce type est approuvé automatiquement.",
     "soumiseAValidation": "Votre demande sera soumise à validation par votre responsable.",
+    "soumiseAValidationPar": "Votre demande sera soumise à validation par {validateur}.",
     "controleSolde": "Contrôle du solde",
     "aChevalSurDeuxAns": "À cheval sur deux années",
     "annee": "Attribués {annee}",
