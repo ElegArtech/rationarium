@@ -448,6 +448,37 @@ export class ImportsService {
 
     const rendu: CompteRendu = { importes: 0, ignores: 0, erreurs: [...apercu.erreurs] };
 
+    /*
+     * `RG-PRJ-11` — « le mode Remplacer est **bloqué si des données rattachées
+     * l'empêchent** ».
+     *
+     * Le code d'erreur `remplacement_impossible` existait, complet, avec son
+     * message rédigé — et **n'était levé nulle part**. Deux issues, toutes deux
+     * mauvaises, selon la forme de la saisie de temps :
+     *
+     *   - rattachée à la TÂCHE SEULE : `task.deleteMany` déclenche le
+     *     `ON DELETE SET NULL`, la ligne perd tâche *et* projet, et la
+     *     contrainte `time_entries_rattachement_requis` la refuse. L'import
+     *     échouait sur une **erreur PostgreSQL brute 23514** — l'utilisateur
+     *     recevait un code de contrainte là où `RG-GEN-03` exige un message
+     *     actionnable ;
+     *   - rattachée à la tâche **et** au projet : rien ne bloquait, et les
+     *     heures étaient **détachées en silence**.
+     *
+     * Deux chemins menaient au même effacement, un seul le refusait — et mal.
+     * Le contrôle est **avant** toute écriture, comme `RG-IMP-06` l'impose pour
+     * les erreurs de fichier : découvrir l'empêchement après la suppression
+     * serait exactement ce que la règle interdit.
+     */
+    if (mode === "remplacer") {
+      const heures = await this.prisma.timeEntry.count({
+        where: { task: { projectId } },
+      });
+      if (heures > 0) {
+        throw new ErreurImport("remplacement_impossible", { saisiesDeTemps: heures });
+      }
+    }
+
     await this.prisma.$transaction(async (tx) => {
       if (mode === "remplacer") {
         // L'ordre compte : les sous-tâches partent avec leurs tâches par

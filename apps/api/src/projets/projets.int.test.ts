@@ -1005,8 +1005,8 @@ describe("RG-PRJ-11 — les deux modes de l'import projet ; le blocage sur donn�
    * observé. `RG-PRJ-11` reste en dette dans `design/tracabilite.json`.
    * ────────────────────────────────────────────────────────────────────────
    */
-  it.fails(
-    "« BLOQUÉ SI DES DONNÉES RATTACHÉES L'EMPÊCHENT » — le refus devrait être un code métier, pas une violation de contrainte",
+  it(
+    "RG-PRJ-11 — « BLOQUÉ SI DES DONNÉES RATTACHÉES L'EMPÊCHENT », par un code métier",
     async () => {
       const p = await projets.creer(nouveauProjet(), chef);
       const jalon = await projets.creerJalon({ nom: "Avec heures", projectId: p.id }, chef);
@@ -1032,8 +1032,8 @@ describe("RG-PRJ-11 — les deux modes de l'import projet ; le blocage sur donn�
     },
   );
 
-  it.fails(
-    "et quand la saisie porte AUSSI le projet, rien ne bloque : les heures sont détachées EN SILENCE",
+  it(
+    "RG-PRJ-11 — la saisie qui porte AUSSI le projet bloque de même, elle n'est plus détachée en silence",
     async () => {
       const p = await projets.creer(nouveauProjet(), chef);
       const tache = await prisma.task.create({ data: { titre: "Déclarée", projectId: p.id } });
@@ -1048,20 +1048,53 @@ describe("RG-PRJ-11 — les deux modes de l'import projet ; le blocage sur donn�
         },
       });
 
-      await imports.importerProjet(
-        p.id,
-        [enTete, "MILESTONE;Neuf;2026-09-30;;;;;;;;;;"].join("\n"),
-        "remplacer",
-        chef,
-      );
+      /*
+       * **C'était le cas le plus dangereux des deux.** Rattachée à la tâche ET
+       * au projet, la saisie survivait à la suppression de la tâche — la
+       * contrainte `time_entries_rattachement_requis` était satisfaite par le
+       * projet restant — donc rien ne bloquait, et les heures étaient
+       * **détachées en silence**. Le premier cas au moins échouait bruyamment.
+       */
+      const erreur = await imports
+        .importerProjet(
+          p.id,
+          [enTete, "MILESTONE;Neuf;2026-09-30;;;;;;;;;;"].join("\n"),
+          "remplacer",
+          chef,
+        )
+        .catch((e: unknown) => e);
+
+      expect(erreur).toMatchObject({
+        code: "remplacement_impossible",
+        detail: { saisiesDeTemps: 1 },
+      });
 
       // Ce que la règle exige : la saisie garde sa tâche, parce que le
-      // remplacement aurait dû être refusé.
+      // remplacement a été refusé AVANT toute écriture.
       expect(
         (await prisma.timeEntry.findUniqueOrThrow({ where: { id: saisie.id } })).taskId,
       ).toBe(tache.id);
+      expect(await prisma.task.count({ where: { projectId: p.id } })).toBe(1);
     },
   );
+
+  it("RG-PRJ-11 — sans temps déclaré, le remplacement passe : le refus est CIBLÉ", async () => {
+    /*
+     * Un refus trop large aurait rendu le mode Remplacer inutilisable, ce qui
+     * est une autre façon de ne pas tenir la règle.
+     */
+    const p = await projets.creer(nouveauProjet(), chef);
+    await prisma.task.create({ data: { titre: "Sans heures", projectId: p.id } });
+
+    const rendu = await imports.importerProjet(
+      p.id,
+      [enTete, "MILESTONE;Neuf;2026-09-30;;;;;;;;;;"].join("\n"),
+      "remplacer",
+      chef,
+    );
+    expect(rendu.importes).toBe(1);
+    expect(await prisma.task.count({ where: { projectId: p.id } })).toBe(0);
+  });
 });
 
 describe("EX-PRJ-12 — exporter le contenu du projet", () => {

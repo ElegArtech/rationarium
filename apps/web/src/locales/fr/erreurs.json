@@ -68,7 +68,7 @@
   "limiteTodos": "Vous avez atteint la limite de to-dos. Terminez-en ou supprimez-en une pour en ajouter.",
   "colonnesManquantes": "Le fichier ne contient pas toutes les colonnes obligatoires.",
   "fichierIllisible": "Le fichier n'a pas pu être lu. Vérifiez qu'il s'agit bien d'un CSV.",
-  "remplacementImpossible": "Des données rattachées au projet empêchent le remplacement.",
+  "remplacementImpossible": "Du temps a été déclaré sur les tâches de ce projet : le remplacement les effacerait. Importez en mode Ajouter, ou supprimez ces saisies d'abord.",
   "membreIntrouvable": "Cette personne n'est pas membre de l'équipe.",
   "porteeRequise": "Cet événement appartient à une série : indiquez si l'action porte sur cette occurrence seulement, ou sur celle-ci et les suivantes.",
   "porteeSansSerie": "Cet événement n'appartient à aucune série : il n'y a pas de portée à choisir. Reprenez sans la préciser.",
