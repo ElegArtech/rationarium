@@ -295,6 +295,29 @@ export class CongesService {
    * cantonnement ouvrirait la validation des congés d'un département à
    * quelqu'un qui n'y a aucun rôle.
    */
+  /**
+   * `RG-CNG-08` — le validateur, avec de quoi le NOMMER.
+   *
+   * `determinerValidateur` rend un identifiant, et la route qui l'expose est
+   * gardée par `leaves:read`. Le seul annuaire du produit, `GET /utilisateurs`,
+   * l'est par `users:read`, qu'un agent ordinaire n'a pas : **le client qui a
+   * le droit d'appeler la route n'avait pas le droit de traduire sa réponse**,
+   * et la fenêtre de demande retombait sur une formule générique dès que
+   * l'agent n'avait aucune demande antérieure où retrouver le nom.
+   *
+   * L'identité rendue ici est celle d'UNE personne, déjà déterminée par la
+   * règle — ce n'est pas une ouverture de l'annuaire.
+   */
+  async validateurNomme(userId: string, aLaDate: Date) {
+    const validateurId = await this.determinerValidateur(userId, aLaDate);
+    if (!validateurId) return { validateurId: null, validateur: null };
+    const validateur = await this.prisma.user.findUnique({
+      where: { id: validateurId },
+      select: { id: true, prenom: true, nom: true },
+    });
+    return { validateurId, validateur };
+  }
+
   async determinerValidateur(userId: string, aLaDate: Date): Promise<string | null> {
     const agent = await this.prisma.user.findUnique({
       where: { id: userId },
