@@ -6,14 +6,7 @@
     "nonTestable": "Les identifiants qu'AUCUN test nommé ne peut honnêtement couvrir, chacun avec sa raison. Une entrée sans raison est refusée. Cette liste ne s'allonge pas sans arbitrage : y ranger une règle testable, c'est un test qui ne sera jamais écrit.",
     "citationsOrphelines": "LE VERSANT SYMÉTRIQUE : des tests citent des identifiants qui n'existent pas au cadrage. Une citation fausse fait croire à une couverture qui n'existe pas. `lire` donne l'identifiant à mettre à la place."
   },
-  "aTester": [
-    {
-      "id": "RG-TSK-16",
-      "lot": "vague 7-4",
-      "module": "L-11",
-      "defaut": "RÈGLE D'INTERFACE PURE, sans contrepartie serveur — constaté vague 7-5. « Les colonnes À faire et Terminé du kanban ne peuvent pas être masquées » : le masquage de colonnes est un réglage de la vue 16, et le dépôt n'en porte AUCUNE trace côté serveur — ni réglage `Setting`, ni champ de préférence, ni contrat dans `packages/contracts`. Les colonnes sont les cinq statuts de `STATUTS_TACHE` (désormais cité par un test au titre d'`EX-TSK-01`), et le serveur ne sait pas lesquelles sont affichées. Le test qui la tiendrait est un test d'interface dans `apps/web` ; l'agent de la vague 7-5 avait interdiction d'y toucher, deux agents y branchant des routes en parallèle. Reste donc en dette, avec sa nature établie : à écrire côté vue, pas côté serveur."
-    }
-  ],
+  "aTester": [],
   "nonTestable": [
     {
       "id": "RG-ORG-05",
