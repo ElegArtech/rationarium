@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "react-aria-components";
 import { DEMI_JOURNEES, STATUTS_CONGE } from "@rationarium/contracts";
 import * as api from "../../api/occupations.js";
@@ -1154,6 +1154,28 @@ function FenetreDemande({
   /** `RG-CNG-19` — les années couvertes, telles que le serveur les répartit. */
   const parAnnee = decompte.data?.parAnnee ?? [];
 
+  /**
+   * `RG-CNG-19` — **un solde par année couverte**, et non le solde de l'année
+   * courante répété.
+   *
+   * Le bloc de contrôle bouclait sur `parAnnee` en rendant à chaque tour le
+   * MÊME objet `solde`, celui de l'année en cours. Une demande du 28/12 au 03/01
+   * affichait donc « Année 2027 » avec les chiffres de 2026 — trois lignes sur
+   * quatre fausses, sous un intitulé qui affirmait le contraire. Le décompte de
+   * jours, lui, était juste : c'est ce qui rendait l'erreur crédible.
+   *
+   * Le contrôle serveur (`RG-CNG-21`) n'a jamais été trompé ; c'est l'écran qui
+   * mentait, et il mentait dans le sens rassurant — l'année suivante paraît
+   * toujours avoir le solde plein de l'année courante.
+   */
+  const soldesParAnnee = useQueries({
+    queries: parAnnee.map((p) => ({
+      queryKey: ["conges", "soldes", p.annee],
+      queryFn: () => api.soldes(p.annee),
+      enabled: ouverte && Boolean(typeId),
+    })),
+  });
+
   const depot = useMutation({
     mutationFn: async () => {
       const plage = {
@@ -1344,19 +1366,23 @@ function FenetreDemande({
                   <span className="cb-tag">{t("conges.aChevalSurDeuxAns")}</span>
                 ) : null}
               </div>
-              {parAnnee.map((p) => (
+              {parAnnee.map((p, i) => {
+                // Le solde de CETTE année-là, pas celui de l'année courante.
+                const sa =
+                  soldesParAnnee[i]?.data?.find((x) => x.type.id === typeId)?.solde ?? solde;
+                return (
                 <div className="cb-year" key={p.annee}>
                   <p className="cb-line">
                     <span>{t("conges.annee", { annee: p.annee })}</span>
-                    <b>{formaterNombre(solde.attribues, 1)}</b>
+                    <b>{formaterNombre(sa.attribues, 1)}</b>
                   </p>
                   <p className="cb-line">
                     <span>{t("conges.dejaUtilises")}</span>
-                    <b>{formaterNombre(solde.consommes, 1)}</b>
+                    <b>{formaterNombre(sa.consommes, 1)}</b>
                   </p>
                   <p className="cb-line is-total">
                     <span>{t("conges.disponible")}</span>
-                    <b>{formaterNombre(solde.disponibles, 1)}</b>
+                    <b>{formaterNombre(sa.disponibles, 1)}</b>
                   </p>
                   {/* `RG-CNG-19` — ce que la demande coûte à CETTE année, en
                       jours ouvrés, à côté du solde de cette même année. Un
@@ -1367,7 +1393,8 @@ function FenetreDemande({
                     <b>{t("conges.enJours", { n: formaterNombre(p.jours, 1) })}</b>
                   </p>
                 </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         ) : null}

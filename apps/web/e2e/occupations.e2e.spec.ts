@@ -558,6 +558,60 @@ test.describe("Vue 19 — congés : trois publics, un écran", () => {
     await expect(page.getByText("Cette demande")).toHaveCount(2);
     await expect(page.getByText("2,0 j", { exact: true })).toHaveCount(2);
   });
+
+  test("RG-CNG-19 — CHAQUE année montre SON solde, pas celui de l'année courante", async ({
+    page,
+  }) => {
+    /*
+     * **Défaut trouvé et corrigé.** Le bloc bouclait sur les années et rendait à
+     * chaque tour le MÊME objet solde, celui de l'année en cours. Une demande du
+     * 28/12 au 03/01 affichait « Année 2027 » avec les chiffres de 2026 — trois
+     * lignes sur quatre fausses, sous un intitulé qui affirmait le contraire.
+     *
+     * Le décompte de jours, lui, était juste : c'est ce qui rendait l'erreur
+     * crédible. Et elle mentait dans le sens rassurant — l'année suivante
+     * paraissait toujours avoir le solde plein de l'année courante. Le contrôle
+     * serveur (`RG-CNG-21`) n'a jamais été trompé ; c'est l'écran qui mentait.
+     */
+    await serveur(page, {
+      session: CAMILLE,
+      reponses: {
+        ...reponses,
+        // 2026 : 10 disponibles. 2027 : une allocation neuve, 25 disponibles.
+        "/api/conges/soldes?annee=2027": {
+          corps: [
+            {
+              ...SOLDES[0]!,
+              solde: { annee: 2027, attribues: 25, consommes: 0, engages: 0, disponibles: 25 },
+            },
+          ],
+        },
+      },
+    });
+    await page.goto("/conges");
+    await page.getByRole("button", { name: "Nouvelle demande" }).click();
+    await page.getByLabel("Type de congé").selectOption("t1");
+    await page.getByLabel("Date de début").fill("2026-12-28");
+    await page.getByLabel("Date de fin").fill("2027-01-03");
+
+    const blocs = page.locator(".cb-year");
+    await expect(blocs).toHaveCount(2);
+
+    /*
+     * On vise la LIGNE, pas le bloc : « 25,0 » figure déjà comme *attribués*
+     * dans les deux années, et une assertion au niveau du bloc passait donc
+     * avec ET sans le correctif — elle ne mesurait rien. C'est le piège que ce
+     * dépôt paie à répétition, et il vient de se présenter une fois de plus.
+     */
+    const ligne = (n: number, libelle: string) =>
+      blocs.nth(n).locator(".cb-line").filter({ hasText: libelle }).locator("b");
+
+    // 2026 : 12 consommés sur 25, il reste 10. 2027 : allocation neuve.
+    await expect(ligne(0, "Déjà utilisés")).toHaveText("12,0");
+    await expect(ligne(1, "Déjà utilisés")).toHaveText("0,0");
+    await expect(ligne(0, "Disponible")).toHaveText("10,0");
+    await expect(ligne(1, "Disponible")).toHaveText("25,0");
+  });
 });
 
 test.describe("Vue 20 — télétravail", () => {
