@@ -279,6 +279,19 @@ export const modifierJalon = (
   },
 ) => appeler<Jalon>(`/projets/jalons/${id}`, { methode: "PATCH", corps: donnees });
 
+/**
+ * `EX-JAL-02`, `RG-JAL-06` — marquer un jalon SANS TÂCHE comme atteint.
+ *
+ * Un jalon qui porte des tâches refuse : là, le statut se calcule
+ * (`RG-JAL-01`), et forcer une valeur ferait diverger l'affichage du travail
+ * réel.
+ */
+export const marquerJalon = (id: string, atteint: boolean, version: number) =>
+  appeler<Jalon>(`/projets/jalons/${id}/marquer`, {
+    methode: "POST",
+    corps: { atteint, version },
+  });
+
 export const supprimerJalon = (id: string) =>
   appeler<void>(`/projets/jalons/${id}`, { methode: "DELETE" });
 

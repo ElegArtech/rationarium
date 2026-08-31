@@ -29,6 +29,7 @@ export type EchecProjet =
   | "membre_introuvable"
   | "suppression_bloquee"
   | "jalon_autre_projet"
+  | "jalon_calcule"
   | "epopee_en_double"
   | "introuvable"
   | "conflit_de_version"
@@ -773,10 +774,85 @@ export class ProjetsService {
       where: { milestoneId },
       select: { statut: true },
     });
-    if (taches.length === 0) return "pending";
+
+    /*
+     * `RG-JAL-06` — un jalon SANS TÂCHE n'a rien à calculer.
+     *
+     * Le calcul le laissait « en attente » pour toujours, échéance tenue
+     * comprise : un jalon de cadrage, de comité ou de livraison contractuelle
+     * n'a parfois aucune tâche dans l'outil, et restait donc éternellement
+     * ouvert sur la feuille de route. C'est le seul cas où la colonne
+     * `Milestone.statut` est LUE — ailleurs elle est ignorée, et le calcul de
+     * `RG-JAL-01` prime sans exception.
+     *
+     * Deux états suffisent ici : marqué ou non. « En cours » ne veut rien dire
+     * sur un jalon qui ne porte aucun travail.
+     */
+    if (taches.length === 0) {
+      const jalon = await this.prisma.milestone.findUnique({
+        where: { id: milestoneId },
+        select: { statut: true },
+      });
+      return jalon?.statut === "done" ? "done" : "pending";
+    }
+
     if (taches.every((t) => t.statut === "done")) return "done";
     if (taches.every((t) => t.statut === "todo")) return "pending";
     return "doing";
+  }
+
+  /**
+   * `EX-JAL-02`, `RG-JAL-06` — marquer un jalon sans tâche comme atteint, ou
+   * le rouvrir.
+   *
+   * **Le geste refuse un jalon qui porte des tâches**, et le dit : là, le
+   * statut se calcule, et forcer une valeur ferait diverger l'affichage du
+   * travail réel. C'est la borne qui rend l'exception compatible avec
+   * `RG-JAL-01` plutôt que contradictoire.
+   */
+  async marquerJalon(
+    id: string,
+    atteint: boolean,
+    version: number,
+    acteurId: string,
+  ) {
+    const jalon = await this.prisma.milestone.findUnique({
+      where: { id },
+      select: { projectId: true, _count: { select: { taches: true } } },
+    });
+    if (!jalon) throw new ErreurProjet("introuvable");
+    await this.refuserSiAnnule(jalon.projectId);
+    if (jalon._count.taches > 0) throw new ErreurProjet("jalon_calcule");
+
+    const { count } = await this.prisma.milestone.updateMany({
+      where: { id, version },
+      data: { statut: atteint ? "done" : "pending", version: { increment: 1 } },
+    });
+    if (count === 0) throw new ErreurProjet("conflit_de_version");
+
+    await this.audit.tracer({
+      action: "milestone.update", typeEntite: "Milestone", entiteId: id, acteurId,
+      detail: { marque: atteint ? "done" : "pending" },
+    });
+    return this.prisma.milestone.findUniqueOrThrow({ where: { id } });
+  }
+
+  /**
+   * `RG-JAL-06` — rattacher une tâche à un jalon EFFACE la marque posée.
+   *
+   * Sans cela, la marque serait conservée en sommeil sous le calcul, et
+   * reparaîtrait au premier détachement — un jalon soudain « atteint » sans
+   * que personne n'ait rien fait. Elle est donc effacée au moment où le calcul
+   * reprend la main.
+   *
+   * Appelée par tout ce qui rattache : la création d'une tâche, sa
+   * modification, l'import CSV.
+   */
+  async reprendreLeCalcul(milestoneId: string) {
+    await this.prisma.milestone.updateMany({
+      where: { id: milestoneId, statut: "done" },
+      data: { statut: "pending" },
+    });
   }
 
   /** `EX-JAL-03`, `EX-JAL-04` — feuille de route et indicateurs. */

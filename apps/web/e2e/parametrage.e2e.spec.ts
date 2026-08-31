@@ -929,3 +929,77 @@ test.describe("Vue 34 — la règle de récurrence se corrige et s'efface", () =
     await expect(carte(page).getByRole("button", { name: "Supprimer" })).toHaveCount(0);
   });
 });
+
+/**
+ * `RG-PRM-05` — « Quitter la page avec des modifications non enregistrées
+ * déclenche un avertissement. »
+ *
+ * **Le bandeau ne la tenait pas, et ce n'était pas une variante du même
+ * geste.** Il annonce qu'il y a quelque chose à enregistrer ; il n'empêche pas
+ * de le perdre. On cliquait sur un autre menu et la saisie disparaissait sans
+ * un mot — quatre onglets qui se remplissent en plusieurs minutes.
+ */
+test.describe("Vue 31 — quitter avec des modifications non enregistrées", () => {
+  const reponses = {
+    "/api/parametrage": { corps: REGLAGES },
+    "/api/parametrage/feries": { corps: FERIES },
+    "/api/parametrage/vacances": { corps: VACANCES },
+  };
+
+  /** Modifie un réglage, sans l'enregistrer — le même geste que la suite voisine. */
+  async function salir(page: Page) {
+    await page.goto("/parametres");
+    await page.getByRole("button", { name: /12\/31\/2025/ }).click();
+    // Le bandeau confirme que le brouillon diverge : sans lui, le test qui
+    // suit ne mesurerait rien.
+    await expect(page.getByText("Vous avez des modifications non enregistrées.")).toBeVisible();
+  }
+
+  test("RG-PRM-05 — naviguer ailleurs est ARRÊTÉ, et la question est posée", async ({ page }) => {
+    await serveur(page, { session: SESSION_CONFIG, reponses });
+    await salir(page);
+
+    await page.getByRole("link", { name: "Planning", exact: true }).first().click();
+
+    await expect(page.getByRole("dialog", { name: "Quitter sans enregistrer ?" })).toBeVisible();
+    // On est TOUJOURS sur la page : l'avertissement arrête, il ne constate pas.
+    await expect(page).toHaveURL(/\/parametres/);
+  });
+
+  test("RG-PRM-05 — « Rester » annule la navigation ET garde la saisie", async ({ page }) => {
+    await serveur(page, { session: SESSION_CONFIG, reponses });
+    await salir(page);
+
+    await page.getByRole("link", { name: "Planning", exact: true }).first().click();
+    await page.getByRole("button", { name: "Rester sur la page" }).click();
+
+    await expect(page).toHaveURL(/\/parametres/);
+    // La saisie ne doit pas être perdue par l'avertissement lui-même.
+    await expect(page.getByText("Vous avez des modifications non enregistrées.")).toBeVisible();
+  });
+
+  test("RG-PRM-05 — « Quitter sans enregistrer » laisse partir", async ({ page }) => {
+    await serveur(page, { session: SESSION_CONFIG, reponses });
+    await salir(page);
+
+    await page.getByRole("link", { name: "Planning", exact: true }).first().click();
+    await page.getByRole("button", { name: "Quitter sans enregistrer" }).click();
+
+    await expect(page).not.toHaveURL(/\/parametres/);
+  });
+
+  test("RG-PRM-05 — SANS modification, la navigation passe sans un mot", async ({ page }) => {
+    /*
+     * L'assertion qui empêche le blocage d'être toujours actif. Sans elle, un
+     * `shouldBlockFn` qui rendrait `true` en permanence passerait les trois
+     * tests précédents et rendrait le produit inutilisable.
+     */
+    await serveur(page, { session: SESSION_CONFIG, reponses });
+    await page.goto("/parametres");
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+
+    await page.getByRole("link", { name: "Planning", exact: true }).first().click();
+    await expect(page).not.toHaveURL(/\/parametres/);
+    await expect(page.getByRole("dialog", { name: "Quitter sans enregistrer ?" })).toHaveCount(0);
+  });
+});

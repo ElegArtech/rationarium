@@ -368,6 +368,9 @@ Trois niveaux : **Direction → Département → Service**.
 | EX-JAL-07 | Créer, modifier, supprimer une épopée |
 
 - **RG-JAL-01** — Le statut d'un jalon est **calculé automatiquement** à partir de l'avancement de ses tâches ; il n'est pas saisi. L'interface l'explique.
+- **RG-JAL-06** — **Un jalon SANS TÂCHE fait exception** : son statut n'a rien à calculer, il se marque donc à la main, et se rouvre de même. Dès qu'une tâche lui est rattachée, le calcul de `RG-JAL-01` reprend la main et la marque posée est effacée — elle n'est pas conservée en sommeil, sous peine de reparaître au premier détachement. Un jalon qui porte des tâches refuse d'être marqué, en disant pourquoi.
+
+  *(Arbitrage du 2026-08-31. `EX-JAL-02` — « marquer un jalon comme atteint » — et `RG-JAL-01` se contredisaient : le produit avait tranché pour le calcul, et le geste de `EX-JAL-02` n'existait nulle part. Un jalon sans tâche est le cas que le calcul ne sait pas trancher — il resterait « en attente » pour toujours, y compris une fois l'échéance tenue. C'est cette borne-là, et elle seule, qui ouvre la saisie : la règle du calcul n'est pas assouplie, elle est complétée là où elle n'a rien à dire.)*
 - **RG-JAL-02** — Un jalon appartient à un et un seul projet.
 - **RG-JAL-03** — Une tâche ne peut être rattachée qu'à un jalon ou une épopée **du même projet**.
 - **RG-JAL-04** — Une tâche hors projet ne peut être rattachée ni à un jalon ni à une épopée.
@@ -806,7 +809,9 @@ Créer, modifier, supprimer une période · Importer depuis le calendrier offici
 - **RG-PRM-02** — Un jour férié récurrent se reconduit automatiquement chaque année.
 - **RG-PRM-03** — L'import des jours fériés rend compte : créés / déjà existants.
 - **RG-PRM-04** — Les dates de vacances scolaires sont cohérentes : fin postérieure au début.
-- **RG-PRM-05** — Quitter la page avec des modifications non enregistrées déclenche un avertissement.
+- **RG-PRM-05** — Quitter la page avec des modifications non enregistrées déclenche un avertissement. Cela vaut pour la navigation interne comme pour la fermeture de l'onglet, et **s'ajoute** au bandeau permanent qui les signale pendant la saisie : le bandeau dit qu'il y a quelque chose à enregistrer, il n'empêche pas de le perdre.
+
+  *(Précision du 2026-08-31. Le produit portait le bandeau et rien d'autre : on pouvait cliquer sur un autre menu et perdre sa saisie sans un mot. Le bandeau et l'avertissement ne sont pas deux formulations du même geste.)*
 
 ---
 

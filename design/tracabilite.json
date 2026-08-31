@@ -22,17 +22,6 @@
       "id": "RG-TSK-13",
       "raison": "Restatement mot pour mot de RG-SCOPE-04 (ligne 160) au chapitre des tâches (ligne 419) : « Une tâche confidentielle n'est pas lisible du seul fait d'y être assigné. » RG-SCOPE-04 est déjà cité par trois tests, qui exercent exactement cette règle. Dupliquer les assertions sous un second nom ne prouverait rien de plus.",
       "coCiter": "RG-SCOPE-04"
-    },
-    {
-      "id": "RG-PRM-05",
-      "raison": "ÉCART DE SPÉCIFICATION, à trancher au cadrage avant d'écrire un test. La règle dit « quitter la page avec des modifications non enregistrées déclenche un avertissement » — un avertissement À LA SORTIE. L'implémentation annonce les modifications en permanence dans la page, ce qui est un autre comportement, pas une variante du même. Un test écrit aujourd'hui figerait l'un ou l'autre sans que la question soit tranchée.",
-      "aTrancher": "cadrage/01 § M19 — la règle et le code ne décrivent pas le même comportement."
-    },
-    {
-      "id": "EX-JAL-02",
-      "raison": "ÉCART DE SPÉCIFICATION, à trancher au cadrage avant d'écrire un test. « Marquer un jalon comme atteint » est un geste de l'utilisateur ; RG-JAL-01, deux lignes plus bas, dit que le statut d'un jalon est CALCULÉ à partir de l'avancement de ses tâches et « n'est pas saisi ». Les deux ne peuvent pas être vrais ensemble. Le produit a tranché pour le calcul (statutJalon(), recalculé à chaque lecture), et la colonne Milestone.statut du schéma n'est écrite ni lue par personne. Un test qui exercerait le geste figerait une saisie que RG-JAL-01 interdit ; un test qui exercerait le calcul prouverait RG-JAL-01, déjà couvert, et non EX-JAL-02. La couverture reviendra dès que l'arbitrage aura dit lequel des deux textes tient.",
-      "aTrancher": "cadrage/01 § M5 — EX-JAL-02 et RG-JAL-01 se contredisent : le statut d'un jalon est-il saisi ou calculé ?",
-      "coCiter": "RG-JAL-01"
     }
   ],
   "citationsOrphelines": []

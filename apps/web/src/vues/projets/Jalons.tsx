@@ -453,6 +453,18 @@ function LigneJalon({
   const annoncer = useMessages();
   const client = useQueryClient();
   const [modificationOuverte, setModificationOuverte] = useState(false);
+
+  /** `RG-JAL-06` — le geste n'existe que sur un jalon sans tâche. */
+  const sansTache = jalon.taches.length === 0;
+
+  const marque = useMutation({
+    mutationFn: (atteint: boolean) => api.marquerJalon(jalon.id, atteint, jalon.version),
+    onSuccess: (_, atteint) => {
+      annoncer("ok", t(atteint ? "jalons.marque" : "jalons.rouvert"));
+      void client.invalidateQueries({ queryKey: ["projet", projetId] });
+    },
+    onError: (e) => annoncer("err", messageErreur(e, tErreurs, t("fiche.echecAction"))),
+  });
   const [suppressionOuverte, setSuppressionOuverte] = useState(false);
 
   const retard = jalon.statut === "done" ? 0 : Math.min(0, joursAvant(jalon.dateEcheance) ?? 1);
@@ -500,7 +512,18 @@ function LigneJalon({
 
           <div className="ms-statut">
             <Pastille code={jalon.statut} vocabulaire={STATUTS_JALON} />
-            <MarqueurCalcule explication={t("jalons.statutCalcul")} />
+            {/*
+              `RG-JAL-06` — le marqueur « calculé » ment sur un jalon sans
+              tâche : il n'y a rien à calculer, et le statut vient d'une marque
+              posée à la main. Afficher la même explication dans les deux cas
+              ferait chercher un avancement qui n'existe pas.
+            */}
+            <MarqueurCalcule
+              explication={t(sansTache ? "jalons.statutMarque" : "jalons.statutCalcul")}
+              // Le mot aussi : « Calculé » sur un jalon où rien ne l'est
+              // enverrait chercher un avancement qui n'existe pas.
+              {...(sansTache ? { libelle: t("jalons.repereMarque") } : {})}
+            />
           </div>
 
           <div className="ms-prog">
@@ -520,6 +543,24 @@ function LigneJalon({
                 manquait : décaler une échéance imposait de supprimer le jalon,
                 donc de détacher ses tâches (`RG-JAL-05`) et de les rattacher
                 une à une. */}
+            {/*
+              `EX-JAL-02` — marquer un jalon SANS TÂCHE.
+
+              La commande n'apparaît QUE là : sur un jalon qui porte des
+              tâches, le serveur refuse, et proposer un geste voué au refus est
+              précisément ce que `RG-GEN-06` interdit. C'est aussi la manière
+              la plus courte d'expliquer la règle — la commande est là où elle
+              a un sens, et absente ailleurs.
+            */}
+            {sansTache && peut("milestones:update") ? (
+              <Button
+                className="ms-toggle"
+                isPending={marque.isPending}
+                onPress={() => marque.mutate(jalon.statut !== "done")}
+              >
+                {t(jalon.statut === "done" ? "jalons.rouvrir" : "jalons.marquerAtteint")}
+              </Button>
+            ) : null}
             {peut("milestones:update") ? (
               <Button
                 className="ms-ico"

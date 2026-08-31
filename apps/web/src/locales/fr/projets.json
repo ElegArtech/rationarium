@@ -181,7 +181,13 @@
     "echecStatut": "Le statut n'a pas pu être modifié.",
     "modifierTitre": "Modifier le jalon",
     "modifierLe": "Modifier le jalon {nom}",
-    "modifie": "Jalon modifié."
+    "modifie": "Jalon modifié.",
+    "marquerAtteint": "Marquer atteint",
+    "rouvrir": "Rouvrir",
+    "marque": "Jalon marqué comme atteint.",
+    "rouvert": "Jalon rouvert.",
+    "statutMarque": "Ce jalon ne porte aucune tâche : il n'y a rien à calculer, son statut se marque à la main. Dès qu'une tâche lui est rattachée, le calcul reprend la main et la marque est effacée.",
+    "repereMarque": "Marqué"
   },
   "equipe": {
     "lEquipe": "l'équipe",

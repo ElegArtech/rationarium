@@ -137,6 +137,12 @@ export const MESSAGES_METIER: Record<string, Message> = {
     "Ce jalon appartient à un autre projet.",
   ),
 
+  jalon_calcule: m(
+    422,
+    "erreurs:jalonCalcule",
+    "Ce jalon porte des tâches : son statut se calcule à partir de leur avancement. Faites avancer ses tâches, ou détachez-les.",
+  ),
+
   epopee_en_double: m(
     409,
     "erreurs:epopeeEnDouble",

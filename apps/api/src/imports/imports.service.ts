@@ -630,6 +630,15 @@ export class ImportsService {
           ? (parNom.get(ligne["milestoneName"].trim()) ?? null)
           : null;
 
+        // `RG-JAL-06` — un jalon marqué à la main qui reçoit une tâche rend la
+        // main au calcul. L'import rattache comme les autres chemins.
+        if (milestoneId) {
+          await tx.milestone.updateMany({
+            where: { id: milestoneId, statut: "done" },
+            data: { statut: "pending" },
+          });
+        }
+
         const tache = await tx.task.create({
           data: {
             titre,

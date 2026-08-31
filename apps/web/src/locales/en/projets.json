@@ -181,7 +181,13 @@
     "echecStatut": "The status could not be changed.",
     "modifierTitre": "Edit milestone",
     "modifierLe": "Edit milestone {nom}",
-    "modifie": "Milestone updated."
+    "modifie": "Milestone updated.",
+    "marquerAtteint": "Mark as reached",
+    "rouvrir": "Reopen",
+    "marque": "Milestone marked as reached.",
+    "rouvert": "Milestone reopened.",
+    "statutMarque": "This milestone has no task: there is nothing to derive, so its status is set by hand. As soon as a task is linked to it, the calculation takes over and the mark is cleared.",
+    "repereMarque": "Marked"
   },
   "equipe": {
     "lEquipe": "the team",

@@ -1,6 +1,6 @@
 import { useState, useEffect, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { useRouterState } from "@tanstack/react-router";
+import { Link, useRouterState } from "@tanstack/react-router";
 import {
   Button,
   Menu,
@@ -220,16 +220,38 @@ export function Coquille({
                     chemin === entree.chemin ||
                     (entree.chemin !== "/" && chemin.startsWith(`${entree.chemin}/`));
                   return (
-                  <a
+                  /*
+                   * **`Link`, et non `<a href>`.**
+                   *
+                   * Un ancre brute sort du routeur : le navigateur RECHARGE le
+                   * document entier. Mesuré le 2026-08-31 — un repère posé sur
+                   * `window` avant le clic ne survivait pas au suivant. Chaque
+                   * passage d'une vue à l'autre relançait donc l'application :
+                   * le lot, la session, les réglages, le compteur de
+                   * notifications, tout était refait, sur les trente-cinq vues.
+                   *
+                   * Deuxième conséquence, moins visible : le routeur ne voit
+                   * pas la navigation, donc `useBlocker` non plus, et
+                   * `RG-PRM-05` — « quitter avec des modifications non
+                   * enregistrées déclenche un avertissement » — ne pouvait pas
+                   * être tenue autrement que par la boîte native du
+                   * navigateur, dont le texte ne nous appartient pas.
+                   *
+                   * `activeProps` est vidé : la classe et `aria-current` sont
+                   * calculés ici, par PRÉFIXE, et le routeur en ajouterait un
+                   * second sur les routes imbriquées.
+                   */
+                  <Link
                     key={entree.cle}
                     className={`nav-item${courante ? " is-active" : ""}`}
-                    href={entree.chemin}
+                    to={entree.chemin}
+                    activeProps={{}}
                     title={t(`entrees.${entree.cle}`)}
                     {...(courante ? { "aria-current": "page" as const } : {})}
                   >
                     <Icone nom={entree.icone} />
                     <span>{t(`entrees.${entree.cle}`)}</span>
-                  </a>
+                  </Link>
                   );
                 })}
               </div>
@@ -251,12 +273,12 @@ export function Coquille({
             </Button>
 
             <p className="crumb">
-              <a href="/">Rationarium</a>
+              <Link to="/" activeProps={{}}>Rationarium</Link>
               {ariane.map((etape) => (
                 <span key={etape.libelle}>
                   <span aria-hidden="true"> / </span>
                   {etape.chemin ? (
-                    <a href={etape.chemin}>{etape.libelle}</a>
+                    <Link to={etape.chemin} activeProps={{}}>{etape.libelle}</Link>
                   ) : (
                     <b>{etape.libelle}</b>
                   )}

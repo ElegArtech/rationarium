@@ -353,3 +353,105 @@ describe("EX-JAL-01 — modifier un jalon", () => {
     expect(modifie.projectId).toBe(p);
   });
 });
+
+describe("EX-JAL-02, RG-JAL-06 — marquer un jalon SANS TÂCHE comme atteint", () => {
+  /*
+   * **L'arbitrage du 2026-08-31.** `EX-JAL-02` — « marquer un jalon comme
+   * atteint » — et `RG-JAL-01` — « le statut est calculé, il n'est pas
+   * saisi » — se contredisaient depuis l'origine. Le produit avait tranché
+   * pour le calcul, et le geste n'existait nulle part.
+   *
+   * Un jalon SANS TÂCHE est le cas que le calcul ne sait pas trancher : il
+   * restait « en attente » pour toujours, échéance tenue comprise. C'est cette
+   * borne-là, et elle seule, qui ouvre la saisie. La règle du calcul n'est pas
+   * assouplie, elle est complétée là où elle n'a rien à dire.
+   */
+  it("EX-JAL-02 — un jalon sans tâche se marque atteint, et se rouvre", async () => {
+    const p = await projet();
+    const j = await projets.creerJalon({ nom: "Comité de lancement", projectId: p }, acteur);
+    expect(await projets.statutJalon(j.id)).toBe("pending");
+
+    const marque = await projets.marquerJalon(j.id, true, j.version, acteur);
+    expect(await projets.statutJalon(j.id)).toBe("done");
+
+    await projets.marquerJalon(j.id, false, marque.version, acteur);
+    expect(await projets.statutJalon(j.id)).toBe("pending");
+  });
+
+  it("RG-JAL-01 — un jalon QUI PORTE DES TÂCHES refuse d'être marqué, et dit pourquoi", async () => {
+    const p = await projet();
+    const j = await projets.creerJalon({ nom: "Recette", projectId: p }, acteur);
+    const t = await taches.creer(nouvelleTache(p, { milestoneId: j.id }), acteur, DROITS_TACHE);
+    expect(t.milestoneId).toBe(j.id);
+
+    const relu = await prisma.milestone.findUniqueOrThrow({ where: { id: j.id } });
+    await expect(projets.marquerJalon(j.id, true, relu.version, acteur)).rejects.toMatchObject({
+      code: "jalon_calcule",
+    });
+  });
+
+  it("RG-JAL-06 — rattacher une tâche EFFACE la marque, elle ne dort pas dessous", async () => {
+    /*
+     * Le cas qui décide de la conception. Conservée en sommeil sous le calcul,
+     * la marque reparaîtrait au premier détachement : le jalon redeviendrait
+     * « atteint » sans que personne n'ait rien fait.
+     */
+    const p = await projet();
+    const j = await projets.creerJalon({ nom: "Jalon marqué", projectId: p }, acteur);
+    await projets.marquerJalon(j.id, true, j.version, acteur);
+    expect(await projets.statutJalon(j.id)).toBe("done");
+
+    // Une tâche arrive : le calcul reprend, et le jalon repart « en attente ».
+    const t = await taches.creer(nouvelleTache(p, { milestoneId: j.id }), acteur, DROITS_TACHE);
+    expect(await projets.statutJalon(j.id)).toBe("pending");
+
+    // Puis elle repart : le jalon ne doit PAS redevenir « atteint ».
+    await taches.modifier(t.id, { milestoneId: null, version: t.version }, acteur, DROITS_TACHE);
+    expect(await projets.statutJalon(j.id)).toBe("pending");
+  });
+
+  it("RG-JAL-06 — le rattachement APRÈS COUP efface la marque, lui aussi", async () => {
+    const p = await projet();
+    const j = await projets.creerJalon({ nom: "Marqué puis peuplé", projectId: p }, acteur);
+    await projets.marquerJalon(j.id, true, j.version, acteur);
+    const t = await taches.creer(nouvelleTache(p), acteur, DROITS_TACHE);
+
+    await taches.modifier(t.id, { milestoneId: j.id, version: t.version }, acteur, DROITS_TACHE);
+    expect(await projets.statutJalon(j.id)).toBe("pending");
+  });
+
+  it("RG-JAL-01 — la marque ne perturbe JAMAIS un jalon qui porte des tâches", async () => {
+    /*
+     * La colonne est lue au seul cas où le calcul n'a rien à dire. Un jalon
+     * dont la base porterait « done » par accident — un import, une reprise —
+     * doit rester gouverné par ses tâches.
+     */
+    const p = await projet();
+    const j = await projets.creerJalon({ nom: "Gouverné", projectId: p }, acteur);
+    await taches.creer(nouvelleTache(p, { milestoneId: j.id }), acteur, DROITS_TACHE);
+    // On corrompt la colonne à la main, sous le calcul.
+    await prisma.milestone.update({ where: { id: j.id }, data: { statut: "done" } });
+
+    expect(await projets.statutJalon(j.id)).toBe("pending");
+  });
+
+  it("RG-GEN-07 — marquer sur une version périmée est REFUSÉ", async () => {
+    const p = await projet();
+    const j = await projets.creerJalon({ nom: "Concurrent", projectId: p }, acteur);
+    await projets.marquerJalon(j.id, true, j.version, acteur);
+    await expect(projets.marquerJalon(j.id, false, j.version, acteur)).rejects.toMatchObject({
+      code: "conflit_de_version",
+    });
+  });
+
+  it("EX-JAL-02 — la feuille de route rend le statut MARQUÉ, pas un calcul aveugle", async () => {
+    // Le raccord : ce que la vue 13 lit vient bien de la même fonction.
+    const p = await projet();
+    const j = await projets.creerJalon({ nom: "Vu de la feuille", projectId: p }, acteur);
+    await projets.marquerJalon(j.id, true, j.version, acteur);
+
+    const route = await projets.feuilleDeRoute(p, await global(), toutes);
+    expect(route.jalons.find((x) => x.id === j.id)?.statut).toBe("done");
+    expect(route.indicateurs.termines).toBe(1);
+  });
+});

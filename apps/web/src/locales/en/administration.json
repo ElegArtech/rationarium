@@ -347,7 +347,11 @@
     "champsRequis": "Fill in every field marked with a star.",
     "datesIncoherentes": "The end date must be after the start date.",
     "sourceSaisieManuelle": "Source: manual entry",
-    "vacancesAjoutees": "Period “{libelle}” added."
+    "vacancesAjoutees": "Period “{libelle}” added.",
+    "quitterTitre": "Leave without saving?",
+    "quitterTexte": "You have unsaved changes. If you leave now, they will be lost.",
+    "rester": "Stay on this page",
+    "quitterSansEnregistrer": "Leave without saving"
   },
   "roles": {
     "surtitre": "Administration",
