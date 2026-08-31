@@ -1,4 +1,4 @@
-import { PROJET } from "./projets.js";
+import { PROJET, SESSION } from "./projets.js";
 
 /**
  * Jeux de données des vues 12, 16 et 17.
@@ -178,6 +178,38 @@ export const CANDIDATS = [
     conflit: true,
   },
 ];
+
+/**
+ * `EX-DOC-02` — ce que **`GET /documents/:id` rend, et que `fiche()` ne rend pas**.
+ *
+ * L'écart entre les deux formes est tout l'objet de cette route : la fiche
+ * tâche donne `auteur: { prenom, nom }`, sans identifiant, donc aucun écran ne
+ * peut y décider ce que `RG-DOC-01` autorise. La consultation donne
+ * `auteurId`, `empreinte`, `version` et le rattachement.
+ *
+ * Le jeu se calque sur la signature du service (`DocumentsService.consulter`
+ * rend la ligne Prisma entière), jamais sur ce que le client croirait recevoir
+ * — le dépôt a payé deux fois le couple client/fixture qui se valide lui-même.
+ */
+const AUTRE_AUTEUR = "88888888-8888-4888-8888-888888888888";
+
+export const DOCUMENT_AUTRUI = {
+  id: "d1",
+  nom: "cadrage-v2.pdf",
+  empreinte: "3f786850e387550fdab836ed7e6dc881de23001b3d6e1c1e2b2c9e0a1f4a5b6c",
+  tailleOctets: 248_320,
+  typeMime: "application/pdf",
+  /** Fatou Berthier — c'est-à-dire quelqu'un d'autre que la session. */
+  auteurId: AUTRE_AUTEUR,
+  projectId: null,
+  taskId: FICHE.id,
+  version: 2,
+  creeLe: "2026-08-09T11:00:00.000Z",
+  modifieLe: "2026-08-09T11:00:00.000Z",
+};
+
+/** Le même document, déposé par la personne connectée. */
+export const DOCUMENT_MIEN = { ...DOCUMENT_AUTRUI, auteurId: SESSION.id };
 
 /** `EX-TSK-12` — ce que `GET :id/incoherences` rend pour `FICHE`. */
 export const INCOHERENCES = [

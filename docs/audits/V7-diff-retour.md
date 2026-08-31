@@ -722,3 +722,93 @@ geste pour un département, pas encore pour un service.
 
 **Les trois marqueurs de défaut de la vague 7-4 sont désormais tous repris** : la suite
 d'intégration ne porte plus aucun `expected fail`.
+## T-051 — Trois verbes du document branchés, deux routes déclarées redondantes
+
+Cinq routes étaient inscrites « à brancher » dans `SANS_CLIENT`. **Trois ont été
+branchées, deux ne l'ont pas été** — et le refus est le résultat le plus utile du lot.
+
+### Les trois branchées, vue 17
+
+`GET`, `PATCH` et `DELETE /documents/:id` servent désormais le panneau Documents de la
+fiche tâche. `EX-DOC-02` en énumère quatre verbes ; seul « télécharger » était servi.
+
+**Le nom du document est la commande de consultation.** La rangée `.doc` a quatre
+colonnes ; ajouter un bouton « Consulter » en aurait fait une cinquième alors que
+l'objet à ouvrir est précisément celui qu'on nomme.
+
+### La décision qui a demandé un arbitrage : pourquoi une fenêtre, pas un « × »
+
+La maquette 17 pose un `×` (`.sub-del`) sur chaque rangée de document. Il n'a pas été
+repris tel quel, pour une raison de règle et non de goût.
+
+`RG-DOC-01` — « un utilisateur modifie et supprime ses propres contributions ; agir sur
+celles d'autrui exige une permission dédiée. » Le motif est appliqué aux commentaires
+depuis L-48 : `c.auteur.id === session.id` décide de l'affichage de `.cmt-acts`.
+**Ce motif est intransposable aux documents en l'état** : `GET /taches/:id` rend
+`documents[].auteur` comme `{ prenom, nom }`, **sans identifiant**. À l'affichage de la
+liste, aucun écran ne peut donc savoir de qui est une pièce jointe.
+
+`GET /documents/:id` le donne — et c'est de toute façon le verbe « consulter » de
+`EX-DOC-02`, tracé distinctement du téléchargement par `RG-DOC-02`. L'ordre retenu est
+donc celui de la règle : **on consulte, ce qui laisse une trace, et c'est la
+consultation qui dit ce qu'on a le droit de faire ensuite.** Renommage et suppression
+vivent dans cette fenêtre.
+
+Corollaire mesuré, et testé : la consultation **ne part pas au chargement de la fiche**.
+Tracer une lecture que personne n'a demandée, sur chaque document, à chaque affichage,
+remplirait le journal d'audit de faux. Le contrôle `EX-DOC-02 — consulter` affirme zéro
+appel avant le clic ; il passe au rouge si un préchargement est introduit.
+
+### `GET /documents/commentaires/fil` — redondante, laissée dans `SANS_CLIENT`
+
+Le contrat demandait de l'évaluer avant de la brancher. Elle l'est.
+
+`GET /taches/:id` embarque déjà le fil de la tâche, **auteur et identifiant compris** —
+c'est ce que `Commentaires` lit pour appliquer `RG-DOC-01`. La route sert aussi le fil
+d'un **projet**, mais aucun brief de vue projet (11 à 15) ne prévoit de fil de projet :
+le seul écran du produit qui affiche des commentaires est la fiche tâche. La brancher
+aurait ajouté un second chemin vers une donnée déjà servie, au prix d'un aller-retour
+réseau par ouverture de fiche.
+
+Elle passe donc de la section 3 (« à brancher ») à la section 2 (« redondantes ») de
+`SANS_CLIENT`, avec sa raison écrite — même traitement que les trois de la vague 4 bis.
+
+### `POST /taches/:id/deplacer` — redondante ET inadaptée au kanban
+
+Le contrat l'attribuait au « kanban de la vue 12 » au titre de `EX-TSK-02` et
+`RG-TSK-11`. **La lecture du code contredit les deux.**
+
+1. Elle appelle `TachesService.deplacerDepuisPlanning`, **le même service** que
+   `PATCH /planning/taches/deplacer`, que `apps/web/src/api/planning.ts` appelle déjà
+   depuis L-46. Deux routes, un comportement, à la place du `taskId` près.
+2. Elle déplace une **date** ou un **assigné**. Elle ne touche jamais au statut. Or les
+   colonnes du kanban **sont** des statuts — brief de la vue 12 : « À faire · En cours ·
+   En revue · Terminé · Bloqué », et « Déplacement réussi : *Statut mis à jour* ». Le
+   kanban écrit donc par `PATCH /taches/:id`, ce qu'il fait depuis L-33.
+
+La brancher au kanban aurait été un doublon **et** un changement de sémantique. Elle
+reste dans `SANS_CLIENT`, reclassée « redondante ».
+
+`RG-TSK-11` est déjà couverte trois fois côté planning (`taches.int.test.ts`,
+`planning.int.test.ts`, `planning.e2e.spec.ts`). Le lot y ajoute **l'assertion
+inverse** : au kanban, une tâche multi-assignée change de statut sans restriction. La
+règle dit « dans le planning… sa **date** » ; étendre le verrou au statut aurait rendu
+indéplaçable toute tâche à deux assignés, et rien ne l'aurait vu.
+
+### Deux défauts serveur constatés, non corrigés — le serveur était en lecture seule
+
+| Défaut | Où | Conséquence |
+| --- | --- | --- |
+| `PATCH /documents/:id` **n'applique pas `RG-DOC-01`.** `DocumentsService.supprimer` confronte `auteurId` à l'acteur et exige `documents:manage_any` à défaut ; `renommer` ne fait aucun de ces deux contrôles. Quiconque détient `documents:update` peut renommer la pièce d'autrui. | `apps/api/src/documents/documents.service.ts`, `renommer` | Le client masque par courtoisie ; **le serveur ne refuserait pas.** C'est exactement la configuration que `CLAUDE.md` nomme « ne jamais contrôler un droit côté client seul ». À corriger dans une tâche serveur. |
+| `PATCH /documents/:id` **n'accepte pas de version** et incrémente la sienne sans la confronter à celle qu'on a lue. | même fichier, `renommer` — et le contrôleur, dont le schéma ne porte que `nom` | Écart à `RG-GEN-07` : deux renommages concurrents, le dernier gagne, en silence. `Document.version` existe pourtant au schéma. |
+
+Ni l'un ni l'autre n'est testable côté client : ce sont des refus qui doivent naître au
+serveur. Ils ne sont donc **pas** inscrits en dette de traçabilité — `RG-DOC-01` et
+`RG-GEN-07` sont cités par des tests ailleurs —, mais ils sont deux tâches à ouvrir.
+
+### Écriture au cadrage
+
+Aucune. Les briefs des vues 12 et 17 décrivent ce qui a été porté ; la seule tension
+relevée — le `×` de la maquette 17 contre `RG-DOC-01` — se résout au profit de la règle
+sans qu'aucun texte de `cadrage/02` ait à changer, la maquette n'étant plus opposable
+depuis le dégel du 2026-08-31.

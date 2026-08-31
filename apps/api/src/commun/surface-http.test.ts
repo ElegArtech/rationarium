@@ -441,6 +441,24 @@ const SANS_CLIENT: { verbe: string; chemin: string; raison: string }[] = [
     chemin: "/activite/grille",
     raison: "redondante — `GET /planning/activite` la sert et y ajoute la trame de fond",
   },
+  /*
+   * Vague 7-3 bis — deux entrées passées de « à brancher » à « redondante »
+   * après lecture de ce qu'elles font RÉELLEMENT. Les brancher aurait ajouté
+   * un second chemin vers un comportement déjà servi : ce n'est pas du
+   * branchement, c'est du doublon.
+   */
+  {
+    verbe: "GET",
+    chemin: "/documents/commentaires/fil",
+    raison:
+      "redondante — `GET /taches/:id` embarque déjà le fil de la tâche, auteur et identifiant compris, et c'est le SEUL écran qui affiche des commentaires : aucun brief de vue projet (11 à 15) ne prévoit de fil de projet",
+  },
+  {
+    verbe: "POST",
+    chemin: "/taches/:id/deplacer",
+    raison:
+      "redondante — même service que `PATCH /planning/taches/deplacer` (`deplacerDepuisPlanning`), que la vue 07 appelle déjà ; elle déplace une DATE ou un ASSIGNÉ, jamais un statut, donc elle ne peut pas servir le kanban de la vue 12, dont les colonnes sont des statuts",
+  },
 
   // ── 3. Capacités serveur qu'aucun écran n'offre encore ───────────────────
   { verbe: "POST", chemin: "/administration/roles", raison: A_BRANCHER },
@@ -450,10 +468,6 @@ const SANS_CLIENT: { verbe: string; chemin: string; raison: string }[] = [
   { verbe: "GET", chemin: "/conges/solde", raison: A_BRANCHER },
   { verbe: "PUT", chemin: "/conges/soldes", raison: A_BRANCHER },
   { verbe: "GET", chemin: "/conges/validateur", raison: A_BRANCHER },
-  { verbe: "GET", chemin: "/documents/:id", raison: A_BRANCHER },
-  { verbe: "PATCH", chemin: "/documents/:id", raison: A_BRANCHER },
-  { verbe: "DELETE", chemin: "/documents/:id", raison: A_BRANCHER },
-  { verbe: "GET", chemin: "/documents/commentaires/fil", raison: A_BRANCHER },
   {
     verbe: "POST",
     chemin: "/evenements/:id/participants",
@@ -481,7 +495,6 @@ const SANS_CLIENT: { verbe: string; chemin: string; raison: string }[] = [
   { verbe: "GET", chemin: "/parametrage/trame", raison: A_BRANCHER },
   { verbe: "POST", chemin: "/parametrage/vacances", raison: A_BRANCHER },
   { verbe: "POST", chemin: "/projets/:id/instantane", raison: A_BRANCHER },
-  { verbe: "POST", chemin: "/taches/:id/deplacer", raison: A_BRANCHER },
   { verbe: "GET", chemin: "/temps/non-declarees", raison: A_BRANCHER },
   { verbe: "GET", chemin: "/temps/rapport", raison: A_BRANCHER },
   { verbe: "POST", chemin: "/tiers/taches/:taskId/assigner", raison: A_BRANCHER },

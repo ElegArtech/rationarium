@@ -851,6 +851,8 @@ function Documents({ tache }: { tache: api.FicheTache }) {
   const peut = usePeut();
   const annoncer = useMessages();
   const client = useQueryClient();
+  /** La pièce ouverte en consultation — `EX-DOC-02`. `null` : aucune. */
+  const [consulte, setConsulte] = useState<api.FicheTache["documents"][number] | null>(null);
 
   /*
    * `EX-DOC-01` — la zone de dépôt était **purement décorative** : un
@@ -896,7 +898,23 @@ function Documents({ tache }: { tache: api.FicheTache }) {
               {d.typeMime.split("/").pop()?.slice(0, 3).toUpperCase()}
             </span>
             <div className="bloc-etroit">
-              <span className="doc-n">{d.nom}</span>
+              {/*
+                `EX-DOC-02` — **le nom du document EST la commande de
+                consultation.** La rangée n'a que quatre colonnes ; ajouter un
+                bouton « Consulter » en aurait fait une cinquième, alors que
+                l'objet à ouvrir est justement celui qu'on nomme.
+
+                `RG-GEN-06` — sans `documents:read`, le nom reste lisible mais
+                inerte : on voit qu'une pièce existe, on ne peut pas l'ouvrir.
+                Masquer la ligne ferait croire qu'il n'y a rien.
+              */}
+              {peut("documents:read") ? (
+                <Button className="doc-n" onPress={() => setConsulte(d)}>
+                  {d.nom}
+                </Button>
+              ) : (
+                <span className="doc-n">{d.nom}</span>
+              )}
               <span className="doc-m">
                 {t("fiche.tailleEtAuteur", {
                   ko: formaterNombre(d.tailleOctets / 1024),
@@ -936,7 +954,192 @@ function Documents({ tache }: { tache: api.FicheTache }) {
           />
         </label>
       ) : null}
+
+      {/*
+        La fenêtre reste MONTÉE, fermée : c'est elle qui rend le focus au nom
+        du document à la fermeture. La démonter d'un coup ferait repartir le
+        clavier en tête de document — le défaut que `Fenetre` existe pour ne
+        plus laisser passer.
+      */}
+      <FenetreDocument
+        document={consulte}
+        tacheId={tache.id}
+        surFermeture={() => setConsulte(null)}
+      />
     </section>
+  );
+}
+
+/**
+ * `EX-DOC-02` — **consulter, renommer, supprimer** un document.
+ *
+ * Trois des quatre verbes de l'exigence vivaient sans écran : `GET`, `PATCH`
+ * et `DELETE /documents/:id` existaient, gardées et testées, et rien ne les
+ * appelait. Seul `télécharger` était servi. Le verbe du milieu, encore.
+ *
+ * **Pourquoi une fenêtre plutôt qu'un `×` sur la rangée.** `RG-DOC-01` — « un
+ * utilisateur modifie et supprime ses propres contributions ; agir sur celles
+ * d'autrui exige une permission dédiée. » Le motif est celui des commentaires,
+ * juste au-dessus : le client masque par courtoisie, le refus reste au serveur.
+ * Mais la fiche tâche ne rend PAS l'identifiant de l'auteur d'un document —
+ * `auteur: { prenom, nom }`, sans `id`. Il n'existe donc aucun moyen, à
+ * l'affichage de la liste, de savoir de qui est la pièce. `GET /documents/:id`
+ * le donne, et il est de toute façon le geste « consulter » de `EX-DOC-02`,
+ * tracé distinctement du téléchargement (`RG-DOC-02`).
+ *
+ * L'ordre est donc celui de la règle et non celui de la commodité : on consulte
+ * — ce qui laisse une trace, comme il se doit —, et c'est la consultation qui
+ * dit ce qu'on a le droit de faire ensuite.
+ */
+function FenetreDocument({
+  document,
+  tacheId,
+  surFermeture,
+}: {
+  /** `null` quand aucune pièce n'est ouverte : la fenêtre reste montée, fermée. */
+  document: api.FicheTache["documents"][number] | null;
+  tacheId: string;
+  surFermeture: () => void;
+}) {
+  const { t } = useTranslation("taches");
+  const { t: tErreurs } = useTranslation("erreurs");
+  const peut = usePeut();
+  const { session } = useSession();
+  const annoncer = useMessages();
+  const client = useQueryClient();
+
+  const [nom, setNom] = useState("");
+  const [pour, setPour] = useState<string | null>(null);
+  if (document && pour !== document.id) {
+    setPour(document.id);
+    setNom(document.nom);
+  }
+
+  const detail = useQuery({
+    queryKey: ["document", document?.id],
+    queryFn: () => api.consulterDocument(document!.id),
+    enabled: document !== null,
+  });
+
+  const rafraichir = () => {
+    void client.invalidateQueries({ queryKey: ["tache", tacheId] });
+    void client.invalidateQueries({ queryKey: ["document", document?.id] });
+  };
+
+  const renommage = useMutation({
+    mutationFn: () => api.renommerDocument(document!.id, nom.trim()),
+    onSuccess: () => {
+      annoncer("ok", t("fiche.documentRenomme"));
+      rafraichir();
+      surFermeture();
+    },
+    onError: (e) => annoncer("err", messageErreur(e, tErreurs, t("fiche.echecRenommage"))),
+  });
+
+  const suppression = useMutation({
+    mutationFn: () => api.supprimerDocument(document!.id),
+    onSuccess: () => {
+      annoncer("ok", t("fiche.documentSupprime"));
+      rafraichir();
+      surFermeture();
+    },
+    onError: (e) =>
+      annoncer("err", messageErreur(e, tErreurs, t("fiche.echecSuppressionDocument"))),
+  });
+
+  /*
+   * `RG-DOC-01` — la sienne, ou la permission dédiée. Tant que la consultation
+   * n'a pas répondu, on ne sait pas : on ne propose rien plutôt que de proposer
+   * puis de retirer.
+   */
+  const sien = detail.data ? detail.data.auteurId === session.id : false;
+  const dAutrui = detail.data ? !sien : true;
+  const surSesContributions = sien || peut("documents:manage_any");
+  const renommable = peut("documents:update") && surSesContributions;
+  const supprimable = peut("documents:delete") && surSesContributions;
+
+  return (
+    <Fenetre
+      ouverte={document !== null}
+      surFermeture={surFermeture}
+      categorie={t("fiche.document")}
+      titre={document?.nom ?? ""}
+      mention={supprimable ? t("fiche.actionIrreversible") : t("fiche.accesTrace")}
+      actions={
+        <>
+          {supprimable ? (
+            <Button
+              className="btn btn-danger"
+              isPending={suppression.isPending}
+              onPress={() => suppression.mutate()}
+            >
+              {t("fiche.supprimerDocument")}
+            </Button>
+          ) : null}
+          <Button className="btn btn-secondary" onPress={surFermeture}>
+            {t("annuler")}
+          </Button>
+          {renommable ? (
+            <Button
+              className="btn btn-primary"
+              isDisabled={!nom.trim() || nom.trim() === detail.data?.nom || renommage.isPending}
+              onPress={() => renommage.mutate()}
+            >
+              {t("fiche.renommerDocument")}
+            </Button>
+          ) : null}
+        </>
+      }
+    >
+      {detail.isPending ? (
+        <Chargement quoi={t("fiche.leDocument")} />
+      ) : detail.isError ? (
+        <ErreurDeChargement erreur={detail.error} surReessai={() => void detail.refetch()} />
+      ) : (
+        <>
+          <dl className="side-dl">
+            <dt>{t("fiche.typeDeFichier")}</dt>
+            <dd>{detail.data.typeMime}</dd>
+            <dt>{t("fiche.taille")}</dt>
+            <dd>{t("fiche.enKo", { ko: formaterNombre(detail.data.tailleOctets / 1024) })}</dd>
+            <dt>{t("fiche.deposePar")}</dt>
+            <dd>
+              {document?.auteur ? `${document.auteur.prenom} ${document.auteur.nom}` : "—"}
+            </dd>
+            <dt>{t("fiche.deposeLe")}</dt>
+            <dd>{formaterDateLongue(detail.data.creeLe)}</dd>
+            {/* `C14` — le contenu est adressé par empreinte, jamais par nom
+                d'origine. La montrer permet de vérifier qu'un renommage n'a
+                pas changé le fichier : c'est précisément ce que dit la règle. */}
+            <dt>{t("fiche.empreinte")}</dt>
+            <dd className="doc-m">{detail.data.empreinte}</dd>
+          </dl>
+
+          {renommable ? (
+            <div className="field-block">
+              <label className="field-label" htmlFor={`doc-nom-${detail.data.id}`}>
+                {t("fiche.nomDuDocument")}
+              </label>
+              <input
+                id={`doc-nom-${detail.data.id}`}
+                className="field"
+                value={nom}
+                onChange={(e) => setNom(e.target.value)}
+              />
+            </div>
+          ) : (
+            /*
+              `RG-GEN-06` — on dit POURQUOI la commande n'est pas là. Sans
+              cette phrase, une fiche sans champ de renommage ressemble à une
+              fonction manquante, pas à un droit qu'on n'a pas.
+            */
+            <p className="dep-none">
+              {dAutrui ? t("fiche.documentDAutrui") : t("fiche.documentNonModifiable")}
+            </p>
+          )}
+        </>
+      )}
+    </Fenetre>
   );
 }
 
