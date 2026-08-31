@@ -812,3 +812,32 @@ Aucune. Les briefs des vues 12 et 17 décrivent ce qui a été porté ; la seule
 relevée — le `×` de la maquette 17 contre `RG-DOC-01` — se résout au profit de la règle
 sans qu'aucun texte de `cadrage/02` ait à changer, la maquette n'étant plus opposable
 depuis le dégel du 2026-08-31.
+
+---
+
+## RG-DOC-01 sur le renommage — la moitié qui manquait
+
+Trouvé par l'agent de T-051 **en lisant les deux méthodes l'une après l'autre**, pendant
+qu'il branchait la vue : `supprimer` appliquait `RG-DOC-01`, `renommer` ne l'appliquait
+pas. Quiconque détenait `documents:update` renommait la pièce d'autrui — et comme le
+client venait précisément de se mettre à masquer les commandes par courtoisie, on
+tombait dans la configuration exacte de l'interdit du dépôt : **« ne jamais contrôler un
+droit côté client seul »**.
+
+La règle est écrite au singulier — « un utilisateur modifie **et** supprime ses propres
+contributions » — et une seule de ses deux moitiés était tenue. C'est la même forme que
+`EX-PRJ-07` (annulation logique **puis** suppression) et que `EX-AUTH-09` (consulter
+**et** modifier) : *une exigence à deux verbes se livre régulièrement avec un seul, et
+le verbe présent fait croire l'autre présent.*
+
+`RG-GEN-07` manquait de même : `version` était **incrémentée sans jamais être
+confrontée**, c'est-à-dire un « dernier arrivé gagne » muni d'un compteur.
+
+### Décision
+
+`version` est **facultative** sur `PATCH /documents/:id`. Le client de cette vague ne la
+porte pas encore, et l'exiger d'emblée casserait le renommage à l'instant même où on
+vient de le brancher. Quand elle est fournie, elle est confrontée. Son passage à
+obligatoire est une tâche de vue, ouverte ici.
+
+Trois tests, deux vérifiés rouges sans le correctif.
