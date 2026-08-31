@@ -465,6 +465,17 @@ const SANS_CLIENT: { verbe: string; chemin: string; raison: string }[] = [
     chemin: "/evenements/:id/participants/:userId",
     raison: "EX-EVT-08 — même raison que l'ajout : la liste des participants n'est pas rendue, seulement comptée.",
   },
+  {
+    verbe: "GET",
+    chemin: "/organisation/services/:id/impact",
+    raison:
+      "EX-ORG-03 — le troisième verbe du référentiel a été écrit dans la vague 7 ; la vue 29 porte déjà le geste pour un département, pas encore pour un service.",
+  },
+  {
+    verbe: "DELETE",
+    chemin: "/organisation/services/:id",
+    raison: "EX-ORG-03 — même raison que son impact : la vue 29 reste à compléter.",
+  },
   { verbe: "POST", chemin: "/parametrage/feries", raison: A_BRANCHER },
   { verbe: "GET", chemin: "/parametrage/feries/statistiques", raison: A_BRANCHER },
   { verbe: "GET", chemin: "/parametrage/trame", raison: A_BRANCHER },

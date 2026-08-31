@@ -243,6 +243,40 @@ export class OrganisationService {
 
   // ── Services — EX-ORG-03 ─────────────────────────────────────────────────
 
+  /**
+   * `EX-ORG-03` — supprimer un service.
+   *
+   * **Le verbe du milieu manquait**, comme il a manqué à `EX-PRJ-05` (modifier
+   * un projet), à `EX-USR-04` (modifier un compte) et à `EX-EVT-06` (modifier un
+   * événement) : le référentiel se créait et se modifiait, il ne se supprimait
+   * pas. Quatrième occurrence de la même famille, relevée par la vague 7-4.
+   *
+   * L'impact est rendu **avant** la suppression, comme pour un département : la
+   * vue 29 montre le compte de ce qui sera détaché avant de demander
+   * confirmation. Supprimer d'abord et prévenir ensuite n'est pas une option.
+   */
+  async impactSuppressionService(id: string) {
+    const service = await this.prisma.service.findUnique({
+      where: { id },
+      select: { id: true, nom: true, _count: { select: { membres: true } } },
+    });
+    if (!service) throw new ErreurOrganisation("introuvable");
+    return { nom: service.nom, agentsDetaches: service._count.membres };
+  }
+
+  async supprimerService(id: string, acteurId: string) {
+    const impact = await this.impactSuppressionService(id);
+    await this.prisma.service.delete({ where: { id } });
+    await this.audit.tracer({
+      action: "service.delete",
+      typeEntite: "Service",
+      entiteId: id,
+      acteurId,
+      detail: impact as unknown as Record<string, unknown>,
+    });
+    return impact;
+  }
+
   /** `RG-ORG-03` — un service ne peut exister hors département. */
   async creerService(
     donnees: { nom: string; description?: string; departementId: string; managerId?: string | null },
