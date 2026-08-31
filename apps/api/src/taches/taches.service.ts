@@ -29,6 +29,10 @@ export type EchecTache =
   | "multi_assignee_date"
   | "deja_assigne"
   | "dates_incoherentes"
+  | "horaires_incoherents"
+  | "droit_de_creation_manquant"
+  | "pas_membre_du_projet"
+  | "suppression_reservee_aux_assignes"
   | "introuvable"
   | "hors_perimetre"
   | "conflit_de_version";
@@ -106,20 +110,89 @@ export class TachesService {
 
   // ── Création — EX-TSK-04, EX-TSK-05, EX-TSK-06 ───────────────────────────
 
+  /**
+   * `RG-TSK-03` — **être membre du projet, ou détenir la gestion globale.**
+   *
+   * « Membre » se lit ici comme partout ailleurs dans le produit
+   * (`RG-SCOPE-02`, `filtreMesProjets`) : créateur, chef, sponsor ou membre.
+   * Une seconde définition, plus étroite, divergerait au premier ajout de rôle
+   * et rendrait visible en lecture ce qui serait refusé en écriture.
+   *
+   * La gestion globale est celle de `PERMISSIONS_GESTION_GLOBALE` pour les deux
+   * domaines en cause : qui gère toutes les tâches, ou tous les projets,
+   * n'appartient à aucun et les mène tous.
+   */
+  private async exigerAppartenance(
+    projectId: string,
+    acteurId: string,
+    permissions: ReadonlySet<string>,
+  ) {
+    if (permissions.has("tasks:manage_any") || permissions.has("projects:manage_any")) return;
+    const mien = await this.prisma.project.findFirst({
+      where: { AND: [{ id: projectId }, this.perimetres.filtreMesProjets(acteurId)] },
+      select: { id: true },
+    });
+    if (!mien) throw new ErreurTache("pas_membre_du_projet");
+  }
+
+  /**
+   * `EX-TSK-04` — créer une tâche, **avec ses horaires**.
+   *
+   * `heureDebut` / `heureFin` existent au schéma et sont lues par le planning
+   * depuis toujours ; aucune écriture ne les remplissait — ni ici, ni dans la
+   * modification, ni dans les schémas Zod. Deux colonnes mortes en écriture et
+   * vivantes en lecture : un créneau de réunion était insaisissable, et Zod
+   * retirait le champ **en silence** à qui l'envoyait.
+   *
+   * `RG-TSK-02` puis `RG-TSK-03` — **permission d'abord, appartenance ensuite**,
+   * dans cet ordre. La garde de route ouvre à qui détient l'un des deux droits
+   * de création ; c'est ici qu'on décide lequel le corps reçu appelle
+   * réellement, puisque c'est la PRÉSENCE de `projectId` qui tranche.
+   */
   async creer(
     donnees: {
       titre: string; description?: string;
       projectId?: string | null; milestoneId?: string | null; epicId?: string | null;
       statut?: StatutTache; priorite?: Priorite;
       dateDebut?: Date | null; dateFin?: Date | null;
+      heureDebut?: string | null; heureFin?: string | null;
       estimationHeures?: number; confidentielle?: boolean;
       interventionExterieure?: boolean;
       assigneIds?: string[]; serviceIds?: string[];
     },
     acteurId: string,
+    permissions: ReadonlySet<string>,
   ) {
+    /*
+     * `RG-TSK-02` — deux droits distincts, et c'est l'ABSENCE de `projectId`
+     * qui appelle le second. La route n'exigeait que `tasks:create` : douze
+     * modèles de rôles détiennent `tasks:create_standalone` sans lui et ne
+     * pouvaient donc RIEN créer, tandis qu'un porteur de `tasks:create` seul
+     * créait des tâches hors projet sans en avoir le droit. Le motif est celui
+     * de `champs-gouvernes.ts`, pris à l'envers.
+     */
+    const requise = donnees.projectId ? "tasks:create" : "tasks:create_standalone";
+    if (!permissions.has(requise)) {
+      throw new ErreurTache("droit_de_creation_manquant", { permission: requise });
+    }
+
+    /*
+     * `RG-TSK-03` — « créer une tâche dans un projet exige d'en être membre,
+     * sauf permission de gestion globale. » Rien ne le contrôlait : un agent
+     * sans aucun lien avec le projet y créait une tâche sans erreur.
+     */
+    if (donnees.projectId) {
+      await this.exigerAppartenance(donnees.projectId, acteurId, permissions);
+    }
+
     if (donnees.dateDebut && donnees.dateFin && donnees.dateFin < donnees.dateDebut) {
-      throw new ErreurTache("conflit_de_version");
+      throw new ErreurTache("dates_incoherentes");
+    }
+    // `EX-TSK-04` — la même cohérence que `EvenementsService.creer` applique
+    // déjà à ses créneaux : une fin qui ne suit pas son début n'est pas une
+    // plage, c'est une saisie inversée.
+    if (donnees.heureDebut && donnees.heureFin && donnees.heureFin <= donnees.heureDebut) {
+      throw new ErreurTache("horaires_incoherents");
     }
 
     // RG-JAL-04 — une tâche hors projet ne se rattache ni à un jalon ni à une
@@ -177,6 +250,8 @@ export class TachesService {
         priorite: donnees.priorite ?? "normal",
         dateDebut: donnees.dateDebut ?? null,
         dateFin: donnees.dateFin ?? null,
+        heureDebut: donnees.heureDebut ?? null,
+        heureFin: donnees.heureFin ?? null,
         estimationHeures: donnees.estimationHeures ?? null,
         confidentielle: donnees.confidentielle ?? false,
         interventionExterieure: donnees.interventionExterieure ?? false,
@@ -272,9 +347,22 @@ export class TachesService {
       this.incoherences(taskId),
     ]);
 
+    /*
+     * **Une permission garde une route, pas un champ** — ici sur une relation
+     * EMBARQUÉE. `GET /documents/commentaires/fil` exige `comments:read` ;
+     * cette fiche-ci, gardée par `tasks:read`, rendait le même fil. Un compte
+     * porteur de `tasks:read` sans `comments:read` lisait donc tous les
+     * commentaires du produit par l'autre porte.
+     *
+     * Le fil est ABSENT de la réponse, pas vide : un tableau vide dirait « il
+     * n'y a pas de commentaire », ce qui est faux, et l'écran ne pourrait pas
+     * faire la différence entre « rien à lire » et « pas le droit de lire ».
+     */
+    const { commentaires, ...reste } = tache;
     const maintenant = new Date();
     return {
-      ...tache,
+      ...reste,
+      ...(permissions.has("comments:read") ? { commentaires } : {}),
       tiers: tache.tiers.map((x) => x.thirdParty),
       dependances: liens,
       incoherences,
@@ -285,7 +373,8 @@ export class TachesService {
   }
 
   /**
-   * `EX-TSK-08` — modifier une tâche.
+   * `EX-TSK-08` — modifier une tâche. `EX-TSK-15` — l'y rattacher ou l'en
+   * détacher a posteriori.
    *
    * `RG-GEN-07` — **la version lue est transmise et recontrôlée.** Sans elle,
    * deux personnes qui éditent la même tâche produisent un « dernier arrivé
@@ -319,13 +408,28 @@ export class TachesService {
        */
       milestoneId?: string | null;
       epicId?: string | null;
+      /*
+       * `EX-TSK-15` — **rattacher ou détacher une tâche d'un projet a
+       * posteriori.** Le verbe du milieu manquait : `projectId` n'était accepté
+       * qu'à la création, la modification le retirait en silence, et l'appelant
+       * croyait avoir rattaché. Une tâche née hors projet le restait pour
+       * toujours ; une tâche de projet ne pouvait pas en sortir. `null` détache.
+       */
+      projectId?: string | null;
+      /** `EX-TSK-04` — les horaires se corrigent, comme les dates. */
+      heureDebut?: string | null;
+      heureFin?: string | null;
     },
     acteurId: string,
+    permissions: ReadonlySet<string>,
   ) {
     const { version, ...champs } = donnees;
     const avant = await this.prisma.task.findUnique({
       where: { id: taskId },
-      select: { version: true, statut: true, avancement: true, projectId: true },
+      select: {
+        version: true, statut: true, avancement: true, projectId: true,
+        heureDebut: true, heureFin: true,
+      },
     });
     if (!avant) throw new ErreurTache("introuvable");
     if (avant.version !== version) {
@@ -336,16 +440,61 @@ export class TachesService {
       throw new ErreurTache("dates_incoherentes");
     }
 
+    /*
+     * `EX-TSK-04` — la cohérence porte sur l'état RÉSULTANT, pas sur le corps
+     * reçu : ne changer QUE l'heure de fin doit être confronté à l'heure de
+     * début déjà en base, sinon la règle ne tiendrait que sur les saisies
+     * complètes. `undefined` laisse en place, `null` efface.
+     */
+    const heureDebut = champs.heureDebut !== undefined ? champs.heureDebut : avant.heureDebut;
+    const heureFin = champs.heureFin !== undefined ? champs.heureFin : avant.heureFin;
+    if (heureDebut && heureFin && heureFin <= heureDebut) {
+      throw new ErreurTache("horaires_incoherents");
+    }
+
+    /*
+     * `EX-TSK-15` — le projet RÉSULTANT, et non celui d'avant. Trois questions
+     * s'enchaînent, dans cet ordre : à quel projet la tâche appartiendra-t-elle,
+     * ai-je le droit de l'y mettre (`RG-TSK-03`), et que devient son
+     * rattachement fin (`RG-JAL-03`, `RG-JAL-04`).
+     */
+    const projetResultant = champs.projectId !== undefined ? champs.projectId : avant.projectId;
+    const projetChange =
+      champs.projectId !== undefined && (champs.projectId ?? null) !== avant.projectId;
+
+    /*
+     * `RG-SCOPE-02` — changer le projet d'une tâche change QUI LA VOIT. C'est
+     * le même geste que d'y créer une tâche : `RG-TSK-03` s'y applique donc à
+     * l'identique, sur le projet d'ARRIVÉE. Détacher n'exige rien de plus — on
+     * retire une tâche d'un ensemble, on n'en ouvre aucun.
+     */
+    if (projetChange && projetResultant) {
+      await this.exigerAppartenance(projetResultant, acteurId, permissions);
+    }
+
+    /*
+     * `RG-JAL-04` — **une tâche détachée traîne son jalon.** Détacher sans
+     * détacher le jalon et l'épopée produit exactement l'état que la règle
+     * interdit ; changer de projet sans les détacher produit celui
+     * qu'interdit `RG-JAL-03`. On les efface donc d'office dès que le projet
+     * bouge — sauf si la même requête en désigne d'autres, qui seront alors
+     * confrontés au projet d'arrivée comme n'importe quels autres.
+     */
+    if (projetChange) {
+      if (champs.milestoneId === undefined) champs.milestoneId = null;
+      if (champs.epicId === undefined) champs.epicId = null;
+    }
+
     // `RG-JAL-04` puis `RG-JAL-03`, sur l'état RÉSULTANT : une tâche hors projet
     // ne se rattache à rien, et ce à quoi elle se rattache est de son projet.
     if (champs.milestoneId || champs.epicId) {
-      if (!avant.projectId) throw new ErreurTache("hors_projet_avec_jalon");
+      if (!projetResultant) throw new ErreurTache("hors_projet_avec_jalon");
       if (champs.milestoneId) {
         const jalon = await this.prisma.milestone.findUnique({
           where: { id: champs.milestoneId },
           select: { projectId: true },
         });
-        if (!jalon || jalon.projectId !== avant.projectId) {
+        if (!jalon || jalon.projectId !== projetResultant) {
           throw new ErreurTache("jalon_autre_projet");
         }
       }
@@ -354,7 +503,7 @@ export class TachesService {
           where: { id: champs.epicId },
           select: { projectId: true },
         });
-        if (!epopee || epopee.projectId !== avant.projectId) {
+        if (!epopee || epopee.projectId !== projetResultant) {
           throw new ErreurTache("jalon_autre_projet");
         }
       }
@@ -407,16 +556,41 @@ export class TachesService {
    * L'unicité `(taskId, ordre)` est posée en base : écrire les nouveaux rangs
    * un par un violerait la contrainte dès le premier échange. Les rangs sont
    * donc décalés hors plage, puis réécrits.
+   *
+   * `RG-GEN-07` — **l'ordre voyage entier, donc il s'écrase entier.** Deux
+   * personnes qui réordonnent la même liste depuis deux fenêtres poseraient
+   * sinon un ordre que ni l'une ni l'autre n'a voulu. La version lue est donc
+   * exigée, et confrontée en base.
    */
-  async reordonnerSousTaches(taskId: string, idsOrdonnes: string[]) {
-    await this.prisma.$transaction([
-      ...idsOrdonnes.map((id, i) =>
-        this.prisma.subtask.update({ where: { id }, data: { ordre: -1 - i } }),
-      ),
-      ...idsOrdonnes.map((id, i) =>
-        this.prisma.subtask.update({ where: { id }, data: { ordre: i } }),
-      ),
-    ]);
+  async reordonnerSousTaches(taskId: string, idsOrdonnes: string[], version: number) {
+    const tache = await this.prisma.task.findUnique({
+      where: { id: taskId },
+      select: { version: true },
+    });
+    if (!tache) throw new ErreurTache("introuvable");
+    if (tache.version !== version) {
+      throw new ErreurTache("conflit_de_version", { attendue: tache.version, recue: version });
+    }
+
+    try {
+      await this.prisma.$transaction([
+        ...idsOrdonnes.map((id, i) =>
+          this.prisma.subtask.update({ where: { id, taskId }, data: { ordre: -1 - i } }),
+        ),
+        ...idsOrdonnes.map((id, i) =>
+          this.prisma.subtask.update({ where: { id, taskId }, data: { ordre: i } }),
+        ),
+        this.prisma.task.update({
+          where: { id: taskId, version },
+          data: { version: { increment: 1 } },
+        }),
+      ]);
+    } catch (e) {
+      if ((e as { code?: string }).code === "P2025") {
+        throw new ErreurTache("conflit_de_version", { attendue: tache.version, recue: version });
+      }
+      throw e;
+    }
     return this.prisma.subtask.findMany({ where: { taskId }, orderBy: { ordre: "asc" } });
   }
 
@@ -948,8 +1122,44 @@ export class TachesService {
   /**
    * `RG-TSK-07` — une tâche dont d'autres dépendent ne peut pas être
    * supprimée ; **la liste des dépendantes est affichée**.
+   *
+   * `RG-TSK-14` — « sans permission élargie, un utilisateur ne peut supprimer
+   * que les tâches qui lui sont assignées. » La signature ne le permettait pas :
+   * elle ne recevait ni permissions ni périmètre, donc elle ne décidait rien, et
+   * tout détenteur de `tasks:delete` supprimait n'importe quelle tâche de
+   * l'instance — hors de son périmètre comprise.
+   *
+   * L'ordre est celui de la maison : **permission d'abord** (la garde de route
+   * a exigé `tasks:delete`), **périmètre ensuite** (la tâche est-elle seulement
+   * lisible ?), et la règle propre à la suppression en dernier. Le refus de
+   * périmètre ne renseigne pas sur l'existence de la ligne.
    */
-  async supprimer(taskId: string, acteurId: string) {
+  async supprimer(
+    taskId: string,
+    acteurId: string,
+    perimetre: Perimetre,
+    permissions: ReadonlySet<string>,
+  ) {
+    const lisible = await this.prisma.task.findFirst({
+      where: { AND: [{ id: taskId }, this.perimetres.filtreTache(perimetre, permissions)] },
+      select: { id: true },
+    });
+    if (!lisible) throw new ErreurTache("hors_perimetre");
+
+    /*
+     * La permission élargie est `tasks:manage_any` : c'est celle que
+     * `PERMISSIONS_GESTION_GLOBALE` nomme pour ce domaine, et la seule du
+     * catalogue qui dise « toutes les tâches ». `tasks:delete` ne dit que « le
+     * geste de supprimer » — c'est justement la distinction que la règle pose.
+     */
+    if (!permissions.has("tasks:manage_any")) {
+      const sienne = await this.prisma.taskAssignee.findUnique({
+        where: { taskId_userId: { taskId, userId: acteurId } },
+        select: { taskId: true },
+      });
+      if (!sienne) throw new ErreurTache("suppression_reservee_aux_assignes");
+    }
+
     const dependantes = await this.prisma.taskDependency.findMany({
       where: { prerequisId: taskId },
       include: { task: { select: { id: true, titre: true } } },
@@ -1012,13 +1222,27 @@ export class TachesService {
   async definirAssignes(
     taskId: string,
     userIds: string[],
+    version: number,
     acteurId: string,
-  ): Promise<{ assignes: string[] }> {
+  ): Promise<{ assignes: string[]; version: number }> {
     const tache = await this.prisma.task.findUnique({
       where: { id: taskId },
-      select: { id: true, titre: true },
+      select: { id: true, titre: true, version: true },
     });
     if (!tache) throw new ErreurTache("introuvable");
+
+    /*
+     * `RG-GEN-07` — **la liste voyage entière, donc elle s'écrase entière.**
+     * C'est précisément le geste que « dernier arrivé gagne » rend dangereux :
+     * deux personnes qui composent la même liste depuis deux fenêtres
+     * s'effacent mutuellement, sans qu'aucune ne le sache, et le résultat n'est
+     * l'intention de personne. La version lue est donc exigée, comme partout
+     * ailleurs dans le module — elle manquait ici et sur l'ordre des
+     * sous-tâches, les deux seules poses d'ensemble qui ne l'avaient pas.
+     */
+    if (tache.version !== version) {
+      throw new ErreurTache("conflit_de_version", { attendue: tache.version, recue: version });
+    }
 
     const uniques = [...new Set(userIds)];
     const connus = await this.prisma.user.count({ where: { id: { in: uniques } } });
@@ -1029,12 +1253,29 @@ export class TachesService {
       select: { userId: true },
     });
 
-    await this.prisma.$transaction([
-      this.prisma.taskAssignee.deleteMany({ where: { taskId } }),
-      ...uniques.map((userId, i) =>
-        this.prisma.taskAssignee.create({ data: { taskId, userId, porteur: i === 0 } }),
-      ),
-    ]);
+    try {
+      await this.prisma.$transaction([
+        this.prisma.taskAssignee.deleteMany({ where: { taskId } }),
+        ...uniques.map((userId, i) =>
+          this.prisma.taskAssignee.create({ data: { taskId, userId, porteur: i === 0 } }),
+        ),
+        /*
+         * `RG-GEN-07` doublé en base, comme sur les dépendances : la version
+         * est dans le `where`. Une écriture concurrente glissée entre la
+         * lecture et ici ne correspond plus, `P2025` remonte, et toute la
+         * transaction est défaite — les assignations comprises.
+         */
+        this.prisma.task.update({
+          where: { id: taskId, version },
+          data: { version: { increment: 1 } },
+        }),
+      ]);
+    } catch (e) {
+      if ((e as { code?: string }).code === "P2025") {
+        throw new ErreurTache("conflit_de_version", { attendue: tache.version, recue: version });
+      }
+      throw e;
+    }
 
     await this.audit.tracer({
       action: "task.assignees_set",
@@ -1061,7 +1302,7 @@ export class TachesService {
       });
     }
 
-    return { assignes: uniques };
+    return { assignes: uniques, version: version + 1 };
   }
 
   async deplacerDepuisPlanning(

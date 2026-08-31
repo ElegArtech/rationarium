@@ -15,7 +15,28 @@ import { PerimetreService } from "../commun/perimetre.service.js";
  * test porterait deux sujets et n'en prouverait aucun.
  */
 const PERIMETRE_TOTAL = { userId: "00000000-0000-4000-8000-000000000000", global: true, confidentiel: true } as never;
-const PERMISSIONS_TOTALES = new Set(["tasks:readAll", "tasks:manage_any"]) as ReadonlySet<string>;
+/*
+ * `comments:read` en fait partie : le fil embarqué dans la fiche est gardé
+ * pour lui-même, et sans ce droit la clé `commentaires` est ABSENTE de la
+ * réponse. Ces suites-ci éprouvent ce que la fiche rassemble, donc elles le
+ * détiennent ; le refus a sa propre suite dans `droits-et-rattachement`.
+ */
+const PERMISSIONS_TOTALES = new Set([
+  "tasks:readAll",
+  "tasks:manage_any",
+  "comments:read",
+]) as ReadonlySet<string>;
+
+/** Voir `taches.int.test.ts` : ces suites n'éprouvent pas les droits d'écriture. */
+const DROITS_CREATION = new Set([
+  "tasks:create",
+  "tasks:create_standalone",
+  "tasks:manage_any",
+]) as ReadonlySet<string>;
+const DROITS_SUPPRESSION = new Set([
+  "tasks:delete",
+  "tasks:manage_any",
+]) as ReadonlySet<string>;
 
 /**
  * L-33 — les points d'entrée ajoutés pour les vues 12, 16 et 17 : fiche
@@ -120,11 +141,11 @@ describe("RG-GEN-07 — la concurrence est détectée, jamais écrasée", () => 
   it("une version périmée est refusée en conflit", async () => {
     const t = await tache("Éditée à deux");
 
-    await taches.modifier(t.id, { version: t.version, titre: "Première écriture" }, acteur);
+    await taches.modifier(t.id, { version: t.version, titre: "Première écriture" }, acteur, DROITS_CREATION);
 
     // Le second éditeur a lu la version 1 : son écriture ne doit pas passer.
     await expect(
-      taches.modifier(t.id, { version: t.version, titre: "Seconde écriture" }, acteur),
+      taches.modifier(t.id, { version: t.version, titre: "Seconde écriture" }, acteur, DROITS_CREATION),
     ).rejects.toMatchObject({ code: "conflit_de_version" });
 
     const apres = await prisma.task.findUniqueOrThrow({ where: { id: t.id } });
@@ -133,10 +154,10 @@ describe("RG-GEN-07 — la concurrence est détectée, jamais écrasée", () => 
 
   it("le refus dit la version attendue et celle reçue", async () => {
     const t = await tache("Conflit chiffré");
-    await taches.modifier(t.id, { version: 1, statut: "doing" }, acteur);
+    await taches.modifier(t.id, { version: 1, statut: "doing" }, acteur, DROITS_CREATION);
 
     const erreur: unknown = await taches
-      .modifier(t.id, { version: 1, statut: "done" }, acteur)
+      .modifier(t.id, { version: 1, statut: "done" }, acteur, DROITS_CREATION)
       .then(() => null, (e: unknown) => e);
 
     // Le chiffre est le message utile : « conflit » sans les deux versions
@@ -146,9 +167,9 @@ describe("RG-GEN-07 — la concurrence est détectée, jamais écrasée", () => 
 
   it("la version s'incrémente à chaque écriture", async () => {
     const t = await tache("Compteur");
-    const un = await taches.modifier(t.id, { version: 1, avancement: 30 }, acteur);
+    const un = await taches.modifier(t.id, { version: 1, avancement: 30 }, acteur, DROITS_CREATION);
     expect(un.version).toBe(2);
-    const deux = await taches.modifier(t.id, { version: 2, avancement: 60 }, acteur);
+    const deux = await taches.modifier(t.id, { version: 2, avancement: 60 }, acteur, DROITS_CREATION);
     expect(deux.version).toBe(3);
   });
 
@@ -158,7 +179,7 @@ describe("RG-GEN-07 — la concurrence est détectée, jamais écrasée", () => 
       taches.modifier(
         t.id,
         { version: 1, dateDebut: utc("2026-09-01"), dateFin: utc("2026-08-01") },
-        acteur,
+        acteur, DROITS_CREATION
       ),
     ).rejects.toMatchObject({ code: "dates_incoherentes" });
   });
@@ -184,7 +205,7 @@ describe("EX-TSK-09 — les sous-tâches portent un ordre explicite", () => {
 
     // Échanger deux rangs en écriture directe violerait la contrainte : c'est
     // pourquoi le service décale hors plage avant de réécrire.
-    const apres = await taches.reordonnerSousTaches(t.id, [c.id, a.id, b.id]);
+    const apres = await taches.reordonnerSousTaches(t.id, [c.id, a.id, b.id], t.version);
     expect(apres.map((s) => s.libelle)).toEqual(["C", "A", "B"]);
     expect(apres.map((s) => s.ordre)).toEqual([0, 1, 2]);
   });
@@ -218,12 +239,12 @@ describe("EX-TSK-11, EX-TSK-14 — retirer un lien", () => {
     const dependante = await tache("Dépendante");
     await taches.ajouterDependance(dependante.id, t.id, acteur);
 
-    await expect(taches.supprimer(t.id, acteur)).rejects.toMatchObject({
+    await expect(taches.supprimer(t.id, acteur, PERIMETRE_TOTAL, DROITS_SUPPRESSION)).rejects.toMatchObject({
       code: "supprimee_avec_dependantes",
     });
 
     await taches.retirerDependance(dependante.id, t.id, acteur);
-    await expect(taches.supprimer(t.id, acteur)).resolves.toBeUndefined();
+    await expect(taches.supprimer(t.id, acteur, PERIMETRE_TOTAL, DROITS_SUPPRESSION)).resolves.toBeUndefined();
   });
 
   it("retirer un rôle RACI n'enlève pas les autres rôles de la personne", async () => {

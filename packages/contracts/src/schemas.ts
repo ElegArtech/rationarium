@@ -248,6 +248,17 @@ export const tacheSchema = z
     message: "La date de fin doit être postérieure ou égale à la date de début.",
     path: ["dateFin"],
   })
+  /**
+   * EX-TSK-04 — les horaires font partie des onze champs de l'exigence, et
+   * une plage horaire se referme après s'être ouverte. Même cohérence que
+   * `evenementSchema` : sur une même journée, une fin égale au début n'est pas
+   * un créneau. La contrainte manquait ici alors que les deux champs y étaient
+   * déjà déclarés — et le serveur ne les acceptait, lui, nulle part.
+   */
+  .refine((v) => !v.heureDebut || !v.heureFin || v.heureFin > v.heureDebut, {
+    message: "L'heure de fin doit être postérieure à l'heure de début.",
+    path: ["heureFin"],
+  })
   /** RG-JAL-04 — une tâche hors projet ne se rattache ni à un jalon ni à une épopée. */
   .refine((v) => v.projectId || (!v.milestoneId && !v.epicId), {
     message: "Une tâche hors projet ne peut être rattachée ni à un jalon ni à une épopée.",

@@ -49,6 +49,14 @@ export function FenetreCreationTache({
   const [priorite, setPriorite] = useState("normal");
   const [dateDebut, setDateDebut] = useState("");
   const [dateFin, setDateFin] = useState("");
+  /*
+   * `EX-TSK-04` — les horaires font partie des onze champs de l'exigence, et
+   * ils manquaient partout : au formulaire, au schéma de la route, à
+   * l'écriture. Un créneau de réunion était insaisissable, et la vue 07 ne
+   * pouvait afficher qu'une bande de journée entière.
+   */
+  const [heureDebut, setHeureDebut] = useState("");
+  const [heureFin, setHeureFin] = useState("");
   const [estimation, setEstimation] = useState("");
   const [assignes, setAssignes] = useState<string[]>([]);
   const [titreManquant, setTitreManquant] = useState(false);
@@ -95,6 +103,8 @@ export function FenetreCreationTache({
         priorite,
         ...(dateDebut ? { dateDebut } : {}),
         ...(dateFin ? { dateFin } : {}),
+        ...(heureDebut ? { heureDebut } : {}),
+        ...(heureFin ? { heureFin } : {}),
         ...(estimation ? { estimationHeures: Number(estimation) } : {}),
         ...(assignes.length > 0 ? { assigneIds: assignes } : {}),
       }),
@@ -102,6 +112,8 @@ export function FenetreCreationTache({
       annoncer("ok", t("liste.creee"));
       setTitre("");
       setDescription("");
+      setHeureDebut("");
+      setHeureFin("");
       setAssignes([]);
       surFermeture();
       void client.invalidateQueries({ queryKey: ["taches"] });
@@ -115,6 +127,15 @@ export function FenetreCreationTache({
     setTitreManquant(vide);
     if (vide) {
       setErreur(t("liste.titreObligatoire"));
+      return;
+    }
+    /*
+     * Par courtoisie seulement : le serveur refuse la même chose en
+     * `horaires_incoherents`. Le dire ici évite un aller-retour, il ne
+     * remplace pas le contrôle.
+     */
+    if (heureDebut && heureFin && heureFin <= heureDebut) {
+      setErreur(t("liste.horairesIncoherents"));
       return;
     }
     creation.mutate();
@@ -310,6 +331,33 @@ export function FenetreCreationTache({
               value={dateFin}
               onChange={(e) => setDateFin(e.target.value)}
             />
+          </div>
+
+          <div className="field-block">
+            <label className="field-label" htmlFor="tk-h-debut">
+              {t("liste.heureDebut")}
+            </label>
+            <input
+              className="field"
+              id="tk-h-debut"
+              type="time"
+              value={heureDebut}
+              onChange={(e) => setHeureDebut(e.target.value)}
+            />
+          </div>
+
+          <div className="field-block">
+            <label className="field-label" htmlFor="tk-h-fin">
+              {t("liste.heureFin")}
+            </label>
+            <input
+              className="field"
+              id="tk-h-fin"
+              type="time"
+              value={heureFin}
+              onChange={(e) => setHeureFin(e.target.value)}
+            />
+            <p className="field-hint">{t("liste.horairesAide")}</p>
           </div>
 
           <div className="field-block span2">
