@@ -1,9 +1,11 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 import { serveur } from "./fixtures/projets.js";
+import { UTILISATEURS } from "./fixtures/administration.js";
 import {
   CAMILLE,
   FATOU,
   HUGO,
+  HUGO_SANS_ATTRIBUTION,
   EVENEMENTS,
   TYPES_CONGE,
   SOLDES,
@@ -194,6 +196,22 @@ test.describe("Vue 19 — congés : trois publics, un écran", () => {
     "/api/conges/solde": { corps: SOLDE_T1_2026 },
   };
 
+  /*
+   * `EX-CNG-10` — l'onglet Soldes lit le catalogue des soldes ET l'annuaire :
+   * `userId: null` vaut le défaut global, mais choisir un agent demande de
+   * savoir lesquels existent. La route est `GET /utilisateurs`, gardée par
+   * `users:read`, et elle rend un TABLEAU — pas `{ utilisateurs }`.
+   */
+  const reponsesSoldes = { ...reponses, "/api/utilisateurs": { corps: UTILISATEURS } };
+
+  /** Un onglet se vise toujours DANS sa barre de sections, jamais nu. */
+  const ouvrirSoldes = async (page: Page) => {
+    await page
+      .getByRole("navigation", { name: "Sections des congés" })
+      .getByRole("link", { name: "Soldes" })
+      .click();
+  };
+
   test("Camille ne voit qu'un onglet", async ({ page }) => {
     await serveur(page, { session: CAMILLE, reponses });
     await page.goto("/conges");
@@ -213,13 +231,18 @@ test.describe("Vue 19 — congés : trois publics, un écran", () => {
     await expect(page.getByRole("link", { name: "À valider" })).toBeVisible();
   });
 
-  test("Hugo voit tout, types compris", async ({ page }) => {
-    await serveur(page, { session: HUGO, reponses });
+  test("Hugo voit tout, types et soldes compris", async ({ page }) => {
+    await serveur(page, { session: HUGO, reponses: reponsesSoldes });
     await page.goto("/conges");
 
+    /* « Camille en voit un, Hugo en voit six » — `cadrage/02` § vue 19. Le
+       sixième est « Soldes » depuis l'arbitrage du 2026-08-31 : la vue rend les
+       deux listes de délégations dans un seul onglet, là où l'énumération de la
+       section en comptait deux. */
     const onglets = page.getByRole("navigation", { name: "Sections des congés" }).getByRole("link");
-    await expect(onglets).toHaveCount(5);
+    await expect(onglets).toHaveCount(6);
     await expect(page.getByRole("link", { name: "Types de congés" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Soldes" })).toBeVisible();
   });
 
   test("le solde est en tête de page, pas à chercher", async ({ page }) => {
@@ -381,8 +404,12 @@ test.describe("Vue 19 — congés : trois publics, un écran", () => {
     await page.getByRole("button", { name: "Refuser l'annulation" }).click();
     await expect(page.getByText("Annulation refusée : le congé reste approuvé.")).toBeVisible();
 
-    // Le corps distingue les deux issues — c'est tout le contrat de la route.
-    expect(corps).toEqual([{ accepte: true }, { accepte: false }]);
+    /* Le corps distingue les deux issues — c'est tout le contrat de la route —
+       et porte la version lue, que `RG-GEN-07` exige sur chaque écriture. */
+    expect(corps).toEqual([
+      { accepte: true, version: DEMANDE_ANNULATION.version },
+      { accepte: false, version: DEMANDE_ANNULATION.version },
+    ]);
   });
 
   /**
@@ -802,6 +829,336 @@ test.describe("Vue 19 — congés : trois publics, un écran", () => {
     );
     // Aucun nom : le serveur n'en a pas donné, l'écran n'en fabrique pas.
     await expect(mention).not.toContainText("Fatou");
+  });
+
+  /*
+   * ───────────────────────────────────────────────────────────────────────────
+   * `EX-CNG-10`, `RG-CNG-24` — le sixième onglet : Soldes.
+   *
+   * `PUT /conges/soldes` existait, gardée et testée, et aucun écran ne
+   * l'appelait : sur une instance neuve tous les soldes valaient zéro, donc
+   * `RG-CNG-20` refusait toute demande. `cadrage/02` § vue 19 se contredisait,
+   * et l'arbitrage y est désormais écrit — c'est la ligne « Variantes » qui
+   * l'emporte, seule des deux à décrire ce que voit un détenteur de
+   * `leaves:manage_balances`.
+   * ───────────────────────────────────────────────────────────────────────────
+   */
+  test("EX-CNG-10 — l'onglet Soldes n'apparaît qu'avec `leaves:manage_balances`", async ({
+    page,
+  }) => {
+    // Fatou valide et délègue : elle n'attribue pas. L'onglet n'est pas là.
+    await serveur(page, { session: FATOU, reponses });
+    await page.goto("/conges");
+    const sections = page.getByRole("navigation", { name: "Sections des congés" });
+    await expect(sections.getByRole("link", { name: "Soldes" })).toHaveCount(0);
+
+    // Hugo administre : il en voit six, le sixième étant celui-ci.
+    await serveur(page, { session: HUGO, reponses: reponsesSoldes });
+    await page.goto("/conges");
+    await expect(sections.getByRole("link")).toHaveCount(6);
+    await expect(sections.getByRole("link", { name: "Soldes" })).toBeVisible();
+  });
+
+  test("EX-CNG-10 — attribuer des jours à UN AGENT compose `PUT /conges/soldes` avec sa version", async ({
+    page,
+  }) => {
+    await serveur(page, { session: HUGO, reponses: reponsesSoldes });
+    const envoi = page.waitForRequest(
+      (r) => new URL(r.url()).pathname === "/api/conges/soldes" && r.method() === "PUT",
+    );
+    await page.goto("/conges");
+    await ouvrirSoldes(page);
+    // Un agent, donc l'allocation PROPRE — et sa version, telle que la lecture
+    // la rend : `SOLDES[0].solde.propre.version` vaut 4.
+    await page.getByLabel("Bénéficiaire").selectOption("u-autre");
+    await page.getByLabel("Congés annuels", { exact: true }).fill("27");
+    await page.getByRole("button", { name: "Enregistrer le solde de Congés annuels" }).click();
+
+    expect((await envoi).postDataJSON()).toEqual({
+      userId: "u-autre",
+      typeId: "t1",
+      annee: 2026,
+      joursAttribues: 27,
+      version: 4,
+    });
+    await expect(page.getByText("Le solde de Congés annuels est enregistré.")).toBeVisible();
+  });
+
+  test("RG-CNG-24 — le DÉFAUT GLOBAL est un cas nominal : `userId` part à `null`", async ({
+    page,
+  }) => {
+    await serveur(page, { session: HUGO, reponses: reponsesSoldes });
+    const envoi = page.waitForRequest(
+      (r) => new URL(r.url()).pathname === "/api/conges/soldes" && r.method() === "PUT",
+    );
+    await page.goto("/conges");
+    await ouvrirSoldes(page);
+    // Le bénéficiaire par défaut est « Défaut global » : rien à choisir.
+    await expect(page.getByLabel("Bénéficiaire")).toHaveValue("");
+    await page.getByLabel("Congés annuels", { exact: true }).fill("22");
+    await page.getByRole("button", { name: "Enregistrer le solde de Congés annuels" }).click();
+
+    // `userId: null`, et la version du DÉFAUT GLOBAL — 2 —, pas celle de
+    // l'allocation propre. Les deux ne se corrigent pas au même endroit.
+    expect((await envoi).postDataJSON()).toEqual({
+      userId: null,
+      typeId: "t1",
+      annee: 2026,
+      joursAttribues: 22,
+      version: 2,
+    });
+  });
+
+  test("RG-CNG-24 — l'écran DIT si le chiffre vient de l'allocation propre ou du défaut global", async ({
+    page,
+  }) => {
+    await serveur(page, { session: HUGO, reponses: reponsesSoldes });
+    await page.goto("/conges");
+    await ouvrirSoldes(page);
+    await page.getByLabel("Bénéficiaire").selectOption("u-autre");
+
+    // `SOLDES[0]` porte une allocation propre, `SOLDES[1]` n'en a pas.
+    await expect(page.getByText("Allocation propre à cet agent.")).toBeVisible();
+    await expect(
+      page.getByText(
+        "Aucune allocation propre : cet agent hérite du défaut global, soit 12,0 j. Enregistrer ici lui en crée une.",
+      ),
+    ).toBeVisible();
+  });
+
+  test("RG-CNG-23 — une allocation modifiée entre-temps se rend en message rédigé", async ({
+    page,
+  }) => {
+    await serveur(page, { session: HUGO, reponses: reponsesSoldes });
+    /*
+     * Le harnais choisit sa réponse au CHEMIN seul : stubber `/api/conges/soldes`
+     * en 409 couperait aussi la LECTURE, et l'onglet se rendrait vide — le test
+     * mesurerait alors une page absente, pas un conflit. L'interception vise
+     * donc le verbe, et laisse passer le reste par `fallback()`.
+     */
+    await page.route(
+      (url) => url.pathname === "/api/conges/soldes",
+      (route) =>
+        route.request().method() === "PUT"
+          ? route.fulfill({
+              status: 409,
+              contentType: "application/json",
+              body: JSON.stringify({
+                cle: "erreurs:allocationModifiee",
+                message: "allocation_modifiee",
+              }),
+            })
+          : route.fallback(),
+    );
+    await page.goto("/conges");
+    await ouvrirSoldes(page);
+    await page.getByLabel("Congés annuels", { exact: true }).fill("30");
+    await page.getByRole("button", { name: "Enregistrer le solde de Congés annuels" }).click();
+
+    // Le message est rédigé et actionnable, pas un code technique (`RG-GEN-03`).
+    await expect(
+      page.getByText("Le solde a changé depuis votre lecture. Rechargez la demande avant de valider."),
+    ).toBeVisible();
+  });
+
+  /**
+   * `RG-GEN-06` — « une action interdite est **masquée** ou désactivée avec
+   * explication ».
+   *
+   * Ici, c'est **masquée**, et au grain le plus large : l'onglet entier. Un
+   * profil sans `leaves:manage_balances` n'a rien à attribuer, donc rien à
+   * comprendre — la variante « désactivée avec explication » sert quand
+   * l'action a du sens mais pas maintenant, ce qui n'est pas ce cas.
+   *
+   * Le test dit exactement ce qu'il mesure : l'onglet n'est pas proposé. Il ne
+   * prétend PAS mesurer l'infobulle d'`ActionProtegee`, que la commande porte
+   * pourtant — cette branche-là est inatteignable depuis cette vue tant que
+   * l'onglet est gardé par la même permission. Voir le compte rendu : c'est une
+   * question remontée, pas un oubli.
+   */
+  test("RG-GEN-06 — sans `leaves:manage_balances`, l'onglet Soldes n'est pas proposé du tout", async ({
+    page,
+  }) => {
+    // Le profil se construit à la main : aucun rôle du catalogue ne détient
+    // `users:read` et `leaves:manage_types` sans `leaves:manage_balances`.
+    await serveur(page, { session: HUGO_SANS_ATTRIBUTION, reponses: reponsesSoldes });
+    await page.goto("/conges");
+    const sections = page.getByRole("navigation", { name: "Sections des congés" });
+    await expect(sections.getByRole("link", { name: "Soldes" })).toHaveCount(0);
+    // Et les cinq autres restent : c'est bien l'onglet qui tombe, pas la vue.
+    await expect(sections.getByRole("link")).toHaveCount(5);
+  });
+
+  test("RG-GEN-04 — le référentiel des types vide se rend rédigé, avec sa sortie", async ({
+    page,
+  }) => {
+    await serveur(page, {
+      session: HUGO,
+      reponses: { ...reponsesSoldes, "/api/conges/types": { corps: [] } },
+    });
+    await page.goto("/conges");
+    await page.getByRole("navigation", { name: "Sections des congés" }).getByRole("link", {
+      name: "Types de congés",
+    }).click();
+
+    await expect(page.getByText("Aucun type de congé actif", { exact: true })).toBeVisible();
+    await expect(
+      page.getByText(
+        "Le référentiel des types porte ce que les agents peuvent demander. Sans lui, aucune demande n'est possible.",
+      ),
+    ).toBeVisible();
+    // La sortie : les types désactivés sont peut-être là, et on le propose.
+    await expect(page.getByRole("button", { name: "Afficher les inactifs" })).toBeVisible();
+  });
+
+  test("RG-GEN-04 — l'onglet Soldes sans type actif se rend rédigé, avec sa sortie", async ({
+    page,
+  }) => {
+    await serveur(page, {
+      session: HUGO,
+      reponses: { ...reponsesSoldes, "/api/conges/soldes": { corps: [] } },
+    });
+    await page.goto("/conges");
+    await ouvrirSoldes(page);
+
+    await expect(page.getByText("Aucun type de congé actif", { exact: true })).toBeVisible();
+    await expect(
+      page.getByText(
+        "Il n'y a rien à attribuer tant que le référentiel des types est vide. Créez-en un dans l'onglet Types de congés.",
+      ),
+    ).toBeVisible();
+  });
+
+  /*
+   * ───────────────────────────────────────────────────────────────────────────
+   * `RG-GEN-07` — la version lue accompagne CHAQUE écriture de la vue 19.
+   *
+   * Aucune des six mutations ne la transmettait, alors que `GET /conges` la
+   * rend sur chaque ligne depuis toujours. Le serveur ne l'exigeait pas non
+   * plus : deux moitiés cohérentes entre elles et fausses ensemble, qu'aucune
+   * boucle ne pouvait départager.
+   * ───────────────────────────────────────────────────────────────────────────
+   */
+  test("RG-GEN-07 — l'approbation transmet la version LUE de la demande", async ({ page }) => {
+    await serveur(page, {
+      session: FATOU,
+      reponses: { ...reponses, [`/api/conges/${DEMANDES[0].id}/approuver`]: { corps: {} } },
+    });
+    const envoi = page.waitForRequest(
+      (r) => new URL(r.url()).pathname === `/api/conges/${DEMANDES[0].id}/approuver`,
+    );
+    await page.goto("/conges");
+    await page.getByRole("navigation", { name: "Sections des congés" }).getByRole("link", {
+      name: "À valider",
+    }).click();
+    await page.getByRole("button", { name: "Approuver", exact: true }).first().click();
+
+    expect((await envoi).postDataJSON()).toEqual({ version: DEMANDES[0].version });
+  });
+
+  test("RG-GEN-07 — le refus transmet la version, en plus de son motif", async ({ page }) => {
+    await serveur(page, {
+      session: FATOU,
+      reponses: { ...reponses, [`/api/conges/${DEMANDES[0].id}/refuser`]: { corps: {} } },
+    });
+    const envoi = page.waitForRequest(
+      (r) => new URL(r.url()).pathname === `/api/conges/${DEMANDES[0].id}/refuser`,
+    );
+    await page.goto("/conges");
+    await page.getByRole("navigation", { name: "Sections des congés" }).getByRole("link", {
+      name: "À valider",
+    }).click();
+    await page.getByRole("button", { name: "Refuser", exact: true }).first().click();
+    await page.getByLabel("Motif du refus").fill("Effectif insuffisant");
+    await page.getByRole("button", { name: "Confirmer le refus" }).click();
+
+    expect((await envoi).postDataJSON()).toEqual({
+      motifRefus: "Effectif insuffisant",
+      version: DEMANDES[0].version,
+    });
+  });
+
+  test("RG-GEN-07 — la suppression porte la version en paramètre de requête", async ({ page }) => {
+    await serveur(page, {
+      session: CAMILLE,
+      reponses: { ...reponses, [`/api/conges/${DEMANDES[0].id}`]: { corps: {} } },
+    });
+    const envoi = page.waitForRequest(
+      (r) =>
+        new URL(r.url()).pathname === `/api/conges/${DEMANDES[0].id}` && r.method() === "DELETE",
+    );
+    await page.goto("/conges");
+    await page.getByRole("button", { name: "Supprimer", exact: true }).first().click();
+
+    expect(new URL((await envoi).url()).searchParams.get("version")).toBe(
+      String(DEMANDES[0].version),
+    );
+  });
+
+  test("RG-GEN-07 — la demande d'annulation transmet la version du congé approuvé", async ({
+    page,
+  }) => {
+    await serveur(page, {
+      session: CAMILLE,
+      reponses: { ...reponses, [`/api/conges/${DEMANDES[1].id}/annulation`]: { corps: {} } },
+    });
+    const envoi = page.waitForRequest(
+      (r) => new URL(r.url()).pathname === `/api/conges/${DEMANDES[1].id}/annulation`,
+    );
+    await page.goto("/conges");
+    await page.getByRole("button", { name: "Demander l'annulation" }).first().click();
+
+    expect((await envoi).postDataJSON()).toEqual({ version: DEMANDES[1].version });
+  });
+
+  test("RG-GEN-07 — le traitement d'une annulation transmet la version, en plus de `accepte`", async ({
+    page,
+  }) => {
+    await serveur(page, {
+      session: FATOU,
+      reponses: {
+        ...reponses,
+        "/api/conges": { corps: [DEMANDE_ANNULATION] },
+        [`/api/conges/${DEMANDE_ANNULATION.id}/annulation/traiter`]: { corps: {} },
+      },
+    });
+    const envoi = page.waitForRequest(
+      (r) =>
+        new URL(r.url()).pathname === `/api/conges/${DEMANDE_ANNULATION.id}/annulation/traiter`,
+    );
+    await page.goto("/conges");
+    await page.getByRole("navigation", { name: "Sections des congés" }).getByRole("link", {
+      name: "À valider",
+    }).click();
+    await page.getByRole("button", { name: "Accepter l'annulation" }).click();
+
+    expect((await envoi).postDataJSON()).toEqual({
+      accepte: true,
+      version: DEMANDE_ANNULATION.version,
+    });
+  });
+
+  test("RG-GEN-07 — la modification transmet la version : c'est le seul garde-fou d'une demande restée en attente", async ({
+    page,
+  }) => {
+    await serveur(page, {
+      session: CAMILLE,
+      reponses: {
+        ...reponses,
+        "/api/parametrage/jours-ouvres": { corps: JOURS_OUVRES_SEMAINE },
+        [`/api/conges/${DEMANDES[0].id}`]: { corps: {} },
+      },
+    });
+    const envoi = page.waitForRequest(
+      (r) =>
+        new URL(r.url()).pathname === `/api/conges/${DEMANDES[0].id}` && r.method() === "PATCH",
+    );
+    await page.goto("/conges");
+    await page.getByRole("button", { name: "Modifier", exact: true }).first().click();
+    await page.getByLabel("Date de fin").fill("2026-09-10");
+    await page.getByRole("button", { name: "Enregistrer" }).click();
+
+    expect((await envoi).postDataJSON()).toMatchObject({ version: DEMANDES[0].version });
   });
 });
 
