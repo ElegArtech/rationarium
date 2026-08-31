@@ -1,6 +1,14 @@
 import { test, expect } from "@playwright/test";
 import { serveur, SESSION, SESSION_LECTURE, PROJET } from "./fixtures/projets.js";
-import { LISTE, TACHE_PROJET, TACHE_INDEPENDANTE, FICHE, FICHE_VIDE } from "./fixtures/taches.js";
+import {
+  LISTE,
+  TACHE_PROJET,
+  TACHE_INDEPENDANTE,
+  FICHE,
+  FICHE_VIDE,
+  CANDIDATS,
+  INCOHERENCES,
+} from "./fixtures/taches.js";
 
 /**
  * L-33 — vues 12, 16 et 17.
@@ -367,5 +375,214 @@ test.describe("La tâche indépendante, de bout en bout", () => {
     // s'afficherait : le hors-projet n'est jamais un blanc.
     await expect(page.getByText("Tâche indépendante").first()).toBeVisible();
     void TACHE_INDEPENDANTE;
+  });
+});
+
+/**
+ * `EX-TSK-10` — **la fenêtre de sélection des dépendances**, vue 17.
+ *
+ * Le bouton « Modifier les dépendances » a vécu plusieurs lots désactivé
+ * derrière un motif exact : le serveur posait et retirait un lien, mais
+ * n'exposait pas la liste des tâches candidates. Un motif exact ne fait pas une
+ * fonctionnalité — et une commande désactivée ne fait échouer aucun contrôle,
+ * ce qui est précisément ce qui l'a laissée vivre.
+ */
+test.describe("Vue 17 — modifier les dépendances", () => {
+  const reponsesDeps = {
+    [`/api/taches/${FICHE.id}`]: { corps: FICHE },
+    [`/api/taches/${FICHE.id}/dependances/candidats`]: { corps: CANDIDATS },
+    [`/api/taches/${FICHE.id}/incoherences`]: { corps: INCOHERENCES },
+  };
+
+  test("EX-TSK-10 — le bouton OUVRE la fenêtre, et la liste n'est pas vide", async ({ page }) => {
+    await serveur(page, { session: SESSION_TACHES, reponses: reponsesDeps });
+    await page.goto(`/taches/${FICHE.id}`);
+
+    const bouton = page.getByRole("button", { name: "Modifier les dépendances" });
+    await expect(bouton).toBeEnabled();
+    await bouton.click();
+
+    const fenetre = page.getByRole("dialog");
+    await expect(
+      fenetre.getByText("Sélectionnez les tâches qui doivent être terminées avant celle-ci."),
+    ).toBeVisible();
+    // Les candidats du serveur ET le prérequis déjà posé : sans ce dernier, on
+    // ne pourrait plus rien décocher.
+    await expect(fenetre.getByRole("checkbox", { name: /Cadrer les parcours/ })).toBeVisible();
+    await expect(fenetre.getByRole("checkbox", { name: /Ateliers usagers/ })).toBeChecked();
+  });
+
+  test("EX-TSK-10 — l'enregistrement pose l'ENSEMBLE, avec la version lue", async ({ page }) => {
+    let recu: unknown = null;
+    await serveur(page, { session: SESSION_TACHES, reponses: reponsesDeps });
+    await page.route(
+      (url) => url.pathname.endsWith("/dependances"),
+      (route) => {
+        if (route.request().method() !== "PUT") return route.fallback();
+        recu = route.request().postDataJSON();
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ version: FICHE.version + 1, ajoutees: [], retirees: [] }),
+        });
+      },
+    );
+
+    await page.goto(`/taches/${FICHE.id}`);
+    await page.getByRole("button", { name: "Modifier les dépendances" }).click();
+
+    const fenetre = page.getByRole("dialog");
+    await fenetre.getByRole("checkbox", { name: /Cadrer les parcours/ }).check();
+    await fenetre.getByRole("checkbox", { name: /Ateliers usagers/ }).uncheck();
+    await fenetre.getByRole("button", { name: "Enregistrer les dépendances" }).click();
+
+    await expect.poll(() => recu).not.toBeNull();
+    // L'ensemble part ENTIER, jamais par différence — et `RG-GEN-07` veut la
+    // version lue avec lui.
+    expect(recu).toEqual({
+      version: FICHE.version,
+      prerequisIds: [CANDIDATS[0]!.id],
+    });
+  });
+
+  test("EX-TSK-12 — le conflit de dates se dit sur la ligne ET dans le compteur", async ({
+    page,
+  }) => {
+    await serveur(page, { session: SESSION_TACHES, reponses: reponsesDeps });
+    await page.goto(`/taches/${FICHE.id}`);
+    await page.getByRole("button", { name: "Modifier les dépendances" }).click();
+
+    const fenetre = page.getByRole("dialog");
+    const avertissements = fenetre.getByText("conflit de dates", { exact: true });
+
+    /*
+     * Un seul avertissement au départ : celui du prérequis DÉJÀ posé, que
+     * `GET :id/incoherences` signale. Le candidat qui conflirait n'est pas
+     * encore coché — on ne signale pas un conflit qu'on n'a pas créé.
+     */
+    await expect(avertissements).toHaveCount(1);
+    await expect(fenetre.getByText(/dont 1 conflit de dates/)).toBeVisible();
+
+    // Cocher le candidat en conflit ajoute le sien, et le compteur suit.
+    await fenetre.getByRole("checkbox", { name: /Recetter le portail/ }).check();
+    await expect(avertissements).toHaveCount(2);
+    await expect(fenetre.getByText(/dont 2 conflits de dates/)).toBeVisible();
+
+    // Le décocher le retire : l'avertissement suit la SÉLECTION, pas la liste.
+    await fenetre.getByRole("checkbox", { name: /Recetter le portail/ }).uncheck();
+    await expect(avertissements).toHaveCount(1);
+  });
+
+  test("EX-TSK-10 — le compteur suit la sélection", async ({ page }) => {
+    await serveur(page, { session: SESSION_TACHES, reponses: reponsesDeps });
+    await page.goto(`/taches/${FICHE.id}`);
+    await page.getByRole("button", { name: "Modifier les dépendances" }).click();
+
+    const fenetre = page.getByRole("dialog");
+    await expect(fenetre.getByText(/^1 dépendance sélectionnée/)).toBeVisible();
+
+    // « Cadrer les parcours » finit avant le début de la tâche : elle grossit
+    // le compte des sélectionnées, jamais celui des conflits.
+    await fenetre.getByRole("checkbox", { name: /Cadrer les parcours/ }).check();
+    await expect(fenetre.getByText(/^2 dépendances sélectionnées/)).toBeVisible();
+    await expect(fenetre.getByText(/dont 1 conflit de dates/)).toBeVisible();
+  });
+
+  /**
+   * `cadrage/02:571` — **deux états vides, pas un.** « Aucune tâche
+   * disponible » dit qu'il n'y a rien à lier ; « Aucune tâche trouvée » dit que
+   * la recherche est trop étroite. Les confondre laisserait croire à un projet
+   * vide devant une faute de frappe.
+   */
+  test("EX-TSK-10 — « Aucune tâche disponible » quand le serveur ne propose rien", async ({
+    page,
+  }) => {
+    await serveur(page, {
+      session: SESSION_TACHES,
+      reponses: {
+        [`/api/taches/${FICHE_VIDE.id}`]: { corps: FICHE_VIDE },
+        [`/api/taches/${FICHE_VIDE.id}/dependances/candidats`]: { corps: [] },
+        [`/api/taches/${FICHE_VIDE.id}/incoherences`]: { corps: [] },
+      },
+    });
+    await page.goto(`/taches/${FICHE_VIDE.id}`);
+    await page.getByRole("button", { name: "Modifier les dépendances" }).click();
+
+    const fenetre = page.getByRole("dialog");
+    await expect(fenetre.getByText("Aucune tâche disponible", { exact: true })).toBeVisible();
+    await expect(fenetre.getByText("Aucune tâche trouvée", { exact: true })).toHaveCount(0);
+  });
+
+  test("EX-TSK-10 — « Aucune tâche trouvée » quand c'est la RECHERCHE qui ne rend rien", async ({
+    page,
+  }) => {
+    await serveur(page, { session: SESSION_TACHES, reponses: reponsesDeps });
+    await page.goto(`/taches/${FICHE.id}`);
+    await page.getByRole("button", { name: "Modifier les dépendances" }).click();
+
+    const fenetre = page.getByRole("dialog");
+    await fenetre.getByRole("searchbox", { name: "Rechercher une tâche…" }).fill("zzz");
+
+    await expect(fenetre.getByText("Aucune tâche trouvée", { exact: true })).toBeVisible();
+    await expect(fenetre.getByText("Aucune tâche disponible", { exact: true })).toHaveCount(0);
+  });
+
+  test("EX-TSK-10 — la recherche filtre la liste", async ({ page }) => {
+    await serveur(page, { session: SESSION_TACHES, reponses: reponsesDeps });
+    await page.goto(`/taches/${FICHE.id}`);
+    await page.getByRole("button", { name: "Modifier les dépendances" }).click();
+
+    const fenetre = page.getByRole("dialog");
+    await fenetre.getByRole("searchbox", { name: "Rechercher une tâche…" }).fill("Recetter");
+
+    await expect(fenetre.getByRole("checkbox", { name: /Recetter le portail/ })).toBeVisible();
+    await expect(fenetre.getByRole("checkbox", { name: /Cadrer les parcours/ })).toHaveCount(0);
+  });
+
+  /**
+   * `RG-TSK-04` — le bandeau ne se déclenche que sur une COURSE : le serveur
+   * écarte les candidats cycliques de la liste, donc seul un lien posé ailleurs
+   * entre le chargement et l'enregistrement peut refermer une boucle. Le texte
+   * est celui de `cadrage/02:566`, à la lettre.
+   */
+  test("RG-TSK-04 — un cycle refusé au serveur s'affiche dans la fenêtre", async ({ page }) => {
+    await serveur(page, { session: SESSION_TACHES, reponses: reponsesDeps });
+    await page.route(
+      (url) => url.pathname.endsWith("/dependances"),
+      (route) => {
+        if (route.request().method() !== "PUT") return route.fallback();
+        return route.fulfill({
+          status: 422,
+          contentType: "application/json",
+          body: JSON.stringify({
+            cle: "erreurs:dependanceCirculaire",
+            message: "Cette dépendance créerait un cycle.",
+          }),
+        });
+      },
+    );
+
+    await page.goto(`/taches/${FICHE.id}`);
+    await page.getByRole("button", { name: "Modifier les dépendances" }).click();
+    const fenetre = page.getByRole("dialog");
+    await fenetre.getByRole("checkbox", { name: /Cadrer les parcours/ }).check();
+    await fenetre.getByRole("button", { name: "Enregistrer les dépendances" }).click();
+
+    await expect(
+      fenetre.getByText("Cette dépendance créerait une dépendance circulaire."),
+    ).toBeVisible();
+    // La fenêtre RESTE ouverte : refuser en la fermant ferait perdre la
+    // sélection, et l'utilisateur ne saurait pas laquelle reprendre.
+    await expect(fenetre).toBeVisible();
+  });
+
+  test("RG-GEN-06 — sans `tasks:manage_dependencies`, le bouton n'est pas proposé", async ({
+    page,
+  }) => {
+    await serveur(page, { session: SESSION_LECTURE, reponses: reponsesDeps });
+    await page.goto(`/taches/${FICHE.id}`);
+
+    await expect(page.getByText("Dépend de (1)")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Modifier les dépendances" })).toHaveCount(0);
   });
 });

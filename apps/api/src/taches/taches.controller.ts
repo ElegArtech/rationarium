@@ -171,10 +171,55 @@ export class TachesController {
     return this.taches.dependances(id, d.perimetre, d.permissions);
   }
 
+  /**
+   * `EX-TSK-10` — **les tâches posables en prérequis de celle-ci.**
+   *
+   * Elle manquait, et c'est ce qui laissait « Modifier les dépendances »
+   * désactivé : le serveur savait poser un lien, jamais dire lesquels étaient
+   * posables. Les cinq refus de `POST :id/dependances` sont appliqués en amont
+   * — proposer un choix qui sera refusé au clic est une promesse non tenue.
+   *
+   * Permission PUIS périmètre : `tasks:read` par la garde, le cloisonnement par
+   * le prédicat que le service injecte. Une tâche hors périmètre n'est pas
+   * proposée du tout — on ne propose pas de lier ce qu'on ne peut pas nommer.
+   */
+  @Get(":id/dependances/candidats")
+  @RequiertPermission("tasks:read")
+  candidatsDependance(@Param("id") id: string, @Demande() d: ContexteDemande) {
+    return this.taches.candidatsDependance(id, d.perimetre, d.permissions);
+  }
+
   @Get(":id/incoherences")
   @RequiertPermission("tasks:read")
   incoherences(@Param("id") id: string) {
     return this.taches.incoherences(id);
+  }
+
+  /**
+   * `EX-TSK-10` — fixer l'ENSEMBLE des prérequis, comme la fenêtre les
+   * enregistre.
+   *
+   * Même parti pris que `PUT :id/assignes` et `PUT :id/sous-taches/ordre` :
+   * l'ensemble voyage entier, jamais par différence. `RG-GEN-07` en plus — la
+   * version lue est transmise, et un écart lève un 409.
+   */
+  @Put(":id/dependances")
+  @RequiertPermission("tasks:manage_dependencies")
+  definirDependances(
+    @Param("id") id: string,
+    @Body() corps: unknown,
+    @Demande() d: ContexteDemande,
+  ) {
+    const { version, prerequisIds } = valider(
+      z.object({
+        version: z.number().int().min(1),
+        prerequisIds: z.array(z.uuid()).max(200),
+      }),
+      corps,
+    );
+    return this.taches.definirDependances(
+      id, prerequisIds, version, d.userId, d.perimetre, d.permissions,
+    );
   }
 
   @Post(":id/dependances")

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
 import { execFileSync } from "node:child_process";
 import path from "node:path";
@@ -579,5 +579,494 @@ describe("RG-SCOPE-04 — la fiche et les dépendances sont bornées au périmè
     const g = await taches.dependances(aval, PERIMETRE_TOTAL, PERMISSIONS_TOTALES);
     expect(g.dependDe[0]!.titre).toBe("Tâche");
     expect(g.dependDe[0]!.lisible).toBe(true);
+  });
+});
+
+/**
+ * `EX-TSK-10` — **la liste des tâches candidates, et la pose d'un ensemble.**
+ *
+ * Le serveur savait poser et retirer une dépendance, jamais dire lesquelles
+ * étaient posables : la fenêtre « Modifier les dépendances » de la vue 17 n'a
+ * donc jamais eu de quoi s'ouvrir, et son bouton a vécu plusieurs lots désactivé
+ * derrière un motif exact — cinquième commande inerte du produit.
+ *
+ * Chaque refus est éprouvé DEUX FOIS : la tâche interdite n'est pas proposée,
+ * ET une tâche comparable qui n'est pas interdite l'est. Sans le second volet,
+ * une implémentation qui ne proposerait jamais rien passerait au vert.
+ */
+describe("EX-TSK-10 — les candidats à une dépendance", () => {
+  const titres = (l: { titre: string }[]) => l.map((c) => c.titre).sort();
+
+  it("EX-TSK-10 — propose les tâches du même projet, non liées et hors cycle", async () => {
+    const p = await projet();
+    const socle = await taches.creer({ titre: "Socle", projectId: p }, acteur);
+    const libre1 = await taches.creer({ titre: "Libre 1", projectId: p }, acteur);
+    const libre2 = await taches.creer({ titre: "Libre 2", projectId: p }, acteur);
+
+    const c = await taches.candidatsDependance(socle.id, PERIMETRE_TOTAL, PERMISSIONS_TOTALES);
+    expect(titres(c)).toEqual(["Libre 1", "Libre 2"]);
+    expect(c.map((x) => x.id).sort()).toEqual([libre1.id, libre2.id].sort());
+  });
+
+  it("RG-TSK-04 — un candidat qui FERMERAIT UN CYCLE n'est pas proposé", async () => {
+    // A → B → C : « B dépend de A », « C dépend de B ». Poser « A dépend de C »
+    // refermerait la boucle. `ajouterDependance` le refuse en aval ; la liste
+    // doit l'écarter en amont, sinon on propose un clic qui échouera.
+    const p = await projet();
+    const a = await taches.creer({ titre: "A", projectId: p }, acteur);
+    const b = await taches.creer({ titre: "B", projectId: p }, acteur);
+    const c = await taches.creer({ titre: "C", projectId: p }, acteur);
+    const d = await taches.creer({ titre: "D sans lien", projectId: p }, acteur);
+    await taches.ajouterDependance(b.id, a.id, acteur);
+    await taches.ajouterDependance(c.id, b.id, acteur);
+
+    const liste = await taches.candidatsDependance(a.id, PERIMETRE_TOTAL, PERMISSIONS_TOTALES);
+
+    // B est à un saut, C à deux : les deux sont interdits, à toute longueur.
+    expect(titres(liste)).toEqual(["D sans lien"]);
+    // Et le refus aval dit bien la même chose — les deux bouts se répondent.
+    await expect(taches.ajouterDependance(a.id, c.id, acteur)).rejects.toMatchObject({
+      code: "dependance_circulaire",
+    });
+    // Tandis que D, proposé, passe vraiment. Sans cela la liste pourrait être
+    // vide par accident et le test resterait vert.
+    await expect(taches.ajouterDependance(a.id, d.id, acteur)).resolves.toBeUndefined();
+  });
+
+  it("RG-TSK-06 — une tâche d'un AUTRE PROJET n'est pas proposée", async () => {
+    const p1 = await projet();
+    const p2 = await projet();
+    const ici = await taches.creer({ titre: "Ici", projectId: p1 }, acteur);
+    await taches.creer({ titre: "Voisine", projectId: p1 }, acteur);
+    await taches.creer({ titre: "Ailleurs", projectId: p2 }, acteur);
+
+    const liste = await taches.candidatsDependance(ici.id, PERIMETRE_TOTAL, PERMISSIONS_TOTALES);
+    expect(titres(liste)).toEqual(["Voisine"]);
+  });
+
+  it("RG-TSK-05 — une tâche DÉJÀ LIÉE n'est plus proposée", async () => {
+    const p = await projet();
+    const aval = await taches.creer({ titre: "Aval", projectId: p }, acteur);
+    const deja = await taches.creer({ titre: "Déjà liée", projectId: p }, acteur);
+    const pas = await taches.creer({ titre: "Pas encore", projectId: p }, acteur);
+
+    // Avant le lien, les deux sont proposées : c'est ce qui prouve que le
+    // retrait qui suit vient bien du lien, et non d'une liste toujours vide.
+    expect(
+      titres(await taches.candidatsDependance(aval.id, PERIMETRE_TOTAL, PERMISSIONS_TOTALES)),
+    ).toEqual(["Déjà liée", "Pas encore"]);
+
+    await taches.ajouterDependance(aval.id, deja.id, acteur);
+
+    const apres = await taches.candidatsDependance(aval.id, PERIMETRE_TOTAL, PERMISSIONS_TOTALES);
+    expect(titres(apres)).toEqual(["Pas encore"]);
+    expect(apres.map((c) => c.id)).toContain(pas.id);
+  });
+
+  it("RG-TSK-04 — la tâche ne se propose pas ELLE-MÊME", async () => {
+    const p = await projet();
+    const seule = await taches.creer({ titre: "Seule", projectId: p }, acteur);
+
+    const liste = await taches.candidatsDependance(seule.id, PERIMETRE_TOTAL, PERMISSIONS_TOTALES);
+    expect(liste.map((c) => c.id)).not.toContain(seule.id);
+    expect(liste).toHaveLength(0);
+  });
+
+  it("RG-TSK-06 — deux tâches HORS PROJET se proposent entre elles", async () => {
+    // `ajouterDependance` compare `projectId` à `projectId` : `null === null`
+    // passe. La liste doit dire la même chose, sinon le hors-projet — parti pris
+    // n° 2 du cadrage — perdrait ses dépendances sans qu'aucune règle le dise.
+    const a = await taches.creer({ titre: "Hors projet A" }, acteur);
+    const b = await taches.creer({ titre: "Hors projet B" }, acteur);
+
+    const liste = await taches.candidatsDependance(a.id, PERIMETRE_TOTAL, PERMISSIONS_TOTALES);
+    expect(liste.map((c) => c.id)).toContain(b.id);
+  });
+
+  /**
+   * `RG-SCOPE-04` — **ici l'exclusion est pure, elle n'est pas un masquage.**
+   *
+   * `dependances()` garde l'entrée d'un prérequis invisible en lui retirant son
+   * titre, pour ne pas fausser le compte annoncé. Ce n'est pas la même règle :
+   * une liste de choix ne propose pas une case à cocher sans nom.
+   */
+  it("RG-SCOPE-04 — une tâche HORS PÉRIMÈTRE n'est pas proposée, ni même anonymement", async () => {
+    const p = await projet();
+    const a = await agent();
+    const depuis = await taches.creer(
+      { titre: "Depuis", projectId: p, assigneIds: [a] },
+      acteur,
+    );
+    await taches.creer({ titre: "Ouverte", projectId: p, assigneIds: [a] }, acteur);
+    const secrete = await taches.creer(
+      { titre: "Secrète", projectId: p, assigneIds: [a] },
+      acteur,
+    );
+    await taches.modifier(secrete.id, { version: 1, confidentielle: true }, acteur);
+
+    const lecteur = { userId: a, global: false, confidentiel: false } as never;
+    const liste = await taches.candidatsDependance(depuis.id, lecteur, new Set(["tasks:read"]));
+
+    expect(titres(liste)).toEqual(["Ouverte"]);
+    expect(liste.map((c) => c.id)).not.toContain(secrete.id);
+    // Ni sous forme d'entrée anonyme : le masquage de `dependances()` ne
+    // s'applique PAS ici, et recopier son `masquer()` serait un défaut.
+    expect(liste.every((c) => typeof c.titre === "string" && c.titre.length > 0)).toBe(true);
+
+    // Et l'habilité, lui, la voit — sans quoi le test prouverait seulement que
+    // la liste est courte.
+    const habilite = { userId: a, global: false, confidentiel: true } as never;
+    const large = await taches.candidatsDependance(depuis.id, habilite, new Set(["tasks:read"]));
+    expect(titres(large)).toEqual(["Ouverte", "Secrète"]);
+  });
+
+  it("RG-SCOPE-04 — et la liste elle-même est refusée sur une tâche hors périmètre", async () => {
+    const a = await agent();
+    const t = await creerTache([a]);
+    await taches.modifier(t, { version: 1, confidentielle: true }, a);
+
+    await expect(
+      taches.candidatsDependance(
+        t,
+        { userId: a, global: false, confidentiel: false } as never,
+        new Set(["tasks:read"]),
+      ),
+    ).rejects.toMatchObject({ code: "hors_perimetre" });
+  });
+
+  it("EX-TSK-12 — chaque candidat annonce son CONFLIT DE DATES", async () => {
+    const p = await projet();
+    const cible = await taches.creer(
+      { titre: "Cible", projectId: p, dateDebut: utc("2026-09-10"), dateFin: utc("2026-09-20") },
+      acteur,
+    );
+    const tardive = await taches.creer(
+      { titre: "Finit après", projectId: p, dateFin: utc("2026-09-15") },
+      acteur,
+    );
+    const propre = await taches.creer(
+      { titre: "Finit avant", projectId: p, dateFin: utc("2026-09-01") },
+      acteur,
+    );
+
+    const liste = await taches.candidatsDependance(cible.id, PERIMETRE_TOTAL, PERMISSIONS_TOTALES);
+    expect(liste.find((c) => c.id === tardive.id)?.conflit).toBe(true);
+    expect(liste.find((c) => c.id === propre.id)?.conflit).toBe(false);
+  });
+});
+
+/**
+ * **LE PIÈGE DE CE LOT : N candidats ne font pas N parcours.**
+ *
+ * `fermeraitUnCycle` répond pour UN candidat en remontant le graphe. Filtrer la
+ * liste avec lui coûterait un parcours par candidat — sur un projet fourni, des
+ * centaines d'allers-retours pour ouvrir une fenêtre, et une lenteur qui grandit
+ * avec le projet sans qu'aucun test ne la voie.
+ *
+ * Le graphe est cantonné au projet (`RG-TSK-06`) : une seule fermeture
+ * transitive DESCENDANTE depuis la tâche courante donne l'ensemble interdit en
+ * entier. Le nombre de requêtes suit alors la PROFONDEUR du graphe, jamais le
+ * nombre de candidats.
+ *
+ * Ce test compte les lectures de `taskDependency` et le prouve par
+ * l'indépendance : à profondeur égale, cinq candidats et trente coûtent le même
+ * nombre de requêtes. Une implémentation par candidat ferait sextupler le compte.
+ */
+describe("EX-TSK-10 — la fermeture transitive tient en UN SEUL parcours", () => {
+  /** Un projet, une chaîne descendante de `profondeur` liens, `largeur` tâches libres. */
+  async function graphe(profondeur: number, largeur: number) {
+    const p = await projet();
+    const racine = await taches.creer({ titre: "Racine", projectId: p }, acteur);
+    let precedent = racine.id;
+    for (let i = 0; i < profondeur; i++) {
+      const suivant = await taches.creer({ titre: `Chaîne ${i}`, projectId: p }, acteur);
+      // « suivant dépend de precedent » : la chaîne DESCEND depuis la racine.
+      await taches.ajouterDependance(suivant.id, precedent, acteur);
+      precedent = suivant.id;
+    }
+    for (let i = 0; i < largeur; i++) {
+      await taches.creer({ titre: `Libre ${i}`, projectId: p }, acteur);
+    }
+    return racine.id;
+  }
+
+  /** Le nombre de lectures de la table des liens pendant un appel. */
+  async function requetes(fn: () => Promise<unknown>) {
+    const vraie = prisma.taskDependency.findMany.bind(prisma.taskDependency);
+    let n = 0;
+    const espion = vi.spyOn(prisma.taskDependency, "findMany").mockImplementation(((
+      a: never,
+    ) => {
+      n++;
+      return vraie(a);
+    }) as never);
+    try {
+      await fn();
+    } finally {
+      espion.mockRestore();
+    }
+    return n;
+  }
+
+  it("EX-TSK-10 — le coût suit la PROFONDEUR du graphe, pas le nombre de candidats", async () => {
+    const petit = await graphe(4, 5);
+    const grand = await graphe(4, 30);
+
+    const nPetit = await requetes(() =>
+      taches.candidatsDependance(petit, PERIMETRE_TOTAL, PERMISSIONS_TOTALES),
+    );
+    const nGrand = await requetes(() =>
+      taches.candidatsDependance(grand, PERIMETRE_TOTAL, PERMISSIONS_TOTALES),
+    );
+
+    // Six fois plus de candidats, exactement le même nombre de lectures.
+    expect(nGrand).toBe(nPetit);
+    // Et ce nombre est celui d'UN parcours : les quatre tours de la chaîne, le
+    // tour à vide qui le clôt, plus la lecture des liens déjà posés. Un parcours
+    // par candidat en ferait au moins trente.
+    expect(nGrand).toBeLessThanOrEqual(4 + 1 + 1);
+    expect(nGrand).toBeLessThan(30);
+
+    // Le graphe porte bien ses trente candidats : sans cela on mesurerait un
+    // parcours vide, et n'importe quelle implémentation passerait.
+    const candidats = await taches.candidatsDependance(
+      grand, PERIMETRE_TOTAL, PERMISSIONS_TOTALES,
+    );
+    expect(candidats).toHaveLength(30);
+  });
+
+  it("EX-TSK-10 — la pose d'un ENSEMBLE ne parcourt pas non plus par candidat", async () => {
+    const p = await projet();
+    const cible = await taches.creer({ titre: "Cible", projectId: p }, acteur);
+    const ids: string[] = [];
+    for (let i = 0; i < 12; i++) {
+      ids.push((await taches.creer({ titre: `P${i}`, projectId: p }, acteur)).id);
+    }
+
+    const n = await requetes(() =>
+      taches.definirDependances(cible.id, ids, 1, acteur, PERIMETRE_TOTAL, PERMISSIONS_TOTALES),
+    );
+    // Un parcours (un seul tour, à vide) plus la lecture des liens actuels.
+    // Douze parcours en feraient au moins vingt-quatre.
+    expect(n).toBeLessThanOrEqual(4);
+    expect(await prisma.taskDependency.count({ where: { taskId: cible.id } })).toBe(12);
+  });
+});
+
+/**
+ * `EX-TSK-10` — **la pose d'un ensemble**, comme la fenêtre l'enregistre.
+ *
+ * La maquette 17 pose une sélection (`saveDeps`), pas une suite de gestes
+ * unitaires. Les cinq refus s'appliquent à l'ensemble, et le refus est TOTAL :
+ * enregistrer les lignes saines et taire les autres laisserait l'utilisateur
+ * devant une sélection à moitié écrite, sans savoir laquelle.
+ */
+describe("EX-TSK-10 — la pose d'un ensemble de dépendances", () => {
+  it("EX-TSK-10 — l'ensemble remplace : ce qui sort est retiré, ce qui entre est posé", async () => {
+    const p = await projet();
+    const cible = await taches.creer({ titre: "Cible", projectId: p }, acteur);
+    const a = await taches.creer({ titre: "A", projectId: p }, acteur);
+    const b = await taches.creer({ titre: "B", projectId: p }, acteur);
+    const c = await taches.creer({ titre: "C", projectId: p }, acteur);
+    await taches.ajouterDependance(cible.id, a.id, acteur);
+    await taches.ajouterDependance(cible.id, b.id, acteur);
+
+    const r = await taches.definirDependances(
+      cible.id, [b.id, c.id], 1, acteur, PERIMETRE_TOTAL, PERMISSIONS_TOTALES,
+    );
+
+    expect(r.ajoutees).toEqual([c.id]);
+    expect(r.retirees).toEqual([a.id]);
+    const liens = await prisma.taskDependency.findMany({ where: { taskId: cible.id } });
+    expect(liens.map((l) => l.prerequisId).sort()).toEqual([b.id, c.id].sort());
+  });
+
+  it("EX-TSK-10 — un ensemble VIDE retire tout", async () => {
+    const p = await projet();
+    const cible = await taches.creer({ titre: "Cible", projectId: p }, acteur);
+    const a = await taches.creer({ titre: "A", projectId: p }, acteur);
+    await taches.ajouterDependance(cible.id, a.id, acteur);
+
+    await taches.definirDependances(cible.id, [], 1, acteur, PERIMETRE_TOTAL, PERMISSIONS_TOTALES);
+    expect(await prisma.taskDependency.count({ where: { taskId: cible.id } })).toBe(0);
+  });
+
+  it("RG-TSK-04 — un ensemble qui contient un CYCLE est refusé EN ENTIER, rien n'est écrit", async () => {
+    const p = await projet();
+    const amont = await taches.creer({ titre: "Amont", projectId: p }, acteur);
+    const aval = await taches.creer({ titre: "Aval", projectId: p }, acteur);
+    const sain1 = await taches.creer({ titre: "Sain 1", projectId: p }, acteur);
+    const sain2 = await taches.creer({ titre: "Sain 2", projectId: p }, acteur);
+    // « aval dépend de amont ». Poser « amont dépend de aval » fermerait la boucle.
+    await taches.ajouterDependance(aval.id, amont.id, acteur);
+
+    await expect(
+      taches.definirDependances(
+        amont.id, [sain1.id, aval.id, sain2.id], 1, acteur, PERIMETRE_TOTAL, PERMISSIONS_TOTALES,
+      ),
+    ).rejects.toMatchObject({ code: "dependance_circulaire" });
+
+    // Rien n'est écrit — pas même les deux lignes saines qui précédaient la
+    // fautive dans la demande. C'est tout l'enjeu : une pose partielle laisserait
+    // un état que personne n'a choisi.
+    expect(await prisma.taskDependency.count({ where: { taskId: amont.id } })).toBe(0);
+
+    // Et sans la ligne fautive, les deux saines passent — sinon le test ne
+    // prouverait que l'incapacité d'écrire.
+    await taches.definirDependances(
+      amont.id, [sain1.id, sain2.id], 1, acteur, PERIMETRE_TOTAL, PERMISSIONS_TOTALES,
+    );
+    expect(await prisma.taskDependency.count({ where: { taskId: amont.id } })).toBe(2);
+  });
+
+  it("RG-TSK-06 — un ensemble contenant une tâche d'un AUTRE projet est refusé en entier", async () => {
+    const p1 = await projet();
+    const p2 = await projet();
+    const cible = await taches.creer({ titre: "Cible", projectId: p1 }, acteur);
+    const bonne = await taches.creer({ titre: "Bonne", projectId: p1 }, acteur);
+    const etrangere = await taches.creer({ titre: "Étrangère", projectId: p2 }, acteur);
+
+    await expect(
+      taches.definirDependances(
+        cible.id, [bonne.id, etrangere.id], 1, acteur, PERIMETRE_TOTAL, PERMISSIONS_TOTALES,
+      ),
+    ).rejects.toMatchObject({ code: "dependance_autre_projet" });
+    expect(await prisma.taskDependency.count({ where: { taskId: cible.id } })).toBe(0);
+  });
+
+  it("RG-TSK-05 — un identifiant RÉPÉTÉ dans la demande est refusé, rien n'est écrit", async () => {
+    const p = await projet();
+    const cible = await taches.creer({ titre: "Cible", projectId: p }, acteur);
+    const a = await taches.creer({ titre: "A", projectId: p }, acteur);
+
+    await expect(
+      taches.definirDependances(
+        cible.id, [a.id, a.id], 1, acteur, PERIMETRE_TOTAL, PERMISSIONS_TOTALES,
+      ),
+    ).rejects.toMatchObject({ code: "dependance_en_double" });
+    expect(await prisma.taskDependency.count({ where: { taskId: cible.id } })).toBe(0);
+  });
+
+  it("RG-TSK-04 — la tâche ne peut pas se mettre ELLE-MÊME dans l'ensemble", async () => {
+    const p = await projet();
+    const cible = await taches.creer({ titre: "Cible", projectId: p }, acteur);
+
+    await expect(
+      taches.definirDependances(
+        cible.id, [cible.id], 1, acteur, PERIMETRE_TOTAL, PERMISSIONS_TOTALES,
+      ),
+    ).rejects.toMatchObject({ code: "dependance_sur_soi" });
+  });
+
+  it("EX-TSK-10 — une tâche inexistante dans l'ensemble est refusée en entier", async () => {
+    const p = await projet();
+    const cible = await taches.creer({ titre: "Cible", projectId: p }, acteur);
+    const a = await taches.creer({ titre: "A", projectId: p }, acteur);
+
+    await expect(
+      taches.definirDependances(
+        cible.id, [a.id, "00000000-0000-4000-8000-0000000000ff"], 1, acteur,
+        PERIMETRE_TOTAL, PERMISSIONS_TOTALES,
+      ),
+    ).rejects.toMatchObject({ code: "introuvable" });
+    expect(await prisma.taskDependency.count({ where: { taskId: cible.id } })).toBe(0);
+  });
+
+  it("RG-SCOPE-04 — poser un lien vers une tâche HORS PÉRIMÈTRE est refusé", async () => {
+    const p = await projet();
+    const a = await agent();
+    const cible = await taches.creer({ titre: "Cible", projectId: p, assigneIds: [a] }, acteur);
+    const secrete = await taches.creer(
+      { titre: "Secrète", projectId: p, assigneIds: [a] },
+      acteur,
+    );
+    await taches.modifier(secrete.id, { version: 1, confidentielle: true }, acteur);
+
+    const lecteur = { userId: a, global: false, confidentiel: false } as never;
+    await expect(
+      taches.definirDependances(cible.id, [secrete.id], 1, a, lecteur, new Set(["tasks:read"])),
+    ).rejects.toMatchObject({ code: "hors_perimetre" });
+  });
+
+  /**
+   * `RG-SCOPE-04` — **le lien invisible n'est ni ajouté, ni RETIRÉ.**
+   *
+   * L'utilisateur ne peut pas le renvoyer dans sa sélection : ni
+   * `candidatsDependance` ni `dependances()` ne le lui nomment. Une pose
+   * d'ensemble naïve le supprimerait donc au premier enregistrement — une
+   * destruction silencieuse d'une donnée que l'auteur du geste n'a jamais vue.
+   */
+  it("RG-SCOPE-04 — un prérequis invisible SURVIT à une pose d'ensemble qui l'ignore", async () => {
+    const p = await projet();
+    const a = await agent();
+    const cible = await taches.creer({ titre: "Cible", projectId: p, assigneIds: [a] }, acteur);
+    const visible = await taches.creer(
+      { titre: "Visible", projectId: p, assigneIds: [a] },
+      acteur,
+    );
+    const secrete = await taches.creer(
+      { titre: "Secrète", projectId: p, assigneIds: [a] },
+      acteur,
+    );
+    await taches.ajouterDependance(cible.id, secrete.id, acteur);
+    await taches.modifier(secrete.id, { version: 1, confidentielle: true }, acteur);
+
+    const lecteur = { userId: a, global: false, confidentiel: false } as never;
+    const avant = await prisma.task.findUniqueOrThrow({ where: { id: cible.id } });
+    await taches.definirDependances(
+      cible.id, [visible.id], avant.version, a, lecteur, new Set(["tasks:read"]),
+    );
+
+    const liens = await prisma.taskDependency.findMany({ where: { taskId: cible.id } });
+    expect(liens.map((l) => l.prerequisId).sort()).toEqual([secrete.id, visible.id].sort());
+  });
+
+  it("RG-GEN-07 — une version périmée lève un conflit, elle n'écrase pas", async () => {
+    const p = await projet();
+    const cible = await taches.creer({ titre: "Cible", projectId: p }, acteur);
+    const a = await taches.creer({ titre: "A", projectId: p }, acteur);
+    const b = await taches.creer({ titre: "B", projectId: p }, acteur);
+
+    await taches.definirDependances(
+      cible.id, [a.id], 1, acteur, PERIMETRE_TOTAL, PERMISSIONS_TOTALES,
+    );
+
+    // Une seconde fenêtre, ouverte avant la première et qui enregistre après :
+    // elle porte encore la version 1.
+    await expect(
+      taches.definirDependances(cible.id, [b.id], 1, acteur, PERIMETRE_TOTAL, PERMISSIONS_TOTALES),
+    ).rejects.toMatchObject({ code: "conflit_de_version" });
+
+    // Le travail du premier tient : « dernier arrivé gagne » n'a pas eu lieu.
+    const liens = await prisma.taskDependency.findMany({ where: { taskId: cible.id } });
+    expect(liens.map((l) => l.prerequisId)).toEqual([a.id]);
+  });
+
+  it("EX-TSK-10 — le journal d'audit nomme CHAQUE lien posé et retiré", async () => {
+    const p = await projet();
+    const cible = await taches.creer({ titre: "Cible", projectId: p }, acteur);
+    const a = await taches.creer({ titre: "A", projectId: p }, acteur);
+    const b = await taches.creer({ titre: "B", projectId: p }, acteur);
+    await taches.definirDependances(
+      cible.id, [a.id], 1, acteur, PERIMETRE_TOTAL, PERMISSIONS_TOTALES,
+    );
+
+    await taches.definirDependances(
+      cible.id, [b.id], 2, acteur, PERIMETRE_TOTAL, PERMISSIONS_TOTALES,
+    );
+
+    const journal = await prisma.auditLog.findMany({
+      where: {
+        entiteId: cible.id,
+        action: { in: ["task.dependency_add", "task.dependency_remove"] },
+      },
+    });
+    // Deux ajouts et un retrait : le journal dit ce qui a bougé, pas « ensemble
+    // défini », qui ne se relit pas.
+    expect(journal.filter((l) => l.action === "task.dependency_add")).toHaveLength(2);
+    expect(journal.filter((l) => l.action === "task.dependency_remove")).toHaveLength(1);
+    expect(journal.find((l) => l.action === "task.dependency_remove")?.detail).toMatchObject({
+      prerequisId: a.id,
+    });
   });
 });

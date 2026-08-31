@@ -184,6 +184,55 @@ export const ajouterDependance = (id: string, prerequisId: string) =>
   appeler<void>(`/taches/${id}/dependances`, { methode: "POST", corps: { prerequisId } });
 
 /**
+ * `EX-TSK-10` — les tâches **posables** en prérequis de celle-ci.
+ *
+ * Le serveur écarte en amont les cinq refus qu'il prononcerait en aval —
+ * soi-même, introuvable, autre projet, déjà liée, cycle — et exclut ce qui est
+ * hors périmètre : une case à cocher qu'on ne peut pas nommer n'est pas un
+ * choix. La fenêtre n'a donc jamais à filtrer elle-même, et ne peut pas
+ * proposer un clic qui échouera.
+ */
+export type CandidatDependance = {
+  id: string;
+  titre: string;
+  statut: string;
+  dateFin: string | null;
+  /** `EX-TSK-12` — ce prérequis finirait après le début de la tâche. */
+  conflit: boolean;
+};
+
+export const candidatsDependance = (id: string) =>
+  appeler<CandidatDependance[]>(`/taches/${id}/dependances/candidats`);
+
+/**
+ * `EX-TSK-12` — les prérequis dont la fin dépasse le début de la tâche.
+ *
+ * La fiche les reçoit déjà dans son chargement complet ; la fenêtre de
+ * sélection les relit à l'ouverture, parce qu'elle marque `.dep-warn` sur des
+ * lignes qu'on est en train de modifier — et une fiche ouverte depuis dix
+ * minutes ne dit plus l'état du graphe.
+ */
+export const incoherences = (id: string) =>
+  appeler<{ prerequis: { id: string; titre: string; dateFin: string | null }; jours: number }[]>(
+    `/taches/${id}/incoherences`,
+  );
+
+/**
+ * `EX-TSK-10` — fixer l'**ensemble** des prérequis, comme la fenêtre les
+ * enregistre.
+ *
+ * L'ensemble part entier, jamais par différence : deux fenêtres ouvertes en
+ * même temps laisseraient sinon un état que personne n'a voulu. `RG-GEN-07` en
+ * plus — la version lue accompagne l'écriture, et un écart lève un 409 que le
+ * client ne réessaie jamais en silence.
+ */
+export const definirDependances = (id: string, version: number, prerequisIds: string[]) =>
+  appeler<{ version: number; ajoutees: string[]; retirees: string[] }>(
+    `/taches/${id}/dependances`,
+    { methode: "PUT", corps: { version, prerequisIds } },
+  );
+
+/**
  * `EX-TSK-13` — l'aperçu du décalage en cascade, **avant** de l'exécuter.
  *
  * Le brief de la vue 15 exige « Décaler aussi {n} tâche(s) dépendante(s) ? » :
