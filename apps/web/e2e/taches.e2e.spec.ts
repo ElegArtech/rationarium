@@ -1010,3 +1010,81 @@ test.describe("Vue 12 — EX-TSK-02, le déplacement entre colonnes", () => {
     expect(journal[0]).toEqual({ statut: "blocked", version: TACHE_PROJET.version });
   });
 });
+
+/**
+ * `EX-TRS-02`, `RG-TRS-04` — assigner un tiers à une tâche.
+ *
+ * **Le dernier « geste sans liste de candidats » du produit.** La route
+ * d'assignation existait depuis L-12 et rien ne l'appelait : la fiche affichait
+ * les tiers assignés sans jamais offrir d'en assigner un, faute de savoir
+ * lesquels proposer. `RG-TRS-04` borne la liste aux tiers rattachés au projet
+ * parent — et le serveur applique le même refus à l'écriture, donc l'écran ne
+ * propose jamais ce qui serait refusé.
+ *
+ * Même manque que L-45 a comblé pour les dépendances de tâche.
+ */
+test.describe("Vue 17 — assigner un tiers", () => {
+  const SESSION_TIERS = {
+    ...SESSION_TACHES,
+    permissions: [...SESSION_TACHES.permissions, "third_parties:assign", "third_parties:read"],
+  };
+
+  test("EX-TRS-02 — la liste des candidats vient du SERVEUR, et l'assignation la vise", async ({
+    page,
+  }) => {
+    let assigne: Record<string, unknown> | null = null;
+    await serveur(page, {
+      session: SESSION_TIERS,
+      reponses: {
+        [`/api/taches/${FICHE.id}`]: { corps: FICHE },
+        [`/api/tiers/taches/${FICHE.id}/candidats`]: {
+          corps: [{ id: "tp1", type: "organisation", organisation: "Cabinet Vallée", contactNom: null }],
+        },
+      },
+    });
+    await page.route(
+      (url) => url.pathname.endsWith("/assigner"),
+      (route) => {
+        if (route.request().method() !== "POST") return route.fallback();
+        assigne = route.request().postDataJSON() as Record<string, unknown>;
+        return route.fulfill({ status: 200, contentType: "application/json", body: "{}" });
+      },
+    );
+    await page.goto(`/taches/${FICHE.id}`);
+
+    await page.getByRole("button", { name: "Assigner un tiers" }).click();
+    await page.getByRole("button", { name: "Cabinet Vallée" }).click();
+
+    await expect.poll(() => assigne).not.toBeNull();
+    expect(assigne).toMatchObject({ thirdPartyId: "tp1" });
+  });
+
+  test("RG-TRS-04 — aucun candidat : la sortie dit qu'il faut rattacher au PROJET", async ({
+    page,
+  }) => {
+    /*
+     * Le vide n'est pas le même selon qu'on est dans un projet ou non — et il
+     * dit ce qu'il faut faire, pas seulement qu'il n'y a rien.
+     */
+    await serveur(page, {
+      session: SESSION_TIERS,
+      reponses: {
+        [`/api/taches/${FICHE.id}`]: { corps: FICHE },
+        [`/api/tiers/taches/${FICHE.id}/candidats`]: { corps: [] },
+      },
+    });
+    await page.goto(`/taches/${FICHE.id}`);
+    await page.getByRole("button", { name: "Assigner un tiers" }).click();
+
+    await expect(page.getByText(/Rattachez-en un au projet d'abord/)).toBeVisible();
+  });
+
+  test("RG-GEN-06 — sans third_parties:assign, le geste n'est pas proposé", async ({ page }) => {
+    await serveur(page, {
+      session: SESSION_TACHES,
+      reponses: { [`/api/taches/${FICHE.id}`]: { corps: FICHE } },
+    });
+    await page.goto(`/taches/${FICHE.id}`);
+    await expect(page.getByRole("button", { name: "Assigner un tiers" })).toHaveCount(0);
+  });
+});

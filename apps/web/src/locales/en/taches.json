@@ -186,7 +186,13 @@
     "echecSuppressionDocument": "Deleting the document failed.",
     "accesTrace": "Views and downloads are logged.",
     "documentDAutrui": "Someone else uploaded this document: you cannot rename or delete it.",
-    "documentNonModifiable": "You are not allowed to rename this document."
+    "documentNonModifiable": "You are not allowed to rename this document.",
+    "assignerTiers": "Assign a third party",
+    "tiersAssigne": "Third party assigned to the task.",
+    "echecAssignationTiers": "The assignment failed.",
+    "lesTiers": "third parties",
+    "aucunTiersDuProjet": "No third party attached to this project can be assigned yet. Attach one to the project first.",
+    "aucunTiers": "No active third party can be assigned to this task yet."
   },
   "onglet": {
     "titre": "Task board",

@@ -104,6 +104,13 @@ export class TiersController {
    * Le contrôle est au service : assigner d'abord et rattacher ensuite
    * laisserait une intervention extérieure sur un projet qui l'ignore.
    */
+  /** `EX-TRS-02` — les tiers qu'on peut encore assigner à cette tâche. */
+  @Get("taches/:taskId/candidats")
+  @RequiertPermission("third_parties:assign")
+  candidatsPourTache(@Param("taskId") taskId: string) {
+    return this.tiers.candidatsPourTache(taskId);
+  }
+
   @Post("taches/:taskId/assigner")
   @RequiertPermission("third_parties:assign")
   assignerALaTache(

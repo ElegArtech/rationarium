@@ -757,3 +757,75 @@ describe("EX-TRS-06 — consulter l'impact d'une suppression AVANT de la confirm
     expect(impact.alternative).toBe("desactiver");
   });
 });
+
+/**
+ * `EX-TRS-02` — les tiers assignables à une tâche.
+ *
+ * La liste applique **en amont** les refus que l'écriture applique en aval : sans
+ * elle, l'écran proposerait ce que le serveur refuse. C'est le même manque que
+ * L-45 a comblé pour les dépendances — un geste sans liste de candidats n'est
+ * pas un geste.
+ */
+describe("EX-TRS-02 — les tiers assignables à une tâche", () => {
+  it("RG-TRS-04 — seuls les tiers RATTACHÉS AU PROJET PARENT sont proposés", async () => {
+    const p = await prisma.project.create({
+      data: { nom: "Refonte", dateDebut: utc("2026-01-01"), dateFin: utc("2026-12-31") },
+    });
+    const tache = await prisma.task.create({ data: { titre: "Atelier", projectId: p.id } });
+    const rattache = await prisma.thirdParty.create({
+      data: { type: "organisation", organisation: "Cabinet Vallée" },
+    });
+    const etranger = await prisma.thirdParty.create({
+      data: { type: "organisation", organisation: "Ailleurs" },
+    });
+    await prisma.projectThirdParty.create({
+      data: { projectId: p.id, thirdPartyId: rattache.id },
+    });
+
+    const candidats = await tiers.candidatsPourTache(tache.id);
+    expect(candidats.map((c) => c.id)).toEqual([rattache.id]);
+    expect(candidats.map((c) => c.id)).not.toContain(etranger.id);
+  });
+
+  it("RG-TRS-03 — un tiers DÉJÀ assigné n'est plus proposé", async () => {
+    const p = await prisma.project.create({
+      data: { nom: "Refonte 2", dateDebut: utc("2026-01-01"), dateFin: utc("2026-12-31") },
+    });
+    const tache = await prisma.task.create({ data: { titre: "Atelier", projectId: p.id } });
+    const tp = await prisma.thirdParty.create({
+      data: { type: "organisation", organisation: "Déjà là" },
+    });
+    await prisma.projectThirdParty.create({ data: { projectId: p.id, thirdPartyId: tp.id } });
+
+    expect((await tiers.candidatsPourTache(tache.id)).map((c) => c.id)).toEqual([tp.id]);
+    await prisma.taskThirdParty.create({ data: { taskId: tache.id, thirdPartyId: tp.id } });
+    expect(await tiers.candidatsPourTache(tache.id)).toEqual([]);
+  });
+
+  it("RG-TRS-02 — un tiers ARCHIVÉ n'est pas proposé", async () => {
+    const p = await prisma.project.create({
+      data: { nom: "Refonte 3", dateDebut: utc("2026-01-01"), dateFin: utc("2026-12-31") },
+    });
+    const tache = await prisma.task.create({ data: { titre: "Atelier", projectId: p.id } });
+    const tp = await prisma.thirdParty.create({
+      data: { type: "organisation", organisation: "Archivé", actif: false },
+    });
+    await prisma.projectThirdParty.create({ data: { projectId: p.id, thirdPartyId: tp.id } });
+
+    expect(await tiers.candidatsPourTache(tache.id)).toEqual([]);
+  });
+
+  it("hors projet, la règle de rattachement N'A PAS DE PRISE : tout tiers actif est candidat", async () => {
+    /*
+     * `RG-TRS-04` dit « rattaché à la tâche ou à son projet parent » : sans
+     * projet parent, il n'y a rien à interroger. `assignerALaTache` laisse
+     * passer, et la liste doit dire la MÊME chose — deux lectures divergentes
+     * rendraient l'écran incohérent avec son propre serveur.
+     */
+    const tache = await prisma.task.create({ data: { titre: "Hors projet" } });
+    const tp = await prisma.thirdParty.create({
+      data: { type: "individual", contactNom: "Indépendant" },
+    });
+    expect((await tiers.candidatsPourTache(tache.id)).map((c) => c.id)).toContain(tp.id);
+  });
+});

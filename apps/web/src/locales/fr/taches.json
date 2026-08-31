@@ -186,7 +186,13 @@
     "echecSuppressionDocument": "La suppression du document a échoué.",
     "accesTrace": "Consultations et téléchargements sont tracés.",
     "documentDAutrui": "Ce document a été déposé par quelqu'un d'autre : vous ne pouvez ni le renommer ni le supprimer.",
-    "documentNonModifiable": "Vous n'avez pas le droit de renommer ce document."
+    "documentNonModifiable": "Vous n'avez pas le droit de renommer ce document.",
+    "assignerTiers": "Assigner un tiers",
+    "tiersAssigne": "Tiers assigné à la tâche.",
+    "echecAssignationTiers": "L'assignation a échoué.",
+    "lesTiers": "les tiers",
+    "aucunTiersDuProjet": "Aucun tiers rattaché à ce projet n'est encore assignable. Rattachez-en un au projet d'abord.",
+    "aucunTiers": "Aucun tiers actif n'est encore assignable à cette tâche."
   },
   "onglet": {
     "titre": "Tableau des tâches",

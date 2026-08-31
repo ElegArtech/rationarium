@@ -841,3 +841,30 @@ vient de le brancher. Quand elle est fournie, elle est confrontée. Son passage 
 obligatoire est une tâche de vue, ouverte ici.
 
 Trois tests, deux vérifiés rouges sans le correctif.
+
+---
+
+## EX-TRS-02 — le dernier « geste sans liste de candidats »
+
+`POST /tiers/taches/:taskId/assigner` existait depuis L-12 et **rien ne l'appelait**. La
+fiche tâche affichait les tiers assignés sans jamais offrir d'en assigner un, et la
+maquette 24 portait le bouton sur le panneau **voisin** — « Projets rattachés » — et pas
+sur celui-ci. *L'asymétrie était la trace du geste manquant.*
+
+La cause est la même que pour les dépendances de tâche, comblée par L-45 : **le geste
+unitaire existait, ce qu'il faut lui donner à choisir n'était rendu nulle part.** Un
+geste sans liste de candidats n'est pas un geste — c'est la troisième fois que ce dépôt
+paie ce motif, après les dépendances et les assignés.
+
+`GET /tiers/taches/:taskId/candidats` applique **en amont** les trois refus que
+l'écriture applique en aval : archivé (`RG-TRS-02`), non rattaché au projet parent
+(`RG-TRS-04`), déjà assigné (`RG-TRS-03`). Sans cela l'écran proposerait ce que le
+serveur refuse.
+
+**Une nuance testée, et qui aurait divergé sans elle** : hors projet, `RG-TRS-04` n'a
+pas de prise — « rattaché à la tâche ou à son **projet parent** » n'a rien à interroger.
+`assignerALaTache` laisse alors passer, et la liste dit la même chose. Deux lectures
+divergentes de la même règle rendraient l'écran incohérent avec son propre serveur, ce
+qui est précisément le défaut que cette vague rattrape.
+
+Sept tests, dont trois d'intégration sur les refus et un sur le cas hors projet.

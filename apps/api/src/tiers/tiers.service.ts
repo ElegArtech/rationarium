@@ -162,6 +162,50 @@ export class TiersService {
    * tâche d'un projet auquel il n'a jamais été associé — ce qui, dans le
    * planning, le rendrait visible sans qu'on sache pourquoi.
    */
+  /**
+   * `EX-TRS-02` — **les tiers assignables à une tâche.**
+   *
+   * Le geste unitaire existait, ce qu'il faut lui donner à choisir n'était rendu
+   * nulle part : la fiche tâche affichait les tiers assignés sans jamais offrir
+   * d'en assigner un, et la maquette 24 porte le bouton sur le panneau voisin
+   * « Projets rattachés » et pas sur celui-ci — l'asymétrie était la trace du
+   * geste manquant.
+   *
+   * C'est le même manque que L-45 a comblé pour les dépendances de tâche :
+   * **un geste sans liste de candidats n'est pas un geste.** La liste applique
+   * en amont les trois refus que `assignerALaTache` applique en aval — archivé
+   * (`RG-TRS-02`), non rattaché au projet parent (`RG-TRS-04`), déjà assigné
+   * (`RG-TRS-03`) —, sans quoi l'écran proposerait ce que le serveur refuse.
+   */
+  async candidatsPourTache(taskId: string) {
+    const tache = await this.prisma.task.findUnique({
+      where: { id: taskId },
+      select: { projectId: true },
+    });
+    if (!tache) throw new ErreurTiers("introuvable");
+
+    const dejaAssignes = (
+      await this.prisma.taskThirdParty.findMany({ where: { taskId }, select: { thirdPartyId: true } })
+    ).map((t) => t.thirdPartyId);
+
+    /*
+     * `RG-TRS-04` — hors projet, la règle ne peut pas mordre : « rattaché à la
+     * tâche ou à son projet parent » n'a pas de projet parent à interroger.
+     * `assignerALaTache` laisse alors passer, et la liste doit dire la même
+     * chose — deux lectures qui divergeraient rendraient l'écran incohérent
+     * avec son propre serveur.
+     */
+    return this.prisma.thirdParty.findMany({
+      where: {
+        actif: true,
+        id: { notIn: dejaAssignes },
+        ...(tache.projectId ? { projets: { some: { projectId: tache.projectId } } } : {}),
+      },
+      orderBy: [{ organisation: "asc" }, { contactNom: "asc" }],
+      select: { id: true, type: true, organisation: true, contactNom: true },
+    });
+  }
+
   async assignerALaTache(taskId: string, thirdPartyId: string, acteurId: string) {
     await this.refuserSiArchive(thirdPartyId);
 
