@@ -98,6 +98,25 @@ export class ImportsController {
     return this.imports.importerProjet(id, donnees.contenu, donnees.mode, d.userId);
   }
 
+  /**
+   * `EX-TSK-18` — les tâches seules d'un projet. Le client la déclarait, le
+   * serveur ne l'exposait pas : un 404 que seule l'action révélait.
+   */
+  @Post("projet/:id/taches")
+  @RequiertPermission("tasks:import")
+  importerTaches(@Param("id") id: string, @Body() corps: unknown, @Demande() d: ContexteDemande) {
+    const donnees = valider(corpsFichier, corps);
+    return this.imports.importerTachesProjet(id, donnees.contenu, d.userId);
+  }
+
+  /** `EX-JAL-06` — les jalons seuls. Même histoire, même remède. */
+  @Post("projet/:id/jalons")
+  @RequiertPermission("milestones:import")
+  importerJalons(@Param("id") id: string, @Body() corps: unknown, @Demande() d: ContexteDemande) {
+    const donnees = valider(corpsFichier, corps);
+    return this.imports.importerJalonsProjet(id, donnees.contenu, d.userId);
+  }
+
   @Get("export/projet/:id/taches")
   @RequiertPermission("tasks:export")
   @Header("Content-Type", "text/csv; charset=utf-8")

@@ -1000,3 +1000,97 @@ describe("EX-CNG-14, RG-CNG-32 — importer des congés en masse", () => {
     expect(trace?.detail).toMatchObject({ source: "csv", importes: 1, ignores: 0 });
   });
 });
+
+/**
+ * **L-44** — `EX-TSK-18` et `EX-JAL-06`.
+ *
+ * `apps/web/src/api/imports.ts` déclarait `importerTaches` et `importerJalons`
+ * depuis des mois, et **le serveur n'exposait ni l'une ni l'autre** : deux 404
+ * que seule l'action de l'utilisateur révélait. Ni le typage, ni les parcours de
+ * bout en bout, ni aucune boucle ne voit un appel client sans route en face.
+ * C'est le test de sens inverse de `surface-http.test.ts`, ajouté en L-39, qui
+ * les a trouvés — et sa liste est vide depuis ce lot.
+ *
+ * Les deux réemploient l'insertion de `importerProjet`, extraite en méthodes
+ * privées plutôt que recopiée : deux copies divergeraient au premier ajout de
+ * colonne, et c'est la famille de défauts que cette vague rattrape.
+ */
+describe("EX-TSK-18, EX-JAL-06 — importer les tâches ou les jalons seuls", () => {
+  it("EX-JAL-06 — un fichier de jalons entre, et le rejeu n'en crée pas un second", async () => {
+    const fichier = "name;description;dueDate\nLancement;;2026-09-30\nRecette;;2026-11-15\n";
+
+    const premier = await imports.importerJalonsProjet(projet, fichier, acteur);
+    expect(premier).toMatchObject({ importes: 2, ignores: 0 });
+
+    // `RG-IMP-04` — rejouer un fichier est un usage normal : les doublons sont
+    // ignorés, jamais dupliqués ni comptés en erreur.
+    const second = await imports.importerJalonsProjet(projet, fichier, acteur);
+    expect(second).toMatchObject({ importes: 0, ignores: 2 });
+
+    expect(await prisma.milestone.count({ where: { projectId: projet } })).toBe(2);
+  });
+
+  it("EX-TSK-18 — un fichier de tâches entre, et retrouve son jalon EN BASE", async () => {
+    /*
+     * Ce qui distingue cet import de celui du projet entier : `milestoneName`
+     * désigne un jalon **existant**, il n'en crée pas. Un import de tâches qui
+     * fabriquerait des jalons au passage ferait diverger deux chemins qui
+     * doivent poser la même chose.
+     */
+    await imports.importerJalonsProjet(projet, "name;description;dueDate\nLancement;;2026-09-30\n", acteur);
+
+    const fichier =
+      "title;description;status;priority;assigneeEmail;milestoneName;estimatedHours;startDate;endDate;subtasks\n" +
+      "Rédiger la note;;todo;normal;;Lancement;8;2026-09-01;2026-09-15;\n";
+
+    const rendu = await imports.importerTachesProjet(projet, fichier, acteur);
+    expect(rendu).toMatchObject({ importes: 1, ignores: 0 });
+
+    const tache = await prisma.task.findFirstOrThrow({
+      where: { projectId: projet, titre: "Rédiger la note" },
+      include: { milestone: true },
+    });
+    expect(tache.milestone?.nom).toBe("Lancement");
+    expect(await prisma.milestone.count({ where: { projectId: projet } })).toBe(1);
+  });
+
+  it("EX-TSK-18 — un jalon INCONNU laisse la tâche sans jalon, il n'en invente pas", async () => {
+    const fichier =
+      "title;description;status;priority;assigneeEmail;milestoneName;estimatedHours;startDate;endDate;subtasks\n" +
+      "Tâche orpheline;;todo;normal;;Jalon qui n'existe pas;;;;\n";
+
+    await imports.importerTachesProjet(projet, fichier, acteur);
+
+    const tache = await prisma.task.findFirstOrThrow({
+      where: { projectId: projet, titre: "Tâche orpheline" },
+    });
+    expect(tache.milestoneId).toBeNull();
+    expect(await prisma.milestone.count({ where: { projectId: projet } })).toBe(0);
+  });
+
+  it("RG-IMP-03 — une cellule obligatoire VIDE est une erreur, et rien n'est écrit", async () => {
+    /*
+     * `dueDate` est obligatoire pour un jalon (`01 § M21`). Une COLONNE absente
+     * est un autre cas — `colonnes_manquantes`, fatal pour tout le fichier ;
+     * ici c'est la cellule qui manque, et l'erreur porte sa ligne.
+     */
+    const rendu = await imports.importerJalonsProjet(
+      projet,
+      "name;description;dueDate\nSansDate;;\n",
+      acteur,
+    );
+    expect(rendu.importes).toBe(0);
+    expect(rendu.erreurs.length).toBeGreaterThan(0);
+    expect(rendu.erreurs[0]?.ligne).toBe(2);
+    expect(await prisma.milestone.count({ where: { projectId: projet } })).toBe(0);
+  });
+
+  it("M20 — chaque import est porté au journal d'audit, avec son objet", async () => {
+    await imports.importerJalonsProjet(projet, "name;description;dueDate\nJ;;2026-10-01\n", acteur);
+    const trace = await prisma.auditLog.findFirst({
+      where: { action: "milestone.create", entiteId: projet },
+      orderBy: { horodatage: "desc" },
+    });
+    expect(trace?.detail).toMatchObject({ source: "csv", objet: "jalons", importes: 1 });
+  });
+});

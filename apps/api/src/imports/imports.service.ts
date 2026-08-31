@@ -40,6 +40,12 @@ export class ErreurImport extends Error {
 }
 
 /** Le compte rendu de `RG-IMP-04`, identique pour tous les types. */
+/**
+ * Le client transactionnel de Prisma. Nommé plutôt que répété : les trois
+ * méthodes d'insertion partagées le prennent en premier argument.
+ */
+type TxPrisma = Parameters<Parameters<PrismaService["$transaction"]>[0]>[0];
+
 export type CompteRendu = {
   importes: number;
   ignores: number;
@@ -453,15 +459,49 @@ export class ImportsService {
       }
 
       // 1. Les jalons d'abord, quelle que soit leur place dans le fichier.
-      const parNom = new Map<string, string>();
-      for (const existant of await tx.milestone.findMany({
-        where: { projectId },
-        select: { id: true, nom: true },
-      })) {
-        parNom.set(existant.nom, existant.id);
-      }
+      const parNom = await this.jalonsExistants(tx, projectId);
+      await this.insererJalons(tx, projectId, jalonsDuFichier, parNom, rendu);
 
-      for (const ligne of jalonsDuFichier) {
+      // 2. Les tâches ensuite — elles retrouvent leur jalon par son nom, qu'il
+      //    vienne du fichier ou de la base.
+      await this.insererTaches(tx, projectId, tachesDuFichier, parNom, rendu);
+    });
+
+    await this.audit.tracer({
+      action: "task.create", typeEntite: "Project", entiteId: projectId, acteurId,
+      detail: { source: "csv", mode, ...rendu, erreurs: rendu.erreurs.length },
+    });
+    return rendu;
+  }
+
+  /** Les jalons déjà en base, indexés par nom — la clé de rattachement du CSV. */
+  private async jalonsExistants(tx: TxPrisma, projectId: string) {
+    const parNom = new Map<string, string>();
+    for (const existant of await tx.milestone.findMany({
+      where: { projectId },
+      select: { id: true, nom: true },
+    })) {
+      parNom.set(existant.nom, existant.id);
+    }
+    return parNom;
+  }
+
+  /**
+   * L'insertion des jalons, partagée par les trois points d'entrée qui en
+   * posent — `POST /imports/projet/:id`, `/jalons` et `/taches`.
+   *
+   * Extraite plutôt que recopiée : deux copies de cette boucle divergeraient au
+   * premier ajout de colonne, et c'est très exactement la famille de défauts que
+   * cette vague rattrape.
+   */
+  private async insererJalons(
+    tx: TxPrisma,
+    projectId: string,
+    lignes: Record<string, string>[],
+    parNom: Map<string, string>,
+    rendu: CompteRendu,
+  ) {
+      for (const ligne of lignes) {
         const nom = (ligne["name"] ?? "").trim();
         if (!nom) continue;
         if (parNom.has(nom)) {
@@ -479,10 +519,17 @@ export class ImportsService {
         parNom.set(nom, jalon.id);
         rendu.importes += 1;
       }
+  }
 
-      // 2. Les tâches ensuite — elles retrouvent leur jalon par son nom, qu'il
-      //    vienne du fichier ou de la base.
-      for (const ligne of tachesDuFichier) {
+  /** L'insertion des tâches, partagée de la même façon. */
+  private async insererTaches(
+    tx: TxPrisma,
+    projectId: string,
+    lignes: Record<string, string>[],
+    parNom: Map<string, string>,
+    rendu: CompteRendu,
+  ) {
+      for (const ligne of lignes) {
         const titre = (ligne["title"] ?? "").trim();
         if (!titre) continue;
 
@@ -525,11 +572,68 @@ export class ImportsService {
         }
         rendu.importes += 1;
       }
+  }
+
+  /**
+   * `EX-TSK-18` — importer les tâches d'un projet depuis un CSV de tâches seules.
+   *
+   * **Le client déclarait cette route et le serveur ne l'exposait pas** : un 404
+   * que seule l'action de l'utilisateur révélait. Le contrôleur connaissait
+   * pourtant les deux extrémités — l'aperçu accepte le type `taches`, et
+   * `GET /imports/export/projet/:id/taches` produit exactement ces colonnes. Il
+   * manquait l'exécution au milieu. Trouvée par le test de sens inverse du lot
+   * L-39, qui cherche les appels clients sans route.
+   *
+   * Elle réemploie l'insertion de `importerProjet` : un jalon nommé dans
+   * `milestoneName` est retrouvé **en base**, jamais créé — c'est ce qui
+   * distingue cet import de celui du projet entier, qui peut poser les deux.
+   */
+  async importerTachesProjet(
+    projectId: string,
+    contenu: string,
+    acteurId: string,
+  ): Promise<CompteRendu> {
+    const apercu = this.analyser("taches", contenu);
+    const rendu: CompteRendu = { importes: 0, ignores: 0, erreurs: [...apercu.erreurs] };
+    const enErreur = new Set(apercu.erreurs.map((e) => e.ligne));
+    const lignes = apercu.lignes.filter((_, i) => !enErreur.has(i + 2));
+
+    await this.prisma.$transaction(async (tx) => {
+      const parNom = await this.jalonsExistants(tx, projectId);
+      await this.insererTaches(tx, projectId, lignes, parNom, rendu);
     });
 
     await this.audit.tracer({
       action: "task.create", typeEntite: "Project", entiteId: projectId, acteurId,
-      detail: { source: "csv", mode, ...rendu, erreurs: rendu.erreurs.length },
+      detail: { source: "csv", objet: "taches", ...rendu, erreurs: rendu.erreurs.length },
+    });
+    return rendu;
+  }
+
+  /**
+   * `EX-JAL-06` — importer les jalons d'un projet.
+   *
+   * Même histoire, même remède. Un jalon dont le nom existe déjà est **ignoré**,
+   * pas dupliqué : rejouer un fichier est un usage normal (`RG-IMP-04`).
+   */
+  async importerJalonsProjet(
+    projectId: string,
+    contenu: string,
+    acteurId: string,
+  ): Promise<CompteRendu> {
+    const apercu = this.analyser("jalons", contenu);
+    const rendu: CompteRendu = { importes: 0, ignores: 0, erreurs: [...apercu.erreurs] };
+    const enErreur = new Set(apercu.erreurs.map((e) => e.ligne));
+    const lignes = apercu.lignes.filter((_, i) => !enErreur.has(i + 2));
+
+    await this.prisma.$transaction(async (tx) => {
+      const parNom = await this.jalonsExistants(tx, projectId);
+      await this.insererJalons(tx, projectId, lignes, parNom, rendu);
+    });
+
+    await this.audit.tracer({
+      action: "milestone.create", typeEntite: "Project", entiteId: projectId, acteurId,
+      detail: { source: "csv", objet: "jalons", ...rendu, erreurs: rendu.erreurs.length },
     });
     return rendu;
   }

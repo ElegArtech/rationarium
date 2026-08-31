@@ -353,3 +353,34 @@ seule ligne). Ici on dresse une liste de choix : une case à cocher qu'on ne peu
 nommer n'est pas un cloisonnement, c'est une case sans objet. Les deux règles sont
 écrites l'une en face de l'autre dans le service, avec la raison de leur divergence —
 sans quoi le prochain lecteur recopiera `masquer()` de bonne foi.
+
+---
+
+## L-44 — Les deux dernières routes appelées dans le vide
+
+`apps/web/src/api/imports.ts` déclarait `importerTaches` et `importerJalons` depuis
+des mois, et **le serveur n'exposait ni l'une ni l'autre** : deux 404 que seule
+l'action de l'utilisateur révélait. Ni le typage, ni les parcours de bout en bout, ni
+aucune boucle ne voit un appel client sans route en face.
+
+C'est le **test de sens inverse** que l'agent de L-39 a ajouté de sa propre initiative
+qui les a trouvés — il n'était pas au contrat. Sa liste est désormais **vide**, et un
+quatrième appel dans le vide la ferait rougir.
+
+### Décision : extraire plutôt que recopier
+
+L'insertion des jalons et des tâches vivait à l'intérieur de `importerProjet`. Les
+deux nouvelles routes auraient pu la recopier ; elle est extraite en trois méthodes
+privées (`jalonsExistants`, `insererJalons`, `insererTaches`) que les **trois** points
+d'entrée partagent. Deux copies divergeraient au premier ajout de colonne — et faire
+diverger deux chemins qui posent la même chose est exactement la famille de défauts
+que cette vague rattrape.
+
+Nuance retenue, et testée : un import de **tâches seules** retrouve son jalon **en
+base** par `milestoneName`, il n'en crée jamais. Un jalon inconnu laisse la tâche sans
+jalon plutôt que d'en inventer un — sinon deux chemins d'import poseraient des jalons
+différemment.
+
+Cinq tests, dont le rejeu d'un fichier de jalons (`RG-IMP-04` : ignorés, pas
+dupliqués) et la cellule obligatoire vide distinguée de la colonne absente. Le retrait
+des deux routes fait rougir le test de sens inverse — vérifié.
