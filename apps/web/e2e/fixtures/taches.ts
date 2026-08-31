@@ -90,12 +90,34 @@ export const FICHE = {
       auteur: { prenom: "Fatou", nom: "Berthier" },
     },
   ],
+  /*
+   * `RG-SCOPE-04` — **`lisible` est TOUJOURS rendu par le serveur**, et il
+   * manquait ici. Le jeu d'essai décrivait donc une forme que
+   * `TachesService.dependances` n'a jamais produite : toute vue qui filtre sur
+   * `lisible` — la fenêtre de sélection le fait, pour savoir ce qu'elle a le
+   * droit de nommer — trouvait `undefined` et n'affichait rien. Deuxième
+   * occurrence dans ce fichier du couple client/fixture qui se valide lui-même.
+   */
   dependances: {
     dependDe: [
-      { id: "p1", titre: "Ateliers usagers", statut: "done", dateFin: "2026-04-20" },
+      {
+        id: "p1",
+        titre: "Ateliers usagers",
+        statut: "done",
+        // Postérieure au 2026-03-02, début de la tâche : c'est une incohérence
+        // de dates réelle, et `GET :id/incoherences` la rend.
+        dateFin: "2026-04-20",
+        lisible: true,
+      },
     ],
     bloque: [
-      { id: "b1", titre: "Rédiger le cahier des charges", statut: "todo", dateDebut: "2026-12-01" },
+      {
+        id: "b1",
+        titre: "Rédiger le cahier des charges",
+        statut: "todo",
+        dateDebut: "2026-12-01",
+        lisible: true,
+      },
     ],
   },
   incoherences: [] as {
@@ -129,3 +151,38 @@ export const FICHE_VIDE = {
   dependances: { dependDe: [], bloque: [] },
   enRetard: false,
 };
+
+/**
+ * `EX-TSK-10` — les tâches candidates que `GET :id/dependances/candidats` rend.
+ *
+ * Le serveur a DÉJÀ écarté les cinq refus : ce que la fenêtre reçoit est
+ * posable, sans exception. Le jeu d'essai se calque donc sur la signature du
+ * service — `{ id, titre, statut, dateFin, conflit }` —, jamais sur ce que le
+ * client croirait recevoir.
+ */
+export const CANDIDATS = [
+  {
+    id: "66666666-6666-4666-8666-666666666666",
+    titre: "Cadrer les parcours",
+    statut: "done",
+    dateFin: "2026-05-12",
+    conflit: false,
+  },
+  {
+    id: "77777777-7777-4777-8777-777777777777",
+    titre: "Recetter le portail",
+    statut: "doing",
+    // Postérieure au 2026-03-02, début de `TACHE_PROJET` : c'est le conflit de
+    // dates que `.dep-warn` annonce à la sélection.
+    dateFin: "2026-12-15",
+    conflit: true,
+  },
+];
+
+/** `EX-TSK-12` — ce que `GET :id/incoherences` rend pour `FICHE`. */
+export const INCOHERENCES = [
+  {
+    prerequis: { id: "p1", titre: "Ateliers usagers", dateFin: "2026-04-20" },
+    jours: 49,
+  },
+];

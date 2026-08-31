@@ -6,7 +6,7 @@ import { Button } from "react-aria-components";
 import { STATUTS_TACHE, PRIORITES, ROLES_RACI } from "@rationarium/contracts";
 import * as api from "../../api/taches.js";
 import * as apiTemps from "../../api/occupations.js";
-import { appeler } from "../../api/client.js";
+import { appeler, ErreurApi } from "../../api/client.js";
 import { messageErreur } from "../../api/erreurs.js";
 import { usePeut, useSession } from "../../session/session.js";
 import { Chargement, ErreurDeChargement } from "../../composants/etats.js";
@@ -557,6 +557,8 @@ function SousTaches({ tache, modifiable }: { tache: api.FicheTache; modifiable: 
 function Dependances({ tache }: { tache: api.FicheTache }) {
   const { t } = useTranslation("taches");
   const libelle = useLibelle();
+  const peut = usePeut();
+  const [fenetreOuverte, setFenetreOuverte] = useState(false);
 
   /*
    * `is-bad` marque la date qui ne tient pas : un prérequis qui finit APRÈS le
@@ -615,20 +617,23 @@ function Dependances({ tache }: { tache: api.FicheTache }) {
       <div className="panel-head">
         <span className="panel-title">{t("fiche.dependances")}</span>
         {/*
-          Le serveur pose et retire une dépendance (`POST`/`DELETE
-          /taches/:id/dependances`), mais la maquette ouvre une fenêtre de
-          sélection que rien n'alimente aujourd'hui : la liste des tâches
-          candidates, hors cycle, n'est pas exposée. Le bouton reste et dit
-          pourquoi il n'agit pas.
+          `RG-GEN-06` — le bouton n'existe que pour qui peut agir. Il a vécu
+          plusieurs lots DÉSACTIVÉ derrière un motif exact : le serveur posait et
+          retirait un lien, mais n'exposait pas la liste des tâches candidates.
+          `GET :id/dependances/candidats` la donne désormais, et `PUT
+          :id/dependances` enregistre la sélection en un geste.
         */}
-        <Button
-          className="chip-btn"
-          isDisabled
-          aria-description={t("fiche.dependancesIndisponible")}
-        >
-          {t("fiche.modifierDependances")}
-        </Button>
+        {peut("tasks:manage_dependencies") ? (
+          <Button className="chip-btn" onPress={() => setFenetreOuverte(true)}>
+            {t("fiche.modifierDependances")}
+          </Button>
+        ) : null}
       </div>
+      <FenetreDependances
+        ouverte={fenetreOuverte}
+        surFermeture={() => setFenetreOuverte(false)}
+        tache={tache}
+      />
       <div className="dep-cols">
         {colonne(
           t("fiche.dependDe"),
@@ -1023,6 +1028,226 @@ function FenetreAssignes({
       {/* Le premier de la liste est le porteur : le dire évite de découvrir la
           règle en constatant un porteur qu'on n'a pas choisi. */}
       <p className="field-hint">{t("fiche.premierEstPorteur")}</p>
+    </Fenetre>
+  );
+}
+
+/**
+ * `EX-TSK-10` — **la fenêtre de sélection des dépendances**, vue 17.
+ *
+ * La maquette (17, l. 1891-1923) enregistre un ENSEMBLE : `saveDeps` pose la
+ * sélection entière, jamais un ajout ni un retrait isolé. Le client reprend ce
+ * geste tel quel — `PUT /taches/:id/dependances` — et non deux appels par
+ * différence, qui laisseraient un état intermédiaire si le second échouait.
+ *
+ * ──────────────────────────────────────────────────────────────────────────
+ * **La liste vient de DEUX sources, et c'est délibéré.**
+ *
+ * `GET :id/dependances/candidats` rend ce qui est POSABLE : il exclut en amont
+ * les cinq refus du serveur, y compris les prérequis déjà en place. Les lignes
+ * déjà cochées viennent donc de la fiche (`dependances.dependDe`) — sans elles,
+ * on ne pourrait plus rien décocher.
+ *
+ * Un prérequis que le lecteur ne peut pas nommer (`RG-SCOPE-04`, `lisible:
+ * false`) n'apparaît dans aucune des deux : il n'est pas proposé, et le serveur
+ * ne le retire pas non plus quand la sélection l'ignore. Une case à cocher sans
+ * nom n'est pas un choix, et supprimer en silence ce qu'on n'a pas montré
+ * serait pire.
+ * ──────────────────────────────────────────────────────────────────────────
+ */
+function FenetreDependances({
+  ouverte,
+  surFermeture,
+  tache,
+}: {
+  ouverte: boolean;
+  surFermeture: () => void;
+  tache: api.FicheTache;
+}) {
+  const { t } = useTranslation("taches");
+  const { t: tErreurs } = useTranslation("erreurs");
+  const libelle = useLibelle();
+  const annoncer = useMessages();
+  const client = useQueryClient();
+
+  /**
+   * Les prérequis actuels que le lecteur peut nommer — les lignes pré-cochées.
+   *
+   * `!== false` et non `=== true` : c'est la lecture qu'emploie déjà le panneau
+   * `Dependances` juste au-dessus. Deux lectures du même champ dans le même
+   * fichier finiraient par diverger.
+   */
+  const actuels = tache.dependances.dependDe.filter((l) => l.lisible !== false);
+
+  const [choisis, setChoisis] = useState<string[]>(() => actuels.map((l) => l.id));
+  const [recherche, setRecherche] = useState("");
+  const [erreur, setErreur] = useState<string | null>(null);
+
+  /*
+   * La sélection se réamorce à chaque OUVERTURE, pas à chaque rendu : rouvrir
+   * la fenêtre après un abandon doit repartir de l'état enregistré, et non de
+   * ce qui avait été coché puis annulé.
+   */
+  const cle = `${tache.id}:${tache.version}:${actuels.map((l) => l.id).join(",")}`;
+  const [pour, setPour] = useState<string | null>(null);
+  if (ouverte && pour !== cle) {
+    setPour(cle);
+    setChoisis(actuels.map((l) => l.id));
+    setRecherche("");
+    setErreur(null);
+  }
+
+  const candidats = useQuery({
+    queryKey: ["tache", tache.id, "candidats"],
+    queryFn: () => api.candidatsDependance(tache.id),
+    enabled: ouverte,
+  });
+
+  /*
+   * `EX-TSK-12` — les incohérences sont RELUES à l'ouverture. La fiche en porte
+   * déjà une copie, mais elle date de son chargement : une fenêtre ouverte dix
+   * minutes plus tard marquerait `.dep-warn` sur un état périmé.
+   */
+  const incoherences = useQuery({
+    queryKey: ["tache", tache.id, "incoherences"],
+    queryFn: () => api.incoherences(tache.id),
+    enabled: ouverte,
+  });
+
+  const enConflit = new Set((incoherences.data ?? []).map((x) => x.prerequis.id));
+
+  /** Les deux sources fondues en une liste unique, dans l'ordre de la maquette. */
+  const lignes = [
+    ...actuels.map((l) => ({
+      id: l.id,
+      titre: l.titre ?? "",
+      statut: l.statut ?? "",
+      dateFin: l.dateFin ?? null,
+      conflit: enConflit.has(l.id),
+    })),
+    ...(candidats.data ?? []),
+  ];
+
+  const filtrees = lignes.filter((l) =>
+    l.titre.toLowerCase().includes(recherche.trim().toLowerCase()),
+  );
+
+  const conflits = filtrees.filter((l) => choisis.includes(l.id) && l.conflit).length;
+
+  const enregistrer = useMutation({
+    mutationFn: () => api.definirDependances(tache.id, tache.version, choisis),
+    onSuccess: () => {
+      annoncer("ok", t("fiche.dependancesEnregistrees"));
+      surFermeture();
+      void client.invalidateQueries({ queryKey: ["tache", tache.id] });
+    },
+    onError: (e) => {
+      /*
+       * `cadrage/02:566` — le texte du bandeau est celui du brief, à la lettre.
+       * Il ne se déclenche en pratique que sur une course : le serveur écarte
+       * les candidats cycliques de la liste, donc seul un lien posé ailleurs
+       * entre le chargement et l'enregistrement peut refermer une boucle.
+       */
+      const circulaire =
+        e instanceof ErreurApi && e.cle === "erreurs:dependanceCirculaire";
+      setErreur(
+        circulaire
+          ? t("fiche.dependanceCirculaire")
+          : messageErreur(e, tErreurs, t("fiche.echecDependances")),
+      );
+    },
+  });
+
+  const basculer = (id: string, coche: boolean) => {
+    setErreur(null);
+    setChoisis((s) => (coche ? [...s, id] : s.filter((x) => x !== id)));
+  };
+
+  return (
+    <Fenetre
+      ouverte={ouverte}
+      surFermeture={surFermeture}
+      categorie={t("fiche.dependances")}
+      titre={tache.titre}
+      mention={
+        conflits > 0
+          ? t("fiche.dependancesConflits", { n: choisis.length, c: conflits })
+          : t("fiche.dependancesSelection", { n: choisis.length })
+      }
+      actions={
+        <>
+          <Button className="btn btn-secondary" onPress={surFermeture}>
+            {t("annuler")}
+          </Button>
+          <Button
+            className="btn btn-primary"
+            isPending={enregistrer.isPending}
+            onPress={() => enregistrer.mutate()}
+          >
+            {t("fiche.enregistrerDependances")}
+          </Button>
+        </>
+      }
+    >
+      {erreur ? (
+        <div className="alert alert-error" role="alert">
+          <span className="alert-icon" aria-hidden="true">
+            !
+          </span>
+          <span>{erreur}</span>
+        </div>
+      ) : null}
+
+      <p className="field-hint">{t("fiche.dependancesIndice")}</p>
+
+      <input
+        className="f-input recherche-dependances"
+        type="search"
+        value={recherche}
+        aria-label={t("fiche.rechercherTache")}
+        placeholder={t("fiche.rechercherTache")}
+        onChange={(e) => setRecherche(e.target.value)}
+      />
+
+      <div className="dep-list" role="group" aria-label={t("fiche.listeDesCandidats")}>
+        {candidats.isPending ? (
+          <p className="ilib-none">{t("fiche.chargementCandidats")}</p>
+        ) : filtrees.length === 0 ? (
+          /*
+           * `cadrage/02:571` — DEUX états vides, pas un. « Aucune tâche
+           * disponible » dit qu'il n'y a rien à lier ; « Aucune tâche trouvée »
+           * dit que la recherche est trop étroite. Les confondre laisserait
+           * croire à un projet vide devant une faute de frappe.
+           */
+          <p className="ilib-none">
+            {recherche.trim() ? t("fiche.aucuneTacheTrouvee") : t("fiche.aucuneTacheDisponible")}
+          </p>
+        ) : (
+          filtrees.map((l) => (
+            <label className="dep" key={l.id}>
+              <input
+                type="checkbox"
+                checked={choisis.includes(l.id)}
+                onChange={(e) => basculer(l.id, e.target.checked)}
+              />
+              <div className="bloc-etroit">
+                <span className="dep-name">{l.titre}</span>
+                <span className="dep-sub">
+                  {l.dateFin
+                    ? t("fiche.statutEtFin", {
+                        statut: libelle(l.statut, STATUTS_TACHE),
+                        date: formaterDate(l.dateFin),
+                      })
+                    : t("fiche.statutSansFin", { statut: libelle(l.statut, STATUTS_TACHE) })}
+                </span>
+              </div>
+              {choisis.includes(l.id) && l.conflit ? (
+                <span className="dep-warn">{t("fiche.conflitDeDates")}</span>
+              ) : null}
+            </label>
+          ))
+        )}
+      </div>
     </Fenetre>
   );
 }

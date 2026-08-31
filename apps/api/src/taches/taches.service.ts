@@ -422,6 +422,306 @@ export class TachesService {
     return false;
   }
 
+  /**
+   * `RG-TSK-04`, vu depuis l'autre bout — **tout ce qui dépend de `taskId`**,
+   * directement ou non.
+   *
+   * C'est exactement l'ensemble des tâches qu'on ne peut PAS poser en prérequis
+   * de `taskId` : si `X` dépend déjà de `taskId`, ajouter « `taskId` dépend de
+   * `X` » referme le cycle.
+   *
+   * ──────────────────────────────────────────────────────────────────────────
+   * **Pourquoi ce sens de parcours, et pas `fermeraitUnCycle` par candidat.**
+   *
+   * `fermeraitUnCycle` remonte le graphe DEPUIS un prérequis donné : il répond
+   * pour un candidat, et il faut le rejouer pour le suivant. Filtrer N
+   * candidats ainsi coûterait N parcours, chacun de plusieurs requêtes — sur un
+   * projet un peu fourni, des centaines d'allers-retours pour ouvrir une
+   * fenêtre, et une lenteur qui grandit avec le projet sans qu'aucune boucle ne
+   * la voie.
+   *
+   * Le graphe est cantonné au projet (`RG-TSK-06`) : une seule fermeture
+   * transitive DESCENDANTE depuis la tâche courante donne l'ensemble interdit
+   * en entier. Le nombre de requêtes suit alors la **profondeur** du graphe,
+   * pas le nombre de candidats — la même mécanique que `apercuCascade`, qui
+   * descend déjà par `prerequisId: { in: front }`.
+   * ──────────────────────────────────────────────────────────────────────────
+   */
+  private async dependantesTransitives(taskId: string): Promise<Set<string>> {
+    const vus = new Set<string>();
+    let front = [taskId];
+
+    while (front.length > 0) {
+      const liens = await this.prisma.taskDependency.findMany({
+        where: { prerequisId: { in: front } },
+        select: { taskId: true },
+      });
+      const suivants = liens.map((l) => l.taskId).filter((id) => id !== taskId && !vus.has(id));
+      suivants.forEach((id) => vus.add(id));
+      front = suivants;
+    }
+    return vus;
+  }
+
+  /**
+   * `EX-TSK-10` — **les tâches qu'on peut poser en prérequis de celle-ci.**
+   *
+   * Sans elle, la fenêtre « Modifier les dépendances » de la vue 17 n'avait
+   * rien à afficher : le serveur savait poser et retirer un lien, jamais dire
+   * lesquels étaient posables. Le bouton est resté désactivé plusieurs lots
+   * durant, avec un motif exact — et un motif exact ne fait pas une
+   * fonctionnalité.
+   *
+   * Les cinq refus que `ajouterDependance` prononce EN AVAL sont appliqués ici
+   * EN AMONT, dans le même ordre : proposer un choix qui sera refusé au clic
+   * est une promesse qu'on ne tient pas.
+   *
+   *   1. soi-même                      — `taskId` est retiré de l'ensemble
+   *   2. introuvable                   — la tâche courante doit exister
+   *   3. autre projet  (`RG-TSK-06`)   — `projectId` identique, `null` compris
+   *   4. déjà liée     (`RG-TSK-05`)   — les prérequis actuels sont retirés
+   *   5. cycle         (`RG-TSK-04`)   — la fermeture transitive descendante
+   *
+   * ──────────────────────────────────────────────────────────────────────────
+   * `RG-SCOPE-04` — **ici, une tâche hors périmètre est EXCLUE, pas masquée.**
+   *
+   * Ce n'est pas la règle de `dependances()`, et il ne faut pas y recopier son
+   * `masquer()`. Là-bas l'entrée demeure sans son titre, parce que la retirer
+   * fausserait le compte annoncé — « Dépend de (2) » avec une seule ligne. Ici
+   * on dresse une liste de choix : proposer une ligne anonyme qu'on ne peut pas
+   * nommer ne serait pas un cloisonnement, ce serait une case à cocher sans
+   * objet.
+   * ──────────────────────────────────────────────────────────────────────────
+   */
+  async candidatsDependance(
+    taskId: string,
+    perimetre: Perimetre,
+    permissions: ReadonlySet<string>,
+  ) {
+    const visible = this.perimetres.filtreTache(perimetre, permissions);
+
+    const tache = await this.prisma.task.findUnique({
+      where: { id: taskId },
+      select: { projectId: true, dateDebut: true },
+    });
+    if (!tache) throw new ErreurTache("introuvable");
+
+    // Permission PUIS périmètre : la permission est tenue par la garde, le
+    // périmètre l'est ici — on ne dresse pas la liste des voisins d'une tâche
+    // qu'on n'a pas le droit de lire.
+    const lisible = await this.prisma.task.findFirst({
+      where: { AND: [{ id: taskId }, visible] },
+      select: { id: true },
+    });
+    if (!lisible) throw new ErreurTache("hors_perimetre");
+
+    const [interdits, dejaLiees] = await Promise.all([
+      this.dependantesTransitives(taskId),
+      this.prisma.taskDependency.findMany({ where: { taskId }, select: { prerequisId: true } }),
+    ]);
+
+    const exclus = [...new Set([taskId, ...interdits, ...dejaLiees.map((d) => d.prerequisId)])];
+
+    const candidats = await this.prisma.task.findMany({
+      where: {
+        AND: [
+          visible,
+          // `RG-TSK-06` — le même projet, et `null === null` : deux tâches hors
+          // projet se lient entre elles, comme `ajouterDependance` le permet.
+          { projectId: tache.projectId },
+          { id: { notIn: exclus } },
+        ],
+      },
+      orderBy: [{ dateFin: "asc" }, { titre: "asc" }],
+      select: { id: true, titre: true, statut: true, dateFin: true },
+    });
+
+    /*
+     * `EX-TSK-12` — le conflit de dates est annoncé AVANT que le lien soit
+     * posé. La maquette 17 le porte sur la ligne (`.dep-warn`) et le compte en
+     * pied de fenêtre : découvrir après coup qu'on vient de créer une
+     * incohérence obligerait à défaire.
+     */
+    return candidats.map((c) => ({
+      ...c,
+      conflit: tache.dateDebut !== null && c.dateFin !== null && c.dateFin > tache.dateDebut,
+    }));
+  }
+
+  /**
+   * `EX-TSK-10` — **fixer l'ensemble des prérequis d'une tâche, en un geste.**
+   *
+   * La fenêtre de la vue 17 enregistre une sélection, pas une suite d'ajouts et
+   * de retraits : `saveDeps` pose l'ensemble. Même parti pris que
+   * `PUT :id/assignes` et `PUT :id/sous-taches/ordre` — une pose par
+   * différence, depuis deux écrans ouverts en même temps, laisserait un état
+   * que personne n'a voulu.
+   *
+   * Les cinq refus de `ajouterDependance` s'appliquent à l'ensemble, et **rien
+   * n'est écrit tant que l'ensemble entier n'est pas valide** : accepter les
+   * lignes saines et refuser les autres laisserait l'utilisateur devant une
+   * sélection à moitié enregistrée, sans savoir laquelle.
+   *
+   * ──────────────────────────────────────────────────────────────────────────
+   * **Un lien vers une tâche hors périmètre n'est ni ajouté, ni RETIRÉ.**
+   *
+   * `candidatsDependance` ne le propose pas et `dependances()` ne le nomme
+   * pas : l'utilisateur ne peut donc pas le renvoyer dans sa sélection. Une
+   * pose d'ensemble naïve le supprimerait au premier enregistrement — une
+   * écriture destructrice sur une donnée que l'auteur du geste n'a jamais vue,
+   * et dont rien ne l'avertirait. Les liens invisibles sont donc conservés tels
+   * quels : la sélection ne fait autorité que sur ce qu'elle a pu montrer.
+   * ──────────────────────────────────────────────────────────────────────────
+   *
+   * `RG-GEN-07` — la version lue est transmise et recontrôlée. Le contrôle est
+   * **doublé dans la clause `where`** de la mise à jour, donc arbitré par la
+   * base : deux fenêtres qui enregistrent ensemble ne peuvent pas se recouvrir
+   * en silence. `PUT :id/assignes` ne le fait pas encore ; c'est un écart de ce
+   * module, pas un modèle à suivre.
+   */
+  async definirDependances(
+    taskId: string,
+    prerequisIds: string[],
+    version: number,
+    acteurId: string,
+    perimetre: Perimetre,
+    permissions: ReadonlySet<string>,
+  ) {
+    const visible = this.perimetres.filtreTache(perimetre, permissions);
+
+    const tache = await this.prisma.task.findUnique({
+      where: { id: taskId },
+      select: { projectId: true, version: true },
+    });
+    if (!tache) throw new ErreurTache("introuvable");
+
+    const lisible = await this.prisma.task.findFirst({
+      where: { AND: [{ id: taskId }, visible] },
+      select: { id: true },
+    });
+    if (!lisible) throw new ErreurTache("hors_perimetre");
+
+    if (tache.version !== version) {
+      throw new ErreurTache("conflit_de_version", { attendue: tache.version, recue: version });
+    }
+
+    // 1. Soi-même.
+    if (prerequisIds.includes(taskId)) throw new ErreurTache("dependance_sur_soi");
+
+    // `RG-TSK-05` — le doublon, dans une pose d'ensemble, est un identifiant
+    // répété. L'unicité `(taskId, prerequisId)` le refuserait en base, mais
+    // après un premier `create` — donc au milieu de l'écriture.
+    if (new Set(prerequisIds).size !== prerequisIds.length) {
+      throw new ErreurTache("dependance_en_double");
+    }
+
+    // 2. Introuvable, puis hors périmètre : deux lectures, parce que les deux
+    // situations ne se disent pas de la même façon à qui les rencontre.
+    const demandees = await this.prisma.task.findMany({
+      where: { id: { in: prerequisIds } },
+      select: { id: true, projectId: true },
+    });
+    if (demandees.length !== prerequisIds.length) throw new ErreurTache("introuvable");
+
+    const nommables = await this.prisma.task.findMany({
+      where: { AND: [{ id: { in: prerequisIds } }, visible] },
+      select: { id: true },
+    });
+    if (nommables.length !== prerequisIds.length) throw new ErreurTache("hors_perimetre");
+
+    // 3. `RG-TSK-06` — le même projet, `null` compris.
+    if (demandees.some((d) => d.projectId !== tache.projectId)) {
+      throw new ErreurTache("dependance_autre_projet");
+    }
+
+    /*
+     * 5. `RG-TSK-04` — **un seul parcours pour tout l'ensemble.**
+     *
+     * Les arêtes posées sortent toutes du MÊME sommet, `taskId`. Un chemin de
+     * retour vers `taskId` n'en emprunte donc aucune : il n'existe que dans le
+     * graphe déjà en place. Vérifier chaque candidat contre la fermeture
+     * transitive descendante préexistante est donc exact pour l'ensemble — et
+     * les retraits, qui ne portent eux aussi que sur les arêtes sortantes de
+     * `taskId`, ne changent pas cette fermeture.
+     */
+    const interdits = await this.dependantesTransitives(taskId);
+    const cyclique = prerequisIds.find((id) => interdits.has(id));
+    if (cyclique) throw new ErreurTache("dependance_circulaire", { prerequisId: cyclique });
+
+    const actuels = (
+      await this.prisma.taskDependency.findMany({
+        where: { taskId },
+        select: { prerequisId: true },
+      })
+    ).map((d) => d.prerequisId);
+    const visiblesActuels = new Set(
+      (
+        await this.prisma.task.findMany({
+          where: { AND: [{ id: { in: actuels } }, visible] },
+          select: { id: true },
+        })
+      ).map((t) => t.id),
+    );
+
+    const voulus = new Set(prerequisIds);
+    const aRetirer = actuels.filter((id) => visiblesActuels.has(id) && !voulus.has(id));
+    const aAjouter = prerequisIds.filter((id) => !actuels.includes(id));
+
+    try {
+      await this.prisma.$transaction([
+        ...(aRetirer.length > 0
+          ? [
+              this.prisma.taskDependency.deleteMany({
+                where: { taskId, prerequisId: { in: aRetirer } },
+              }),
+            ]
+          : []),
+        ...(aAjouter.length > 0
+          ? [
+              this.prisma.taskDependency.createMany({
+                data: aAjouter.map((prerequisId) => ({ taskId, prerequisId })),
+              }),
+            ]
+          : []),
+        /*
+         * `RG-GEN-07` doublé en base : la version est dans le `where`. Si une
+         * autre fenêtre a enregistré entre la lecture et ici, la ligne ne
+         * correspond plus, Prisma lève `P2025`, et toute la transaction est
+         * défaite — les liens compris.
+         */
+        this.prisma.task.update({
+          where: { id: taskId, version },
+          data: { version: { increment: 1 } },
+        }),
+      ]);
+    } catch (e) {
+      if ((e as { code?: string }).code === "P2025") {
+        throw new ErreurTache("conflit_de_version", { attendue: tache.version, recue: version });
+      }
+      throw e;
+    }
+
+    /*
+     * `cadrage/01 § M20` — le journal garde le vocabulaire des gestes unitaires
+     * (`task.dependency_add` / `_remove`). Une action « ensemble défini » ne
+     * dirait pas ce qui a bougé, et c'est ce qu'on relit dans un journal.
+     */
+    for (const prerequisId of aRetirer) {
+      await this.audit.tracer({
+        action: "task.dependency_remove", typeEntite: "Task", entiteId: taskId, acteurId,
+        detail: { prerequisId },
+      });
+    }
+    for (const prerequisId of aAjouter) {
+      await this.audit.tracer({
+        action: "task.dependency_add", typeEntite: "Task", entiteId: taskId, acteurId,
+        detail: { prerequisId },
+      });
+    }
+
+    return { version: version + 1, ajoutees: aAjouter, retirees: aRetirer };
+  }
+
   async ajouterDependance(taskId: string, prerequisId: string, acteurId: string) {
     if (taskId === prerequisId) throw new ErreurTache("dependance_sur_soi");
 

@@ -97,14 +97,6 @@
       "regles": [
         "EX-TSK-07"
       ]
-    },
-    {
-      "fichier": "apps/web/src/vues/taches/Fiche.tsx",
-      "repere": "fiche.modifierDependances",
-      "raison": "Motif vérifié contre le contrôleur : `POST` et `DELETE /taches/:id/dependances` posent et retirent bien une dépendance, mais aucune route n'expose la liste des tâches CANDIDATES hors cycle qu'attend la fenêtre de sélection de la maquette. Le bouton reste et dit pourquoi il n'agit pas ; comblé par L-45.",
-      "regles": [
-        "EX-TSK-10"
-      ]
     }
   ],
   "champsAdmis": [

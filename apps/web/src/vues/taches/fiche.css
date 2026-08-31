@@ -511,3 +511,67 @@
   color: inherit;
   text-decoration: none;
 }
+
+/*
+ * Fenêtre « Modifier les dépendances » — maquette 17, l. 1186-1193 et 1891-1923.
+ *
+ * La coquille (`.scrim-modal`, `.modal`, `.modal-head/-body/-foot`) vient du
+ * composant `Fenetre` ; seul le contenu de la liste est propre à cette vue.
+ */
+
+.dep-list {
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  max-height: 260px;
+  overflow-y: auto;
+}
+.dep {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 13px;
+  border-bottom: 1px solid var(--line);
+}
+.dep:last-child {
+  border-bottom: none;
+}
+.dep input {
+  accent-color: var(--accent);
+  width: 15px;
+  height: 15px;
+}
+.dep-name {
+  font-size: 12.5px;
+}
+.dep-sub {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+.dep-warn {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 8.5px;
+  color: var(--st-blocked);
+  border: 1px solid currentcolor;
+  border-radius: 2px;
+  padding: 1px 5px;
+  white-space: nowrap;
+}
+
+/* L'état vide de la liste : « Aucune tâche disponible » / « trouvée ». */
+.ilib-none {
+  padding: 22px;
+  text-align: center;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+/* Le champ de recherche de la fenêtre : pleine largeur, détaché de la liste.
+   Inline dans la maquette (`style="width:100%;margin-bottom:11px"`). */
+.recherche-dependances {
+  width: 100%;
+  margin-bottom: 11px;
+}
