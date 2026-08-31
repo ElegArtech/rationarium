@@ -223,6 +223,63 @@ export class ProjetsController {
     return this.projets.supprimerJalon(id, d.userId);
   }
 
+  /** `EX-JAL-01` — modifier un jalon. Le geste manquait : on ne pouvait que créer et supprimer. */
+  @Patch("jalons/:id")
+  @RequiertPermission("milestones:update")
+  modifierJalon(@Param("id") id: string, @Body() corps: unknown, @Demande() d: ContexteDemande) {
+    const donnees = valider(
+      z.object({
+        nom: z.string().min(1).max(160).optional(),
+        description: z.string().max(5000).nullish(),
+        dateEcheance: dateSchema.nullish(),
+        version: z.int().positive(),
+      }),
+      corps,
+    );
+    return this.projets.modifierJalon(id, donnees, d.userId);
+  }
+
+  // ── Épopées — vue 13, `EX-JAL-07` ────────────────────────────────────────
+
+  @Get(":id/epopees")
+  @RequiertPermission("epics:read")
+  epopees(@Param("id") id: string) {
+    return this.projets.epopees(id);
+  }
+
+  @Post(":id/epopees")
+  @RequiertPermission("epics:create")
+  creerEpopee(@Param("id") id: string, @Body() corps: unknown, @Demande() d: ContexteDemande) {
+    const donnees = valider(
+      z.object({
+        nom: z.string().min(1).max(160),
+        description: z.string().max(5000).optional(),
+      }),
+      corps,
+    );
+    return this.projets.creerEpopee({ ...donnees, projectId: id }, d.userId);
+  }
+
+  @Patch("epopees/:id")
+  @RequiertPermission("epics:update")
+  modifierEpopee(@Param("id") id: string, @Body() corps: unknown, @Demande() d: ContexteDemande) {
+    const donnees = valider(
+      z.object({
+        nom: z.string().min(1).max(160).optional(),
+        description: z.string().max(5000).nullish(),
+        version: z.int().positive(),
+      }),
+      corps,
+    );
+    return this.projets.modifierEpopee(id, donnees, d.userId);
+  }
+
+  @Delete("epopees/:id")
+  @RequiertPermission("epics:delete")
+  supprimerEpopee(@Param("id") id: string, @Demande() d: ContexteDemande) {
+    return this.projets.supprimerEpopee(id, d.userId);
+  }
+
   /**
    * `EX-PRJ-14` — figer l'avancement à une date.
    *

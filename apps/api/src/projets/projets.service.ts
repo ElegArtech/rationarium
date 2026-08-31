@@ -29,6 +29,7 @@ export type EchecProjet =
   | "membre_introuvable"
   | "suppression_bloquee"
   | "jalon_autre_projet"
+  | "epopee_en_double"
   | "introuvable"
   | "conflit_de_version"
   | "champ_hors_permission";
@@ -726,6 +727,152 @@ export class ProjetsService {
     ]);
     await this.audit.tracer({
       action: "milestone.delete", typeEntite: "Milestone", entiteId: id, acteurId,
+      detail: { tachesDetachees: detachees },
+    });
+    return { tachesDetachees: detachees };
+  }
+
+  /**
+   * `EX-JAL-01` — modifier un jalon.
+   *
+   * Le geste manquait : le jalon se créait et se supprimait, il ne se corrigeait
+   * pas. Une date d'échéance qui bouge — c'est le cas courant sur une feuille de
+   * route — obligeait à supprimer le jalon, donc à détacher ses tâches
+   * (`RG-JAL-05`) et à les rattacher une à une.
+   *
+   * `RG-JAL-02` tient toujours : le projet n'est pas modifiable ici, un jalon
+   * appartient à un et un seul projet.
+   */
+  async modifierJalon(
+    id: string,
+    donnees: {
+      nom?: string;
+      description?: string | null;
+      dateEcheance?: Date | null;
+      version: number;
+    },
+    acteurId: string,
+  ) {
+    const avant = await this.prisma.milestone.findUnique({ where: { id } });
+    if (!avant) throw new ErreurProjet("introuvable");
+    await this.refuserSiAnnule(avant.projectId);
+
+    const { count } = await this.prisma.milestone.updateMany({
+      where: { id, version: donnees.version },
+      data: {
+        ...(donnees.nom !== undefined ? { nom: donnees.nom } : {}),
+        ...(donnees.description !== undefined ? { description: donnees.description } : {}),
+        ...(donnees.dateEcheance !== undefined ? { dateEcheance: donnees.dateEcheance } : {}),
+        version: { increment: 1 },
+      },
+    });
+    if (count === 0) throw new ErreurProjet("conflit_de_version");
+
+    await this.audit.tracer({
+      action: "milestone.update", typeEntite: "Milestone", entiteId: id, acteurId,
+    });
+    return this.prisma.milestone.findUniqueOrThrow({ where: { id } });
+  }
+
+  // ── Épopées — `EX-JAL-07` ─────────────────────────────────────────────────
+  //
+  // L'épopée existait en base, au catalogue de permissions et dans le formulaire
+  // de tâche — et nulle part ailleurs. Aucun service, aucune route : le champ
+  // `epicId` d'une tâche ne pouvait donc JAMAIS être renseigné, puisque rien ne
+  // permettait de créer l'épopée à laquelle le rattacher.
+
+  /** `EX-JAL-07` — les épopées d'un projet, avec le nombre de tâches de chacune. */
+  async epopees(projectId: string) {
+    const epopees = await this.prisma.epic.findMany({
+      where: { projectId },
+      orderBy: { nom: "asc" },
+      include: { _count: { select: { taches: true } } },
+    });
+    return epopees.map(({ _count, ...e }) => ({ ...e, taches: _count.taches }));
+  }
+
+  /**
+   * `EX-JAL-07` — créer une épopée.
+   *
+   * Le nom est unique par projet (contrainte `@@unique([projectId, nom])`) :
+   * deux regroupements thématiques homonymes dans le même projet ne
+   * distinguent rien. Le doublon se rend en message rédigé, pas en code
+   * PostgreSQL.
+   */
+  async creerEpopee(
+    donnees: { nom: string; description?: string; projectId: string },
+    acteurId: string,
+  ) {
+    await this.refuserSiAnnule(donnees.projectId);
+    const doublon = await this.prisma.epic.findUnique({
+      where: { projectId_nom: { projectId: donnees.projectId, nom: donnees.nom } },
+      select: { id: true },
+    });
+    if (doublon) throw new ErreurProjet("epopee_en_double", { nom: donnees.nom });
+
+    const epopee = await this.prisma.epic.create({
+      data: {
+        nom: donnees.nom,
+        description: donnees.description ?? null,
+        projectId: donnees.projectId,
+      },
+    });
+    await this.audit.tracer({
+      action: "epic.create", typeEntite: "Epic", entiteId: epopee.id, acteurId,
+    });
+    return epopee;
+  }
+
+  /** `EX-JAL-07` — modifier une épopée. Le projet ne change pas. */
+  async modifierEpopee(
+    id: string,
+    donnees: { nom?: string; description?: string | null; version: number },
+    acteurId: string,
+  ) {
+    const avant = await this.prisma.epic.findUnique({ where: { id } });
+    if (!avant) throw new ErreurProjet("introuvable");
+    await this.refuserSiAnnule(avant.projectId);
+
+    if (donnees.nom !== undefined && donnees.nom !== avant.nom) {
+      const doublon = await this.prisma.epic.findUnique({
+        where: { projectId_nom: { projectId: avant.projectId, nom: donnees.nom } },
+        select: { id: true },
+      });
+      if (doublon) throw new ErreurProjet("epopee_en_double", { nom: donnees.nom });
+    }
+
+    const { count } = await this.prisma.epic.updateMany({
+      where: { id, version: donnees.version },
+      data: {
+        ...(donnees.nom !== undefined ? { nom: donnees.nom } : {}),
+        ...(donnees.description !== undefined ? { description: donnees.description } : {}),
+        version: { increment: 1 },
+      },
+    });
+    if (count === 0) throw new ErreurProjet("conflit_de_version");
+
+    await this.audit.tracer({
+      action: "epic.update", typeEntite: "Epic", entiteId: id, acteurId,
+    });
+    return this.prisma.epic.findUniqueOrThrow({ where: { id } });
+  }
+
+  /**
+   * `EX-JAL-07` — supprimer une épopée.
+   *
+   * Elle **détache** ses tâches sans les supprimer, comme `RG-JAL-05` l'impose
+   * au jalon : le regroupement disparaît, le travail reste. Le schéma pose déjà
+   * `onDelete: SetNull` sur `Task.epic` ; on compte quand même les tâches avant
+   * pour pouvoir le DIRE — un détachement muet est ce qui inquiète.
+   */
+  async supprimerEpopee(id: string, acteurId: string) {
+    const avant = await this.prisma.epic.findUnique({ where: { id } });
+    if (!avant) throw new ErreurProjet("introuvable");
+
+    const detachees = await this.prisma.task.count({ where: { epicId: id } });
+    await this.prisma.epic.delete({ where: { id } });
+    await this.audit.tracer({
+      action: "epic.delete", typeEntite: "Epic", entiteId: id, acteurId,
       detail: { tachesDetachees: detachees },
     });
     return { tachesDetachees: detachees };

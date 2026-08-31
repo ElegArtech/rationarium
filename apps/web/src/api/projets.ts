@@ -84,6 +84,20 @@ export type Jalon = {
   dateEcheance: string | null;
   statut: "pending" | "doing" | "done";
   taches: TacheDeJalon[];
+  version: number;
+};
+
+/**
+ * `EX-JAL-07` — l'épopée : un regroupement THÉMATIQUE de tâches, là où le jalon
+ * est une échéance. Les deux coexistent sur une tâche, et ne se remplacent pas.
+ */
+export type Epopee = {
+  id: string;
+  nom: string;
+  description: string | null;
+  /** Le nombre de tâches rattachées, pas celles du projet. */
+  taches: number;
+  version: number;
 };
 
 export type FeuilleDeRoute = {
@@ -240,8 +254,34 @@ export const creerJalon = (
   donnees: { nom: string; description?: string; dateEcheance?: string },
 ) => appeler<{ id: string }>(`/projets/${projectId}/jalons`, { methode: "POST", corps: donnees });
 
+export const modifierJalon = (
+  id: string,
+  donnees: {
+    nom?: string;
+    description?: string | null;
+    dateEcheance?: string | null;
+    version: number;
+  },
+) => appeler<Jalon>(`/projets/jalons/${id}`, { methode: "PATCH", corps: donnees });
+
 export const supprimerJalon = (id: string) =>
   appeler<void>(`/projets/jalons/${id}`, { methode: "DELETE" });
+
+// ── Épopées — `EX-JAL-07` ──────────────────────────────────────────────────
+
+export const epopees = (projectId: string) =>
+  appeler<Epopee[]>(`/projets/${projectId}/epopees`);
+
+export const creerEpopee = (projectId: string, donnees: { nom: string; description?: string }) =>
+  appeler<Epopee>(`/projets/${projectId}/epopees`, { methode: "POST", corps: donnees });
+
+export const modifierEpopee = (
+  id: string,
+  donnees: { nom?: string; description?: string | null; version: number },
+) => appeler<Epopee>(`/projets/epopees/${id}`, { methode: "PATCH", corps: donnees });
+
+export const supprimerEpopee = (id: string) =>
+  appeler<{ tachesDetachees: number }>(`/projets/epopees/${id}`, { methode: "DELETE" });
 
 export const ajouterMembre = (
   projectId: string,

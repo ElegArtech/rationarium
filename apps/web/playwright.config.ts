@@ -13,6 +13,14 @@ import { defineConfig, devices } from "@playwright/test";
  * cible. La placer ici aurait mesuré la peinture, qu'`ADR-0015` a déjà
  * démontrée non problématique — 52 ms pour 500 ressources sur 31 jours.
  */
+/*
+ * Le port est fixe par défaut, et surchargeable par `PORT_APERCU`. Deux
+ * lancements simultanés — l'un ici, l'autre dans un arbre de travail d'agent —
+ * se disputaient le 4173 et le second s'arrêtait sur « already used », un
+ * message qui ne dit pas à qui.
+ */
+const PORT = process.env.PORT_APERCU ?? "4173";
+
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: true,
@@ -20,7 +28,7 @@ export default defineConfig({
   use: {
     ...devices["Desktop Chrome"],
     viewport: { width: 1600, height: 1000 },
-    baseURL: "http://localhost:4173",
+    baseURL: `http://localhost:${PORT}`,
     /**
      * Le client suit la langue du navigateur quand aucune préférence n'est
      * mémorisée. Sans cette ligne, les tests s'exécutaient en anglais — ce que
@@ -52,8 +60,8 @@ export default defineConfig({
    * une demi-heure de recherche au mauvais endroit.
    */
   webServer: {
-    command: "pnpm build && pnpm exec vite preview --port 4173 --strictPort",
-    url: "http://localhost:4173",
+    command: `pnpm build && pnpm exec vite preview --port ${PORT} --strictPort`,
+    url: `http://localhost:${PORT}`,
     reuseExistingServer: false,
     timeout: 180_000,
   },

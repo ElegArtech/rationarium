@@ -160,7 +160,10 @@
     "etEnRetard": " · en retard",
     "statutDe": "Statut de {titre}",
     "statutMisAJour": "Statut mis à jour. Le jalon a été recalculé.",
-    "echecStatut": "Le statut n'a pas pu être modifié."
+    "echecStatut": "Le statut n'a pas pu être modifié.",
+    "modifierTitre": "Modifier le jalon",
+    "modifierLe": "Modifier le jalon {nom}",
+    "modifie": "Jalon modifié."
   },
   "equipe": {
     "lEquipe": "l'équipe",
@@ -216,5 +219,26 @@
     "roleChange": "Rôle de {nom} modifié",
     "beneficiaire": "Bénéficiaire",
     "allocationChangee": "Allocation de {nom} mise à jour."
+  },
+  "epopees": {
+    "titre": "Épopées",
+    "categorie": "Épopée",
+    "nouvelle": "+ Nouvelle épopée",
+    "nouvelleTitre": "Nouvelle épopée",
+    "modifierTitre": "Modifier l'épopée",
+    "modifierLa": "Modifier l'épopée {nom}",
+    "supprimerLa": "Supprimer l'épopée {nom}",
+    "supprimerTitre": "Supprimer l'épopée",
+    "confirmerSuppression": "Supprimer l'épopée",
+    "effetSuppression": "{n, plural, =0 {Aucune tâche n'est rattachée à cette épopée.} one {La tâche rattachée sera détachée, pas supprimée.} other {Les # tâches rattachées seront détachées, pas supprimées.}}",
+    "supprimee": "{n, plural, =0 {Épopée supprimée.} one {Épopée supprimée, 1 tâche détachée.} other {Épopée supprimée, # tâches détachées.}}",
+    "creee": "Épopée créée.",
+    "modifiee": "Épopée modifiée.",
+    "aucune": "Aucune épopée dans ce projet.",
+    "nTaches": "{n, plural, =0 {aucune tâche} one {1 tâche} other {# tâches}}",
+    "nomExemple": "Refonte du socle",
+    "nomRequis": "Donnez un nom à l'épopée.",
+    "descriptionExemple": "Ce que ce regroupement rassemble",
+    "aideTheme": "L'épopée regroupe des tâches par thème ; le jalon les regroupe par échéance."
   }
 }

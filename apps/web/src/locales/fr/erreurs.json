@@ -72,5 +72,6 @@
   "membreIntrouvable": "Cette personne n'est pas membre de l'équipe.",
   "porteeRequise": "Cet événement appartient à une série : indiquez si l'action porte sur cette occurrence seulement, ou sur celle-ci et les suivantes.",
   "porteeSansSerie": "Cet événement n'appartient à aucune série : il n'y a pas de portée à choisir. Reprenez sans la préciser.",
-  "dateNonPropageable": "La date distingue les occurrences les unes des autres : elle se change sur cette occurrence seulement, pas sur toute la série."
+  "dateNonPropageable": "La date distingue les occurrences les unes des autres : elle se change sur cette occurrence seulement, pas sur toute la série.",
+  "epopeeEnDouble": "Une épopée porte déjà ce nom dans ce projet."
 }

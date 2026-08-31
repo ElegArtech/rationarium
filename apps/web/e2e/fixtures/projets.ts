@@ -44,7 +44,12 @@ export const SESSION = {
     "projects:manage_members",
     "milestones:read",
     "milestones:create",
+    "milestones:update",
     "milestones:delete",
+    "epics:read",
+    "epics:create",
+    "epics:update",
+    "epics:delete",
     "tasks:read",
     "users:read",
   ],
@@ -55,7 +60,7 @@ export const SESSION = {
 export const SESSION_LECTURE = {
   ...SESSION,
   role: { code: "AGENT", nom: "Agent" },
-  permissions: ["projects:read", "milestones:read", "tasks:read"],
+  permissions: ["projects:read", "milestones:read", "tasks:read", "epics:read"],
 };
 
 export const PROJET = {
@@ -108,6 +113,7 @@ export const ROUTE = {
       description: null,
       dateEcheance: "2026-04-30",
       statut: "done",
+      version: 1,
       taches: [
         {
           id: "t1",
@@ -127,6 +133,7 @@ export const ROUTE = {
       description: null,
       dateEcheance: "2026-11-28",
       statut: "doing",
+      version: 1,
       taches: [
         {
           id: "t2",
@@ -147,6 +154,7 @@ export const ROUTE = {
       description: null,
       dateEcheance: null,
       statut: "pending",
+      version: 1,
       taches: [],
     },
   ],
@@ -252,3 +260,15 @@ export async function serveur(
     },
   );
 }
+
+/**
+ * `EX-JAL-07` — les épopées d'un projet.
+ *
+ * Deux, dont une vide : le décompte par épopée est un champ qu'on lit sans
+ * jamais le contredire, et deux valeurs différentes sont ce qui prouve qu'il
+ * porte bien SON compte et non celui du projet.
+ */
+export const EPOPEES = [
+  { id: "e1", nom: "Socle technique", description: "Les fondations", taches: 2, version: 1 },
+  { id: "e2", nom: "Reprise de données", description: null, taches: 0, version: 3 },
+];
