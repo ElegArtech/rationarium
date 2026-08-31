@@ -137,6 +137,21 @@ export class TachesService {
         throw new ErreurTache("jalon_autre_projet");
       }
     }
+    /*
+     * La règle nomme « un jalon **ou une épopée** du même projet », et seul le
+     * jalon était contrôlé. L'épopée passait parce que rien ne pouvait en
+     * créer une — `EX-JAL-07` n'était pas porté. Le trou s'ouvrait à la minute
+     * où la première épopée existerait.
+     */
+    if (donnees.projectId && donnees.epicId) {
+      const epopee = await this.prisma.epic.findUnique({
+        where: { id: donnees.epicId },
+        select: { projectId: true },
+      });
+      if (!epopee || epopee.projectId !== donnees.projectId) {
+        throw new ErreurTache("jalon_autre_projet");
+      }
+    }
 
     // EX-TSK-06 — inviter des services entiers : les membres sont dépliés à la
     // création, pas conservés comme lien vers le service. Un service dont
@@ -296,13 +311,21 @@ export class TachesService {
        * toujours à ceux qui n'ont pas la permission de lecture confidentielle.
        */
       confidentielle?: boolean;
+      /*
+       * `RG-JAL-03` — le rattachement se change APRÈS COUP, lui aussi. Il
+       * n'était accepté qu'à la création : une tâche créée sans jalon ne
+       * pouvait plus en recevoir un, et la feuille de route montrait un bloc
+       * « sans jalon » que rien ne permettait de vider. `null` détache.
+       */
+      milestoneId?: string | null;
+      epicId?: string | null;
     },
     acteurId: string,
   ) {
     const { version, ...champs } = donnees;
     const avant = await this.prisma.task.findUnique({
       where: { id: taskId },
-      select: { version: true, statut: true, avancement: true },
+      select: { version: true, statut: true, avancement: true, projectId: true },
     });
     if (!avant) throw new ErreurTache("introuvable");
     if (avant.version !== version) {
@@ -311,6 +334,30 @@ export class TachesService {
 
     if (champs.dateDebut && champs.dateFin && champs.dateFin < champs.dateDebut) {
       throw new ErreurTache("dates_incoherentes");
+    }
+
+    // `RG-JAL-04` puis `RG-JAL-03`, sur l'état RÉSULTANT : une tâche hors projet
+    // ne se rattache à rien, et ce à quoi elle se rattache est de son projet.
+    if (champs.milestoneId || champs.epicId) {
+      if (!avant.projectId) throw new ErreurTache("hors_projet_avec_jalon");
+      if (champs.milestoneId) {
+        const jalon = await this.prisma.milestone.findUnique({
+          where: { id: champs.milestoneId },
+          select: { projectId: true },
+        });
+        if (!jalon || jalon.projectId !== avant.projectId) {
+          throw new ErreurTache("jalon_autre_projet");
+        }
+      }
+      if (champs.epicId) {
+        const epopee = await this.prisma.epic.findUnique({
+          where: { id: champs.epicId },
+          select: { projectId: true },
+        });
+        if (!epopee || epopee.projectId !== avant.projectId) {
+          throw new ErreurTache("jalon_autre_projet");
+        }
+      }
     }
 
     const misAJour = await this.prisma.task.update({

@@ -102,6 +102,9 @@ export class TachesController {
          * restait invisible pour toujours.
          */
         confidentielle: z.boolean().optional(),
+        // `RG-JAL-03` — rattacher ou détacher après coup. `null` détache.
+        milestoneId: z.uuid().nullish(),
+        epicId: z.uuid().nullish(),
       }),
       corps,
     );

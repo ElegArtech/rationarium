@@ -404,6 +404,16 @@ export function Jalons({ projetId }: { projetId: string }) {
         </div>
       ) : null}
 
+      {/*
+        `EX-JAL-07` — les épopées.
+
+        Le jalon est une ÉCHÉANCE, l'épopée un THÈME : les deux coexistent sur
+        une tâche et ne se remplacent pas. C'est pourquoi les épopées vivent
+        hors de la chronologie, sous elle — les ranger dans la frise
+        obligerait à leur inventer une date qu'elles n'ont pas.
+      */}
+      <Epopees projetId={projetId} />
+
       <FenetreCreationTache
         ouverte={tacheOuverte}
         surFermeture={() => setTacheOuverte(false)}
@@ -442,6 +452,7 @@ function LigneJalon({
   const peut = usePeut();
   const annoncer = useMessages();
   const client = useQueryClient();
+  const [modificationOuverte, setModificationOuverte] = useState(false);
   const [suppressionOuverte, setSuppressionOuverte] = useState(false);
 
   const retard = jalon.statut === "done" ? 0 : Math.min(0, joursAvant(jalon.dateEcheance) ?? 1);
@@ -505,6 +516,19 @@ function LigneJalon({
             <Button className="ms-toggle" onPress={surBascule} aria-expanded={deplie}>
               {deplie ? t("jalons.masquer") : t("jalons.afficher")}
             </Button>
+            {/* `EX-JAL-01` — « créer, modifier, supprimer ». La moitié du milieu
+                manquait : décaler une échéance imposait de supprimer le jalon,
+                donc de détacher ses tâches (`RG-JAL-05`) et de les rattacher
+                une à une. */}
+            {peut("milestones:update") ? (
+              <Button
+                className="ms-ico"
+                onPress={() => setModificationOuverte(true)}
+                aria-label={t("jalons.modifierLe", { nom: jalon.nom })}
+              >
+                <span aria-hidden="true">✎</span>
+              </Button>
+            ) : null}
             {peut("milestones:delete") ? (
               <Button
                 className="ms-ico is-del"
@@ -534,6 +558,16 @@ function LigneJalon({
           </div>
         ) : null}
       </div>
+
+      <FenetreJalon
+        projetId={projetId}
+        jalon={jalon}
+        // Remontée à chaque écriture : les champs se réamorcent sur la valeur
+        // enregistrée, jamais sur celle d'avant.
+        key={jalon.version}
+        ouverte={modificationOuverte}
+        surFermeture={() => setModificationOuverte(false)}
+      />
 
       <Fenetre
         ouverte={suppressionOuverte}
@@ -582,10 +616,13 @@ function LigneJalon({
  */
 function FenetreJalon({
   projetId,
+  jalon,
   ouverte,
   surFermeture,
 }: {
   projetId: string;
+  /** Absent : création. Présent : modification (`EX-JAL-01`). */
+  jalon?: api.Jalon | undefined;
   ouverte: boolean;
   surFermeture: () => void;
 }) {
@@ -594,23 +631,35 @@ function FenetreJalon({
   const annoncer = useMessages();
   const client = useQueryClient();
 
-  const [nom, setNom] = useState("");
-  const [description, setDescription] = useState("");
-  const [echeance, setEcheance] = useState("");
+  const [nom, setNom] = useState(jalon?.nom ?? "");
+  const [description, setDescription] = useState(jalon?.description ?? "");
+  // La date arrive en ISO complet ; l'`input[type=date]` n'en veut que le jour.
+  const [echeance, setEcheance] = useState(jalon?.dateEcheance?.slice(0, 10) ?? "");
   const [nomManquant, setNomManquant] = useState(false);
 
   const creation = useMutation({
     mutationFn: () =>
-      api.creerJalon(projetId, {
-        nom,
-        ...(description ? { description } : {}),
-        ...(echeance ? { dateEcheance: echeance } : {}),
-      }),
+      jalon
+        ? api.modifierJalon(jalon.id, {
+            nom,
+            description: description || null,
+            // Vider le champ RETIRE l'échéance : elle est facultative, donc son
+            // absence est un état, pas une omission à ignorer.
+            dateEcheance: echeance || null,
+            version: jalon.version,
+          })
+        : api.creerJalon(projetId, {
+            nom,
+            ...(description ? { description } : {}),
+            ...(echeance ? { dateEcheance: echeance } : {}),
+          }),
     onSuccess: () => {
-      annoncer("ok", t("jalons.cree"));
-      setNom("");
-      setDescription("");
-      setEcheance("");
+      annoncer("ok", t(jalon ? "jalons.modifie" : "jalons.cree"));
+      if (!jalon) {
+        setNom("");
+        setDescription("");
+        setEcheance("");
+      }
       surFermeture();
       void client.invalidateQueries({ queryKey: ["projet", projetId] });
     },
@@ -634,7 +683,7 @@ function FenetreJalon({
       ouverte={ouverte}
       surFermeture={surFermeture}
       categorie={t("jalons.categorie")}
-      titre={t("jalons.nouveauTitre")}
+      titre={t(jalon ? "jalons.modifierTitre" : "jalons.nouveauTitre")}
       mention={t("champObligatoire")}
       actions={
         <>
@@ -701,7 +750,9 @@ function FenetreJalon({
           <p className="field-hint">{t("jalons.echeanceFacultative")}</p>
         </div>
 
-        <div className="explain">
+        {/* L'encart n'explique une ABSENCE que là où on cherche le champ :
+            à la création. En modification, il répéterait une évidence. */}
+        <div className="explain" hidden={Boolean(jalon)}>
           <span aria-hidden="true" className="explain-sigle">
             ∑
           </span>
@@ -717,6 +768,251 @@ function FenetreJalon({
               ))}
             </ul>
           </div>
+        </div>
+      </form>
+    </Fenetre>
+  );
+}
+
+/**
+ * `EX-JAL-07` — le panneau des épopées.
+ *
+ * **Ce qu'il répare.** L'épopée existait en base, au catalogue de permissions,
+ * dans quatre modèles de rôles et dans le formulaire de création d'une tâche.
+ * Elle n'avait aucun service et aucune route : `epicId` ne pouvait donc jamais
+ * valoir autre chose que `null`, et le compteur « 3 épopées » de la vue 11
+ * affichait un zéro perpétuel.
+ *
+ * Il emprunte le vocabulaire du bloc « sans jalon » juste au-dessus — `orphan`,
+ * `tk`, `ms-ico` : deux listes hors chronologie qui se ressembleraient sans se
+ * ressembler tout à fait seraient un défaut de finition, pas une nuance.
+ */
+function Epopees({ projetId }: { projetId: string }) {
+  const { t } = useTranslation("projets");
+  const { t: tErreurs } = useTranslation("erreurs");
+  const peut = usePeut();
+  const annoncer = useMessages();
+  const client = useQueryClient();
+  const [fenetre, setFenetre] = useState<{ epopee?: api.Epopee } | null>(null);
+  const [aSupprimer, setASupprimer] = useState<api.Epopee | null>(null);
+
+  const liste = useQuery({
+    queryKey: ["projet", projetId, "epopees"],
+    queryFn: () => api.epopees(projetId),
+    enabled: peut("epics:read"),
+  });
+
+  const suppression = useMutation({
+    mutationFn: (id: string) => api.supprimerEpopee(id),
+    onSuccess: ({ tachesDetachees }) => {
+      annoncer("ok", t("epopees.supprimee", { n: tachesDetachees }));
+      setASupprimer(null);
+      void client.invalidateQueries({ queryKey: ["projet", projetId] });
+    },
+    onError: (e) => annoncer("err", messageErreur(e, tErreurs, t("fiche.echecAction"))),
+  });
+
+  // Sans `epics:read`, le panneau n'est pas masqué par courtoisie : il n'a
+  // rien à montrer. Le contrôle qui compte est au serveur (`RG-GEN-06`).
+  if (!peut("epics:read")) return null;
+
+  const epopees = liste.data ?? [];
+
+  return (
+    <div className="orphan">
+      <div className="orphan-head">
+        <span className="panel-title">{t("epopees.titre")}</span>
+        <span className="kcol-n">{epopees.length}</span>
+        {peut("epics:create") ? (
+          <Button
+            className="ms-toggle"
+            style={{ marginLeft: "auto" }}
+            onPress={() => setFenetre({})}
+          >
+            {t("epopees.nouvelle")}
+          </Button>
+        ) : null}
+      </div>
+
+      {epopees.length > 0 ? (
+        <div className="ms-tasks">
+          {epopees.map((e) => (
+            <div className="tk" key={e.id}>
+              <div className="bloc-etroit">
+                <span className="tk-name">{e.nom}</span>
+                {e.description ? <span className="tk-sub">{e.description}</span> : null}
+              </div>
+              <span className="tk-est">{t("epopees.nTaches", { n: e.taches })}</span>
+              {peut("epics:update") ? (
+                <Button
+                  className="ms-ico"
+                  onPress={() => setFenetre({ epopee: e })}
+                  aria-label={t("epopees.modifierLa", { nom: e.nom })}
+                >
+                  <span aria-hidden="true">✎</span>
+                </Button>
+              ) : null}
+              {peut("epics:delete") ? (
+                <Button
+                  className="ms-ico is-del"
+                  onPress={() => setASupprimer(e)}
+                  aria-label={t("epopees.supprimerLa", { nom: e.nom })}
+                >
+                  <span aria-hidden="true">×</span>
+                </Button>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="ms-none">{t("epopees.aucune")}</p>
+      )}
+
+      {fenetre ? (
+        <FenetreEpopee
+          projetId={projetId}
+          epopee={fenetre.epopee}
+          surFermeture={() => setFenetre(null)}
+        />
+      ) : null}
+
+      <Fenetre
+        ouverte={aSupprimer !== null}
+        surFermeture={() => setASupprimer(null)}
+        categorie={t("confirmation")}
+        titre={t("epopees.supprimerTitre")}
+        // Même promesse que pour le jalon : le regroupement disparaît, le
+        // travail reste.
+        mention={t("jalons.aucuneTacheSupprimee")}
+        actions={
+          <>
+            <Button className="btn btn-secondary" onPress={() => setASupprimer(null)}>
+              {t("annuler")}
+            </Button>
+            <Button
+              className="btn btn-danger"
+              isPending={suppression.isPending}
+              onPress={() => aSupprimer && suppression.mutate(aSupprimer.id)}
+            >
+              {t("epopees.supprimerTitre")}
+            </Button>
+          </>
+        }
+      >
+        <p className="phrase-confirmation">
+          {t("epopees.confirmerSuppression")}{" "}
+          <span className="quoted">« {aSupprimer?.nom} »</span> ?
+        </p>
+        <div className="alert alert-neutral">
+          <span className="alert-icon" aria-hidden="true">
+            →
+          </span>
+          <span>{t("epopees.effetSuppression", { n: aSupprimer?.taches ?? 0 })}</span>
+        </div>
+      </Fenetre>
+    </div>
+  );
+}
+
+/** La fenêtre d'épopée — création et modification, `EX-JAL-07`. */
+function FenetreEpopee({
+  projetId,
+  epopee,
+  surFermeture,
+}: {
+  projetId: string;
+  epopee?: api.Epopee | undefined;
+  surFermeture: () => void;
+}) {
+  const { t } = useTranslation("projets");
+  const { t: tErreurs } = useTranslation("erreurs");
+  const annoncer = useMessages();
+  const client = useQueryClient();
+
+  const [nom, setNom] = useState(epopee?.nom ?? "");
+  const [description, setDescription] = useState(epopee?.description ?? "");
+  const [nomManquant, setNomManquant] = useState(false);
+
+  const ecriture = useMutation({
+    mutationFn: () =>
+      epopee
+        ? api.modifierEpopee(epopee.id, {
+            nom,
+            description: description || null,
+            version: epopee.version,
+          })
+        : api.creerEpopee(projetId, { nom, ...(description ? { description } : {}) }),
+    onSuccess: () => {
+      annoncer("ok", t(epopee ? "epopees.modifiee" : "epopees.creee"));
+      surFermeture();
+      void client.invalidateQueries({ queryKey: ["projet", projetId] });
+    },
+    onError: (e) => annoncer("err", messageErreur(e, tErreurs, t("fiche.echecAction"))),
+  });
+
+  const valider = () => {
+    const vide = !nom.trim();
+    setNomManquant(vide);
+    if (!vide) ecriture.mutate();
+  };
+
+  return (
+    <Fenetre
+      ouverte
+      surFermeture={surFermeture}
+      categorie={t("epopees.categorie")}
+      titre={t(epopee ? "epopees.modifierTitre" : "epopees.nouvelleTitre")}
+      mention={t("champObligatoire")}
+      actions={
+        <>
+          <Button className="btn btn-secondary" onPress={surFermeture}>
+            {t("annuler")}
+          </Button>
+          <Button className="btn btn-primary" isPending={ecriture.isPending} onPress={valider}>
+            {t("enregistrer")}
+          </Button>
+        </>
+      }
+    >
+      <form
+        onSubmit={(e: FormEvent) => {
+          e.preventDefault();
+          valider();
+        }}
+        noValidate
+      >
+        <div className="field-block">
+          <label className="field-label" htmlFor="ep-nom">
+            {t("portefeuille.nom")} <span className="req">*</span>
+          </label>
+          <input
+            className="field"
+            id="ep-nom"
+            type="text"
+            value={nom}
+            aria-invalid={nomManquant}
+            onChange={(e) => setNom(e.target.value)}
+            placeholder={t("epopees.nomExemple")}
+          />
+          <p className={`field-error${nomManquant ? "" : " is-quiet"}`}>
+            <span aria-hidden="true">↑</span>
+            <span>{t("epopees.nomRequis")}</span>
+          </p>
+        </div>
+
+        <div className="field-block">
+          <label className="field-label" htmlFor="ep-desc">
+            {t("portefeuille.description")}
+          </label>
+          <textarea
+            className="field"
+            id="ep-desc"
+            rows={2}
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder={t("epopees.descriptionExemple")}
+          />
+          <p className="field-hint">{t("epopees.aideTheme")}</p>
         </div>
       </form>
     </Fenetre>

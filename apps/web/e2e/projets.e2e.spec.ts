@@ -7,6 +7,7 @@ import {
   LIGNE_PROJET,
   ROUTE,
   EQUIPE,
+  EPOPEES,
 } from "./fixtures/projets.js";
 
 /**
@@ -608,5 +609,123 @@ test.describe("Vue 14 — équipe", () => {
     await expect(page.getByText(/Voulez-vous vraiment retirer Driss Amrani/)).toBeVisible();
     await expect(page.getByText(/Le temps déclaré et les tâches assignées sont conservés/)).toBeVisible();
     await expect(page.getByText("Aucune donnée n'est supprimée")).toBeVisible();
+  });
+});
+
+/**
+ * `EX-JAL-07` — les épopées, et `EX-JAL-01` — modifier un jalon.
+ *
+ * **Ce que ces contrôles réparent.** L'épopée existait en base, au catalogue de
+ * permissions, dans quatre modèles de rôles et dans le formulaire de création
+ * d'une tâche — et n'avait aucun service, aucune route, aucun écran. Le jalon,
+ * lui, se créait et se supprimait mais ne se corrigeait pas : décaler une
+ * échéance imposait de supprimer le jalon, donc de détacher ses tâches
+ * (`RG-JAL-05`), puis de les rattacher une à une.
+ */
+test.describe("Vue 13 — épopées et modification d'un jalon", () => {
+  const reponses = {
+    "/feuille-de-route": { corps: ROUTE },
+    [`/api/projets/${PROJET.id}/epopees`]: { corps: EPOPEES },
+    [`/api/projets/${PROJET.id}`]: { corps: PROJET },
+  };
+
+  test("EX-JAL-07 — le panneau liste les épopées avec LEUR décompte de tâches", async ({
+    page,
+  }) => {
+    await serveur(page, { reponses });
+    await page.goto(`${CHEMIN_PROJET}/jalons`);
+
+    const panneau = page.locator(".orphan", { hasText: "Épopées" });
+    await expect(panneau.getByText("Socle technique", { exact: true })).toBeVisible();
+    await expect(panneau.getByText("Reprise de données", { exact: true })).toBeVisible();
+    // Deux valeurs différentes : un décompte qui rendrait celui du projet
+    // afficherait le même nombre sur les deux lignes.
+    await expect(panneau.getByText("2 tâches", { exact: true })).toBeVisible();
+    await expect(panneau.getByText("aucune tâche", { exact: true })).toBeVisible();
+  });
+
+  test("EX-JAL-07 — créer une épopée envoie son nom au serveur", async ({ page }) => {
+    await serveur(page, { reponses });
+    await page.goto(`${CHEMIN_PROJET}/jalons`);
+
+    await page.getByRole("button", { name: "+ Nouvelle épopée" }).click();
+    await page.getByLabel("Nom", { exact: false }).last().fill("Accessibilité");
+
+    const envoi = page.waitForRequest(
+      (r) => r.method() === "POST" && r.url().includes("/epopees"),
+    );
+    await page.getByRole("button", { name: "Enregistrer" }).click();
+    const requete = await envoi;
+    expect(requete.postDataJSON()).toMatchObject({ nom: "Accessibilité" });
+  });
+
+  test("RG-GEN-07 — modifier une épopée transmet LA VERSION LUE", async ({ page }) => {
+    /*
+     * La version voyage depuis la lecture jusqu'à l'écriture, sans quoi la
+     * concurrence n'est pas détectée mais écrasée. Le jeu d'essai donne
+     * volontairement `3` à la seconde épopée : un client qui enverrait `1` en
+     * dur passerait sur la première et échouerait ici.
+     */
+    await serveur(page, { reponses });
+    await page.goto(`${CHEMIN_PROJET}/jalons`);
+
+    await page.getByRole("button", { name: "Modifier l'épopée Reprise de données" }).click();
+    const envoi = page.waitForRequest(
+      (r) => r.method() === "PATCH" && r.url().includes("/epopees/e2"),
+    );
+    await page.getByRole("button", { name: "Enregistrer" }).click();
+    expect((await envoi).postDataJSON()).toMatchObject({ version: 3 });
+  });
+
+  test("EX-JAL-07 — la suppression DIT combien de tâches elle détache", async ({ page }) => {
+    await serveur(page, {
+      reponses: { ...reponses, "/api/projets/epopees/e1": { corps: { tachesDetachees: 2 } } },
+    });
+    await page.goto(`${CHEMIN_PROJET}/jalons`);
+
+    await page.getByRole("button", { name: "Supprimer l'épopée Socle technique" }).click();
+    // La promesse est faite AVANT le clic sur le bouton rouge : c'est ce qui
+    // lève l'inquiétude, pas ce qui la constate après coup.
+    await expect(
+      page.getByText("Les 2 tâches rattachées seront détachées, pas supprimées."),
+    ).toBeVisible();
+
+    await page.getByRole("button", { name: "Supprimer l'épopée", exact: true }).click();
+    await expect(page.getByText("Épopée supprimée, 2 tâches détachées.")).toBeVisible();
+  });
+
+  test("RG-GEN-06 — sans les permissions, aucune commande d'épopée", async ({ page }) => {
+    await serveur(page, { session: SESSION_LECTURE, reponses });
+    await page.goto(`${CHEMIN_PROJET}/jalons`);
+
+    // Le panneau reste : la lecture est permise. Ce sont les gestes qui
+    // disparaissent — la courtoisie, le contrôle étant au serveur.
+    await expect(page.getByText("Socle technique", { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "+ Nouvelle épopée" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /Modifier l'épopée/ })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /Supprimer l'épopée/ })).toHaveCount(0);
+  });
+
+  test("EX-JAL-01 — modifier un jalon part de SES valeurs et transmet sa version", async ({
+    page,
+  }) => {
+    await serveur(page, { reponses });
+    await page.goto(`${CHEMIN_PROJET}/jalons`);
+
+    await page.getByRole("button", { name: "Modifier le jalon Recette fonctionnelle" }).click();
+    // Le formulaire est amorcé sur le jalon, pas vide : une fenêtre de
+    // modification qui s'ouvre vierge efface ce qu'on venait corriger.
+    await expect(page.getByLabel("Nom", { exact: false }).last()).toHaveValue(
+      "Recette fonctionnelle",
+    );
+
+    const envoi = page.waitForRequest(
+      (r) => r.method() === "PATCH" && r.url().includes("/jalons/j2"),
+    );
+    await page.getByRole("button", { name: "Enregistrer" }).click();
+    expect((await envoi).postDataJSON()).toMatchObject({
+      nom: "Recette fonctionnelle",
+      version: 1,
+    });
   });
 });

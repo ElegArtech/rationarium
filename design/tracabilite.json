@@ -36,22 +36,10 @@
       "defaut": "DÉFAUT TROUVÉ (vague 7-4), réduit de moitié en vague 7-3 bis, NON REFERMÉ. L'exigence porte deux verbes. **Capturer** est désormais branché : `POST /projets/:id/instantane` est appelé par la vue 11 (bouton « Capturer un instantané »), couvert par « LA CAPTURE PART AVEC LA DATE DU JOUR, jamais avec l'heure » et « l'accusé rend la progression REÇUE, pas celle qu'on affichait » (apps/web/e2e/tableau.e2e.spec.ts). **Consulter l'historique** n'existe toujours pas : `fiche()` ne rend que `dernierInstantane`, la tendance des rapports lit les instantanés d'un LOT de projets, et l'historique d'UN projet n'a ni méthode de service ni route. L'identifiant reste donc en dette : on ne cite pas une exigence dont un verbe manque. À ajouter, dans une tâche serveur : `GET /projets/:id/instantanes`, gardée `reports:read` et bornée au périmètre. Dette voisine, distincte : `RG-PRJ-09` veut une capture PÉRIODIQUE (`cadrage/03 § 5.4`, `pg-boss`) et aucun travail de fond ne l'exécute — le bouton de la vue 11 est aujourd'hui le seul producteur d'instantanés du produit."
     },
     {
-      "id": "EX-JAL-01",
-      "lot": "vague 7-4",
-      "module": "L-10",
-      "defaut": "PARTIEL — le verbe du milieu manque. `creerJalon` et `supprimerJalon` existent ; il n’y a NI `modifierJalon` NI route `PATCH` sur un jalon. Corriger une date d’échéance impose de supprimer le jalon, donc d’en détacher les tâches. Quatrième occurrence de la famille EX-ORG-02 / EX-CLI-02 / EX-PRJ-05."
-    },
-    {
       "id": "EX-JAL-02",
       "lot": "vague 7-4",
       "module": "L-10",
       "defaut": "À TRANCHER AU CADRAGE avant d’écrire un test. « Marquer un jalon comme atteint » est une action de l’utilisateur ; `RG-JAL-01` dit que le statut d’un jalon est CALCULÉ et « n’est pas saisi ». Les deux ne peuvent pas être vrais ensemble. Le produit a tranché pour le calcul (`statutJalon()`), et la colonne `Milestone.statut` du schéma n’est écrite ni lue par personne. Un test figerait l’une des deux lectures."
-    },
-    {
-      "id": "EX-JAL-07",
-      "lot": "vague 7-4",
-      "module": "L-10",
-      "defaut": "DÉFAUT TROUVÉ (vague 7-4) — LES ÉPOPÉES N’EXISTENT QU’EN BASE. Le modèle `Epic` est au schéma, `Task.epicId` s’écrit depuis `TachesService`, `fiche()` compte `_count.epopees` — mais il n’y a AUCUN service, AUCUN contrôleur et AUCUNE route pour créer, modifier ou supprimer une épopée. Le compteur de la fiche projet ne peut donc jamais dépasser zéro."
     },
     {
       "id": "EX-TSK-01",

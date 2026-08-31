@@ -137,6 +137,12 @@ export const MESSAGES_METIER: Record<string, Message> = {
     "Ce jalon appartient à un autre projet.",
   ),
 
+  epopee_en_double: m(
+    409,
+    "erreurs:epopeeEnDouble",
+    "Une épopée porte déjà ce nom dans ce projet.",
+  ),
+
   // ── Tâches — M6 ──────────────────────────────────────────────────────────
   dependance_circulaire: m(
     422,

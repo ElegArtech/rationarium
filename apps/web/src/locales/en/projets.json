@@ -160,7 +160,10 @@
     "etEnRetard": " · overdue",
     "statutDe": "Status of {titre}",
     "statutMisAJour": "Status updated. The milestone was recomputed.",
-    "echecStatut": "The status could not be changed."
+    "echecStatut": "The status could not be changed.",
+    "modifierTitre": "Edit milestone",
+    "modifierLe": "Edit milestone {nom}",
+    "modifie": "Milestone updated."
   },
   "equipe": {
     "lEquipe": "the team",
@@ -216,5 +219,26 @@
     "roleChange": "{nom}'s role updated",
     "beneficiaire": "Beneficiary",
     "allocationChangee": "Allocation for {nom} updated."
+  },
+  "epopees": {
+    "titre": "Epics",
+    "categorie": "Epic",
+    "nouvelle": "+ New epic",
+    "nouvelleTitre": "New epic",
+    "modifierTitre": "Edit epic",
+    "modifierLa": "Edit epic {nom}",
+    "supprimerLa": "Delete epic {nom}",
+    "supprimerTitre": "Delete epic",
+    "confirmerSuppression": "Delete epic",
+    "effetSuppression": "{n, plural, =0 {No task is linked to this epic.} one {The linked task will be detached, not deleted.} other {The # linked tasks will be detached, not deleted.}}",
+    "supprimee": "{n, plural, =0 {Epic deleted.} one {Epic deleted, 1 task detached.} other {Epic deleted, # tasks detached.}}",
+    "creee": "Epic created.",
+    "modifiee": "Epic updated.",
+    "aucune": "No epic in this project.",
+    "nTaches": "{n, plural, =0 {no tasks} one {1 task} other {# tasks}}",
+    "nomExemple": "Platform overhaul",
+    "nomRequis": "Give the epic a name.",
+    "descriptionExemple": "What this grouping brings together",
+    "aideTheme": "An epic groups tasks by theme; a milestone groups them by deadline."
   }
 }
