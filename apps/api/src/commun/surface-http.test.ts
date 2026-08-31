@@ -407,7 +407,6 @@ function apparie(route: string[], appel: string[]): boolean {
 }
 
 /** Une route qu'aucun écran n'appelle **et dont c'est la place**. */
-const A_BRANCHER = "à brancher — vague 7-3";
 
 /**
  * Les seules routes autorisées à n'être appelées par aucun écran.
@@ -500,8 +499,12 @@ const SANS_CLIENT: { verbe: string; chemin: string; raison: string }[] = [
     raison:
       "EX-CNG-10 / RG-CNG-24 — la capacité existe, l'ÉCRAN n'est spécifié nulle part : `cadrage/02` ferme la vue 19 à six onglets et la vue 31 à quatre, la vue 27 ne montre le solde qu'en consultation, et la maquette 19 ne fait que lire les soldes. Seule la ligne « Variantes » de la vue 19 (« plus les types et les soldes ») suggère le contraire, en se contredisant avec l'énumération de sa propre section. Question remontée ; à brancher dès l'arbitrage.",
   },
-  { verbe: "GET", chemin: "/parametrage/feries/statistiques", raison: A_BRANCHER },
-  { verbe: "GET", chemin: "/parametrage/trame", raison: A_BRANCHER },
+  {
+    verbe: "GET",
+    chemin: "/parametrage/trame",
+    raison:
+      "redondante — `GET /planning` et `GET /planning/activite` embarquent déjà la trame de fond (`EX-PLN-14`), et c'est le seul écran qui la consomme. Son seul apport propre est le paramètre `zone`, qu'aucune exigence ne demande d'appliquer au planning : le cadrage fait de la zone un attribut des vacances scolaires, pas un filtre du planning. Conservée comme lecture unitaire, elle n'a pas d'écran.",
+  },
 ];
 
 describe("aucune route serveur sans appel client", () => {
