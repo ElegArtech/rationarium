@@ -49,6 +49,37 @@ export class ImportsController {
     return this.imports.importerUtilisateurs(contenu, d.userId);
   }
 
+  /**
+   * `EX-CMP-09` — l'import du référentiel de compétences.
+   *
+   * `skills:import`, pas `tasks:import` : le catalogue de `cadrage/01 § 3.2`
+   * donne à chaque domaine son action d'import, et emprunter celle d'un autre
+   * domaine ouvrirait le référentiel à qui n'a que des droits sur les tâches.
+   *
+   * Aucun périmètre en dessous : une compétence n'appartient à aucun
+   * département. C'est une propriété du référentiel, énoncée dans le service.
+   */
+  @Post("competences")
+  @RequiertPermission("skills:import")
+  importerCompetences(@Body() corps: unknown, @Demande() d: ContexteDemande) {
+    const { contenu } = valider(corpsFichier, corps);
+    return this.imports.importerCompetences(contenu, d.userId);
+  }
+
+  /**
+   * `EX-CNG-14`, `RG-CNG-32` — l'import de congés en masse.
+   *
+   * Le **périmètre** est transmis au service et appliqué ligne à ligne : la
+   * permission dit qui peut importer, le périmètre dit pour qui. Les deux, dans
+   * cet ordre (`cadrage/03 § 5.4`).
+   */
+  @Post("conges")
+  @RequiertPermission("leaves:import")
+  importerConges(@Body() corps: unknown, @Demande() d: ContexteDemande) {
+    const { contenu } = valider(corpsFichier, corps);
+    return this.imports.importerConges(contenu, d.userId, d.perimetre);
+  }
+
   /** Les volumes que le mode Remplacer va supprimer, avant de le faire. */
   @Get("projet/:id/volumes")
   @RequiertPermission("tasks:import")

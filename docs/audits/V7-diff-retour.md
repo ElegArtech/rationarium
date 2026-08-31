@@ -95,3 +95,60 @@ travaillé sur une base périmée et l'un a recréé un `package.json` déjà br
 Par ailleurs `packages/db/src/generated` étant ignoré par git, `pnpm typecheck` échoue
 sur tout arbre neuf tant que `prisma generate` n'a pas été rejoué. Les trois agents
 s'y sont cognés.
+
+---
+
+## L-43 — Exécuter les imports de compétences et de congés
+
+`POST /imports/competences` était appelé par la vue 22 et n'existait pas : un 404 que
+seule l'action de l'utilisateur révélait. `POST /imports/conges` n'existait ni au
+serveur ni au client, alors que `EX-CNG-14` l'exige et que la maquette 19 porte le
+bouton (`#btn-import`). Les deux aperçus, eux, fonctionnaient depuis L-24 : seule
+l'**écriture** manquait.
+
+### Décisions tranchées
+
+| # | Décision | Motivation | Écriture au cadrage |
+| --- | --- | --- | --- |
+| 1 | **La colonne `category` des compétences porte le CODE du vocabulaire** (`technical`, `methodology`, `soft_skill`, `business`). Le modèle a été corrigé — il proposait `Technique`. Les libellés FR/EN restent **acceptés en lecture**. | Les deux bouts se contredisaient : `modele()` enseignait le libellé, `exporterCompetences()` écrivait le code. **Un export n'était donc pas réimportable**, ce que le commentaire de `exporterTaches` promet pourtant pour tout le module. Le code est la seule valeur stable — indépendante de la langue de l'agent et de la casse de son tableur —, et c'est celle que la base stocke. Tolérant en entrée parce qu'une personne qui remplit un tableau à la main écrit « Savoir-être » ; strict en sortie parce que c'est la sortie qui doit se réimporter. | Aucune. `cadrage/01 § M21` ne donne pas de format à cette colonne — il ne le donne pour aucune. **Question ouverte** : faut-il que `§ M21` énonce « les colonnes d'énumération portent le code de `§ 4.1` » ? La règle vaudrait aussi pour `status` et `priority` des tâches, qui font déjà ainsi sans que rien ne le dise. |
+| 2 | **Un congé importé est directement approuvé**, l'importateur pour validateur — sauf la ligne qui désigne l'importateur lui-même, qui suit le régime ordinaire du dépôt. | `RG-CNG-14` : un congé déclaré pour un collaborateur est directement approuvé. Un import est par nature une déclaration pour autrui — ce qu'on importe est un état constaté, pas une intention ; deux cents demandes en attente noieraient le validateur. **L'exception est le point délicat** : approuver la ligne de l'importateur ferait de l'import un contournement de `RG-CNG-09`, qui interdit d'approuver sa propre demande sans permission explicite. Une route d'import ne doit pas offrir ce qu'une route de validation refuse. | **Oui — `RG-CNG-33` ajoutée.** La règle n'existait pas ; le comportement se serait sinon déduit d'une lecture de code. |
+| 3 | **Le solde est contrôlé, pas contourné.** Une ligne au-delà du disponible part en **erreur**, avec le message chiffré de `RG-CNG-21`. | `RG-CNG-21` ne prévoit aucune dispense pour l'import, et `RG-CNG-32` n'énumère que deux cas d'ignoré : doublon et chevauchement. Passer outre écrirait des soldes négatifs que plus rien ne signale, et le compte rendu annoncerait « 200 importés » sur un référentiel devenu faux. | **Oui — `RG-CNG-32` précisée** : « ignoré » ne couvre que doublon et chevauchement ; tout autre refus est en erreur, contrôle de solde compris. |
+| 4 | **L'import de congés délègue à `CongesService.deposer`**, ligne à ligne, plutôt que de réécrire la création. | Décompte en jours ouvrés, demi-journée, répartition par année, contrôle de solde, refus de chevauchement, détermination du validateur : tout y est déjà, avec ses tests. Une seconde version divergerait au premier amendement — le dépôt a déjà payé « deux lectures d'une même donnée finissent par se contredire sans qu'aucune boucle ne le voie ». Effet de bord assumé : `ImportsModule` importe désormais `CongesModule`. | — |
+| 5 | **Le périmètre s'applique ligne à ligne** à l'import de congés : un agent hors périmètre est refusé, en erreur. | Permission **puis** périmètre, `cadrage/03 § 5.4`. Sans ce refus, `leaves:import` deviendrait une écriture globale déguisée : un manager de service poserait des congés sur toute l'instance avec un fichier de deux colonnes. Aucun périmètre en revanche sur l'import de compétences — une compétence n'appartient à aucun département ; c'est une propriété du référentiel, énoncée dans le service pour qu'elle ne passe pas pour un oubli. | Aucune. `RG-SCOPE-01` et `RG-SCOPE-03` suffisent. |
+| 6 | `leaveTypeName` accepte le **nom** puis, à défaut, le **code** du type. | La colonne s'appelle « name », donc le nom d'abord. Mais un fichier venu d'un autre outil RH porte plus souvent « CA » que « Congés annuels », et refuser ce fichier n'apprend rien à personne. | Aucune. |
+| 7 | `halfDay` est refusé sur une période de plusieurs jours. | Le CSV n'a qu'une colonne là où le modèle en porte deux (début et fin) : un fichier plat ne peut pas exprimer « matin le premier jour, après-midi le dernier ». C'est exactement le cas que `RG-CNG-18` réserve au congé d'une seule journée. | Aucune. |
+
+### Écritures dans `cadrage/`
+
+- `01 § M10` — **`RG-CNG-32` précisée** : le périmètre du mot « ignoré », et
+  l'application du contrôle de solde à l'import.
+- `01 § M10` — **`RG-CNG-33` ajoutée** : approbation directe d'un congé importé, et
+  son exception pour la ligne de l'importateur.
+
+### Le piège que ce lot a payé, et qui mérite d'être consigné
+
+**Une tolérance en lecture rend aveugle le test qui la surplombe.** Les deux contrôles
+du format `category` — « le modèle s'importe » et « l'export se réimporte » — sont
+restés **verts** sous les deux mutations qu'ils existaient pour attraper : puisque
+l'import accepte aussi le libellé français, un export en « Technique » se réimportait
+tout aussi bien. Les tests prouvaient l'aller-retour, pas l'arbitrage. Ils épinglent
+désormais la **forme écrite** (`expect(csv).toContain(";technical;")`), en plus de
+l'aller-retour. Rien d'autre ne pouvait le voir : c'est la validation par la négative,
+et elle seule, qui l'a montré.
+
+Second incident, méthodologique : `open(chemin, "w")` **tronque avant** de lever. Un
+script de restauration dont la source manquait a vidé `imports.service.ts` — fichier
+reconstruit depuis git et les scripts de correctif. Toute restauration lit sa
+référence **avant** d'ouvrir la cible.
+
+### Ce qui reste ouvert
+
+- `POST /imports/projet/:id/taches` et `/jalons` restent des 404 appelés par les vues
+  12 et 13. C'est L-44, en parallèle.
+- La question 1 ci-dessus : `cadrage/01 § M21` ne dit pour aucune colonne
+  d'énumération si elle porte le code ou le libellé. Trois imports le font déjà par
+  convention tacite.
+- `RG-CNG-15` et `RG-CNG-29` sortent de la dette de traçabilité par des tests qui les
+  exercent **sur le chemin de l'import**. La déclaration pour autrui de `EX-CNG-08` et
+  la non-sélectionnabilité d'un type désactivé dans l'interface restent, elles, sans
+  test dédié.

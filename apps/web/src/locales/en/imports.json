@@ -34,5 +34,6 @@
   "titreCompetences": "Import skills",
   "importerCsv": "Import CSV",
   "titreTaches": "Tasks CSV import",
-  "titreJalons": "Import milestones"
+  "titreJalons": "Import milestones",
+  "titreConges": "Import leave"
 }
