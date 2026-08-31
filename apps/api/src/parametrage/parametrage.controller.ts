@@ -88,12 +88,6 @@ export class ParametrageController {
     };
   }
 
-  @Get("feries/statistiques")
-  @RequiertPermission("holidays:read")
-  statistiquesFeries(@Query("annee") annee: string) {
-    return this.calendrier.statistiquesFeries(valider(z.coerce.number().int(), annee));
-  }
-
   @Post("feries")
   @RequiertPermission("holidays:create")
   declarerFerie(@Body() corps: unknown, @Demande() d: ContexteDemande) {

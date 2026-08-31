@@ -241,11 +241,31 @@ describe("Vacances scolaires et trame de fond", () => {
       { date: utc("2026-06-15"), libelle: "Journée de solidarité", ouvre: true },
       acteur,
     );
-    const stats = await cal.statistiquesFeries(2026);
-    expect(stats.total).toBe(12);
-    expect(stats.chomes).toBe(11);
-    expect(stats.ouvres).toBe(1);
-    expect(stats.legaux).toBe(11);
+    const { statistiques } = await cal.joursFeries(2026);
+    expect(statistiques.total).toBe(12);
+    expect(statistiques.chomes).toBe(11);
+    expect(statistiques.ouvres).toBe(1);
+    expect(statistiques.legaux).toBe(11);
+  });
+
+  it("les statistiques comptent la liste PROJETÉE, pas les lignes brutes", async () => {
+    /*
+     * Il existait une seconde lecture de ces chiffres — `GET
+     * /parametrage/feries/statistiques` —, qu'aucun écran n'appelait, et qui
+     * comptait les lignes de la table SANS projeter les récurrents sur
+     * l'année demandée. Sur une année jamais importée, elle rendait un total
+     * là où la vue montrait la liste projetée : deux lectures de la même
+     * donnée qui se contredisent, exactement le piège déjà payé entre
+     * `joursFeries` et `joursChomes`. Elle a été supprimée ; la liste et ses
+     * chiffres viennent désormais du même calcul, et ce test l'affirme.
+     */
+    await cal.importerJoursFeries(2026, acteur);
+
+    // 2031 n'a JAMAIS été importée : tout ce qu'elle montre est projeté.
+    const { feries, statistiques } = await cal.joursFeries(2031);
+    expect(feries.length).toBeGreaterThan(0);
+    expect(statistiques.total).toBe(feries.length);
+    expect(feries.every((f) => f.date.getUTCFullYear() === 2031)).toBe(true);
   });
 });
 

@@ -309,20 +309,6 @@ export class CalendrierService {
     return { joursChomes: [...chomes].sort(), vacances };
   }
 
-  /** Statistiques de la vue 31 : total, chômés, ouvrés, fériés légaux. */
-  async statistiquesFeries(annee: number) {
-    const debut = new Date(Date.UTC(annee, 0, 1));
-    const fin = new Date(Date.UTC(annee, 11, 31));
-    const feries = await this.prisma.holiday.findMany({
-      where: { OR: [{ date: { gte: debut, lte: fin } }, { recurrent: true }] },
-    });
-    return {
-      total: feries.length,
-      chomes: feries.filter((f) => !f.ouvre).length,
-      ouvres: feries.filter((f) => f.ouvre).length,
-      legaux: feries.filter((f) => f.type === "legal").length,
-    };
-  }
   /**
    * `EX-PRM-01` — les réglages globaux.
    *
