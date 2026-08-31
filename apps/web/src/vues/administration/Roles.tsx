@@ -1,8 +1,8 @@
-import { useMemo, useState, type CSSProperties } from "react";
+import { Fragment, useEffect, useMemo, useState, type CSSProperties } from "react";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Tooltip, TooltipTrigger } from "react-aria-components";
-import { NOMBRE_PERMISSIONS } from "@rationarium/contracts";
+import { MODELES_ROLES, NOMBRE_PERMISSIONS } from "@rationarium/contracts";
 import * as api from "../../api/administration.js";
 import { messageErreur } from "../../api/erreurs.js";
 import { usePeut } from "../../session/session.js";
@@ -41,6 +41,8 @@ export function Roles() {
   const annoncerR = useMessages();
   const clientR = useQueryClient();
   const [roleId, setRoleId] = useState<string | null>(null);
+  const [creationOuverte, setCreationOuverte] = useState(false);
+  const [aRenommer, setARenommer] = useState<api.Role | null>(null);
 
   /**
    * `EX-ADM-03` — supprimer un rôle non système.
@@ -80,6 +82,14 @@ export function Roles() {
           <span className="eyebrow">{t("roles.surtitre")}</span>
           <h1 className="h1 titre-vue">{t("roles.titre")}</h1>
           <p className="lede">{t("roles.chapeau")}</p>
+        </div>
+        {/* `EX-ADM-02` — la maquette 32 pose la commande ici, en action
+            principale de la barre de titre. `users:manage_roles` est déjà
+            exigée pour atteindre la vue : la reposer ici ne dirait rien. */}
+        <div className="ligne-actions-fin">
+          <Button className="btn btn-primary" onPress={() => setCreationOuverte(true)}>
+            {t("roles.creer")}
+          </Button>
         </div>
       </div>
 
@@ -136,20 +146,55 @@ export function Roles() {
                   <Button className="ms-toggle" onPress={() => setRoleId(r.id)}>
                     {t("roles.ouvrir")}
                   </Button>
+                  {/* `RG-DROITS-02` — « ni supprimables NI RENOMMABLES ». Le
+                      renommage suit donc le motif de la suppression, à la
+                      lettre : commande visible, désactivée, et son explication
+                      au survol. La faire disparaître ferait chercher où elle
+                      est, au lieu de dire que ce rôle-ci ne se renomme pas. */}
+                  {peut("users:manage_roles") ? (
+                    <TooltipTrigger delay={200}>
+                      <Button
+                        className="ms-toggle"
+                        /*
+                         * Désactivée, mais **pas par l'attribut natif**. Un
+                         * `<button disabled>` ne reçoit ni survol ni focus :
+                         * son infobulle ne s'ouvre jamais, et « désactivé avec
+                         * son motif » (`RG-GEN-06`) devient « désactivé, sans
+                         * explication ». `aria-disabled` garde la commande
+                         * joignable — donc son motif lisible à la souris comme
+                         * au clavier — et c'est le gestionnaire qui neutralise
+                         * le geste.
+                         */
+                        aria-disabled={r.systeme}
+                        onPress={() => {
+                          if (!r.systeme) setARenommer(r);
+                        }}
+                      >
+                        {t("roles.renommer")}
+                      </Button>
+                      {r.systeme ? (
+                        <Tooltip className="tooltip">{t("roles.systemeNonRenommable")}</Tooltip>
+                      ) : null}
+                    </TooltipTrigger>
+                  ) : null}
                   {/* `RG-DROITS-02` — un rôle système ne se supprime pas. Le
                       client désactive PAR COURTOISIE et dit pourquoi ; le refus
                       qui compte est celui du serveur. */}
                   {peut("users:manage_roles") ? (
-                    <TooltipTrigger>
+                    <TooltipTrigger delay={200}>
                       <Button
                         className="ms-toggle"
-                        isDisabled={r.systeme || suppression.isPending}
-                        onPress={() => suppression.mutate(r.id)}
+                        // Même raison qu'au-dessus : le motif doit rester
+                        // atteignable, donc la commande aussi.
+                        aria-disabled={r.systeme || suppression.isPending}
+                        onPress={() => {
+                          if (!r.systeme && !suppression.isPending) suppression.mutate(r.id);
+                        }}
                       >
                         {t("roles.supprimer")}
                       </Button>
                       {r.systeme ? (
-                        <Tooltip className="tip">{t("roles.systemeNonSupprimable")}</Tooltip>
+                        <Tooltip className="tooltip">{t("roles.systemeNonSupprimable")}</Tooltip>
                       ) : null}
                     </TooltipTrigger>
                   ) : null}
@@ -164,7 +209,289 @@ export function Roles() {
           premier de la liste : une page qui n'affiche rien tant qu'on n'a pas
           cliqué se lit comme une page vide. */}
       {selection ? <MatricePermissions roleId={selection} /> : null}
+
+      <FenetreCreation
+        ouverte={creationOuverte}
+        surFermeture={() => setCreationOuverte(false)}
+        surCree={(id) => {
+          setCreationOuverte(false);
+          setRoleId(id);
+        }}
+      />
+      <FenetreRenommage role={aRenommer} surFermeture={() => setARenommer(null)} />
     </div>
+  );
+}
+
+/**
+ * `EX-ADM-02` — créer un rôle, **depuis un modèle**.
+ *
+ * Les 26 modèles viennent de `@rationarium/contracts`, pas d'une liste
+ * recopiée : `RG-DROITS-01` en fait des points de départ, et c'est le serveur
+ * qui recopie leurs permissions à la création. Le client n'envoie que le code
+ * du modèle retenu — lui faire porter la liste des permissions rouvrirait la
+ * porte que `RG-DROITS-03` referme.
+ *
+ * **Aucun modèle n'est un choix valide.** « Un modèle est un point de départ,
+ * pas une contrainte » : partir d'une matrice vide et tout cocher est un
+ * parcours légitime, la liste porte donc sa propre entrée « partir de zéro ».
+ */
+function FenetreCreation({
+  ouverte,
+  surFermeture,
+  surCree,
+}: {
+  ouverte: boolean;
+  surFermeture: () => void;
+  surCree: (id: string) => void;
+}) {
+  const { t } = useTranslation("administration");
+  const { t: tErreurs } = useTranslation("erreurs");
+  const annoncer = useMessages();
+  const client = useQueryClient();
+  const [nom, setNom] = useState("");
+  const [code, setCode] = useState("");
+  const [recherche, setRecherche] = useState("");
+  const [modele, setModele] = useState<string | null>(null);
+  const [touche, setTouche] = useState(false);
+
+  const creation = useMutation({
+    mutationFn: () =>
+      api.creerRole({
+        nom: nom.trim(),
+        code: code.trim(),
+        ...(modele ? { depuisModele: modele } : {}),
+      }),
+    onSuccess: (role) => {
+      annoncer("ok", t("roles.cree", { nom: role.nom }));
+      void client.invalidateQueries({ queryKey: ["roles"] });
+      setNom("");
+      setCode("");
+      setRecherche("");
+      setModele(null);
+      setTouche(false);
+      surCree(role.id);
+    },
+    onError: (e) => annoncer("err", messageErreur(e, tErreurs, t("roles.echecCreation"))),
+  });
+
+  const nomManquant = nom.trim().length === 0;
+  /* Le même contrat qu'au serveur : deux à quarante lettres capitales et
+     soulignés. Le dire ici évite un aller-retour ; le refus reste au serveur. */
+  const codeInvalide = !/^[A-Z_]{2,40}$/.test(code.trim());
+  const invalide = nomManquant || codeInvalide;
+
+  const familles = useMemo(() => {
+    const q = recherche.trim().toLowerCase();
+    const groupes = new Map<string, typeof MODELES_ROLES>();
+    for (const m of MODELES_ROLES) {
+      if (q && !`${m.code} ${m.nom} ${m.description}`.toLowerCase().includes(q)) continue;
+      groupes.set(m.famille, [...(groupes.get(m.famille) ?? []), m]);
+    }
+    return [...groupes.entries()];
+  }, [recherche]);
+
+  return (
+    <Fenetre
+      ouverte={ouverte}
+      surFermeture={surFermeture}
+      categorie={t("roles.nouveauRole")}
+      titre={t("roles.creerInstitutionnel")}
+      large
+      mention={
+        modele ? t("roles.modeleRetenu", { code: modele }) : t("roles.aucunModeleRetenu")
+      }
+      actions={
+        <>
+          <Button className="btn btn-secondary" onPress={surFermeture}>
+            {t("annuler")}
+          </Button>
+          <Button
+            className="btn btn-primary"
+            isPending={creation.isPending}
+            onPress={() => {
+              setTouche(true);
+              if (!invalide) creation.mutate();
+            }}
+          >
+            {t("roles.creerLeRole")}
+          </Button>
+        </>
+      }
+    >
+      <div className="form-grid">
+        <div className="field-block">
+          <label className="field-label" htmlFor="r-nom">
+            {t("roles.champNom")} <span className="req">*</span>
+          </label>
+          <input
+            className="field"
+            id="r-nom"
+            type="text"
+            value={nom}
+            placeholder={t("roles.nomExemple")}
+            aria-invalid={touche && nomManquant}
+            onChange={(e) => setNom(e.target.value)}
+          />
+          <p className={touche && nomManquant ? "field-error" : "field-error is-quiet"}>
+            <span aria-hidden="true">↑</span>
+            <span>{t("roles.nomObligatoire")}</span>
+          </p>
+        </div>
+
+        <div className="field-block">
+          <label className="field-label" htmlFor="r-code">
+            {t("roles.champCode")} <span className="req">*</span>
+          </label>
+          <input
+            className="field champ-mono"
+            id="r-code"
+            type="text"
+            value={code}
+            placeholder="REFERENT_APPLICATIF"
+            aria-invalid={touche && codeInvalide}
+            onChange={(e) => setCode(e.target.value.toUpperCase())}
+          />
+          <p className={touche && codeInvalide ? "field-error" : "field-error is-quiet"}>
+            <span aria-hidden="true">↑</span>
+            <span>{t("roles.codeFormat")}</span>
+          </p>
+          {/* Le code identifie le rôle partout ailleurs : il ne se reprend pas. */}
+          <p className="field-hint">{t("roles.codeFige")}</p>
+        </div>
+      </div>
+
+      <div className="field-block span2">
+        <label className="field-label" htmlFor="r-modele">
+          {t("roles.partirDunModele")}
+        </label>
+        <p className="field-hint modele-aide">{t("roles.modeleAide")}</p>
+        <input
+          className="field modele-recherche"
+          id="r-modele"
+          type="search"
+          value={recherche}
+          placeholder={t("roles.rechercherModele")}
+          onChange={(e) => setRecherche(e.target.value)}
+        />
+        <div className="tpl-list">
+          {familles.length === 0 ? (
+            <div className="empty">
+              <p>{t("roles.aucunModeleTrouve")}</p>
+              <small>{t("roles.aucunModeleTrouveAide")}</small>
+            </div>
+          ) : (
+            familles.map(([famille, modeles]) => (
+              <Fragment key={famille}>
+                <div className="tpl-fam">{famille}</div>
+                {modeles.map((m) => (
+                  <Button
+                    className="tpl"
+                    key={m.code}
+                    aria-pressed={modele === m.code}
+                    onPress={() => setModele(modele === m.code ? null : m.code)}
+                  >
+                    <span className="opt-mark" aria-hidden="true" />
+                    <span className="bloc-etroit">
+                      <span className="tpl-n">{m.code}</span>
+                      <span className="tpl-d">{m.description}</span>
+                    </span>
+                    <span className="role-pn">
+                      {t("roles.nPermissions", { n: m.permissions.length })}
+                    </span>
+                  </Button>
+                ))}
+              </Fragment>
+            ))
+          )}
+        </div>
+      </div>
+    </Fenetre>
+  );
+}
+
+/**
+ * `EX-ADM-03` — renommer un rôle. `RG-DROITS-02` — jamais un rôle système.
+ *
+ * Seul le **nom** change : le code identifie le rôle dans les journaux, les
+ * imports et les modèles, et le renommer ferait diverger deux histoires du
+ * même rôle. Le serveur n'accepte d'ailleurs que `nom` sur ce point d'entrée.
+ */
+function FenetreRenommage({
+  role,
+  surFermeture,
+}: {
+  role: api.Role | null;
+  surFermeture: () => void;
+}) {
+  const { t } = useTranslation("administration");
+  const { t: tErreurs } = useTranslation("erreurs");
+  const annoncer = useMessages();
+  const client = useQueryClient();
+  const [nom, setNom] = useState("");
+  const [touche, setTouche] = useState(false);
+
+  // Le champ part du nom actuel : renommer, c'est corriger, pas ressaisir.
+  useEffect(() => {
+    setNom(role?.nom ?? "");
+    setTouche(false);
+  }, [role]);
+
+  const renommage = useMutation({
+    mutationFn: () => api.renommerRole(role!.id, nom.trim()),
+    onSuccess: () => {
+      annoncer("ok", t("roles.renomme", { nom: nom.trim() }));
+      void client.invalidateQueries({ queryKey: ["roles"] });
+      surFermeture();
+    },
+    onError: (e) => annoncer("err", messageErreur(e, tErreurs, t("roles.echecRenommage"))),
+  });
+
+  const manquant = nom.trim().length === 0;
+
+  return (
+    <Fenetre
+      ouverte={role !== null}
+      surFermeture={surFermeture}
+      categorie={t("roles.renommer")}
+      titre={role ? `${role.nom} · ${role.code}` : ""}
+      mention={t("roles.codeInchange")}
+      actions={
+        <>
+          <Button className="btn btn-secondary" onPress={surFermeture}>
+            {t("annuler")}
+          </Button>
+          <Button
+            className="btn btn-primary"
+            isPending={renommage.isPending}
+            onPress={() => {
+              setTouche(true);
+              if (!manquant) renommage.mutate();
+            }}
+          >
+            {t("enregistrer")}
+          </Button>
+        </>
+      }
+    >
+      <div className="field-block">
+        <label className="field-label" htmlFor="r-renom">
+          {t("roles.champNom")} <span className="req">*</span>
+        </label>
+        <input
+          className="field"
+          id="r-renom"
+          type="text"
+          value={nom}
+          aria-invalid={touche && manquant}
+          onChange={(e) => setNom(e.target.value)}
+        />
+        <p className={touche && manquant ? "field-error" : "field-error is-quiet"}>
+          <span aria-hidden="true">↑</span>
+          <span>{t("roles.nomObligatoire")}</span>
+        </p>
+      </div>
+    </Fenetre>
   );
 }
 

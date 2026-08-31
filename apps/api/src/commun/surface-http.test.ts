@@ -441,10 +441,20 @@ const SANS_CLIENT: { verbe: string; chemin: string; raison: string }[] = [
     chemin: "/activite/grille",
     raison: "redondante — `GET /planning/activite` la sert et y ajoute la trame de fond",
   },
+  {
+    verbe: "GET",
+    chemin: "/parametrage/trame",
+    raison:
+      "redondante — `RG-PLN-01` veut la grille et sa trame en une sollicitation, et `GET /planning` comme `GET /planning/activite` l'embarquent déjà (`planning.service.ts` appelle `trameDeFond` dans les deux) ; la brancher ferait apparaître les fériés APRÈS une grille déjà lue, ce que la règle interdit. Sa seule capacité propre est le filtre `zone`, qu'aucun écran n'offre : sa reprise se décidera avec la zone scolaire de référence de la vue 31",
+  },
+  {
+    verbe: "GET",
+    chemin: "/parametrage/feries/statistiques",
+    raison:
+      "redondante — `GET /parametrage/feries` rend déjà `statistiques` (total, chômés, ouvrés, légaux), et les deux calculs DIVERGENT : la liste dédoublonne par date après projection des récurrents, celle-ci compte les lignes stockées, donc double le 14 juillet dès que deux années sont importées. La brancher afficherait le compte faux à côté du juste ; c'est une suppression à instruire, pas un branchement",
+  },
 
   // ── 3. Capacités serveur qu'aucun écran n'offre encore ───────────────────
-  { verbe: "POST", chemin: "/administration/roles", raison: A_BRANCHER },
-  { verbe: "PATCH", chemin: "/administration/roles/:id", raison: A_BRANCHER },
   { verbe: "GET", chemin: "/competences/:id/detenteurs", raison: A_BRANCHER },
   { verbe: "GET", chemin: "/competences/export", raison: A_BRANCHER },
   { verbe: "POST", chemin: "/conges/:id/annulation/traiter", raison: A_BRANCHER },
@@ -458,11 +468,7 @@ const SANS_CLIENT: { verbe: string; chemin: string; raison: string }[] = [
   { verbe: "GET", chemin: "/documents/commentaires/fil", raison: A_BRANCHER },
   { verbe: "POST", chemin: "/evenements/:id/participants", raison: A_BRANCHER },
   { verbe: "DELETE", chemin: "/evenements/:id/participants/:userId", raison: A_BRANCHER },
-  { verbe: "POST", chemin: "/parametrage/feries", raison: A_BRANCHER },
-  { verbe: "GET", chemin: "/parametrage/feries/statistiques", raison: A_BRANCHER },
   { verbe: "GET", chemin: "/parametrage/jours-ouvres", raison: A_BRANCHER },
-  { verbe: "GET", chemin: "/parametrage/trame", raison: A_BRANCHER },
-  { verbe: "POST", chemin: "/parametrage/vacances", raison: A_BRANCHER },
   { verbe: "POST", chemin: "/projets/:id/instantane", raison: A_BRANCHER },
   { verbe: "POST", chemin: "/taches/:id/deplacer", raison: A_BRANCHER },
   { verbe: "GET", chemin: "/temps/non-declarees", raison: A_BRANCHER },

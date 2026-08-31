@@ -7,9 +7,11 @@ import { messageErreur } from "../../api/erreurs.js";
 import { usePeut } from "../../session/session.js";
 import { Chargement, ErreurDeChargement, AccesRefuse } from "../../composants/etats.js";
 import { useMessages } from "../../composants/messages.js";
+import { Fenetre } from "../../composants/fenetre.js";
 import { formaterDate } from "../../formats.js";
 import "../../composants/partages.css";
 import "../taches/liste.css";
+import "../projets/jalons.css";
 import "./parametres.css";
 
 /**
@@ -49,6 +51,19 @@ const REGIONS = [
   { cle: "fr-FR", exemple: "jeudi 31 décembre" },
   { cle: "en-US", exemple: "Thursday, December 31" },
 ] as const;
+
+/**
+ * Les deux natures de jour férié que le produit **compte** déjà.
+ *
+ * `legal` est ce que pose l'import du calendrier français, et c'est lui que le
+ * compteur « Fériés légaux » de cette vue additionne ; `local` est le jour
+ * particulier de la collectivité, et c'est le défaut du serveur pour un jour
+ * déclaré à la main. La maquette 31 en propose un troisième — « Jour de
+ * pont » — qu'aucune définition ne porte, ni au cadrage, ni dans
+ * `@rationarium/contracts`, ni au serveur : il n'est pas inventé ici, il est
+ * remonté en question.
+ */
+const TYPES_FERIE = ["local", "legal"] as const;
 
 /** Les valeurs par défaut du produit, celles que « Réinitialiser » restaure. */
 const DEFAUTS: Record<string, string> = {
@@ -438,6 +453,7 @@ function Feries() {
   const annoncer = useMessages();
   const client = useQueryClient();
   const [annee, setAnnee] = useState(new Date().getUTCFullYear());
+  const [ajoutOuvert, setAjoutOuvert] = useState(false);
 
   const requete = useQuery({
     queryKey: ["parametrage", "feries", annee],
@@ -478,6 +494,14 @@ function Feries() {
             onPress={() => importation.mutate()}
           >
             {t("parametres.importerFeries", { annee: String(annee) })}
+          </Button>
+        ) : null}
+        {/* `M19 § Jours fériés` — « Créer […] un jour ». L'import ne connaît
+            que le calendrier national ; la fermeture propre à la collectivité
+            n'entre que par ici. */}
+        {peut("holidays:create") ? (
+          <Button className="btn btn-primary" onPress={() => setAjoutOuvert(true)}>
+            {t("parametres.ajouterJour")}
           </Button>
         ) : null}
       </div>
@@ -536,12 +560,204 @@ function Feries() {
           ))}
         </div>
       )}
+
+      <FenetreFerie
+        annee={annee}
+        ouverte={ajoutOuvert}
+        surFermeture={() => setAjoutOuvert(false)}
+      />
     </>
+  );
+}
+
+/**
+ * Déclarer un jour férié — `M19 § Jours fériés`, `RG-PRM-01`, `RG-PRM-02`.
+ *
+ * **Ce formulaire n'enregistre pas un libellé : il change ce qu'est un jour
+ * ouvré.** Le brief nomme `ouvre` « un paramètre à effet de bord lointain ».
+ * La conséquence est donc dite *au moment du geste*, et l'enregistrement
+ * invalide aussi le planning — dont la trame de fond vient du même calendrier.
+ * Sans cette seconde invalidation, la grille garderait pendant trente secondes
+ * un jour ouvré que le décompte des congés considère déjà comme chômé : deux
+ * lectures de la même donnée qui se contredisent, le piège maison.
+ */
+function FenetreFerie({
+  annee,
+  ouverte,
+  surFermeture,
+}: {
+  annee: number;
+  ouverte: boolean;
+  surFermeture: () => void;
+}) {
+  const { t } = useTranslation("administration");
+  const { t: tErreurs } = useTranslation("erreurs");
+  const annoncer = useMessages();
+  const client = useQueryClient();
+  const [date, setDate] = useState("");
+  const [libelle, setLibelle] = useState("");
+  const [type, setType] = useState<string>("local");
+  const [ouvre, setOuvre] = useState(false);
+  const [recurrent, setRecurrent] = useState(true);
+  const [touche, setTouche] = useState(false);
+
+  const declaration = useMutation({
+    mutationFn: () => api.declarerFerie({ date, libelle: libelle.trim(), type, ouvre, recurrent }),
+    onSuccess: () => {
+      annoncer("ok", t("parametres.ferieAjoute", { libelle: libelle.trim() }));
+      // La liste ET ses compteurs se relisent : « total », « chômés » et
+      // « ouvrés » sont l'effet visible ici, et un compteur resté juste à côté
+      // d'une ligne neuve est le symptôme même du réglage qui s'enregistre
+      // sans s'appliquer.
+      void client.invalidateQueries({ queryKey: ["parametrage"] });
+      /*
+       * Le calendrier décide aussi de la trame de fond du planning : le jour
+       * déclaré doit s'y voir. Mais la barre latérale navigue aujourd'hui par
+       * des `<a href>` — chaque changement de vue recharge la page et vide le
+       * cache —, donc cette ligne n'a **pas d'effet observable** et aucun
+       * contrôle ne peut la tenir. Elle reste parce qu'elle décrit la
+       * dépendance réelle : le jour où la navigation deviendra interne, son
+       * absence rendrait le planning faux sans que rien ne le dise.
+       */
+      void client.invalidateQueries({ queryKey: ["planning"] });
+      setDate("");
+      setLibelle("");
+      setType("local");
+      setOuvre(false);
+      setRecurrent(true);
+      setTouche(false);
+      surFermeture();
+    },
+    onError: (e) => annoncer("err", messageErreur(e, tErreurs, t("parametres.echecAction"))),
+  });
+
+  const dateManquante = date === "";
+  const libelleManquant = libelle.trim().length === 0;
+  const invalide = dateManquante || libelleManquant;
+
+  return (
+    <Fenetre
+      ouverte={ouverte}
+      surFermeture={surFermeture}
+      categorie={t("parametres.calendrier")}
+      titre={t("parametres.ajouterJourFerie")}
+      mention={t("champObligatoire")}
+      actions={
+        <>
+          <Button className="btn btn-secondary" onPress={surFermeture}>
+            {t("annuler")}
+          </Button>
+          <Button
+            className="btn btn-primary"
+            isPending={declaration.isPending}
+            onPress={() => {
+              setTouche(true);
+              if (!invalide) declaration.mutate();
+            }}
+          >
+            {t("parametres.ajouter")}
+          </Button>
+        </>
+      }
+    >
+      <div className="form-grid">
+        <div className="field-block">
+          <label className="field-label" htmlFor="h-date">
+            {t("parametres.colDate")} <span className="req">*</span>
+          </label>
+          <input
+            className="field"
+            id="h-date"
+            type="date"
+            value={date}
+            aria-invalid={touche && dateManquante}
+            onChange={(e) => setDate(e.target.value)}
+          />
+          <p className={touche && dateManquante ? "field-error" : "field-error is-quiet"}>
+            <span aria-hidden="true">↑</span>
+            <span>{t("parametres.dateObligatoire")}</span>
+          </p>
+        </div>
+
+        <div className="field-block">
+          <label className="field-label" htmlFor="h-nom">
+            {t("parametres.colLibelle")} <span className="req">*</span>
+          </label>
+          <input
+            className="field"
+            id="h-nom"
+            type="text"
+            value={libelle}
+            placeholder={t("parametres.libelleExemple")}
+            aria-invalid={touche && libelleManquant}
+            onChange={(e) => setLibelle(e.target.value)}
+          />
+          <p className={touche && libelleManquant ? "field-error" : "field-error is-quiet"}>
+            <span aria-hidden="true">↑</span>
+            <span>{t("parametres.libelleObligatoire")}</span>
+          </p>
+        </div>
+
+        <div className="field-block span2">
+          <label className="field-label" htmlFor="h-type">
+            {t("parametres.colType")}
+          </label>
+          <select
+            className="field"
+            id="h-type"
+            value={type}
+            onChange={(e) => setType(e.target.value)}
+          >
+            {TYPES_FERIE.map((code) => (
+              <option key={code} value={code}>
+                {t(`parametres.typeFerie_${code}`)}
+              </option>
+            ))}
+          </select>
+          <p className="field-hint">{t("parametres.typeAide")}</p>
+        </div>
+      </div>
+
+      <label className="check">
+        <input type="checkbox" checked={ouvre} onChange={(e) => setOuvre(e.target.checked)} />
+        <span>{t("parametres.colJourOuvre")}</span>
+      </label>
+      <p className="field-hint">{t("parametres.jourOuvreAide")}</p>
+
+      {/* `RG-PRM-01` — l'effet de bord lointain, rendu concret AVANT le geste.
+          Découvrir la conséquence sur un solde de congés faux serait
+          l'apprentissage le plus cher possible. */}
+      {ouvre ? (
+        <div className="explain is-alert consequence">
+          <span aria-hidden="true" className="explain-sigle">
+            ⚠
+          </span>
+          <div>
+            <p className="explain-t">{t("parametres.consequenceTitre")}</p>
+            <p className="explain-d">{t("parametres.consequenceTexte")}</p>
+          </div>
+        </div>
+      ) : null}
+
+      <label className="check consequence">
+        <input
+          type="checkbox"
+          checked={recurrent}
+          onChange={(e) => setRecurrent(e.target.checked)}
+        />
+        <span>{t("parametres.recurrentLabel")}</span>
+      </label>
+      {/* `RG-PRM-02` — un récurrent est stocké une fois et vaut pour toutes les
+          années : le dire ici évite de le redéclarer chaque janvier. */}
+      <p className="field-hint">{t("parametres.recurrentAide", { annee: String(annee) })}</p>
+    </Fenetre>
   );
 }
 
 function VacancesScolaires() {
   const { t } = useTranslation("administration");
+  const peut = usePeut();
+  const [ajoutOuvert, setAjoutOuvert] = useState(false);
   const requete = useQuery({
     queryKey: ["parametrage", "vacances"],
     queryFn: () => api.vacancesScolaires(),
@@ -555,6 +771,17 @@ function VacancesScolaires() {
 
   return (
     <>
+      {/* `M19 § Vacances scolaires` — « Créer […] une période ». */}
+      {peut("school_vacations:create") ? (
+        <div className="filters">
+          <span className="ligne-actions-fin">
+            <Button className="btn btn-primary" onPress={() => setAjoutOuvert(true)}>
+              {t("parametres.ajouterPeriode")}
+            </Button>
+          </span>
+        </div>
+      ) : null}
+
       <div className="set-stats">
         <div className="kpi">
           <span className="eyebrow">{t("parametres.totalVacances")}</span>
@@ -604,6 +831,190 @@ function VacancesScolaires() {
           ))}
         </div>
       )}
+
+      <FenetreVacances ouverte={ajoutOuvert} surFermeture={() => setAjoutOuvert(false)} />
     </>
+  );
+}
+
+/**
+ * Déclarer une période de vacances scolaires — `M19`, `RG-PRM-04`.
+ *
+ * `RG-PRM-04` — « les dates sont cohérentes : fin postérieure au début ». Le
+ * serveur refuse `dates_incoherentes` ; le client le dit **avant** d'envoyer,
+ * pour que la correction se fasse là où la saisie a lieu. Ce n'est pas le
+ * contrôle : c'est la courtoisie qui l'entoure.
+ *
+ * `zone` est absente de la maquette 31 alors que le serveur l'exige et que la
+ * liste l'affiche. Elle est portée ici plutôt que devinée : une période rangée
+ * sous une zone arbitraire fausserait la trame de fond du planning, qui filtre
+ * par zone. À trancher au cadrage — voir le compte rendu de tâche.
+ */
+function FenetreVacances({
+  ouverte,
+  surFermeture,
+}: {
+  ouverte: boolean;
+  surFermeture: () => void;
+}) {
+  const { t } = useTranslation("administration");
+  const { t: tErreurs } = useTranslation("erreurs");
+  const annoncer = useMessages();
+  const client = useQueryClient();
+  const [libelle, setLibelle] = useState("");
+  const [debut, setDebut] = useState("");
+  const [fin, setFin] = useState("");
+  const [zone, setZone] = useState("");
+  const [anneeScolaire, setAnneeScolaire] = useState("");
+  const [touche, setTouche] = useState(false);
+
+  const declaration = useMutation({
+    mutationFn: () =>
+      api.declarerVacances({
+        libelle: libelle.trim(),
+        dateDebut: debut,
+        dateFin: fin,
+        zone: zone.trim(),
+        anneeScolaire: anneeScolaire.trim(),
+      }),
+    onSuccess: () => {
+      annoncer("ok", t("parametres.vacancesAjoutees", { libelle: libelle.trim() }));
+      void client.invalidateQueries({ queryKey: ["parametrage"] });
+      // Les vacances scolaires font partie de la même trame de fond, et la
+      // même réserve vaut : voir la fenêtre de jour férié, plus haut.
+      void client.invalidateQueries({ queryKey: ["planning"] });
+      setLibelle("");
+      setDebut("");
+      setFin("");
+      setZone("");
+      setAnneeScolaire("");
+      setTouche(false);
+      surFermeture();
+    },
+    onError: (e) => annoncer("err", messageErreur(e, tErreurs, t("parametres.echecAction"))),
+  });
+
+  const champsManquants =
+    libelle.trim() === "" ||
+    debut === "" ||
+    fin === "" ||
+    zone.trim() === "" ||
+    anneeScolaire.trim() === "";
+  /** `RG-PRM-04` — la fin ne précède jamais le début. */
+  const datesIncoherentes = debut !== "" && fin !== "" && fin < debut;
+  const invalide = champsManquants || datesIncoherentes;
+
+  return (
+    <Fenetre
+      ouverte={ouverte}
+      surFermeture={surFermeture}
+      categorie={t("parametres.calendrier")}
+      titre={t("parametres.ajouterPeriodeVacances")}
+      mention={t("parametres.sourceSaisieManuelle")}
+      actions={
+        <>
+          <Button className="btn btn-secondary" onPress={surFermeture}>
+            {t("annuler")}
+          </Button>
+          <Button
+            className="btn btn-primary"
+            isPending={declaration.isPending}
+            onPress={() => {
+              setTouche(true);
+              if (!invalide) declaration.mutate();
+            }}
+          >
+            {t("parametres.ajouter")}
+          </Button>
+        </>
+      }
+    >
+      {datesIncoherentes ? (
+        <div className="alert alert-error" role="alert">
+          <span className="alert-icon" aria-hidden="true">
+            !
+          </span>
+          <span className="alert-corps">{t("parametres.datesIncoherentes")}</span>
+        </div>
+      ) : null}
+
+      <div className="field-block">
+        <label className="field-label" htmlFor="v-nom">
+          {t("parametres.colLibelle")} <span className="req">*</span>
+        </label>
+        <input
+          className="field"
+          id="v-nom"
+          type="text"
+          value={libelle}
+          placeholder={t("parametres.periodeExemple")}
+          aria-invalid={touche && libelle.trim() === ""}
+          onChange={(e) => setLibelle(e.target.value)}
+        />
+      </div>
+
+      <div className="form-grid">
+        <div className="field-block">
+          <label className="field-label" htmlFor="v-debut">
+            {t("parametres.colDebut")} <span className="req">*</span>
+          </label>
+          <input
+            className="field"
+            id="v-debut"
+            type="date"
+            value={debut}
+            aria-invalid={touche && debut === ""}
+            onChange={(e) => setDebut(e.target.value)}
+          />
+        </div>
+        <div className="field-block">
+          <label className="field-label" htmlFor="v-fin">
+            {t("parametres.colFin")} <span className="req">*</span>
+          </label>
+          <input
+            className="field"
+            id="v-fin"
+            type="date"
+            value={fin}
+            aria-invalid={(touche && fin === "") || datesIncoherentes}
+            onChange={(e) => setFin(e.target.value)}
+          />
+        </div>
+        <div className="field-block">
+          <label className="field-label" htmlFor="v-zone">
+            {t("parametres.champZone")} <span className="req">*</span>
+          </label>
+          <input
+            className="field"
+            id="v-zone"
+            type="text"
+            value={zone}
+            placeholder="B"
+            aria-invalid={touche && zone.trim() === ""}
+            onChange={(e) => setZone(e.target.value)}
+          />
+          <p className="field-hint">{t("parametres.zoneAide")}</p>
+        </div>
+        <div className="field-block">
+          <label className="field-label" htmlFor="v-annee">
+            {t("parametres.champAnneeScolaire")} <span className="req">*</span>
+          </label>
+          <input
+            className="field"
+            id="v-annee"
+            type="text"
+            value={anneeScolaire}
+            placeholder="2026-2027"
+            aria-invalid={touche && anneeScolaire.trim() === ""}
+            onChange={(e) => setAnneeScolaire(e.target.value)}
+          />
+        </div>
+      </div>
+
+      <p className={touche && champsManquants ? "field-error" : "field-error is-quiet"}>
+        <span aria-hidden="true">↑</span>
+        <span>{t("parametres.champsRequis")}</span>
+      </p>
+    </Fenetre>
   );
 }
