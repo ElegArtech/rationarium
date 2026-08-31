@@ -8,6 +8,21 @@ import { DocumentsService } from "../documents/documents.service.js";
 import { AuditService } from "../commun/audit.service.js";
 import { PerimetreService } from "../commun/perimetre.service.js";
 
+/**
+ * Les droits de l'acteur, désormais transmis au service.
+ *
+ * `RG-TMP-04` — « déclarer pour un tiers exige une permission dédiée » — est
+ * appliquée depuis la vague 7. Ces tests déclarent pour d'autres agents : ils
+ * doivent donc porter la permission, comme le ferait un encadrant réel. Ceux qui
+ * prouvent le REFUS vivent dans `temps.int.test.ts`.
+ */
+const DROITS_ENCADRANT: ReadonlySet<string> = new Set([
+  "time_tracking:read",
+  "time_tracking:create",
+  "time_tracking:read_team",
+  "time_tracking:declare_for_third_party",
+]);
+
 /** L-18 et L-19 — temps passé, documents et commentaires. */
 
 const RACINE_DB = path.resolve(import.meta.dirname, "../../../../packages/db");
@@ -70,7 +85,7 @@ describe("RG-TMP-01, RG-TMP-03 — forme d'une saisie", () => {
   it("une saisie sans tâche ni projet est refusée", async () => {
     const u = await agent();
     await expect(
-      temps.saisir({ userId: u, date: utc("2026-03-02"), heures: 3 }, acteur),
+      temps.saisir({ userId: u, date: utc("2026-03-02"), heures: 3 }, acteur, DROITS_ENCADRANT),
     ).rejects.toMatchObject({ code: "rattachement_requis" });
   });
 
@@ -81,10 +96,11 @@ describe("RG-TMP-01, RG-TMP-03 — forme d'une saisie", () => {
       temps.saisir(
         { userId: u, thirdPartyId: t.id, projectId: projet, date: utc("2026-03-02"), heures: 3 },
         acteur,
+        DROITS_ENCADRANT,
       ),
     ).rejects.toMatchObject({ code: "acteur_ambigu" });
     await expect(
-      temps.saisir({ projectId: projet, date: utc("2026-03-02"), heures: 3 }, acteur),
+      temps.saisir({ projectId: projet, date: utc("2026-03-02"), heures: 3 }, acteur, DROITS_ENCADRANT),
     ).rejects.toMatchObject({ code: "acteur_ambigu" });
   });
 
@@ -98,7 +114,7 @@ describe("RG-TMP-01, RG-TMP-03 — forme d'une saisie", () => {
   it("EX-TMP-08 — déclarer pour un tiers externe", async () => {
     const t = await prisma.thirdParty.create({ data: { type: "individual", contactNom: "Presta" } });
     await expect(
-      temps.saisir({ thirdPartyId: t.id, projectId: projet, date: utc("2026-03-02"), heures: 7 }, acteur),
+      temps.saisir({ thirdPartyId: t.id, projectId: projet, date: utc("2026-03-02"), heures: 7 }, acteur, DROITS_ENCADRANT),
     ).resolves.toBeTruthy();
   });
 });
@@ -106,10 +122,14 @@ describe("RG-TMP-01, RG-TMP-03 — forme d'une saisie", () => {
 describe("RG-TMP-02 — le plafond journalier, chiffré", () => {
   it("le dépassement est refusé avec le total constaté ET le plafond", async () => {
     const u = await agent();
-    await temps.saisir({ userId: u, projectId: projet, date: utc("2026-04-06"), heures: 8 }, acteur);
+    await temps.saisir({ userId: u, projectId: projet, date: utc("2026-04-06"), heures: 8 }, acteur, DROITS_ENCADRANT);
 
     const erreur = await temps
-      .saisir({ userId: u, projectId: projet, date: utc("2026-04-06"), heures: 6 }, acteur)
+      .saisir(
+        { userId: u, projectId: projet, date: utc("2026-04-06"), heures: 6 },
+        acteur,
+        DROITS_ENCADRANT,
+      )
       .catch((e: ErreurTemps) => e);
 
     expect((erreur as ErreurTemps).code).toBe("plafond_journalier");
@@ -127,7 +147,7 @@ describe("RG-TMP-02 — le plafond journalier, chiffré", () => {
     });
     const u = await agent();
     await expect(
-      temps.saisir({ userId: u, projectId: projet, date: utc("2026-04-07"), heures: 5 }, acteur),
+      temps.saisir({ userId: u, projectId: projet, date: utc("2026-04-07"), heures: 5 }, acteur, DROITS_ENCADRANT),
     ).rejects.toMatchObject({ code: "plafond_journalier", detail: { plafond: 4 } });
 
     await prisma.setting.update({
@@ -139,15 +159,15 @@ describe("RG-TMP-02 — le plafond journalier, chiffré", () => {
   it("le plafond porte sur la JOURNÉE, pas sur la saisie", async () => {
     const u = await agent();
     // Trois saisies de 5 h le même jour : la troisième dépasse.
-    await temps.saisir({ userId: u, projectId: projet, date: utc("2026-04-13"), heures: 5 }, acteur);
-    await temps.saisir({ userId: u, projectId: projet, date: utc("2026-04-13"), heures: 5 }, acteur);
+    await temps.saisir({ userId: u, projectId: projet, date: utc("2026-04-13"), heures: 5 }, acteur, DROITS_ENCADRANT);
+    await temps.saisir({ userId: u, projectId: projet, date: utc("2026-04-13"), heures: 5 }, acteur, DROITS_ENCADRANT);
     await expect(
-      temps.saisir({ userId: u, projectId: projet, date: utc("2026-04-13"), heures: 5 }, acteur),
+      temps.saisir({ userId: u, projectId: projet, date: utc("2026-04-13"), heures: 5 }, acteur, DROITS_ENCADRANT),
     ).rejects.toMatchObject({ code: "plafond_journalier" });
 
     // Mais le lendemain repart à zéro.
     await expect(
-      temps.saisir({ userId: u, projectId: projet, date: utc("2026-04-14"), heures: 5 }, acteur),
+      temps.saisir({ userId: u, projectId: projet, date: utc("2026-04-14"), heures: 5 }, acteur, DROITS_ENCADRANT),
     ).resolves.toBeTruthy();
   });
 });
@@ -173,8 +193,8 @@ describe("RG-TMP-05 — filtrer sur autrui exige une permission", () => {
   it("sans filtre, on ne voit que ses propres saisies", async () => {
     const u = await agent();
     const autre = await agent();
-    await temps.saisir({ userId: u, projectId: projet, date: utc("2026-05-04"), heures: 2 }, acteur);
-    await temps.saisir({ userId: autre, projectId: projet, date: utc("2026-05-04"), heures: 3 }, acteur);
+    await temps.saisir({ userId: u, projectId: projet, date: utc("2026-05-04"), heures: 2 }, acteur, DROITS_ENCADRANT);
+    await temps.saisir({ userId: autre, projectId: projet, date: utc("2026-05-04"), heures: 3 }, acteur, DROITS_ENCADRANT);
 
     const p = await perimetres.resoudre(u, new Set());
     const r = await temps.lister(p, new Set());
@@ -187,8 +207,8 @@ describe("EX-TMP-07 — rapports agrégés en base", () => {
   it("par projet, en nommant le hors-projet", async () => {
     const u = await agent();
     const tache = await prisma.task.create({ data: { titre: "Hors projet" } });
-    await temps.saisir({ userId: u, projectId: projet, date: utc("2026-06-01"), heures: 4 }, acteur);
-    await temps.saisir({ userId: u, taskId: tache.id, date: utc("2026-06-01"), heures: 3 }, acteur);
+    await temps.saisir({ userId: u, projectId: projet, date: utc("2026-06-01"), heures: 4 }, acteur, DROITS_ENCADRANT);
+    await temps.saisir({ userId: u, taskId: tache.id, date: utc("2026-06-01"), heures: 3 }, acteur, DROITS_ENCADRANT);
 
     const p = await globalP();
     const r = await temps.rapport(p, "projet", { debut: utc("2026-06-01"), fin: utc("2026-06-30") });
@@ -201,6 +221,7 @@ describe("EX-TMP-07 — rapports agrégés en base", () => {
     await temps.saisir(
       { userId: u, projectId: projet, date: utc("2026-07-06"), heures: 2, typeActivite: "meeting" },
       acteur,
+      DROITS_ENCADRANT,
     );
     const p = await globalP();
     const r = await temps.rapport(p, "type", { debut: utc("2026-07-01"), fin: utc("2026-07-31") });
@@ -234,8 +255,8 @@ describe("RG-TMP-06 — distinguer « oublié » de « rien à déclarer »", ()
     const a = await agent();
     const b = await agent();
     const t = await prisma.task.create({ data: { titre: "Partagée", projectId: projet } });
-    await temps.saisir({ userId: a, taskId: t.id, date: utc("2026-08-03"), heures: 2 }, acteur);
-    await temps.saisir({ userId: b, taskId: t.id, date: utc("2026-08-03"), heures: 3 }, acteur);
+    await temps.saisir({ userId: a, taskId: t.id, date: utc("2026-08-03"), heures: 2 }, acteur, DROITS_ENCADRANT);
+    await temps.saisir({ userId: b, taskId: t.id, date: utc("2026-08-03"), heures: 3 }, acteur, DROITS_ENCADRANT);
 
     const ctx = await temps.contexteSaisieRapide(t.id);
     // Savoir que quelqu'un d'autre a déjà déclaré évite les doubles saisies.

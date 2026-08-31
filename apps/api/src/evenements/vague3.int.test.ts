@@ -9,6 +9,21 @@ import { ActiviteService, ErreurActivite } from "../activite/activite.service.js
 import { AuditService } from "../commun/audit.service.js";
 import { PerimetreService } from "../commun/perimetre.service.js";
 
+/**
+ * `RG-TLT-07` — « agir sur le télétravail d'autrui exige une permission
+ * dédiée » — est appliquée depuis la vague 7. Ces tests posent et génèrent du
+ * télétravail pour d'autres agents : ils portent donc les droits d'un encadrant.
+ * Les tests de REFUS vivent dans `teletravail/teletravail.int.test.ts`.
+ */
+const DROITS_ENCADRANT: ReadonlySet<string> = new Set([
+  "telework:read",
+  "telework:create",
+  "telework:generate",
+  "telework:read_team",
+  "telework:manage_any",
+  "telework:manage_rules",
+]);
+
 /** L-14, L-16, L-17 — événements, télétravail, activité récurrente. */
 
 const RACINE_DB = path.resolve(import.meta.dirname, "../../../../packages/db");
@@ -191,7 +206,7 @@ describe("RG-EVT-01, RG-EVT-05 — participants et plage", () => {
 describe("RG-TLT-02 — trois états, et « bureau » n'est pas « non déclaré »", () => {
   it("distingue déclaré et non déclaré", async () => {
     const u = await agent();
-    await teletravail.basculer(u, utc("2026-03-02"), "office", acteur);
+    await teletravail.basculer(u, utc("2026-03-02"), "office", acteur, DROITS_ENCADRANT);
 
     const p = await teletravail.planning(u, utc("2026-03-02"), utc("2026-03-06"));
     const lundi = p.calendrier.find((j) => j.date === "2026-03-02")!;
@@ -226,11 +241,11 @@ describe("RG-TLT-04, RG-TLT-05 — règles et exceptions", () => {
     // Lundi = 1.
     await teletravail.creerRegle({ userId: u, jourSemaine: 1, dateDebut: utc("2026-03-01") }, acteur);
 
-    const premier = await teletravail.generer(u, utc("2026-03-01"), utc("2026-03-31"), acteur);
+    const premier = await teletravail.generer(u, utc("2026-03-01"), utc("2026-03-31"), acteur, DROITS_ENCADRANT);
     expect(premier.crees).toBe(5);
     expect(premier.ignores).toBe(0);
 
-    const second = await teletravail.generer(u, utc("2026-03-01"), utc("2026-03-31"), acteur);
+    const second = await teletravail.generer(u, utc("2026-03-01"), utc("2026-03-31"), acteur, DROITS_ENCADRANT);
     expect(second.crees).toBe(0);
     expect(second.ignores).toBe(5);
   });
@@ -238,16 +253,16 @@ describe("RG-TLT-04, RG-TLT-05 — règles et exceptions", () => {
   it("UNE EXCEPTION POSÉE À LA MAIN SURVIT À LA RÉGÉNÉRATION", async () => {
     const u = await agent();
     await teletravail.creerRegle({ userId: u, jourSemaine: 2, dateDebut: utc("2026-04-01") }, acteur);
-    await teletravail.generer(u, utc("2026-04-01"), utc("2026-04-30"), acteur);
+    await teletravail.generer(u, utc("2026-04-01"), utc("2026-04-30"), acteur, DROITS_ENCADRANT);
 
     // L'agent corrige un mardi : il sera au bureau ce jour-là.
-    await teletravail.basculer(u, utc("2026-04-14"), "office", acteur);
+    await teletravail.basculer(u, utc("2026-04-14"), "office", acteur, DROITS_ENCADRANT);
     const apresBascule = await prisma.telework.findUniqueOrThrow({
       where: { userId_date: { userId: u, date: utc("2026-04-14") } },
     });
     expect(apresBascule.exception).toBe(true);
 
-    await teletravail.generer(u, utc("2026-04-01"), utc("2026-04-30"), acteur);
+    await teletravail.generer(u, utc("2026-04-01"), utc("2026-04-30"), acteur, DROITS_ENCADRANT);
 
     // Sans le marquage d'exception, la régénération annulerait silencieusement
     // l'ajustement de l'agent.
