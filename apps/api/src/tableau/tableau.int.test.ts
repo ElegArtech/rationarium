@@ -288,7 +288,7 @@ describe("EX-DSH-07 — mes projets, et où ils en sont", () => {
   });
 });
 
-describe("RG-DSH-01 à RG-DSH-03 — les to-do", () => {
+describe("EX-DSH-04 — gérer une liste de to-do personnelles (RG-DSH-01 à RG-DSH-03)", () => {
   beforeEach(async () => {
     await prisma.todo.deleteMany();
     await prisma.setting.deleteMany({ where: { cle: "dashboard.todoLimit" } });
@@ -375,5 +375,43 @@ describe("RG-DSH-01 à RG-DSH-03 — les to-do", () => {
     // Un réglage illisible ferait sinon un plafond à NaN, qui refuse tout.
     expect((await tableau.todos(moi)).limite).toBe(20);
     await expect(tableau.ajouterTodo(moi, "Passe")).resolves.toBeDefined();
+  });
+
+  /*
+   * « Gérer une liste » : les trois verbes, pas seulement les deux qui se
+   * voient. La suppression n'avait aucun contrôle — ni le cas nominal, ni le
+   * refus sur la to-do d'autrui, qui est pourtant le geste destructeur.
+   */
+  it("le libellé se corrige EN PLACE, sans repasser par « supprimer puis recréer »", async () => {
+    const t = await tableau.ajouterTodo(moi, "Rappeler la DSI");
+    const apres = await tableau.modifierTodo(moi, t.id, { libelle: "Rappeler la DGS" });
+    expect(apres.id).toBe(t.id);
+    expect(apres.libelle).toBe("Rappeler la DGS");
+    expect(apres.fait).toBe(false);
+  });
+
+  it("une to-do SE SUPPRIME, et la place se libère au plafond", async () => {
+    await prisma.setting.create({
+      data: { cle: "dashboard.todoLimit", valeur: "1", public: true },
+    });
+    const t = await tableau.ajouterTodo(moi, "Unique");
+    await expect(tableau.ajouterTodo(moi, "De trop")).rejects.toMatchObject({
+      code: "limite_todos",
+    });
+
+    await tableau.supprimerTodo(moi, t.id);
+
+    expect((await tableau.todos(moi)).actives).toEqual([]);
+    await expect(tableau.ajouterTodo(moi, "La suivante")).resolves.toBeDefined();
+  });
+
+  it("LA SUPPRESSION DE LA TO-DO D'AUTRUI EST REFUSÉE, même en devinant l'identifiant", async () => {
+    const sienne = await tableau.ajouterTodo(autre, "La sienne");
+
+    await expect(tableau.supprimerTodo(moi, sienne.id)).rejects.toMatchObject({
+      code: "introuvable",
+    });
+    // « Refusé » doit vouloir dire « rien n'a bougé ».
+    expect(await prisma.todo.findUnique({ where: { id: sienne.id } })).not.toBeNull();
   });
 });

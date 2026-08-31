@@ -489,3 +489,95 @@ describe("EX-RPT-02 — les filtres", () => {
     expect(vue.sante.map((s) => s.nom)).toEqual(["Le sien"]);
   });
 });
+
+// ════════════════════════════════════════════════════════════════════════════
+// Vague 7-4 — dette de traçabilité.
+// ════════════════════════════════════════════════════════════════════════════
+
+describe("EX-RPT-09 — consulter la répartition des tâches par priorité et par statut", () => {
+  it("les deux axes ne comptent PAS la même population, et c'est voulu", async () => {
+    /*
+     * La répartition par PRIORITÉ répond à « que reste-t-il à faire, et dans
+     * quel ordre ? » : les tâches terminées n'y ont plus leur place, sinon
+     * l'histogramme se remplit de travail déjà fait et cesse d'orienter.
+     * La répartition par STATUT, elle, répond à « où en est-on ? » : la
+     * colonne « Terminé » est justement ce qu'on vient y lire.
+     *
+     * Un test qui n'exercerait qu'un seul des deux axes laisserait passer la
+     * confusion la plus probable — appliquer le même filtre aux deux.
+     */
+    const p = await projet({ nom: "Répartition" });
+    await prisma.task.createMany({
+      data: [
+        { titre: "Critique en cours", projectId: p.id, priorite: "critical", statut: "doing" },
+        { titre: "Haute à faire", projectId: p.id, priorite: "high", statut: "todo" },
+        { titre: "Haute bloquée", projectId: p.id, priorite: "high", statut: "blocked" },
+        { titre: "Normale finie", projectId: p.id, priorite: "normal", statut: "done" },
+        { titre: "Basse finie", projectId: p.id, priorite: "low", statut: "done" },
+      ],
+    });
+
+    const { repartitions } = await page();
+
+    const parPriorite = new Map(repartitions.priorite.map((l) => [l.cle, l.nombre]));
+    expect(parPriorite.get("critical")).toBe(1);
+    expect(parPriorite.get("high")).toBe(2);
+    // Les deux tâches terminées ne figurent PAS dans l'axe des priorités.
+    expect(parPriorite.get("normal")).toBeUndefined();
+    expect(parPriorite.get("low")).toBeUndefined();
+
+    const parStatut = new Map(repartitions.statut.map((l) => [l.cle, l.nombre]));
+    expect(parStatut.get("doing")).toBe(1);
+    expect(parStatut.get("todo")).toBe(1);
+    expect(parStatut.get("blocked")).toBe(1);
+    // Elles y figurent ici, et c'est toute la différence entre les deux axes.
+    expect(parStatut.get("done")).toBe(2);
+  });
+
+  it("le compte d'actives est la somme de l'axe priorité, pas celle de l'axe statut", async () => {
+    const p = await projet({ nom: "Actives" });
+    await prisma.task.createMany({
+      data: [
+        { titre: "A", projectId: p.id, priorite: "normal", statut: "todo" },
+        { titre: "B", projectId: p.id, priorite: "normal", statut: "review" },
+        { titre: "C", projectId: p.id, priorite: "normal", statut: "done" },
+      ],
+    });
+
+    const { repartitions } = await page();
+
+    expect(repartitions.actives).toBe(2);
+    expect(repartitions.statut.reduce((n, l) => n + l.nombre, 0)).toBe(3);
+  });
+
+  it("RG-RPT-01 — LA RÉPARTITION S'ARRÊTE AU PÉRIMÈTRE : un histogramme divulgue autant qu'une liste", async () => {
+    const mien = await projet({ nom: "Le mien", chefId: chef });
+    const sien = await projet({ nom: "Le sien", chefId: etranger });
+    await prisma.task.createMany({
+      data: [
+        { titre: "Visible", projectId: mien.id, priorite: "critical", statut: "doing" },
+        { titre: "Invisible", projectId: sien.id, priorite: "critical", statut: "doing" },
+      ],
+    });
+
+    const restreint = await perimetres.resoudre(chef, new Set(["users:read"]));
+    const vue = await rapports.vueEnsemble(
+      { periode: "mois" },
+      restreint,
+      new Set(["reports:read"]),
+      MOMENT,
+    );
+
+    // « 2 tâches critiques en cours » aurait déjà trop dit du projet d'autrui.
+    expect(vue.repartitions.priorite.find((l) => l.cle === "critical")?.nombre).toBe(1);
+    expect(vue.repartitions.actives).toBe(1);
+  });
+
+  it("sans aucune tâche, les deux axes sont VIDES — pas une colonne à zéro inventée", async () => {
+    await projet({ nom: "Neuf" });
+    const { repartitions } = await page();
+    expect(repartitions.priorite).toEqual([]);
+    expect(repartitions.statut).toEqual([]);
+    expect(repartitions.actives).toBe(0);
+  });
+});
