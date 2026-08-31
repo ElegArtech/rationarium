@@ -198,6 +198,25 @@ export const modifierTiers = (
 ) => appeler<{ id: string }>(`/tiers/${id}`, { methode: "PATCH", corps: donnees });
 
 /** `EX-TRS-02` — rattacher un tiers à un projet, préalable à toute assignation. */
+/**
+ * `EX-TRS-02` — les tiers assignables à une tâche, et l'assignation elle-même.
+ *
+ * Le geste unitaire existait depuis L-12 et **rien ne l'appelait** : la fiche
+ * tâche affichait les tiers assignés sans jamais offrir d'en assigner un, faute
+ * de liste de candidats. Même manque que pour les dépendances de tâche, comblé
+ * par L-45 : un geste sans liste de candidats n'est pas un geste.
+ *
+ * `RG-TRS-04` — la liste est bornée aux tiers rattachés au projet parent ; le
+ * serveur applique le même refus à l'écriture.
+ */
+export const candidatsTiersPourTache = (taskId: string) =>
+  appeler<{ id: string; type: string; organisation: string | null; contactNom: string | null }[]>(
+    `/tiers/taches/${taskId}/candidats`,
+  );
+
+export const assignerTiersATache = (taskId: string, thirdPartyId: string) =>
+  appeler<void>(`/tiers/taches/${taskId}/assigner`, { methode: "POST", corps: { thirdPartyId } });
+
 export const rattacherTiersAuProjet = (projetId: string, thirdPartyId: string) =>
   appeler<void>(`/tiers/projets/${projetId}/rattacher`, {
     methode: "POST",

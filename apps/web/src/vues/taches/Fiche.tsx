@@ -6,6 +6,7 @@ import { Button } from "react-aria-components";
 import { STATUTS_TACHE, PRIORITES, ROLES_RACI } from "@rationarium/contracts";
 import * as api from "../../api/taches.js";
 import * as apiTemps from "../../api/occupations.js";
+import * as apiReferentiels from "../../api/referentiels.js";
 import { appeler, ErreurApi } from "../../api/client.js";
 import { messageErreur } from "../../api/erreurs.js";
 import { usePeut, useSession } from "../../session/session.js";
@@ -271,6 +272,12 @@ export function FicheTache({ tacheId }: { tacheId: string }) {
                         <span>{x.organisation ?? x.contactNom ?? "—"}</span>
                       </span>
                     ))}
+                {/* `EX-TRS-02` — le geste existait au serveur depuis L-12 et
+                    rien ne l'appelait : on voyait les tiers assignés sans
+                    jamais pouvoir en assigner un. `RG-TRS-04` borne la liste
+                    aux tiers rattachés au projet parent — c'est le serveur qui
+                    la calcule, l'écran ne devine pas. */}
+                {peut("third_parties:assign") ? <AssignerTiers tache={tache} /> : null}
               </dd>
             </dl>
           </section>
@@ -1563,5 +1570,82 @@ function FenetreDependances({
         )}
       </div>
     </Fenetre>
+  );
+}
+
+/**
+ * `EX-TRS-02`, `RG-TRS-04` — assigner un tiers à la tâche.
+ *
+ * La liste des candidats vient de `GET /tiers/taches/:id/candidats`, qui
+ * applique en amont les trois refus que l'écriture applique en aval : archivé,
+ * non rattaché au projet parent, déjà assigné. Sans elle, l'écran proposerait ce
+ * que le serveur refuse — c'est le manque que L-45 avait comblé pour les
+ * dépendances, et le dernier de cette famille.
+ */
+function AssignerTiers({ tache }: { tache: api.FicheTache }) {
+  const { t } = useTranslation("taches");
+  const { t: tErreurs } = useTranslation("erreurs");
+  const annoncer = useMessages();
+  const client = useQueryClient();
+  const [ouvert, setOuvert] = useState(false);
+
+  const candidats = useQuery({
+    queryKey: ["tiers", "candidats", tache.id],
+    queryFn: () => apiReferentiels.candidatsTiersPourTache(tache.id),
+    enabled: ouvert,
+  });
+
+  const assignation = useMutation({
+    mutationFn: (id: string) => apiReferentiels.assignerTiersATache(tache.id, id),
+    onSuccess: () => {
+      annoncer("ok", t("fiche.tiersAssigne"));
+      setOuvert(false);
+      void client.invalidateQueries({ queryKey: ["tache", tache.id] });
+    },
+    onError: (e) => annoncer("err", messageErreur(e, tErreurs, t("fiche.echecAssignationTiers"))),
+  });
+
+  const liste = candidats.data ?? [];
+
+  return (
+    <>
+      <Button className="chip-btn" onPress={() => setOuvert(true)}>
+        {t("fiche.assignerTiers")}
+      </Button>
+      <Fenetre
+        ouverte={ouvert}
+        surFermeture={() => setOuvert(false)}
+        categorie={t("fiche.tiersAssignes")}
+        titre={t("fiche.assignerTiers")}
+        actions={
+          <Button className="btn btn-secondary" onPress={() => setOuvert(false)}>
+            {t("annuler")}
+          </Button>
+        }
+      >
+        {candidats.isPending ? (
+          <Chargement quoi={t("fiche.lesTiers")} />
+        ) : liste.length === 0 ? (
+          <div className="empty">
+            {/* Deux vides distincts : hors projet, tout tiers actif est
+                candidat ; dans un projet, seuls ses tiers rattachés le sont. */}
+            <p>{tache.project ? t("fiche.aucunTiersDuProjet") : t("fiche.aucunTiers")}</p>
+          </div>
+        ) : (
+          <div className="pickbox" role="group" aria-label={t("fiche.assignerTiers")}>
+            {liste.map((x) => (
+              <Button
+                key={x.id}
+                className="pop-action"
+                isDisabled={assignation.isPending}
+                onPress={() => assignation.mutate(x.id)}
+              >
+                {x.organisation ?? x.contactNom ?? "—"}
+              </Button>
+            ))}
+          </div>
+        )}
+      </Fenetre>
+    </>
   );
 }

@@ -497,7 +497,6 @@ const SANS_CLIENT: { verbe: string; chemin: string; raison: string }[] = [
   { verbe: "POST", chemin: "/projets/:id/instantane", raison: A_BRANCHER },
   { verbe: "GET", chemin: "/temps/non-declarees", raison: A_BRANCHER },
   { verbe: "GET", chemin: "/temps/rapport", raison: A_BRANCHER },
-  { verbe: "POST", chemin: "/tiers/taches/:taskId/assigner", raison: A_BRANCHER },
   { verbe: "GET", chemin: "/utilisateurs/presence", raison: A_BRANCHER },
 ];
 
