@@ -154,12 +154,6 @@
       "module": "L-17"
     },
     {
-      "id": "EX-ACT-04",
-      "lot": "vague 7-4",
-      "module": "L-17",
-      "note": "Le test existe (describe « RG-ACT-08 — les règles de récurrence SE POSENT ») mais cite un identifiant inexistant. Renommer le titre suffit à couvrir cette exigence — voir citationsOrphelines."
-    },
-    {
       "id": "EX-ACT-05",
       "lot": "vague 7-4",
       "module": "L-17"
@@ -357,12 +351,5 @@
       "raison": "Quantificateur universel — « TOUTE vue de données a un état de chargement ». Même raison que RG-GEN-02 : 35 vues, et un test nommé n'en prouverait qu'une. C'est design/etats.json qui énumère l'état « chargement » vue par vue, et la revue de vue qui le constate."
     }
   ],
-  "citationsOrphelines": [
-    {
-      "id": "RG-ACT-08",
-      "lire": "EX-ACT-04",
-      "raison": "Le cadrage s'arrête à RG-ACT-06. « Définir des règles de récurrence » est EX-ACT-04.",
-      "lot": "vague 7-4"
-    }
-  ]
+  "citationsOrphelines": []
 }
