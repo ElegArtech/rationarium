@@ -37,7 +37,32 @@ import "./conges.css";
  * permanence, et recalculé par année dans la fenêtre de demande.
  */
 
-type Onglet = "mesDemandes" | "aValider" | "toutes" | "delegations" | "types" | "soldes";
+export type Onglet =
+  | "mesDemandes"
+  | "aValider"
+  | "toutes"
+  | "delegations"
+  | "types"
+  | "soldes";
+
+/**
+ * L'onglet à rendre, **recalé sur ce qui existe** — `RG-GEN-06`.
+ *
+ * La maquette le fait (`if(R.tabs.indexOf(tab) === -1) tab = 'mine'`), le
+ * produit ne le faisait pas : un changement de droits en session — une
+ * délégation qui expire, un rôle qu'on retire — laissait le choix courant
+ * désigner une section disparue, et la vue ne rendait plus AUCUN panneau. Un
+ * écran vide sans message, que rien ne signale.
+ *
+ * La décision est isolée du rendu, comme `decisionAction` l'est
+ * d'`ActionProtegee` : c'est elle qui porte la règle, et elle se vérifie sans
+ * monter de DOM ni fabriquer un changement de droits en cours de session — ce
+ * qu'un parcours de bout en bout ne sait pas produire, et qu'un test qui
+ * rechargerait la page consacrerait à tort, puisque le remontage suffit à le
+ * faire passer.
+ */
+export const ongletCourant = (existants: readonly Onglet[], choisi: Onglet): Onglet =>
+  existants.includes(choisi) ? choisi : (existants[0] ?? "mesDemandes");
 
 export function Conges() {
   const { t } = useTranslation("occupations");
@@ -84,19 +109,8 @@ export function Conges() {
   }, [peut, t]);
 
   const [ongletChoisi, setOnglet] = useState<Onglet>("mesDemandes");
-
-  /**
-   * L'onglet actif, **recalé sur ce qui existe** — `RG-GEN-06`.
-   *
-   * La maquette le fait (`if(R.tabs.indexOf(tab) === -1) tab = 'mine'`), le
-   * produit ne le faisait pas : un changement de droits en session — une
-   * délégation qui expire, un rôle qu'on retire — laissait `onglet` désigner
-   * une section disparue, et la vue ne rendait plus AUCUN panneau. Un écran
-   * vide sans message, que rien ne signale.
-   */
-  const onglet = onglets.some((o) => o.cle === ongletChoisi)
-    ? ongletChoisi
-    : (onglets[0]?.cle ?? "mesDemandes");
+  /* `RG-GEN-06` — voir `ongletCourant` : l'onglet actif suit les droits. */
+  const onglet = ongletCourant(onglets.map((o) => o.cle), ongletChoisi);
   const [demandeOuverte, setDemandeOuverte] = useState(false);
   const [importOuvert, setImportOuvert] = useState(false);
 

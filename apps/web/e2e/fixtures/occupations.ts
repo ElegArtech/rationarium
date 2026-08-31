@@ -44,7 +44,29 @@ export const HUGO = {
   prenom: "Hugo",
   nom: "Nguyen",
   role: { code: "RH", nom: "Ressources humaines" },
-  permissions: [...FATOU.permissions, "leaves:readAll", "leaves:manage_types"],
+  permissions: [
+    ...FATOU.permissions,
+    "leaves:readAll",
+    "leaves:manage_types",
+    /* `EX-CNG-10` — le sixième onglet, « Soldes ». Le rôle « Responsable RH »
+       porte `leaves:manage_balances` ET `users:read` : les deux viennent du
+       même faisceau, et le second sert l'annuaire des bénéficiaires. */
+    "leaves:manage_balances",
+    "users:read",
+  ],
+};
+
+/**
+ * `RG-GEN-06` — un profil qui voit l'onglet Soldes **sans** pouvoir attribuer.
+ *
+ * Il n'existe pas au catalogue des rôles, et c'est exactement pour cela qu'il
+ * est ici : `ActionProtegee` doit rester lisible dans le cas où la commande est
+ * refusée, pas seulement dans celui où elle est masquée. Un écran qu'on ne
+ * regarde jamais dans cet état-là est un écran dont on ignore ce qu'il dit.
+ */
+export const HUGO_SANS_ATTRIBUTION = {
+  ...HUGO,
+  permissions: HUGO.permissions.filter((p) => p !== "leaves:manage_balances"),
 };
 
 // ── Vue 18 — Événements ─────────────────────────────────────────────────────
@@ -144,7 +166,18 @@ export const SOLDES = [
       icone: null,
       validationRequise: true,
     },
-    solde: { annee: 2026, attribues: 25, consommes: 12, engages: 3, disponibles: 10 },
+    solde: {
+      annee: 2026,
+      attribues: 25,
+      consommes: 12,
+      engages: 3,
+      disponibles: 10,
+      /* `RG-CNG-24` — l'allocation propre l'emporte sur le défaut global, et
+         les deux restent lisibles : elles ne se corrigent pas au même endroit. */
+      origine: "propre",
+      propre: { jours: 25, version: 4 },
+      global: { jours: 20, version: 2 },
+    },
   },
   {
     type: {
@@ -155,7 +188,18 @@ export const SOLDES = [
       icone: null,
       validationRequise: false,
     },
-    solde: { annee: 2026, attribues: 12, consommes: 4, engages: 0, disponibles: 8 },
+    solde: {
+      annee: 2026,
+      attribues: 12,
+      consommes: 4,
+      engages: 0,
+      disponibles: 8,
+      /* Aucune allocation propre : l'agent hérite du défaut global. Corriger
+         ici lui en crée une — et c'est ce que l'écran doit dire AVANT le geste. */
+      origine: "global",
+      propre: null,
+      global: { jours: 12, version: 7 },
+    },
   },
 ];
 
@@ -244,6 +288,9 @@ export const SOLDE_T1_2026 = {
   consommes: 21,
   engages: 0,
   disponibles: 9,
+  origine: "propre",
+  propre: { jours: 30, version: 1 },
+  global: null,
 };
 
 /**
@@ -295,6 +342,9 @@ export const SOLDE_T3_2026 = {
   consommes: 1,
   engages: 0,
   disponibles: 5,
+  origine: "propre",
+  propre: { jours: 6, version: 1 },
+  global: null,
 };
 
 /**
