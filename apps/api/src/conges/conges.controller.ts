@@ -124,9 +124,9 @@ export class CongesController {
       z.object({ userId: z.uuid().optional(), date: dateSchema }),
       requete,
     );
-    return this.conges
-      .determinerValidateur(q.userId ?? d.userId, q.date)
-      .then((validateurId) => ({ validateurId }));
+    // L'identité voyage avec l'identifiant : sans elle, le client qui a le
+    // droit d'appeler cette route n'a pas celui de traduire sa réponse.
+    return this.conges.validateurNomme(q.userId ?? d.userId, q.date);
   }
 
   @Post()

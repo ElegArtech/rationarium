@@ -1660,3 +1660,34 @@ describe("RG-CNG-23 — l'allocation modifiée pendant le traitement fait ÉCHOU
     },
   );
 });
+
+describe("RG-CNG-08 — la route nomme le validateur, elle ne rend pas qu'un identifiant", () => {
+  it("RG-CNG-08 — le validateur déterminé est rendu AVEC son nom", async () => {
+    /*
+     * La route est gardée par `leaves:read`. L'annuaire, lui, l'est par
+     * `users:read`, qu'un agent ordinaire n'a pas : le client qui avait le
+     * droit d'appeler la route n'avait pas celui de traduire sa réponse, et
+     * la fenêtre de demande retombait sur une formule générique.
+     */
+    const dept = await departement();
+    const chef = await agent(dept);
+    await prisma.departement.update({ where: { id: dept }, data: { responsableId: chef } });
+    const demandeur = await agent(dept);
+
+    const rendu = await conges.validateurNomme(demandeur, utc("2029-06-01"));
+    expect(rendu.validateurId).toBe(chef);
+    expect(rendu.validateur).toMatchObject({ id: chef });
+    expect(rendu.validateur?.prenom).toBeTruthy();
+    expect(rendu.validateur?.nom).toBeTruthy();
+  });
+
+  it("RG-CNG-08 — sans validateur déterminé, les deux champs sont nuls", async () => {
+    // Aucun manager, aucun responsable, et aucun détenteur de la gestion
+    // globale : le cas où la règle n'a personne à désigner.
+    await prisma.rolePermission.deleteMany({ where: { permission: "leaves:manage_any" } });
+    const isole = await agent(await departement());
+    const rendu = await conges.validateurNomme(isole, utc("2029-06-02"));
+    expect(rendu.validateurId).toBeNull();
+    expect(rendu.validateur).toBeNull();
+  });
+});
