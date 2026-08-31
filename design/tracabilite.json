@@ -26,94 +26,46 @@
       "defaut": "DÉFAUT TROUVÉ (vague 7-4), réduit de moitié en vague 7-3 bis, NON REFERMÉ. L'exigence porte deux verbes. **Capturer** est désormais branché : `POST /projets/:id/instantane` est appelé par la vue 11 (bouton « Capturer un instantané »), couvert par « LA CAPTURE PART AVEC LA DATE DU JOUR, jamais avec l'heure » et « l'accusé rend la progression REÇUE, pas celle qu'on affichait » (apps/web/e2e/tableau.e2e.spec.ts). **Consulter l'historique** n'existe toujours pas : `fiche()` ne rend que `dernierInstantane`, la tendance des rapports lit les instantanés d'un LOT de projets, et l'historique d'UN projet n'a ni méthode de service ni route. L'identifiant reste donc en dette : on ne cite pas une exigence dont un verbe manque. À ajouter, dans une tâche serveur : `GET /projets/:id/instantanes`, gardée `reports:read` et bornée au périmètre. Dette voisine, distincte : `RG-PRJ-09` veut une capture PÉRIODIQUE (`cadrage/03 § 5.4`, `pg-boss`) et aucun travail de fond ne l'exécute — le bouton de la vue 11 est aujourd'hui le seul producteur d'instantanés du produit."
     },
     {
-      "id": "EX-TSK-01",
-      "lot": "vague 7-4",
-      "module": "L-11"
-    },
-    {
-      "id": "EX-TSK-03",
-      "lot": "vague 7-4",
-      "module": "L-11"
-    },
-    {
       "id": "EX-TSK-04",
       "lot": "vague 7-4",
-      "module": "L-11"
-    },
-    {
-      "id": "EX-TSK-07",
-      "lot": "vague 7-4",
-      "module": "L-11"
-    },
-    {
-      "id": "EX-TSK-08",
-      "lot": "vague 7-4",
-      "module": "L-11"
+      "module": "L-11",
+      "defaut": "DÉFAUT TROUVÉ (vague 7-5), non corrigé — code de production. L'exigence énumère onze champs à la création ; dix sont acceptés, LES HORAIRES NE LE SONT PAS. `Task.heureDebut` et `Task.heureFin` existent au schéma et sont LUES par le planning (`planning.service.ts`, `taches()`), mais aucune écriture du dépôt ne les remplit : ni `TachesService.creer`, ni `modifier`, ni leurs schémas Zod, ni l'import CSV — `grep heureDebut apps/api/src/taches` ne rend rien. Deux colonnes mortes en écriture, vivantes en lecture. Sonde exécutée : `POST /taches` avec `heureDebut: \"09:00\"` relit `null`, Zod ayant retiré le champ en silence. Un créneau horaire de réunion est donc insaisissable, et la vue 07 ne peut afficher qu'une bande de journée entière. À corriger dans une tâche serveur : accepter `heureDebut`/`heureFin` à la création ET à la modification, avec la cohérence que `EvenementsService.creer` applique déjà (`horaires_incoherents` si fin <= début)."
     },
     {
       "id": "EX-TSK-15",
       "lot": "vague 7-4",
-      "module": "L-11"
-    },
-    {
-      "id": "EX-TSK-16",
-      "lot": "vague 7-4",
-      "module": "L-11"
-    },
-    {
-      "id": "EX-TSK-17",
-      "lot": "vague 7-4",
-      "module": "L-11"
+      "module": "L-11",
+      "defaut": "DÉFAUT TROUVÉ (vague 7-5), non corrigé — LA FONCTIONNALITÉ N'EXISTE PAS. « Rattacher ou détacher une tâche d'un projet A POSTERIORI » : `projectId` n'est accepté qu'à la création. Ni `TachesService.modifier` (son type de données ne le porte pas), ni le schéma de `PATCH /taches/:id`, ni aucune autre route du dépôt ne l'écrit. Sonde exécutée : `PATCH` avec `projectId` relit `null` — Zod retire le champ, aucune erreur n'est levée, et l'appelant croit avoir rattaché. Une tâche née hors projet le reste pour toujours, et une tâche de projet ne peut pas en sortir. Voisin exact d'`EX-JAL-01` et d'`EX-PRJ-05` : le verbe du milieu manque. Attention en corrigeant : `projectId` est un CHAMP GOUVERNÉ au sens de `commun/champs-gouvernes.ts` — changer le projet d'une tâche change qui la voit (`RG-SCOPE-02`) et remet en jeu `RG-JAL-04` (une tâche détachée traîne son jalon)."
     },
     {
       "id": "RG-TSK-02",
       "lot": "vague 7-4",
-      "module": "L-11"
+      "module": "L-11",
+      "defaut": "DÉFAUT TROUVÉ (vague 7-5), non corrigé — LA DISTINCTION EST DANS LE CATALOGUE ET NULLE PART AILLEURS. Le cadrage veut deux droits : `tasks:create` (dans un projet) et `tasks:create_standalone` (hors projet), tous deux au catalogue, et `packages/contracts/src/roles.ts` retire délibérément le second à deux rôles — la distinction est donc voulue. `POST /taches` n'exige que `tasks:create`, quel que soit le corps. Deux conséquences symétriques : qui détient `tasks:create` seul crée des tâches HORS PROJET sans en avoir le droit, et qui détient `tasks:create_standalone` seul ne crée RIEN. Le motif est celui, déjà consigné, de « une permission garde une ROUTE, pas un CHAMP » : la permission dépend ici de la présence de `projectId` dans le corps. À traiter comme les champs gouvernés, mais en sens inverse — c'est l'ABSENCE du champ qui appelle l'autre permission."
     },
     {
       "id": "RG-TSK-03",
       "lot": "vague 7-4",
-      "module": "L-11"
+      "module": "L-11",
+      "defaut": "DÉFAUT TROUVÉ (vague 7-5), non corrigé — AUCUN CONTRÔLE D'APPARTENANCE. « Créer une tâche dans un projet exige d'en être membre, sauf permission de gestion globale. » `TachesService.creer` ne lit jamais `ProjectMember` : il contrôle le jalon (`RG-JAL-03`/`RG-JAL-04`) et rien d'autre. Sonde exécutée : un agent sans aucun lien avec le projet crée une tâche dedans, sans erreur. La règle voisine `RG-TSK-09` pose pourtant la MÊME condition sur le décalage en cascade (« exige d'en être membre ou de détenir la gestion globale ») : la doctrine existe, elle n'est pas appliquée à la création. Le service reçoit déjà `acteurId` — la donnée nécessaire est là, c'est la lecture qui manque."
     },
     {
       "id": "RG-TSK-14",
       "lot": "vague 7-4",
-      "module": "L-11"
+      "module": "L-11",
+      "defaut": "DÉFAUT TROUVÉ (vague 7-5), non corrigé — LA SIGNATURE NE PERMET MÊME PAS LA RÈGLE. « Sans permission élargie, un utilisateur ne peut supprimer que les tâches qui lui sont assignées. » `TachesService.supprimer(taskId, acteurId)` ne reçoit ni les permissions ni le périmètre : il ne peut donc rien décider, et il ne décide rien — il refuse une tâche dont d'autres dépendent (`RG-TSK-07`) et supprime tout le reste. `DELETE /taches/:id` est gardé par `tasks:delete` seul. Résultat : tout détenteur de `tasks:delete` supprime n'importe quelle tâche de l'instance, y compris hors de son périmètre et sans y être assigné. Corriger suppose de passer `permissions` au service, comme le font déjà `documents.supprimer` et `fiche` — et de nommer la permission élargie attendue (`tasks:manage_any` est la candidate du catalogue)."
     },
     {
       "id": "RG-TSK-16",
       "lot": "vague 7-4",
-      "module": "L-11"
-    },
-    {
-      "id": "EX-PLN-01",
-      "lot": "vague 7-4",
-      "module": "L-20"
-    },
-    {
-      "id": "EX-PLN-02",
-      "lot": "vague 7-4",
-      "module": "L-20"
-    },
-    {
-      "id": "EX-PLN-10",
-      "lot": "vague 7-4",
-      "module": "L-20"
-    },
-    {
-      "id": "EX-PLN-11",
-      "lot": "vague 7-4",
-      "module": "L-20"
-    },
-    {
-      "id": "EX-PLN-12",
-      "lot": "vague 7-4",
-      "module": "L-20"
+      "module": "L-11",
+      "defaut": "RÈGLE D'INTERFACE PURE, sans contrepartie serveur — constaté vague 7-5. « Les colonnes À faire et Terminé du kanban ne peuvent pas être masquées » : le masquage de colonnes est un réglage de la vue 16, et le dépôt n'en porte AUCUNE trace côté serveur — ni réglage `Setting`, ni champ de préférence, ni contrat dans `packages/contracts`. Les colonnes sont les cinq statuts de `STATUTS_TACHE` (désormais cité par un test au titre d'`EX-TSK-01`), et le serveur ne sait pas lesquelles sont affichées. Le test qui la tiendrait est un test d'interface dans `apps/web` ; l'agent de la vague 7-5 avait interdiction d'y toucher, deux agents y branchant des routes en parallèle. Reste donc en dette, avec sa nature établie : à écrire côté vue, pas côté serveur."
     },
     {
       "id": "RG-PLN-05",
       "lot": "vague 7-4",
-      "module": "L-20"
+      "module": "L-20",
+      "defaut": "RÈGLE D'INTERFACE PURE, sans contrepartie serveur — constaté vague 7-5. « Si une modification aboutit mais que le rafraîchissement échoue, l'utilisateur est averti que l'affichage peut être périmé » : la situation décrite n'existe que dans le client — le serveur a répondu, et c'est la seconde requête, celle de relecture, qui échoue. Aucun point d'entrée ne peut porter cette règle, et aucun test d'intégration ne peut la provoquer. Le test qui la tiendrait interrompt le second appel dans `apps/web` (Playwright, `page.route` sur `GET /api/planning`) et vérifie le message. L'agent de la vague 7-5 avait interdiction d'ouvrir `apps/web`. Reste en dette, avec sa nature établie : à écrire de bout en bout, pas au serveur."
     },
     {
       "id": "EX-TLT-04",
