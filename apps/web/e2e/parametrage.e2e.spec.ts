@@ -812,3 +812,120 @@ test.describe("Vue 34 — tâches prédéfinies", () => {
     await expect(page.getByText("Permission requise")).toBeVisible();
   });
 });
+
+/**
+ * `EX-ACT-04` — modifier et supprimer une règle de récurrence, à l'écran.
+ *
+ * Les deux commandes de la vue 34 ont vécu **désactivées**, derrière un motif
+ * exact : le serveur savait poser une règle et l'arrêter, il ne savait ni la
+ * réécrire ni l'effacer. Le motif était vrai et la commande n'en restait pas
+ * moins inerte — c'est la moitié serveur qui manquait.
+ */
+test.describe("Vue 34 — la règle de récurrence se corrige et s'efface", () => {
+  const reponses = {
+    "/api/activite/taches": { corps: PREDEFINIES },
+    "/api/activite/taches?inclureInactives=true": { corps: PREDEFINIES_AVEC_INACTIVE },
+  };
+
+  /** Le journal de ce qui part vers une règle : la méthode et le corps. */
+  async function journal(page: Page) {
+    const envois: { methode: string; corps: unknown }[] = [];
+    await page.route(
+      (url) => /\/api\/activite\/recurrences\//.test(url.pathname),
+      (route) => {
+        const m = route.request().method();
+        if (m === "GET") return route.fallback();
+        envois.push({ methode: m, corps: route.request().postDataJSON() ?? null });
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: m === "DELETE" ? '{"assignationsConservees":42}' : "{}",
+        });
+      },
+    );
+    return envois;
+  }
+
+  /*
+   * Le « Modifier » d'une RÈGLE, pas celui d'une tâche.
+   *
+   * `getByRole("button", { name: "Modifier" }).first()` attrape celui de la
+   * ligne de tâche, qui ouvre « Modifier la tâche prédéfinie » — et un premier
+   * jet de ces contrôles est passé au vert sur cette fenêtre-là, en croyant
+   * mesurer la règle. Le geste se vise dans sa carte.
+   */
+  const carte = (page: Page) => page.locator(".rule-card").first();
+
+  test("EX-ACT-04 — « Modifier » OUVRE la règle sur SES valeurs, elle n'est plus inerte", async ({
+    page,
+  }) => {
+    await serveur(page, { session: SESSION_ACTIVITE, reponses });
+    await page.goto("/taches-predefinies");
+
+    await carte(page).getByRole("button", { name: "Modifier" }).click();
+    const fenetre = page.getByRole("dialog", { name: "Modifier la règle" });
+    await expect(fenetre).toBeVisible();
+    // La fenêtre est amorcée sur la règle, pas vide : une modification qui
+    // s'ouvre vierge efface ce qu'on venait corriger.
+    await expect(fenetre.getByText("Chaque mardi")).toBeVisible();
+  });
+
+  test("EX-ACT-04, RG-GEN-07 — enregistrer part en PATCH avec la version lue", async ({ page }) => {
+    await serveur(page, { session: SESSION_ACTIVITE, reponses });
+    const envois = await journal(page);
+    await page.goto("/taches-predefinies");
+
+    await carte(page).getByRole("button", { name: "Modifier" }).click();
+    await page
+      .getByRole("dialog", { name: "Modifier la règle" })
+      .getByRole("button", { name: "Enregistrer" })
+      .click();
+
+    await expect.poll(() => envois.length).toBe(1);
+    expect(envois[0]?.methode).toBe("PATCH");
+    expect(envois[0]?.corps).toMatchObject({ version: 1, type: "weekly" });
+  });
+
+  test("EX-ACT-04 — la tâche portée par une règle existante NE SE CHANGE PAS", async ({ page }) => {
+    /*
+     * Une règle qui changerait de tâche serait une autre règle, et les
+     * assignations déjà engendrées resteraient sur l'ancienne.
+     */
+    await serveur(page, { session: SESSION_ACTIVITE, reponses });
+    await page.goto("/taches-predefinies");
+
+    await carte(page).getByRole("button", { name: "Modifier" }).click();
+    const fenetre = page.getByRole("dialog", { name: "Modifier la règle" });
+    await expect(fenetre.getByLabel("Tâche prédéfinie", { exact: true })).toBeDisabled();
+  });
+
+  test("EX-ACT-04 — la suppression DIT ce qu'elle ne supprime pas, puis part en DELETE", async ({
+    page,
+  }) => {
+    await serveur(page, { session: SESSION_ACTIVITE, reponses });
+    const envois = await journal(page);
+    await page.goto("/taches-predefinies");
+
+    await carte(page).getByRole("button", { name: "Supprimer" }).click();
+    // La promesse AVANT le bouton rouge : c'est elle qui lève l'inquiétude.
+    await expect(
+      page.getByText("Les assignations déjà engendrées ne sont pas supprimées."),
+    ).toBeVisible();
+
+    await page.getByRole("button", { name: "Supprimer la règle", exact: true }).click();
+    await expect.poll(() => envois.length).toBe(1);
+    expect(envois[0]?.methode).toBe("DELETE");
+    await expect(page.getByText("Règle supprimée, 42 assignations conservées.")).toBeVisible();
+  });
+
+  test("RG-GEN-06 — sans predefined_tasks:update, ni Modifier ni Supprimer", async ({ page }) => {
+    await serveur(page, { session: SESSION_CONFIG, reponses });
+    await page.goto("/taches-predefinies");
+
+    // La liste des règles reste lisible : masquer la structure ferait croire
+    // qu'il n'y a pas de règle.
+    await expect(page.getByText("Chaque mardi")).toBeVisible();
+    await expect(carte(page).getByRole("button", { name: "Modifier" })).toHaveCount(0);
+    await expect(carte(page).getByRole("button", { name: "Supprimer" })).toHaveCount(0);
+  });
+});

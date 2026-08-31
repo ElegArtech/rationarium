@@ -494,6 +494,8 @@ export type RecurrencePredefinie = {
   dateDebut: string;
   dateFin: string | null;
   active: boolean;
+  /** `RG-GEN-07` — la version lue accompagne toute réécriture de la règle. */
+  version: number;
 };
 
 export type TachePredefinie = {
@@ -557,6 +559,26 @@ export const basculerRecurrencePredefinie = (id: string, active: boolean) =>
   appeler<RecurrencePredefinie>(`/activite/recurrences/${id}`, {
     methode: "PATCH",
     corps: { active },
+  });
+
+/**
+ * `EX-ACT-04` — réécrire une règle. Le verbe du milieu manquait : elle se
+ * posait et s'arrêtait, elle ne se corrigeait pas. Décaler un jour imposait
+ * d'arrêter la règle et d'en poser une seconde, l'ancienne restant dans la
+ * liste à côté de sa remplaçante.
+ */
+export const modifierRecurrencePredefinie = (
+  id: string,
+  donnees: Partial<SaisieRecurrence> & { active?: boolean; version: number },
+) => appeler<RecurrencePredefinie>(`/activite/recurrences/${id}`, {
+  methode: "PATCH",
+  corps: donnees,
+});
+
+/** `EX-ACT-04` — supprimer une règle. Ce qu'elle a engendré reste. */
+export const supprimerRecurrencePredefinie = (id: string) =>
+  appeler<{ assignationsConservees: number }>(`/activite/recurrences/${id}`, {
+    methode: "DELETE",
   });
 
 /** `EX-ACT-05`, `RG-ACT-06` — la génération rend compte des créées ET des ignorées. */

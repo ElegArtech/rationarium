@@ -1031,6 +1031,16 @@ Cocher une permission a des conséquences invisibles depuis cette page. Prévoir
 
 **Onglet Informations personnelles** — Avatar (téléverser un fichier jpg/png/webp, choisir un visuel prédéfini, ou supprimer) · Prénom · Nom · Email · Login (lecture seule) · Département (lecture seule) · Services (lecture seule) · Membre depuis.
 
+**Champs gérés par l'administration** — Login, département et services sont en
+lecture seule, et chacun porte la raison de son verrou et le service qui le
+tient. *(Arbitrage du 2026-08-31 : la maquette 35 pose en plus un bouton
+« Demander une modification » qu'elle résout par un message de courtoisie. Il
+a été retiré — aucune exigence n'ouvre ce geste, aucune route ne le porte, et
+il n'y a personne à qui transmettre. Un bouton désactivé sans explication est
+un écart à `RG-GEN-06` ; entre inventer une fonctionnalité et retirer une
+commande que rien ne sert, on retire. La mention du service qui tient le champ
+répond déjà à « comment fait-on corriger ça ? ».)*
+
 **Onglet Sécurité** — *Mot de passe* : « Modifiez votre mot de passe pour sécuriser votre compte » + « Changer le mot de passe ». *Historique de connexion* : « Dernière connexion : {date} ».
 Fenêtre : Mot de passe actuel\* · Nouveau\* · Confirmer\* · Indice « Au moins 8 caractères ».
 

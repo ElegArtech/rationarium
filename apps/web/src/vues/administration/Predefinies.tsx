@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, Tooltip, TooltipTrigger } from "react-aria-components";
+import { Button } from "react-aria-components";
 import { DUREES_TACHE_PREDEFINIE, TYPES_RECURRENCE } from "@rationarium/contracts";
 import * as api from "../../api/administration.js";
 import * as apiPlanning from "../../api/planning.js";
@@ -79,6 +79,10 @@ export function Predefinies() {
   const [edition, setEdition] = useState<api.TachePredefinie | "nouvelle" | null>(null);
   const [bascule, setBascule] = useState<api.TachePredefinie | null>(null);
   const [regleNouvelle, setRegleNouvelle] = useState(false);
+  /** `EX-ACT-04` — la règle en cours de réécriture, avec la tâche qui la porte. */
+  const [regleEditee, setRegleEditee] = useState<
+    { regle: api.RecurrencePredefinie; tacheId: string } | null
+  >(null);
   const [generation, setGeneration] = useState(false);
 
   const requete = useQuery({
@@ -291,6 +295,7 @@ export function Predefinies() {
                   tache={tache}
                   modifiable={peutModifier}
                   dureeLisible={libelle(tache.dureeParDefaut, DUREES_TACHE_PREDEFINIE)}
+                  surModification={() => setRegleEditee({ regle: r, tacheId: tache.id })}
                 />
               )),
             )
@@ -308,6 +313,17 @@ export function Predefinies() {
         taches={requete.data}
         surFermeture={() => setRegleNouvelle(false)}
       />
+      {regleEditee ? (
+        <FenetreRegle
+          ouverte
+          // Remontée à chaque règle : les champs se réamorcent sur celle qu'on
+          // ouvre, jamais sur celle d'avant.
+          key={`${regleEditee.regle.id}:${regleEditee.regle.version}`}
+          taches={requete.data}
+          existante={regleEditee}
+          surFermeture={() => setRegleEditee(null)}
+        />
+      ) : null}
       <FenetreGeneration
         ouverte={generation}
         taches={requete.data}
@@ -331,16 +347,30 @@ function CarteRegle({
   tache,
   modifiable,
   dureeLisible,
+  surModification,
 }: {
   regle: api.RecurrencePredefinie;
   tache: api.TachePredefinie;
   modifiable: boolean;
   dureeLisible: string;
+  surModification: () => void;
 }) {
   const { t } = useTranslation("administration");
   const { t: tErreurs } = useTranslation("erreurs");
   const annoncer = useMessages();
   const client = useQueryClient();
+
+  const [suppressionOuverte, setSuppressionOuverte] = useState(false);
+
+  const suppression = useMutation({
+    mutationFn: () => api.supprimerRecurrencePredefinie(regle.id),
+    onSuccess: ({ assignationsConservees }) => {
+      annoncer("ok", t("predefinies.regleSupprimee", { n: assignationsConservees }));
+      setSuppressionOuverte(false);
+      void client.invalidateQueries({ queryKey: ["predefinies"] });
+    },
+    onError: (e) => annoncer("err", messageErreur(e, tErreurs, t("predefinies.echecAction"))),
+  });
 
   const bascule = useMutation({
     mutationFn: (active: boolean) => api.basculerRecurrencePredefinie(regle.id, active),
@@ -390,27 +420,58 @@ function CarteRegle({
       </label>
 
       <span className="lv-acts">
-        {/* `RG-GEN-06` — désactivées AVEC leur explication. Ce n'est pas une
-            question de droits mais de capacité : le serveur sait poser une
-            règle et l'arrêter, il ne sait ni la réécrire ni l'effacer. */}
-        {/* `RG-GEN-06` — `aria-disabled` et non `isDisabled` : un bouton
-            nativement désactivé ne reçoit ni survol ni focus, donc son
-            infobulle ne s'ouvre jamais et l'explication promise n'existe pas.
-            Voir `action-protegee.tsx`, où le même défaut vivait pour TOUTE
-            action refusée pour cause de droits. */}
-        <TooltipTrigger delay={200}>
-          <Button className="ms-toggle" aria-disabled onPress={() => undefined}>
+        {/*
+          Les deux commandes ont vécu désactivées, avec un motif exact : le
+          serveur savait poser une règle et l'arrêter, il ne savait ni la
+          réécrire ni l'effacer. Le motif était vrai et la commande n'en
+          restait pas moins inerte — c'est la moitié serveur qui manquait, elle
+          a été portée.
+        */}
+        {modifiable ? (
+          <Button className="ms-toggle" onPress={surModification}>
             {t("modifier")}
           </Button>
-          <Tooltip className="tooltip">{t("predefinies.regleNonModifiable")}</Tooltip>
-        </TooltipTrigger>
-        <TooltipTrigger delay={200}>
-          <Button className="ms-toggle" aria-disabled onPress={() => undefined}>
+        ) : null}
+        {modifiable ? (
+          <Button className="ms-toggle" onPress={() => setSuppressionOuverte(true)}>
             {t("supprimer")}
           </Button>
-          <Tooltip className="tooltip">{t("predefinies.regleNonSupprimable")}</Tooltip>
-        </TooltipTrigger>
+        ) : null}
       </span>
+
+      <Fenetre
+        ouverte={suppressionOuverte}
+        surFermeture={() => setSuppressionOuverte(false)}
+        categorie={t("confirmation")}
+        titre={t("predefinies.supprimerRegleTitre")}
+        // La promesse est faite AVANT le bouton rouge : c'est elle qui lève
+        // l'inquiétude, pas un constat après coup.
+        mention={t("predefinies.regleSuppressionMention")}
+        actions={
+          <>
+            <Button className="btn btn-secondary" onPress={() => setSuppressionOuverte(false)}>
+              {t("annuler")}
+            </Button>
+            <Button
+              className="btn btn-danger"
+              isPending={suppression.isPending}
+              onPress={() => suppression.mutate()}
+            >
+              {t("predefinies.supprimerRegleTitre")}
+            </Button>
+          </>
+        }
+      >
+        <p className="phrase-confirmation">
+          {t("predefinies.confirmerSuppressionRegle")}
+        </p>
+        <div className="alert alert-neutral">
+          <span className="alert-icon" aria-hidden="true">
+            →
+          </span>
+          <span>{t("predefinies.effetSuppressionRegle")}</span>
+        </div>
+      </Fenetre>
     </div>
   );
 }
@@ -724,10 +785,20 @@ function FenetreBascule({
 function FenetreRegle({
   ouverte,
   taches,
+  existante,
   surFermeture,
 }: {
   ouverte: boolean;
   taches: api.TachePredefinie[];
+  /**
+   * Absente : création. Présente : réécriture (`EX-ACT-04`).
+   *
+   * Le verbe du milieu manquait. Une règle se posait et s'arrêtait, elle ne se
+   * corrigeait pas : décaler un jour ou repousser une échéance imposait
+   * d'arrêter la règle et d'en poser une seconde, l'ancienne restant dans la
+   * liste, arrêtée, à côté de sa remplaçante.
+   */
+  existante?: { regle: api.RecurrencePredefinie; tacheId: string } | undefined;
   surFermeture: () => void;
 }) {
   const { t } = useTranslation("administration");
@@ -747,15 +818,16 @@ function FenetreRegle({
 
   useEffect(() => {
     if (!ouverte) return;
-    setTacheId(taches[0]?.id ?? "");
-    setType("weekly");
-    setJourSemaine(2);
-    setFrequence(1);
-    setJourMois(15);
-    setOrdinal(3);
-    setDateDebut(new Date().toISOString().slice(0, 10));
-    setDateFin("");
-  }, [ouverte, taches]);
+    const r = existante?.regle;
+    setTacheId(existante?.tacheId ?? taches[0]?.id ?? "");
+    setType(r?.type ?? "weekly");
+    setJourSemaine(r?.jourSemaine ?? 2);
+    setFrequence(r?.frequence ?? 1);
+    setJourMois(r?.jourMois ?? 15);
+    setOrdinal(r?.ordinal ?? 3);
+    setDateDebut(r?.dateDebut?.slice(0, 10) ?? new Date().toISOString().slice(0, 10));
+    setDateFin(r?.dateFin?.slice(0, 10) ?? "");
+  }, [ouverte, taches, existante]);
 
   /*
    * La règle telle qu'elle partira, et telle qu'elle se relit. Les deux se
@@ -773,9 +845,19 @@ function FenetreRegle({
   };
 
   const creation = useMutation({
-    mutationFn: () => api.creerRecurrencePredefinie(tacheId, saisie),
+    mutationFn: () =>
+      existante
+        ? // `RG-GEN-07` — la version lue accompagne la réécriture. Une règle
+          // engendre des assignations pour tout un service : deux corrections
+          // concurrentes qui s'écraseraient produiraient un planning que
+          // personne n'a demandé.
+          api.modifierRecurrencePredefinie(existante.regle.id, {
+            ...saisie,
+            version: existante.regle.version,
+          })
+        : api.creerRecurrencePredefinie(tacheId, saisie),
     onSuccess: () => {
-      annoncer("ok", t("predefinies.regleCreee"));
+      annoncer("ok", t(existante ? "predefinies.regleModifiee" : "predefinies.regleCreee"));
       void client.invalidateQueries({ queryKey: ["predefinies"] });
       surFermeture();
     },
@@ -791,7 +873,8 @@ function FenetreRegle({
     ordinal: saisie.ordinal ?? null,
     dateDebut,
     dateFin: saisie.dateFin ?? null,
-    active: true,
+    active: existante?.regle.active ?? true,
+    version: existante?.regle.version ?? 1,
   };
 
   return (
@@ -799,7 +882,7 @@ function FenetreRegle({
       ouverte={ouverte}
       surFermeture={surFermeture}
       categorie={t("predefinies.recurrence")}
-      titre={t("predefinies.nouvelleRegleTitre")}
+      titre={t(existante ? "predefinies.modifierRegleTitre" : "predefinies.nouvelleRegleTitre")}
       large
       mention={t("predefinies.mentionRegle")}
       actions={
@@ -813,7 +896,7 @@ function FenetreRegle({
             isPending={creation.isPending}
             onPress={() => creation.mutate()}
           >
-            {t("predefinies.creerLaRegle")}
+            {t(existante ? "enregistrer" : "predefinies.creerLaRegle")}
           </Button>
         </>
       }
@@ -826,6 +909,10 @@ function FenetreRegle({
           className="field"
           id="rg-tache"
           value={tacheId}
+          // La tâche d'une règle existante ne se change pas : une règle qui
+          // changerait de tâche serait une autre règle, et les assignations
+          // déjà engendrées resteraient sur l'ancienne.
+          disabled={Boolean(existante)}
           onChange={(e) => setTacheId(e.target.value)}
         >
           {taches.map((x) => (

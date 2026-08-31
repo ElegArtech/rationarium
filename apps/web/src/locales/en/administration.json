@@ -774,8 +774,6 @@
     "regleCreee": "Recurrence rule created.",
     "regleArretee": "Rule stopped — what it already produced is kept.",
     "regleReprise": "Rule reactivated.",
-    "regleNonModifiable": "A rule is not rewritten: stop it and create a new one.",
-    "regleNonSupprimable": "A rule is not deleted: it is stopped, so that what it produced stays explainable.",
     "jusquAu": "until {fin}",
     "sansDateDeFin": "no end date",
     "assignationsTitre": "Assignments",
@@ -791,7 +789,14 @@
     "generer": "Generate",
     "fermer": "Close",
     "generationFaite": "{n, plural, =0 {No assignment created.} one {# assignment created.} other {# assignments created.}}",
-    "bilanGeneration": "{crees, plural, =0 {None created} one {# created} other {# created}} · {ignores, plural, =0 {none skipped} one {# skipped} other {# skipped}}"
+    "bilanGeneration": "{crees, plural, =0 {None created} one {# created} other {# created}} · {ignores, plural, =0 {none skipped} one {# skipped} other {# skipped}}",
+    "regleModifiee": "Rule updated.",
+    "modifierRegleTitre": "Edit rule",
+    "supprimerRegleTitre": "Delete rule",
+    "confirmerSuppressionRegle": "Delete this recurrence rule?",
+    "regleSuppressionMention": "Assignments already generated are not deleted.",
+    "effetSuppressionRegle": "The rule stops generating assignments. Those it already created stay in the schedule.",
+    "regleSupprimee": "{n, plural, =0 {Rule deleted.} one {Rule deleted, 1 assignment kept.} other {Rule deleted, # assignments kept.}}"
   },
   "jours": {
     "long": {
