@@ -18,8 +18,9 @@ Un point d'entrée qui vérifie la permission mais pas le périmètre est un dé
 
 ## Journal d'audit
 
-- L'intercepteur d'audit s'exécute **après** la garde de permission **et sur son échec** : l'accès refusé au journal est lui-même tracé (`RG-ADM-03`).
-- Le rôle SQL applicatif n'a que `INSERT` et `SELECT` sur `audit_log`. Aucun code n'y écrit autrement que par l'intercepteur.
+- **Il n'existe pas d'intercepteur d'audit.** Cette règle en décrivait un depuis l'origine ; le dépôt n'en a jamais porté, et dix-neuf services appellent `audit.tracer` **à la main**. Un agent de la vague 7 a cherché l'intercepteur avant de suivre le code — la règle envoyait au mauvais endroit. Ce qui EST vrai : la garde de permission (`commun/permissions.garde.ts`) trace elle-même le refus **avant** de lever, donc `RG-ADM-03` — « l'accès refusé est lui-même tracé » — est tenue là, et nulle part ailleurs.
+- Toute action de `cadrage/01 § M20` se trace donc **explicitement, dans son service**. Un service qui écrit sans tracer ne sera rattrapé par rien.
+- Le rôle SQL applicatif n'a que `INSERT` et `SELECT` sur `audit_log`. Aucun code n'y écrit autrement que par `AuditService`.
 - Les actions à tracer sont énumérées en `cadrage/01 § M20`. La liste est fermée : y ajouter une action est une décision, pas une initiative.
 
 ## Concurrence
