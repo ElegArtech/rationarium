@@ -368,19 +368,34 @@ export const PLANNING_TELETRAVAIL = {
   cumul: { teletravail: 1, bureau: 2, nonDeclares: 5 },
 };
 
+/*
+ * `EX-TLT-04` — `version` accompagne chaque règle, parce que le service la
+ * rend et que `PATCH /teletravail/regles/:id` l'exige (`RG-GEN-07`). Sans elle,
+ * aucune modification n'est composable depuis la lecture — c'est exactement le
+ * défaut qui avait fait conclure, à tort, que `PATCH /auth/me` n'existait pas.
+ */
 export const REGLES_TELETRAVAIL = [
-  { id: "r1", jourSemaine: 2, dateDebut: "2026-03-01", dateFin: null, active: true },
-  { id: "r2", jourSemaine: 4, dateDebut: "2026-01-05", dateFin: "2026-06-30", active: false },
+  { id: "r1", jourSemaine: 2, dateDebut: "2026-03-01", dateFin: null, active: true, version: 1 },
+  {
+    id: "r2", jourSemaine: 4, dateDebut: "2026-01-05", dateFin: "2026-06-30",
+    active: false, version: 3,
+  },
 ];
 
 // ── Vue 21 — Temps passé ────────────────────────────────────────────────────
 
+/*
+ * `heures` est un NOMBRE, comme le service le rend. Il rendait une chaîne —
+ * le `Decimal` de Prisma sérialisé — là où `GET /temps/rapport` rendait un
+ * nombre : deux formes pour le même champ dans le même module. Le jeu d'essai
+ * se calque sur la signature du service, jamais sur l'ancienne forme.
+ */
 export const SAISIES = {
   saisies: [
     {
       id: "s1",
       date: "2026-08-12",
-      heures: "7",
+      heures: 7,
       typeActivite: "development",
       description: "Reprise du formulaire de contact",
       creeLe: "2026-08-12T18:00:00.000Z",
@@ -392,7 +407,7 @@ export const SAISIES = {
     {
       id: "s2",
       date: "2026-08-12",
-      heures: "6.5",
+      heures: 6.5,
       typeActivite: "meeting",
       description: "Ateliers usagers",
       creeLe: "2026-08-12T18:05:00.000Z",
@@ -404,7 +419,7 @@ export const SAISIES = {
     {
       id: "s3",
       date: "2026-08-11",
-      heures: "4",
+      heures: 4,
       typeActivite: "development",
       description: "Prestation externe",
       creeLe: "2026-08-11T17:00:00.000Z",

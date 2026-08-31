@@ -37,21 +37,66 @@ export class OrganisationService {
 
   /**
    * `EX-ORG-04` — l'organisation sous forme d'arborescence dépliable.
+   * `EX-ORG-05` — **filtrer la vue par département.**
    *
    * Le périmètre s'applique aux **départements** : une direction reste
    * visible si l'un de ses départements l'est, sinon elle disparaît. Une
    * direction vide affichée sans ses départements serait un aveu de ce qu'on
    * cache.
+   *
+   * **Pourquoi le filtre est ici et non dans la vue.** Il y vivait, et il y
+   * était faux : l'arborescence a DEUX racines — les directions et le bloc
+   * « Départements sans direction » (`RG-ORG-03`) —, la vue filtrait la
+   * première et oubliait la seconde. Filtrer sur un département laissait donc
+   * tous les départements hors direction affichés, et la recherche texte ne
+   * descendait pas non plus à l'intérieur d'une direction retenue. Trois
+   * endroits à filtrer, deux filtrés : c'est la forme même du défaut.
+   *
+   * Au serveur, **une seule clause sert les deux racines**. Le bloc orphelin
+   * ne peut plus diverger par construction, et les compteurs d'en-tête
+   * décrivent enfin ce qui est affiché. La contrepartie — le sélecteur de
+   * filtre se vide s'il se peuple depuis ce qu'il filtre — est levée par
+   * `departements`, rendu à part et jamais filtré : c'est la liste des choix,
+   * pas le résultat.
+   *
+   * L'arborescence n'est pas paginée et ne l'a jamais été : il n'y a donc pas
+   * de tranche à faire suivre, seulement un comptage, qui est celui des
+   * entités retenues.
    */
-  async arborescence(perimetre: Perimetre) {
+  async arborescence(
+    perimetre: Perimetre,
+    filtres: { departementId?: string; recherche?: string } = {},
+  ) {
     const filtreDept = this.perimetres.filtreDepartement(perimetre);
+
+    /*
+     * La clause de département, construite UNE fois pour les deux racines.
+     * C'est tout l'objet du portage : deux constructions séparées finiraient
+     * par diverger, ce qui est exactement ce qui s'était produit dans la vue.
+     */
+    const clauses: Record<string, unknown>[] = [filtreDept];
+    if (filtres.departementId) clauses.push({ id: filtres.departementId });
+    if (filtres.recherche) {
+      /*
+       * La recherche porte sur le nom du département OU sur celui de sa
+       * direction : chercher « Ressources » doit retenir les départements de
+       * la direction des ressources, sinon la direction s'afficherait vide.
+       */
+      clauses.push({
+        OR: [
+          { nom: { contains: filtres.recherche, mode: "insensitive" } },
+          { direction: { nom: { contains: filtres.recherche, mode: "insensitive" } } },
+        ],
+      });
+    }
+    const filtreDeptComplet = { AND: clauses };
 
     const directions = await this.prisma.direction.findMany({
       orderBy: { nom: "asc" },
       include: {
         responsable: { select: { id: true, prenom: true, nom: true } },
         departements: {
-          where: filtreDept,
+          where: filtreDeptComplet,
           orderBy: { nom: "asc" },
           include: {
             responsable: { select: { id: true, prenom: true, nom: true } },
@@ -68,10 +113,16 @@ export class OrganisationService {
       },
     });
 
-    // RG-ORG-03 — un département peut exister hors direction. Il ne doit pas
-    // disparaître de l'arborescence pour autant.
+    /*
+     * RG-ORG-03 — un département peut exister hors direction. Il ne doit pas
+     * disparaître de l'arborescence pour autant.
+     *
+     * **La même clause que les départements sous direction**, et c'est le
+     * correctif de `EX-ORG-05` : la vue en construisait une seconde, plus
+     * courte, et ce bloc échappait au filtre.
+     */
     const orphelins = await this.prisma.departement.findMany({
-      where: { AND: [{ directionId: null }, filtreDept] },
+      where: { AND: [{ directionId: null }, filtreDeptComplet] },
       orderBy: { nom: "asc" },
       include: {
         responsable: { select: { id: true, prenom: true, nom: true } },
@@ -86,9 +137,36 @@ export class OrganisationService {
       },
     });
 
+    /*
+     * `EX-ORG-05` — la liste des choix du sélecteur, **jamais filtrée**.
+     *
+     * La vue peuplait son menu « Filtrer par département » depuis
+     * l'arborescence elle-même. Filtrer au serveur aurait donc vidé le menu à
+     * la première sélection : plus qu'un choix, celui déjà fait, impossible à
+     * changer sans le réinitialiser. La liste est donc rendue à part, au
+     * périmètre et rien d'autre.
+     */
+    const departements = await this.prisma.departement.findMany({
+      where: filtreDept,
+      orderBy: { nom: "asc" },
+      select: { id: true, nom: true },
+    });
+
     return {
-      directions: directions.filter((d) => d.departements.length > 0 || perimetre.global),
+      /*
+       * Une direction sans département retenu disparaît — sauf en vue globale,
+       * où une direction vide est une information et non une omission. Avec un
+       * filtre actif, cette exception tombe : montrer toutes les directions
+       * vides à côté du seul département retenu reproduirait, en plus discret,
+       * le défaut qu'on corrige.
+       */
+      directions: directions.filter(
+        (d) =>
+          d.departements.length > 0 ||
+          (perimetre.global && !filtres.departementId && !filtres.recherche),
+      ),
       departementsSansDirection: orphelins,
+      departements,
     };
   }
 

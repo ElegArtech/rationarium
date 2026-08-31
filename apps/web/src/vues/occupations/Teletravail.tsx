@@ -442,12 +442,24 @@ function FenetreRegles({
   const annoncer = useMessages();
   const client = useQueryClient();
 
+  const peut = usePeut();
   const [jourSemaine, setJourSemaine] = useState(2);
   const [dateDebut, setDateDebut] = useState("");
   const [dateFin, setDateFin] = useState("");
   const [genDebut, setGenDebut] = useState("");
   const [genFin, setGenFin] = useState("");
   const [erreur, setErreur] = useState<string | null>(null);
+  /*
+   * `EX-TLT-04` — la règle en cours de modification, ou aucune.
+   *
+   * Le formulaire du bas sert les deux gestes : vide, il ajoute ; chargé d'une
+   * règle, il la modifie. Un second formulaire aux mêmes trois champs
+   * finirait par diverger du premier, et la maquette n'en montre qu'un.
+   */
+  const [enEdition, setEnEdition] = useState<api.RegleTeletravail | null>(null);
+  const [aSupprimer, setASupprimer] = useState<api.RegleTeletravail | null>(null);
+
+  const gereLesRegles = peut("telework:manage_rules");
 
   const regles = useQuery({
     queryKey: ["teletravail", "regles"],
@@ -455,17 +467,61 @@ function FenetreRegles({
     enabled: ouverte,
   });
 
+  const reinitialiser = () => {
+    setEnEdition(null);
+    setDateDebut("");
+    setDateFin("");
+    setJourSemaine(2);
+  };
+
   const creation = useMutation({
     mutationFn: () =>
-      api.creerRegleTeletravail({
-        jourSemaine,
-        dateDebut,
-        ...(dateFin ? { dateFin } : {}),
-      }),
+      enEdition
+        ? api.modifierRegleTeletravail(enEdition.id, {
+            version: enEdition.version,
+            jourSemaine,
+            dateDebut,
+            // `null` efface la borne, l'absence la laisse : le formulaire vidé
+            // doit pouvoir rouvrir une règle bornée.
+            dateFin: dateFin ? dateFin : null,
+          })
+        : api.creerRegleTeletravail({
+            jourSemaine,
+            dateDebut,
+            ...(dateFin ? { dateFin } : {}),
+          }),
     onSuccess: () => {
-      annoncer("ok", t("teletravail.regleCreee"));
-      setDateDebut("");
-      setDateFin("");
+      annoncer("ok", enEdition ? t("teletravail.regleModifiee") : t("teletravail.regleCreee"));
+      reinitialiser();
+      void client.invalidateQueries({ queryKey: ["teletravail"] });
+    },
+    onError: (e) => setErreur(messageErreur(e, tErreurs, t("teletravail.echecRegle"))),
+  });
+
+  /**
+   * `EX-TLT-04` — la facette « actif ».
+   *
+   * Elle n'était écrite nulle part : `TeleworkRule.active` avait un défaut à
+   * `true` et aucun chemin ne le changeait. Désactiver est le geste
+   * réversible — la règle reste visible et explique pourquoi les jours qu'elle
+   * produisait ont cessé d'apparaître.
+   */
+  const bascule = useMutation({
+    mutationFn: (r: api.RegleTeletravail) =>
+      api.modifierRegleTeletravail(r.id, { version: r.version, active: !r.active }),
+    onSuccess: (r) => {
+      annoncer("ok", r.active ? t("teletravail.regleActivee") : t("teletravail.regleDesactivee"));
+      void client.invalidateQueries({ queryKey: ["teletravail"] });
+    },
+    onError: (e) => setErreur(messageErreur(e, tErreurs, t("teletravail.echecRegle"))),
+  });
+
+  const suppression = useMutation({
+    mutationFn: (id: string) => api.supprimerRegleTeletravail(id),
+    onSuccess: () => {
+      annoncer("ok", t("teletravail.regleSupprimee"));
+      setASupprimer(null);
+      reinitialiser();
       void client.invalidateQueries({ queryKey: ["teletravail"] });
     },
     onError: (e) => setErreur(messageErreur(e, tErreurs, t("teletravail.echecRegle"))),
@@ -539,6 +595,15 @@ function FenetreRegles({
         </div>
       ) : null}
 
+      {/*
+        `EX-TLT-04` — les trois actions qui manquaient. La maquette réservait
+        déjà deux colonnes d'actions à droite de chaque règle et n'en posait
+        aucune : elles étaient vides parce que le serveur ne savait ni modifier,
+        ni désactiver, ni supprimer une règle.
+
+        `RG-GEN-06` — sans `telework:manage_rules`, les commandes ne s'affichent
+        pas : le client reflète le serveur, il ne le double pas d'un contrôle.
+      */}
       {(regles.data ?? []).map((r) => (
         <div className={`rule${r.active ? "" : " is-off"}`} key={r.id}>
           <span className="bloc-etroit">
@@ -547,13 +612,57 @@ function FenetreRegles({
               {r.active ? t("teletravail.regleActive") : t("teletravail.regleInactive")}
             </span>
           </span>
-          <span />
-          <span />
+          {gereLesRegles ? (
+            <Button
+              className="chip-btn"
+              onPress={() => {
+                setEnEdition(r);
+                setJourSemaine(r.jourSemaine);
+                setDateDebut(r.dateDebut.slice(0, 10));
+                setDateFin(r.dateFin ? r.dateFin.slice(0, 10) : "");
+                setErreur(null);
+              }}
+              aria-label={t("teletravail.modifierLaRegle", { regle: enLangageNaturel(r) })}
+            >
+              {t("teletravail.modifierRegle")}
+            </Button>
+          ) : (
+            <span />
+          )}
+          {gereLesRegles ? (
+            <Button
+              className="chip-btn"
+              isPending={bascule.isPending}
+              onPress={() => bascule.mutate(r)}
+              aria-label={
+                r.active
+                  ? t("teletravail.desactiverLaRegle", { regle: enLangageNaturel(r) })
+                  : t("teletravail.activerLaRegle", { regle: enLangageNaturel(r) })
+              }
+            >
+              {r.active ? t("teletravail.desactiverRegle") : t("teletravail.activerRegle")}
+            </Button>
+          ) : (
+            <span />
+          )}
+          {gereLesRegles ? (
+            <Button
+              className="chip-btn"
+              onPress={() => setASupprimer(r)}
+              aria-label={t("teletravail.supprimerLaRegle", { regle: enLangageNaturel(r) })}
+            >
+              {t("supprimer")}
+            </Button>
+          ) : (
+            <span />
+          )}
         </div>
       ))}
 
       <div className="gen-box">
-        <span className="eyebrow">{t("teletravail.ajouterRegle")}</span>
+        <span className="eyebrow">
+          {enEdition ? t("teletravail.modifierRegle") : t("teletravail.ajouterRegle")}
+        </span>
         <div className="rec-grid form-grid-espace">
           <div>
             <label className="field-label" htmlFor="tt-jour">
@@ -612,16 +721,53 @@ function FenetreRegles({
         </div>
 
         <div className="ligne-actions">
+          {enEdition ? (
+            <Button className="btn btn-secondary" onPress={reinitialiser}>
+              {t("annuler")}
+            </Button>
+          ) : null}
           <Button
             className="btn btn-primary ligne-actions-fin"
             isDisabled={!dateDebut}
             isPending={creation.isPending}
             onPress={() => creation.mutate()}
           >
-            {t("teletravail.ajouterRegle")}
+            {enEdition ? t("enregistrer") : t("teletravail.ajouterRegle")}
           </Button>
         </div>
       </div>
+
+      {/*
+        La suppression se confirme, et la confirmation dit ce qu'elle ne fait
+        PAS : les jours déjà posés au calendrier restent. Le découvrir après
+        coup — ou pire, croire qu'ils ont disparu — est le genre
+        d'apprentissage qu'on ne fait qu'une fois, et mal.
+      */}
+      {aSupprimer ? (
+        <Fenetre
+          ouverte
+          surFermeture={() => setASupprimer(null)}
+          categorie={t("teletravail.recurrence")}
+          titre={t("teletravail.supprimerRegle")}
+          actions={
+            <>
+              <Button className="btn btn-secondary" onPress={() => setASupprimer(null)}>
+                {t("annuler")}
+              </Button>
+              <Button
+                className="btn btn-danger"
+                isPending={suppression.isPending}
+                onPress={() => suppression.mutate(aSupprimer.id)}
+              >
+                {t("supprimer")}
+              </Button>
+            </>
+          }
+        >
+          <p>{t("teletravail.confirmerSuppressionRegle", { regle: enLangageNaturel(aSupprimer) })}</p>
+          <p className="field-hint">{t("teletravail.suppressionRegleGarde")}</p>
+        </Fenetre>
+      ) : null}
 
       <div className="gen-box">
         <span className="eyebrow">{t("teletravail.genererPlannings")}</span>

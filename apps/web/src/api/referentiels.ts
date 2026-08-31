@@ -52,11 +52,32 @@ export type Matrice = {
   synthese: { competences: number; avecEcart: number; couvertureMoyenne: number };
 };
 
-export const referentiel = (filtres: { categorie?: string; recherche?: string }) =>
-  appeler<Competence[]>(`/competences${params(filtres)}`);
+/**
+ * `EX-CMP-01`, `EX-CMP-07` — le référentiel, filtré et **trié au serveur**.
+ *
+ * Le filtre par niveau et les tris vivaient dans la vue, appliqués aux lignes
+ * déjà reçues : trier ce qu'on a sous la main n'est pas trier ce que la requête
+ * a retenu, et la différence se voit le jour où la liste se pagine.
+ *
+ * Deux tris, `nom` et `couverture` — le ratio détenteurs/requis de
+ * `RG-CMP-03`, qui manquait entièrement. Les tris de la MATRICE en sont
+ * distincts : elle range des agents, pas des compétences.
+ */
+export const referentiel = (filtres: {
+  categorie?: string;
+  recherche?: string;
+  niveau?: string;
+  tri?: "nom" | "couverture";
+}) => appeler<Competence[]>(`/competences${params(filtres)}`);
 
-export const matrice = (filtres: { categorie?: string }) =>
-  appeler<Matrice>(`/competences/matrice${params(filtres)}`);
+/** `EX-CMP-04`, `EX-CMP-07` — la matrice, filtrée et triée au serveur. */
+export const matrice = (filtres: {
+  categorie?: string;
+  recherche?: string;
+  niveau?: string;
+  tri?: "nom" | "nombre" | "competence";
+  competenceId?: string;
+}) => appeler<Matrice>(`/competences/matrice${params(filtres)}`);
 
 export const creerCompetence = (donnees: {
   nom: string;

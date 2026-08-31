@@ -380,6 +380,9 @@ export type RegleTeletravail = {
   dateDebut: string;
   dateFin: string | null;
   active: boolean;
+  /** `RG-GEN-07` — la version lue, que la modification devra renvoyer. Sans
+   *  elle, aucune requête de modification n'est composable depuis la lecture. */
+  version: number;
 };
 
 export const planningTeletravail = (debut: string, fin: string, userId?: string) =>
@@ -414,6 +417,37 @@ export const creerRegleTeletravail = (donnees: {
   dateFin?: string | null;
 }) => appeler<{ id: string }>("/teletravail/regles", { methode: "POST", corps: donnees });
 
+/**
+ * `EX-TLT-04` — **modifier une règle, l'activer ou la désactiver.**
+ *
+ * L'exigence énumère quatre facettes — « jour de la semaine, date de début,
+ * date de fin facultative, actif » — et la quatrième ne s'écrivait nulle part :
+ * ni service, ni route, ni appel. Une règle posée était définitive.
+ *
+ * `version` accompagne toute modification (`RG-GEN-07`) : c'est celle qu'a
+ * rendue `reglesTeletravail`. `dateFin: null` efface la borne, son absence la
+ * laisse — une règle bornée doit pouvoir se rouvrir.
+ */
+export const modifierRegleTeletravail = (
+  id: string,
+  donnees: {
+    version: number;
+    jourSemaine?: number;
+    dateDebut?: string;
+    dateFin?: string | null;
+    active?: boolean;
+  },
+) =>
+  appeler<RegleTeletravail>(`/teletravail/regles/${id}`, {
+    methode: "PATCH",
+    corps: donnees,
+  });
+
+/** `EX-TLT-04` — supprimer une règle. Les jours déjà générés restent : ce sont
+ *  des déclarations posées, pas une projection de la règle. */
+export const supprimerRegleTeletravail = (id: string) =>
+  appeler<void>(`/teletravail/regles/${id}`, { methode: "DELETE" });
+
 export const genererTeletravail = (debut: string, fin: string) =>
   appeler<{ crees: number; ignores: number }>("/teletravail/generer", {
     methode: "POST",
@@ -425,7 +459,10 @@ export const genererTeletravail = (debut: string, fin: string) =>
 export type SaisieTemps = {
   id: string;
   date: string;
-  heures: string;
+  /** Un NOMBRE, comme partout ailleurs dans le module : le service convertit
+   *  le `Decimal` de Prisma avant de rendre, sinon `GET /temps` rendrait une
+   *  chaîne là où `GET /temps/rapport` rend un nombre. */
+  heures: number;
   typeActivite: string;
   description: string | null;
   creeLe: string;
@@ -467,13 +504,22 @@ export const saisirTemps = (donnees: {
 export const supprimerTemps = (id: string) =>
   appeler<void>(`/temps/${id}`, { methode: "DELETE" });
 
-/** Une ligne d'agrégat du rapport : une clé, son libellé, ses heures, ses entrées. */
-export type LigneRapportTemps = {
-  cle: string | null;
-  libelle: string;
-  heures: number;
-  entrees: number;
-};
+/**
+ * Une ligne d'agrégat du rapport.
+ *
+ * **Deux formes, parce qu'il y a deux natures.** Sur les axes « agent » et
+ * « projet », la ligne porte un vrai libellé — un nom de personne, un nom de
+ * projet — que le serveur seul connaît. Sur l'axe « type », il n'y a pas de
+ * libellé à rendre : il y a un CODE d'énumération que le client traduit par
+ * `TYPES_ACTIVITE`, comme `RG-GEN-08` l'impose.
+ *
+ * Le serveur rendait ce code dans un champ nommé `libelle`. Le nom mentait, et
+ * rien ne pouvait le dire : le client lisait `cle` et ignorait `libelle` sur
+ * cet axe. Il porte désormais son nom.
+ */
+export type LigneRapportTemps =
+  | { cle: string | null; libelle: string; heures: number; entrees: number }
+  | { cle: string; codeActivite: string; heures: number; entrees: number };
 
 /**
  * `EX-TMP-07` — le rapport agrégé, par agent, par projet ou par type d'activité.

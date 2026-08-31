@@ -414,6 +414,16 @@ function RapportEquipe({ debut, fin }: { debut: string; fin: string }) {
   );
   const total = lignes.reduce((n, l) => n + l.heures, 0);
 
+  /*
+   * Le serveur rend un CODE d'activité sur l'axe « type » et un vrai libellé
+   * sur les deux autres — et il les nomme désormais différemment, parce que ce
+   * ne sont pas la même chose. Le code se traduit ici : `RG-GEN-08` veut
+   * qu'aucune chaîne visible ne vienne du serveur.
+   */
+  const nomDe = (l: api.LigneRapportTemps) =>
+    "codeActivite" in l ? libelle(l.codeActivite, TYPES_ACTIVITE) : l.libelle;
+  const cleDe = (l: api.LigneRapportTemps) => l.cle ?? ("libelle" in l ? l.libelle : "");
+
   return (
     <section className="panel">
       <div className="panel-head">
@@ -450,7 +460,7 @@ function RapportEquipe({ debut, fin }: { debut: string; fin: string }) {
           <div className="split-bar">
             {lignes.map((l) => (
               <i
-                key={l.cle ?? l.libelle}
+                key={cleDe(l)}
                 style={{
                   width: `${(l.heures / (total || 1)) * 100}%`,
                   background: axe === "type" ? jetonDe(l.cle ?? "") : "var(--st-doing)",
@@ -460,16 +470,13 @@ function RapportEquipe({ debut, fin }: { debut: string; fin: string }) {
           </div>
           <div className="split-legend">
             {lignes.map((l) => (
-              <span className="sl" key={l.cle ?? l.libelle}>
+              <span className="sl" key={cleDe(l)}>
                 <span
                   className="sl-sw"
                   style={{ background: axe === "type" ? jetonDe(l.cle ?? "") : "var(--st-doing)" }}
                   aria-hidden="true"
                 />
-                {/* Le serveur rend le CODE d'activité en libellé — « meeting »,
-                    pas « Réunion ». Le traduire ici est la même règle que
-                    partout ailleurs : aucune chaîne visible ne vient du serveur. */}
-                <span>{axe === "type" ? libelle(l.cle ?? "", TYPES_ACTIVITE) : l.libelle}</span>
+                <span>{nomDe(l)}</span>
                 <span className="sl-n">
                   {t("temps.rapportLigne", { heures: l.heures, entrees: l.entrees })}
                 </span>

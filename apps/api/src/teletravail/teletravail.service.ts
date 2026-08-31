@@ -19,6 +19,7 @@ export type EchecTeletravail =
   | "autrui_sans_permission"
   | "plage_trop_longue"
   | "regle_en_double"
+  | "conflit_de_version"
   | "hors_perimetre"
   | "introuvable";
 
@@ -182,7 +183,11 @@ export class TeletravailService {
   async creerRegle(
     donnees: { userId: string; jourSemaine: number; dateDebut: Date; dateFin?: Date | null },
     acteurId: string,
+    permissions: ReadonlySet<string> = new Set(),
   ) {
+    // Poser une règle sur le calendrier d'autrui est une écriture comme une
+    // autre : `RG-TLT-07` la gouverne, et elle ne l'était pas ici.
+    this.refuserAutrui(donnees.userId, acteurId, permissions, "telework:manage_any");
     const existe = await this.prisma.teleworkRule.findUnique({
       where: {
         userId_jourSemaine_dateDebut: {
@@ -206,6 +211,126 @@ export class TeletravailService {
       action: "telework.rule_create", typeEntite: "TeleworkRule", entiteId: regle.id, acteurId,
     });
     return regle;
+  }
+
+  /**
+   * `EX-TLT-04` — **modifier une règle, l'activer, la désactiver.**
+   *
+   * L'exigence énumère quatre facettes : « jour de la semaine, date de début,
+   * date de fin facultative, **actif** ». Les trois premières se posaient à la
+   * création ; la quatrième ne s'écrivait nulle part. `TeleworkRule.active`
+   * avait un défaut à `true` et **aucun chemin ne le changeait** — ni service,
+   * ni route —, il n'existait pas davantage de modification ni de suppression.
+   * Une règle posée était définitive.
+   *
+   * Deux traces du trou dans le code qui l'entourait : le commentaire de
+   * `regles()` décrivait un état inactif que le produit ne savait pas
+   * produire, et le `active: true` de `generer()` filtrait sur une colonne
+   * qui ne valait jamais autre chose. Cinquième occurrence de la famille
+   * `EX-ORG-02` / `EX-CLI-02` / `EX-PRJ-05` / `EX-JAL-01` : le verbe du milieu
+   * manque.
+   *
+   * `RG-GEN-07` — la version lue est transmise ; un écart est un conflit, pas
+   * un écrasement.
+   *
+   * `RG-TLT-03` — déplacer le jour ou la date de début peut fabriquer un
+   * doublon. Le contrôle est donc rejoué ici, et il est doublé par l'index
+   * unique `@@unique([userId, jourSemaine, dateDebut])` : deux modifications
+   * concurrentes vers le même couple se croiseraient sinon entre le `findUnique`
+   * et l'`update`.
+   */
+  async modifierRegle(
+    id: string,
+    donnees: {
+      version: number;
+      jourSemaine?: number;
+      dateDebut?: Date;
+      dateFin?: Date | null;
+      active?: boolean;
+    },
+    acteurId: string,
+    permissions: ReadonlySet<string> = new Set(),
+  ) {
+    const avant = await this.prisma.teleworkRule.findUnique({ where: { id } });
+    if (!avant) throw new ErreurTeletravail("introuvable");
+    this.refuserAutrui(avant.userId, acteurId, permissions, "telework:manage_any");
+
+    const jourSemaine = donnees.jourSemaine ?? avant.jourSemaine;
+    const dateDebut = donnees.dateDebut ?? avant.dateDebut;
+    if (jourSemaine !== avant.jourSemaine || dateDebut.getTime() !== avant.dateDebut.getTime()) {
+      const collision = await this.prisma.teleworkRule.findUnique({
+        where: {
+          userId_jourSemaine_dateDebut: { userId: avant.userId, jourSemaine, dateDebut },
+        },
+        select: { id: true },
+      });
+      if (collision && collision.id !== id) throw new ErreurTeletravail("regle_en_double");
+    }
+
+    /*
+     * `RG-GEN-07` — la version fait partie de la clause `where`. Une écriture
+     * concurrente a incrémenté `version` : la mise à jour ne trouve alors
+     * aucune ligne, et le conflit se dit au lieu de s'écraser.
+     */
+    const touchees = await this.prisma.teleworkRule.updateMany({
+      where: { id, version: donnees.version },
+      data: {
+        jourSemaine,
+        dateDebut,
+        // `dateFin` est facultative ET effaçable : `undefined` laisse en
+        // place, `null` retire la borne. Les confondre rendrait une règle
+        // bornée impossible à rouvrir.
+        ...(donnees.dateFin === undefined ? {} : { dateFin: donnees.dateFin }),
+        ...(donnees.active === undefined ? {} : { active: donnees.active }),
+        version: { increment: 1 },
+      },
+    });
+    if (touchees.count === 0) {
+      throw new ErreurTeletravail("conflit_de_version", {
+        attendue: donnees.version,
+        courante: avant.version,
+      });
+    }
+
+    const apres = await this.prisma.teleworkRule.findUniqueOrThrow({ where: { id } });
+    await this.audit.tracer({
+      action: "telework.rule_update", typeEntite: "TeleworkRule", entiteId: id, acteurId,
+      detail: {
+        userId: avant.userId,
+        // L'activation est tracée nommément : c'est elle qui explique pourquoi
+        // des jours ont cessé d'apparaître au calendrier.
+        active: apres.active,
+        jourSemaine: apres.jourSemaine,
+        dateDebut: jour(apres.dateDebut),
+        dateFin: apres.dateFin ? jour(apres.dateFin) : null,
+      },
+    });
+    return apres;
+  }
+
+  /**
+   * `EX-TLT-04` — supprimer une règle.
+   *
+   * **Elle ne retire pas les jours déjà générés.** Ils sont des déclarations
+   * de télétravail à part entière une fois posés ; les effacer avec la règle
+   * réécrirait un passé que d'autres ont pu consulter. La désactivation
+   * (`modifierRegle`) est le geste réversible ; la suppression retire la règle
+   * de la liste, pas l'historique du calendrier.
+   */
+  async supprimerRegle(
+    id: string,
+    acteurId: string,
+    permissions: ReadonlySet<string> = new Set(),
+  ) {
+    const regle = await this.prisma.teleworkRule.findUnique({ where: { id } });
+    if (!regle) throw new ErreurTeletravail("introuvable");
+    this.refuserAutrui(regle.userId, acteurId, permissions, "telework:manage_any");
+
+    await this.prisma.teleworkRule.delete({ where: { id } });
+    await this.audit.tracer({
+      action: "telework.rule_delete", typeEntite: "TeleworkRule", entiteId: id, acteurId,
+      detail: { userId: regle.userId, jourSemaine: regle.jourSemaine },
+    });
   }
 
   /**

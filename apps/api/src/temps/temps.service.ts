@@ -230,7 +230,17 @@ export class TempsService {
     ]);
 
     return {
-      saisies,
+      /*
+       * **`heures` est un nombre, ici comme ailleurs.**
+       *
+       * `Decimal` de Prisma se sérialise en CHAÎNE : `GET /temps` rendait
+       * `"2.5"` quand `GET /temps/rapport`, qui agrège et convertit,
+       * rendait `2.5`. Deux formes pour le même champ dans le même module —
+       * le client devait convertir dans un cas et pas dans l'autre, et rien
+       * ne disait lequel. La conversion se fait une fois, au bord du service,
+       * pour que la question ne se pose plus.
+       */
+      saisies: saisies.map((s) => ({ ...s, heures: Number(s.heures) })),
       cumul: {
         entrees: saisies.length,
         heures: saisies.reduce((n, s) => n + Number(s.heures), 0),
@@ -322,9 +332,23 @@ export class TempsService {
       _sum: { heures: true },
       _count: true,
     });
+    /*
+     * `codeActivite` et non `libelle`.
+     *
+     * Le champ s'appelait `libelle` et portait `l.typeActivite` — un CODE
+     * d'énumération (« meeting »), pas un libellé. Même famille que le
+     * `annee: jours.length` du télétravail : un nom de champ qui ment sur son
+     * contenu, que rien ne contredit puisque le client, lui, le traduisait
+     * déjà par `TYPES_ACTIVITE` — donc lisait `cle` et ignorait `libelle`.
+     *
+     * Sur les deux autres axes, `libelle` est un vrai libellé (le nom d'un
+     * projet, le nom d'un agent) et le reste. Sur celui-ci il n'y a pas de
+     * libellé à rendre : `RG-GEN-08` interdit que le serveur produise du texte
+     * visible. Il y a un code, et il se nomme comme tel.
+     */
     return lignes.map((l) => ({
       cle: l.typeActivite,
-      libelle: l.typeActivite,
+      codeActivite: l.typeActivite,
       heures: Number(l._sum.heures ?? 0),
       entrees: l._count,
     }));
@@ -349,7 +373,21 @@ export class TempsService {
     });
   }
 
-  /** `EX-TMP-06` — les tâches terminées sans temps déclaré ni validation. */
+  /**
+   * `EX-TMP-06` — les tâches terminées sans temps déclaré ni validation.
+   *
+   * **Le manque se compte par personne, pas par tâche.** Le filtre s'écrivait
+   * `saisiesTemps: { none: {} }` : aucune saisie *de qui que ce soit*. Sur une
+   * tâche partagée, il suffisait donc qu'un autre contributeur déclare une
+   * heure pour que la tâche sorte de MA liste alors que je n'avais rien
+   * déclaré — et le tableau de bord (`EX-DSH-06`), qui appelle la même
+   * méthode, taisait le même oubli.
+   *
+   * `RG-TMP-07` distingue explicitement les deux lectures : le contexte de
+   * saisie rapide compte « tous contributeurs confondus », ce qui n'a de sens
+   * que si le reste du module compte, lui, par personne. Le « none » se borne
+   * donc à `userId`.
+   */
   async tachesNonDeclarees(userId: string) {
     const validees = await this.prisma.taskTimeWaiver.findMany({
       where: { userId },
@@ -359,7 +397,7 @@ export class TempsService {
       where: {
         statut: "done",
         assignes: { some: { userId } },
-        saisiesTemps: { none: {} },
+        saisiesTemps: { none: { userId } },
         id: { notIn: validees.map((v) => v.taskId) },
       },
       orderBy: { dateFin: "desc" },

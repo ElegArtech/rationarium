@@ -374,3 +374,344 @@ describe("EX-TLT-07 — le télétravail de l'équipe à une date", () => {
     expect(equipe.map((a) => a.id)).not.toContain(parti);
   });
 });
+
+/**
+ * `EX-TLT-04` — « Configurer des jours fixes récurrents : jour de la semaine,
+ * date de début, date de fin facultative, **actif**. »
+ *
+ * Les trois premières facettes se posaient par `creerRegle`. La quatrième ne se
+ * posait par RIEN : `TeleworkRule.active` avait un défaut à `true` et aucun
+ * chemin ne l'écrivait — pas plus qu'il n'existait de modification ou de
+ * suppression. Une règle posée était définitive, et le `active: true` que
+ * `generer()` mettait en filtre n'écartait jamais rien.
+ *
+ * Les tests qui suivent couvrent la facette manquante ET les deux verbes
+ * absents, cas de refus compris.
+ */
+describe("EX-TLT-04 — une règle se modifie, se désactive et se supprime", () => {
+  it("EX-TLT-04 — DÉSACTIVER une règle la retire de la génération, sans l'effacer", async () => {
+    /*
+     * Le cœur de la facette « actif ». Un test qui se contenterait de relire
+     * `active === false` ne prouverait que la persistance ; ce qui compte est
+     * l'EFFET — que la règle cesse de produire des jours. Piège consigné :
+     * « un réglage qui s'enregistre n'est pas un réglage qui s'applique ».
+     */
+    const moi = await agent();
+    const regle = await teletravail.creerRegle(
+      { userId: moi, jourSemaine: 4, dateDebut: utc("2028-03-01") },
+      moi,
+      AGENT,
+    );
+
+    // Active : les jeudis de mars 2028 sont les 2, 9, 16, 23 et 30.
+    const avant = await teletravail.generer(moi, utc("2028-03-01"), utc("2028-03-31"), moi, AGENT);
+    expect(avant.crees).toBe(5);
+
+    await teletravail.modifierRegle(
+      regle.id,
+      { version: regle.version, active: false },
+      moi,
+      AGENT,
+    );
+
+    // Désactivée : avril ne produit plus rien, alors que la règle court encore.
+    const apres = await teletravail.generer(moi, utc("2028-04-01"), utc("2028-04-30"), moi, AGENT);
+    expect(apres).toEqual({ crees: 0, ignores: 0 });
+
+    // Et elle reste VISIBLE : c'est elle qui explique pourquoi les jours ont
+    // cessé d'apparaître. La faire disparaître laisserait un calendrier changé
+    // sans raison lisible.
+    const liste = await teletravail.regles(moi);
+    expect(liste.find((r) => r.id === regle.id)?.active).toBe(false);
+  });
+
+  it("EX-TLT-04 — RÉACTIVER une règle la remet en production de jours", async () => {
+    /*
+     * Le versant nominal du précédent : sans lui, une implémentation qui
+     * écrirait `active: false` en dur passerait le premier test.
+     */
+    const moi = await agent();
+    const regle = await teletravail.creerRegle(
+      { userId: moi, jourSemaine: 4, dateDebut: utc("2028-05-01") },
+      moi,
+      AGENT,
+    );
+    const eteinte = await teletravail.modifierRegle(
+      regle.id,
+      { version: regle.version, active: false },
+      moi,
+      AGENT,
+    );
+    expect(
+      await teletravail.generer(moi, utc("2028-05-01"), utc("2028-05-31"), moi, AGENT),
+    ).toEqual({ crees: 0, ignores: 0 });
+
+    await teletravail.modifierRegle(
+      regle.id,
+      { version: eteinte.version, active: true },
+      moi,
+      AGENT,
+    );
+    // Les jeudis de mai 2028 : 4, 11, 18, 25.
+    expect(
+      (await teletravail.generer(moi, utc("2028-05-01"), utc("2028-05-31"), moi, AGENT)).crees,
+    ).toBe(4);
+  });
+
+  it("EX-TLT-04 — MODIFIER le jour de la semaine change les jours produits", async () => {
+    const moi = await agent();
+    const regle = await teletravail.creerRegle(
+      { userId: moi, jourSemaine: 1, dateDebut: utc("2028-06-01") },
+      moi,
+      AGENT,
+    );
+    await teletravail.modifierRegle(
+      regle.id,
+      { version: regle.version, jourSemaine: 3 },
+      moi,
+      AGENT,
+    );
+
+    await teletravail.generer(moi, utc("2028-06-01"), utc("2028-06-30"), moi, AGENT);
+    const poses = await prisma.telework.findMany({
+      where: { userId: moi },
+      orderBy: { date: "asc" },
+    });
+    // Les MERCREDIS de juin 2028 — 7, 14, 21, 28 —, pas les lundis.
+    expect(poses.map((j) => j.date.toISOString().slice(0, 10))).toEqual([
+      "2028-06-07",
+      "2028-06-14",
+      "2028-06-21",
+      "2028-06-28",
+    ]);
+  });
+
+  it("EX-TLT-04 — la date de fin s'EFFACE par `null`, et l'absence du champ la laisse", async () => {
+    /*
+     * « Date de fin FACULTATIVE » : une règle bornée doit pouvoir se rouvrir.
+     * `undefined` et `null` disent deux choses différentes ; les confondre
+     * rendrait la borne définitive — le même trou, un cran plus bas.
+     */
+    const moi = await agent();
+    const regle = await teletravail.creerRegle(
+      { userId: moi, jourSemaine: 2, dateDebut: utc("2028-07-04"), dateFin: utc("2028-07-18") },
+      moi,
+      AGENT,
+    );
+    expect(regle.dateFin).not.toBeNull();
+
+    // Le champ absent : la borne reste.
+    const inchangee = await teletravail.modifierRegle(
+      regle.id,
+      { version: regle.version, jourSemaine: 2 },
+      moi,
+      AGENT,
+    );
+    expect(inchangee.dateFin).not.toBeNull();
+
+    // `null` : la borne saute.
+    const ouverte = await teletravail.modifierRegle(
+      regle.id,
+      { version: inchangee.version, dateFin: null },
+      moi,
+      AGENT,
+    );
+    expect(ouverte.dateFin).toBeNull();
+  });
+
+  it("EX-TLT-04 — SUPPRIMER une règle la retire, sans effacer les jours déjà posés", async () => {
+    /*
+     * Les jours générés sont des déclarations à part entière une fois posées.
+     * Les emporter avec la règle réécrirait un passé que d'autres ont pu
+     * consulter — la désactivation est le geste réversible, pas la suppression.
+     */
+    const moi = await agent();
+    const regle = await teletravail.creerRegle(
+      { userId: moi, jourSemaine: 5, dateDebut: utc("2028-08-01") },
+      moi,
+      AGENT,
+    );
+    await teletravail.generer(moi, utc("2028-08-01"), utc("2028-08-31"), moi, AGENT);
+    const posesAvant = await prisma.telework.count({ where: { userId: moi } });
+    expect(posesAvant).toBeGreaterThan(0);
+
+    await teletravail.supprimerRegle(regle.id, moi, AGENT);
+
+    expect((await teletravail.regles(moi)).map((r) => r.id)).not.toContain(regle.id);
+    expect(await prisma.telework.count({ where: { userId: moi } })).toBe(posesAvant);
+  });
+
+  it("EX-TLT-04, RG-GEN-07 — REFUSE une modification portant une version périmée", async () => {
+    const moi = await agent();
+    const regle = await teletravail.creerRegle(
+      { userId: moi, jourSemaine: 1, dateDebut: utc("2028-09-04") },
+      moi,
+      AGENT,
+    );
+    // Une première écriture passe et incrémente la version.
+    await teletravail.modifierRegle(regle.id, { version: regle.version, active: false }, moi, AGENT);
+
+    // La seconde rejoue la version d'origine : c'est le cas de concurrence.
+    await expect(
+      teletravail.modifierRegle(regle.id, { version: regle.version, active: true }, moi, AGENT),
+    ).rejects.toMatchObject({ code: "conflit_de_version" });
+
+    // Et rien n'a bougé : un conflit détecté puis appliqué serait pire que rien.
+    const relue = await prisma.teleworkRule.findUniqueOrThrow({ where: { id: regle.id } });
+    expect(relue.active).toBe(false);
+  });
+
+  it("EX-TLT-04, RG-TLT-03 — REFUSE une modification qui fabriquerait un doublon", async () => {
+    const moi = await agent();
+    await teletravail.creerRegle(
+      { userId: moi, jourSemaine: 1, dateDebut: utc("2028-10-02") },
+      moi,
+      AGENT,
+    );
+    const seconde = await teletravail.creerRegle(
+      { userId: moi, jourSemaine: 2, dateDebut: utc("2028-10-02") },
+      moi,
+      AGENT,
+    );
+
+    // Déplacer la seconde sur le lundi la ferait entrer en collision.
+    await expect(
+      teletravail.modifierRegle(
+        seconde.id,
+        { version: seconde.version, jourSemaine: 1 },
+        moi,
+        AGENT,
+      ),
+    ).rejects.toMatchObject({ code: "regle_en_double" });
+  });
+
+  it("EX-TLT-04, RG-TLT-03 — l'unicité est DOUBLÉE EN BASE, pas seulement contrôlée", async () => {
+    /*
+     * `C15` : un contrôle applicatif seul est contournable par concurrence —
+     * deux modifications visant le même couple se croisent entre le
+     * `findUnique` et l'`update`. On force l'écriture sous le service pour
+     * vérifier que la base refuse quand même.
+     */
+    const moi = await agent();
+    await teletravail.creerRegle(
+      { userId: moi, jourSemaine: 3, dateDebut: utc("2028-11-01") },
+      moi,
+      AGENT,
+    );
+    const seconde = await teletravail.creerRegle(
+      { userId: moi, jourSemaine: 4, dateDebut: utc("2028-11-01") },
+      moi,
+      AGENT,
+    );
+
+    await expect(
+      prisma.teleworkRule.update({ where: { id: seconde.id }, data: { jourSemaine: 3 } }),
+    ).rejects.toMatchObject({ code: "P2002" });
+  });
+
+  it("RG-TLT-07 — REFUSE de modifier la règle d'un autre sans telework:manage_any", async () => {
+    const proprietaire = await agent();
+    const intrus = await agent();
+    const regle = await teletravail.creerRegle(
+      { userId: proprietaire, jourSemaine: 1, dateDebut: utc("2029-01-01") },
+      proprietaire,
+      AGENT,
+    );
+
+    await expect(
+      teletravail.modifierRegle(
+        regle.id,
+        { version: regle.version, active: false },
+        intrus,
+        // L'intrus a bien `telework:manage_rules` : la garde de route le
+        // laisse passer. C'est le périmètre qui l'arrête, et il n'existait pas.
+        new Set([...AGENT, "telework:manage_rules"]),
+      ),
+    ).rejects.toMatchObject({
+      code: "autrui_sans_permission",
+      detail: { permission: "telework:manage_any" },
+    });
+
+    const intacte = await prisma.teleworkRule.findUniqueOrThrow({ where: { id: regle.id } });
+    expect(intacte.active).toBe(true);
+  });
+
+  it("RG-TLT-07 — REFUSE de SUPPRIMER la règle d'un autre, et un encadrant le peut", async () => {
+    const membre = await agent();
+    const intrus = await agent();
+    const chef = await agent();
+    const regle = await teletravail.creerRegle(
+      { userId: membre, jourSemaine: 2, dateDebut: utc("2029-02-01") },
+      membre,
+      AGENT,
+    );
+
+    await expect(
+      teletravail.supprimerRegle(regle.id, intrus, new Set([...AGENT, "telework:manage_rules"])),
+    ).rejects.toMatchObject({ code: "autrui_sans_permission" });
+    expect(await prisma.teleworkRule.count({ where: { id: regle.id } })).toBe(1);
+
+    // Le versant nominal : l'encadrement, lui, agit sur son équipe.
+    await teletravail.supprimerRegle(regle.id, chef, ENCADRANT);
+    expect(await prisma.teleworkRule.count({ where: { id: regle.id } })).toBe(0);
+  });
+
+  it("RG-TLT-07 — REFUSE de POSER une règle sur le calendrier d'un autre", async () => {
+    /*
+     * Le trou voisin, trouvé en portant les deux verbes manquants : `creerRegle`
+     * ne comparait pas non plus `userId` à l'acteur. Tout porteur de
+     * `telework:manage_rules` pouvait poser des jours fixes sur le calendrier
+     * de n'importe qui.
+     */
+    const moi = await agent();
+    const autre = await agent();
+    await expect(
+      teletravail.creerRegle(
+        { userId: autre, jourSemaine: 1, dateDebut: utc("2029-03-05") },
+        moi,
+        new Set([...AGENT, "telework:manage_rules"]),
+      ),
+    ).rejects.toMatchObject({ code: "autrui_sans_permission" });
+    expect(await prisma.teleworkRule.count({ where: { userId: autre } })).toBe(0);
+  });
+
+  it("EX-TLT-04 — la lecture rend de quoi composer l'écriture : `version` est là", async () => {
+    /*
+     * Le raccord entre les deux moitiés. `regles()` doit rendre le `version`
+     * que `modifierRegle` exige, sinon aucune requête n'est composable et le
+     * diagnostic tiré serait « la route n'existe pas » — piège déjà payé sur
+     * `PATCH /auth/me`.
+     */
+    const moi = await agent();
+    await teletravail.creerRegle(
+      { userId: moi, jourSemaine: 5, dateDebut: utc("2029-04-06") },
+      moi,
+      AGENT,
+    );
+
+    const lue = (await teletravail.regles(moi))[0]!;
+    expect(typeof lue.version).toBe("number");
+    await expect(
+      teletravail.modifierRegle(lue.id, { version: lue.version, active: false }, moi, AGENT),
+    ).resolves.toMatchObject({ active: false });
+  });
+
+  it("EX-TLT-04 — la modification et la suppression sont TRACÉES au journal", async () => {
+    const moi = await agent();
+    const regle = await teletravail.creerRegle(
+      { userId: moi, jourSemaine: 1, dateDebut: utc("2029-05-07") },
+      moi,
+      AGENT,
+    );
+    await teletravail.modifierRegle(regle.id, { version: regle.version, active: false }, moi, AGENT);
+    await teletravail.supprimerRegle(regle.id, moi, AGENT);
+
+    const traces = await prisma.auditLog.findMany({
+      where: { entiteId: regle.id },
+      select: { action: true },
+    });
+    expect(traces.map((t) => t.action)).toEqual(
+      expect.arrayContaining(["telework.rule_update", "telework.rule_delete"]),
+    );
+  });
+});

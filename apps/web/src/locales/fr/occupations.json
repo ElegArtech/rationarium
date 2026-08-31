@@ -294,6 +294,20 @@
     "dateFin": "Date de fin (optionnel)",
     "regleCreee": "Règle créée.",
     "echecRegle": "La règle n'a pas pu être créée.",
+    "regleModifiee": "Règle modifiée.",
+    "regleActivee": "Règle activée.",
+    "regleDesactivee": "Règle désactivée — elle ne génère plus de jours.",
+    "regleSupprimee": "Règle supprimée.",
+    "modifierRegle": "Modifier la règle",
+    "modifierLaRegle": "Modifier la règle : {regle}",
+    "activerRegle": "Activer",
+    "activerLaRegle": "Activer la règle : {regle}",
+    "desactiverRegle": "Désactiver",
+    "desactiverLaRegle": "Désactiver la règle : {regle}",
+    "supprimerRegle": "Supprimer la règle",
+    "supprimerLaRegle": "Supprimer la règle : {regle}",
+    "confirmerSuppressionRegle": "Supprimer définitivement la règle « {regle} » ?",
+    "suppressionRegleGarde": "Les jours déjà générés au calendrier sont conservés : ce sont des déclarations posées, pas une projection de la règle. Pour arrêter une règle sans la perdre, désactivez-la.",
     "genererPlannings": "Générer les plannings",
     "generationExplication": "Applique les règles actives sur la plage choisie. Les jours déjà déclarés ne sont pas écrasés.",
     "du": "Du",
@@ -380,5 +394,7 @@
     "supprimer": "Supprimer",
     "surTache": "· {titre}",
     "supprimerLaSaisie": "Supprimer la saisie du {date}"
-  }
+  },
+  "supprimer": "Supprimer",
+  "enregistrer": "Enregistrer"
 }

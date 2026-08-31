@@ -32,6 +32,7 @@ const uuid = () => crypto.randomUUID();
 let pg: StartedPostgreSqlContainer;
 let prisma: PrismaClient;
 let temps: TempsService;
+let perimetres: PerimetreService;
 let projet: string;
 
 /** Un agent ordinaire : il déclare son temps, pas celui d'autrui. */
@@ -68,7 +69,7 @@ beforeAll(async () => {
   });
   prisma = creerClient(pg.getConnectionUri());
   const audit = new AuditService(prisma as never);
-  const perimetres = new PerimetreService(prisma as never);
+  perimetres = new PerimetreService(prisma as never);
   temps = new TempsService(prisma as never, audit, perimetres);
 
   const p = await prisma.project.create({
@@ -148,5 +149,138 @@ describe("RG-TMP-04 — déclarer pour quelqu'un d'autre", () => {
       orderBy: { horodatage: "desc" },
     });
     expect((trace?.detail as { pourAutrui?: boolean } | null)?.pourAutrui).toBe(true);
+  });
+});
+
+// ══════════════ Trois défauts voisins, trouvés au balayage de la vague ══════
+
+describe("RG-TMP-07 — le non-déclaré se compte par personne, pas par tâche", () => {
+  /*
+   * Le filtre s'écrivait `saisiesTemps: { none: {} }` — aucune saisie de qui
+   * que ce soit. Sur une tâche partagée, la déclaration d'un AUTRE contributeur
+   * suffisait donc à faire disparaître la tâche de ma liste alors que je
+   * n'avais rien déclaré. `GET /tableau` appelle la même méthode et héritait du
+   * même oubli.
+   */
+  it("RG-TMP-07 — une tâche partagée reste dans MA liste quand un AUTRE a déclaré", async () => {
+    const moi = await agent();
+    const collegue = await agent();
+    const tache = await prisma.task.create({
+      data: {
+        titre: "Partagée et terminée",
+        projectId: projet,
+        statut: "done",
+        assignes: { create: [{ userId: moi }, { userId: collegue }] },
+      },
+    });
+
+    // Le collègue déclare. Moi, rien.
+    await temps.saisir(
+      { userId: collegue, taskId: tache.id, date: utc("2026-04-06"), heures: 2 },
+      collegue,
+      AGENT,
+    );
+
+    const mienne = await temps.tachesNonDeclarees(moi);
+    expect(mienne.map((x) => x.id)).toContain(tache.id);
+  });
+
+  it("RG-TMP-07 — et elle SORT de la liste de celui qui a déclaré, lui", async () => {
+    /*
+     * Le versant nominal, sans lequel le test précédent passerait sur un filtre
+     * simplement supprimé : la borne doit encore écarter mes propres saisies.
+     */
+    const moi = await agent();
+    const collegue = await agent();
+    const tache = await prisma.task.create({
+      data: {
+        titre: "Partagée, déclarée par le collègue",
+        projectId: projet,
+        statut: "done",
+        assignes: { create: [{ userId: moi }, { userId: collegue }] },
+      },
+    });
+    await temps.saisir(
+      { userId: collegue, taskId: tache.id, date: utc("2026-04-07"), heures: 2 },
+      collegue,
+      AGENT,
+    );
+
+    const sienne = await temps.tachesNonDeclarees(collegue);
+    expect(sienne.map((x) => x.id)).not.toContain(tache.id);
+  });
+});
+
+describe("EX-TMP-07 — le rapport par type d'activité nomme ce qu'il rend", () => {
+  it("EX-TMP-07 — l'axe « type » rend un `codeActivite`, non un champ `libelle` qui porte un code", async () => {
+    const moi = await agent();
+    await temps.saisir(
+      {
+        userId: moi, projectId: projet, date: utc("2026-04-13"),
+        heures: 2, typeActivite: "meeting",
+      },
+      moi,
+      AGENT,
+    );
+    const p = await perimetres.resoudre(moi, new Set(["users:manage_any"]));
+
+    const lignes = await temps.rapport(p, "type", {
+      debut: utc("2026-04-13"),
+      fin: utc("2026-04-13"),
+    });
+    const ligne = lignes.find((l) => l.cle === "meeting");
+    expect(ligne).toBeDefined();
+    expect(ligne).toMatchObject({ codeActivite: "meeting" });
+    // Le nom qui mentait n'est plus rendu du tout : le contrat ne promet plus
+    // un libellé là où il n'y a qu'un code à traduire (`RG-GEN-08`).
+    expect(ligne).not.toHaveProperty("libelle");
+  });
+
+  it("EX-TMP-07 — l'axe « projet », lui, rend bien un LIBELLÉ, et il n'a pas changé", async () => {
+    const moi = await agent();
+    await temps.saisir(
+      { userId: moi, projectId: projet, date: utc("2026-04-14"), heures: 1 },
+      moi,
+      AGENT,
+    );
+    const p = await perimetres.resoudre(moi, new Set(["users:manage_any"]));
+
+    const lignes = await temps.rapport(p, "projet", {
+      debut: utc("2026-04-14"),
+      fin: utc("2026-04-14"),
+    });
+    expect(lignes.some((l) => "libelle" in l && l.libelle === "Refonte")).toBe(true);
+  });
+});
+
+describe("EX-TMP-01 — `heures` a UNE forme dans tout le module", () => {
+  it("EX-TMP-01 — `GET /temps` rend `heures` en NOMBRE, comme `GET /temps/rapport`", async () => {
+    /*
+     * `Decimal` de Prisma se sérialise en chaîne. `lister()` rendait donc
+     * `"2.5"` là où `rapport()` rend `2.5` : deux formes pour le même champ
+     * dans le même module, et un client obligé de convertir dans un cas et pas
+     * dans l'autre sans que rien ne dise lequel.
+     */
+    const moi = await agent();
+    await temps.saisir(
+      { userId: moi, projectId: projet, date: utc("2026-04-20"), heures: 2.5 },
+      moi,
+      AGENT,
+    );
+    const p = await perimetres.resoudre(moi, new Set());
+
+    const { saisies } = await temps.lister(p, AGENT);
+    const posee = saisies.find((s) => s.date.toISOString().startsWith("2026-04-20"));
+    expect(posee).toBeDefined();
+    expect(typeof posee!.heures).toBe("number");
+    expect(posee!.heures).toBe(2.5);
+
+    const lignes = await temps.rapport(
+      await perimetres.resoudre(moi, new Set(["users:manage_any"])),
+      "projet",
+      { debut: utc("2026-04-20"), fin: utc("2026-04-20") },
+    );
+    // La même valeur, la même forme, des deux côtés.
+    expect(typeof lignes[0]!.heures).toBe("number");
   });
 });

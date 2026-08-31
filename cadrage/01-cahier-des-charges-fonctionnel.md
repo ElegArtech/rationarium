@@ -646,7 +646,7 @@ Trois vues : **Par utilisateur** · **Référentiel** · **Matrice**.
 | EX-CMP-04 | Consulter la matrice collaborateurs × compétences |
 | EX-CMP-05 | Modifier un niveau directement depuis une cellule de la matrice |
 | EX-CMP-06 | Consulter la couverture moyenne et les écarts de compétence |
-| EX-CMP-07 | Rechercher, filtrer par catégorie et par niveau, trier par nom, couverture ou compétence |
+| EX-CMP-07 | Rechercher et filtrer par catégorie et par niveau ; trier le **référentiel** par nom ou par couverture, et la **matrice** par nom d'agent, par nombre de compétences détenues ou par niveau sur une compétence choisie |
 | EX-CMP-08 | Exporter la matrice en CSV |
 | EX-CMP-09 | Importer le référentiel depuis un CSV |
 | EX-CMP-10 | Rechercher les agents détenant une compétence donnée |
@@ -657,6 +657,8 @@ Trois vues : **Par utilisateur** · **Référentiel** · **Matrice**.
 - **RG-CMP-04** — Une compétence assignée à des agents ne peut pas être supprimée.
 - **RG-CMP-05** — Les noms de compétences sont uniques.
 - **RG-CMP-06** — Un agent détient une compétence à un seul niveau.
+
+> **Sur les tris de `EX-CMP-07`** — l'exigence disait « trier par nom, couverture ou compétence » et laissait deux objets se confondre. La **couverture** est le ratio détenteurs / requis (`RG-CMP-03`), donc une propriété de compétence : elle ordonne le **référentiel**, dont les lignes sont des compétences. « Par compétence » ne veut rien dire d'autre que « par niveau sur une compétence choisie », et cela n'ordonne que la **matrice**, dont les lignes sont des agents. La liste est donc scindée en deux vocabulaires, un par objet trié ; s'y ajoute, sur la matrice, le tri par nombre de compétences détenues, que le produit portait sans que le cadrage le nomme. Le tri par couverture, lui, n'existait ni au serveur ni à l'écran. **Filtres et tris sont des paramètres des points d'entrée, pas de l'écran** : trier ce qu'une réponse contient n'est pas trier ce qu'une requête retient, et la différence se voit à la première pagination. Tranché en vague 7-4.
 
 ---
 
