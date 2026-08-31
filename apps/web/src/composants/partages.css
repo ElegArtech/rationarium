@@ -566,6 +566,19 @@ textarea.field {
   align-items: start;
   margin-top: 16px;
 }
+
+/*
+ * `socle.css` pose `.panel + .panel { margin-top: 16px }` — l'espacement de
+ * panneaux EMPILÉS. Dans une grille, le second panneau reste le frère adjacent
+ * du premier : il héritait ces 16 px et descendait d'autant, alors que
+ * `align-items: start` l'alignait déjà en haut de sa cellule. Deux panneaux
+ * côte à côte, l'un plus bas que l'autre, sans que rien ne l'explique à la
+ * lecture du composant. La gouttière est celle du `gap`, jamais celle de la
+ * marge d'empilement.
+ */
+.two-col > .panel + .panel {
+  margin-top: 0;
+}
 @media (max-width: 1100px) {
   .two-col {
     grid-template-columns: 1fr;

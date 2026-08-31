@@ -126,7 +126,6 @@
     "tiersAssignes": "Assigned partners",
     "incoherenceDetail": "“{titre}” starts before this task ends.",
     "ajouterAssigne": "Add an assignee",
-    "ajouterAssigneIndisponible": "Adding an assignee from the task page is not open on the server yet.",
     "modifier": "Edit",
     "modifierDependances": "Edit dependencies",
     "deposerFichier": "Drop a file here, or click to browse.",
@@ -145,7 +144,11 @@
     "telecharger": "Download",
     "heuresEtSaisies": "{heures, number} h · {n, plural, one {# entry} other {# entries}}",
     "modifierIndisponible": "The full edit form is not ported yet; title, status and progress are edited in place on this page.",
-    "dependanceMasquee": "Task not visible"
+    "dependanceMasquee": "Task not visible",
+    "assignesEnregistres": "Assignees saved.",
+    "echecAssignes": "Saving the assignees failed.",
+    "enregistrerAssignes": "Save assignees",
+    "premierEstPorteur": "The first assignee in the list is the task owner."
   },
   "onglet": {
     "titre": "Task board",

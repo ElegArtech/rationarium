@@ -71,7 +71,12 @@
     "suivi": "Track",
     "reinitialiserMotDePasse": "Reset password",
     "pasSoiMemeMotDePasse": "Use “My profile” for your own password.",
-    "motDePasseReinitialise": "Password reset. {nom} must change it at next sign-in."
+    "motDePasseReinitialise": "Password reset. {nom} must change it at next sign-in.",
+    "modifier": "Edit",
+    "modifie": "Account updated.",
+    "echecModification": "The update failed.",
+    "enregistrer": "Save",
+    "categorieModification": "User account"
   },
   "suivi": {
     "leSuivi": "the individual tracking",

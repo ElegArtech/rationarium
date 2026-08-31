@@ -79,7 +79,7 @@ export function Rapports() {
           <h1 className="h1 titre-vue">{t("titre")}</h1>
         </div>
         {donnees ? (
-          <span className="count-split">
+          <span className="count-split rep-arrete">
             {t("arreteAu", { date: formaterDate(donnees.periode.fin) })}
           </span>
         ) : null}
