@@ -149,7 +149,12 @@
     "congeEnregistre": "Congé enregistré — {type}",
     "changerCollaborateur": "Changer de collaborateur",
     "rechercherCollaborateur": "Rechercher un collaborateur…",
-    "introuvableExplication": "Ce compte a peut-être été supprimé définitivement."
+    "introuvableExplication": "Ce compte a peut-être été supprimé définitivement.",
+    "ttCeMois": "Ce mois",
+    "ttCetteAnnee": "Cette année",
+    "ttTotalPeriode": "Total période",
+    "ttMoyenneMensuelle": "Moyenne mensuelle",
+    "joursParMois": "jours par mois"
   },
   "organisation": {
     "surtitre": "Référentiels",
@@ -432,7 +437,11 @@
     "impactAjout": "Accordée",
     "impactRetrait": "Retirée",
     "impactAjoutAide": "Toute personne portant ce rôle gagnera ce droit sur son périmètre.",
-    "impactRetraitAide": "Toute personne portant ce rôle perdra ce droit, y compris en cours de session."
+    "impactRetraitAide": "Toute personne portant ce rôle perdra ce droit, y compris en cours de session.",
+    "supprimer": "Supprimer",
+    "supprime": "Rôle supprimé.",
+    "echecSuppression": "La suppression a échoué.",
+    "systemeNonSupprimable": "Les rôles système ne peuvent pas être supprimés."
   },
   "audit": {
     "surtitre": "Administration",

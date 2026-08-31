@@ -117,6 +117,49 @@ test.describe("Vue 11 — fiche projet", () => {
     await expect(page.getByText("Non renseigné").first()).toBeVisible();
   });
 
+  /**
+   * `EX-PRJ-07`, `RG-PRJ-02` — « la suppression d'un projet est d'abord logique :
+   * le projet passe au statut Annulé et reste restaurable ».
+   *
+   * Tout l'aval était porté depuis L-32 — le bandeau, le bouton « Restaurer », le
+   * refus de modifier un projet annulé — et **rien dans le produit ne pouvait
+   * produire cet état**. Le premier des trois temps de `RG-GEN-10` manquait, donc
+   * la suppression définitive était le seul chemin offert : perdre les tâches, les
+   * jalons et l'équipe pour corriger une erreur de saisie.
+   */
+  test("EX-PRJ-07, RG-PRJ-02 — l'annulation logique existe, AVANT la suppression définitive", async ({
+    page,
+  }) => {
+    let appelee = false;
+    await serveur(page, { reponses });
+    await page.route(
+      (url) => url.pathname.endsWith("/annuler"),
+      (route) => {
+        if (route.request().method() !== "POST") return route.fallback();
+        appelee = true;
+        return route.fulfill({ status: 200, contentType: "application/json", body: "{}" });
+      },
+    );
+    await page.goto(CHEMIN_PROJET);
+
+    const annuler = page.getByRole("button", { name: "Annuler le projet" });
+    await expect(annuler).toBeVisible();
+    await annuler.click();
+
+    await expect.poll(() => appelee).toBe(true);
+  });
+
+  test("RG-PRJ-02 — un projet DÉJÀ annulé ne se réannule pas", async ({ page }) => {
+    await serveur(page, {
+      reponses: {
+        ...reponses,
+        [`/api/projets/${PROJET.id}`]: { corps: { ...PROJET, statut: "cancelled" } },
+      },
+    });
+    await page.goto(CHEMIN_PROJET);
+    await expect(page.getByRole("button", { name: "Annuler le projet" })).toHaveCount(0);
+  });
+
   test("projet annulé : bandeau propre, avec la restauration", async ({ page }) => {
     await serveur(page, {
       reponses: {

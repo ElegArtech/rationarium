@@ -511,6 +511,23 @@ function OngletConges({ donnees }: { donnees: api.Suivi }) {
 
 function OngletTeletravail({ donnees }: { donnees: api.Suivi }) {
   const { t } = useTranslation("administration");
+  const annee = new Date().getFullYear();
+
+  /*
+   * `EX-TLT-08` — l'onglet ne rendait qu'une liste de dates. Le brief réclame
+   * quatre indicateurs, dont « moyenne mensuelle », que `GET /suivi` ne porte
+   * pas : ils viennent de `GET /teletravail/statistiques`, qu'aucun écran
+   * n'appelait. La maquette 28 les a déjà dessinés — `#tt-m`, `#tt-y`, `#tt-t`,
+   * `#tt-avg` dans le `.kpi-grid` de `#tab-tt`.
+   */
+  const stats = useQuery({
+    queryKey: ["teletravail", "statistiques", donnees.agent.id, annee],
+    queryFn: () => api.statistiquesTeletravail(donnees.agent.id, annee),
+  });
+
+  const parMois = stats.data?.parMois ?? [];
+  const ceMois = parMois[new Date().getMonth()] ?? 0;
+  const cetteAnnee = parMois.reduce((n, m) => n + m, 0);
 
   if (donnees.teletravail.length === 0) {
     return (
@@ -521,8 +538,28 @@ function OngletTeletravail({ donnees }: { donnees: api.Suivi }) {
   }
 
   return (
-    <div className="tlist">
-      {donnees.teletravail.map((j) => (
+    <>
+      {stats.isSuccess ? (
+        <div className="kpi-grid">
+          <Indicateur libelle={t("suivi.ttCeMois")} valeur={ceMois} etendue="periode" />
+          <Indicateur libelle={t("suivi.ttCetteAnnee")} valeur={cetteAnnee} etendue="annee" />
+          <Indicateur
+            libelle={t("suivi.ttTotalPeriode")}
+            valeur={donnees.teletravail.length}
+            etendue="periode"
+          />
+          {/* La moyenne est un CALCUL, et le marqueur le dit — même discipline
+              que les indicateurs de la vue d'ensemble. */}
+          <Indicateur
+            libelle={t("suivi.ttMoyenneMensuelle")}
+            valeur={formaterNombre(stats.data.moyenneMensuelle, 1)}
+            etendue="annee"
+            precision={t("suivi.joursParMois")}
+          />
+        </div>
+      ) : null}
+      <div className="tlist">
+        {donnees.teletravail.map((j) => (
         <div className="ind-grid ind-row" key={j.date}>
           <span className="lnk-n">{formaterDate(j.date)}</span>
           <span className="us-org">{t("suivi.teletravail")}</span>
@@ -531,9 +568,10 @@ function OngletTeletravail({ donnees }: { donnees: api.Suivi }) {
           </span>
           <span />
           <span />
-        </div>
-      ))}
-    </div>
+          </div>
+        ))}
+      </div>
+    </>
   );
 }
 

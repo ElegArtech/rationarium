@@ -204,6 +204,45 @@ test.describe("Vue 28 — suivi individuel", () => {
     await expect(page.getByText("Hors projet").first()).toBeVisible();
   });
 
+  /**
+   * `EX-TLT-08` — « consulter le télétravail **et les statistiques** d'un agent ».
+   *
+   * L'onglet ne rendait qu'une liste de dates. Le brief réclame quatre
+   * indicateurs (`cadrage/02:821`), dont « moyenne mensuelle », que `GET /suivi`
+   * ne porte pas : ils viennent de `GET /teletravail/statistiques`, calculée
+   * depuis L-16 et qu'aucun écran n'appelait. La maquette 28 les a dessinés.
+   */
+  test("EX-TLT-08 — l'onglet Télétravail porte ses quatre indicateurs", async ({ page }) => {
+    await serveur(page, {
+      session: SESSION_ADMIN,
+      reponses: {
+        ...reponses,
+        "/teletravail/statistiques": {
+          corps: {
+            annee: 2026,
+            parMois: [2, 3, 1, 4, 2, 0, 1, 5, 0, 0, 0, 0],
+            moyenneMensuelle: 1.5,
+          },
+        },
+      },
+    });
+    await page.goto("/utilisateurs/u-autre/suivi");
+    await page
+      .getByRole("navigation", { name: "Sections du suivi" })
+      .getByRole("link")
+      .filter({ hasText: "Télétravail" })
+      .click();
+
+    // Les indicateurs vivent dans leur propre grille : « Cette année » apparaît
+    // aussi comme marqueur d'étendue, viser la page entière serait ambigu.
+    const kpi = page.locator(".kpi-grid");
+    await expect(kpi.getByText("Moyenne mensuelle")).toBeVisible();
+    await expect(kpi.getByText("1,5", { exact: true })).toBeVisible();
+    await expect(kpi.getByText("Cette année").first()).toBeVisible();
+    // 2+3+1+4+2+0+1+5 = 18 jours sur l'année.
+    await expect(kpi.getByText("18", { exact: true })).toBeVisible();
+  });
+
   test("l'onglet Congés rappelle que ses jours sont ceux de l'année", async ({ page }) => {
     await serveur(page, { session: SESSION_ADMIN, reponses });
     await page.goto("/utilisateurs/u-autre/suivi");

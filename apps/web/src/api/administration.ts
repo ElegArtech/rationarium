@@ -317,6 +317,30 @@ export const catalogue = () =>
     "/administration/catalogue",
   );
 
+/**
+ * `EX-ADM-03` — supprimer un rôle non système.
+ *
+ * `RG-DROITS-02` : les rôles système ne sont ni supprimables ni renommables ; le
+ * serveur refuse `role_systeme_non_supprimable`, et un rôle porté par des comptes
+ * refuse `role_utilise` en chiffrant combien. Le client désactive par courtoisie
+ * (`RG-GEN-06`) ; le contrôle reste au serveur.
+ */
+/**
+ * `EX-TLT-08` — « consulter le télétravail **et les statistiques** d'un agent ».
+ *
+ * Le brief est plus précis encore (`cadrage/02:821`) : « Ce mois · Cette année ·
+ * Total jours · **Moyenne mensuelle** · Calendrier ». `GET /suivi` rend
+ * `joursTeletravail` et ni `parMois` ni `moyenneMensuelle` — ces deux-là sont
+ * calculés par `GET /teletravail/statistiques`, que personne n'appelait.
+ */
+export const statistiquesTeletravail = (userId: string, annee: number) =>
+  appeler<{ annee: number; parMois: number[]; moyenneMensuelle: number }>(
+    `/teletravail/statistiques?userId=${userId}&annee=${annee}`,
+  );
+
+export const supprimerRole = (id: string) =>
+  appeler<void>(`/administration/roles/${id}`, { methode: "DELETE" });
+
 export const matriceRole = (id: string) => appeler<Matrice>(`/administration/roles/${id}/matrice`);
 
 export const definirPermissions = (id: string, permissions: string[]) =>

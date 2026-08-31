@@ -149,7 +149,12 @@
     "congeEnregistre": "Leave recorded — {type}",
     "changerCollaborateur": "Change person",
     "rechercherCollaborateur": "Search a person…",
-    "introuvableExplication": "This account may have been permanently deleted."
+    "introuvableExplication": "This account may have been permanently deleted.",
+    "ttCeMois": "This month",
+    "ttCetteAnnee": "This year",
+    "ttTotalPeriode": "Period total",
+    "ttMoyenneMensuelle": "Monthly average",
+    "joursParMois": "days per month"
   },
   "organisation": {
     "surtitre": "Reference data",
@@ -432,7 +437,11 @@
     "impactAjout": "Granted",
     "impactRetrait": "Removed",
     "impactAjoutAide": "Everyone holding this role will gain this right within their scope.",
-    "impactRetraitAide": "Everyone holding this role will lose this right, including mid-session."
+    "impactRetraitAide": "Everyone holding this role will lose this right, including mid-session.",
+    "supprimer": "Delete",
+    "supprime": "Role deleted.",
+    "echecSuppression": "The deletion failed.",
+    "systemeNonSupprimable": "System roles cannot be deleted."
   },
   "audit": {
     "surtitre": "Administration",

@@ -165,6 +165,37 @@ test.describe("Vue 32 — rôles et permissions", () => {
     await expect(page.getByText("Personnalisé")).toBeVisible();
   });
 
+  /**
+   * `EX-ADM-03` — « supprimer un rôle non système ».
+   *
+   * La vue créait, ouvrait et modifiait les permissions d'un rôle ; elle n'en
+   * supprimait aucun. `DELETE /administration/roles/:id` existait depuis L-08 et
+   * n'était appelée par personne — la maquette 32 pose pourtant le bouton dans le
+   * même `.lv-acts`.
+   */
+  test("EX-ADM-03 — un rôle personnalisé se supprime, un rôle système non", async ({ page }) => {
+    let supprime: string | null = null;
+    await serveur(page, { session: SESSION_CONFIG, reponses });
+    await page.route(
+      (url) => /\/api\/administration\/roles\/[^/]+$/.test(url.pathname),
+      (route) => {
+        if (route.request().method() !== "DELETE") return route.fallback();
+        supprime = new URL(route.request().url()).pathname.split("/").pop() ?? null;
+        return route.fulfill({ status: 200, contentType: "application/json", body: "{}" });
+      },
+    );
+    await page.goto("/roles");
+
+    const boutons = page.getByRole("button", { name: "Supprimer", exact: true });
+    await expect(boutons).toHaveCount(2);
+    // `RG-DROITS-02` — le rôle système est désactivé, par courtoisie, et dit pourquoi.
+    await expect(boutons.nth(0)).toBeDisabled();
+    await expect(boutons.nth(1)).toBeEnabled();
+
+    await boutons.nth(1).click();
+    await expect.poll(() => supprime).toBe("r-agent");
+  });
+
   test("LES CROISEMENTS INVALIDES N'EXISTENT PAS — ils ne sont pas grisés", async ({ page }) => {
     await serveur(page, { session: SESSION_CONFIG, reponses });
     await page.goto("/roles");
