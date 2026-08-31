@@ -95,3 +95,34 @@ travaillé sur une base périmée et l'un a recréé un `package.json` déjà br
 Par ailleurs `packages/db/src/generated` étant ignoré par git, `pnpm typecheck` échoue
 sur tout arbre neuf tant que `prisma generate` n'a pas été rejoué. Les trois agents
 s'y sont cognés.
+
+## L-45 — Les tâches candidates, et la pose d'un ensemble de dépendances
+
+### Ce que le lot ferme
+
+`EX-TSK-10` était en dette de test et le bouton « Modifier les dépendances » de la
+vue 17 était **inerte, avec un motif exact** : le serveur posait et retirait un lien
+(`POST`/`DELETE /taches/:id/dependances`) mais n'exposait pas la liste des tâches
+candidates. Deux points d'entrée la comblent — `GET /taches/:id/dependances/candidats`
+et `PUT /taches/:id/dependances` — et `GET /taches/:id/incoherences`, qui existait
+sans client, alimente désormais l'avertissement de conflit dans la fenêtre.
+
+### Ce que la mise en œuvre a trouvé, et qui n'était pas au plan
+
+| Trouvaille | Traitement |
+| --- | --- |
+| **Une pose d'ensemble naïve DÉTRUIT les dépendances hors périmètre.** `candidatsDependance` ne propose pas un prérequis que le lecteur ne peut pas nommer, et `dependances()` ne le nomme pas non plus : l'utilisateur ne peut donc pas le renvoyer dans sa sélection. Un `PUT` qui remplace en gros le supprimerait au premier enregistrement — une écriture destructrice sur une donnée que l'auteur du geste n'a jamais vue, et dont rien ne l'avertirait. | **Corrigé dans ce lot.** La sélection ne fait autorité que sur ce qu'elle a pu montrer : les liens invisibles sont conservés tels quels. Test dédié, vérifié rouge sans le correctif. |
+| **`PUT :id/assignes` n'exige pas de version, et c'est un écart de `RG-GEN-07`.** La pose d'ensemble des dépendances a le même profil : deux fenêtres ouvertes en même temps, la seconde écrase la première sans que personne ne le sache. | `PUT :id/dependances` exige la version lue et la double dans la clause `where` de la mise à jour, donc en base. **Reste ouvert** : `PUT :id/assignes` et `PUT :id/sous-taches/ordre` gardent l'écart. À traiter à part — le corriger ici aurait mêlé deux sujets. |
+| **`cadrage/02:566` et `messages-metier.ts` ne disent pas la même chose du cycle.** Le brief donne « Cette dépendance créerait une dépendance circulaire » ; le catalogue serveur dit « Cette dépendance créerait un cycle : la tâche finirait par dépendre d'elle-même. » | Le bandeau de la fenêtre porte le texte du brief, qui est contractuel pour cet état de vue. **Reste ouvert** : les deux formulations doivent être réconciliées au cadrage, pas maintenues en parallèle. |
+| **Le jeu d'essai de bout en bout de la vue 17 ne rendait pas `lisible`.** `TachesService.dependances` le rend TOUJOURS ; la fixture décrivait donc une forme que le serveur n'a jamais produite. Aucune boucle ne pouvait le voir tant qu'aucune vue ne filtrait sur ce champ — la fenêtre de sélection le fait, et trouvait `undefined`. | Corrigé. **Deuxième occurrence** dans ce même fichier du couple client/fixture qui se valide lui-même, après `GET /utilisateurs`. |
+| **Le compte de requêtes est le seul contrôle qui voie le piège du lot.** Un filtrage par candidat (`fermeraitUnCycle` en boucle) est fonctionnellement JUSTE : tous les tests de règle passent au vert. Seule la lenteur diffère, et elle grandit avec le projet. | Un test compare le nombre de lectures de `taskDependency` à cinq puis à trente candidats et exige l'ÉGALITÉ. Mesuré : 21 requêtes des deux côtés avec la fermeture unique, 21 contre 46 avec le filtrage par candidat. |
+
+### Décision tranchée
+
+**Un candidat hors périmètre est EXCLU, pas masqué** — et c'est l'inverse de la règle
+que `dependances()` applique douze lignes plus haut. Là-bas l'entrée demeure sans son
+titre, parce que la retirer fausserait le compte annoncé (« Dépend de (2) » avec une
+seule ligne). Ici on dresse une liste de choix : une case à cocher qu'on ne peut pas
+nommer n'est pas un cloisonnement, c'est une case sans objet. Les deux règles sont
+écrites l'une en face de l'autre dans le service, avec la raison de leur divergence —
+sans quoi le prochain lecteur recopiera `masquer()` de bonne foi.
