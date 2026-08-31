@@ -190,7 +190,7 @@ export function FicheTache({ tacheId }: { tacheId: string }) {
             ) : (
               <span className="raci-none">{t("liste.sansAssigne")}</span>
             )}
-            {/* `EX-TSK-06`. Le bouton a vécu désactivé derrière un commentaire
+            {/* `EX-TSK-05`. Le bouton a vécu désactivé derrière un commentaire
                 affirmant que « l'ajout d'un assigné n'a pas de point d'entrée » :
                 `PUT /taches/:id/assignes` existe depuis L-33. La fenêtre pose la
                 liste ENTIÈRE, comme la route l'exige. */}
@@ -902,7 +902,7 @@ function FenetreSuppression({
 }
 
 /**
- * `EX-TSK-06` — fixer la liste des assignés d'une tâche existante.
+ * `EX-TSK-05` — fixer la liste des assignés d'une tâche existante.
  *
  * `RG-TSK-15` commande la source des candidats : **en priorité les membres du
  * projet ; si le projet n'a pas de membre, tous les utilisateurs**, et

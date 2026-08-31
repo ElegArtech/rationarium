@@ -191,7 +191,7 @@ test.describe("Vue 17 — fiche tâche", () => {
   });
 
   /**
-   * `EX-TSK-06` — fixer les assignés d'une tâche EXISTANTE.
+   * `EX-TSK-05` — fixer les assignés d'une tâche EXISTANTE.
    *
    * Le bouton « + » a vécu désactivé derrière un commentaire affirmant que
    * « l'ajout d'un assigné n'a pas de point d'entrée ». `PUT /taches/:id/
@@ -202,7 +202,7 @@ test.describe("Vue 17 — fiche tâche", () => {
    * Le cas exercé est celui qui bloquait vraiment — une tâche **hors projet**,
    * où `RG-TSK-15` veut que tous les utilisateurs soient proposés.
    */
-  test("EX-TSK-06 — les assignés se fixent depuis la fiche, liste ENTIÈRE", async ({ page }) => {
+  test("EX-TSK-05 — les assignés se fixent depuis la fiche, liste ENTIÈRE", async ({ page }) => {
     let recu: unknown = null;
     await serveur(page, {
       session: SESSION_TACHES,

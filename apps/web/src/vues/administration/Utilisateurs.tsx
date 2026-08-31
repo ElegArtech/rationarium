@@ -352,7 +352,7 @@ function LigneUtilisateur({ utilisateur }: { utilisateur: api.Utilisateur }) {
           </Button>
           <Popover>
             <Menu className="pop-list">
-              {/* `EX-USR-03`. Contrairement aux trois gestes suivants,
+              {/* `EX-USR-04`. Contrairement aux trois gestes suivants,
                   modifier son propre compte est légitime : la restriction de
                   `RG-USR-04` porte sur ce qui vous retirerait l'accès, pas sur
                   votre nom. */}
@@ -558,7 +558,7 @@ function FenetreSuppression({
 }
 
 /**
- * `EX-USR-03` — modifier un compte.
+ * `EX-USR-04` — modifier un compte, rôle et rattachements compris.
  *
  * La vue portait « Réinitialiser », « Désactiver » et « Supprimer », mais pas
  * « Modifier », derrière un commentaire affirmant que la route n'existait pas
