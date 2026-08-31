@@ -51,18 +51,6 @@
       "regles": ["RG-ADM-02", "RG-DROITS-02"]
     },
     {
-      "fichier": "apps/web/src/vues/occupations/Evenements.tsx",
-      "repere": "evenements.modifier",
-      "raison": "Motif vérifié contre le contrôleur : `PATCH /evenements/:id` n'existe pas. `evenements.controller.ts` n'expose que la création, l'ajout et le retrait de participants, et l'arrêt de récurrence. EX-EVT-06 reste à servir ; comblé par L-42.",
-      "regles": ["EX-EVT-06"]
-    },
-    {
-      "fichier": "apps/web/src/vues/occupations/Evenements.tsx",
-      "repere": "evenements.supprimer",
-      "raison": "Motif vérifié contre le contrôleur : `DELETE /evenements/:id` n'existe pas non plus — seul `DELETE /evenements/:id/participants/:userId` est exposé, qui retire une personne et non l'événement. EX-EVT-06 reste à servir ; comblé par L-42.",
-      "regles": ["EX-EVT-06"]
-    },
-    {
       "fichier": "apps/web/src/vues/planning/Semaine.tsx",
       "repere": "actions.dateVerrouillee",
       "raison": "RG-TSK-11 — dans le planning, une tâche multi-assignée ne voit pas sa date changer par glisser-déposer ; le doublage clavier suit la même règle. La branche n'est atteinte que dans ce cas, et l'entrée dit la raison au lieu d'ouvrir un sous-menu qui refuserait ensuite.",

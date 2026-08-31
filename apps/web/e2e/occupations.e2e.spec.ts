@@ -27,6 +27,11 @@ const PROJETS_VIDES = { "/api/projets": { corps: { projets: [], affiches: 0, tot
 
 test.describe("Vue 18 — événements", () => {
   const reponses = { ...PROJETS_VIDES, "/api/evenements": { corps: EVENEMENTS } };
+  /** `EX-EVT-06` — le profil qui détient les deux gestes du lot L-42. */
+  const REDACTEUR = {
+    ...CAMILLE,
+    permissions: [...CAMILLE.permissions, "events:update", "events:delete"],
+  };
 
   test("la liste groupe par jour et dit les horaires", async ({ page }) => {
     await serveur(page, { session: CAMILLE, reponses });
@@ -50,7 +55,10 @@ test.describe("Vue 18 — événements", () => {
   test("la portée du geste est demandée AVANT d'agir, avec ses deux effets décrits", async ({
     page,
   }) => {
-    await serveur(page, { session: CAMILLE, reponses });
+    // Le profil porte `events:update` : `POST /evenements/:id/arreter` l'exige,
+    // et depuis L-42 la commande n'est plus proposée sans elle — RG-GEN-06 dit
+    // qu'une action interdite n'est jamais proposée puis refusée.
+    await serveur(page, { session: REDACTEUR, reponses });
     await page.goto("/evenements");
     // Le geste part du panneau de détail, comme la maquette : on ouvre
     // l'événement, puis on agit sur sa série.
@@ -83,6 +91,73 @@ test.describe("Vue 18 — événements", () => {
     await expect(page.getByLabel("Heure de début")).toBeVisible();
     await page.getByLabel("Toute la journée").check();
     await expect(page.getByLabel("Heure de début")).toHaveCount(0);
+  });
+
+  test("EX-EVT-06 — sur une série, « Modifier » demande sa portée AVANT d'ouvrir le formulaire", async ({
+    page,
+  }) => {
+    await serveur(page, { session: REDACTEUR, reponses });
+    await page.goto("/evenements");
+    await page.getByRole("button", { name: EVENEMENTS[0].titre }).click();
+    await page.getByRole("button", { name: "Modifier", exact: true }).click();
+
+    // La question, avec ses deux effets décrits — pas un bouton dont l'effet se
+    // révèle une fois exécuté.
+    await expect(page.getByText("Cette occurrence seulement")).toBeVisible();
+    await expect(page.getByText("Toute la série, à partir de celle-ci")).toBeVisible();
+    await expect(page.getByText(/Les occurrences déjà passées sont conservées/)).toBeVisible();
+    await expect(page.getByText("Le passé n'est jamais touché")).toBeVisible();
+    // Le formulaire n'est PAS encore là : la portée se choisit d'abord.
+    await expect(page.getByLabel(/^Titre/)).toHaveCount(0);
+  });
+
+  test("EX-EVT-06 — hors série, « Modifier » ouvre directement le formulaire, prérempli", async ({
+    page,
+  }) => {
+    await serveur(page, { session: REDACTEUR, reponses });
+    await page.goto("/evenements");
+    // Le second événement du jeu n'est pas récurrent : la question de portée
+    // n'aurait qu'une réponse possible, donc elle n'est pas posée.
+    await page.getByRole("button", { name: EVENEMENTS[1].titre }).click();
+    await page.getByRole("button", { name: "Modifier", exact: true }).click();
+
+    await expect(page.getByText("Cette occurrence seulement")).toHaveCount(0);
+    await expect(page.getByLabel(/^Titre/)).toHaveValue(EVENEMENTS[1].titre);
+  });
+
+  test("EX-EVT-06 — en portée « toute la série », la date disparaît et le formulaire dit pourquoi", async ({
+    page,
+  }) => {
+    await serveur(page, { session: REDACTEUR, reponses });
+    await page.goto("/evenements");
+    await page.getByRole("button", { name: EVENEMENTS[0].titre }).click();
+    await page.getByRole("button", { name: "Modifier", exact: true }).click();
+    await page.getByRole("button", { name: /Toute la série/ }).click();
+    // « Continuer », et non « Modifier » : la fenêtre de portée ne modifie rien,
+    // elle ouvre le formulaire.
+    await page.getByRole("button", { name: "Continuer" }).click();
+
+    await expect(page.getByLabel(/^Titre/)).toHaveValue(EVENEMENTS[0].titre);
+    // Un champ proposé puis refusé par le serveur serait exactement ce que
+    // RG-GEN-06 interdit : il n'est pas proposé.
+    await expect(page.getByLabel(/^Date/)).toHaveCount(0);
+    await expect(page.getByText(/La date distingue les occurrences/)).toBeVisible();
+  });
+
+  test("RG-GEN-06 — sans les permissions, les deux gestes ne sont pas proposés", async ({
+    page,
+  }) => {
+    // Camille crée des événements et n'en modifie aucun : la vue reste
+    // crédible en droits minimaux.
+    await serveur(page, { session: CAMILLE, reponses });
+    await page.goto("/evenements");
+    await page.getByRole("button", { name: EVENEMENTS[0].titre }).click();
+
+    await expect(page.getByRole("button", { name: "Modifier", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Supprimer", exact: true })).toHaveCount(0);
+    // Même raison pour l'arrêt de récurrence : la route exige `events:update`,
+    // et la commande était proposée à qui ne l'a pas — corrigé en L-42.
+    await expect(page.getByRole("button", { name: "Arrêter la récurrence" })).toHaveCount(0);
   });
 
   test("état vide", async ({ page }) => {

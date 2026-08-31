@@ -17,6 +17,24 @@ const params = (filtres: Record<string, string | number | boolean | undefined>) 
 
 // ── M9 — Événements, vue 18 ─────────────────────────────────────────────────
 
+/**
+ * Un événement, **tel que le serveur le rend**.
+ *
+ * Ce type déclarait `frequenceSemaines`, `jourSemaine` et `recurrenceJusqua` —
+ * les noms du corps de CRÉATION. `EvenementsService.surPlage` rend les lignes
+ * Prisma brutes, donc `recurrenceFrequence`, `recurrenceJourSemaine` et
+ * `recurrenceFin`. Trois champs qui valaient donc toujours `undefined` : la
+ * moitié de la détection de série — `parentId ?? frequenceSemaines` — était
+ * morte, et un événement PARENT ne se signalait pas comme série. Rien ne
+ * pouvait le voir : `appeler<T>` ne valide aucune forme, le typage n'a que
+ * cette déclaration pour vérité, et le jeu d'essai de bout en bout recopiait
+ * l'invention plutôt que la signature du service. Troisième occurrence de ce
+ * couple client/fixture dans le dépôt.
+ *
+ * `version` en fait partie : sans elle, aucune écriture n'est composable
+ * (`RG-GEN-07`). C'est exactement ce qui avait fait conclure, à tort, que
+ * `PATCH /auth/me` n'existait pas.
+ */
 export type Evenement = {
   id: string;
   titre: string;
@@ -27,12 +45,20 @@ export type Evenement = {
   heureFin: string | null;
   interventionExterieure: boolean;
   parentId: string | null;
-  frequenceSemaines: number | null;
-  jourSemaine: number | null;
-  recurrenceJusqua: string | null;
+  recurrenceFrequence: number | null;
+  recurrenceJourSemaine: number | null;
+  recurrenceFin: string | null;
+  version: number;
   project: { id: string; nom: string } | null;
   participants: { userId: string; user: { prenom: string; nom: string } }[];
 };
+
+/** `RG-EVT-07` — la portée d'un geste porté sur une occurrence d'une série. */
+export type PorteeEvenement = "occurrence" | "serie";
+
+/** `RG-EVT-07` — un événement appartient-il à une série ? */
+export const estDUneSerie = (e: Evenement): boolean =>
+  e.parentId !== null || e.recurrenceFrequence !== null;
 
 export const evenements = (filtres: { debut?: string; fin?: string; projectId?: string }) =>
   appeler<Evenement[]>(`/evenements${params(filtres)}`);
@@ -49,6 +75,52 @@ export const creerEvenement = (donnees: {
   participantIds?: string[];
   recurrence?: { frequenceSemaines: number; jourSemaine: number; jusqua: string };
 }) => appeler<{ id: string }>("/evenements", { methode: "POST", corps: donnees });
+
+/**
+ * `EX-EVT-06` — modifier un événement.
+ *
+ * `version` est obligatoire (`RG-GEN-07`) et `portee` l'est dès que
+ * l'événement appartient à une série (`RG-EVT-07`) : le serveur refuse
+ * l'absence de portée sur une série, et sa présence hors série. La date ne se
+ * propage pas à une série — elle est ce qui distingue deux occurrences.
+ */
+export const modifierEvenement = (
+  id: string,
+  donnees: {
+    version: number;
+    portee?: PorteeEvenement;
+    titre?: string;
+    description?: string | null;
+    date?: string;
+    journeeEntiere?: boolean;
+    heureDebut?: string | null;
+    heureFin?: string | null;
+    projectId?: string | null;
+    interventionExterieure?: boolean;
+  },
+) => appeler<Evenement>(`/evenements/${id}`, { methode: "PATCH", corps: donnees });
+
+/**
+ * `EX-EVT-06` — supprimer un événement.
+ *
+ * `version` et `portee` voyagent en paramètres de requête : le serveur les y
+ * attend, un corps sur un `DELETE` étant mal traité par les intermédiaires.
+ */
+export const supprimerEvenement = (
+  id: string,
+  donnees: { version: number; portee?: PorteeEvenement },
+) => {
+  /* La chaîne de requête se compose à part : deux interpolations collées dans
+     un même gabarit produisent un chemin que `surface-http.test.ts` ne sait pas
+     segmenter, et une route illisible y est comptée comme jamais appelée. */
+  const requete = new URLSearchParams({
+    version: String(donnees.version),
+    ...(donnees.portee ? { portee: donnees.portee } : {}),
+  });
+  return appeler<{ supprimees: number }>(`/evenements/${id}?${requete.toString()}`, {
+    methode: "DELETE",
+  });
+};
 
 export const arreterRecurrence = (id: string, aPartirDe: string) =>
   appeler<{ supprimees: number }>(`/evenements/${id}/arreter`, {
