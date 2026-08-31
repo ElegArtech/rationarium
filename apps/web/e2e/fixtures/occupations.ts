@@ -228,6 +228,76 @@ export const DEMANDE_ANNULATION = {
 };
 
 /**
+ * `EX-CNG-09` — le solde d'UN type pour UNE année, **tel que
+ * `GET /conges/solde` le rend** : un objet `Solde` nu, pas une entrée du
+ * catalogue `{ type, solde }` de `GET /conges/soldes`.
+ *
+ * Les chiffres sont **délibérément différents** de ceux de `SOLDES` : c'est
+ * ce qui rend le contrôle capable de dire laquelle des deux routes la fenêtre
+ * de demande a réellement interrogée. Avec des chiffres identiques, le test
+ * passerait au vert que la vue appelle l'une ou l'autre — il ne mesurerait
+ * rien.
+ */
+export const SOLDE_T1_2026 = {
+  annee: 2026,
+  attribues: 30,
+  consommes: 21,
+  engages: 0,
+  disponibles: 9,
+};
+
+/**
+ * `RG-CNG-08` — la réponse de `GET /conges/validateur` : **un identifiant, et
+ * rien d'autre**.
+ *
+ * `CongesController.validateur` rend `{ validateurId }`. Le jeu d'essai s'en
+ * tient là, y compris à ce qui manque : ni prénom, ni nom. C'est le défaut
+ * serveur que la vue contourne, et le recopier ici est ce qui empêche le
+ * contrôle de valider une forme que le serveur ne rend pas.
+ *
+ * `u2` est l'identifiant de Fatou Berthier dans `DEMANDES` : c'est par là que
+ * l'écran retrouve son nom.
+ */
+export const VALIDATEUR = { validateurId: "u2" };
+
+/** Aucun validateur déterminé à cette date — la troisième branche de `RG-CNG-08`. */
+export const SANS_VALIDATEUR = { validateurId: null };
+
+/**
+ * `RG-CNG-29` — un type **désactivé** que les congés existants conservent.
+ *
+ * Il n'est dans NI `TYPES_CONGE` (le référentiel actif) NI dans `SOLDES` (que
+ * le serveur borne à `actif: true`) — c'est tout l'intérêt : une demande
+ * posée dessus reste modifiable (`EX-CNG-05`), et son solde ne peut venir que
+ * de `GET /conges/solde`, qui ne filtre pas sur l'activité du type.
+ */
+export const DEMANDE_TYPE_DESACTIVE = {
+  id: "c4",
+  statut: "pending",
+  dateDebut: "2026-09-07",
+  dateFin: "2026-09-11",
+  demiJourneeDebut: null,
+  demiJourneeFin: null,
+  motif: "Congé exceptionnel accordé avant retrait du type",
+  motifRefus: null,
+  joursOuvres: "5",
+  version: 1,
+  type: { id: "t3", nom: "Congé exceptionnel", couleur: "#8A5A00", icone: null },
+  user: personne("Camille", "Roussel", "u1"),
+  validateur: personne("Fatou", "Berthier", "u2"),
+  repartitions: [{ annee: 2026, jours: "5" }],
+};
+
+/** Le solde du type désactivé — servi par `GET /conges/solde`, par personne d'autre. */
+export const SOLDE_T3_2026 = {
+  annee: 2026,
+  attribues: 6,
+  consommes: 1,
+  engages: 0,
+  disponibles: 5,
+};
+
+/**
  * `RG-CNG-16` — le décompte en jours ouvrés, **tel que le serveur le rend**.
  *
  * `GET /parametrage/jours-ouvres` répond `{ jours, parAnnee }` : c'est la

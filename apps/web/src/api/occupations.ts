@@ -205,6 +205,45 @@ export const typesDeConge = (inclureInactifs = false) =>
 export const soldes = (annee: number, userId?: string) =>
   appeler<SoldeParType[]>(`/conges/soldes${params({ annee, ...(userId ? { userId } : {}) })}`);
 
+/**
+ * `EX-CNG-09` — « Consulter son solde par type et par année » : **UN** type,
+ * **UNE** année.
+ *
+ * Ce n'est pas un doublon allégé de `soldes(annee)`, et le remplacement n'est
+ * pas une économie de requête : les deux routes ne rendent pas le même
+ * ensemble. `GET /conges/soldes` boucle sur `leaveType where actif: true` —
+ * un type **désactivé** n'y figure pas. Or `RG-CNG-29` conserve les congés
+ * posés sur un type désactivé, et `EX-CNG-05` les laisse modifier : la
+ * fenêtre de modification cherchait alors son type dans une liste qui ne le
+ * contenait plus, ne trouvait rien, et **le bloc « Contrôle du solde »
+ * disparaissait entièrement** — sur la demande précise où il compte le plus,
+ * puisque le dépôt sera quand même contrôlé par `RG-CNG-21` au serveur.
+ *
+ * `GET /conges/solde` ne filtre pas sur `actif` : elle répond pour le type
+ * qu'on lui nomme. C'est la route juste ici, et la seule.
+ */
+export const solde = (typeId: string, annee: number, userId?: string) =>
+  appeler<Solde>(`/conges/solde${params({ typeId, annee, ...(userId ? { userId } : {}) })}`);
+
+/**
+ * `RG-CNG-08` — **qui** validera une demande déposée à cette date.
+ *
+ * Manager du service, à défaut responsable du département, à défaut personne
+ * — et une délégation active (`RG-CNG-10`) substitue le délégué au délégant.
+ * Aucune de ces trois branches ne se devine à l'écran : c'est le serveur qui
+ * les tranche, et il les tranche **à la date**, parce qu'une délégation a un
+ * début et une fin.
+ *
+ * **La réponse ne porte qu'un identifiant, jamais un nom.** Le point d'entrée
+ * est gardé par `leaves:read` ; `GET /utilisateurs`, le seul annuaire du
+ * produit, l'est par `users:read`, qu'un agent ordinaire n'a pas. Un client
+ * qui n'a que `leaves:read` reçoit donc un UUID qu'il n'a aucun moyen de
+ * nommer. Voir le commentaire de `FenetreDemande` pour le contournement, et
+ * le compte rendu du lot pour le défaut.
+ */
+export const validateurDeConge = (date: string) =>
+  appeler<{ validateurId: string | null }>(`/conges/validateur${params({ date })}`);
+
 export const delegations = () =>
   appeler<{ donnees: Delegation[]; recues: Delegation[] }>("/conges/delegations");
 
