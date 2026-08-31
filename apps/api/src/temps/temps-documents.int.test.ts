@@ -60,7 +60,7 @@ beforeAll(async () => {
   const audit = new AuditService(prisma as never);
   perimetres = new PerimetreService(prisma as never);
   temps = new TempsService(prisma as never, audit, perimetres);
-  documents = new DocumentsService(prisma as never, audit);
+  documents = new DocumentsService(prisma as never, audit, perimetres);
 
   acteur = await agent();
   projet = uuid();
@@ -78,6 +78,14 @@ afterAll(async () => {
 });
 
 const globalP = () => perimetres.resoudre(acteur, new Set(["users:manage_any"]));
+
+/* Ces suites éprouvent le CONTENU des documents, pas leur cloisonnement : le
+ * périmètre d'un document est celui de la tâche ou du projet qui le porte, et
+ * il a sa propre suite. */
+const TOUTES_LECTURES: ReadonlySet<string> = new Set([
+  "tasks:manage_any",
+  "projects:manage_any",
+]);
 
 // ══════════════════════════════ L-18 — Temps passé ═════════════════════════
 
@@ -309,7 +317,7 @@ describe("RG-DOC-02 — lecture ET téléchargement sont tracés", () => {
       acteur,
     );
     const lecteur = await agent();
-    await documents.consulter(d.id, lecteur);
+    await documents.consulter(d.id, lecteur, await globalP(), TOUTES_LECTURES);
 
     const trace = await prisma.auditLog.findFirst({
       where: { action: "document.read", entiteId: d.id },
@@ -323,8 +331,8 @@ describe("RG-DOC-02 — lecture ET téléchargement sont tracés", () => {
       acteur,
     );
     const lecteur = await agent();
-    await documents.consulter(d.id, lecteur);
-    await documents.telecharger(d.id, lecteur);
+    await documents.consulter(d.id, lecteur, await globalP(), TOUTES_LECTURES);
+    await documents.telecharger(d.id, lecteur, await globalP(), TOUTES_LECTURES);
 
     const actions = (
       await prisma.auditLog.findMany({ where: { entiteId: d.id } })
@@ -696,10 +704,10 @@ describe("EX-DOC-02 — consulter, télécharger, renommer, supprimer un documen
      */
     const doc = await joindre("rapport.txt");
 
-    const vu = await documents.consulter(doc.id, acteur);
+    const vu = await documents.consulter(doc.id, acteur, await globalP(), TOUTES_LECTURES);
     expect(vu).not.toHaveProperty("chemin");
 
-    const telecharge = await documents.telecharger(doc.id, acteur);
+    const telecharge = await documents.telecharger(doc.id, acteur, await globalP(), TOUTES_LECTURES);
     expect(telecharge.chemin).toBe(documents.cheminDeStockage(doc.empreinte));
   });
 
@@ -762,8 +770,8 @@ describe("EX-DOC-02 — consulter, télécharger, renommer, supprimer un documen
 
   it("les quatre gestes refusent un document inconnu, aucun ne le tait", async () => {
     const inconnu = "00000000-0000-4000-8000-000000000000";
-    await expect(documents.consulter(inconnu, acteur)).rejects.toMatchObject({ code: "introuvable" });
-    await expect(documents.telecharger(inconnu, acteur)).rejects.toMatchObject({ code: "introuvable" });
+    await expect(documents.consulter(inconnu, acteur, await globalP(), TOUTES_LECTURES)).rejects.toMatchObject({ code: "introuvable" });
+    await expect(documents.telecharger(inconnu, acteur, await globalP(), TOUTES_LECTURES)).rejects.toMatchObject({ code: "introuvable" });
     await expect(documents.renommer(inconnu, "x", acteur, new Set())).rejects.toMatchObject({
       code: "introuvable",
     });
@@ -849,5 +857,80 @@ describe("EX-DOC-04 — modifier et supprimer SES PROPRES commentaires", () => {
     await expect(
       documents.supprimerCommentaire(inconnu, acteur, new Set()),
     ).rejects.toMatchObject({ code: "introuvable" });
+  });
+});
+
+describe("RG-SCOPE-02 / RG-SCOPE-04 — un document hérite du périmètre de son PORTEUR", () => {
+  /*
+   * `consulter` et `telecharger` ne prenaient qu'un identifiant. Tout porteur
+   * de `documents:read` lisait le cahier des charges de n'importe quel projet
+   * et téléchargeait la pièce jointe de n'importe quelle tâche confidentielle
+   * — le document contournait en entier l'exclusion de `RG-SCOPE-04`.
+   *
+   * Le document n'a pas de périmètre à lui : il est attaché à une tâche ou à
+   * un projet, et c'est de là que vient le droit de le lire.
+   */
+  const ETROITES: ReadonlySet<string> = new Set(["documents:read", "tasks:read"]);
+
+  it("RG-SCOPE-04 — le document d'une tâche CONFIDENTIELLE n'est pas lisible sans le droit", async () => {
+    const tache = await prisma.task.create({
+      data: { titre: "Dossier sensible", confidentielle: true },
+    });
+    const doc = await documents.joindre(
+      { nom: "note.txt", contenu: Buffer.from("secret"), typeMime: "text/plain", taskId: tache.id },
+      acteur,
+    );
+
+    const etroit = await perimetres.resoudre(acteur, ETROITES);
+    await expect(
+      documents.consulter(doc.id, acteur, etroit, ETROITES),
+    ).rejects.toMatchObject({ code: "hors_perimetre" });
+    await expect(
+      documents.telecharger(doc.id, acteur, etroit, ETROITES),
+    ).rejects.toMatchObject({ code: "hors_perimetre" });
+  });
+
+  it("RG-SCOPE-02 — le document d'un projet hors périmètre ne l'est pas non plus", async () => {
+    const projet = await prisma.project.create({
+      data: {
+        nom: `Projet ${crypto.randomUUID().slice(0, 8)}`,
+        dateDebut: new Date("2026-01-01T00:00:00.000Z"),
+        dateFin: new Date("2026-12-31T00:00:00.000Z"),
+      },
+    });
+    const doc = await documents.joindre(
+      {
+        nom: "cdc.txt",
+        contenu: Buffer.from("cahier des charges"),
+        typeMime: "text/plain",
+        projectId: projet.id,
+      },
+      acteur,
+    );
+
+    const etroites: ReadonlySet<string> = new Set(["documents:read", "projects:read"]);
+    const etroit = await perimetres.resoudre(acteur, etroites);
+    await expect(
+      documents.consulter(doc.id, acteur, etroit, etroites),
+    ).rejects.toMatchObject({ code: "hors_perimetre" });
+  });
+
+  it("un document ORPHELIN reste lisible : il n'a aucun porteur dont hériter", async () => {
+    /*
+     * `joindre` exige un rattachement ; un orphelin ne peut naître que d'un
+     * détachement. Le refuser rendrait inaccessible ce que le produit lui-même
+     * a détaché.
+     */
+    const doc = await prisma.document.create({
+      data: {
+        nom: "libre.txt",
+        empreinte: "x".repeat(64),
+        tailleOctets: 12,
+        typeMime: "text/plain",
+        auteurId: acteur,
+      },
+    });
+    const etroit = await perimetres.resoudre(acteur, ETROITES);
+    await expect(documents.consulter(doc.id, acteur, etroit, ETROITES)).resolves.toBeDefined();
   });
 });

@@ -22,6 +22,11 @@ const utc = (s: string) => new Date(`${s}T00:00:00.000Z`);
 let pg: StartedPostgreSqlContainer;
 let prisma: PrismaClient;
 let utilisateurs: UtilisateursService;
+let perimetres: PerimetreService;
+
+/* Cette suite éprouve le CONTENU du suivi ; son cloisonnement a sa propre
+ * suite. Elle passe donc un périmètre de gestion globale. */
+const global = () => perimetres.resoudre(agent, new Set(["users:manage_any"]));
 let agent: string;
 let projet: string;
 
@@ -33,10 +38,11 @@ beforeAll(async () => {
     stdio: "pipe",
   });
   prisma = creerClient(pg.getConnectionUri());
+  perimetres = new PerimetreService(prisma as never);
   utilisateurs = new UtilisateursService(
     prisma as never,
     new AuditService(prisma as never),
-    new PerimetreService(prisma as never),
+    perimetres,
   );
 
   const u = await prisma.user.create({
@@ -78,7 +84,7 @@ describe("EX-USR-10 — la fiche de suivi individuel : chaque chiffre porte son 
       ],
     });
 
-    const suivi = await utilisateurs.suiviIndividuel(agent, AOUT);
+    const suivi = await utilisateurs.suiviIndividuel(agent, AOUT, await global());
     expect(suivi.statistiques.heuresSaisies).toBe(10);
     expect(suivi.temps).toHaveLength(2);
   });
@@ -95,7 +101,7 @@ describe("EX-USR-10 — la fiche de suivi individuel : chaque chiffre porte son 
       ],
     });
 
-    const suivi = await utilisateurs.suiviIndividuel(agent, AOUT);
+    const suivi = await utilisateurs.suiviIndividuel(agent, AOUT, await global());
     expect(suivi.statistiques.joursTeletravail).toBe(2);
   });
 
@@ -116,7 +122,7 @@ describe("EX-USR-10 — la fiche de suivi individuel : chaque chiffre porte son 
 
     // Février est HORS de la fenêtre d'août — et pourtant le congé compte :
     // un droit à congés ne se découpe pas en périodes glissantes.
-    const suivi = await utilisateurs.suiviIndividuel(agent, AOUT);
+    const suivi = await utilisateurs.suiviIndividuel(agent, AOUT, await global());
     expect(suivi.statistiques.congesAnnee).toBe(5);
     expect(suivi.periode.annee).toBe(2026);
   });
@@ -141,7 +147,7 @@ describe("EX-USR-10 — la fiche de suivi individuel : chaque chiffre porte son 
       },
     });
 
-    const suivi = await utilisateurs.suiviIndividuel(agent, AOUT);
+    const suivi = await utilisateurs.suiviIndividuel(agent, AOUT, await global());
     expect(suivi.statistiques.tachesActives).toBe(2);
     expect(suivi.statistiques.tachesTerminees).toBe(1);
     expect(suivi.statistiques.tachesBloquees).toBe(1);
@@ -149,7 +155,7 @@ describe("EX-USR-10 — la fiche de suivi individuel : chaque chiffre porte son 
 
   it("une période qui ne couvre rien ne casse pas les autres chiffres", async () => {
     const vide = { debut: utc("2020-01-01"), fin: utc("2020-01-31") };
-    const suivi = await utilisateurs.suiviIndividuel(agent, vide);
+    const suivi = await utilisateurs.suiviIndividuel(agent, vide, await global());
 
     expect(suivi.statistiques.heuresSaisies).toBe(0);
     expect(suivi.statistiques.joursTeletravail).toBe(0);
@@ -166,14 +172,14 @@ describe("EX-USR-10 — la fiche de suivi individuel : chaque chiffre porte son 
         assignes: { create: { userId: agent } },
       },
     });
-    const suivi = await utilisateurs.suiviIndividuel(agent, AOUT);
+    const suivi = await utilisateurs.suiviIndividuel(agent, AOUT, await global());
     // Trois tâches actives sur un seul projet : le compte de projets est 1.
     expect(suivi.statistiques.projetsActifs).toBe(1);
   });
 
   it("un agent inexistant est refusé, pas rendu vide", async () => {
     await expect(
-      utilisateurs.suiviIndividuel(crypto.randomUUID(), AOUT),
+      utilisateurs.suiviIndividuel(crypto.randomUUID(), AOUT, await global()),
     ).rejects.toMatchObject({ code: "introuvable" });
   });
 
@@ -185,8 +191,60 @@ describe("EX-USR-10 — la fiche de suivi individuel : chaque chiffre porte son 
     await prisma.user.update({ where: { id: agent }, data: { departementId: dep.id } });
     await prisma.userService.create({ data: { userId: agent, serviceId: svc.id } });
 
-    const suivi = await utilisateurs.suiviIndividuel(agent, AOUT);
+    const suivi = await utilisateurs.suiviIndividuel(agent, AOUT, await global());
     expect(suivi.agent.departement?.nom).toBe("Département du suivi");
     expect(suivi.agent.services.map((s) => s.nom)).toEqual(["Service du suivi"]);
+  });
+});
+
+describe("RG-SCOPE-01 — le suivi individuel est borné au périmètre", () => {
+  /*
+   * C'est la lecture la plus indiscrète du produit : congés posés, jours de
+   * télétravail, temps déclaré, tâche par tâche. Elle ne contrôlait AUCUN
+   * périmètre — tout porteur de `users:read_individual_tracking` obtenait
+   * celui de n'importe quel agent de l'instance en devinant son identifiant.
+   *
+   * La liste des utilisateurs, elle, filtrait bien. Même dissymétrie que sur
+   * les projets : la liste tenait, l'adresse directe non — et c'est ce qui
+   * rend la famille coûteuse, puisqu'un audit qui regarde la liste conclut que
+   * le cloisonnement tient.
+   */
+  it("RG-SCOPE-01 — le suivi d'un agent HORS PÉRIMÈTRE est refusé", async () => {
+    const dehors = await prisma.user.create({
+      data: {
+        login: `hors-${crypto.randomUUID().slice(0, 8)}`,
+        email: `hors-${crypto.randomUUID().slice(0, 8)}@x.fr`,
+        motDePasseHash: "x",
+        prenom: "Hors",
+        nom: "Périmètre",
+      },
+    });
+    // Un périmètre qui ne contient QUE l'observateur : le cas d'un agent
+    // ordinaire sans département commun.
+    const etroit = await perimetres.resoudre(agent, new Set(["users:read"]));
+
+    await expect(
+      utilisateurs.suiviIndividuel(dehors.id, AOUT, etroit),
+    ).rejects.toMatchObject({ code: "hors_perimetre" });
+  });
+
+  it("RG-SCOPE-01 — chacun voit le SIEN, c'est le cas nominal", async () => {
+    const etroit = await perimetres.resoudre(agent, new Set(["users:read"]));
+    await expect(utilisateurs.suiviIndividuel(agent, AOUT, etroit)).resolves.toBeDefined();
+  });
+
+  it("RG-SCOPE-03 — la gestion globale court-circuite le périmètre", async () => {
+    const dehors = await prisma.user.create({
+      data: {
+        login: `large-${crypto.randomUUID().slice(0, 8)}`,
+        email: `large-${crypto.randomUUID().slice(0, 8)}@x.fr`,
+        motDePasseHash: "x",
+        prenom: "Large",
+        nom: "Vue",
+      },
+    });
+    await expect(
+      utilisateurs.suiviIndividuel(dehors.id, AOUT, await global()),
+    ).resolves.toBeDefined();
   });
 });

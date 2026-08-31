@@ -234,7 +234,7 @@ describe("RG-PRJ-03 — la suppression définitive PROPOSE une alternative", () 
       data: { userId: chef, projectId: p.id, date: utc("2026-03-02"), heures: 3 },
     });
 
-    const impact = await projets.impactSuppression(p.id);
+    const impact = await projets.impactSuppression(p.id, await global(), toutes);
     expect(impact.blocages).toEqual([{ objet: "heures déclarées", nombre: 1 }]);
     // Un refus sans alternative pousse à contourner.
     expect(impact.alternative).toBe("archiver");
@@ -246,7 +246,7 @@ describe("RG-PRJ-03 — la suppression définitive PROPOSE une alternative", () 
   it("un projet sans historique se supprime, et l'effacement est annoncé", async () => {
     const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
     await prisma.task.create({ data: { titre: "T", projectId: p.id } });
-    const impact = await projets.impactSuppression(p.id);
+    const impact = await projets.impactSuppression(p.id, await global(), toutes);
     expect(impact.blocages).toEqual([]);
     expect(impact.effacements).toContainEqual({ objet: "tâches", nombre: 1 });
     await expect(projets.supprimerDefinitivement(p.id, chef)).resolves.toBeUndefined();

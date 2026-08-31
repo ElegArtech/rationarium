@@ -102,7 +102,34 @@ export class UtilisateursService {
    * Chaque bloc porte donc son **étendue**, et la vue l'affiche à côté du
    * chiffre plutôt que dans une note de bas de page.
    */
-  async suiviIndividuel(userId: string, fenetre: { debut: Date; fin: Date }) {
+  async suiviIndividuel(
+    userId: string,
+    fenetre: { debut: Date; fin: Date },
+    perimetre: Perimetre,
+  ) {
+    /*
+     * `RG-SCOPE-01` — le périmètre par défaut est le DÉPARTEMENT, et le suivi
+     * individuel ne le contrôlait pas.
+     *
+     * C'est la lecture la plus indiscrète du produit : congés posés, jours de
+     * télétravail, temps déclaré, tâche par tâche. Tout porteur de
+     * `users:read_individual_tracking` obtenait celui de n'importe quel agent
+     * de l'instance en devinant son identifiant — alors que la liste des
+     * utilisateurs, elle, filtrait bien. Même dissymétrie que sur les projets :
+     * la liste tenait, l'adresse directe non.
+     */
+    const visible = await this.prisma.user.findFirst({
+      where: { AND: [{ id: userId }, this.perimetres.filtreUtilisateur(perimetre)] },
+      select: { id: true },
+    });
+    if (!visible) {
+      const existe = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { id: true },
+      });
+      throw new ErreurUtilisateur(existe ? "hors_perimetre" : "introuvable");
+    }
+
     const agent = await this.prisma.user.findUnique({
       where: { id: userId },
       select: {
