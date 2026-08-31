@@ -65,8 +65,17 @@ export class DocumentsController {
   @Patch(":id")
   @RequiertPermission("documents:update")
   renommer(@Param("id") id: string, @Body() corps: unknown, @Demande() d: ContexteDemande) {
-    const { nom } = valider(z.object({ nom: z.string().min(1).max(255) }), corps);
-    return this.documents.renommer(id, nom, d.userId);
+    /*
+     * `version` est FACULTATIVE, et c'est une décision : le client de la vague 7
+     * ne la porte pas encore, et l'exiger d'emblée casserait le renommage à
+     * l'instant. Quand elle est fournie, elle est confrontée (`RG-GEN-07`) ;
+     * son passage à obligatoire est une tâche de vue, tracée au journal.
+     */
+    const { nom, version } = valider(
+      z.object({ nom: z.string().min(1).max(255), version: z.number().int().positive().optional() }),
+      corps,
+    );
+    return this.documents.renommer(id, nom, d.userId, d.permissions, version);
   }
 
   @Delete(":id")

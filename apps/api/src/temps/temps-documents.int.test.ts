@@ -706,7 +706,7 @@ describe("EX-DOC-02 — consulter, télécharger, renommer, supprimer un documen
   it("renommer change le NOM et rien d'autre — le contenu est adressé par empreinte", async () => {
     const doc = await joindre("faute-de-frape.txt");
 
-    await documents.renommer(doc.id, "sans-faute.txt", acteur);
+    await documents.renommer(doc.id, "sans-faute.txt", acteur, new Set());
 
     const relu = await prisma.document.findUniqueOrThrow({ where: { id: doc.id } });
     expect(relu.nom).toBe("sans-faute.txt");
@@ -714,6 +714,44 @@ describe("EX-DOC-02 — consulter, télécharger, renommer, supprimer un documen
     expect(relu.tailleOctets).toBe(doc.tailleOctets);
     // `RG-GEN-07` — le renommage est une écriture : la version bouge.
     expect(relu.version).toBe(doc.version + 1);
+  });
+
+  /**
+   * `RG-DOC-01` — **`supprimer` l'appliquait, `renommer` non.**
+   *
+   * Trouvé par l'agent qui branchait la vue 17, en lisant les deux méthodes
+   * l'une après l'autre : quiconque détenait `documents:update` renommait la
+   * pièce d'autrui, et le client ne masquait plus que par courtoisie — la
+   * configuration exacte de l'interdit « ne jamais contrôler un droit côté
+   * client seul ».
+   */
+  it("RG-DOC-01 — renommer le document d'AUTRUI est refusé, comme le supprimer", async () => {
+    const doc = await joindre("pas-a-moi.txt");
+    const intrus = await agent();
+
+    await expect(
+      documents.renommer(doc.id, "detourne.txt", intrus, new Set(["documents:update"])),
+    ).rejects.toMatchObject({ code: "pas_son_contenu" });
+
+    // Et rien n'a bougé, version comprise.
+    const relu = await prisma.document.findUniqueOrThrow({ where: { id: doc.id } });
+    expect(relu.nom).toBe("pas-a-moi.txt");
+    expect(relu.version).toBe(doc.version);
+  });
+
+  it("RG-DOC-01 — la permission d'exception, elle, passe", async () => {
+    const doc = await joindre("archive.txt");
+    const bibliothecaire = await agent();
+    await expect(
+      documents.renommer(doc.id, "range.txt", bibliothecaire, new Set(["documents:manage_any"])),
+    ).resolves.toBeUndefined();
+  });
+
+  it("RG-GEN-07 — une version périmée refuse le renommage plutôt que d'écraser", async () => {
+    const doc = await joindre("concurrent.txt");
+    await expect(
+      documents.renommer(doc.id, "trop-tard.txt", acteur, new Set(), doc.version + 9),
+    ).rejects.toMatchObject({ code: "conflit_de_version" });
   });
 
   it("supprimer efface la ligne, et son auteur n'a besoin d'aucune permission d'exception", async () => {
@@ -726,7 +764,9 @@ describe("EX-DOC-02 — consulter, télécharger, renommer, supprimer un documen
     const inconnu = "00000000-0000-4000-8000-000000000000";
     await expect(documents.consulter(inconnu, acteur)).rejects.toMatchObject({ code: "introuvable" });
     await expect(documents.telecharger(inconnu, acteur)).rejects.toMatchObject({ code: "introuvable" });
-    await expect(documents.renommer(inconnu, "x", acteur)).rejects.toMatchObject({ code: "introuvable" });
+    await expect(documents.renommer(inconnu, "x", acteur, new Set())).rejects.toMatchObject({
+      code: "introuvable",
+    });
     await expect(documents.supprimer(inconnu, acteur, new Set())).rejects.toMatchObject({
       code: "introuvable",
     });

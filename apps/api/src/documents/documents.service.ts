@@ -20,6 +20,7 @@ import { AuditService } from "../commun/audit.service.js";
  */
 
 export type EchecDocument =
+  | "conflit_de_version"
   | "rattachement_requis"
   | "pas_son_contenu"
   | "introuvable";
@@ -116,9 +117,39 @@ export class DocumentsService {
   }
 
   /** `EX-DOC-02` — renommer. Le nom est une métadonnée : le contenu ne bouge pas. */
-  async renommer(id: string, nom: string, acteurId: string) {
-    const avant = await this.prisma.document.findUnique({ where: { id }, select: { nom: true } });
+  /**
+   * `RG-DOC-01` — « un utilisateur modifie et supprime **ses propres**
+   * contributions ; agir sur celles d'autrui exige une permission dédiée. »
+   *
+   * **`supprimer` l'appliquait, `renommer` non.** Quiconque détenait
+   * `documents:update` renommait la pièce d'autrui, et le client ne masquait
+   * plus que par courtoisie — la configuration exacte de l'interdit
+   * « ne jamais contrôler un droit côté client seul ». Trouvé par l'agent qui
+   * branchait la vue, en lisant les deux méthodes l'une après l'autre.
+   *
+   * `RG-GEN-07` — la version manquait aussi : `version` était incrémentée sans
+   * jamais être confrontée, ce qui est un « dernier arrivé gagne » avec un
+   * compteur.
+   */
+  async renommer(
+    id: string,
+    nom: string,
+    acteurId: string,
+    permissions: ReadonlySet<string>,
+    version?: number,
+  ) {
+    const avant = await this.prisma.document.findUnique({
+      where: { id },
+      select: { nom: true, auteurId: true, version: true },
+    });
     if (!avant) throw new ErreurDocument("introuvable");
+
+    if (avant.auteurId !== acteurId && !permissions.has("documents:manage_any")) {
+      throw new ErreurDocument("pas_son_contenu");
+    }
+    if (version !== undefined && avant.version !== version) {
+      throw new ErreurDocument("conflit_de_version");
+    }
 
     await this.prisma.document.update({ where: { id }, data: { nom, version: { increment: 1 } } });
     await this.audit.tracer({
