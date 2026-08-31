@@ -341,10 +341,6 @@
       "id": "RG-PRM-05",
       "raison": "ÉCART DE SPÉCIFICATION, à trancher au cadrage avant d'écrire un test. La règle dit « quitter la page avec des modifications non enregistrées déclenche un avertissement » — un avertissement À LA SORTIE. L'implémentation annonce les modifications en permanence dans la page, ce qui est un autre comportement, pas une variante du même. Un test écrit aujourd'hui figerait l'un ou l'autre sans que la question soit tranchée.",
       "aTrancher": "cadrage/01 § M19 — la règle et le code ne décrivent pas le même comportement."
-    },
-    {
-      "id": "RG-GEN-05",
-      "raison": "Quantificateur universel — « TOUTE vue de données a un état de chargement ». Même raison que RG-GEN-02 : 35 vues, et un test nommé n'en prouverait qu'une. C'est design/etats.json qui énumère l'état « chargement » vue par vue, et la revue de vue qui le constate."
     }
   ],
   "citationsOrphelines": []
