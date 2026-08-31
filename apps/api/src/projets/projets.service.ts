@@ -146,6 +146,44 @@ export class ProjetsService {
     return { projets: avecProgression, affiches: projets.length, total };
   }
 
+
+  /**
+   * `RG-SCOPE-02` — le périmètre sur la lecture d'UN projet.
+   *
+   * **Quatre lectures de projet ne le contrôlaient pas du tout.** `fiche`,
+   * `budget`, `equipe` et `feuilleDeRoute` ne prenaient qu'un identifiant :
+   * quiconque détient `projects:read` — c'est-à-dire tout agent — obtenait
+   * n'importe quel projet de l'instance en devinant son identifiant, avec son
+   * budget, son équipe nominative et sa feuille de route. Le portefeuille, lui,
+   * filtrait bien (`filtreProjet`), ce qui rendait le trou invisible : la liste
+   * ne montrait que ce qu'on avait le droit de voir, et l'adresse directe
+   * montrait tout. Un audit qui regarde la liste conclut que le cloisonnement
+   * tient.
+   *
+   * Le refus distingue **introuvable** et **hors périmètre** : le premier dit
+   * que rien n'existe, le second qu'on n'y a pas droit, et confondre les deux
+   * empêcherait un chef de projet de comprendre pourquoi son lien ne s'ouvre
+   * pas. Le renseignement rendu par la distinction — « ce projet existe » — est
+   * celui que le portefeuille donne déjà par son compteur de total.
+   */
+  private async exigerVisible(
+    projectId: string,
+    perimetre: Perimetre,
+    permissions: ReadonlySet<string>,
+  ) {
+    const projet = await this.prisma.project.findUnique({
+      where: { id: projectId },
+      select: { id: true },
+    });
+    if (!projet) throw new ErreurProjet("introuvable");
+
+    const visible = await this.prisma.project.findFirst({
+      where: { AND: [{ id: projectId }, this.perimetres.filtreProjet(perimetre, permissions)] },
+      select: { id: true },
+    });
+    if (!visible) throw new ErreurProjet("hors_perimetre");
+  }
+
   /**
    * `EX-PRJ-02` — la fiche d'un projet : ce que la vue 11 affiche en une page.
    *
@@ -157,7 +195,13 @@ export class ProjetsService {
    * `RG-PRJ-07` : progression et budget consommé sont **calculés**. Ils
    * ressortent d'ici, pas d'une colonne, et la vue les marque comme tels.
    */
-  async fiche(projectId: string) {
+  async fiche(
+    projectId: string,
+    perimetre: Perimetre,
+    permissions: ReadonlySet<string>,
+  ) {
+    await this.exigerVisible(projectId, perimetre, permissions);
+
     const projet = await this.prisma.project.findUnique({
       where: { id: projectId },
       include: {
@@ -174,7 +218,7 @@ export class ProjetsService {
 
     const [progression, budget, parStatut, dernier] = await Promise.all([
       this.progression(projectId),
-      this.budget(projectId),
+      this.calculerBudget(projectId),
       this.prisma.task.groupBy({
         by: ["statut"],
         where: { projectId },
@@ -231,7 +275,23 @@ export class ProjetsService {
    * le projet **et ses tâches**. Omettre les tâches donnerait un budget
    * systématiquement sous-évalué.
    */
-  async budget(projectId: string) {
+  async budget(
+    projectId: string,
+    perimetre: Perimetre,
+    permissions: ReadonlySet<string>,
+  ) {
+    await this.exigerVisible(projectId, perimetre, permissions);
+    return this.calculerBudget(projectId);
+  }
+
+  /*
+   * Le calcul nu, sans contrôle : il sert la fiche et l'instantané, qui ont
+   * déjà vérifié le périmètre pour leur propre compte. Le séparer évite qu'un
+   * appel interne ait à se fabriquer un périmètre — c'est-à-dire à en inventer
+   * un plus large que celui de l'appelant.
+   */
+  private async calculerBudget(projectId: string) {
+
     const projet = await this.prisma.project.findUnique({
       where: { id: projectId },
       select: { budgetHeures: true },
@@ -502,7 +562,13 @@ export class ProjetsService {
    * L'allocation cumulée n'est calculée que sur les agents : un tiers ne
    * consomme pas la charge des services, un bénéficiaire ne contribue pas.
    */
-  async equipe(projectId: string) {
+  async equipe(
+    projectId: string,
+    perimetre: Perimetre,
+    permissions: ReadonlySet<string>,
+  ) {
+    await this.exigerVisible(projectId, perimetre, permissions);
+
     const [agents, tiers, clients] = await Promise.all([
       this.prisma.projectMember.findMany({
         where: { projectId },
@@ -701,7 +767,13 @@ export class ProjetsService {
   }
 
   /** `EX-JAL-03`, `EX-JAL-04` — feuille de route et indicateurs. */
-  async feuilleDeRoute(projectId: string) {
+  async feuilleDeRoute(
+    projectId: string,
+    perimetre: Perimetre,
+    permissions: ReadonlySet<string>,
+  ) {
+    await this.exigerVisible(projectId, perimetre, permissions);
+
     const jalons = await this.prisma.milestone.findMany({
       where: { projectId },
       orderBy: { dateEcheance: "asc" },
@@ -911,7 +983,7 @@ export class ProjetsService {
       this.progression(projectId),
       this.prisma.task.count({ where: { projectId } }),
       this.prisma.task.count({ where: { projectId, statut: "done" } }),
-      this.budget(projectId),
+      this.calculerBudget(projectId),
     ]);
     return this.prisma.projectSnapshot.upsert({
       where: { projectId_date: { projectId, date } },
@@ -950,17 +1022,7 @@ export class ProjetsService {
     perimetre: Perimetre,
     permissions: ReadonlySet<string>,
   ) {
-    const projet = await this.prisma.project.findUnique({
-      where: { id: projectId },
-      select: { id: true },
-    });
-    if (!projet) throw new ErreurProjet("introuvable");
-
-    const visible = await this.prisma.project.findFirst({
-      where: { AND: [{ id: projectId }, this.perimetres.filtreProjet(perimetre, permissions)] },
-      select: { id: true },
-    });
-    if (!visible) throw new ErreurProjet("hors_perimetre");
+    await this.exigerVisible(projectId, perimetre, permissions);
 
     return this.prisma.projectSnapshot.findMany({
       where: { projectId },
