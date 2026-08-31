@@ -109,7 +109,7 @@ describe("EX-ACT-02 — une tâche prédéfinie se MODIFIE, et se désactive", (
   });
 });
 
-describe("RG-ACT-08 — les règles de récurrence SE POSENT", () => {
+describe("EX-ACT-04 — les règles de récurrence SE POSENT", () => {
   /*
    * Elles étaient lues et exploitées par `genererDepuisRecurrences`, mais rien
    * ne permettait d'en créer une. « Générer les assignations » n'avait donc
