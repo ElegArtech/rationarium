@@ -298,3 +298,52 @@ export const commenter = (taskId: string, contenu: string) =>
     methode: "POST",
     corps: { contenu, taskId },
   });
+
+/**
+ * `EX-DOC-02` — **consulter** un document : en lire la fiche sans en sortir le
+ * contenu.
+ *
+ * Trois raisons de passer par cette route plutôt que par les métadonnées déjà
+ * embarquées dans `fiche()` :
+ *
+ *   1. `RG-DOC-02` — la consultation **laisse une trace**, distincte de celle
+ *      du téléchargement. Cette trace ne peut naître que d'un appel serveur, et
+ *      la dresser au chargement de la fiche tracerait une lecture que personne
+ *      n'a demandée, sur chaque document, à chaque affichage.
+ *   2. `RG-DOC-01` — la fiche tâche ne rend **pas** l'identifiant de l'auteur
+ *      d'un document : `auteur: { prenom, nom }`, sans `id`. Sans lui, aucun
+ *      écran ne peut masquer par courtoisie ce que le serveur refuserait.
+ *      Cette route-ci le rend.
+ *   3. L'empreinte et le rattachement n'arrivent par aucun autre chemin.
+ */
+export type DocumentConsulte = {
+  id: string;
+  nom: string;
+  empreinte: string;
+  tailleOctets: number;
+  typeMime: string;
+  /** `null` quand le compte auteur a disparu — la colonne est `SetNull`. */
+  auteurId: string | null;
+  projectId: string | null;
+  taskId: string | null;
+  version: number;
+  creeLe: string;
+  modifieLe: string;
+};
+
+export const consulterDocument = (id: string) => appeler<DocumentConsulte>(`/documents/${id}`);
+
+/**
+ * `EX-DOC-02` — renommer. Le nom est une métadonnée : le contenu ne bouge pas.
+ *
+ * La route n'accepte **pas** de version — le serveur incrémente la sienne sans
+ * jamais la confronter à celle qu'on a lue. C'est un écart à `RG-GEN-07`, il
+ * est au serveur, et ce lot ne touche pas au serveur : il est consigné en fin
+ * de `docs/audits/V7-diff-retour.md`.
+ */
+export const renommerDocument = (id: string, nom: string) =>
+  appeler<void>(`/documents/${id}`, { methode: "PATCH", corps: { nom } });
+
+/** `EX-DOC-02`, `RG-DOC-01` — supprimer. Le serveur refuse le document d'autrui. */
+export const supprimerDocument = (id: string) =>
+  appeler<void>(`/documents/${id}`, { methode: "DELETE" });

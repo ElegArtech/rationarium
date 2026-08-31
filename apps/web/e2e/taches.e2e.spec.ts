@@ -8,6 +8,8 @@ import {
   FICHE_VIDE,
   CANDIDATS,
   INCOHERENCES,
+  DOCUMENT_MIEN,
+  DOCUMENT_AUTRUI,
 } from "./fixtures/taches.js";
 
 /**
@@ -702,5 +704,309 @@ test.describe("Vue 17 — trois gestes que la fiche n'offrait pas", () => {
 
     await expect.poll(() => patch).not.toBeNull();
     expect(patch).toMatchObject({ contenu: "Corrigé" });
+  });
+});
+
+/**
+ * `EX-DOC-02` — « consulter, télécharger, renommer, supprimer un document ».
+ *
+ * Trois des quatre verbes vivaient sans écran. `GET`, `PATCH` et
+ * `DELETE /documents/:id` existaient, gardées et couvertes côté serveur, et
+ * **aucun appel client ne les visait** : on téléchargeait, un point c'est tout.
+ * Le verbe du milieu, encore — cinquième occurrence de la famille.
+ *
+ * Ce que ces contrôles vérifient, et pourquoi chacun :
+ *
+ *   - la consultation **part sur le clic, pas au chargement** : `RG-DOC-02` la
+ *     trace, et tracer une lecture que personne n'a demandée est un faux dans
+ *     le journal d'audit ;
+ *   - le renommage porte le nom saisi, pas celui qu'on avait lu ;
+ *   - la suppression vise le document ouvert ;
+ *   - `RG-DOC-01` — sur le document d'autrui, les deux commandes **n'existent
+ *     pas**, et la raison est écrite. Le serveur refuserait de toute façon
+ *     (`pas_son_contenu`) : le client masque par courtoisie, il ne décide pas.
+ */
+test.describe("Vue 17 — les trois verbes du document que rien n'appelait", () => {
+  const SESSION_DOCUMENTS = {
+    ...SESSION_TACHES,
+    permissions: [
+      ...SESSION_TACHES.permissions,
+      "documents:read",
+      "documents:download",
+      "documents:create",
+      "documents:update",
+      "documents:delete",
+    ],
+  };
+
+  /** Le serveur de documents : compte les appels, et dit ce qu'il a reçu. */
+  async function serveurDocument(
+    page: import("@playwright/test").Page,
+    options: {
+      session?: unknown;
+      detail: unknown;
+      statutPatch?: number;
+    },
+  ) {
+    const journal: { verbe: string; corps: unknown }[] = [];
+    await serveur(page, {
+      session: options.session ?? SESSION_DOCUMENTS,
+      reponses: { [`/api/taches/${FICHE.id}`]: { corps: FICHE } },
+    });
+    await page.route(
+      (url) => url.pathname === "/api/documents/d1",
+      (route) => {
+        const verbe = route.request().method();
+        journal.push({
+          verbe,
+          corps: verbe === "GET" ? null : route.request().postDataJSON(),
+        });
+        if (verbe === "GET") {
+          return route.fulfill({
+            status: 200,
+            contentType: "application/json",
+            body: JSON.stringify(options.detail),
+          });
+        }
+        return route.fulfill({
+          status: options.statutPatch ?? 200,
+          contentType: "application/json",
+          body: "{}",
+        });
+      },
+    );
+    return journal;
+  }
+
+  test("EX-DOC-02 — consulter : le nom du document APPELLE le serveur, et rend ce que la liste ne dit pas", async ({
+    page,
+  }) => {
+    const journal = await serveurDocument(page, { detail: DOCUMENT_MIEN });
+    await page.goto(`/taches/${FICHE.id}`);
+
+    await expect(page.getByRole("button", { name: "cadrage-v2.pdf" })).toBeVisible();
+    /*
+     * `RG-DOC-02` — la consultation laisse une trace. Elle ne doit donc PAS
+     * partir toute seule : afficher la fiche tâche n'est pas consulter chacune
+     * de ses pièces jointes. Sans cette assertion, un appel dressé au
+     * chargement passerait pour un succès.
+     */
+    expect(journal).toHaveLength(0);
+
+    await page.getByRole("button", { name: "cadrage-v2.pdf" }).click();
+
+    await expect.poll(() => journal.length).toBe(1);
+    expect(journal[0]!.verbe).toBe("GET");
+
+    // Ce que `GET /taches/:id` ne porte pas, et que seule la consultation rend.
+    const fenetre = page.getByRole("dialog");
+    await expect(fenetre.getByText("application/pdf")).toBeVisible();
+    await expect(fenetre.getByText(DOCUMENT_MIEN.empreinte)).toBeVisible();
+  });
+
+  test("EX-DOC-02 — renommer : le PATCH porte le nom SAISI, pas celui qu'on avait lu", async ({
+    page,
+  }) => {
+    const journal = await serveurDocument(page, { detail: DOCUMENT_MIEN });
+    await page.goto(`/taches/${FICHE.id}`);
+    await page.getByRole("button", { name: "cadrage-v2.pdf" }).click();
+
+    const fenetre = page.getByRole("dialog");
+    const champ = fenetre.getByLabel("Nom du document");
+    await expect(champ).toHaveValue("cadrage-v2.pdf");
+    // Le bouton reste inerte tant que le nom n'a pas changé : renommer en
+    // l'identique est une écriture — et une trace — pour rien.
+    await expect(fenetre.getByRole("button", { name: "Renommer" })).toBeDisabled();
+
+    await champ.fill("cadrage-v3.pdf");
+    await fenetre.getByRole("button", { name: "Renommer" }).click();
+
+    await expect.poll(() => journal.filter((a) => a.verbe === "PATCH")).toHaveLength(1);
+    expect(journal.find((a) => a.verbe === "PATCH")!.corps).toEqual({ nom: "cadrage-v3.pdf" });
+    await expect(page.getByText("Document renommé.")).toBeVisible();
+  });
+
+  test("EX-DOC-02 — supprimer : le DELETE vise le document ouvert", async ({ page }) => {
+    const journal = await serveurDocument(page, { detail: DOCUMENT_MIEN });
+    await page.goto(`/taches/${FICHE.id}`);
+    await page.getByRole("button", { name: "cadrage-v2.pdf" }).click();
+
+    await page.getByRole("dialog").getByRole("button", { name: "Supprimer", exact: true }).click();
+
+    await expect.poll(() => journal.filter((a) => a.verbe === "DELETE")).toHaveLength(1);
+    await expect(page.getByText("Document supprimé.")).toBeVisible();
+  });
+
+  test("RG-DOC-01 — sur le document d'AUTRUI, ni renommage ni suppression, et la raison est dite", async ({
+    page,
+  }) => {
+    await serveurDocument(page, { detail: DOCUMENT_AUTRUI });
+    await page.goto(`/taches/${FICHE.id}`);
+    await page.getByRole("button", { name: "cadrage-v2.pdf" }).click();
+
+    const fenetre = page.getByRole("dialog");
+    // La session détient `documents:update` ET `documents:delete` : ce qui
+    // retire les commandes ici est l'APPARTENANCE, pas la permission.
+    await expect(fenetre.getByLabel("Nom du document")).toHaveCount(0);
+    await expect(fenetre.getByRole("button", { name: "Supprimer", exact: true })).toHaveCount(0);
+    await expect(
+      fenetre.getByText("Ce document a été déposé par quelqu'un d'autre", { exact: false }),
+    ).toBeVisible();
+
+    // La pièce reste consultable et téléchargeable : la règle porte sur
+    // l'écriture, pas sur la lecture.
+    await expect(fenetre.getByText("application/pdf")).toBeVisible();
+    await expect(page.getByRole("link", { name: "Télécharger" })).toBeVisible();
+  });
+
+  test("RG-GEN-06 — sur SON PROPRE document, sans `documents:update` ni `documents:delete`, rien n'est proposé", async ({
+    page,
+  }) => {
+    await serveurDocument(page, {
+      session: {
+        ...SESSION_TACHES,
+        permissions: [...SESSION_TACHES.permissions, "documents:read", "documents:download"],
+      },
+      detail: DOCUMENT_MIEN,
+    });
+    await page.goto(`/taches/${FICHE.id}`);
+    await page.getByRole("button", { name: "cadrage-v2.pdf" }).click();
+
+    const fenetre = page.getByRole("dialog");
+    // Le document est le sien — `RG-DOC-01` ne s'y oppose pas. C'est la
+    // permission qui manque, et le message le dit autrement.
+    await expect(fenetre.getByLabel("Nom du document")).toHaveCount(0);
+    await expect(fenetre.getByRole("button", { name: "Supprimer", exact: true })).toHaveCount(0);
+    await expect(
+      fenetre.getByText("Vous n'avez pas le droit de renommer ce document.", { exact: true }),
+    ).toBeVisible();
+  });
+
+  test("RG-GEN-06 — sans `documents:read`, le nom reste LISIBLE mais n'est plus une commande", async ({
+    page,
+  }) => {
+    await serveur(page, {
+      session: SESSION_TACHES,
+      reponses: { [`/api/taches/${FICHE.id}`]: { corps: FICHE } },
+    });
+    await page.goto(`/taches/${FICHE.id}`);
+
+    // Masquer la ligne ferait croire qu'aucune pièce n'est jointe.
+    await expect(page.getByText("cadrage-v2.pdf", { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "cadrage-v2.pdf" })).toHaveCount(0);
+  });
+});
+
+/**
+ * `EX-TSK-02` — « déplacer une tâche entre colonnes par glisser-déposer ».
+ *
+ * **Ce qui est prouvé ici est l'EFFET, pas le geste.** Le glisser-déposer HTML5
+ * simulé est la source d'instabilité la plus classique d'une suite de bout en
+ * bout, et un rouge intermittent apprend à relancer plutôt qu'à chercher. Le
+ * kanban porte déjà l'alternative clavier qu'exige `C6` — menu « Déplacer
+ * vers… » et Alt + ← / → — et les deux chemins passent par la MÊME mutation.
+ * Prouver que la mutation part avec les bons arguments prouve le déplacement ;
+ * prouver qu'une traînée simulée ne lève pas d'exception ne prouve rien.
+ *
+ * Note d'exécution, consignée : `POST /taches/:id/deplacer` ne sert PAS le
+ * kanban. Elle déplace une date ou un assigné et ne touche jamais au statut —
+ * c'est le même service que `PATCH /planning/taches/deplacer`, que la vue 07
+ * appelle déjà. Les colonnes du kanban sont des statuts : c'est
+ * `PATCH /taches/:id` qui les écrit.
+ */
+test.describe("Vue 12 — EX-TSK-02, le déplacement entre colonnes", () => {
+  const reponses = {
+    "/api/taches": { corps: LISTE },
+    [`/api/projets/${PROJET.id}`]: { corps: PROJET },
+  };
+
+  async function serveurKanban(
+    page: import("@playwright/test").Page,
+    options: { statut?: number } = {},
+  ) {
+    const journal: Record<string, unknown>[] = [];
+    await serveur(page, { session: SESSION_TACHES, reponses });
+    await page.route(
+      (url) => url.pathname === `/api/taches/${TACHE_PROJET.id}`,
+      (route) => {
+        if (route.request().method() !== "PATCH") return route.fallback();
+        journal.push(route.request().postDataJSON() as Record<string, unknown>);
+        return route.fulfill({
+          status: options.statut ?? 200,
+          contentType: "application/json",
+          body: options.statut === 409 ? '{"cle":"erreurs:conflitDeVersion"}' : '{"version":4}',
+        });
+      },
+    );
+    return journal;
+  }
+
+  test("EX-TSK-02 — la colonne d'arrivée est ÉCRITE, avec la version lue", async ({ page }) => {
+    const journal = await serveurKanban(page);
+    await page.goto(`/projets/${PROJET.id}/taches`);
+
+    await page.getByRole("button", { name: /Déplacer la tâche Rédiger/ }).click();
+    await page.getByRole("menuitem", { name: "Déplacer vers Terminé" }).click();
+
+    await expect.poll(() => journal).toHaveLength(1);
+    // `RG-GEN-07` — la version lue accompagne l'écriture. Sans elle, deux
+    // déplacements simultanés se recouvriraient en silence.
+    expect(journal[0]).toEqual({ statut: "done", version: TACHE_PROJET.version });
+    await expect(page.getByText("Statut mis à jour.")).toBeVisible();
+  });
+
+  test("EX-TSK-02 — Alt + → décale d'UNE colonne, dans l'ordre du vocabulaire", async ({
+    page,
+  }) => {
+    const journal = await serveurKanban(page);
+    await page.goto(`/projets/${PROJET.id}/taches`);
+
+    // La tâche est en « En cours » : la colonne suivante est « En revue », pas
+    // « Terminé ». Un décalage qui saute une colonne passerait inaperçu sans
+    // cette assertion sur la valeur exacte.
+    await page.getByRole("article", { name: /Rédiger la note de cadrage/ }).focus();
+    await page.keyboard.press("Alt+ArrowRight");
+
+    await expect.poll(() => journal).toHaveLength(1);
+    expect(journal[0]).toEqual({ statut: "review", version: TACHE_PROJET.version });
+  });
+
+  test("EX-TSK-02 — déplacement échoué : la carte est ANNONCÉE de retour dans sa colonne", async ({
+    page,
+  }) => {
+    await serveurKanban(page, { statut: 409 });
+    await page.goto(`/projets/${PROJET.id}/taches`);
+
+    await page.getByRole("button", { name: /Déplacer la tâche Rédiger/ }).click();
+    await page.getByRole("menuitem", { name: "Déplacer vers Terminé" }).click();
+
+    // Brief de la vue 12 : « Déplacement échoué : "Erreur lors de la mise à
+    // jour du statut", carte remise à sa place d'origine. »
+    await expect(page.getByText("Échec : la carte revient dans En cours")).toBeVisible();
+    await expect(
+      page.getByRole("article", { name: "Rédiger la note de cadrage — En cours" }),
+    ).toBeVisible();
+  });
+
+  test("RG-TSK-11 — la règle porte sur la DATE au planning : au kanban, la tâche multi-assignée change de statut", async ({
+    page,
+  }) => {
+    /*
+     * L'assertion inverse de `planning.e2e.spec.ts`, et elle compte autant :
+     * `RG-TSK-11` dit « dans le planning, une tâche multi-assignée ne peut pas
+     * voir sa DATE modifiée par glisser-déposer ». Elle ne dit rien du statut.
+     * Étendre le verrou au kanban aurait rendu indéplaçable toute tâche à deux
+     * assignés — et personne ne l'aurait vu, faute de contrôle en face.
+     */
+    const journal = await serveurKanban(page);
+    await page.goto(`/projets/${PROJET.id}/taches`);
+
+    expect(TACHE_PROJET.assignes.length).toBeGreaterThan(1);
+    await page.getByRole("button", { name: /Déplacer la tâche Rédiger/ }).click();
+    await expect(page.getByRole("menuitem", { name: /Date non déplaçable/ })).toHaveCount(0);
+    await page.getByRole("menuitem", { name: "Déplacer vers Bloqué" }).click();
+
+    await expect.poll(() => journal).toHaveLength(1);
+    expect(journal[0]).toEqual({ statut: "blocked", version: TACHE_PROJET.version });
   });
 });
