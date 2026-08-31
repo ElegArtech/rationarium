@@ -407,6 +407,7 @@ const routeProfil = createRoute({
           departement: session.departement,
           services: session.services,
           membreDepuis: session.membreDepuis,
+          version: session.version,
         }}
       />
     );

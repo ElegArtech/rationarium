@@ -2,7 +2,7 @@ import { useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "react-aria-components";
-import { STATUTS_TACHE, PRIORITES } from "@trame/contracts";
+import { STATUTS_TACHE, PRIORITES } from "@rationarium/contracts";
 import * as api from "../../api/taches.js";
 import * as apiProjets from "../../api/projets.js";
 import { appeler } from "../../api/client.js";
@@ -66,7 +66,7 @@ export function FenetreCreationTache({
   const tous = useQuery({
     queryKey: ["utilisateurs", "tous"],
     queryFn: () =>
-      appeler<{ utilisateurs: { id: string; prenom: string; nom: string }[] }>("/utilisateurs"),
+      appeler<{ id: string; prenom: string; nom: string }[]>("/utilisateurs"),
     enabled: ouverte,
   });
 
@@ -82,7 +82,7 @@ export function FenetreCreationTache({
     nom: a.utilisateur.nom,
   }));
   const projetSansMembre = Boolean(projectId) && equipe.isSuccess && membresDuProjet.length === 0;
-  const candidats = projectId && !projetSansMembre ? membresDuProjet : (tous.data?.utilisateurs ?? []);
+  const candidats = projectId && !projetSansMembre ? membresDuProjet : (tous.data ?? []);
 
   const creation = useMutation({
     mutationFn: () =>

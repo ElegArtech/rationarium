@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { ROLES_PROJET, TYPES_TIERS } from "@trame/contracts";
+import { ROLES_PROJET, TYPES_TIERS } from "@rationarium/contracts";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "react-aria-components";
 import { appeler } from "../../api/client.js";
@@ -51,7 +51,7 @@ type Equipe = {
 };
 
 /*
- * La liste des rôles vit dans `@trame/contracts` : `cadrage/01 § M4` l'énumère,
+ * La liste des rôles vit dans `@rationarium/contracts` : `cadrage/01 § M4` l'énumère,
  * ce n'est donc pas une liste locale. Elle en était une ici — dix-sept chaînes
  * recopiées avec leurs propres clés de traduction, à côté d'un contrat qui
  * acceptait n'importe quelle chaîne.
@@ -480,7 +480,7 @@ function FenetreAjout({
   const candidats = useQuery({
     queryKey: ["utilisateurs", "candidats"],
     queryFn: () =>
-      appeler<{ utilisateurs: { id: string; prenom: string; nom: string }[] }>("/utilisateurs"),
+      appeler<{ id: string; prenom: string; nom: string }[]>("/utilisateurs"),
     enabled: ouverte && nature === "agent",
   });
 
@@ -581,7 +581,7 @@ function FenetreAjout({
               onChange={(e) => setQui(e.target.value)}
             >
               <option value="">{t("selectionner")}</option>
-              {(candidats.data?.utilisateurs ?? []).map((u) => (
+              {(candidats.data ?? []).map((u) => (
                 <option key={u.id} value={u.id}>
                   {u.prenom} {u.nom}
                 </option>

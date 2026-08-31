@@ -45,6 +45,22 @@ export const utilisateurs = (filtres: {
   actif?: boolean;
 }) => appeler<Utilisateur[]>(`/utilisateurs${params(filtres)}`);
 
+/**
+ * `EX-USR-03` — modifier un compte.
+ *
+ * `PATCH /utilisateurs/:id`, permission `users:update`. La route existait
+ * depuis L-29 ; la vue 27 ne l'appelait pas, sur la foi d'un commentaire
+ * affirmant qu'« elle n'existe pas côté serveur ». Elle existe, et le rôle
+ * ADMIN la détient comme les 151 autres permissions.
+ *
+ * `version` accompagne l'écriture (`RG-GEN-07`) : deux administrateurs sur la
+ * même fiche se détectent, ils ne s'écrasent pas.
+ */
+export const modifierUtilisateur = (
+  id: string,
+  donnees: { prenom?: string; nom?: string; email?: string; version: number },
+) => appeler<Utilisateur>(`/utilisateurs/${id}`, { methode: "PATCH", corps: donnees });
+
 export const creerUtilisateur = (donnees: {
   prenom: string;
   nom: string;
@@ -282,7 +298,7 @@ export type Role = {
  *
  * `detenue: null` signifie que le croisement **n'existe pas** au catalogue —
  * on n'« approuve » pas un département. C'est le serveur qui le sait, à partir
- * du catalogue de `@trame/contracts` ; le reconstruire côté client créerait une
+ * du catalogue de `@rationarium/contracts` ; le reconstruire côté client créerait une
  * seconde source de vérité qui divergerait au premier ajout de permission.
  */
 export type Matrice = {

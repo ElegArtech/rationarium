@@ -34,6 +34,8 @@ export type Session = {
   role: { code: string; nom: string } | null;
   permissions: string[];
   motDePasseAChanger: boolean;
+  /** `RG-GEN-07` — la version lue, que toute écriture doit renvoyer. */
+  version: number;
 };
 
 type ContexteSession = {

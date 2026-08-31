@@ -32,3 +32,20 @@ export const changerMotDePasse = (actuel: string, nouveau: string, confirmation:
     methode: "POST",
     corps: { actuel, nouveau, confirmation },
   });
+
+/**
+ * `EX-AUTH-09` — modifier son propre profil.
+ *
+ * `PATCH /auth/me`, marquée `@Personnel()` côté serveur : session exigée,
+ * aucune permission. Modifier son nom ne relève d'aucun des vingt-quatre
+ * domaines de `cadrage/01 § 3.2`, et le catalogue est fermé.
+ *
+ * `version` est obligatoire (`RG-GEN-07`) : c'est elle qui manquait au profil
+ * rendu, et c'est pour cela que la vue 35 est restée en lecture seule.
+ */
+export const modifierProfil = (donnees: {
+  prenom?: string;
+  nom?: string;
+  email?: string;
+  version: number;
+}) => appeler<unknown>("/auth/me", { methode: "PATCH", corps: donnees });

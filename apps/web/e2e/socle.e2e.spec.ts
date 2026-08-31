@@ -47,6 +47,10 @@ const SESSION = {
     "users:read",
   ],
   motDePasseAChanger: false,
+  /** `RG-GEN-07` — la version accompagne toute écriture. Elle manquait à la
+      réponse de `/auth/me`, et c'est ce qui a laissé la vue 35 en lecture
+      seule pendant tout le projet. */
+  version: 1,
 };
 
 /** Installe une session, ou son absence, avant le chargement de la page. */
@@ -105,6 +109,55 @@ test.describe("Le socle démarre", () => {
     await expect(page.getByRole("link", { name: /retour à l'accueil/i })).toBeVisible();
   });
 
+  /**
+   * La barre se repliait sans pouvoir se déplier : repliée, `.side` ne fait plus
+   * que 62 px, le nom du produit restait rendu et — `overflow: hidden` aidant —
+   * poussait le bouton hors du cadre. Le repli était donc un aller simple, sur
+   * toutes les vues, et aucune boucle ne l'a vu : `axe` ne regarde pas la mise
+   * en page, et rien n'ouvrait le cycle complet.
+   *
+   * Le contrôle porte sur le CYCLE — replier PUIS déplier —, jamais sur le seul
+   * état replié : c'est le retour qui manquait.
+   */
+  test("la barre latérale se replie ET se déplie", async ({ page }) => {
+    await serveur(page, { statut: 200, corps: SESSION });
+    await page.goto("/");
+
+    const app = page.locator(".app");
+    const replier = page.getByRole("button", { name: "Replier la barre latérale" });
+    await expect(app).not.toHaveClass(/is-collapsed/);
+
+    await replier.click();
+    await expect(app).toHaveClass(/is-collapsed/);
+
+    // Le bouton prend la place du nom : il reste dans le cadre, donc cliquable.
+    // Repliée, c'est le LOGO qui le porte — le chevron s'efface.
+    const deplier = page.getByRole("button", { name: "Déplier la barre latérale" });
+    await expect(deplier).toBeVisible();
+    await expect(deplier).toBeInViewport();
+    await expect(deplier.locator(".side-logo")).toBeVisible();
+    await expect(page.locator(".side-mark")).toBeHidden();
+
+    await deplier.click();
+    await expect(app).not.toHaveClass(/is-collapsed/);
+    await expect(page.locator(".side-mark")).toBeVisible();
+  });
+
+  /**
+   * Le logo tient la place du R. L'ensemble doit rester UN nom accessible :
+   * dessin puis « ationarium » séparés donneraient « R » puis « ationarium »,
+   * ou pire, le seul « ationarium » si le dessin n'est pas nommé.
+   */
+  test("le repère de marque s'annonce « Rationarium », logo compris", async ({ page }) => {
+    await serveur(page, { statut: 200, corps: SESSION });
+    await page.goto("/");
+
+    await expect(page.getByRole("img", { name: "Rationarium" })).toBeVisible();
+    // Le dessin est masqué aux technologies d'assistance : il ne s'ajoute pas
+    // au nom, il en fait partie.
+    await expect(page.locator(".side-mark .side-logo")).toHaveAttribute("aria-hidden", "true");
+  });
+
   test("l'accueil sert le tableau de bord — il ne renvoie plus ailleurs", async ({ page }) => {
     // Il redirigeait vers le profil tant que la vue 06 n'était pas portée.
     // Depuis L-21, c'est la page la plus consultée du produit qui est à la
@@ -152,5 +205,65 @@ test.describe("Le socle est bilingue et bithématique", () => {
     await expect(
       page.getByRole("group", { name: /thème/i }).getByRole("button", { name: "Automatique" }),
     ).toBeVisible();
+  });
+});
+
+/**
+ * `EX-AUTH-09` — « consulter **et** modifier son profil ».
+ *
+ * Seule la consultation existait. Les deux commandes de la vue 35 étaient
+ * désactivées derrière un commentaire affirmant qu'aucun point d'entrée ne
+ * permettait la mise à jour — « il n'existe ni `PATCH /auth/me` ni
+ * équivalent ». La route existait depuis L-30. Ce qui manquait était `version`
+ * dans la réponse de `/auth/me`, que le schéma exige : sans elle, aucune
+ * requête valide n'était composable, et la conclusion tirée fut la mauvaise.
+ */
+test.describe("Vue 35 — modifier son profil", () => {
+  test("l'enregistrement appelle PATCH /auth/me avec la version lue", async ({ page }) => {
+    let recu: { methode: string; corps: unknown } | null = null;
+
+    await page.route(
+      (url) => url.pathname.startsWith("/api/"),
+      (route) => {
+        const chemin = new URL(route.request().url()).pathname;
+        if (chemin === "/api/auth/me" && route.request().method() === "PATCH") {
+          recu = { methode: "PATCH", corps: route.request().postDataJSON() };
+          return route.fulfill({ status: 200, contentType: "application/json", body: "{}" });
+        }
+        if (chemin === "/api/auth/me") {
+          return route.fulfill({
+            status: 200,
+            contentType: "application/json",
+            body: JSON.stringify(SESSION),
+          });
+        }
+        return route.fulfill({ status: 200, contentType: "application/json", body: "{}" });
+      },
+    );
+
+    await page.goto("/profil");
+
+    // Tant que rien n'a changé, enregistrer n'a pas de sens.
+    const enregistrer = page.getByRole("button", { name: "Enregistrer" });
+    await expect(enregistrer).toBeDisabled();
+
+    await page.getByLabel("Prénom").fill("Camille-Rose");
+    await expect(enregistrer).toBeEnabled();
+    await enregistrer.click();
+
+    await expect(page.getByText("Profil enregistré.")).toBeVisible();
+    expect(recu).not.toBeNull();
+    expect(recu!.corps).toMatchObject({ prenom: "Camille-Rose", version: 1 });
+  });
+
+  test("« Annuler » remet les valeurs lues et rend les commandes inertes", async ({ page }) => {
+    await serveur(page, { statut: 200, corps: SESSION });
+    await page.goto("/profil");
+
+    await page.getByLabel("Prénom").fill("Autre");
+    await page.getByRole("button", { name: "Annuler" }).click();
+
+    await expect(page.getByLabel("Prénom")).toHaveValue("Camille");
+    await expect(page.getByRole("button", { name: "Enregistrer" })).toBeDisabled();
   });
 });

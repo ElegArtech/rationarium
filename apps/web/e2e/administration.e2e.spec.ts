@@ -60,6 +60,42 @@ test.describe("Vue 27 — utilisateurs", () => {
     await expect(page.getByText("Vous ne pouvez pas vous désactiver")).toHaveCount(0);
   });
 
+  /**
+   * `EX-USR-03` — modifier un compte.
+   *
+   * L'action a manqué à la vue pendant tout le projet, derrière un commentaire
+   * affirmant que « la route de modification d'un compte n'existe pas côté
+   * serveur ». `PATCH /utilisateurs/:id` existe et porte `users:update`, que le
+   * rôle ADMIN détient comme les 151 autres permissions. Une action ABSENTE ne
+   * fait échouer aucun contrôle : c'est ce qui a laissé le commentaire faux
+   * survivre à toutes les boucles.
+   */
+  test("EX-USR-03 — un compte se modifie, et l'écriture porte sa version", async ({ page }) => {
+    let recu: unknown = null;
+    await serveur(page, { session: SESSION_ADMIN, reponses });
+    await page.route(
+      (url) => url.pathname.startsWith("/api/utilisateurs/"),
+      (route) => {
+        if (route.request().method() !== "PATCH") return route.fallback();
+        recu = route.request().postDataJSON();
+        return route.fulfill({ status: 200, contentType: "application/json", body: "{}" });
+      },
+    );
+
+    await page.goto("/utilisateurs");
+    await page.getByRole("button", { name: "Actions pour Camille Roussel" }).click();
+    await page.getByRole("menuitem", { name: "Modifier" }).click();
+
+    // `RG-AUTH-08` — l'identifiant reste hors d'atteinte, et le dit.
+    await expect(page.getByLabel("Login", { exact: true })).toBeDisabled();
+
+    await page.getByLabel("Prénom").fill("Camille-Rose");
+    await page.getByRole("button", { name: "Enregistrer" }).click();
+
+    await expect.poll(() => recu).not.toBeNull();
+    expect(recu).toMatchObject({ prenom: "Camille-Rose", version: expect.any(Number) });
+  });
+
   test("les deux suppressions sont distinctes : parcours, libellé, séparateur", async ({
     page,
   }) => {

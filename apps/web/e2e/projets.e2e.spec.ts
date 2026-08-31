@@ -318,7 +318,12 @@ test.describe("Vue 14 — équipe", () => {
 
   test("le doublon est annoncé sans aller-retour au serveur", async ({ page }) => {
     await serveur(page, {
-      reponses: { ...reponses, "/utilisateurs": { corps: { utilisateurs: [{ id: "a1", prenom: "Driss", nom: "Amrani" }] } } },
+      // `GET /utilisateurs` rend un TABLEAU. Ce jeu l'enveloppait dans
+      // `{ utilisateurs: [...] }` — la forme que le client avait inventée, et
+      // que le serveur n'a jamais rendue. Les deux erreurs se validaient l'une
+      // l'autre : le sélecteur de membres était vide en exploitation, et ce
+      // contrôle passait au vert sur la fiction. Même couple que la vue 27.
+      reponses: { ...reponses, "/utilisateurs": { corps: [{ id: "a1", prenom: "Driss", nom: "Amrani" }] } },
     });
     await page.goto(`${CHEMIN_PROJET}/equipe`);
     await page.getByRole("button", { name: "+ Ajouter un membre" }).click();

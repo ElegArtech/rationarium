@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { changerLangue, LANGUES } from "../i18n/index.js";
 import { definirTheme, themeCourant, THEMES, type Theme } from "../theme/index.js";
@@ -6,7 +7,8 @@ import i18next from "i18next";
 import { Button } from "react-aria-components";
 import { ChampMotDePasse, PolitiqueMotDePasse } from "../composants/champs.js";
 import { AvatarAgent } from "../composants/pastilles.js";
-import { changerMotDePasse, deconnexion } from "../api/session.js";
+import { changerMotDePasse, deconnexion, modifierProfil } from "../api/session.js";
+import { CLE_SESSION } from "../session/session.js";
 import { messageErreur } from "../api/erreurs.js";
 import { formaterDateLongue } from "../formats.js";
 import "../composants/partages.css";
@@ -42,6 +44,7 @@ export function Profil({
     departement: string | null;
     services: string[];
     membreDepuis: string;
+    version: number;
   };
 }) {
   const { t } = useTranslation("coquille");
@@ -118,16 +121,50 @@ function Informations({
     departement: string | null;
     services: string[];
     membreDepuis: string;
+    version: number;
   };
 }) {
   const { t } = useTranslation("coquille");
   const { t: tAuth } = useTranslation("auth");
+  const { t: tErreurs } = useTranslation("erreurs");
+  const client = useQueryClient();
 
   const [prenom, setPrenom] = useState(utilisateur.prenom);
   const [nom, setNom] = useState(utilisateur.nom);
   const [email, setEmail] = useState(utilisateur.email);
   const [theme, setTheme] = useState<Theme>(themeCourant);
   const [langue, setLangue] = useState(() => i18next.language);
+  const [retour, setRetour] = useState<{ type: "succes" | "erreur"; texte: string } | null>(null);
+
+  const modifie =
+    prenom !== utilisateur.prenom || nom !== utilisateur.nom || email !== utilisateur.email;
+
+  /**
+   * `EX-AUTH-09` — « consulter **et** modifier ».
+   *
+   * Les deux commandes ont vécu désactivées derrière un commentaire affirmant
+   * qu'aucun point d'entrée ne permettait de modifier son profil. `PATCH
+   * /auth/me` existait depuis le début ; ce qui manquait était `version` dans
+   * la réponse de `/auth/me`, que `modificationProfilSchema` exige au titre de
+   * `RG-GEN-07`. Sans elle, aucune requête valide n'était composable — et la
+   * conclusion tirée alors fut que la route n'existait pas.
+   */
+  const enregistrement = useMutation({
+    mutationFn: () => modifierProfil({ prenom, nom, email, version: utilisateur.version }),
+    onSuccess: async () => {
+      setRetour({ type: "succes", texte: t("profil.enregistre") });
+      await client.invalidateQueries({ queryKey: CLE_SESSION });
+    },
+    onError: (e) =>
+      setRetour({ type: "erreur", texte: messageErreur(e, tErreurs, t("profil.echecEnregistrement")) }),
+  });
+
+  const annuler = () => {
+    setPrenom(utilisateur.prenom);
+    setNom(utilisateur.nom);
+    setEmail(utilisateur.email);
+    setRetour(null);
+  };
 
   /*
    * Les champs verrouillés portent CHACUN son motif et son responsable — et
@@ -246,18 +283,34 @@ function Informations({
               <p className="field-hint">{t("profil.emailAide")}</p>
             </div>
           </div>
-          {/*
-           * Les deux commandes restent désactivées : **aucun point d'entrée ne
-           * permet aujourd'hui de mettre à jour son propre profil** (il n'existe
-           * ni `PATCH /auth/me` ni équivalent). Les activer ferait échouer
-           * l'enregistrement au premier clic. L'écart est remonté plutôt que
-           * comblé au jugé.
-           */}
+          <div aria-live="polite">
+            {retour ? (
+              <div
+                className={`alert ${retour.type === "succes" ? "alert-success" : "alert-error"}`}
+                role={retour.type === "succes" ? "status" : "alert"}
+              >
+                <span className="alert-icon" aria-hidden="true">
+                  !
+                </span>
+                <span>{retour.texte}</span>
+              </div>
+            ) : null}
+          </div>
+          {/* Désactivées tant que rien n'a changé : proposer d'enregistrer
+              l'identique ferait douter que l'action ait eu lieu. */}
           <div className="ligne-actions actions-profil">
-            <Button className="btn btn-primary" isDisabled>
+            <Button
+              className="btn btn-primary"
+              isDisabled={!modifie || enregistrement.isPending}
+              onPress={() => enregistrement.mutate()}
+            >
               {t("profil.enregistrer")}
             </Button>
-            <Button className="btn btn-secondary" isDisabled>
+            <Button
+              className="btn btn-secondary"
+              isDisabled={!modifie || enregistrement.isPending}
+              onPress={annuler}
+            >
               {t("profil.annuler")}
             </Button>
           </div>
