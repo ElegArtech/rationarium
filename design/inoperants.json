@@ -1,0 +1,153 @@
+{
+  "_lisezMoi": [
+    "Ce que ce dépôt admet d'inerte, et ce qu'il admet d'ouvert — nommément, avec sa raison.",
+    "",
+    "(a) `commandesInertes` — chaque `isDisabled` sans expression de apps/web/src/**/*.tsx.",
+    "    Une commande peut rester inerte ; elle ne peut pas le rester en silence. Quatre l'ont",
+    "    été sur la foi de motifs périmés qui affirmaient qu'aucune route serveur n'existait,",
+    "    et les quatre routes existaient. Chaque motif ci-dessous a donc été REVÉRIFIÉ contre",
+    "    les contrôleurs, pas recopié du commentaire qui l'accompagne.",
+    "",
+    "(b) `champsAdmis` — chaque couple (route d'écriture, champ sensible) qu'aucune déclaration",
+    "    de apps/api/src/commun/champs-gouvernes.ts ne requestionne. Certains sont légitimes :",
+    "    la garde de la route EST la gouvernance du champ. D'autres sont des écarts ouverts en",
+    "    tâches distinctes ; ils portent « ouvert — voir docs/audits/V7-diff-retour.md ».",
+    "",
+    "Le repère d'une commande est la dernière clé i18next de son élément, sinon son `id`,",
+    "sinon le nom de sa balise — jamais un numéro de ligne, qui serait faux à la première",
+    "insertion au-dessus. Tenu par scripts/inoperant-check.mjs, dans pnpm verif. Une entrée",
+    "qui ne correspond plus à rien échoue au même titre qu'une occurrence non déclarée."
+  ],
+
+  "commandesInertes": [
+    {
+      "fichier": "apps/web/src/composants/action-protegee.tsx",
+      "repere": "Button",
+      "raison": "Le composant EST la courtoisie de RG-GEN-06 : quand la permission manque et que l'action garde du sens pour ce profil, le bouton se rend désactivé avec son explication au survol, plutôt qu'absent ou proposé puis refusé. Son inertie est sa raison d'être. Le contrôle, lui, reste au serveur — permission puis périmètre —, et le commentaire du fichier le dit pour qu'on ne s'y trompe pas.",
+      "regles": ["RG-GEN-06"]
+    },
+    {
+      "fichier": "apps/web/src/routes/profil.tsx",
+      "repere": "profil.demanderModification",
+      "raison": "Aucune route serveur ne porte la demande de modification d'un champ géré par l'administration : la maquette 35 s'en tire par un toast (`askChange()` y annonce une demande transmise au manager et à l'administrateur), et le cadrage n'ouvre aucune exigence pour ce geste. Le bouton reste par fidélité à la maquette et n'agit pas. À noter : c'est le seul inerte du produit SANS explication au survol — un écart à RG-GEN-06, à traiter à part.",
+      "regles": ["EX-AUTH-09", "RG-GEN-06"]
+    },
+    {
+      "fichier": "apps/web/src/vues/administration/Predefinies.tsx",
+      "repere": "modifier",
+      "raison": "Motif vérifié contre le contrôleur : `PATCH /activite/recurrences/:id` n'accepte que `{ active }` — il arrête une règle, il ne la réécrit pas. Aucune route n'expose le jour, les dates ni la tâche d'une règle de récurrence à la modification. Le serveur sait la poser et l'arrêter, pas la réécrire.",
+      "regles": ["EX-ACT-04", "RG-GEN-06"]
+    },
+    {
+      "fichier": "apps/web/src/vues/administration/Predefinies.tsx",
+      "repere": "supprimer",
+      "raison": "Motif vérifié contre le contrôleur : aucun `@Delete` n'existe sur `activite/recurrences/:id`. Une règle s'arrête sans s'effacer — ce qu'elle a engendré reste —, donc il n'y a rien à appeler et la commande ne peut pas agir.",
+      "regles": ["EX-ACT-04", "RG-GEN-06"]
+    },
+    {
+      "fichier": "apps/web/src/vues/administration/Roles.tsx",
+      "repere": "roles.enregistrerPermissions",
+      "raison": "RG-ADM-02 — un rôle système n'est pas modifiable dans sa structure : ses permissions sont fixées par le modèle, et vider ADMIN des siennes verrouillerait définitivement l'administration. L'intention est donc juste. MAIS le motif n'est vrai QUE côté client : `PUT /administration/roles/:id/permissions` ne regarde pas `systeme`, que `roles.service.ts` n'oppose qu'au renommage et à la suppression. Une requête forgée passe. Écart ouvert à part — un droit ne se contrôle jamais côté client seul.",
+      "regles": ["RG-ADM-02", "RG-DROITS-02"]
+    },
+    {
+      "fichier": "apps/web/src/vues/occupations/Evenements.tsx",
+      "repere": "evenements.modifier",
+      "raison": "Motif vérifié contre le contrôleur : `PATCH /evenements/:id` n'existe pas. `evenements.controller.ts` n'expose que la création, l'ajout et le retrait de participants, et l'arrêt de récurrence. EX-EVT-06 reste à servir ; comblé par L-42.",
+      "regles": ["EX-EVT-06"]
+    },
+    {
+      "fichier": "apps/web/src/vues/occupations/Evenements.tsx",
+      "repere": "evenements.supprimer",
+      "raison": "Motif vérifié contre le contrôleur : `DELETE /evenements/:id` n'existe pas non plus — seul `DELETE /evenements/:id/participants/:userId` est exposé, qui retire une personne et non l'événement. EX-EVT-06 reste à servir ; comblé par L-42.",
+      "regles": ["EX-EVT-06"]
+    },
+    {
+      "fichier": "apps/web/src/vues/planning/Semaine.tsx",
+      "repere": "actions.dateVerrouillee",
+      "raison": "RG-TSK-11 — dans le planning, une tâche multi-assignée ne voit pas sa date changer par glisser-déposer ; le doublage clavier suit la même règle. La branche n'est atteinte que dans ce cas, et l'entrée dit la raison au lieu d'ouvrir un sous-menu qui refuserait ensuite.",
+      "regles": ["RG-TSK-11", "RG-GEN-06"]
+    },
+    {
+      "fichier": "apps/web/src/vues/planning/Semaine.tsx",
+      "repere": "actions.aucunAutreJour",
+      "raison": "RG-PLN-03 laisse n'afficher qu'un seul jour : il n'existe alors aucune autre colonne où déposer la tâche. La branche remplace un sous-menu vide de 190 × 2 px par la raison — un état vide rédigé plutôt qu'une languette blanche.",
+      "regles": ["RG-PLN-03", "RG-GEN-04"]
+    },
+    {
+      "fichier": "apps/web/src/vues/planning/Semaine.tsx",
+      "repere": "actions.aucunAutreAgent",
+      "raison": "Même branche pour la réassignation : quand la semaine n'affiche aucun autre agent, le sous-menu s'ouvrirait sur rien. L'entrée dit pourquoi, au lieu de proposer un geste sans cible.",
+      "regles": ["RG-GEN-04", "RG-GEN-06"]
+    },
+    {
+      "fichier": "apps/web/src/vues/taches/Fiche.tsx",
+      "repere": "fiche.modifier",
+      "raison": "Ici le serveur N'EST PAS en cause : `PATCH /taches/:id` existe, et la fiche édite déjà en place le titre, le statut et l'avancement. C'est le formulaire complet de la maquette — dates, estimation, jalon, confidentialité — qui n'est pas porté. L'inertie tient au portage, pas à une route manquante ; question remontée.",
+      "regles": ["EX-TSK-07"]
+    },
+    {
+      "fichier": "apps/web/src/vues/taches/Fiche.tsx",
+      "repere": "fiche.modifierDependances",
+      "raison": "Motif vérifié contre le contrôleur : `POST` et `DELETE /taches/:id/dependances` posent et retirent bien une dépendance, mais aucune route n'expose la liste des tâches CANDIDATES hors cycle qu'attend la fenêtre de sélection de la maquette. Le bouton reste et dit pourquoi il n'agit pas ; comblé par L-45.",
+      "regles": ["EX-TSK-10"]
+    }
+  ],
+
+  "champsAdmis": [
+    {
+      "route": "PUT /administration/roles/:id/permissions",
+      "champ": "permissions",
+      "raison": "La garde EST la gouvernance : `users:manage_permissions` est exactement la permission qu'exige l'écriture de ce champ. Il n'existe pas de permission plus stricte à lui opposer. La liste blanche de RG-DROITS-03 est en outre revérifiée dans le service (`estAuCatalogue`), pas seulement à la frontière HTTP.",
+      "regles": ["EX-ADM-04", "RG-DROITS-03"]
+    },
+    {
+      "route": "POST /conges",
+      "champ": "userId",
+      "raison": "Gouverné, mais par sa propre voie : dès que la cible diffère de l'acteur, le contrôleur appelle `verifierDeclarationPourAutrui`, qui exige `leaves:declare_for_other` puis applique le périmètre. Antérieur à `champs-gouvernes.ts` — à y ramener pour que la règle ne soit énoncée qu'une fois, faute de quoi le quatrième cas s'écrira sans le cinquième. À noter : le commentaire du contrôleur cite EX-CNG-11 (« déléguer son pouvoir de validation ») ; le geste est EX-CNG-08.",
+      "regles": ["EX-CNG-08"]
+    },
+    {
+      "route": "POST /evenements/:id/participants",
+      "champ": "userId",
+      "raison": "Ici `userId` désigne QUI est invité, pas AU NOM DE QUI on agit. Ajouter un participant est le geste nominal de la route, et `events:update` est la permission de le faire ; aucune permission plus stricte n'est en jeu. Le motif « agir sur autrui » ne s'applique pas.",
+      "regles": ["EX-EVT-08"]
+    },
+    {
+      "route": "POST /projets",
+      "champ": "chefId",
+      "raison": "ouvert — voir docs/audits/V7-diff-retour.md",
+      "regles": ["RG-SCOPE-02", "EX-PRJ-03"]
+    },
+    {
+      "route": "POST /projets",
+      "champ": "sponsorId",
+      "raison": "ouvert — voir docs/audits/V7-diff-retour.md",
+      "regles": ["RG-SCOPE-02", "EX-PRJ-03"]
+    },
+    {
+      "route": "POST /temps",
+      "champ": "userId",
+      "raison": "ouvert — voir docs/audits/V7-diff-retour.md",
+      "regles": ["RG-TMP-04"]
+    },
+    {
+      "route": "POST /teletravail",
+      "champ": "userId",
+      "raison": "ouvert — voir docs/audits/V7-diff-retour.md",
+      "regles": ["RG-TLT-07"]
+    },
+    {
+      "route": "PATCH /planning/teletravail",
+      "champ": "userId",
+      "raison": "ouvert — voir docs/audits/V7-diff-retour.md. L'audit nomme la fonction `teletravail.basculer`, qui reçoit la cible et l'acteur sans jamais les comparer ; ce balayage montre qu'elle est atteinte par DEUX points d'entrée, celui-ci comme `POST /teletravail`. La correction devra fermer les deux.",
+      "regles": ["RG-TLT-07"]
+    },
+    {
+      "route": "POST /teletravail/generer",
+      "champ": "userId",
+      "raison": "ouvert — voir docs/audits/V7-diff-retour.md. Troisième facette de la même absence : générer les plannings d'un tiers depuis ses règles est bien « agir sur le télétravail d'autrui », et `telework:generate` ne dit rien de la personne visée. Non nommée par l'audit, qui raisonnait sur la fonction et non sur les routes.",
+      "regles": ["RG-TLT-07"]
+    }
+  ]
+}

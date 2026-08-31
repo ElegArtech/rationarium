@@ -35,6 +35,11 @@ export const MESSAGES_METIER: Record<string, Message> = {
     "erreurs:champHorsPermission",
     "Ce champ demande une permission que vous n'avez pas. Le reste de votre modification n'a pas été enregistré.",
   ),
+  role_systeme_non_modifiable: m(
+    403,
+    "erreurs:roleSystemeNonModifiable",
+    "Les permissions d'un rôle système sont fixées par son modèle et ne se modifient pas. Dupliquez-le pour obtenir un rôle ajustable.",
+  ),
   conflit_de_version: m(
     409,
     "erreurs:conflitDeVersion",

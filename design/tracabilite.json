@@ -595,12 +595,6 @@
       "lot": "vague 7-4",
       "module": "L-08",
       "note": "Le test existe et exerce bien la règle, mais son titre cite « RG-ADM-09 », qui n'existe pas au cadrage. Renommer le titre suffit à couvrir cette exigence — voir citationsOrphelines."
-    },
-    {
-      "id": "RG-ADM-02",
-      "lot": "vague 7-4",
-      "module": "L-08",
-      "note": "Proche de RG-DROITS-02 (« ni supprimables ni renommables »), déjà couvert, mais l'élargit : « ni modifiables dans leur structure ». C'est cette clause supplémentaire qui manque, et elle est testable seule."
     }
   ],
   "nonTestable": [

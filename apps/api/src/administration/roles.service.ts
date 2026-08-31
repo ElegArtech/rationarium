@@ -15,6 +15,7 @@ import { MODELES_ROLES, PERMISSIONS, DOMAINES, estAuCatalogue } from "@rationari
 export type EchecRole =
   | "role_systeme_non_supprimable"
   | "role_systeme_non_renommable"
+  | "role_systeme_non_modifiable"
   | "permission_hors_catalogue"
   | "code_deja_pris"
   | "role_utilise"
@@ -213,8 +214,32 @@ export class RolesService {
    * `RG-DROITS-03` — toute permission hors catalogue est refusée. Le contrôle
    * est ici et pas seulement dans l'interface : une requête forgée doit
    * échouer comme un formulaire.
+   *
+   * `RG-ADM-02` — **les rôles système ne sont pas modifiables dans leur
+   * structure**, et ce refus-ci manquait. Le raisonnement était pourtant écrit,
+   * douze lignes plus haut, sur `renommer` : « sans cela, un administrateur
+   * pourrait vider `ADMIN` de ses permissions et se verrouiller définitivement
+   * hors de l'administration ». `Roles.tsx` désactivait bien le bouton — mais un
+   * client qui désactive n'est qu'une courtoisie (`RG-GEN-06`), jamais un
+   * contrôle. Une requête forgée sur `PUT /administration/roles/:id/permissions`
+   * vidait `ADMIN`, et personne ne pouvait le restaurer puisque restaurer exige
+   * `users:manage_permissions`, qui vit dans `ADMIN`.
+   *
+   * `acteurId` est le discriminant, et il existait déjà : l'alignement du
+   * référentiel (`initialiserReferentiel`) appelle sans acteur, la route HTTP
+   * appelle avec. Un rôle système se réaligne donc toujours sur son modèle, et
+   * ne se modifie jamais à la demande.
    */
   async definirPermissions(roleId: string, permissions: string[], acteurId?: string) {
+    if (acteurId) {
+      const role = await this.prisma.role.findUnique({
+        where: { id: roleId },
+        select: { systeme: true },
+      });
+      if (!role) throw new ErreurRole("introuvable");
+      if (role.systeme) throw new ErreurRole("role_systeme_non_modifiable");
+    }
+
     const hors = permissions.filter((p) => !estAuCatalogue(p));
     if (hors.length > 0) throw new ErreurRole("permission_hors_catalogue", { permissions: hors });
 
