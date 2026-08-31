@@ -630,3 +630,34 @@ Note de cloisonnement, non tranchée : le module lève `hors_perimetre` plutôt
 qu'`introuvable`, ce qui **confirme l'existence** de l'événement à qui n'a pas le droit
 de le voir. C'est la convention du module, cohérente partout ; la changer est une
 décision à part.
+
+---
+
+## RG-CNG-19 — l'écran mentait sur le solde d'une année sur deux
+
+Signalé par l'agent de L-46, qui ne possédait pas le fichier. Corrigé ici.
+
+Le bloc de contrôle de solde **bouclait sur les années couvertes en rendant à chaque
+tour le MÊME objet** — celui de l'année en cours. Une demande du 28 décembre au
+3 janvier affichait « Année 2027 » avec les chiffres de 2026 : trois lignes sur quatre
+fausses, **sous un intitulé qui affirmait le contraire**.
+
+Deux choses rendaient l'erreur difficile à voir. Le **décompte de jours**, lui, était
+juste — le serveur le rend par année — donc la moitié du bloc disait vrai. Et l'erreur
+penchait **du côté rassurant** : l'année suivante paraissait toujours avoir le solde
+plein de l'année courante, jamais l'inverse. Le contrôle serveur (`RG-CNG-21`) n'a
+jamais été trompé ; c'est l'écran qui mentait.
+
+Le correctif interroge un solde **par année couverte** (`useQueries`), avec repli sur
+l'existant tant que la réponse n'est pas là.
+
+### Un piège rencontré en écrivant le test, et c'est le même que d'habitude
+
+Ma première assertion portait sur le **bloc** (« l'année 2027 contient 25,0 ») et
+**passait avec ET sans le correctif** : `25,0` figure déjà comme *attribués* dans les
+deux années. Le test ne mesurait rien. Il vise désormais la **ligne** — « Disponible »,
+« Déjà utilisés » — et tombe sans le correctif : `Expected "0,0", Received "12,0"`.
+
+*Un test qu'on n'a pas vu échouer ne prouve pas ce qu'on croit.* C'est le critère
+d'acceptation de toute cette vague, et il vient de se justifier une fois de plus sur mon
+propre travail.
