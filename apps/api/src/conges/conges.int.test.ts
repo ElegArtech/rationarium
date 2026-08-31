@@ -642,8 +642,16 @@ describe("RG-CNG-24 — les jours S'ATTRIBUENT, par beneficiaire ou globalement"
   it("réattribuer met à jour, sans créer de seconde ligne", async () => {
     const beneficiaire = await agent();
     const type = await creerType();
-    await conges.attribuerSolde({ userId: beneficiaire, typeId: type, annee: 2026, joursAttribues: 25 }, beneficiaire);
-    await conges.attribuerSolde({ userId: beneficiaire, typeId: type, annee: 2026, joursAttribues: 28 }, beneficiaire);
+    const pose = await conges.attribuerSolde(
+      { userId: beneficiaire, typeId: type, annee: 2026, joursAttribues: 25 },
+      beneficiaire,
+    );
+    // La seconde attribution porte la version lue : depuis la correction de
+    // `RG-CNG-23`, une réattribution sans version est traitée comme un conflit.
+    await conges.attribuerSolde(
+      { userId: beneficiaire, typeId: type, annee: 2026, joursAttribues: 28, version: pose.version },
+      beneficiaire,
+    );
 
     expect((await conges.solde(beneficiaire, type, 2026)).attribues).toBe(28);
     expect(
@@ -658,8 +666,11 @@ describe("RG-CNG-24 — les jours S'ATTRIBUENT, par beneficiaire ou globalement"
       { userId: beneficiaire, typeId: type, annee: 2026, joursAttribues: 25 },
       beneficiaire,
     );
-    // Quelqu'un d'autre passe entre-temps.
-    await conges.attribuerSolde({ userId: beneficiaire, typeId: type, annee: 2026, joursAttribues: 30 }, beneficiaire);
+    // Quelqu'un d'autre passe entre-temps, avec la version qu'il vient de lire.
+    await conges.attribuerSolde(
+      { userId: beneficiaire, typeId: type, annee: 2026, joursAttribues: 30, version: pose.version },
+      beneficiaire,
+    );
 
     await expect(
       conges.attribuerSolde(
@@ -684,8 +695,14 @@ describe("RG-CNG-24 — les jours S'ATTRIBUENT, par beneficiaire ou globalement"
   it("RG-ADM — l'attribution est tracée, avec l'avant et l'après", async () => {
     const beneficiaire = await agent();
     const type = await creerType();
-    await conges.attribuerSolde({ userId: beneficiaire, typeId: type, annee: 2026, joursAttribues: 25 }, beneficiaire);
-    await conges.attribuerSolde({ userId: beneficiaire, typeId: type, annee: 2026, joursAttribues: 30 }, beneficiaire);
+    const pose = await conges.attribuerSolde(
+      { userId: beneficiaire, typeId: type, annee: 2026, joursAttribues: 25 },
+      beneficiaire,
+    );
+    await conges.attribuerSolde(
+      { userId: beneficiaire, typeId: type, annee: 2026, joursAttribues: 30, version: pose.version },
+      beneficiaire,
+    );
 
     const trace = await prisma.auditLog.findFirst({
       where: { action: "leave.balance_set" },
@@ -702,9 +719,9 @@ describe("RG-CNG-24 — les jours S'ATTRIBUENT, par beneficiaire ou globalement"
  *                                                                            *
  *  Chaque assertion est écrite depuis le texte de `cadrage/01`, pas depuis   *
  *  le code : c'est la seule façon qu'un test a de trouver un écart plutôt    *
- *  que de le figer. Deux d'entre elles ne passent PAS — elles sont marquées  *
- *  `it.fails`, l'assertion du cadrage intacte, et redeviendront rouges le    *
- *  jour où le défaut sera corrigé.                                          *
+ *  que de le figer. Deux d'entre elles ont trouvé un défaut réel :   *
+ *  le troisième échelon du validateur, qui n'existait pas, et la version    *
+ *  facultative de l'attribution de solde. Les deux sont corrigés.          *
  * ══════════════════════════════════════════════════════════════════════════ */
 
 /** Un service, éventuellement doté d'un manager. */
@@ -1509,7 +1526,8 @@ describe("RG-CNG-08 — le validateur est déterminé à la création", () => {
 
   /*
    * ─────────────────────────────────────────────────────────────────────────
-   * DÉFAUT CONSTATÉ, NON CORRIGÉ — le troisième échelon de `RG-CNG-08`.
+   * DÉFAUT TROUVÉ PAR CE TEST, DEPUIS CORRIGÉ — le troisième échelon
+   * de `RG-CNG-08`.
    *
    * La règle énumère trois échelons : « le manager du service, à défaut le
    * responsable du département, À DÉFAUT UN DÉTENTEUR DE LA PERMISSION DE
@@ -1526,8 +1544,8 @@ describe("RG-CNG-08 — le validateur est déterminé à la création", () => {
    * implémenté, ce test deviendra rouge et exigera le retrait du marqueur.
    * ─────────────────────────────────────────────────────────────────────────
    */
-  it.fails(
-    "RG-CNG-08 — à défaut des deux, un détenteur de la permission de gestion globale (DÉFAUT : échelon non implémenté)",
+  it(
+    "RG-CNG-08 — à défaut des deux, un détenteur de la permission de gestion globale",
     async () => {
       // Un département sans responsable, un agent sans service.
       const dept = await departement();
@@ -1600,7 +1618,8 @@ describe("RG-CNG-23 — l'allocation modifiée pendant le traitement fait ÉCHOU
 
   /*
    * ─────────────────────────────────────────────────────────────────────────
-   * DÉFAUT CONSTATÉ, NON CORRIGÉ — la protection est FACULTATIVE.
+   * DÉFAUT TROUVÉ PAR CE TEST, DEPUIS CORRIGÉ — la protection était
+   * FACULTATIVE.
    *
    * `attribuerSolde` ne compare les versions que si l'appelant en fournit
    * une : `if (existante && donnees.version !== undefined && …)`. Le schéma du
@@ -1613,20 +1632,22 @@ describe("RG-CNG-23 — l'allocation modifiée pendant le traitement fait ÉCHOU
    * qui y pense. L'assertion ci-dessous est celle de la règle, non ajustée.
    * ─────────────────────────────────────────────────────────────────────────
    */
-  it.fails(
-    "RG-CNG-23 — une attribution SANS version n'écrase pas une écriture concurrente (DÉFAUT : elle l'écrase)",
+  it(
+    "RG-CNG-23 — une attribution SANS version n'écrase pas une écriture concurrente",
     async () => {
       const type = await creerType();
       const beneficiaire = await agent();
       const premier = await agent();
       const second = await agent();
 
-      await conges.attribuerSolde(
+      const pose = await conges.attribuerSolde(
         { userId: beneficiaire, typeId: type, annee: 2029, joursAttribues: 25 },
         premier,
       );
+      // Le second passe avec la version qu'il vient de lire : son écriture est
+      // légitime, c'est celle du premier qui arrive après coup.
       await conges.attribuerSolde(
-        { userId: beneficiaire, typeId: type, annee: 2029, joursAttribues: 30 },
+        { userId: beneficiaire, typeId: type, annee: 2029, joursAttribues: 30, version: pose.version },
         second,
       );
 
