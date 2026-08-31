@@ -189,6 +189,41 @@ export const restaurerProjet = (id: string) =>
   appeler<void>(`/projets/${id}/restaurer`, { methode: "POST" });
 
 /**
+ * `EX-PRJ-13`, `RG-PRJ-09` — figer l'avancement à une date.
+ *
+ * L'instantané est **écrit**, jamais recalculé : une courbe de tendance
+ * compare le réel à ce qu'on voyait *à l'époque*. La clé `(projet, date)` est
+ * unique et le serveur fait un `upsert` — capturer deux fois le même jour
+ * rafraîchit la ligne du jour, il n'en empile pas une seconde.
+ *
+ * **La forme de la réponse a été relevée, pas devinée.** Le serveur rend la
+ * ligne `ProjectSnapshot` telle quelle, `heuresConsommees` comprise — une
+ * colonne `Decimal`, donc une **chaîne** en JSON, comme `budgetHeures` plus
+ * haut. La lire comme un nombre marcherait à l'affichage et casserait à la
+ * première comparaison.
+ *
+ * Deux réserves, tenues hors de ce lot et consignées :
+ * — `RG-PRJ-09` veut une capture **périodique** (`cadrage/03 § 5.4`, `pg-boss`)
+ *   et **aucun travail de fond ne l'exécute** : cet appel est aujourd'hui le
+ *   seul producteur d'instantanés du produit ;
+ * — `EX-PRJ-13` demande de **consulter l'historique**, et aucune route ne
+ *   l'expose : `fiche()` ne rend que `dernierInstantane`.
+ */
+export type Instantane = {
+  id: string;
+  projectId: string;
+  date: string;
+  progression: number;
+  tachesTotal: number;
+  tachesFinies: number;
+  /** `Decimal` en base — une CHAÎNE en JSON, jamais un nombre. */
+  heuresConsommees: string;
+};
+
+export const capturerInstantane = (id: string, date: string) =>
+  appeler<Instantane>(`/projets/${id}/instantane`, { methode: "POST", corps: { date } });
+
+/**
  * L'inventaire de ce que la suppression détruirait.
  *
  * Il est demandé **avant** d'ouvrir la confirmation, jamais après : la vue 11

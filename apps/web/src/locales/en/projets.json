@@ -101,7 +101,10 @@
     "modifier": "Edit",
     "modifie": "Project saved.",
     "annulerProjet": "Cancel project",
-    "annulerFait": "Project cancelled. It can still be restored."
+    "annulerFait": "Project cancelled. It can still be restored.",
+    "capturerInstantane": "Take a snapshot",
+    "instantanePris": "Snapshot taken — {pct}% on {date}.",
+    "echecInstantane": "The snapshot could not be taken."
   },
   "jalons": {
     "laFeuille": "the roadmap",

@@ -59,6 +59,39 @@ export function VueEnsemble({ projetId }: { projetId: string }) {
     onError: (e) => annoncer("err", messageErreur(e, tErreurs, t("fiche.echecAction"))),
   });
 
+  /**
+   * `EX-PRJ-13`, `RG-PRJ-09` — figer l'avancement d'aujourd'hui.
+   *
+   * La date est celle du jour, jamais un champ : `RG-PRJ-09` parle d'un relevé
+   * *périodique*, pas d'une saisie rétroactive, et laisser choisir la date
+   * ouvrirait la porte à réécrire un point de la courbe qu'on est justement là
+   * pour ne pas recalculer.
+   *
+   * **Cette commande est aujourd'hui le SEUL producteur d'instantanés du
+   * produit.** `cadrage/03 § 5.4` confie la capture à un travail `pg-boss`
+   * périodique ; ce travail n'existe pas. Sans elle, `dernierInstantane` de la
+   * fiche et la courbe de tendance de la vue 30 restent vides à jamais.
+   *
+   * L'accusé de réception rend la **progression reçue**, pas celle qu'on
+   * affichait : c'est la seule façon de vérifier que le serveur a bien écrit
+   * ce qu'on croit, plutôt que d'afficher notre propre état sous un autre nom.
+   */
+  const instantane = useMutation({
+    mutationFn: () =>
+      api.capturerInstantane(projetId, new Date().toISOString().slice(0, 10)),
+    onSuccess: (pris) => {
+      annoncer(
+        "ok",
+        t("fiche.instantanePris", {
+          pct: pris.progression,
+          date: formaterDate(pris.date),
+        }),
+      );
+      void client.invalidateQueries({ queryKey: ["projet", projetId] });
+    },
+    onError: (e) => annoncer("err", messageErreur(e, tErreurs, t("fiche.echecInstantane"))),
+  });
+
   if (requete.isPending) return <Chargement quoi={t("fiche.leProjet")} />;
   if (requete.isError)
     return <ErreurDeChargement erreur={requete.error} surReessai={() => void requete.refetch()} />;
@@ -107,6 +140,22 @@ export function VueEnsemble({ projetId }: { projetId: string }) {
           {peut("projects:update") && projet.statut !== "cancelled" ? (
             <Button className="chip-btn" onPress={() => setEditionOuverte(true)}>
               {t("fiche.modifier")}
+            </Button>
+          ) : null}
+          {/*
+            `EX-PRJ-13` — capturer l'avancement du jour. `reports:read` est la
+            permission que porte la route ; `RG-GEN-06` veut que le client
+            masque sur celle-là, pas sur une plus stricte choisie ici.
+            Un projet annulé est figé — `02`, vue 11 : « toute modification
+            bloquée » —, et un instantané est une écriture.
+          */}
+          {peut("reports:read") && projet.statut !== "cancelled" ? (
+            <Button
+              className="chip-btn"
+              isPending={instantane.isPending}
+              onPress={() => instantane.mutate()}
+            >
+              {t("fiche.capturerInstantane")}
             </Button>
           ) : null}
           {peut("projects:archive") && !projet.archive && projet.statut !== "cancelled" ? (

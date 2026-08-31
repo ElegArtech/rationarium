@@ -445,8 +445,6 @@ const SANS_CLIENT: { verbe: string; chemin: string; raison: string }[] = [
   // ── 3. Capacités serveur qu'aucun écran n'offre encore ───────────────────
   { verbe: "POST", chemin: "/administration/roles", raison: A_BRANCHER },
   { verbe: "PATCH", chemin: "/administration/roles/:id", raison: A_BRANCHER },
-  { verbe: "GET", chemin: "/competences/:id/detenteurs", raison: A_BRANCHER },
-  { verbe: "GET", chemin: "/competences/export", raison: A_BRANCHER },
   { verbe: "POST", chemin: "/conges/:id/annulation/traiter", raison: A_BRANCHER },
   { verbe: "GET", chemin: "/conges/solde", raison: A_BRANCHER },
   { verbe: "PUT", chemin: "/conges/soldes", raison: A_BRANCHER },
@@ -463,12 +461,10 @@ const SANS_CLIENT: { verbe: string; chemin: string; raison: string }[] = [
   { verbe: "GET", chemin: "/parametrage/jours-ouvres", raison: A_BRANCHER },
   { verbe: "GET", chemin: "/parametrage/trame", raison: A_BRANCHER },
   { verbe: "POST", chemin: "/parametrage/vacances", raison: A_BRANCHER },
-  { verbe: "POST", chemin: "/projets/:id/instantane", raison: A_BRANCHER },
   { verbe: "POST", chemin: "/taches/:id/deplacer", raison: A_BRANCHER },
   { verbe: "GET", chemin: "/temps/non-declarees", raison: A_BRANCHER },
   { verbe: "GET", chemin: "/temps/rapport", raison: A_BRANCHER },
   { verbe: "POST", chemin: "/tiers/taches/:taskId/assigner", raison: A_BRANCHER },
-  { verbe: "GET", chemin: "/utilisateurs/presence", raison: A_BRANCHER },
 ];
 
 describe("aucune route serveur sans appel client", () => {

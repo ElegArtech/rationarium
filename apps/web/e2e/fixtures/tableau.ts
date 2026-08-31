@@ -23,6 +23,69 @@ export const SESSION_TABLEAU = {
   ],
 };
 
+/**
+ * Le contributeur du brief : `planning:read`, mais **pas** `users:read`.
+ *
+ * `SESSION_TABLEAU` hérite de `users:read` par `SESSION`. Sans cette
+ * variante, `RG-GEN-06` ne pourrait pas être vérifiée sur le bloc de
+ * présence — et « la vue est complète en un écran pour Camille » resterait
+ * une affirmation.
+ */
+export const SESSION_TABLEAU_SANS_ANNUAIRE = {
+  ...SESSION_TABLEAU,
+  role: { code: "PROJECT_CONTRIBUTOR", nom: "Contributeur projet" },
+  permissions: SESSION_TABLEAU.permissions.filter((p) => p !== "users:read"),
+};
+
+/**
+ * `EX-USR-09` — la présence du jour, dans la forme que rend le SERVEUR.
+ *
+ * Relevée sur `utilisateurs.service.ts` (`presenceDuJour`), pas déduite du
+ * nom de la route : trois états exclusifs, `typeConge` non nul seulement pour
+ * un congé, et aucune couleur — le service sélectionne bien `type.couleur`
+ * mais ne la réémet pas. Un jeu d'essai qui l'inventerait ferait passer au
+ * vert une vue que le serveur ne peut pas nourrir.
+ */
+export const PRESENCE = [
+  { id: "u-moi", prenom: "Camille", nom: "Roussel", etat: "present", typeConge: null },
+  { id: "u-driss", prenom: "Driss", nom: "Amrani", etat: "conge", typeConge: "Congé annuel" },
+  { id: "u-ines", prenom: "Inès", nom: "Rocher", etat: "teletravail", typeConge: null },
+];
+
+/** `RG-GEN-04` — le périmètre vide s'explique, il ne se laisse pas blanc. */
+export const PRESENCE_VIDE: typeof PRESENCE = [];
+
+/**
+ * `EX-PRJ-13` — la capture d'instantané, et sa réponse.
+ *
+ * **Ces deux-là décrivent la vue 11, pas la vue 06.** Ils vivent ici parce que
+ * le contrôle de la capture est logé dans `tableau.e2e.spec.ts` : un autre lot
+ * travaille sur `projets.e2e.spec.ts`, et deux lots dans le même fichier se
+ * perdent l'un l'autre. À la fusion, leur place est `fixtures/projets.ts`.
+ */
+export const SESSION_INSTANTANE = {
+  ...SESSION_TABLEAU,
+  permissions: [...SESSION_TABLEAU.permissions, "reports:read"],
+};
+
+/**
+ * La ligne `ProjectSnapshot` telle que Prisma la sérialise.
+ *
+ * `heuresConsommees` est une **chaîne** : la colonne est un `Decimal`, et un
+ * `Decimal` porte un `toJSON` qui rend du texte — comme `budgetHeures` de la
+ * fiche projet. L'écrire en nombre ici aurait validé une forme que le serveur
+ * ne rend jamais.
+ */
+export const INSTANTANE_PRIS = {
+  id: "snap-1",
+  projectId: "22222222-2222-4222-8222-222222222222",
+  date: "2026-08-12",
+  progression: 62,
+  tachesTotal: 34,
+  tachesFinies: 21,
+  heuresConsommees: "744.00",
+};
+
 /** L'extrait de planning est celui d'une seule personne : la sienne. */
 const PLANNING_PERSONNEL = {
   ...SEMAINE,
