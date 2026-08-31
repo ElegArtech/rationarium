@@ -225,4 +225,43 @@ describe("modèles de rôles — cadrage/01 § 3.2", () => {
       expect(m.permissions.length, `${m.code} est vide`).toBeGreaterThan(0);
     }
   });
+
+  it("RG-TSK-02 — un modèle dont la DESCRIPTION suppose une création en porte le droit", () => {
+    /*
+     * `STAGIAIRE_ALTERNANT` disait « Pas de création de tâche hors projet »,
+     * ce qui affirme en creux qu'il en crée DANS un projet. Or `SOCLE` porte
+     * `tasks:create_standalone` et non `tasks:create` : retirer le premier ne
+     * lui laissait AUCUN droit de création. Le stagiaire ne pouvait rien
+     * créer, nulle part.
+     *
+     * Le trou est resté invisible tant que la route de création n'exigeait que
+     * `tasks:create` quel que soit le corps. `RG-TSK-02` a rendu les deux
+     * droits distincts, et c'est en la portant qu'on l'a vu.
+     *
+     * L'assertion porte sur la description parce que c'est elle qui décrit
+     * l'intention : un modèle qui parle d'une restriction de création promet
+     * une création.
+     */
+    for (const m of MODELES_ROLES) {
+      const parleDeCreation = /création de tâche/i.test(m.description);
+      if (!parleDeCreation) continue;
+      const peutCreer =
+        m.permissions.includes("tasks:create") ||
+        m.permissions.includes("tasks:create_standalone");
+      expect(peutCreer, `${m.code} restreint une création qu'il ne peut pas faire`).toBe(true);
+    }
+  });
+
+  it("RG-TSK-02 — les deux droits de création sont DISTINCTS au catalogue", () => {
+    // Si un modèle les portait toujours ensemble, la distinction ne servirait
+    // à rien et le contrôle de la route serait un ornement.
+    const seulementDansProjet = MODELES_ROLES.filter(
+      (m) => m.permissions.includes("tasks:create") && !m.permissions.includes("tasks:create_standalone"),
+    );
+    const seulementHorsProjet = MODELES_ROLES.filter(
+      (m) => m.permissions.includes("tasks:create_standalone") && !m.permissions.includes("tasks:create"),
+    );
+    expect(seulementDansProjet.length, "aucun rôle ne crée SEULEMENT dans un projet").toBeGreaterThan(0);
+    expect(seulementHorsProjet.length, "aucun rôle ne crée SEULEMENT hors projet").toBeGreaterThan(0);
+  });
 });

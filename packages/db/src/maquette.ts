@@ -123,7 +123,25 @@ export async function peuplerMaquette(
   }
   await prisma.user.update({
     where: { id: moi.id },
-    data: { prenom: AGENTS[0].prenom, nom: AGENTS[0].nom },
+    data: {
+      prenom: AGENTS[0].prenom,
+      nom: AGENTS[0].nom,
+      /*
+       * **Le drapeau de changement de mot de passe se lève ici aussi.**
+       *
+       * Les quatre autres agents le recevaient à `false` à leur création, pas
+       * celui-ci — il vient de l'amorçage, qui le pose à `true` pour que le
+       * premier administrateur change le mot de passe engendré. Conséquence :
+       * `connecter()` réussissait, puis **toutes** les routes redirigeaient
+       * vers `/mot-de-passe-impose`, et une mesure de rendu relevait la vue 05
+       * sur les trente-cinq vues — quatre-vingt-dix écarts sur la vue 19, dont
+       * aucun n'était réel.
+       *
+       * Le jeu de maquette existe pour qu'une instance soit REGARDABLE ; un
+       * compte qui ne peut aller nulle part ne l'est pas.
+       */
+      motDePasseAChanger: false,
+    },
   });
 
   const agents = [moi];

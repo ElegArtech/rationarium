@@ -195,6 +195,29 @@ describe("le jeu de données des maquettes", () => {
     }
   }, 300_000);
 
+  it("LÈVE le drapeau de changement de mot de passe sur le compte connecté", async () => {
+    /*
+     * L'amorçage le pose à `true` pour que le premier administrateur change le
+     * mot de passe engendré. Les quatre autres agents du jeu le reçoivent à
+     * `false` à leur création ; celui-là, non.
+     *
+     * Conséquence : `connecter()` réussissait, puis TOUTES les routes
+     * redirigeaient vers `/mot-de-passe-impose`. Une mesure de rendu relevait
+     * donc la vue 05 sur les trente-cinq vues, et annonçait quatre-vingt-dix
+     * écarts sur la vue 19 dont aucun n'était réel. Le jeu de maquette existe
+     * pour qu'une instance soit REGARDABLE ; un compte qui ne peut aller nulle
+     * part ne l'est pas.
+     */
+    const prisma = creerClient(url);
+    try {
+      await peuplerMaquette(prisma);
+      const moi = await prisma.user.findFirstOrThrow({ where: { prenom: "Camille" } });
+      expect(moi.motDePasseAChanger).toBe(false);
+    } finally {
+      await prisma.$disconnect();
+    }
+  }, 300_000);
+
   it("rattache CHAQUE agent à un service — sinon le filtre s'affiche vide", async () => {
     /*
      * Un sélecteur vide se lit « il n'y a pas de service », pas « personne
