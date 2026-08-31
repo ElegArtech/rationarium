@@ -3,7 +3,10 @@ import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testconta
 import { execFileSync } from "node:child_process";
 import path from "node:path";
 import { creerClient, type PrismaClient } from "@rationarium/db";
+import { HttpException } from "@nestjs/common";
+import { STATUTS_TACHE } from "@rationarium/contracts";
 import { TachesService, ErreurTache } from "./taches.service.js";
+import { TachesController } from "./taches.controller.js";
 import { AuditService } from "../commun/audit.service.js";
 import { NotificationsService } from "../notifications/notifications.service.js";
 import { FileService } from "../notifications/file.service.js";
@@ -1068,5 +1071,215 @@ describe("EX-TSK-10 — la pose d'un ensemble de dépendances", () => {
     expect(journal.find((l) => l.action === "task.dependency_remove")?.detail).toMatchObject({
       prerequisId: a.id,
     });
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// Les règles du cadrage qu'aucun test ne citait — domaine TSK.
+//
+// Ce bloc n'ajoute aucun code de production : il éprouve ce que le module
+// prétend déjà tenir. Chaque suite part du TEXTE du cadrage, jamais de la
+// signature du service — c'est la seule façon qu'un test a de trouver ce qui
+// manque plutôt que de confirmer ce qui est là.
+// ════════════════════════════════════════════════════════════════════════════
+
+describe("EX-TSK-01 — la liste ET le kanban à CINQ colonnes", () => {
+  /*
+   * Le kanban de la vue 16 n'a pas de représentation propre au serveur : ses
+   * colonnes SONT les statuts du vocabulaire fermé, et son contenu sort de
+   * `lister`. L'exigence tient donc à deux choses vérifiables ici — que le
+   * vocabulaire porte exactement cinq valeurs, et qu'une carte tombe dans une
+   * colonne et une seule. Un statut de plus, ou une carte présente dans deux
+   * colonnes, et le tableau cesse d'être le kanban que l'exigence décrit.
+   */
+  it("EX-TSK-01 — le vocabulaire des statuts porte EXACTEMENT cinq colonnes", () => {
+    expect(STATUTS_TACHE.map((s) => s.code)).toEqual([
+      "todo",
+      "doing",
+      "review",
+      "done",
+      "blocked",
+    ]);
+  });
+
+  it("EX-TSK-01 — chaque carte tombe dans UNE colonne, et la liste les recompose", async () => {
+    const projet16 = await projet();
+    for (const s of STATUTS_TACHE) {
+      await taches.creer({ titre: `K-${s.code}`, projectId: projet16, statut: s.code }, acteur);
+    }
+    const p = await globalP();
+
+    for (const s of STATUTS_TACHE) {
+      const colonne = await taches.lister(p, toutes, { projectId: projet16, statut: s.code });
+      // La colonne ne contient QUE son statut : sans cela la même carte
+      // s'afficherait dans deux colonnes, et le tableau compterait double.
+      expect(colonne.map((t) => t.titre)).toEqual([`K-${s.code}`]);
+    }
+
+    // Et la vue « liste » de la même exigence rend l'union exacte des cinq
+    // colonnes — ni une carte de moins, ni une carte de plus.
+    const liste = await taches.lister(p, toutes, { projectId: projet16 });
+    expect(liste.map((t) => t.titre).toSorted()).toEqual(
+      STATUTS_TACHE.map((s) => `K-${s.code}`).toSorted(),
+    );
+  });
+});
+
+describe("EX-TSK-03 — les quatre filtres, chacun avec son témoin exclu", () => {
+  /*
+   * Un filtre se prouve par ce qu'il ÉCARTE, jamais par ce qu'il rend : une
+   * clause oubliée rend toujours la ligne attendue — avec toutes les autres.
+   */
+  let projetC: string;
+  let idHorsProjet: string;
+
+  beforeAll(async () => {
+    projetC = await projet();
+    await taches.creer({ titre: "F-projet", projectId: projetC, priorite: "critical" }, acteur);
+    const hp = await taches.creer({ titre: "F-hors-projet", priorite: "low" }, acteur);
+    idHorsProjet = hp.id;
+    await taches.creer(
+      {
+        titre: "F-en-retard",
+        projectId: projetC,
+        dateDebut: utc("2020-01-01"),
+        dateFin: utc("2020-01-02"),
+        statut: "doing",
+      },
+      acteur,
+    );
+    await taches.creer(
+      {
+        titre: "F-a-lheure",
+        projectId: projetC,
+        dateDebut: utc("2099-01-01"),
+        dateFin: utc("2099-01-02"),
+        statut: "doing",
+      },
+      acteur,
+    );
+  });
+
+  it("EX-TSK-03 — par projet : les tâches d'un AUTRE projet sont écartées", async () => {
+    const p = await globalP();
+    const liste = await taches.lister(p, toutes, { projectId: projetC });
+    expect(liste.every((t) => t.projectId === projetC)).toBe(true);
+    expect(liste.map((t) => t.titre)).toContain("F-projet");
+    expect(liste.map((t) => t.titre)).not.toContain("F-hors-projet");
+  });
+
+  it("EX-TSK-03 — par priorité : « critique » n'attrape pas « basse »", async () => {
+    const p = await globalP();
+    const liste = await taches.lister(p, toutes, { projectId: projetC, priorite: "critical" });
+    expect(liste.map((t) => t.titre)).toEqual(["F-projet"]);
+  });
+
+  it("EX-TSK-03 — par retard : une échéance À VENIR n'est pas retenue", async () => {
+    const p = await globalP();
+    const liste = await taches.lister(p, toutes, { projectId: projetC, enRetard: true });
+    const titres = liste.map((t) => t.titre);
+    expect(titres).toContain("F-en-retard");
+    expect(titres).not.toContain("F-a-lheure");
+    expect(liste.every((t) => t.enRetard)).toBe(true);
+  });
+
+  it("EX-TSK-03 — « hors projet » ISOLE : aucune tâche de projet ne s'y glisse", async () => {
+    const p = await globalP();
+    const liste = await taches.lister(p, toutes, { horsProjet: true });
+    expect(liste.map((t) => t.id)).toContain(idHorsProjet);
+    expect(liste.every((t) => t.projectId === null)).toBe(true);
+  });
+});
+
+describe("EX-TSK-07 — modifier depuis la FICHE : ce que la fiche rend compose la requête", () => {
+  /*
+   * Le piège consigné au CLAUDE.md, dans sa forme exacte : deux moitiés justes
+   * qui ne se raccordent pas. `profil()` ne rendait pas `version`, que le
+   * schéma de modification exige au titre de `RG-GEN-07` — la route existait,
+   * aucune requête n'était composable, et le diagnostic tiré fut « la route
+   * n'existe pas ».
+   *
+   * Ce test prend donc la SORTIE de la lecture et en compose l'ENTRÉE de
+   * l'écriture, sans jamais aller chercher la version en base.
+   */
+  it("EX-TSK-07 — la version LUE SUR LA FICHE suffit à écrire, et la fiche relue le montre", async () => {
+    const a = await agent();
+    const t = await creerTache([a]);
+    const p = await globalP();
+
+    const avant = await taches.fiche(t, p, toutes);
+    expect(avant.version).toBeTypeOf("number");
+
+    await taches.modifier(
+      t,
+      { version: avant.version, titre: "Titre corrigé", priorite: "high" },
+      a,
+    );
+
+    const apres = await taches.fiche(t, p, toutes);
+    expect(apres.titre).toBe("Titre corrigé");
+    expect(apres.priorite).toBe("high");
+    expect(apres.version).toBe(avant.version + 1);
+  });
+
+  it("EX-TSK-07 — rejouer la version PÉRIMÉE de la fiche est refusé, jamais écrasé", async () => {
+    const a = await agent();
+    const t = await creerTache([a]);
+    const p = await globalP();
+    const lue = await taches.fiche(t, p, toutes);
+
+    await taches.modifier(t, { version: lue.version, titre: "Premier" }, a);
+    await expect(
+      taches.modifier(t, { version: lue.version, titre: "Second" }, a),
+    ).rejects.toMatchObject({ code: "conflit_de_version" });
+
+    expect((await taches.fiche(t, p, toutes)).titre).toBe("Premier");
+  });
+});
+
+describe("EX-TSK-08 — le pourcentage d'avancement", () => {
+  it("EX-TSK-08 — l'avancement s'écrit et se relit sur la fiche", async () => {
+    const a = await agent();
+    const t = await creerTache([a]);
+    const p = await globalP();
+
+    expect((await taches.fiche(t, p, toutes)).avancement).toBe(0);
+    await taches.modifier(t, { version: 1, avancement: 40 }, a);
+    expect((await taches.fiche(t, p, toutes)).avancement).toBe(40);
+  });
+
+  it("EX-TSK-08 — c'est un POURCENTAGE : 0 et 100 passent, 101 et -1 sont refusés", async () => {
+    /*
+     * La borne vit dans le schéma du point d'entrée, pas dans le service : le
+     * test passe donc par le contrôleur. Vérifier le service seul laisserait
+     * croire que « pourcentage » est tenu alors que rien ne le tiendrait.
+     */
+    const a = await agent();
+    const t = await creerTache([a]);
+    const controleur = new TachesController(taches);
+    const d = { userId: a, permissions: toutes, perimetre: await globalP() } as never;
+
+    await controleur.modifier(t, { version: 1, avancement: 100 }, d);
+    await controleur.modifier(t, { version: 2, avancement: 0 }, d);
+
+    /*
+     * Le refus est SYNCHRONE — `valider` lève avant que le contrôleur ne rende
+     * sa promesse. Un `rejects` n'attraperait rien et le test passerait sur la
+     * mauvaise raison : c'est exactement l'assertion faussement robuste que le
+     * dépôt a déjà payée.
+     */
+    let refuses = 0;
+    for (const hors of [101, -1, 1000]) {
+      try {
+        await controleur.modifier(t, { version: 3, avancement: hors }, d);
+      } catch (e) {
+        expect(e).toBeInstanceOf(HttpException);
+        expect((e as HttpException).getStatus()).toBe(400);
+        refuses += 1;
+      }
+    }
+    expect(refuses).toBe(3);
+    // Rien n'a été écrit par les trois refus : la tâche est restée à zéro.
+    expect((await taches.fiche(t, await globalP(), toutes)).avancement).toBe(0);
   });
 });
