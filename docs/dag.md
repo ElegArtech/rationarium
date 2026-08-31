@@ -219,12 +219,17 @@ une lecture, dont on avait conclu que la route d'écriture n'existait pas.
 | ~~**L-39**~~ | Garde-fou : aucune route serveur sans appel client | Moyenne | délégation | **livré** |
 | ~~**L-40**~~ | Garde-fou : aucune commande inerte ni champ sensible non déclarés | Moyenne | délégation | **livré** |
 | ~~**L-41**~~ | Garde-fou : aucune `EX-…`/`RG-…` sans test qui la cite | Moyenne | délégation | **livré** |
-| **L-42** | `PATCH` et `DELETE /evenements/:id`, avec la portée sur une série | Moyenne | délégation | en cours |
-| **L-43** | Exécution des imports de compétences et de congés | Moyenne | délégation | en cours |
-| **L-45** | Tâches candidates aux dépendances, et pose d'un ensemble | Moyenne | délégation | en cours |
+| ~~**L-42**~~ | `PATCH` et `DELETE /evenements/:id`, avec la portée sur une série | Moyenne | délégation | **livré** |
+| ~~**L-43**~~ | Exécution des imports de compétences et de congés | Moyenne | délégation | **livré** |
+| ~~**L-45**~~ | Tâches candidates aux dépendances, et pose d'un ensemble | Moyenne | délégation | **livré** |
 | ~~**L-47**~~ | Annulation logique d'un projet — le premier des trois temps de `RG-GEN-10` | Moyenne | pair | **livré** |
 | ~~**L-49**~~ | Suppression de rôle, statistiques de télétravail | Basse | pair | **livré** |
-| **7-4** | Dette de traçabilité — 362 identifiants, 120 en dette à l'ouverture | Basse | délégation | en cours |
+| ~~**L-44**~~ | Les deux routes d'import que le client appelait dans le vide | Moyenne | pair | **livré** |
+| ~~**L-46**~~ | Annulation de congé, référentiel des types, jours ouvrés | Moyenne | délégation | **livré** |
+| ~~**L-48**~~ | Documents et commentaires de la fiche tâche | Moyenne | pair | **livré** |
+| ~~**7-3 bis**~~ | Paramétrage, rôles, compétences, présence, instantané | Moyenne | délégation | **livré** |
+| ~~**7-4**~~ | Dette de traçabilité — 364 identifiants, 123 en dette à l'ouverture | Basse | délégation | **livré** |
+| ~~**7-5**~~ | Clôture : rapport, capitalisation, déploiement | — | pair | **livré** |
 
 > **Ce que la vague 7 a trouvé, et que le plan ne prévoyait pas.** Deux défauts de
 > sécurité. **`IT_SUPPORT` pouvait s'attribuer `ADMIN`** : `PATCH /utilisateurs/:id`
@@ -247,6 +252,19 @@ une lecture, dont on avait conclu que la route d'écriture n'existait pas.
 > à l'audit initial, **41** au croisement mécanique de L-39 ; 2 commandes inertes
 > annoncées, **12** au balayage de L-40. *Une famille de défauts silencieux se mesure
 > toujours en dessous de sa taille réelle tant qu'on ne l'instrumente pas.*
+>
+> **Clos le 2026-08-31.** 45 commits. Routes sans appel client : 41 → **18**, toutes
+> énumérées avec leur raison. Commandes inertes : 12 → **9**, toutes déclarées.
+> Traçabilité : 239/364 → **304/364 (84 %)**, zéro citation orpheline, quatre règles
+> déclarées non testables au lieu de six. Suites : **758** contrôles d'intégration,
+> **399** de bout en bout, **180** d'accessibilité. Rapport en
+> `docs/audits/V7-inoperants.md`, journal des décisions en `docs/audits/V7-diff-retour.md`.
+>
+> **Six défauts de sécurité ou de cloisonnement**, aucun prévu au plan : élévation de
+> privilèges par `roleId`, vidage d'un rôle système, télétravail d'autrui, temps
+> d'autrui, invitation à un événement invisible, énumération de l'annuaire par les
+> détenteurs d'une compétence. Plus une perte de données silencieuse à l'import en mode
+> Remplacer.
 
 ---
 

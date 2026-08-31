@@ -148,6 +148,33 @@ Cette dernière décision est la plus importante de la vague. Elle a été reten
 
 ---
 
+## Le bilan
+
+| Mesure | À l'ouverture | À la clôture |
+| --- | --- | --- |
+| Routes sans appel client | 41 | **18**, toutes énumérées avec leur raison |
+| Appels client vers une route inexistante | 3 | **0** |
+| Commandes inertes | 12 | **9**, toutes déclarées et motivées |
+| Règles citées par un test | 239 / 364 | **304 / 364 (84 %)** |
+| Citations pointant un identifiant inexistant | 4 | **0** |
+| Règles déclarées « non testables » | 6 | **4** |
+| Contrôles d'intégration | 546 | **758** |
+| Contrôles de bout en bout | 285 | **399** |
+
+**Six défauts de sécurité ou de cloisonnement**, aucun prévu au plan :
+
+1. `IT_SUPPORT` pouvait s'attribuer `ADMIN` par `roleId`.
+2. Un rôle système pouvait être vidé de ses permissions — instance verrouillée à jamais.
+3. Tout agent pouvait poser du télétravail sur le calendrier de n'importe qui.
+4. Tout agent pouvait déclarer du temps pour un collègue ou un prestataire.
+5. On pouvait s'inviter à un événement qu'on n'a pas le droit de voir — l'invitation
+   était le moyen d'obtenir la visibilité qui manquait.
+6. Tout compte authentifié pouvait énumérer l'annuaire complet par les détenteurs d'une
+   compétence.
+
+Plus une **perte de données silencieuse** : l'import en mode Remplacer détachait les
+heures déclarées sans rien dire, ou échouait sur un code de contrainte PostgreSQL.
+
 ## Ce qui reste ouvert
 
 - **Deux `PUT` sans contrôle de version** — `:id/assignes` et `:id/sous-taches/ordre` :
