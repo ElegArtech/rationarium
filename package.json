@@ -21,8 +21,10 @@
     "i18n:check": "node scripts/i18n-check.mjs",
     "ui:diff": "node scripts/ui-diff.mjs",
     "perf": "turbo run perf",
-    "verif": "pnpm typecheck && pnpm lint && pnpm stylelint && pnpm i18n:check && pnpm test",
-    "conformite": "node scripts/ui-conformite.mjs toutes"
+    "verif": "pnpm typecheck && pnpm lint && pnpm stylelint && pnpm i18n:check && pnpm inoperant:check && pnpm tracabilite:check && pnpm test",
+    "conformite": "node scripts/ui-conformite.mjs toutes",
+    "inoperant:check": "node scripts/inoperant-check.mjs",
+    "tracabilite:check": "node scripts/tracabilite-check.mjs"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
