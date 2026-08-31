@@ -300,6 +300,20 @@
     "dateFin": "End date (optional)",
     "regleCreee": "Rule created.",
     "echecRegle": "The rule could not be created.",
+    "regleModifiee": "Rule updated.",
+    "regleActivee": "Rule activated.",
+    "regleDesactivee": "Rule deactivated — it no longer generates days.",
+    "regleSupprimee": "Rule deleted.",
+    "modifierRegle": "Edit rule",
+    "modifierLaRegle": "Edit rule: {regle}",
+    "activerRegle": "Activate",
+    "activerLaRegle": "Activate rule: {regle}",
+    "desactiverRegle": "Deactivate",
+    "desactiverLaRegle": "Deactivate rule: {regle}",
+    "supprimerRegle": "Delete rule",
+    "supprimerLaRegle": "Delete rule: {regle}",
+    "confirmerSuppressionRegle": "Permanently delete the rule “{regle}”?",
+    "suppressionRegleGarde": "Days already generated in the calendar are kept: they are declarations that were made, not a projection of the rule. To stop a rule without losing it, deactivate it.",
     "genererPlannings": "Generate schedules",
     "generationExplication": "Applies active rules over the chosen range. Days already declared are left untouched.",
     "du": "From",
@@ -386,5 +400,7 @@
     "supprimer": "Delete",
     "surTache": "· {titre}",
     "supprimerLaSaisie": "Delete the entry of {date}"
-  }
+  },
+  "supprimer": "Delete",
+  "enregistrer": "Save"
 }

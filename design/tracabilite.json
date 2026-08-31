@@ -8,28 +8,10 @@
   },
   "aTester": [
     {
-      "id": "EX-ORG-05",
-      "lot": "vague 7-4",
-      "module": "L-06",
-      "defaut": "DÉFAUT TROUVÉ (vague 7-4), non corrigé — code de production. Le filtre existe (select « Filtrer par département », vue 29) et filtre les directions et leurs départements, mais le bloc « Départements sans direction » n’est filtré NI par le select NI par la recherche : filtrer sur un département laisse tous les départements hors direction affichés. La recherche texte ne filtre pas non plus les départements à l’intérieur d’une direction retenue. Un test écrit aujourd’hui figerait le défaut."
-    },
-    {
       "id": "RG-TSK-16",
       "lot": "vague 7-4",
       "module": "L-11",
       "defaut": "RÈGLE D'INTERFACE PURE, sans contrepartie serveur — constaté vague 7-5. « Les colonnes À faire et Terminé du kanban ne peuvent pas être masquées » : le masquage de colonnes est un réglage de la vue 16, et le dépôt n'en porte AUCUNE trace côté serveur — ni réglage `Setting`, ni champ de préférence, ni contrat dans `packages/contracts`. Les colonnes sont les cinq statuts de `STATUTS_TACHE` (désormais cité par un test au titre d'`EX-TSK-01`), et le serveur ne sait pas lesquelles sont affichées. Le test qui la tiendrait est un test d'interface dans `apps/web` ; l'agent de la vague 7-5 avait interdiction d'y toucher, deux agents y branchant des routes en parallèle. Reste donc en dette, avec sa nature établie : à écrire côté vue, pas côté serveur."
-    },
-    {
-      "id": "EX-TLT-04",
-      "lot": "vague 7-4",
-      "module": "L-16",
-      "defaut": "DÉFAUT TROUVÉ (vague « tests manquants »), non corrigé — code de production. L'exigence énumère quatre facettes : « jour de la semaine, date de début, date de fin facultative, ACTIF ». Les trois premières se configurent (`creerRegle`, `POST /teletravail/regles`). La quatrième ne se configure PAS : `TeleworkRule.active` a un défaut à `true` et AUCUN chemin ne l'écrit — ni méthode de service, ni route, et il n'existe pas davantage de modification ni de suppression d'une règle. Une règle posée est donc définitive. Le commentaire de `regles()` décrit pourtant le trou qu'il ne bouche pas — « les inactives restent visibles : une règle désactivée explique pourquoi les jours qu'elle produisait ont cessé d'apparaître » — pour un état que le produit ne sait pas produire ; et `generer()` filtre sur `active: true`, un filtre qui n'écarte jamais rien. Cinquième occurrence de la famille EX-ORG-02 / EX-CLI-02 / EX-PRJ-05 / EX-JAL-01 : le verbe du milieu manque. Un test écrit aujourd'hui couvrirait trois facettes sur quatre et ferait passer l'exigence pour tenue."
-    },
-    {
-      "id": "EX-CMP-07",
-      "lot": "vague 7-4",
-      "module": "L-13",
-      "defaut": "PARTIEL, et DIVERGENCE DE VOCABULAIRE. Recherche et filtre par catégorie existent ; le filtre par niveau et les tris vivent côté client (Competences.tsx) et non au serveur. Surtout, l’exigence dit « trier par nom, COUVERTURE ou compétence » : le produit propose « nom / nombre de compétences / par niveau sur une compétence ». Le tri par couverture — le ratio détenteurs/requis, propriété de COLONNE — n’existe pas. À trancher au cadrage."
     }
   ],
   "nonTestable": [

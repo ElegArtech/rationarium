@@ -184,9 +184,27 @@ export type Arborescence = {
   directions: Direction[];
   /** `RG-ORG-03` — un département peut exister hors direction. */
   departementsSansDirection: Departement[];
+  /**
+   * `EX-ORG-05` — la liste des CHOIX du filtre, jamais filtrée elle-même.
+   *
+   * Le sélecteur « Filtrer par département » se peuplait depuis l'arborescence
+   * qu'il filtre : porter le filtre au serveur l'aurait vidé à la première
+   * sélection — plus qu'un choix, celui déjà fait, impossible à changer.
+   */
+  departements: { id: string; nom: string }[];
 };
 
-export const arborescence = () => appeler<Arborescence>("/organisation");
+/**
+ * `EX-ORG-04`, `EX-ORG-05` — l'arborescence, **filtrée au serveur**.
+ *
+ * Le filtre par département vivait dans la vue 29, et il y était faux :
+ * l'arborescence a DEUX racines — les directions et le bloc « Départements
+ * sans direction » (`RG-ORG-03`) — et la vue n'en filtrait qu'une.
+ * Sélectionner un département laissait tous les orphelins affichés. Au
+ * serveur, une seule clause sert les deux : le bloc ne peut plus diverger.
+ */
+export const arborescence = (filtres: { departementId?: string; recherche?: string } = {}) =>
+  appeler<Arborescence>(`/organisation${params(filtres)}`);
 
 export const creerDirection = (donnees: {
   nom: string;
