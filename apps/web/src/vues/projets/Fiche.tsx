@@ -106,6 +106,16 @@ export function CadreProjet({
               to={o.chemin}
               params={{ id: projet.id }}
               className={o.cle === onglet ? "is-active" : ""}
+              /*
+               * `activeProps` neutralise la CLASSE que le routeur ajoute, pas
+               * son `aria-current` — et `/projets/$id` reste active par PRÉFIXE
+               * sur `/projets/$id/jalons`. Deux liens portaient donc
+               * `aria-current="page"` en même temps, et un lecteur d'écran
+               * annonçait deux « page courante ». `axe` ne le voit pas, le rendu
+               * ne bouge pas : seul un contrôle qui COMPTE l'attribut l'attrape.
+               * `exact` referme la correspondance par préfixe.
+               */
+              activeOptions={{ exact: true }}
               activeProps={{ className: "" }}
               aria-current={o.cle === onglet ? "page" : undefined}
             >

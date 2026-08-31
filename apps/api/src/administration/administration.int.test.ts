@@ -198,6 +198,177 @@ describe("EX-ADM-04 — la matrice de la vue 32", () => {
   });
 });
 
+// ════════════════════════════════════════════════════════════════════════════
+// Vague 7-4 — dette de traçabilité.
+// ════════════════════════════════════════════════════════════════════════════
+
+describe("EX-ADM-01 — lister les rôles : nom, code, nombre de permissions, système ou non", () => {
+  it("les quatre colonnes de la vue 32 sortent du serveur, aucune n'est recomposée", async () => {
+    /*
+     * Le nombre de permissions surtout : le déduire côté client obligerait à
+     * charger la matrice de chaque rôle pour afficher une liste.
+     */
+    const modele = modeleParCode("ADMIN")!;
+    const lignes = await roles.lister();
+    const admin = lignes.find((l) => l.code === "ADMIN");
+
+    expect(admin).toBeDefined();
+    expect(admin!.nom).toBe(modele.nom);
+    expect(admin!.systeme).toBe(true);
+    expect(admin!.nombrePermissions).toBe(NOMBRE_PERMISSIONS);
+  });
+
+  it("« système ou non » distingue réellement les deux, et les systèmes viennent en tête", async () => {
+    const perso = await roles.creer({ code: `LISTE_${uuid().slice(0, 6)}`, nom: "Sur mesure" }, karim);
+    const lignes = await roles.lister();
+
+    expect(lignes.find((l) => l.id === perso.id)!.systeme).toBe(false);
+    // L'ordre est un contrat de lecture : les 26 modèles d'abord, les rôles
+    // maison ensuite. Une liste mêlée obligerait à chercher.
+    const premierPerso = lignes.findIndex((l) => !l.systeme);
+    expect(lignes.slice(0, premierPerso).every((l) => l.systeme)).toBe(true);
+    expect(lignes.slice(premierPerso).every((l) => !l.systeme)).toBe(true);
+
+    await roles.supprimer(perso.id, karim);
+  });
+
+  it("le nombre de permissions SUIT les permissions, il n'est pas figé à la création", async () => {
+    const r = await roles.creer({ code: `COMPTE_${uuid().slice(0, 6)}`, nom: "Compté" }, karim);
+    expect((await roles.lister()).find((l) => l.id === r.id)!.nombrePermissions).toBe(0);
+
+    await roles.definirPermissions(r.id, ["projects:read", "tasks:read"], karim);
+
+    expect((await roles.lister()).find((l) => l.id === r.id)!.nombrePermissions).toBe(2);
+    await roles.supprimer(r.id, karim);
+  });
+});
+
+describe("EX-ADM-02 — créer un rôle, éventuellement à partir d'un modèle", () => {
+  it("sans modèle : le rôle naît VIDE, il n'hérite de rien en douce", async () => {
+    const code = `NU_${uuid().slice(0, 6)}`;
+    const r = await roles.creer({ code, nom: "Rôle nu" }, karim);
+
+    expect(await prisma.rolePermission.count({ where: { roleId: r.id } })).toBe(0);
+    await roles.supprimer(r.id, karim);
+  });
+
+  it("depuis un modèle : il en reçoit les permissions, à l'identique", async () => {
+    const modele = modeleParCode("PROJECT_CONTRIBUTOR")!;
+    const code = `COPIE_${uuid().slice(0, 6)}`;
+
+    const r = await roles.creer(
+      { code, nom: "Contributeur maison", depuisModele: "PROJECT_CONTRIBUTOR" },
+      karim,
+    );
+
+    const copiees = (
+      await prisma.rolePermission.findMany({ where: { roleId: r.id }, select: { permission: true } })
+    )
+      .map((p) => p.permission)
+      .sort();
+    expect(copiees).toEqual([...modele.permissions].sort());
+    // « À partir d'un modèle » est un POINT DE DÉPART (`RG-DROITS-01`) : la
+    // description suit si on n'en donne pas, et le rôle reste modifiable.
+    expect(r.description).toBe(modele.description);
+    await roles.supprimer(r.id, karim);
+  });
+
+  it("un modèle inconnu ne fait pas échouer la création — il ne copie rien", async () => {
+    const r = await roles.creer(
+      { code: `FANTOME_${uuid().slice(0, 6)}`, nom: "Fantôme", depuisModele: "N_EXISTE_PAS" },
+      karim,
+    );
+    expect(await prisma.rolePermission.count({ where: { roleId: r.id } })).toBe(0);
+    await roles.supprimer(r.id, karim);
+  });
+
+  it("un code déjà pris est refusé — le code identifie le rôle", async () => {
+    const code = `DOUBLON_${uuid().slice(0, 6)}`;
+    const r = await roles.creer({ code, nom: "Premier" }, karim);
+
+    await expect(roles.creer({ code, nom: "Second" }, karim)).rejects.toMatchObject({
+      code: "code_deja_pris",
+    });
+
+    await roles.supprimer(r.id, karim);
+  });
+
+  it("la création est tracée, avec le modèle d'origine s'il y en a un", async () => {
+    const r = await roles.creer(
+      { code: `TRACE_${uuid().slice(0, 6)}`, nom: "Tracé", depuisModele: "PROJECT_CONTRIBUTOR" },
+      karim,
+    );
+    const trace = await prisma.auditLog.findFirst({
+      where: { action: "role.create", entiteId: r.id },
+    });
+    expect(trace).not.toBeNull();
+    expect(JSON.stringify(trace!.detail)).toContain("PROJECT_CONTRIBUTOR");
+    await roles.supprimer(r.id, karim);
+  });
+});
+
+describe("EX-ADM-05 — tout sélectionner pour un module", () => {
+  /*
+   * « Tout sélectionner pour un module » est un geste d'interface, mais il n'a
+   * de sens que si le serveur rend le module ÉNUMÉRABLE : la ligne de la
+   * matrice doit dire exactement quelles cases existent pour ce domaine, et
+   * l'écriture doit accepter la sélection entière sans en refuser une seule.
+   * Le contrôle joue donc le geste de bout en bout, sur la matrice.
+   */
+  it("cocher toute la ligne d'un module la remplit, et ne déborde sur aucune autre", async () => {
+    const r = await roles.creer({ code: `MODULE_${uuid().slice(0, 6)}`, nom: "Par module" }, karim);
+    await roles.definirPermissions(r.id, ["tasks:read"], karim);
+
+    const avant = await roles.matrice(r.id);
+    const ligneProjets = avant.lignes.find((l) => l.domaine === "projects")!;
+    // Les cases INERTES sont exclues : « tout sélectionner » ne coche pas ce
+    // qui n'existe pas. C'est le `null` de la matrice qui le permet.
+    const duModule = ligneProjets.cases
+      .filter((c) => c.detenue !== null)
+      .map((c) => c.permission);
+    expect(duModule.length).toBeGreaterThan(1);
+
+    await roles.definirPermissions(r.id, [...duModule, "tasks:read"], karim);
+
+    const apres = await roles.matrice(r.id);
+    const projets = apres.lignes.find((l) => l.domaine === "projects")!;
+    expect(projets.cases.filter((c) => c.detenue !== null).every((c) => c.detenue === true)).toBe(
+      true,
+    );
+    // Les autres modules n'ont pas bougé : la sélection porte sur UN module.
+    const taches = apres.lignes.find((l) => l.domaine === "tasks")!;
+    expect(taches.cases.find((c) => c.action === "read")?.detenue).toBe(true);
+    expect(taches.cases.find((c) => c.action === "delete")?.detenue).toBe(false);
+
+    await roles.supprimer(r.id, karim);
+  });
+
+  it("et la sélection se DÉFAIT : tout décocher un module ne vide pas les autres", async () => {
+    const r = await roles.creer({ code: `DECOCHE_${uuid().slice(0, 6)}`, nom: "Décoché" }, karim);
+    const depart = await roles.matrice(r.id);
+    const projets = depart.lignes
+      .find((l) => l.domaine === "projects")!
+      .cases.filter((c) => c.detenue !== null)
+      .map((c) => c.permission);
+
+    await roles.definirPermissions(r.id, [...projets, "tasks:read"], karim);
+    await roles.definirPermissions(r.id, ["tasks:read"], karim);
+
+    const apres = await roles.matrice(r.id);
+    expect(
+      apres.lignes
+        .find((l) => l.domaine === "projects")!
+        .cases.every((c) => c.detenue === false || c.detenue === null),
+    ).toBe(true);
+    expect(
+      apres.lignes.find((l) => l.domaine === "tasks")!.cases.find((c) => c.action === "read")
+        ?.detenue,
+    ).toBe(true);
+
+    await roles.supprimer(r.id, karim);
+  });
+});
+
 describe("EX-ADM-03 — suppression d'un rôle", () => {
   it("un rôle porté par des comptes ne se supprime pas, et le refus chiffre", async () => {
     const r = await roles.creer({ code: "PORTE", nom: "Porté" }, karim);
@@ -243,7 +414,7 @@ describe("RG-ADM-01 — le journal est en lecture seule et se consulte", () => {
     expect(parAction.entrees.every((e) => e.action.startsWith("leave."))).toBe(true);
   });
 
-  it("RG-ADM-09 — distingue l'action système de l'action humaine", async () => {
+  it("EX-ADM-09 — distingue l'action système de l'action humaine", async () => {
     await prisma.auditLog.create({
       data: { action: "notification.daily", typeEntite: "Job", systeme: true },
     });

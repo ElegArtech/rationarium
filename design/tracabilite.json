@@ -2,53 +2,19 @@
   "$schema": "Déclaration de traçabilité — tenue par scripts/tracabilite-check.mjs.",
   "$regle": "CLAUDE.md : « une EX-…/RG-… = un test nommé qui la cite ». Tout identifiant déclaré dans cadrage/01 est cité par un test, ou inscrit ici.",
   "$listes": {
-    "aTester": "LA DETTE CONNUE : le test reste à écrire. CETTE LISTE DOIT RÉTRÉCIR — le contrôle imprime sa taille à chaque exécution, et refuse une entrée qu'un test cite désormais. `module` nomme le lot qui a construit la fonctionnalité, et sert de ligne de découpe.",
+    "aTester": "LA DETTE CONNUE : le test reste à écrire. CETTE LISTE DOIT RÉTRÉCIR — le contrôle imprime sa taille à chaque exécution, et refuse une entrée qu'un test cite désormais. `module` nomme le lot qui a construit la fonctionnalité, et sert de ligne de découpe. Une entrée peut porter un champ `defaut` : le test n’est alors pas seulement à écrire, c’est le CODE qui manque ou diverge — la vague 7-4 l’a constaté et consigné plutôt que corrigé.",
     "nonTestable": "Les identifiants qu'AUCUN test nommé ne peut honnêtement couvrir, chacun avec sa raison. Une entrée sans raison est refusée. Cette liste ne s'allonge pas sans arbitrage : y ranger une règle testable, c'est un test qui ne sera jamais écrit.",
     "citationsOrphelines": "LE VERSANT SYMÉTRIQUE : des tests citent des identifiants qui n'existent pas au cadrage. Une citation fausse fait croire à une couverture qui n'existe pas. `lire` donne l'identifiant à mettre à la place."
   },
   "aTester": [
     {
-      "id": "EX-AUTH-04",
-      "lot": "vague 7-4",
-      "module": "L-04"
-    },
-    {
-      "id": "EX-AUTH-06",
-      "lot": "vague 7-4",
-      "module": "L-04"
-    },
-    {
-      "id": "EX-ORG-01",
-      "lot": "vague 7-4",
-      "module": "L-06"
-    },
-    {
-      "id": "EX-ORG-03",
-      "lot": "vague 7-4",
-      "module": "L-06"
-    },
-    {
       "id": "EX-ORG-05",
       "lot": "vague 7-4",
-      "module": "L-06"
-    },
-    {
-      "id": "EX-USR-03",
-      "lot": "vague 7-4",
-      "module": "L-07"
-    },
-    {
-      "id": "EX-USR-06",
-      "lot": "vague 7-4",
-      "module": "L-07"
+      "module": "L-06",
+      "defaut": "DÉFAUT TROUVÉ (vague 7-4), non corrigé — code de production. Le filtre existe (select « Filtrer par département », vue 29) et filtre les directions et leurs départements, mais le bloc « Départements sans direction » n’est filtré NI par le select NI par la recherche : filtrer sur un département laisse tous les départements hors direction affichés. La recherche texte ne filtre pas non plus les départements à l’intérieur d’une direction retenue. Un test écrit aujourd’hui figerait le défaut."
     },
     {
       "id": "EX-USR-08",
-      "lot": "vague 7-4",
-      "module": "L-07"
-    },
-    {
-      "id": "EX-USR-10",
       "lot": "vague 7-4",
       "module": "L-07"
     },
@@ -58,84 +24,34 @@
       "module": "L-07"
     },
     {
-      "id": "EX-PRJ-03",
-      "lot": "vague 7-4",
-      "module": "L-10"
-    },
-    {
       "id": "EX-PRJ-04",
       "lot": "vague 7-4",
-      "module": "L-10"
-    },
-    {
-      "id": "EX-PRJ-06",
-      "lot": "vague 7-4",
-      "module": "L-10"
-    },
-    {
-      "id": "EX-PRJ-08",
-      "lot": "vague 7-4",
-      "module": "L-10"
-    },
-    {
-      "id": "EX-PRJ-10",
-      "lot": "vague 7-4",
-      "module": "L-10"
-    },
-    {
-      "id": "EX-PRJ-11",
-      "lot": "vague 7-4",
-      "module": "L-10"
-    },
-    {
-      "id": "EX-PRJ-12",
-      "lot": "vague 7-4",
-      "module": "L-10"
+      "module": "L-10",
+      "defaut": "DÉFAUT TROUVÉ (vague 7-4) — LA FONCTIONNALITÉ N’EXISTE PAS. `packages/contracts/src/icones-projet.ts` porte les 11 catégories et 50 icônes, `apps/web/src/composants/icones-projet.tsx` porte les tracés : rien ne les emploie. Aucun sélecteur, aucun champ de recherche, aucun champ « Icône du projet » dans la fenêtre de création (Portefeuille.tsx). Le serveur accepte `icone` en chaîne libre, sans le valider contre `estIconeProjet`."
     },
     {
       "id": "EX-PRJ-13",
       "lot": "vague 7-4",
-      "module": "L-10"
-    },
-    {
-      "id": "RG-PRJ-11",
-      "lot": "vague 7-4",
-      "module": "L-10"
+      "module": "L-10",
+      "defaut": "DÉFAUT TROUVÉ (vague 7-4) — aucun point d’entrée pour CONSULTER l’historique. `capturerInstantane` écrit (`POST /projets/:id/instantane`), `fiche()` rend le DERNIER instantané, et la tendance des rapports lit les instantanés d’un lot de projets — mais « consulter l’historique des instantanés d’avancement » d’UN projet n’a ni méthode ni route."
     },
     {
       "id": "EX-JAL-01",
       "lot": "vague 7-4",
-      "module": "L-10"
+      "module": "L-10",
+      "defaut": "PARTIEL — le verbe du milieu manque. `creerJalon` et `supprimerJalon` existent ; il n’y a NI `modifierJalon` NI route `PATCH` sur un jalon. Corriger une date d’échéance impose de supprimer le jalon, donc d’en détacher les tâches. Quatrième occurrence de la famille EX-ORG-02 / EX-CLI-02 / EX-PRJ-05."
     },
     {
       "id": "EX-JAL-02",
       "lot": "vague 7-4",
-      "module": "L-10"
-    },
-    {
-      "id": "EX-JAL-03",
-      "lot": "vague 7-4",
-      "module": "L-10"
-    },
-    {
-      "id": "EX-JAL-04",
-      "lot": "vague 7-4",
-      "module": "L-10"
-    },
-    {
-      "id": "EX-JAL-05",
-      "lot": "vague 7-4",
-      "module": "L-10"
+      "module": "L-10",
+      "defaut": "À TRANCHER AU CADRAGE avant d’écrire un test. « Marquer un jalon comme atteint » est une action de l’utilisateur ; `RG-JAL-01` dit que le statut d’un jalon est CALCULÉ et « n’est pas saisi ». Les deux ne peuvent pas être vrais ensemble. Le produit a tranché pour le calcul (`statutJalon()`), et la colonne `Milestone.statut` du schéma n’est écrite ni lue par personne. Un test figerait l’une des deux lectures."
     },
     {
       "id": "EX-JAL-07",
       "lot": "vague 7-4",
-      "module": "L-10"
-    },
-    {
-      "id": "RG-JAL-02",
-      "lot": "vague 7-4",
-      "module": "L-10"
+      "module": "L-10",
+      "defaut": "DÉFAUT TROUVÉ (vague 7-4) — LES ÉPOPÉES N’EXISTENT QU’EN BASE. Le modèle `Epic` est au schéma, `Task.epicId` s’écrit depuis `TachesService`, `fiche()` compte `_count.epopees` — mais il n’y a AUCUN service, AUCUN contrôleur et AUCUNE route pour créer, modifier ou supprimer une épopée. Le compteur de la fiche projet ne peut donc jamais dépasser zéro."
     },
     {
       "id": "EX-TSK-01",
@@ -405,120 +321,10 @@
       "module": "L-16"
     },
     {
-      "id": "EX-TMP-01",
-      "lot": "vague 7-4",
-      "module": "L-18"
-    },
-    {
-      "id": "EX-TMP-02",
-      "lot": "vague 7-4",
-      "module": "L-18"
-    },
-    {
-      "id": "EX-TMP-03",
-      "lot": "vague 7-4",
-      "module": "L-18"
-    },
-    {
-      "id": "EX-TMP-04",
-      "lot": "vague 7-4",
-      "module": "L-18"
-    },
-    {
-      "id": "EX-TMP-05",
-      "lot": "vague 7-4",
-      "module": "L-18"
-    },
-    {
-      "id": "EX-TMP-06",
-      "lot": "vague 7-4",
-      "module": "L-18"
-    },
-    {
-      "id": "EX-CMP-02",
-      "lot": "vague 7-4",
-      "module": "L-13"
-    },
-    {
-      "id": "EX-CMP-03",
-      "lot": "vague 7-4",
-      "module": "L-13"
-    },
-    {
-      "id": "EX-CMP-04",
-      "lot": "vague 7-4",
-      "module": "L-13"
-    },
-    {
-      "id": "EX-CMP-05",
-      "lot": "vague 7-4",
-      "module": "L-13"
-    },
-    {
-      "id": "EX-CMP-06",
-      "lot": "vague 7-4",
-      "module": "L-13"
-    },
-    {
       "id": "EX-CMP-07",
       "lot": "vague 7-4",
-      "module": "L-13"
-    },
-    {
-      "id": "EX-TRS-03",
-      "lot": "vague 7-4",
-      "module": "L-12"
-    },
-    {
-      "id": "EX-TRS-06",
-      "lot": "vague 7-4",
-      "module": "L-12"
-    },
-    {
-      "id": "EX-DOC-02",
-      "lot": "vague 7-4",
-      "module": "L-19"
-    },
-    {
-      "id": "EX-DOC-03",
-      "lot": "vague 7-4",
-      "module": "L-19"
-    },
-    {
-      "id": "EX-DSH-04",
-      "lot": "vague 7-4",
-      "module": "L-21"
-    },
-    {
-      "id": "EX-RPT-09",
-      "lot": "vague 7-4",
-      "module": "L-22"
-    },
-    {
-      "id": "RG-NTF-02",
-      "lot": "vague 7-4",
-      "module": "L-23"
-    },
-    {
-      "id": "EX-ADM-01",
-      "lot": "vague 7-4",
-      "module": "L-08"
-    },
-    {
-      "id": "EX-ADM-02",
-      "lot": "vague 7-4",
-      "module": "L-08"
-    },
-    {
-      "id": "EX-ADM-05",
-      "lot": "vague 7-4",
-      "module": "L-08"
-    },
-    {
-      "id": "EX-ADM-09",
-      "lot": "vague 7-4",
-      "module": "L-08",
-      "note": "Le test existe et exerce bien la règle, mais son titre cite « RG-ADM-09 », qui n'existe pas au cadrage. Renommer le titre suffit à couvrir cette exigence — voir citationsOrphelines."
+      "module": "L-13",
+      "defaut": "PARTIEL, et DIVERGENCE DE VOCABULAIRE. Recherche et filtre par catégorie existent ; le filtre par niveau et les tris vivent côté client (Competences.tsx) et non au serveur. Surtout, l’exigence dit « trier par nom, COUVERTURE ou compétence » : le produit propose « nom / nombre de compétences / par niveau sur une compétence ». Le tri par couverture — le ratio détenteurs/requis, propriété de COLONNE — n’existe pas. À trancher au cadrage."
     }
   ],
   "nonTestable": [
@@ -553,21 +359,9 @@
   ],
   "citationsOrphelines": [
     {
-      "id": "RG-ADM-09",
-      "lire": "EX-ADM-09",
-      "raison": "Le cadrage ne déclare aucun RG-ADM-09. L'exigence « distinguer une action système d'une action humaine » est EX-ADM-09. Deux titres de test portent la faute.",
-      "lot": "vague 7-4"
-    },
-    {
       "id": "RG-ACT-08",
       "lire": "EX-ACT-04",
       "raison": "Le cadrage s'arrête à RG-ACT-06. « Définir des règles de récurrence » est EX-ACT-04.",
-      "lot": "vague 7-4"
-    },
-    {
-      "id": "EX-CLI-02",
-      "lire": "EX-TRS-04",
-      "raison": "IL N'EXISTE AUCUN DOMAINE « CLI » AU CADRAGE : les clients sont dans M14 avec les tiers. « Gérer les clients » est EX-TRS-04.",
       "lot": "vague 7-4"
     }
   ]

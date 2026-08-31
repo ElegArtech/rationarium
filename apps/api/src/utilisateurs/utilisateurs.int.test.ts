@@ -460,3 +460,134 @@ describe("L-38 — RG-DROITS-03 : un champ sensible n'est pas ouvert par sa rout
     expect(apres.roleId).toBe(role.id);
   });
 });
+
+// ════════════════════════════════════════════════════════════════════════════
+// Vague 7-4 — dette de traçabilité. Les exigences ci-dessous étaient tenues
+// par le code et citées par personne.
+// ════════════════════════════════════════════════════════════════════════════
+
+describe("EX-USR-03 — créer un compte : identité, email, identifiant, mot de passe initial, rôle, département, services", () => {
+  it("les sept éléments de l'exigence arrivent en base, pas seulement les faciles", async () => {
+    const role = await prisma.role.create({
+      data: { code: `RH-${uuid().slice(0, 6)}`, nom: "Ressources humaines" },
+    });
+    const d = nouveau("complet");
+
+    const cree = await users.creer(
+      { ...d, roleId: role.id, departementId: deptA, serviceIds: [svcA] },
+      karim,
+      TOUS_DROITS_UTILISATEUR,
+    );
+
+    const relu = await prisma.user.findUniqueOrThrow({
+      where: { id: cree.id },
+      include: { services: { select: { serviceId: true } } },
+    });
+    expect(relu.prenom).toBe(d.prenom);
+    expect(relu.nom).toBe(d.nom);
+    expect(relu.email).toBe(d.email.toLowerCase());
+    expect(relu.login).toBe(d.login);
+    expect(relu.roleId).toBe(role.id);
+    expect(relu.departementId).toBe(deptA);
+    expect(relu.services.map((s) => s.serviceId)).toEqual([svcA]);
+  });
+
+  it("LE MOT DE PASSE INITIAL EST UN VRAI MOT DE PASSE : il ouvre une session", async () => {
+    /*
+     * L'exigence dit « mot de passe initial », pas « champ mot de passe ». Un
+     * compte créé avec un haché que rien ne peut satisfaire est un compte
+     * inaccessible — c'est le défaut d'amorçage que ce produit a déjà payé une
+     * fois, par la porte d'à côté (`TRAME_ADMIN_MOTDEPASSE` vide).
+     */
+    const d = nouveau("initial");
+    const u = await users.creer(d, karim, TOUS_DROITS_UTILISATEUR);
+
+    const session = await auth.connecter(d.login, MDP);
+    expect(session.userId).toBe(u.id);
+    // Et il est imposé au changement : c'est le mot de passe d'un tiers.
+    expect(session.motDePasseAChanger).toBe(true);
+  });
+
+  it("il n'est jamais stocké en clair", async () => {
+    const d = nouveau("hache");
+    const u = await users.creer(d, karim, TOUS_DROITS_UTILISATEUR);
+    const relu = await prisma.user.findUniqueOrThrow({ where: { id: u.id } });
+    expect(relu.motDePasseHash).not.toBe(MDP);
+    expect(relu.motDePasseHash.startsWith("$argon2")).toBe(true);
+  });
+
+  it("la création est tracée, avec l'acteur qui l'a faite", async () => {
+    const u = await users.creer(nouveau("trace"), karim, TOUS_DROITS_UTILISATEUR);
+    const trace = await prisma.auditLog.findFirst({
+      where: { action: "user.create", entiteId: u.id },
+    });
+    expect(trace).not.toBeNull();
+    expect(trace!.acteurId).toBe(karim);
+  });
+});
+
+describe("EX-USR-06 — supprimer définitivement un compte APRÈS contrôle de dépendances", () => {
+  it("l'effacement emporte réellement ce que l'inventaire avait annoncé", async () => {
+    const u = await users.creer(nouveau("efface"), karim, TOUS_DROITS_UTILISATEUR);
+    await prisma.todo.create({ data: { userId: u.id, libelle: "À faire" } });
+    await prisma.notification.create({
+      data: { userId: u.id, type: "tache_assignee", titre: "T", contenu: "C" },
+    });
+
+    const impact = await users.impactSuppression(u.id);
+    expect(impact.effacements).toContainEqual({ objet: "to-do personnelles", nombre: 1 });
+    expect(impact.effacements).toContainEqual({ objet: "notifications", nombre: 1 });
+    expect(impact.nom).toContain(u.nom);
+
+    await users.supprimerDefinitivement(u.id, karim);
+
+    // Annoncer un effacement et le laisser derrière soi serait pire que de ne
+    // rien annoncer : l'inventaire deviendrait une promesse sans effet.
+    expect(await prisma.todo.count({ where: { userId: u.id } })).toBe(0);
+    expect(await prisma.notification.count({ where: { userId: u.id } })).toBe(0);
+    expect(await prisma.user.findUnique({ where: { id: u.id } })).toBeNull();
+  });
+
+  it("un compte inconnu est refusé, il n'est pas « déjà supprimé »", async () => {
+    const inconnu = "00000000-0000-4000-8000-000000000000";
+    await expect(users.impactSuppression(inconnu)).rejects.toMatchObject({ code: "introuvable" });
+    await expect(users.supprimerDefinitivement(inconnu, karim)).rejects.toMatchObject({
+      code: "introuvable",
+    });
+  });
+});
+
+describe("EX-USR-07 — réinitialiser le mot de passe d'un utilisateur", () => {
+  /*
+   * La suite du suivi individuel citait `EX-USR-07` en couvrant `EX-USR-10` :
+   * l'exigence passait pour couverte sans que rien ne l'exerce. Elle l'est ici.
+   */
+  it("le nouveau mot de passe ouvre la session, l'ancien ne l'ouvre plus", async () => {
+    const d = nouveau("reinit");
+    const u = await users.creer(d, karim, TOUS_DROITS_UTILISATEUR);
+    const NOUVEAU = "Autremdp2?";
+
+    await users.reinitialiserMotDePasse(u.id, NOUVEAU, karim);
+
+    await expect(auth.connecter(d.login, NOUVEAU)).resolves.toMatchObject({ userId: u.id });
+    await expect(auth.connecter(d.login, MDP)).rejects.toMatchObject({
+      code: "identifiants_invalides",
+    });
+  });
+
+  it("elle coupe les sessions ouvertes et impose le changement", async () => {
+    const d = nouveau("coupe");
+    const u = await users.creer(d, karim, TOUS_DROITS_UTILISATEUR);
+    await prisma.user.update({ where: { id: u.id }, data: { motDePasseAChanger: false } });
+    const { jeton } = await auth.connecter(d.login, MDP);
+
+    await users.reinitialiserMotDePasse(u.id, "Autremdp2?", karim);
+
+    // Un mot de passe réinitialisé pendant qu'une session reste ouverte ne
+    // protège rien.
+    await expect(auth.resoudreSession(jeton)).resolves.toBeNull();
+    expect(
+      (await prisma.user.findUniqueOrThrow({ where: { id: u.id } })).motDePasseAChanger,
+    ).toBe(true);
+  });
+});

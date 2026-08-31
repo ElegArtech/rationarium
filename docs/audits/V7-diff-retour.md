@@ -409,3 +409,70 @@ projet parent » — et **aucune route ne l'expose**. C'est le même manque que 
 L-45 a comblé pour les dépendances : le geste unitaire existe, la liste de candidats
 non. J'ai retiré le code client que j'avais préparé plutôt que de laisser une fonction
 morte ; la route reste déclarée « à brancher », ce qui est vrai.
+
+---
+
+## Vague 7-4 — Traçabilité, domaines libres
+
+**Dette 115 → 62.** Couverture 241/362 → **296/364 (81 %)**.
+
+### Trois citations fausses, et une quatrième trouvée en chemin
+
+`RG-ADM-09` → `EX-ADM-09`, `EX-CLI-02` → `EX-TRS-04` (aucun domaine `CLI` n'existe),
+`RG-ACT-08` → `EX-ACT-04`. Plus une quatrième, que l'agent a trouvée seul :
+`suivi.int.test.ts` citait `EX-USR-07` (« réinitialiser le mot de passe ») sur **huit
+contrôles de la fiche de suivi individuel**, qui est `EX-USR-10`. **La citation comptait
+double** : elle déclarait couvert ce que rien n'exerçait, et laissait en dette ce que
+ces huit contrôles prouvaient.
+
+### La décision de l'agent, retenue
+
+Un identifiant dont **le test existe mais dont le code manque** : dette ou couverture ?
+Il a retenu la lettre de `CLAUDE.md` — couverture — mais avec trois garde-fous : un
+contrôle en `it.fails()`, « DÉFAUT CONSIGNÉ » dans le titre, et un commentaire nommant
+le correctif. **Le jour où quelqu'un corrige, le contrôle passe au rouge et force la
+reprise du marqueur.**
+
+Ce mécanisme a fonctionné **dans la même journée** : son `it.fails` sur `RG-TMP-04` est
+passé au rouge à la fusion, parce que le correctif était arrivé entre-temps. Repris en
+test ordinaire. Idem pour `EX-PRJ-08`, dont le défaut — **deux `aria-current="page"`
+dans la même barre d'onglets**, un lecteur d'écran annonçant deux « page courante » — a
+été corrigé plutôt que porté : `activeProps` neutralise la classe du routeur, pas son
+`aria-current`, et `/projets/$id` reste active par préfixe sur `/projets/$id/jalons`.
+`axe` ne le voit pas ; seul un contrôle qui **compte** l'attribut l'attrape.
+
+### Douze défauts trouvés, non corrigés, consignés
+
+Les plus lourds, tous dans `design/tracabilite.json` avec un champ `defaut` :
+
+- **`RG-PRJ-11`** — « bloqué si des données rattachées l'empêchent » : le code d'erreur
+  `remplacement_impossible` existe, complet, avec son message rédigé, et **n'est jamais
+  levé**. Selon la forme de la saisie de temps, l'import échoue sur une **erreur
+  PostgreSQL brute 23514** (l'utilisateur reçoit un code de contrainte, contre
+  `RG-GEN-03`) ou **détache les heures en silence**. Deux chemins mènent au même
+  effacement, un seul le refuse.
+- **`EX-JAL-07`** — les épopées n'existent qu'en base : modèle, colonne et compteur,
+  mais **aucun service, aucun contrôleur, aucune route**. Le compteur de la fiche projet
+  ne peut jamais dépasser zéro.
+- **`EX-PRJ-04`** — la bibliothèque d'icônes est définie (11 catégories, 50 icônes,
+  tracés compris) et **employée nulle part hors de son fichier de définition**.
+- **`EX-ORG-03`, `EX-JAL-01`** — le verbe du milieu, encore : pas de suppression de
+  service, pas de modification de jalon. Quatrième et cinquième occurrences de la
+  famille.
+- **`EX-PRJ-13`** — aucun point d'entrée pour l'historique des instantanés.
+- **`EX-ORG-05`** — le filtre par département laisse le bloc « départements sans
+  direction » entièrement non filtré.
+- **`Milestone.statut` est une colonne morte** — écrite par personne, lue par personne,
+  recalculée à chaque lecture. Sans conséquence aujourd'hui, mais c'est le décor exact
+  du piège « deux lectures d'une même donnée peuvent se contredire ».
+
+### Ce qu'il a refusé de faire, et qui compte
+
+- **Ne citer un identifiant que si TOUS ses verbes tiennent.** `EX-JAL-01` et
+  `EX-CMP-09` restent en dette alors qu'il aurait pu les déclarer couverts sur leur
+  moitié verte.
+- **Ne pas écrire de test de course sur `RG-NTF-02`** : « il serait intermittent dans
+  les deux sens, donc pire que pas de test ». Il a prouvé le verrou d'instance unique et
+  laissé le versant concurrent ouvert, en proposant la vraie parade — **une contrainte
+  d'unicité en base** sur `(userId, type, lien, jour)`.
+- **Ne pas toucher à `nonTestable`** : toujours six entrées.
