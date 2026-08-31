@@ -2,12 +2,25 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
 import { execFileSync } from "node:child_process";
 import path from "node:path";
-import { creerClient, type PrismaClient } from "@trame/db";
+import { creerClient, type PrismaClient } from "@rationarium/db";
 import { ProjetsService, ErreurProjet } from "./projets.service.js";
 import { AuditService } from "../commun/audit.service.js";
 import { NotificationsService } from "../notifications/notifications.service.js";
 import { FileService } from "../notifications/file.service.js";
 import { PerimetreService } from "../commun/perimetre.service.js";
+
+/**
+ * Les droits de l'acteur, désormais transmis au service.
+ *
+ * `projects:manage_members` y figure parce que `chefId` et `sponsorId` sont
+ * gouvernés par elle : nommer un chef donne la visibilité du projet
+ * (`RG-SCOPE-02`), c'est un geste d'appartenance. Un test qui ne la porte pas
+ * doit échouer — c'est le sujet de « L-38 » plus bas.
+ */
+const TOUS_DROITS_PROJET: ReadonlySet<string> = new Set([
+  "projects:update",
+  "projects:manage_members",
+]);
 
 /** L-10 — projets, jalons, épopées, équipe. */
 
@@ -501,6 +514,7 @@ describe("EX-PRJ-05 — modifier un projet", () => {
       p.id,
       { nom: "Refonte du portail", dateFin: utc("2027-06-30"), chefId: chef, version: p.version },
       chef,
+      TOUS_DROITS_PROJET,
     );
     expect(r.nom).toBe("Refonte du portail");
 
@@ -520,7 +534,7 @@ describe("EX-PRJ-05 — modifier un projet", () => {
       chef,
     );
     await expect(
-      projets.modifier(p.id, { dateFin: utc("2026-03-01"), version: p.version }, chef),
+      projets.modifier(p.id, { dateFin: utc("2026-03-01"), version: p.version }, chef, TOUS_DROITS_PROJET),
     ).rejects.toMatchObject({ code: "dates_incoherentes" });
   });
 
@@ -530,21 +544,21 @@ describe("EX-PRJ-05 — modifier un projet", () => {
     const annule = await prisma.project.findUniqueOrThrow({ where: { id: p.id } });
 
     await expect(
-      projets.modifier(p.id, { nom: "Tentative", version: annule.version }, chef),
+      projets.modifier(p.id, { nom: "Tentative", version: annule.version }, chef, TOUS_DROITS_PROJET),
     ).rejects.toMatchObject({ code: "projet_annule" });
 
     // Sans cette exception, restaurer serait lui-même refusé — la règle
     // enfermerait le projet dans l'état qu'elle prétend protéger.
     await expect(
-      projets.modifier(p.id, { statut: "active", version: annule.version }, chef),
+      projets.modifier(p.id, { statut: "active", version: annule.version }, chef, TOUS_DROITS_PROJET),
     ).resolves.toBeTruthy();
   });
 
   it("RG-GEN-07 — deux écritures concurrentes ne s'écrasent pas en silence", async () => {
     const p = await projets.creer(nouveauProjet(), chef);
-    await projets.modifier(p.id, { nom: "Première", version: p.version }, chef);
+    await projets.modifier(p.id, { nom: "Première", version: p.version }, chef, TOUS_DROITS_PROJET);
     await expect(
-      projets.modifier(p.id, { nom: "Seconde", version: p.version }, chef),
+      projets.modifier(p.id, { nom: "Seconde", version: p.version }, chef, TOUS_DROITS_PROJET),
     ).rejects.toMatchObject({ code: "conflit_de_version" });
 
     const relu = await prisma.project.findUniqueOrThrow({ where: { id: p.id } });
@@ -553,10 +567,64 @@ describe("EX-PRJ-05 — modifier un projet", () => {
 
   it("M20 — la modification est tracée au journal d'audit", async () => {
     const p = await projets.creer(nouveauProjet(), chef);
-    await projets.modifier(p.id, { nom: "Tracée", version: p.version }, chef);
+    await projets.modifier(p.id, { nom: "Tracée", version: p.version }, chef, TOUS_DROITS_PROJET);
     const traces = await prisma.auditLog.findMany({
       where: { entiteId: p.id, action: "project.update" },
     });
     expect(traces).toHaveLength(1);
+  });
+});
+
+/**
+ * **L-38 — le même motif, sur les projets.**
+ *
+ * `PATCH /projets/:id` est gardé par `projects:update` et acceptait `chefId` et
+ * `sponsorId`. Or `RG-SCOPE-02` dit qu'un projet est visible par son créateur,
+ * son chef, son sponsor et ses membres : nommer un chef **donne un accès**,
+ * exactement comme ajouter un membre — lequel exige `projects:manage_members`.
+ * Le contournement était direct et ne demandait aucune ruse.
+ */
+describe("L-38 — RG-SCOPE-02 : nommer un chef est un geste d'appartenance", () => {
+  const SANS_MEMBRES: ReadonlySet<string> = new Set(["projects:update"]);
+
+  it("REFUSE d'écrire chefId sans projects:manage_members", async () => {
+    const p = await projets.creer(nouveauProjet(), chef);
+    const avant = await prisma.project.findUniqueOrThrow({ where: { id: p.id } });
+    const intrus = crypto.randomUUID();
+
+    await expect(
+      projets.modifier(p.id, { chefId: intrus, version: p.version }, chef, SANS_MEMBRES),
+    ).rejects.toMatchObject({
+      code: "champ_hors_permission",
+      detail: { champ: "chefId", permission: "projects:manage_members" },
+    });
+
+    // Rien n'a été écrit : le projet garde le chef qu'il avait, et sa version.
+    const relu = await prisma.project.findUniqueOrThrow({ where: { id: p.id } });
+    expect(relu.chefId).toBe(avant.chefId);
+    expect(relu.version).toBe(p.version);
+  });
+
+  it("REFUSE de même sponsorId — les deux donnent la visibilité", async () => {
+    const p = await projets.creer(nouveauProjet(), chef);
+    await expect(
+      projets.modifier(
+        p.id,
+        { sponsorId: crypto.randomUUID(), version: p.version },
+        chef,
+        SANS_MEMBRES,
+      ),
+    ).rejects.toMatchObject({ code: "champ_hors_permission", detail: { champ: "sponsorId" } });
+  });
+
+  it("laisse passer le reste — le refus est CIBLÉ, pas un verrou sur la route", async () => {
+    const p = await projets.creer(nouveauProjet(), chef);
+    const apres = await projets.modifier(
+      p.id,
+      { nom: "Refonte", version: p.version },
+      chef,
+      SANS_MEMBRES,
+    );
+    expect(apres.nom).toBe("Refonte");
   });
 });

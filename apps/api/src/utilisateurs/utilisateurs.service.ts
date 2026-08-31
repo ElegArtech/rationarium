@@ -1,4 +1,5 @@
 import { Injectable } from "@nestjs/common";
+import { champRefuse, CHAMPS_GOUVERNES_UTILISATEUR } from "../commun/champs-gouvernes.js";
 import { PrismaService } from "../prisma.service.js";
 import { AuditService } from "../commun/audit.service.js";
 import { PerimetreService, type Perimetre } from "../commun/perimetre.service.js";
@@ -21,7 +22,8 @@ export type EchecUtilisateur =
   | "soi_meme_interdit"
   | "suppression_bloquee"
   | "service_hors_departement"
-  | "conflit_de_version";
+  | "conflit_de_version"
+  | "champ_hors_permission";
 
 export class ErreurUtilisateur extends Error {
   constructor(
@@ -263,7 +265,18 @@ export class UtilisateursService {
       roleId?: string | null; departementId?: string | null; serviceIds?: string[];
     },
     acteurId: string,
+    permissions: ReadonlySet<string>,
   ) {
+    /*
+     * `users:update` garde la route ; il ne gouverne pas `roleId`. Sans ce
+     * refus, tout rôle capable de corriger un nom pouvait attribuer un rôle —
+     * `IT_SUPPORT` et `RH` détiennent `users:update` sans `users:manage_roles`,
+     * et pouvaient donc s'attribuer `ADMIN`. La séparation était énoncée dans le
+     * catalogue et tenue nulle part.
+     */
+    const refuse = champRefuse(donnees, CHAMPS_GOUVERNES_UTILISATEUR, permissions);
+    if (refuse) throw new ErreurUtilisateur("champ_hors_permission", refuse);
+
     const avant = await this.prisma.user.findUnique({
       where: { id },
       select: { id: true, version: true, prenom: true, nom: true, email: true, roleId: true, departementId: true },
@@ -326,7 +339,16 @@ export class UtilisateursService {
       departementId?: string | null; serviceIds?: string[];
     },
     acteurId: string,
+    permissions: ReadonlySet<string>,
   ) {
+    /*
+     * Le jumeau du refus de `modifier`, et il compte autant : créer un compte
+     * porteur du rôle `ADMIN` est exactement l'élévation que le refus sur
+     * `PATCH` empêche. La fermer d'un seul côté n'aurait rien fermé.
+     */
+    const refuse = champRefuse(donnees, CHAMPS_GOUVERNES_UTILISATEUR, permissions);
+    if (refuse) throw new ErreurUtilisateur("champ_hors_permission", refuse);
+
     const email = donnees.email.toLowerCase();
     if (await this.prisma.user.findUnique({ where: { email }, select: { id: true } })) {
       throw new ErreurUtilisateur("email_deja_pris");

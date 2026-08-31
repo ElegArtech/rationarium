@@ -1,6 +1,6 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from "@nestjs/common";
 import { z } from "zod";
-import { motDePasse } from "@trame/contracts";
+import { motDePasse } from "@rationarium/contracts";
 import { UtilisateursService } from "./utilisateurs.service.js";
 import { Demande, RequiertPermission, type ContexteDemande } from "../commun/permissions.garde.js";
 import { valider, dateSchema } from "../commun/http.js";
@@ -66,7 +66,7 @@ export class UtilisateursController {
       }),
       corps,
     );
-    return this.utilisateurs.creer(donnees, d.userId);
+    return this.utilisateurs.creer(donnees, d.userId, d.permissions);
   }
 
   /**
@@ -96,7 +96,7 @@ export class UtilisateursController {
       }),
       corps,
     );
-    return this.utilisateurs.modifier(id, donnees, d.userId);
+    return this.utilisateurs.modifier(id, donnees, d.userId, d.permissions);
   }
 
   @Post(":id/desactiver")

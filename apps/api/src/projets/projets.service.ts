@@ -1,9 +1,10 @@
+import { champRefuse, CHAMPS_GOUVERNES_PROJET } from "../commun/champs-gouvernes.js";
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma.service.js";
 import { AuditService } from "../commun/audit.service.js";
 import { PerimetreService, type Perimetre } from "../commun/perimetre.service.js";
 import { NotificationsService } from "../notifications/notifications.service.js";
-import type { StatutProjet, Priorite } from "@trame/contracts";
+import type { StatutProjet, Priorite } from "@rationarium/contracts";
 
 /**
  * Projets, jalons et épopées — M4 et M5, vues 10, 11, 13, 14.
@@ -29,7 +30,8 @@ export type EchecProjet =
   | "suppression_bloquee"
   | "jalon_autre_projet"
   | "introuvable"
-  | "conflit_de_version";
+  | "conflit_de_version"
+  | "champ_hors_permission";
 
 export class ErreurProjet extends Error {
   constructor(
@@ -308,7 +310,17 @@ export class ProjetsService {
       version: number;
     },
     acteurId: string,
+    permissions: ReadonlySet<string>,
   ) {
+    /*
+     * `RG-SCOPE-02` — chef et sponsor VOIENT le projet du seul fait d'être
+     * nommés. Les écrire est donc un geste d'appartenance, gouverné par
+     * `projects:manage_members` comme l'ajout d'un membre — et non par
+     * `projects:update`, qui garde la route.
+     */
+    const refuse = champRefuse(donnees, CHAMPS_GOUVERNES_PROJET, permissions);
+    if (refuse) throw new ErreurProjet("champ_hors_permission", refuse);
+
     const avant = await this.prisma.project.findUnique({ where: { id } });
     if (!avant) throw new ErreurProjet("introuvable");
     if (avant.statut === "cancelled" && donnees.statut === undefined) {

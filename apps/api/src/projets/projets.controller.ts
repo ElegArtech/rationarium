@@ -1,6 +1,6 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from "@nestjs/common";
 import { z } from "zod";
-import { enumDe, STATUTS_PROJET, PRIORITES } from "@trame/contracts";
+import { enumDe, STATUTS_PROJET, PRIORITES } from "@rationarium/contracts";
 import { ProjetsService } from "./projets.service.js";
 import { Demande, RequiertPermission, type ContexteDemande } from "../commun/permissions.garde.js";
 import { valider, dateSchema } from "../commun/http.js";
@@ -103,7 +103,7 @@ export class ProjetsController {
       }),
       corps,
     );
-    return this.projets.modifier(id, donnees, d.userId);
+    return this.projets.modifier(id, donnees, d.userId, d.permissions);
   }
 
   /**
