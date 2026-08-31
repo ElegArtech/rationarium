@@ -31,6 +31,17 @@
 /* Panneau de détail — la maquette porte ces valeurs en style en ligne. */
 .drawer-desc{ font-size:12.5px; line-height:1.55; margin:0 0 16px; color:var(--muted); }
 .drawer-serie{ margin-top:18px; }
+
+/* `EX-EVT-08` — la liste des participants du tiroir. Le panneau n'en montrait
+   que le compte ; les deux routes existaient et rien ne les appelait. */
+.drawer-part{ margin-top:14px; padding-top:14px; border-top:1px solid var(--line); }
+.part-liste{ list-style:none; margin:0 0 10px; padding:0; display:flex;
+  flex-direction:column; gap:2px; }
+.part-item{ display:flex; align-items:center; justify-content:space-between;
+  gap:8px; font-size:12.5px; padding:4px 6px; border-radius:6px; }
+.part-item:hover{ background:var(--surface-2); }
+.part-vide{ margin:0 0 10px; font-size:12px; color:var(--muted); font-style:italic; }
+.drawer-part .field{ flex:1; min-width:0; }
 .drawer-alerte{ display:block; }
 .drawer-serie-t{ margin:0 0 6px; font-size:12.5px; font-weight:600; }
 .drawer-serie-d{ margin:0; font-size:11.5px; color:var(--muted); }

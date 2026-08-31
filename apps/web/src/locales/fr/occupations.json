@@ -108,7 +108,13 @@
     "supprime": "{n, plural, one {# événement supprimé} other {# événements supprimés}}.",
     "echecSuppression": "L'événement n'a pas pu être supprimé.",
     "continuer": "Continuer",
-    "supprimerConfirmer": "Supprimer définitivement"
+    "supprimerConfirmer": "Supprimer définitivement",
+    "participantAjoute": "Participant ajouté.",
+    "participantRetire": "Participant retiré.",
+    "echecParticipant": "La modification des participants a échoué.",
+    "aucunParticipant": "Aucun participant pour l'instant.",
+    "ajouterParticipant": "Ajouter",
+    "retirerParticipant": "Retirer {nom}"
   },
   "conges": {
     "surtitre": "Ressources humaines",

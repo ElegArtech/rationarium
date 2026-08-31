@@ -53,6 +53,23 @@ export type Evenement = {
   participants: { userId: string; user: { prenom: string; nom: string } }[];
 };
 
+/**
+ * `EX-EVT-08` — ajouter et retirer un participant.
+ *
+ * Deux gestes unitaires, pas une liste réécrite : réécrire l'ensemble ferait
+ * disparaître puis réapparaître les participants inchangés, avec la
+ * notification d'invitation qui prévient quelqu'un d'un événement qu'il n'a
+ * jamais quitté. Même raisonnement que sur les membres d'un projet.
+ */
+export const ajouterParticipant = (evenementId: string, userId: string) =>
+  appeler<unknown>(`/evenements/${evenementId}/participants`, {
+    methode: "POST",
+    corps: { userId },
+  });
+
+export const retirerParticipant = (evenementId: string, userId: string) =>
+  appeler<unknown>(`/evenements/${evenementId}/participants/${userId}`, { methode: "DELETE" });
+
 /** `RG-EVT-07` — la portée d'un geste porté sur une occurrence d'une série. */
 export type PorteeEvenement = "occurrence" | "serie";
 
