@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Locator, type Page } from "@playwright/test";
 import { serveur, SESSION_LECTURE } from "./fixtures/projets.js";
 import {
   SESSION_ACTIVITE,
@@ -17,7 +17,10 @@ import {
   FACETTES_AUDIT,
   PREDEFINIES,
   PREDEFINIES_AVEC_INACTIVE,
+  JOUR_A_DECLARER,
+  calendrierQuiRetient,
 } from "./fixtures/parametrage.js";
+import { SEMAINE } from "./fixtures/planning.js";
 
 /**
  * L-37 — vues 31, 32, 33 et 34.
@@ -28,6 +31,25 @@ import {
  * modification ni de suppression, même désactivée », « la prévisualisation en
  * langage naturel de la règle est indispensable ».
  */
+
+/**
+ * Un survol que `react-aria` reconnaît.
+ *
+ * `locator.hover()` fait apparaître le pointeur sur la cible d'un seul coup ;
+ * `useHover` ignore ce premier événement et l'infobulle ne s'ouvre pas. On
+ * arrive donc de l'extérieur, puis on bouge d'un pixel sur place — ce que fait
+ * une vraie main. Sans cette précaution, un contrôle d'infobulle échoue sur le
+ * geste, pas sur le produit.
+ */
+async function survoler(page: Page, cible: Locator) {
+  const boite = await cible.boundingBox();
+  if (!boite) throw new Error("la cible du survol n'a pas de boîte");
+  const x = boite.x + boite.width / 2;
+  const y = boite.y + boite.height / 2;
+  await page.mouse.move(x - 40, y - 40);
+  await page.mouse.move(x, y);
+  await page.mouse.move(x + 1, y);
+}
 
 // ── Vue 31 ──────────────────────────────────────────────────────────────────
 
@@ -128,6 +150,171 @@ test.describe("Vue 31 — paramètres", () => {
     await expect(page.getByText("Zone B · 2026-2027").first()).toBeVisible();
   });
 
+  /**
+   * `M19 § Jours fériés` — « Créer […] un jour ».
+   *
+   * **Ce test ne regarde pas ce qui a été enregistré : il regarde l'effet.**
+   * Le jour déclaré doit se voir là où les jours fériés COMPTENT — la trame de
+   * fond du planning, qui vient du même calendrier au serveur —, pas seulement
+   * dans la liste qui vient de le rendre. C'est le piège consigné de cette
+   * vue, payé deux lots pleins : « un réglage qui s'enregistre n'est pas un
+   * réglage qui s'applique ».
+   *
+   * Deux effets sont mesurés, et aucun n'est la persistance :
+   *
+   *   1. **Sur place** — les compteurs « Total », « Jours chômés » et
+   *      « Jours ouvrés » suivent. Un compteur resté juste à côté d'une ligne
+   *      neuve est le symptôme exact du réglage qui s'enregistre sans
+   *      s'appliquer, et il exige la relecture du calendrier.
+   *   2. **Ailleurs** — la trame de fond du planning grise le jour. C'est là
+   *      que les jours fériés comptent.
+   *
+   * L'horloge est figée : sans elle, « aujourd'hui » se déplace, l'année par
+   * défaut de l'onglet change au 31 décembre et le contrôle devient saisonnier.
+   */
+  test("M19 — un jour férié déclaré change LA TRAME DU PLANNING, pas seulement la liste", async ({
+    page,
+  }) => {
+    await page.clock.setFixedTime(new Date("2026-08-12T09:00:00.000Z"));
+    await serveur(page, { session: SESSION_CONFIG, reponses });
+    const envoi = await calendrierQuiRetient(page, SEMAINE);
+
+    // 1. Le planning d'abord : le jeudi 13 août n'est pas férié, il est en
+    //    vacances scolaires. Sa cellule de bandeau le dit.
+    await page.goto("/planning");
+    const bandeau = page.locator(".pl-bandcell");
+    // Cinq colonnes et non sept : `planning.visibleDays` vaut « 1,2,3,4,5 »
+    // dans `REGLAGES`, donc du lundi au vendredi. La quatrième est le jeudi 13.
+    await expect(bandeau).toHaveCount(5);
+    await expect(bandeau.nth(3)).toHaveClass(/is-vac/);
+    await expect(bandeau.nth(3)).not.toHaveClass(/is-ferie/);
+
+    // 2. On déclare le jour depuis la vue 31, SANS recharger la page : c'est
+    //    le cache déjà rempli du planning qu'on veut mettre en défaut.
+    await page
+      .getByRole("navigation", { name: "Navigation principale" })
+      .getByRole("link", { name: "Paramètres" })
+      .click();
+    await page.getByRole("link", { name: "Jours fériés" }).click();
+    // L'état d'avant, chiffré : quatre fériés, trois chômés.
+    const compteur = (titre: string) =>
+      page.locator(".kpi").filter({ hasText: titre }).locator(".kpi-val");
+    await expect(compteur("Total jours fériés")).toHaveText("4");
+    await expect(compteur("Jours chômés")).toHaveText("3");
+
+    await page.getByRole("button", { name: "Ajouter un jour" }).click();
+    await page.getByLabel("Date").fill(JOUR_A_DECLARER);
+    await page.getByLabel("Libellé").fill("Fermeture exceptionnelle");
+    await page.getByRole("button", { name: "Ajouter", exact: true }).click();
+
+    // Les deux drapeaux à effet voyagent : sans eux, le serveur enregistre un
+    // jour qui ne change rien.
+    await expect.poll(() => envoi()).toMatchObject({
+      date: JOUR_A_DECLARER,
+      libelle: "Fermeture exceptionnelle",
+      ouvre: false,
+      recurrent: true,
+    });
+    // `exact` : la confirmation d'action reprend le libellé, et un `getByText`
+    // nu résoudrait deux éléments — la ligne du calendrier et le message.
+    await expect(page.getByText("Fermeture exceptionnelle", { exact: true })).toBeVisible();
+    // L'effet sur place : les compteurs ont bougé, pas seulement la liste.
+    await expect(compteur("Total jours fériés")).toHaveText("5");
+    await expect(compteur("Jours chômés")).toHaveText("4");
+
+    // 3. Retour au planning : la trame de fond a suivi.
+    await page
+      .getByRole("navigation", { name: "Navigation principale" })
+      .getByRole("link", { name: "Planning" })
+      .click();
+    await expect(page.locator(".pl-bandcell").nth(3)).toHaveClass(/is-ferie/);
+    await expect(page.locator(".pl-bandcell.is-ferie")).toHaveText(["Férié"]);
+  });
+
+  /**
+   * `RG-PRM-01` — « un jour férié marqué *ouvré* compte comme jour travaillé
+   * dans le décompte des congés ».
+   *
+   * Le brief nomme ce réglage « un paramètre à effet de bord lointain ». La
+   * conséquence est donc dite au moment du geste, et le drapeau voyage : un
+   * formulaire qui le laisserait tomber créerait un jour chômé là où on
+   * demandait un jour travaillé, et le solde de congés s'en apercevrait seul.
+   */
+  test("RG-PRM-01 — un férié déclaré OUVRÉ dit sa conséquence et reste hors des jours chômés", async ({
+    page,
+  }) => {
+    await page.clock.setFixedTime(new Date("2026-08-12T09:00:00.000Z"));
+    await serveur(page, { session: SESSION_CONFIG, reponses });
+    const envoi = await calendrierQuiRetient(page, SEMAINE);
+
+    await page.goto("/parametres");
+    await page.getByRole("link", { name: "Jours fériés" }).click();
+    await page.getByRole("button", { name: "Ajouter un jour" }).click();
+
+    // Tant que la case est décochée, l'avertissement n'existe pas : il n'est
+    // pas décoratif.
+    await expect(page.getByText("Conséquence sur le décompte des congés")).toHaveCount(0);
+    await page.getByRole("checkbox", { name: "Jour ouvré" }).check();
+    await expect(page.getByText("Conséquence sur le décompte des congés")).toBeVisible();
+    await expect(page.getByText(/consommera un jour de plus/)).toBeVisible();
+
+    await page.getByLabel("Date").fill(JOUR_A_DECLARER);
+    await page.getByLabel("Libellé").fill("Journée de solidarité");
+    await page.getByRole("button", { name: "Ajouter", exact: true }).click();
+
+    await expect.poll(() => envoi()).toMatchObject({ ouvre: true });
+    // Et l'effet : il compte au bloc « Jours ouvrés », pas aux chômés.
+    await expect(page.getByText("Compté travaillé").nth(1)).toBeVisible();
+
+    // Le planning ne le grise PAS : un férié travaillé n'est pas un jour chômé.
+    await page
+      .getByRole("navigation", { name: "Navigation principale" })
+      .getByRole("link", { name: "Planning" })
+      .click();
+    await expect(page.locator(".pl-bandcell").nth(3)).not.toHaveClass(/is-ferie/);
+  });
+
+  /**
+   * `RG-PRM-04` — « les dates de vacances scolaires sont cohérentes : fin
+   * postérieure au début ».
+   */
+  test("RG-PRM-04 — une période dont la fin précède le début ne part pas", async ({ page }) => {
+    let envoye = false;
+    await serveur(page, { session: SESSION_CONFIG, reponses });
+    await page.route(
+      (url) => url.pathname === "/api/parametrage/vacances",
+      (route) => {
+        if (route.request().method() !== "POST") return route.fallback();
+        envoye = true;
+        return route.fulfill({ status: 201, contentType: "application/json", body: "{}" });
+      },
+    );
+    await page.goto("/parametres");
+    await page.getByRole("link", { name: "Vacances scolaires" }).click();
+    await page.getByRole("button", { name: "Ajouter une période" }).click();
+
+    await page.getByLabel("Libellé").fill("Vacances de printemps");
+    await page.getByLabel("Début").fill("2027-04-26");
+    await page.getByLabel("Fin").fill("2027-04-10");
+    await page.getByLabel("Zone").fill("B");
+    await page.getByLabel("Année scolaire").fill("2026-2027");
+
+    await expect(
+      page.getByText("La date de fin doit être postérieure à la date de début."),
+    ).toBeVisible();
+    await page.getByRole("button", { name: "Ajouter", exact: true }).click();
+    // Le refus qui compte est celui du serveur ; celui-ci ÉVITE l'aller-retour.
+    await expect.poll(() => envoye).toBe(false);
+
+    // Corrigée, la période part — et porte sa zone, que la maquette n'avait pas.
+    await page.getByLabel("Fin").fill("2027-04-30");
+    await expect(
+      page.getByText("La date de fin doit être postérieure à la date de début."),
+    ).toHaveCount(0);
+    await page.getByRole("button", { name: "Ajouter", exact: true }).click();
+    await expect.poll(() => envoye).toBe(true);
+  });
+
   test("sans droit d'écriture, la vue reste crédible : lecture sans boutons", async ({ page }) => {
     await serveur(page, { session: SESSION_CONFIG_LECTURE, reponses });
     await page.goto("/parametres");
@@ -137,6 +324,10 @@ test.describe("Vue 31 — paramètres", () => {
     await expect(page.getByRole("button", { name: "Enregistrer" })).toHaveCount(0);
     await page.getByRole("link", { name: "Jours fériés" }).click();
     await expect(page.getByRole("button", { name: /Importer fériés FR/ })).toHaveCount(0);
+    // Ni « Ajouter un jour » : elle est absente, pas grisée.
+    await expect(page.getByRole("button", { name: "Ajouter un jour" })).toHaveCount(0);
+    await page.getByRole("link", { name: "Vacances scolaires" }).click();
+    await expect(page.getByRole("button", { name: "Ajouter une période" })).toHaveCount(0);
   });
 
   test("sans settings:read, l'accès est refusé — et le dit", async ({ page }) => {
@@ -191,9 +382,172 @@ test.describe("Vue 32 — rôles et permissions", () => {
     // `RG-DROITS-02` — le rôle système est désactivé, par courtoisie, et dit pourquoi.
     await expect(boutons.nth(0)).toBeDisabled();
     await expect(boutons.nth(1)).toBeEnabled();
+    // « Dit pourquoi » n'était pas tenu : l'infobulle était posée sur un bouton
+    // nativement désactivé, qui ne reçoit aucun survol. Elle s'ouvre désormais.
+    await survoler(page, boutons.nth(0));
+    await expect(page.getByRole("tooltip")).toHaveText(
+      "Les rôles système ne peuvent pas être supprimés.",
+    );
 
     await boutons.nth(1).click();
     await expect.poll(() => supprime).toBe("r-agent");
+  });
+
+  /**
+   * `EX-ADM-02` — « créer un rôle, **éventuellement à partir d'un modèle** ».
+   *
+   * `POST /administration/roles` existait depuis L-08 et n'était appelée par
+   * personne : le produit ne savait créer aucun rôle hors des 26 posés par
+   * l'amorçage. Le modèle est envoyé par son **code** ; c'est le serveur qui
+   * recopie ses permissions, jamais le client (`RG-DROITS-03`).
+   */
+  test("EX-ADM-02 — un rôle se crée à partir d'un modèle, dont le code part au serveur", async ({
+    page,
+  }) => {
+    let envoi: Record<string, unknown> | null = null;
+    await serveur(page, { session: SESSION_CONFIG, reponses });
+    await page.route(
+      (url) => url.pathname === "/api/administration/roles",
+      (route) => {
+        if (route.request().method() !== "POST") return route.fallback();
+        envoi = route.request().postDataJSON() as Record<string, unknown>;
+        return route.fulfill({
+          status: 201,
+          contentType: "application/json",
+          body: JSON.stringify({ id: "r-neuf", code: envoi.code, nom: envoi.nom }),
+        });
+      },
+    );
+    await page.goto("/roles");
+    await page.getByRole("button", { name: "Créer un rôle" }).click();
+
+    await page.getByLabel("Nom", { exact: false }).first().fill("Référent applicatif");
+    await page.getByLabel("Code").fill("REFERENT_APPLICATIF");
+
+    // Les 26 modèles viennent du contrat partagé, groupés par famille.
+    await expect(page.getByRole("button", { name: /^ADMIN_DELEGATED/ })).toBeVisible();
+    await page.getByRole("searchbox", { name: "Partir d'un modèle" }).fill("délégué");
+    // La recherche porte sur le code ET la description, pas sur le seul code.
+    await expect(page.getByRole("button", { name: /^ADMIN_DELEGATED/ })).toBeVisible();
+    await page.getByRole("button", { name: /^ADMIN_DELEGATED/ }).click();
+    await expect(page.getByText("Modèle retenu : ADMIN_DELEGATED")).toBeVisible();
+
+    await page.getByRole("button", { name: "Créer le rôle" }).click();
+    await expect.poll(() => envoi).toMatchObject({
+      nom: "Référent applicatif",
+      code: "REFERENT_APPLICATIF",
+      depuisModele: "ADMIN_DELEGATED",
+    });
+  });
+
+  /**
+   * `RG-DROITS-01` — « un modèle est un point de départ, pas une contrainte ».
+   * Créer sans modèle est donc un parcours légitime, et le serveur ne doit pas
+   * recevoir de `depuisModele` fantôme.
+   */
+  test("RG-DROITS-01 — un rôle se crée SANS modèle, et rien de fantôme n'est envoyé", async ({
+    page,
+  }) => {
+    let envoi: Record<string, unknown> | null = null;
+    await serveur(page, { session: SESSION_CONFIG, reponses });
+    await page.route(
+      (url) => url.pathname === "/api/administration/roles",
+      (route) => {
+        if (route.request().method() !== "POST") return route.fallback();
+        envoi = route.request().postDataJSON() as Record<string, unknown>;
+        return route.fulfill({
+          status: 201,
+          contentType: "application/json",
+          body: JSON.stringify({ id: "r-neuf", code: "SUR_MESURE", nom: "Sur mesure" }),
+        });
+      },
+    );
+    await page.goto("/roles");
+    await page.getByRole("button", { name: "Créer un rôle" }).click();
+    await page.getByLabel("Nom", { exact: false }).first().fill("Sur mesure");
+    await page.getByLabel("Code").fill("SUR_MESURE");
+    await expect(page.getByText("Aucun modèle : la matrice partira vide")).toBeVisible();
+    await page.getByRole("button", { name: "Créer le rôle" }).click();
+
+    await expect.poll(() => envoi).toEqual({ nom: "Sur mesure", code: "SUR_MESURE" });
+  });
+
+  /** Un code mal formé se dit à la saisie ; le refus reste au serveur. */
+  test("EX-ADM-02 — un code hors format ne part pas, et la raison est écrite", async ({ page }) => {
+    let envoye = false;
+    await serveur(page, { session: SESSION_CONFIG, reponses });
+    await page.route(
+      (url) => url.pathname === "/api/administration/roles",
+      (route) => {
+        if (route.request().method() !== "POST") return route.fallback();
+        envoye = true;
+        return route.fulfill({ status: 201, contentType: "application/json", body: "{}" });
+      },
+    );
+    await page.goto("/roles");
+    await page.getByRole("button", { name: "Créer un rôle" }).click();
+    await page.getByLabel("Nom", { exact: false }).first().fill("Référent");
+    // Le champ met en capitales, mais le tiret n'est pas au format du serveur.
+    await page.getByLabel("Code").fill("referent-applicatif");
+    await page.getByRole("button", { name: "Créer le rôle" }).click();
+
+    await expect(
+      page.getByText("Le code s'écrit en capitales et soulignés, de deux à quarante caractères."),
+    ).toBeVisible();
+    await expect.poll(() => envoye).toBe(false);
+  });
+
+  /**
+   * `EX-ADM-03` — « modifier un rôle ». `RG-DROITS-02` — « les rôles système
+   * ne sont ni supprimables **ni renommables** ».
+   *
+   * La suppression suivait déjà ce motif : commande visible, désactivée, avec
+   * son explication au survol. Le renommage le suit à la lettre — la moitié de
+   * la règle qui manquait au produit.
+   */
+  test("EX-ADM-03, RG-DROITS-02 — un rôle personnalisé se renomme, un rôle système non", async ({
+    page,
+  }) => {
+    let envoi: { chemin: string; corps: unknown } | null = null;
+    await serveur(page, { session: SESSION_CONFIG, reponses });
+    await page.route(
+      (url) => /\/api\/administration\/roles\/[^/]+$/.test(url.pathname),
+      (route) => {
+        if (route.request().method() !== "PATCH") return route.fallback();
+        envoi = {
+          chemin: new URL(route.request().url()).pathname,
+          corps: route.request().postDataJSON(),
+        };
+        return route.fulfill({ status: 200, contentType: "application/json", body: "{}" });
+      },
+    );
+    await page.goto("/roles");
+
+    const boutons = page.getByRole("button", { name: "Renommer", exact: true });
+    await expect(boutons).toHaveCount(2);
+    // ADMIN est système : la commande existe, elle est refusée, et elle le dit.
+    await expect(boutons.nth(0)).toBeDisabled();
+    await expect(boutons.nth(1)).toBeEnabled();
+    // Le motif est ATTEINT, pas seulement écrit dans la source. Il l'était : un
+    // `<button disabled>` ne reçoit ni survol ni focus, donc son infobulle ne
+    // s'ouvrait jamais — la commande était désactivée SANS explication.
+    await survoler(page, boutons.nth(0));
+    await expect(page.getByRole("tooltip")).toHaveText(
+      "Les rôles système ne peuvent pas être renommés.",
+    );
+
+    // Le rôle personnalisé, lui, se renomme — et seul le NOM part : le code
+    // identifie le rôle ailleurs, il ne se reprend pas.
+    await boutons.nth(1).click();
+    const champ = page.getByRole("dialog").getByLabel("Nom", { exact: false });
+    await expect(champ).toHaveValue("Agent de projet");
+    await champ.fill("Chef de projet");
+    await page.getByRole("button", { name: "Enregistrer", exact: true }).click();
+
+    await expect.poll(() => envoi).toEqual({
+      chemin: "/api/administration/roles/r-agent",
+      corps: { nom: "Chef de projet" },
+    });
   });
 
   test("LES CROISEMENTS INVALIDES N'EXISTENT PAS — ils ne sont pas grisés", async ({ page }) => {

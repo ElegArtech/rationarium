@@ -280,6 +280,48 @@ export const vacancesScolaires = (anneeScolaire?: string) =>
     statistiques: { total: number; importees: number; manuelles: number };
   }>(`/parametrage/vacances${params(anneeScolaire ? { anneeScolaire } : {})}`);
 
+/**
+ * `M19 § Jours fériés` — « Créer […] un jour ». `RG-PRM-01`, `RG-PRM-02`.
+ *
+ * `POST /parametrage/feries` existait depuis L-09 et n'était appelée par
+ * personne : la vue 31 savait *importer* le calendrier français, jamais
+ * déclarer le jour de fermeture propre à la collectivité — celui qu'aucun
+ * import ne connaît.
+ *
+ * Les deux drapeaux voyagent explicitement, et c'est là tout l'enjeu :
+ * `ouvre` décide si le jour compte comme **travaillé** dans le décompte des
+ * congés (`RG-PRM-01`), `recurrent` s'il se reconduit d'année en année
+ * (`RG-PRM-02`). Un formulaire qui les laisserait tomber enregistrerait un
+ * jour sans effet — « un réglage qui s'enregistre n'est pas un réglage qui
+ * s'applique ».
+ */
+export const declarerFerie = (donnees: {
+  date: string;
+  libelle: string;
+  type?: string;
+  ouvre?: boolean;
+  recurrent?: boolean;
+}) => appeler<JourFerie>("/parametrage/feries", { methode: "POST", corps: donnees });
+
+/**
+ * `M19 § Vacances scolaires` — « Créer […] une période ».
+ *
+ * `RG-PRM-04` — le serveur refuse `dates_incoherentes` ; le client le dit
+ * avant d'envoyer, par courtoisie, et l'envoi reste refusé au serveur.
+ *
+ * `zone` est **obligatoire côté serveur** et absente de la maquette 31, qui
+ * n'affiche la zone que dans la liste. Le champ est donc porté au formulaire :
+ * une période rangée sous une zone arbitraire serait une donnée fausse, et la
+ * trame de fond du planning filtre justement par zone.
+ */
+export const declarerVacances = (donnees: {
+  libelle: string;
+  dateDebut: string;
+  dateFin: string;
+  zone: string;
+  anneeScolaire: string;
+}) => appeler<Vacances>("/parametrage/vacances", { methode: "POST", corps: donnees });
+
 // ── M20 — Rôles et audit, vues 32 et 33 ─────────────────────────────────────
 
 export type Role = {
@@ -340,6 +382,32 @@ export const statistiquesTeletravail = (userId: string, annee: number) =>
 
 export const supprimerRole = (id: string) =>
   appeler<void>(`/administration/roles/${id}`, { methode: "DELETE" });
+
+/**
+ * `EX-ADM-02` — « créer un rôle, éventuellement à partir d'un modèle ».
+ *
+ * `depuisModele` porte le code d'un des modèles de `@rationarium/contracts` ;
+ * le serveur y recopie les permissions. Rien n'oblige à en choisir un —
+ * `RG-DROITS-01`, « un modèle est un point de départ, pas une contrainte » —,
+ * et le rôle créé n'est **jamais** système, même dupliqué depuis un modèle qui
+ * l'est : sinon on fabriquerait un rôle indélébile par simple duplication.
+ */
+export const creerRole = (donnees: {
+  code: string;
+  nom: string;
+  description?: string;
+  depuisModele?: string;
+}) => appeler<Role>("/administration/roles", { methode: "POST", corps: donnees });
+
+/**
+ * `EX-ADM-03` — « modifier un rôle ».
+ *
+ * `RG-DROITS-02` : un rôle système ne se renomme pas. Le serveur refuse
+ * `role_systeme_non_renommable` ; le client désactive par courtoisie
+ * (`RG-GEN-06`) et dit pourquoi, exactement comme pour la suppression.
+ */
+export const renommerRole = (id: string, nom: string) =>
+  appeler<void>(`/administration/roles/${id}`, { methode: "PATCH", corps: { nom } });
 
 export const matriceRole = (id: string) => appeler<Matrice>(`/administration/roles/${id}/matrice`);
 

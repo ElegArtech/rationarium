@@ -64,3 +64,18 @@
 /* Ce que la maquette pose en style en ligne, et qui devient une classe. */
 .lede-vue{ margin-top:4px; }
 .dirty-mark{ color:var(--st-review); font-size:15px; }
+
+/*
+ * `RG-PRM-01` — l'encart de conséquence, dans la fenêtre de jour férié.
+ *
+ * `.explain` vient de `jalons.css` : même objet, même nom, une seule
+ * définition. Ne change ici que la teinte — la maquette 31 la passe en couleur
+ * de revue quand le jour est déclaré ouvré, parce que ce n'est plus une
+ * explication mais un avertissement.
+ */
+.explain.is-alert{ border-color:var(--st-review); background:var(--warn-soft); }
+.explain.is-alert .explain-t{ color:var(--st-review); }
+.explain.is-alert .explain-sigle{ color:var(--st-review); }
+
+/* Les deux bascules de la fenêtre respirent : leur aide s'intercale. */
+.consequence{ margin-top:12px; }
