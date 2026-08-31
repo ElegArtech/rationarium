@@ -393,14 +393,19 @@ function CarteRegle({
         {/* `RG-GEN-06` — désactivées AVEC leur explication. Ce n'est pas une
             question de droits mais de capacité : le serveur sait poser une
             règle et l'arrêter, il ne sait ni la réécrire ni l'effacer. */}
+        {/* `RG-GEN-06` — `aria-disabled` et non `isDisabled` : un bouton
+            nativement désactivé ne reçoit ni survol ni focus, donc son
+            infobulle ne s'ouvre jamais et l'explication promise n'existe pas.
+            Voir `action-protegee.tsx`, où le même défaut vivait pour TOUTE
+            action refusée pour cause de droits. */}
         <TooltipTrigger delay={200}>
-          <Button className="ms-toggle" isDisabled>
+          <Button className="ms-toggle" aria-disabled onPress={() => undefined}>
             {t("modifier")}
           </Button>
           <Tooltip className="tooltip">{t("predefinies.regleNonModifiable")}</Tooltip>
         </TooltipTrigger>
         <TooltipTrigger delay={200}>
-          <Button className="ms-toggle" isDisabled>
+          <Button className="ms-toggle" aria-disabled onPress={() => undefined}>
             {t("supprimer")}
           </Button>
           <Tooltip className="tooltip">{t("predefinies.regleNonSupprimable")}</Tooltip>

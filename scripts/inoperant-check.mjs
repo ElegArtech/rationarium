@@ -241,8 +241,19 @@ const relatif = (p) => path.relative(RACINE, p).split(path.sep).join("/");
 
 // ── (a) Les commandes inertes ───────────────────────────────────────────────
 
-/** `isDisabled` sans expression : `isDisabled` seul, pas `isDisabled={…}`. */
-const RE_INERTE = /\bisDisabled\b(?!\s*=)/g;
+/**
+ * Une commande inerte, sous ses **deux** écritures.
+ *
+ * `isDisabled` sans expression était la seule reconnue à l'origine. Mais
+ * `RG-GEN-06` exige qu'une action désactivée « porte une explication au
+ * survol », et un bouton **nativement** désactivé ne reçoit ni survol ni focus :
+ * son infobulle ne s'ouvre jamais. Le motif correct est donc `aria-disabled`,
+ * qui garde la commande joignable — et le contrôle serait devenu **aveugle à
+ * exactement ce qu'il existe pour voir** s'il n'avait reconnu que l'ancienne
+ * écriture. Il a d'ailleurs signalé les deux premières conversions comme des
+ * déclarations orphelines : c'est ce qui a révélé le trou.
+ */
+const RE_INERTE = /\b(?:isDisabled|aria-disabled)\b(?!\s*=)/g;
 /** `t("…")`, `tImports('…')` — les liaisons i18next, jamais `formaterDate(`. */
 const RE_CLE_I18N = /(?<![\w.$])(t|t[A-Z][\w$]*)\s*\(\s*(["'])([^"']+)\2/g;
 
@@ -681,7 +692,7 @@ const declarees = new Set(declaration.commandesInertes.map(cleCommande));
 for (const o of commandes.trouvees) {
   if (!declarees.has(cleCommande(o)))
     ecarts.push(
-      `commande inerte non déclarée : ${o.fichier}:${o.ligne} — <${o.balise} … isDisabled> ` +
+      `commande inerte non déclarée : ${o.fichier}:${o.ligne} — <${o.balise} … désactivé> ` +
         `(repère « ${o.repere} »). Déclarez-la dans design/inoperants.json avec son motif et sa ` +
         `règle, ou rendez-la agissante.`,
     );

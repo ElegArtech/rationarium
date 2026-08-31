@@ -73,7 +73,26 @@ export function ActionProtegee({
 
   return (
     <TooltipTrigger delay={200}>
-      <Button {...props} isDisabled className={props.className ?? "btn"}>
+      {/*
+       * `RG-GEN-06` — « une action désactivée porte une explication au survol ».
+       *
+       * **Désactivée, mais pas par l'attribut natif.** Un `<button disabled>` ne
+       * reçoit ni survol ni focus : `useTooltipTrigger` n'est jamais déclenché,
+       * et « désactivé avec son motif » devient « désactivé, sans explication ».
+       * Ce composant est celui par lequel passe TOUTE action refusée pour cause
+       * de droits — la règle était donc tenue nulle part, et c'est précisément
+       * le genre de défaut qu'aucune boucle ne voit : le bouton est bien grisé,
+       * `axe` ne réclame rien, et l'explication promise n'existe pas.
+       *
+       * `aria-disabled` garde la commande joignable — donc son motif lisible à
+       * la souris comme au clavier — et le gestionnaire neutralise le geste.
+       */}
+      <Button
+        {...props}
+        aria-disabled
+        onPress={() => undefined}
+        className={props.className ?? "btn"}
+      >
         {children}
       </Button>
       <Tooltip className="tooltip">
