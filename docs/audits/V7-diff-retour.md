@@ -1071,3 +1071,98 @@ Deux tests, dont un vérifié rouge sans le filtre.
   lectures d'une même donnée peuvent se contredire ».
 - **Quatre citations d'exigence fausses dans des commentaires serveur**, qu'aucun
   contrôle ne voit puisque `tracabilite-check.mjs` ne lit que les titres de test.
+## T-052 — Vues 31 et 32 : quatre routes branchées, deux jugées redondantes
+
+Six routes serveur étaient dans `SANS_CLIENT` avec la raison « à brancher ». Quatre le
+sont désormais, deux ne le seront pas.
+
+| Route | Verdict |
+| --- | --- |
+| `POST /administration/roles` | branchée — `EX-ADM-02`, la fenêtre de création de la vue 32, modèle compris |
+| `PATCH /administration/roles/:id` | branchée — `EX-ADM-03`, le renommage, refusé sur un rôle système |
+| `POST /parametrage/feries` | branchée — `M19 § Jours fériés`, « Créer […] un jour » |
+| `POST /parametrage/vacances` | branchée — `M19 § Vacances scolaires`, « Créer […] une période » |
+| `GET /parametrage/trame` | **redondante**, laissée dans `SANS_CLIENT` |
+| `GET /parametrage/feries/statistiques` | **redondante ET fausse**, laissée dans `SANS_CLIENT` |
+
+### `GET /parametrage/trame` — la brancher contredirait `RG-PLN-01`
+
+`planning.service.ts` appelle `calendrier.trameDeFond` dans **les deux** agrégats,
+`agreger` et `grilleActivite` : `GET /planning` et `GET /planning/activite` embarquent
+donc déjà la trame. Et ce n'est pas un hasard d'implémentation — c'est `RG-PLN-01`,
+écrite en toutes lettres dans le service : « les demander séparément ferait apparaître
+les fériés après coup, sur une grille déjà lue, et un jour férié découvert en second
+est un jour qu'on a déjà compté comme ouvré ». La brancher serait rouvrir la porte que
+la règle ferme.
+
+Sa seule capacité propre est le filtre `zone`, qu'aucun écran n'offre. Sa reprise se
+décidera avec la **zone scolaire de référence** que `cadrage/01 § M19` place dans
+l'onglet Planning de la vue 31 et qui n'existe nulle part — ni réglage, ni amorçage.
+
+### `GET /parametrage/feries/statistiques` — les deux comptes divergent
+
+`GET /parametrage/feries` rend déjà un bloc `statistiques` de même forme (total, chômés,
+ouvrés, légaux). Les deux calculs ne s'accordent pas :
+
+- `joursFeries(annee)` construit d'abord la liste **projetée et dédoublonnée par date**
+  — un récurrent stocké une fois vaut pour toutes les années, une déclaration explicite
+  l'emporte sur la projection — puis compte cette liste ;
+- `statistiquesFeries(annee)` compte les **lignes stockées** de la requête
+  `date ∈ année OR recurrent`.
+
+Dès que deux années sont importées, le 14 juillet 2026 et le 14 juillet 2027 sont deux
+lignes récurrentes : `joursFeries(2026)` en voit onze, `statistiquesFeries(2026)` en
+compte dix-neuf. C'est exactement le piège maison — « deux lectures d'une même donnée
+peuvent se contredire sans qu'aucune boucle ne le voie » —, et il est ici **déjà
+constitué**, à ceci près qu'un seul des deux comptes est affiché.
+
+La brancher afficherait le compte faux à côté du juste. Son sort est une **suppression à
+instruire**, pas un branchement : c'est la seule des deux redondantes dont le maintien
+coûte quelque chose.
+
+### Ce que le branchement a trouvé en chemin
+
+**`RG-GEN-06` — « une action désactivée porte une explication au survol » — n'était
+tenue nulle part.** Trois fichiers posent le motif dans un `<Tooltip>` sur un `<Button
+isDisabled>` : `Roles.tsx`, `Predefinies.tsx`, `action-protegee.tsx`. Un bouton
+nativement `disabled` ne reçoit **ni survol ni focus** : `useTooltipTrigger` n'est jamais
+déclenché, l'infobulle ne s'ouvre pas. Le motif était écrit dans la source et
+inatteignable à l'écran.
+
+Deuxième moitié du même défaut : **`.tooltip` et `.tip` n'étaient définies dans aucune
+feuille**. Sixième membre de la famille « inerte et invisible », après le sélecteur sans
+correspondance, la classe sans règle, `ui:diff` qui ne comparait rien et les `MenuItem`
+sans `className`. Ni `axe`, ni le typage, ni un parcours ne regardent une classe sans
+règle.
+
+Corrigé **pour la vue 32 seulement** — les deux commandes de rôle passent en
+`aria-disabled`, qui garde la commande joignable, et `partages.css` porte enfin la règle
+`.tooltip`. **`Predefinies.tsx` et `action-protegee.tsx` gardent le défaut** : elles ne
+relèvent pas de cette tâche, et `action-protegee` est le composant par lequel passe
+*toute* action refusée pour cause de droits. À reprendre.
+
+Deux autres constats, non corrigés :
+
+- **La barre latérale navigue par `<a href>`, pas par des liens de routeur.** Chaque
+  changement de vue recharge la page et vide le cache client. Ce n'est pas une
+  régression fonctionnelle, mais cela rend **invérifiable** toute invalidation de cache
+  entre deux vues : le contrôle qui devait prouver que déclarer un férié rafraîchit le
+  planning passe au vert avec *et* sans l'invalidation. La ligne est conservée dans
+  `Parametres.tsx` avec ce constat écrit en face.
+- **`Holiday` n'a pas de colonne `description`** alors que la maquette 31 pose un champ
+  et une colonne de ce nom. Tâche de schéma, pas de fonctionnalité.
+
+### Trois décisions tranchées seul
+
+1. **La zone d'une période de vacances est portée au formulaire**, que la maquette 31
+   n'a pas. Le serveur l'exige (`zone: z.string().min(1)`), la liste l'affiche
+   (« Zone B · 2026-2027 ») et la trame de fond filtre dessus : la deviner aurait rangé
+   la période sous une zone arbitraire. À entériner en `cadrage/02`.
+2. **Le type « Jour de pont » de la maquette 31 n'est pas repris.** Le produit ne connaît
+   que `legal` — ce que pose l'import, et ce que compte le bloc « Fériés légaux » — et
+   `local`, le défaut du serveur pour un jour déclaré à la main. Un troisième code ne
+   figure ni au cadrage, ni dans `@rationarium/contracts`, ni au serveur : il remonte en
+   question plutôt que de s'inventer.
+3. **Un rôle se crée sans modèle**, et le client n'envoie alors aucun `depuisModele` —
+   `RG-DROITS-01`, « un modèle est un point de départ, pas une contrainte ». La liste
+   porte donc sa propre mention « Aucun modèle : la matrice partira vide ».

@@ -461,8 +461,6 @@ const SANS_CLIENT: { verbe: string; chemin: string; raison: string }[] = [
   },
 
   // ── 3. Capacités serveur qu'aucun écran n'offre encore ───────────────────
-  { verbe: "POST", chemin: "/administration/roles", raison: A_BRANCHER },
-  { verbe: "PATCH", chemin: "/administration/roles/:id", raison: A_BRANCHER },
   { verbe: "GET", chemin: "/conges/solde", raison: A_BRANCHER },
   { verbe: "PUT", chemin: "/conges/soldes", raison: A_BRANCHER },
   { verbe: "GET", chemin: "/conges/validateur", raison: A_BRANCHER },
@@ -488,10 +486,8 @@ const SANS_CLIENT: { verbe: string; chemin: string; raison: string }[] = [
     chemin: "/organisation/services/:id",
     raison: "EX-ORG-03 — même raison que son impact : la vue 29 reste à compléter.",
   },
-  { verbe: "POST", chemin: "/parametrage/feries", raison: A_BRANCHER },
   { verbe: "GET", chemin: "/parametrage/feries/statistiques", raison: A_BRANCHER },
   { verbe: "GET", chemin: "/parametrage/trame", raison: A_BRANCHER },
-  { verbe: "POST", chemin: "/parametrage/vacances", raison: A_BRANCHER },
   { verbe: "GET", chemin: "/temps/non-declarees", raison: A_BRANCHER },
   { verbe: "GET", chemin: "/temps/rapport", raison: A_BRANCHER },
 ];
