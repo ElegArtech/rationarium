@@ -74,12 +74,20 @@
   font-size:9px; color:var(--accent); }
 
 /* Règles récurrentes */
-.rule{ display:grid; grid-template-columns:minmax(0,1fr) 108px 96px; gap:13px; align-items:center;
-  padding:12px 14px; border-bottom:1px solid var(--line); }
+/* Trois actions par règle depuis EX-TLT-04 — modifier, activer/désactiver,
+   supprimer. La maquette en réservait deux, vides : le serveur ne savait alors
+   ni modifier, ni désactiver, ni supprimer une règle. */
+.rule{ display:grid; grid-template-columns:minmax(0,1fr) auto auto auto; gap:13px;
+  align-items:center; padding:12px 14px; border-bottom:1px solid var(--line); }
 .rule:last-of-type{ border-bottom:none; }
 .rule-nl{ font-size:12.5px; }
 .rule-sub{ display:block; font-family:var(--font-mono); font-size:9px; color:var(--muted); margin-top:4px; }
-.rule.is-off{ opacity:.55; }
+/* L'état inactif n'était jusqu'ici jamais atteignable : rien ne pouvait écrire
+   `active = false`. Il l'est. L'opacité que la maquette posait ici ferait
+   tomber le texte sous le seuil AA — le fond porte la distinction, le texte
+   garde son jeton atténué. Voir `docs/design/DESIGN.md § 4`. */
+.rule.is-off{ background:var(--surface-2); }
+.rule.is-off .rule-nl{ color:var(--muted); }
 .gen-box{ border-top:1px solid var(--line); padding:13px 14px; background:var(--surface-2); }
 .gen-row{ display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap; }
 

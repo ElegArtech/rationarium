@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Query } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from "@nestjs/common";
 import { z } from "zod";
 import { enumDe, ETATS_TELETRAVAIL } from "@rationarium/contracts";
 import { TeletravailService } from "./teletravail.service.js";
@@ -100,7 +100,54 @@ export class TeletravailController {
       }),
       corps,
     );
-    return this.teletravail.creerRegle({ ...donnees, userId: donnees.userId ?? d.userId }, d.userId);
+    return this.teletravail.creerRegle(
+      { ...donnees, userId: donnees.userId ?? d.userId },
+      d.userId,
+      d.permissions,
+    );
+  }
+
+  /**
+   * `EX-TLT-04` — **modifier une règle, l'activer ou la désactiver.**
+   *
+   * L'exigence énumère quatre facettes ; « actif » était la quatrième et ne
+   * s'écrivait nulle part. Le point d'entrée manquait, tout simplement : une
+   * règle posée était définitive, et une faute de jour se corrigeait en
+   * supprimant… ce qui n'existait pas non plus.
+   *
+   * `version` est **obligatoire** (`RG-GEN-07`) : la vue lit la règle, renvoie
+   * la version qu'elle a lue, et le serveur refuse si quelqu'un a écrit entre
+   * les deux.
+   */
+  @Patch("regles/:id")
+  @RequiertPermission("telework:manage_rules")
+  modifierRegle(@Param("id") id: string, @Body() corps: unknown, @Demande() d: ContexteDemande) {
+    const donnees = valider(
+      z.object({
+        version: z.number().int().min(1),
+        jourSemaine: z.number().int().min(0).max(6).optional(),
+        dateDebut: dateSchema.optional(),
+        // `null` efface la borne, l'absence la laisse en place : une règle
+        // bornée doit pouvoir se rouvrir.
+        dateFin: dateSchema.nullish(),
+        active: z.boolean().optional(),
+      }),
+      corps,
+    );
+    return this.teletravail.modifierRegle(id, donnees, d.userId, d.permissions);
+  }
+
+  /**
+   * `EX-TLT-04` — supprimer une règle.
+   *
+   * Elle ne retire pas les jours déjà générés : ce sont des déclarations
+   * posées, pas une projection de la règle. Désactiver est le geste
+   * réversible ; supprimer retire la règle, jamais l'historique.
+   */
+  @Delete("regles/:id")
+  @RequiertPermission("telework:manage_rules")
+  supprimerRegle(@Param("id") id: string, @Demande() d: ContexteDemande) {
+    return this.teletravail.supprimerRegle(id, d.userId, d.permissions);
   }
 
   @Post("generer")

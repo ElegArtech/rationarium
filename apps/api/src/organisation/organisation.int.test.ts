@@ -396,3 +396,172 @@ describe("EX-ORG-03 — créer, modifier un service ; le rattacher à un départ
     });
   });
 });
+
+/**
+ * `EX-ORG-05` — « Filtrer la vue par département. »
+ *
+ * Le filtre existait, dans la vue 29, et il était faux. L'arborescence a DEUX
+ * racines — les directions et le bloc « Départements sans direction »
+ * (`RG-ORG-03`) — et la vue n'en filtrait qu'une : sélectionner un département
+ * laissait **tous** les départements hors direction affichés. La recherche
+ * texte, elle, ne descendait pas à l'intérieur d'une direction retenue.
+ *
+ * Porté au serveur, où une seule clause sert les deux racines. Les tests qui
+ * suivent visent d'abord le bloc oublié : c'est lui qui prouve le correctif.
+ */
+describe("EX-ORG-05 — filtrer l'arborescence par département", () => {
+  const globalP = () => perimetres.resoudre(acteur, new Set(["users:manage_any"]));
+
+  it("EX-ORG-05 — le bloc « Départements sans direction » OBÉIT au filtre", async () => {
+    /*
+     * Le défaut, nommément. Deux départements hors direction ; on filtre sur
+     * l'un ; l'autre doit disparaître. C'est l'assertion que la vue faisait
+     * échouer et qu'aucun test ne portait.
+     */
+    const retenu = await orga.creerDepartement({ nom: unique("Orphelin retenu") }, acteur);
+    const ecarte = await orga.creerDepartement({ nom: unique("Orphelin écarté") }, acteur);
+
+    const arbre = await orga.arborescence(await globalP(), { departementId: retenu.id });
+    const ids = arbre.departementsSansDirection.map((d) => d.id);
+    expect(ids).toContain(retenu.id);
+    expect(ids).not.toContain(ecarte.id);
+  });
+
+  it("EX-ORG-05 — le filtre descend AUSSI à l'intérieur d'une direction retenue", async () => {
+    /*
+     * L'autre moitié : retenir la direction ne suffit pas, il faut que ses
+     * départements soient filtrés eux aussi. Sans quoi sélectionner un
+     * département en affiche trois.
+     */
+    const direction = await orga.creerDirection({ nom: unique("Direction filtrée") }, acteur);
+    const vise = await orga.creerDepartement(
+      { nom: unique("Département visé"), directionId: direction.id },
+      acteur,
+    );
+    const voisin = await orga.creerDepartement(
+      { nom: unique("Département voisin"), directionId: direction.id },
+      acteur,
+    );
+
+    const arbre = await orga.arborescence(await globalP(), { departementId: vise.id });
+    const retenue = arbre.directions.find((d) => d.id === direction.id);
+    expect(retenue).toBeDefined();
+    expect(retenue!.departements.map((d) => d.id)).toEqual([vise.id]);
+    expect(retenue!.departements.map((d) => d.id)).not.toContain(voisin.id);
+  });
+
+  it("EX-ORG-05 — une direction dont aucun département n'est retenu DISPARAÎT", async () => {
+    const gardee = await orga.creerDirection({ nom: unique("Direction gardée") }, acteur);
+    const perdue = await orga.creerDirection({ nom: unique("Direction perdue") }, acteur);
+    const cible = await orga.creerDepartement(
+      { nom: unique("Le seul retenu"), directionId: gardee.id },
+      acteur,
+    );
+    await orga.creerDepartement(
+      { nom: unique("Sous la perdue"), directionId: perdue.id },
+      acteur,
+    );
+
+    const arbre = await orga.arborescence(await globalP(), { departementId: cible.id });
+    const ids = arbre.directions.map((d) => d.id);
+    expect(ids).toContain(gardee.id);
+    // Sans le retrait, une direction vide s'afficherait à côté du résultat :
+    // le même défaut, en plus discret.
+    expect(ids).not.toContain(perdue.id);
+  });
+
+  it("EX-ORG-05 — la RECHERCHE filtre les deux racines, orphelins compris", async () => {
+    const marqueur = `Zeta${uuid().slice(0, 6)}`;
+    const orphelinVu = await orga.creerDepartement({ nom: `${marqueur} orphelin` }, acteur);
+    const orphelinNon = await orga.creerDepartement({ nom: unique("Autre chose") }, acteur);
+    const direction = await orga.creerDirection({ nom: unique("Une direction") }, acteur);
+    const sousDirection = await orga.creerDepartement(
+      { nom: `${marqueur} sous direction`, directionId: direction.id },
+      acteur,
+    );
+    const voisinNon = await orga.creerDepartement(
+      { nom: unique("Voisin muet"), directionId: direction.id },
+      acteur,
+    );
+
+    const arbre = await orga.arborescence(await globalP(), { recherche: marqueur });
+
+    const orphelins = arbre.departementsSansDirection.map((d) => d.id);
+    expect(orphelins).toContain(orphelinVu.id);
+    expect(orphelins).not.toContain(orphelinNon.id);
+
+    const retenue = arbre.directions.find((d) => d.id === direction.id);
+    expect(retenue!.departements.map((d) => d.id)).toEqual([sousDirection.id]);
+    expect(retenue!.departements.map((d) => d.id)).not.toContain(voisinNon.id);
+  });
+
+  it("EX-ORG-05 — chercher le nom d'une DIRECTION retient ses départements", async () => {
+    /*
+     * Sans cette disjonction, taper le nom d'une direction ne retiendrait
+     * aucun de ses départements — donc la direction disparaîtrait, alors que
+     * c'est elle qu'on cherchait.
+     */
+    const marqueur = `Omega${uuid().slice(0, 6)}`;
+    const direction = await orga.creerDirection({ nom: `${marqueur} des ressources` }, acteur);
+    const dep = await orga.creerDepartement(
+      { nom: unique("Un département quelconque"), directionId: direction.id },
+      acteur,
+    );
+
+    const arbre = await orga.arborescence(await globalP(), { recherche: marqueur });
+    const retenue = arbre.directions.find((d) => d.id === direction.id);
+    expect(retenue).toBeDefined();
+    expect(retenue!.departements.map((d) => d.id)).toContain(dep.id);
+  });
+
+  it("EX-ORG-05 — la liste des CHOIX du filtre reste entière quand un filtre est posé", async () => {
+    /*
+     * Le sélecteur de la vue 29 se peuplait depuis l'arborescence elle-même.
+     * Filtrer au serveur l'aurait donc vidé à la première sélection : plus
+     * qu'un choix, celui déjà fait. `departements` est rendu à part, au
+     * périmètre et rien d'autre.
+     */
+    const a = await orga.creerDepartement({ nom: unique("Choix A") }, acteur);
+    const b = await orga.creerDepartement({ nom: unique("Choix B") }, acteur);
+
+    const arbre = await orga.arborescence(await globalP(), { departementId: a.id });
+    const choix = arbre.departements.map((d) => d.id);
+    expect(choix).toContain(a.id);
+    expect(choix).toContain(b.id);
+    // Et pendant ce temps, le résultat, lui, est bien filtré.
+    expect(arbre.departementsSansDirection.map((d) => d.id)).not.toContain(b.id);
+  });
+
+  it("EX-ORG-05 — sans filtre, l'arborescence est celle d'avant", async () => {
+    /*
+     * Le cas nominal. Un filtre porté au serveur qui filtrerait TOUJOURS
+     * passerait chacun des tests ci-dessus.
+     */
+    const orphelin = await orga.creerDepartement({ nom: unique("Sans filtre") }, acteur);
+    const arbre = await orga.arborescence(await globalP());
+    expect(arbre.departementsSansDirection.map((d) => d.id)).toContain(orphelin.id);
+  });
+
+  it("EX-ORG-05 — le filtre ne CONTOURNE pas le périmètre", async () => {
+    /*
+     * Permission puis périmètre : viser nommément un département hors
+     * périmètre ne doit pas le rendre visible. Un filtre appliqué à la place
+     * du périmètre plutôt qu'en plus de lui serait une élévation d'accès.
+     */
+    const interdit = await orga.creerDepartement({ nom: unique("Hors périmètre") }, acteur);
+    const sien = await orga.creerDepartement({ nom: unique("Le sien") }, acteur);
+
+    const borne = await prisma.user.create({
+      data: {
+        id: uuid(), login: `b-${uuid().slice(0, 6)}`, email: `${uuid().slice(0, 6)}@x.fr`,
+        motDePasseHash: "x", prenom: "B", nom: "Orne", departementId: sien.id,
+      },
+    });
+    const p = await perimetres.resoudre(borne.id, new Set());
+
+    const arbre = await orga.arborescence(p, { departementId: interdit.id });
+    expect(arbre.departementsSansDirection.map((d) => d.id)).not.toContain(interdit.id);
+    // Et la liste des choix, elle non plus, ne fuit pas.
+    expect(arbre.departements.map((d) => d.id)).not.toContain(interdit.id);
+  });
+});

@@ -1,7 +1,7 @@
 import { Body, Controller, Delete, Get, Param, Post, Put, Query } from "@nestjs/common";
 import { z } from "zod";
 import { enumDe, CATEGORIES_COMPETENCE, NIVEAUX_COMPETENCE } from "@rationarium/contracts";
-import { CompetencesService } from "./competences.service.js";
+import { CompetencesService, TRIS_MATRICE, TRIS_REFERENTIEL } from "./competences.service.js";
 import { Demande, RequiertPermission, type ContexteDemande } from "../commun/permissions.garde.js";
 import { valider } from "../commun/http.js";
 
@@ -22,13 +22,22 @@ export class CompetencesController {
   @RequiertPermission("skills:manage_matrix")
   matrice(@Demande() d: ContexteDemande, @Query() requete: unknown) {
     const filtres = valider(
-      z.object({ categorie: enumDe(CATEGORIES_COMPETENCE).optional() }),
+      z.object({
+        categorie: enumDe(CATEGORIES_COMPETENCE).optional(),
+        // `EX-CMP-07` — recherche, filtre par niveau et tri. Les trois vivaient
+        // dans la vue, appliqués aux lignes déjà reçues : un tri d'écran
+        // ordonne ce qu'il a sous la main, pas ce que la requête a retenu.
+        recherche: z.string().max(120).optional(),
+        niveau: enumDe(NIVEAUX_COMPETENCE).optional(),
+        tri: z.enum(TRIS_MATRICE).optional(),
+        competenceId: z.uuid().optional(),
+      }),
       requete,
     );
     return this.competences.matrice(d.perimetre, filtres);
   }
 
-  /** `EX-CMP-01` — le référentiel des compétences. */
+  /** `EX-CMP-01`, `EX-CMP-07` — le référentiel des compétences, filtré et trié. */
   @Get()
   @RequiertPermission("skills:read")
   referentiel(@Query() requete: unknown) {
@@ -36,6 +45,15 @@ export class CompetencesController {
       z.object({
         categorie: enumDe(CATEGORIES_COMPETENCE).optional(),
         recherche: z.string().max(120).optional(),
+        /*
+         * `EX-CMP-07` — « filtrer par niveau », et « trier par nom ou par
+         * couverture ». Le tri par couverture — le ratio détenteurs/requis de
+         * `RG-CMP-03` — n'existait nulle part, ni ici ni dans la vue, alors
+         * que c'est celui qui répond à la question du module : « sommes-nous
+         * couverts ? ».
+         */
+        niveau: enumDe(NIVEAUX_COMPETENCE).optional(),
+        tri: z.enum(TRIS_REFERENTIEL).optional(),
       }),
       requete,
     );

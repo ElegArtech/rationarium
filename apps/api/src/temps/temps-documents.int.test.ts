@@ -213,7 +213,7 @@ describe("EX-TMP-07 — rapports agrégés en base", () => {
     const p = await globalP();
     const r = await temps.rapport(p, "projet", { debut: utc("2026-06-01"), fin: utc("2026-06-30") });
     // Parti pris n° 2 : le hors-projet est nommé, jamais laissé vide.
-    expect(r.some((l) => l.libelle === "Hors projet")).toBe(true);
+    expect(r.some((l) => "libelle" in l && l.libelle === "Hors projet")).toBe(true);
   });
 
   it("par type d'activité", async () => {

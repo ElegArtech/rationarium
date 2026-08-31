@@ -92,7 +92,18 @@
 .sk-chip button:hover{ color:var(--st-blocked); }
 
 /* Référentiel */
-.rf-grid{ display:grid; grid-template-columns:minmax(0,1fr) 150px minmax(0,1.2fr) 128px 150px; gap:13px; }
+/*
+ * La dernière colonne porte la pastille de couverture ET les deux actions
+ * — « Détenteurs » (`EX-CMP-10`) et « Supprimer » — ajoutées après coup. À
+ * 150 px, les deux boutons SORTAIENT du panneau : rien ne le disait, une
+ * grille qui déborde n'est ni une erreur de typage ni une violation `axe`, et
+ * la conformité relève la page sans mesurer les débordements. Vu à l'œil en
+ * ouvrant l'onglet Référentiel, qui n'avait jusqu'ici pas de barre de filtres
+ * et se regardait donc peu.
+ */
+.rf-grid{ display:grid;
+  grid-template-columns:minmax(0,1fr) 130px minmax(0,1.2fr) 110px minmax(230px,auto);
+  gap:13px; }
 .rf-head{ padding:9px 14px; background:var(--surface-2); border-bottom:1px solid var(--line-strong); }
 .rf-head span{ font-family:var(--font-mono); font-size:8.5px; font-weight:500; letter-spacing:.12em;
   text-transform:uppercase; color:var(--muted); }
@@ -101,4 +112,5 @@
 .rf-row:hover{ background:var(--surface-2); }
 .rf-n{ font-size:12.5px; font-weight:600; }
 .rf-d{ font-size:11.5px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.rf-req{ display:flex; align-items:center; gap:8px; font-family:var(--font-mono); font-size:11px; }
+.rf-req{ display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+  font-family:var(--font-mono); font-size:11px; }

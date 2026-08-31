@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from "@nestjs/common";
 import { z } from "zod";
 import { OrganisationService } from "./organisation.service.js";
 import { Demande, RequiertPermission, type ContexteDemande } from "../commun/permissions.garde.js";
@@ -17,15 +17,25 @@ export class OrganisationController {
 
   /**
    * `EX-ORG-01` — l'arborescence complète, bornée au périmètre.
+   * `EX-ORG-05` — **filtrer la vue par département**, et la chercher.
    *
    * Le périmètre est passé au service, pas appliqué après coup : filtrer le
    * résultat côté contrôleur laisserait la requête ramener ce que l'appelant
-   * n'a pas le droit de voir.
+   * n'a pas le droit de voir. Le filtre de `EX-ORG-05` prend le même chemin,
+   * pour la même raison plus une seconde : l'arborescence a deux racines, et
+   * le filtre qui vivait dans la vue n'en couvrait qu'une.
    */
   @Get()
   @RequiertPermission("directions:read")
-  arborescence(@Demande() d: ContexteDemande) {
-    return this.organisation.arborescence(d.perimetre);
+  arborescence(@Demande() d: ContexteDemande, @Query() requete: unknown) {
+    const filtres = valider(
+      z.object({
+        departementId: z.uuid().optional(),
+        recherche: z.string().max(120).optional(),
+      }),
+      requete,
+    );
+    return this.organisation.arborescence(d.perimetre, filtres);
   }
 
   @Get("statistiques/:niveau/:id")
