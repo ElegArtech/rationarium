@@ -76,5 +76,6 @@
   "porteeRequise": "This event belongs to a series: say whether the action applies to this occurrence only, or to this one and the ones after it.",
   "porteeSansSerie": "This event does not belong to a series: there is no scope to choose. Try again without it.",
   "dateNonPropageable": "The date is what tells occurrences apart: it can be changed on this occurrence only, not on the whole series.",
-  "epopeeEnDouble": "An epic with this name already exists in this project."
+  "epopeeEnDouble": "An epic with this name already exists in this project.",
+  "jalonCalcule": "This milestone has tasks: its status is derived from their progress. Move its tasks forward, or detach them."
 }

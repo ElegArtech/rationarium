@@ -347,7 +347,11 @@
     "champsRequis": "Renseignez tous les champs marqués d'une étoile.",
     "datesIncoherentes": "La date de fin doit être postérieure à la date de début.",
     "sourceSaisieManuelle": "Source : saisie manuelle",
-    "vacancesAjoutees": "Période « {libelle} » ajoutée."
+    "vacancesAjoutees": "Période « {libelle} » ajoutée.",
+    "quitterTitre": "Quitter sans enregistrer ?",
+    "quitterTexte": "Vous avez des modifications non enregistrées. Si vous quittez maintenant, elles seront perdues.",
+    "rester": "Rester sur la page",
+    "quitterSansEnregistrer": "Quitter sans enregistrer"
   },
   "roles": {
     "surtitre": "Administration",

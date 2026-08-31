@@ -647,8 +647,15 @@ test.describe("Vue 13 — jalons", () => {
   test("le statut du jalon est marqué comme calculé, sur chaque ligne", async ({ page }) => {
     await serveur(page, { reponses });
     await page.goto(`${CHEMIN_PROJET}/jalons`);
-    // Trois jalons + deux indicateurs calculés.
-    await expect(page.getByText("Calculé", { exact: true })).toHaveCount(5);
+    /*
+     * DEUX jalons sur trois portent des tâches, plus deux indicateurs : quatre
+     * repères « Calculé ». Le troisième — « Reste à planifier » — n'a aucune
+     * tâche : depuis `RG-JAL-06`, son statut se marque à la main et son repère
+     * dit « Marqué ». Afficher « Calculé » là enverrait chercher un
+     * avancement qui n'existe pas.
+     */
+    await expect(page.getByText("Calculé", { exact: true })).toHaveCount(4);
+    await expect(page.getByText("Marqué", { exact: true })).toHaveCount(1);
   });
 
   test("déplier un jalon montre ses tâches ; un jalon vide le dit", async ({ page }) => {
@@ -995,5 +1002,82 @@ test.describe("Vue 13 — épopées et modification d'un jalon", () => {
       nom: "Recette fonctionnelle",
       version: 1,
     });
+  });
+});
+
+/**
+ * `EX-JAL-02`, `RG-JAL-06` — marquer un jalon SANS TÂCHE comme atteint.
+ *
+ * L'arbitrage du 2026-08-31 : `EX-JAL-02` et `RG-JAL-01` se contredisaient, le
+ * produit avait tranché pour le calcul, et le geste n'existait nulle part. Un
+ * jalon sans tâche est le cas que le calcul ne sait pas trancher — il restait
+ * « en attente » pour toujours, échéance tenue comprise.
+ */
+test.describe("Vue 13 — un jalon sans tâche se marque à la main", () => {
+  const reponses = {
+    "/feuille-de-route": { corps: ROUTE },
+    [`/api/projets/${PROJET.id}/epopees`]: { corps: EPOPEES },
+    [`/api/projets/${PROJET.id}`]: { corps: PROJET },
+  };
+
+  /** « Reste à planifier » est le jalon du jeu d'essai qui n'a aucune tâche. */
+  const ligneVide = (page: Page) => page.locator(".tli", { hasText: "Reste à planifier" });
+  const lignePleine = (page: Page) => page.locator(".tli", { hasText: "Recette fonctionnelle" });
+
+  test("EX-JAL-02 — la commande n'est proposée QUE sur un jalon sans tâche", async ({ page }) => {
+    /*
+     * Sur un jalon qui porte des tâches, le serveur refuse : proposer un geste
+     * voué au refus est exactement ce que `RG-GEN-06` interdit. La commande
+     * absente est aussi la manière la plus courte d'expliquer la règle.
+     */
+    await serveur(page, { reponses });
+    await page.goto(`${CHEMIN_PROJET}/jalons`);
+
+    await expect(ligneVide(page).getByRole("button", { name: "Marquer atteint" })).toBeVisible();
+    await expect(
+      lignePleine(page).getByRole("button", { name: "Marquer atteint" }),
+    ).toHaveCount(0);
+  });
+
+  test("EX-JAL-02, RG-GEN-07 — marquer part avec la version LUE du jalon", async ({ page }) => {
+    await serveur(page, { reponses });
+    const envoi = page.waitForRequest(
+      (r) => r.method() === "POST" && r.url().includes("/jalons/j3/marquer"),
+    );
+    await page.goto(`${CHEMIN_PROJET}/jalons`);
+
+    await ligneVide(page).getByRole("button", { name: "Marquer atteint" }).click();
+    expect((await envoi).postDataJSON()).toEqual({ atteint: true, version: 1 });
+  });
+
+  test("RG-JAL-06 — le repère « calculé » DIT que le statut est marqué, pas calculé", async ({
+    page,
+  }) => {
+    /*
+     * Le même repère dans les deux cas ferait chercher un avancement qui
+     * n'existe pas. C'est le genre d'explication qui, fausse, coûte plus cher
+     * que son absence.
+     */
+    await serveur(page, { reponses });
+    await page.goto(`${CHEMIN_PROJET}/jalons`);
+
+    // Le repère porte « Marqué », pas « Calculé » — et son explication le dit.
+    const repere = ligneVide(page).locator(".calc-tag");
+    await expect(repere).toHaveText("Marqué");
+    await expect(repere).toHaveAttribute(
+      "aria-description",
+      /il n'y a rien à calculer, son statut se marque à la main/,
+    );
+
+    // Sur un jalon qui porte des tâches, le repère dit l'inverse.
+    await expect(lignePleine(page).locator(".calc-tag")).toHaveText("Calculé");
+  });
+
+  test("RG-GEN-06 — sans milestones:update, aucune marque n'est proposée", async ({ page }) => {
+    await serveur(page, { session: SESSION_LECTURE, reponses });
+    await page.goto(`${CHEMIN_PROJET}/jalons`);
+
+    await expect(page.getByText("Reste à planifier")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Marquer atteint" })).toHaveCount(0);
   });
 });

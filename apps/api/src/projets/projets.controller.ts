@@ -231,6 +231,24 @@ export class ProjetsController {
     return this.projets.creerJalon({ ...donnees, projectId: id }, d.userId);
   }
 
+  /**
+   * `EX-JAL-02`, `RG-JAL-06` — marquer un jalon SANS TÂCHE comme atteint.
+   *
+   * Route à part plutôt qu'un champ de la modification : le geste a sa propre
+   * condition d'exercice — le jalon ne doit porter aucune tâche — et la fondre
+   * dans `PATCH` obligerait le contrôleur à trancher entre deux refus très
+   * différents sur le même corps.
+   */
+  @Post("jalons/:id/marquer")
+  @RequiertPermission("milestones:update")
+  marquerJalon(@Param("id") id: string, @Body() corps: unknown, @Demande() d: ContexteDemande) {
+    const { atteint, version } = valider(
+      z.object({ atteint: z.boolean(), version: z.int().positive() }),
+      corps,
+    );
+    return this.projets.marquerJalon(id, atteint, version, d.userId);
+  }
+
   @Delete("jalons/:id")
   @RequiertPermission("milestones:delete")
   supprimerJalon(@Param("id") id: string, @Demande() d: ContexteDemande) {

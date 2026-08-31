@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useBlocker } from "@tanstack/react-router";
 import { Button } from "react-aria-components";
 import * as api from "../../api/administration.js";
 import { messageErreur } from "../../api/erreurs.js";
@@ -104,13 +105,38 @@ export function Parametres() {
     onError: (e) => annoncer("err", messageErreur(e, tErreurs, t("parametres.echecAction"))),
   });
 
+  /*
+   * `RG-PRM-05` — quitter la page avec des modifications non enregistrées
+   * déclenche un avertissement.
+   *
+   * **Le bandeau ne suffisait pas, et ce n'était pas une variante du même
+   * geste.** Il annonce qu'il y a quelque chose à enregistrer ; il n'empêche
+   * pas de le perdre. On cliquait sur un autre menu et la saisie disparaissait
+   * sans un mot — quatre onglets qui se remplissent en plusieurs minutes.
+   *
+   * `enableBeforeUnload` couvre la fermeture de l'onglet, que le routeur ne
+   * voit pas : le navigateur y pose sa propre demande de confirmation, dont le
+   * texte ne nous appartient pas. La navigation interne, elle, est arrêtée et
+   * la question posée dans nos mots.
+   *
+   * Déclaré AVANT les retours anticipés : un `useBlocker` placé après n'est
+   * pas appelé au premier rendu, et React s'arrête sur « rendered more hooks
+   * than during the previous render ».
+   */
+  const enregistreOuVide = requete.data ?? {};
+  const modifie = Object.keys(brouillon).some((c) => brouillon[c] !== enregistreOuVide[c]);
+  const sortie = useBlocker({
+    shouldBlockFn: () => modifie,
+    enableBeforeUnload: () => modifie,
+    withResolver: true,
+  });
+
   if (!peut("settings:read")) return <AccesRefuse />;
   if (requete.isPending) return <Chargement quoi={t("parametres.lesReglages")} />;
   if (requete.isError)
     return <ErreurDeChargement erreur={requete.error} surReessai={() => void requete.refetch()} />;
 
   const enregistre = requete.data;
-  const modifie = Object.keys(brouillon).some((c) => brouillon[c] !== enregistre[c]);
   const lire = (cle: string, defaut: string) => brouillon[cle] ?? defaut;
   const ecrire = (cle: string, valeur: string) =>
     setBrouillon((b) => ({ ...b, [cle]: valeur }));
@@ -195,6 +221,31 @@ export function Parametres() {
       {onglet === "planning" ? <Planning lire={lire} ecrire={ecrire} /> : null}
       {onglet === "feries" ? <Feries /> : null}
       {onglet === "vacances" ? <VacancesScolaires /> : null}
+      {/*
+        `RG-PRM-05` — la question est posée dans NOS mots, avec la sortie et le
+        retour clairement nommés. « Quitter sans enregistrer » dit ce qui se
+        perd ; « Rester » est le geste par défaut, parce que c'est celui qui ne
+        détruit rien.
+      */}
+      <Fenetre
+        ouverte={sortie.status === "blocked"}
+        surFermeture={() => sortie.reset?.()}
+        categorie={t("confirmation")}
+        titre={t("parametres.quitterTitre")}
+        mention={t("parametres.modificationsAide")}
+        actions={
+          <>
+            <Button className="btn btn-secondary" onPress={() => sortie.reset?.()}>
+              {t("parametres.rester")}
+            </Button>
+            <Button className="btn btn-danger" onPress={() => sortie.proceed?.()}>
+              {t("parametres.quitterSansEnregistrer")}
+            </Button>
+          </>
+        }
+      >
+        <p className="phrase-confirmation">{t("parametres.quitterTexte")}</p>
+      </Fenetre>
     </div>
   );
 }
@@ -387,6 +438,7 @@ function Affichage({ lire, ecrire }: Acces) {
           premierJour={premierJour}
         />
       </div>
+
     </div>
   );
 }
