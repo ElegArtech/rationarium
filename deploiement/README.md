@@ -229,6 +229,35 @@ docker compose exec base psql -U "$POSTGRES_UTILISATEUR" -d "$POSTGRES_BASE"
 docker compose up -d --build          # mise à jour après un git pull
 ```
 
+### Pousser le code depuis un poste
+
+Le dépôt n'est pas cloné depuis un distant sur l'instance : il y est **recopié**.
+Le `.env` vit sur le serveur et **nulle part ailleurs** — il n'est ni dans le
+dépôt, ni sauvegardé avec lui.
+
+```bash
+rsync -az --delete \
+  --exclude '.git' --exclude 'node_modules' --exclude 'dist' --exclude '.turbo' \
+  --exclude 'test-results' --exclude 'playwright-report' --exclude '.claude/worktrees' \
+  --exclude 'packages/db/src/generated' --exclude '*.log' \
+  --exclude 'deploiement/.env' \
+  ./ ubuntu@<hôte>:~/rationarium/
+```
+
+**`--exclude 'deploiement/.env'` n'est pas une précaution, c'est la ligne qui
+compte.** Sans elle, `--delete` efface le fichier de secrets, et l'instance
+continue de tourner — les conteneurs en cours gardent leur environnement — puis
+refuse de redémarrer à la première mise à jour, sur une erreur d'interpolation
+qui ne ressemble pas à sa cause. C'est arrivé le 2026-08-31 : les valeurs ont
+été retrouvées dans le `.env` de l'ancienne instance « Trame », par renommage
+du préfixe. Il n'y aura pas toujours une ancienne instance.
+
+Avant de reconstruire, vérifier que le fichier est là et que Compose l'accepte :
+
+```bash
+ssh ubuntu@<hôte> "cd ~/rationarium/deploiement && docker compose config --quiet && echo ok"
+```
+
 **Sondes.** `/api/sante` répond à « ce processus vit-il ? » sans toucher la
 base ; `/api/sante/pret` répond à « puis-je lui envoyer du trafic ? » et rend
 `503` si la base est injoignable ou si une migration est en cours. Ne pas
