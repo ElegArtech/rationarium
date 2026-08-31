@@ -99,7 +99,9 @@
     "suppressionRefuseeExplication": "Deleting it would erase logged time, which must stay auditable. Archive it instead: it leaves the active lists without losing its history.",
     "archiverLeProjet": "Archive the project",
     "modifier": "Edit",
-    "modifie": "Project saved."
+    "modifie": "Project saved.",
+    "annulerProjet": "Cancel project",
+    "annulerFait": "Project cancelled. It can still be restored."
   },
   "jalons": {
     "laFeuille": "the roadmap",

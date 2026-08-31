@@ -36,8 +36,29 @@ import "./roles.css";
  */
 export function Roles() {
   const { t } = useTranslation("administration");
+  const { t: tErreursR } = useTranslation("erreurs");
   const peut = usePeut();
+  const annoncerR = useMessages();
+  const clientR = useQueryClient();
   const [roleId, setRoleId] = useState<string | null>(null);
+
+  /**
+   * `EX-ADM-03` — supprimer un rôle non système.
+   *
+   * La vue créait, ouvrait et modifiait les permissions d'un rôle ; elle n'en
+   * supprimait aucun, alors que `DELETE /administration/roles/:id` existe depuis
+   * L-08. La maquette 32 pose le bouton dans le même `.lv-acts`, désactivé et
+   * expliqué pour un rôle système.
+   */
+  const suppression = useMutation({
+    mutationFn: (id: string) => api.supprimerRole(id),
+    onSuccess: (_, id) => {
+      annoncerR("ok", t("roles.supprime"));
+      if (roleId === id) setRoleId(null);
+      void clientR.invalidateQueries({ queryKey: ["roles"] });
+    },
+    onError: (e) => annoncerR("err", messageErreur(e, tErreursR, t("roles.echecSuppression"))),
+  });
 
   const liste = useQuery({
     queryKey: ["roles"],
@@ -115,6 +136,23 @@ export function Roles() {
                   <Button className="ms-toggle" onPress={() => setRoleId(r.id)}>
                     {t("roles.ouvrir")}
                   </Button>
+                  {/* `RG-DROITS-02` — un rôle système ne se supprime pas. Le
+                      client désactive PAR COURTOISIE et dit pourquoi ; le refus
+                      qui compte est celui du serveur. */}
+                  {peut("users:manage_roles") ? (
+                    <TooltipTrigger>
+                      <Button
+                        className="ms-toggle"
+                        isDisabled={r.systeme || suppression.isPending}
+                        onPress={() => suppression.mutate(r.id)}
+                      >
+                        {t("roles.supprimer")}
+                      </Button>
+                      {r.systeme ? (
+                        <Tooltip className="tip">{t("roles.systemeNonSupprimable")}</Tooltip>
+                      ) : null}
+                    </TooltipTrigger>
+                  ) : null}
                 </div>
               </div>
             ))}

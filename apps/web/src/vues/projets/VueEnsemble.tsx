@@ -45,10 +45,12 @@ export function VueEnsemble({ projetId }: { projetId: string }) {
   });
 
   const cycleDeVie = useMutation({
-    mutationFn: (geste: "archiver" | "desarchiver" | "restaurer") =>
+    mutationFn: (geste: "archiver" | "desarchiver" | "restaurer" | "annuler") =>
       geste === "restaurer"
         ? api.restaurerProjet(projetId)
-        : api.archiverProjet(projetId, geste === "archiver"),
+        : geste === "annuler"
+          ? api.annulerProjet(projetId)
+          : api.archiverProjet(projetId, geste === "archiver"),
     onSuccess: (_, geste) => {
       annoncer("ok", t(`fiche.${geste}Fait`));
       void client.invalidateQueries({ queryKey: ["projet", projetId] });
@@ -110,6 +112,17 @@ export function VueEnsemble({ projetId }: { projetId: string }) {
           {peut("projects:archive") && !projet.archive && projet.statut !== "cancelled" ? (
             <Button className="chip-btn" onPress={() => cycleDeVie.mutate("archiver")}>
               {t("fiche.archiver")}
+            </Button>
+          ) : null}
+          {/*
+            `RG-PRJ-02` — l'annulation logique, premier des trois temps de
+            `RG-GEN-10`. Elle précède la suppression définitive et reste
+            réversible : le bandeau d'état et le bouton « Restaurer » l'attendent
+            depuis L-32, sans que rien ne puisse la produire.
+          */}
+          {peut("projects:update") && projet.statut !== "cancelled" ? (
+            <Button className="chip-btn" onPress={() => cycleDeVie.mutate("annuler")}>
+              {t("fiche.annulerProjet")}
             </Button>
           ) : null}
           {peut("projects:delete") ? (

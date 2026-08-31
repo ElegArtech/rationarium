@@ -99,7 +99,9 @@
     "suppressionRefuseeExplication": "Supprimer le projet effacerait du temps déclaré, qui doit rester traçable. Archivez-le plutôt : il disparaîtra des listes actives sans perdre son historique.",
     "archiverLeProjet": "Archiver le projet",
     "modifier": "Modifier",
-    "modifie": "Projet enregistré."
+    "modifie": "Projet enregistré.",
+    "annulerProjet": "Annuler le projet",
+    "annulerFait": "Projet annulé. Il reste restaurable."
   },
   "jalons": {
     "laFeuille": "la feuille de route",

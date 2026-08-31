@@ -95,3 +95,16 @@ travaillé sur une base périmée et l'un a recréé un `package.json` déjà br
 Par ailleurs `packages/db/src/generated` étant ignoré par git, `pnpm typecheck` échoue
 sur tout arbre neuf tant que `prisma generate` n'a pas été rejoué. Les trois agents
 s'y sont cognés.
+
+---
+
+## L-47 et L-49 — trois capacités branchées
+
+| Route | Vue | Ce qu'elle débloque |
+| --- | --- | --- |
+| `POST /projets/:id/annuler` | 11, `.proj-acts` | `RG-PRJ-02`. **Tout l'aval était porté** depuis L-32 — le bandeau d'état annulé, le bouton « Restaurer », le refus de modifier un projet annulé — et rien ne pouvait produire l'état. Le premier des trois temps de `RG-GEN-10` manquait : **la suppression définitive était le seul chemin offert**, donc perdre tâches, jalons et équipe pour corriger une erreur de saisie. |
+| `DELETE /administration/roles/:id` | 32, `.lv-acts` | `EX-ADM-03`. La vue créait, ouvrait et modifiait ; elle ne supprimait pas. Le bouton est désactivé sur un rôle système, avec son motif au survol (`RG-DROITS-02`, courtoisie côté client — le refus qui compte reste au serveur). |
+| `GET /teletravail/statistiques` | 28, `.kpi-grid` de l'onglet Télétravail | `EX-TLT-08`. L'onglet ne rendait qu'une liste de dates ; le brief réclame quatre indicateurs dont « moyenne mensuelle », que `GET /suivi` ne porte pas. Calculés depuis L-16, affichés nulle part. |
+
+Aucune décision de cadrage. Cinq tests, dont deux vérifiés rouges sans le correctif.
+Dette de traçabilité : 117 → 115.

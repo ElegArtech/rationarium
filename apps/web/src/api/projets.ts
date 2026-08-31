@@ -171,6 +171,20 @@ export const modifierProjet = (
 export const archiverProjet = (id: string, archive: boolean) =>
   appeler<void>(`/projets/${id}/archiver`, { methode: "POST", corps: { archive } });
 
+/**
+ * `EX-PRJ-07`, `RG-PRJ-02` — l'annulation logique.
+ *
+ * « La suppression d'un projet est d'abord logique : le projet passe au statut
+ * Annulé et reste restaurable. » La route existait depuis L-32 et rien ne
+ * l'appelait : **l'état `cancelled` était géré partout en aval** — le bandeau
+ * d'alerte, le bouton « Restaurer », le refus de modifier un projet annulé — et
+ * rien dans le produit ne pouvait le produire. Le premier temps de `RG-GEN-10`
+ * manquait, donc la suppression définitive était le seul chemin offert : perdre
+ * les tâches, les jalons et l'équipe pour corriger une erreur de saisie.
+ */
+export const annulerProjet = (id: string) =>
+  appeler<void>(`/projets/${id}/annuler`, { methode: "POST" });
+
 export const restaurerProjet = (id: string) =>
   appeler<void>(`/projets/${id}/restaurer`, { methode: "POST" });
 
