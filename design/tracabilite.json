@@ -1,0 +1,656 @@
+{
+  "$schema": "Déclaration de traçabilité — tenue par scripts/tracabilite-check.mjs.",
+  "$regle": "CLAUDE.md : « une EX-…/RG-… = un test nommé qui la cite ». Tout identifiant déclaré dans cadrage/01 est cité par un test, ou inscrit ici.",
+  "$listes": {
+    "aTester": "LA DETTE CONNUE : le test reste à écrire. CETTE LISTE DOIT RÉTRÉCIR — le contrôle imprime sa taille à chaque exécution, et refuse une entrée qu'un test cite désormais. `module` nomme le lot qui a construit la fonctionnalité, et sert de ligne de découpe.",
+    "nonTestable": "Les identifiants qu'AUCUN test nommé ne peut honnêtement couvrir, chacun avec sa raison. Une entrée sans raison est refusée. Cette liste ne s'allonge pas sans arbitrage : y ranger une règle testable, c'est un test qui ne sera jamais écrit.",
+    "citationsOrphelines": "LE VERSANT SYMÉTRIQUE : des tests citent des identifiants qui n'existent pas au cadrage. Une citation fausse fait croire à une couverture qui n'existe pas. `lire` donne l'identifiant à mettre à la place."
+  },
+  "aTester": [
+    {
+      "id": "EX-AUTH-04",
+      "lot": "vague 7-4",
+      "module": "L-04"
+    },
+    {
+      "id": "EX-AUTH-06",
+      "lot": "vague 7-4",
+      "module": "L-04"
+    },
+    {
+      "id": "EX-ORG-01",
+      "lot": "vague 7-4",
+      "module": "L-06"
+    },
+    {
+      "id": "EX-ORG-03",
+      "lot": "vague 7-4",
+      "module": "L-06"
+    },
+    {
+      "id": "EX-ORG-05",
+      "lot": "vague 7-4",
+      "module": "L-06"
+    },
+    {
+      "id": "EX-USR-03",
+      "lot": "vague 7-4",
+      "module": "L-07"
+    },
+    {
+      "id": "EX-USR-06",
+      "lot": "vague 7-4",
+      "module": "L-07"
+    },
+    {
+      "id": "EX-USR-08",
+      "lot": "vague 7-4",
+      "module": "L-07"
+    },
+    {
+      "id": "EX-USR-10",
+      "lot": "vague 7-4",
+      "module": "L-07"
+    },
+    {
+      "id": "RG-USR-06",
+      "lot": "vague 7-4",
+      "module": "L-07"
+    },
+    {
+      "id": "EX-PRJ-03",
+      "lot": "vague 7-4",
+      "module": "L-10"
+    },
+    {
+      "id": "EX-PRJ-04",
+      "lot": "vague 7-4",
+      "module": "L-10"
+    },
+    {
+      "id": "EX-PRJ-06",
+      "lot": "vague 7-4",
+      "module": "L-10"
+    },
+    {
+      "id": "EX-PRJ-07",
+      "lot": "vague 7-4",
+      "module": "L-10"
+    },
+    {
+      "id": "EX-PRJ-08",
+      "lot": "vague 7-4",
+      "module": "L-10"
+    },
+    {
+      "id": "EX-PRJ-10",
+      "lot": "vague 7-4",
+      "module": "L-10"
+    },
+    {
+      "id": "EX-PRJ-11",
+      "lot": "vague 7-4",
+      "module": "L-10"
+    },
+    {
+      "id": "EX-PRJ-12",
+      "lot": "vague 7-4",
+      "module": "L-10"
+    },
+    {
+      "id": "EX-PRJ-13",
+      "lot": "vague 7-4",
+      "module": "L-10"
+    },
+    {
+      "id": "RG-PRJ-11",
+      "lot": "vague 7-4",
+      "module": "L-10"
+    },
+    {
+      "id": "EX-JAL-01",
+      "lot": "vague 7-4",
+      "module": "L-10"
+    },
+    {
+      "id": "EX-JAL-02",
+      "lot": "vague 7-4",
+      "module": "L-10"
+    },
+    {
+      "id": "EX-JAL-03",
+      "lot": "vague 7-4",
+      "module": "L-10"
+    },
+    {
+      "id": "EX-JAL-04",
+      "lot": "vague 7-4",
+      "module": "L-10"
+    },
+    {
+      "id": "EX-JAL-05",
+      "lot": "vague 7-4",
+      "module": "L-10"
+    },
+    {
+      "id": "EX-JAL-06",
+      "lot": "vague 7-4",
+      "module": "L-10"
+    },
+    {
+      "id": "EX-JAL-07",
+      "lot": "vague 7-4",
+      "module": "L-10"
+    },
+    {
+      "id": "RG-JAL-02",
+      "lot": "vague 7-4",
+      "module": "L-10"
+    },
+    {
+      "id": "EX-TSK-01",
+      "lot": "vague 7-4",
+      "module": "L-11"
+    },
+    {
+      "id": "EX-TSK-02",
+      "lot": "vague 7-4",
+      "module": "L-11"
+    },
+    {
+      "id": "EX-TSK-03",
+      "lot": "vague 7-4",
+      "module": "L-11"
+    },
+    {
+      "id": "EX-TSK-04",
+      "lot": "vague 7-4",
+      "module": "L-11"
+    },
+    {
+      "id": "EX-TSK-07",
+      "lot": "vague 7-4",
+      "module": "L-11"
+    },
+    {
+      "id": "EX-TSK-08",
+      "lot": "vague 7-4",
+      "module": "L-11"
+    },
+    {
+      "id": "EX-TSK-10",
+      "lot": "vague 7-4",
+      "module": "L-11"
+    },
+    {
+      "id": "EX-TSK-15",
+      "lot": "vague 7-4",
+      "module": "L-11"
+    },
+    {
+      "id": "EX-TSK-16",
+      "lot": "vague 7-4",
+      "module": "L-11"
+    },
+    {
+      "id": "EX-TSK-17",
+      "lot": "vague 7-4",
+      "module": "L-11"
+    },
+    {
+      "id": "EX-TSK-18",
+      "lot": "vague 7-4",
+      "module": "L-11"
+    },
+    {
+      "id": "RG-TSK-02",
+      "lot": "vague 7-4",
+      "module": "L-11"
+    },
+    {
+      "id": "RG-TSK-03",
+      "lot": "vague 7-4",
+      "module": "L-11"
+    },
+    {
+      "id": "RG-TSK-14",
+      "lot": "vague 7-4",
+      "module": "L-11"
+    },
+    {
+      "id": "RG-TSK-16",
+      "lot": "vague 7-4",
+      "module": "L-11"
+    },
+    {
+      "id": "EX-PLN-01",
+      "lot": "vague 7-4",
+      "module": "L-20"
+    },
+    {
+      "id": "EX-PLN-02",
+      "lot": "vague 7-4",
+      "module": "L-20"
+    },
+    {
+      "id": "EX-PLN-10",
+      "lot": "vague 7-4",
+      "module": "L-20"
+    },
+    {
+      "id": "EX-PLN-11",
+      "lot": "vague 7-4",
+      "module": "L-20"
+    },
+    {
+      "id": "EX-PLN-12",
+      "lot": "vague 7-4",
+      "module": "L-20"
+    },
+    {
+      "id": "RG-PLN-05",
+      "lot": "vague 7-4",
+      "module": "L-20"
+    },
+    {
+      "id": "EX-ACT-03",
+      "lot": "vague 7-4",
+      "module": "L-17"
+    },
+    {
+      "id": "EX-ACT-04",
+      "lot": "vague 7-4",
+      "module": "L-17",
+      "note": "Le test existe (describe « RG-ACT-08 — les règles de récurrence SE POSENT ») mais cite un identifiant inexistant. Renommer le titre suffit à couvrir cette exigence — voir citationsOrphelines."
+    },
+    {
+      "id": "EX-ACT-05",
+      "lot": "vague 7-4",
+      "module": "L-17"
+    },
+    {
+      "id": "EX-EVT-01",
+      "lot": "vague 7-4",
+      "module": "L-14"
+    },
+    {
+      "id": "EX-EVT-02",
+      "lot": "vague 7-4",
+      "module": "L-14"
+    },
+    {
+      "id": "EX-EVT-03",
+      "lot": "vague 7-4",
+      "module": "L-14"
+    },
+    {
+      "id": "EX-EVT-04",
+      "lot": "vague 7-4",
+      "module": "L-14"
+    },
+    {
+      "id": "EX-EVT-05",
+      "lot": "vague 7-4",
+      "module": "L-14"
+    },
+    {
+      "id": "EX-EVT-06",
+      "lot": "vague 7-4",
+      "module": "L-14"
+    },
+    {
+      "id": "EX-EVT-07",
+      "lot": "vague 7-4",
+      "module": "L-14"
+    },
+    {
+      "id": "EX-EVT-08",
+      "lot": "vague 7-4",
+      "module": "L-14"
+    },
+    {
+      "id": "EX-EVT-09",
+      "lot": "vague 7-4",
+      "module": "L-14"
+    },
+    {
+      "id": "EX-CNG-02",
+      "lot": "vague 7-4",
+      "module": "L-15"
+    },
+    {
+      "id": "EX-CNG-03",
+      "lot": "vague 7-4",
+      "module": "L-15"
+    },
+    {
+      "id": "EX-CNG-04",
+      "lot": "vague 7-4",
+      "module": "L-15"
+    },
+    {
+      "id": "EX-CNG-06",
+      "lot": "vague 7-4",
+      "module": "L-15"
+    },
+    {
+      "id": "EX-CNG-07",
+      "lot": "vague 7-4",
+      "module": "L-15"
+    },
+    {
+      "id": "EX-CNG-08",
+      "lot": "vague 7-4",
+      "module": "L-15"
+    },
+    {
+      "id": "EX-CNG-09",
+      "lot": "vague 7-4",
+      "module": "L-15"
+    },
+    {
+      "id": "EX-CNG-10",
+      "lot": "vague 7-4",
+      "module": "L-15"
+    },
+    {
+      "id": "EX-CNG-11",
+      "lot": "vague 7-4",
+      "module": "L-15"
+    },
+    {
+      "id": "EX-CNG-12",
+      "lot": "vague 7-4",
+      "module": "L-15"
+    },
+    {
+      "id": "EX-CNG-13",
+      "lot": "vague 7-4",
+      "module": "L-15"
+    },
+    {
+      "id": "EX-CNG-14",
+      "lot": "vague 7-4",
+      "module": "L-15"
+    },
+    {
+      "id": "EX-CNG-15",
+      "lot": "vague 7-4",
+      "module": "L-15"
+    },
+    {
+      "id": "RG-CNG-05",
+      "lot": "vague 7-4",
+      "module": "L-15"
+    },
+    {
+      "id": "RG-CNG-06",
+      "lot": "vague 7-4",
+      "module": "L-15"
+    },
+    {
+      "id": "RG-CNG-08",
+      "lot": "vague 7-4",
+      "module": "L-15",
+      "note": "Porte aussi RG-ORG-05, déclaré non testable parce qu'il n'est que la doctrine dont cette règle est la réalisation. Co-citer les deux dans le titre."
+    },
+    {
+      "id": "RG-CNG-15",
+      "lot": "vague 7-4",
+      "module": "L-15"
+    },
+    {
+      "id": "RG-CNG-23",
+      "lot": "vague 7-4",
+      "module": "L-15"
+    },
+    {
+      "id": "RG-CNG-27",
+      "lot": "vague 7-4",
+      "module": "L-15"
+    },
+    {
+      "id": "RG-CNG-29",
+      "lot": "vague 7-4",
+      "module": "L-15",
+      "note": "Passait pour couvert par describe(« RG-CNG-29 à 31 »). Une plage ne cite rien : aucun `it` n'exerce le fait qu'un type désactivé cesse d'être sélectionnable."
+    },
+    {
+      "id": "RG-CNG-32",
+      "lot": "vague 7-4",
+      "module": "L-15"
+    },
+    {
+      "id": "EX-TLT-01",
+      "lot": "vague 7-4",
+      "module": "L-16"
+    },
+    {
+      "id": "EX-TLT-02",
+      "lot": "vague 7-4",
+      "module": "L-16"
+    },
+    {
+      "id": "EX-TLT-03",
+      "lot": "vague 7-4",
+      "module": "L-16"
+    },
+    {
+      "id": "EX-TLT-04",
+      "lot": "vague 7-4",
+      "module": "L-16"
+    },
+    {
+      "id": "EX-TLT-06",
+      "lot": "vague 7-4",
+      "module": "L-16"
+    },
+    {
+      "id": "EX-TLT-07",
+      "lot": "vague 7-4",
+      "module": "L-16"
+    },
+    {
+      "id": "EX-TLT-08",
+      "lot": "vague 7-4",
+      "module": "L-16"
+    },
+    {
+      "id": "RG-TLT-07",
+      "lot": "vague 7-4",
+      "module": "L-16"
+    },
+    {
+      "id": "EX-TMP-01",
+      "lot": "vague 7-4",
+      "module": "L-18"
+    },
+    {
+      "id": "EX-TMP-02",
+      "lot": "vague 7-4",
+      "module": "L-18"
+    },
+    {
+      "id": "EX-TMP-03",
+      "lot": "vague 7-4",
+      "module": "L-18"
+    },
+    {
+      "id": "EX-TMP-04",
+      "lot": "vague 7-4",
+      "module": "L-18"
+    },
+    {
+      "id": "EX-TMP-05",
+      "lot": "vague 7-4",
+      "module": "L-18"
+    },
+    {
+      "id": "EX-TMP-06",
+      "lot": "vague 7-4",
+      "module": "L-18"
+    },
+    {
+      "id": "RG-TMP-04",
+      "lot": "vague 7-4",
+      "module": "L-18"
+    },
+    {
+      "id": "EX-CMP-02",
+      "lot": "vague 7-4",
+      "module": "L-13"
+    },
+    {
+      "id": "EX-CMP-03",
+      "lot": "vague 7-4",
+      "module": "L-13"
+    },
+    {
+      "id": "EX-CMP-04",
+      "lot": "vague 7-4",
+      "module": "L-13"
+    },
+    {
+      "id": "EX-CMP-05",
+      "lot": "vague 7-4",
+      "module": "L-13"
+    },
+    {
+      "id": "EX-CMP-06",
+      "lot": "vague 7-4",
+      "module": "L-13"
+    },
+    {
+      "id": "EX-CMP-07",
+      "lot": "vague 7-4",
+      "module": "L-13"
+    },
+    {
+      "id": "EX-CMP-09",
+      "lot": "vague 7-4",
+      "module": "L-13"
+    },
+    {
+      "id": "EX-TRS-03",
+      "lot": "vague 7-4",
+      "module": "L-12"
+    },
+    {
+      "id": "EX-TRS-06",
+      "lot": "vague 7-4",
+      "module": "L-12"
+    },
+    {
+      "id": "EX-DOC-01",
+      "lot": "vague 7-4",
+      "module": "L-19"
+    },
+    {
+      "id": "EX-DOC-02",
+      "lot": "vague 7-4",
+      "module": "L-19"
+    },
+    {
+      "id": "EX-DOC-03",
+      "lot": "vague 7-4",
+      "module": "L-19"
+    },
+    {
+      "id": "EX-DOC-04",
+      "lot": "vague 7-4",
+      "module": "L-19"
+    },
+    {
+      "id": "EX-DSH-04",
+      "lot": "vague 7-4",
+      "module": "L-21"
+    },
+    {
+      "id": "EX-RPT-09",
+      "lot": "vague 7-4",
+      "module": "L-22"
+    },
+    {
+      "id": "RG-NTF-02",
+      "lot": "vague 7-4",
+      "module": "L-23"
+    },
+    {
+      "id": "EX-ADM-01",
+      "lot": "vague 7-4",
+      "module": "L-08"
+    },
+    {
+      "id": "EX-ADM-02",
+      "lot": "vague 7-4",
+      "module": "L-08"
+    },
+    {
+      "id": "EX-ADM-05",
+      "lot": "vague 7-4",
+      "module": "L-08"
+    },
+    {
+      "id": "EX-ADM-09",
+      "lot": "vague 7-4",
+      "module": "L-08",
+      "note": "Le test existe et exerce bien la règle, mais son titre cite « RG-ADM-09 », qui n'existe pas au cadrage. Renommer le titre suffit à couvrir cette exigence — voir citationsOrphelines."
+    },
+    {
+      "id": "RG-ADM-02",
+      "lot": "vague 7-4",
+      "module": "L-08",
+      "note": "Proche de RG-DROITS-02 (« ni supprimables ni renommables »), déjà couvert, mais l'élargit : « ni modifiables dans leur structure ». C'est cette clause supplémentaire qui manque, et elle est testable seule."
+    }
+  ],
+  "nonTestable": [
+    {
+      "id": "RG-ORG-05",
+      "raison": "Doctrine reformulée : « le manager d'un service et le responsable d'un département sont les validateurs naturels de leur périmètre » n'a pas d'effet propre. Sa réalisation opérationnelle est RG-CNG-08 (détermination du validateur à la création d'un congé), déjà en dette. Le test serait littéralement le même code.",
+      "coCiter": "RG-CNG-08"
+    },
+    {
+      "id": "RG-USR-07",
+      "raison": "Règle en deux moitiés dont une seule est mesurable. « Un modèle CSV est téléchargeable » est déjà prouvé (RG-IMP-02, « le format est documenté ET le modèle téléchargeable »). « et documente les colonnes attendues » — au sens de compréhensible par un humain — n'a pas d'assertion honnête : on peut vérifier que des en-têtes existent, pas qu'ils documentent.",
+      "coCiter": "RG-IMP-02"
+    },
+    {
+      "id": "RG-TSK-13",
+      "raison": "Restatement mot pour mot de RG-SCOPE-04 (ligne 160) au chapitre des tâches (ligne 419) : « Une tâche confidentielle n'est pas lisible du seul fait d'y être assigné. » RG-SCOPE-04 est déjà cité par trois tests, qui exercent exactement cette règle. Dupliquer les assertions sous un second nom ne prouverait rien de plus.",
+      "coCiter": "RG-SCOPE-04"
+    },
+    {
+      "id": "RG-PRM-05",
+      "raison": "ÉCART DE SPÉCIFICATION, à trancher au cadrage avant d'écrire un test. La règle dit « quitter la page avec des modifications non enregistrées déclenche un avertissement » — un avertissement À LA SORTIE. L'implémentation annonce les modifications en permanence dans la page, ce qui est un autre comportement, pas une variante du même. Un test écrit aujourd'hui figerait l'un ou l'autre sans que la question soit tranchée.",
+      "aTrancher": "cadrage/01 § M19 — la règle et le code ne décrivent pas le même comportement."
+    },
+    {
+      "id": "RG-GEN-02",
+      "raison": "Quantificateur universel — « TOUTE action produit un retour immédiat ». Un test nommé prouverait le retour d'UNE action, pas la règle. La règle se tient par la conception (les mutations passent toutes par FournisseurMessages) et par les tests de message de chaque module, aucun ne pouvant honnêtement porter ce nom."
+    },
+    {
+      "id": "RG-GEN-05",
+      "raison": "Quantificateur universel — « TOUTE vue de données a un état de chargement ». Même raison que RG-GEN-02 : 35 vues, et un test nommé n'en prouverait qu'une. C'est design/etats.json qui énumère l'état « chargement » vue par vue, et la revue de vue qui le constate."
+    }
+  ],
+  "citationsOrphelines": [
+    {
+      "id": "RG-ADM-09",
+      "lire": "EX-ADM-09",
+      "raison": "Le cadrage ne déclare aucun RG-ADM-09. L'exigence « distinguer une action système d'une action humaine » est EX-ADM-09. Deux titres de test portent la faute.",
+      "lot": "vague 7-4"
+    },
+    {
+      "id": "RG-ACT-08",
+      "lire": "EX-ACT-04",
+      "raison": "Le cadrage s'arrête à RG-ACT-06. « Définir des règles de récurrence » est EX-ACT-04.",
+      "lot": "vague 7-4"
+    },
+    {
+      "id": "EX-CLI-02",
+      "lire": "EX-TRS-04",
+      "raison": "IL N'EXISTE AUCUN DOMAINE « CLI » AU CADRAGE : les clients sont dans M14 avec les tiers. « Gérer les clients » est EX-TRS-04.",
+      "lot": "vague 7-4"
+    }
+  ]
+}

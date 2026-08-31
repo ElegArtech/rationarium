@@ -61,7 +61,7 @@ test.describe("Vue 27 — utilisateurs", () => {
   });
 
   /**
-   * `EX-USR-03` — modifier un compte.
+   * `EX-USR-04` — modifier un compte, rôle et rattachements compris.
    *
    * L'action a manqué à la vue pendant tout le projet, derrière un commentaire
    * affirmant que « la route de modification d'un compte n'existe pas côté
@@ -70,7 +70,7 @@ test.describe("Vue 27 — utilisateurs", () => {
    * fait échouer aucun contrôle : c'est ce qui a laissé le commentaire faux
    * survivre à toutes les boucles.
    */
-  test("EX-USR-03 — un compte se modifie, et l'écriture porte sa version", async ({ page }) => {
+  test("EX-USR-04 — un compte se modifie, et l'écriture porte sa version", async ({ page }) => {
     let recu: unknown = null;
     await serveur(page, { session: SESSION_ADMIN, reponses });
     await page.route(

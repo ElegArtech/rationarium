@@ -46,7 +46,7 @@ export const utilisateurs = (filtres: {
 }) => appeler<Utilisateur[]>(`/utilisateurs${params(filtres)}`);
 
 /**
- * `EX-USR-03` — modifier un compte.
+ * `EX-USR-04` — modifier un compte.
  *
  * `PATCH /utilisateurs/:id`, permission `users:update`. La route existait
  * depuis L-29 ; la vue 27 ne l'appelait pas, sur la foi d'un commentaire

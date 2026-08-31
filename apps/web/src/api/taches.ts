@@ -137,7 +137,7 @@ export const modifier = (
 ) => appeler<{ version: number }>(`/taches/${id}`, { methode: "PATCH", corps: donnees });
 
 /**
- * `EX-TSK-06` — fixer la liste des assignés.
+ * `EX-TSK-05` — fixer la liste des assignés.
  *
  * La liste est posée **en entier**, jamais par différence : un ajout et un
  * retrait simultanés depuis deux écrans laisseraient sinon un état que
