@@ -125,4 +125,21 @@ export class OrganisationController {
     );
     return this.organisation.creerService(donnees, d.userId);
   }
+
+  /**
+   * `EX-ORG-03` — l'impact d'une suppression de service, **avant** de la faire.
+   * Même discipline que pour un département : le compte de ce qui sera détaché
+   * précède la confirmation.
+   */
+  @Get("services/:id/impact")
+  @RequiertPermission("services:delete")
+  impactService(@Param("id") id: string) {
+    return this.organisation.impactSuppressionService(id);
+  }
+
+  @Delete("services/:id")
+  @RequiertPermission("services:delete")
+  supprimerService(@Param("id") id: string, @Demande() d: ContexteDemande) {
+    return this.organisation.supprimerService(id, d.userId);
+  }
 }

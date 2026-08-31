@@ -340,13 +340,59 @@ describe("EX-ORG-03 — créer, modifier un service ; le rattacher à un départ
     expect(apres.nom).toBe("Accueil");
   });
 
-  it.fails("SUPPRIMER UN SERVICE N'EXISTE PAS — le troisième verbe manque", () => {
-    /*
-     * Défaut consigné, non corrigé : ce lot n'écrit pas de code de production.
-     * L'assertion porte sur la surface du service, parce que c'est là que
-     * l'absence se constate : rien à appeler.
-     */
-    const surface = orga as unknown as Record<string, unknown>;
-    expect(typeof surface["supprimerService"]).toBe("function");
+  /*
+   * **Le marqueur de défaut a fait son travail.** Ce test était un `it.fails` :
+   * il affirmait que `supprimerService` devait exister, et échouait — le
+   * référentiel se créait et se modifiait, il ne se supprimait pas. Quatrième
+   * occurrence de la famille « le verbe du milieu manque », après `EX-PRJ-05`,
+   * `EX-USR-04` et `EX-EVT-06`.
+   *
+   * Le lot qui l'a posé n'écrivait pas de code de production ; celui-ci l'écrit,
+   * et le marqueur est repris en tests ordinaires.
+   */
+  it("EX-ORG-03 — un service se supprime, et son impact est rendu AVANT", async () => {
+    const dep = await orga.creerDepartement({ nom: `D-${uuid().slice(0, 6)}` }, acteur);
+    const svc = await orga.creerService(
+      { nom: `S-${uuid().slice(0, 6)}`, departementId: dep.id },
+      acteur,
+    );
+    const membre = uuid();
+    await prisma.user.create({
+      data: {
+        id: membre, login: `m-${membre.slice(0, 6)}`, email: `${membre.slice(0, 6)}@x.fr`,
+        motDePasseHash: "x", prenom: "M", nom: "T",
+      },
+    });
+    await prisma.userService.create({ data: { userId: membre, serviceId: svc.id } });
+
+    // L'impact chiffre ce qui sera détaché, et ne supprime rien.
+    const impact = await orga.impactSuppressionService(svc.id);
+    expect(impact).toMatchObject({ agentsDetaches: 1 });
+    expect(await prisma.service.count({ where: { id: svc.id } })).toBe(1);
+
+    await orga.supprimerService(svc.id, acteur);
+    expect(await prisma.service.count({ where: { id: svc.id } })).toBe(0);
+    // L'agent survit, détaché : supprimer un service ne supprime personne.
+    expect(await prisma.user.count({ where: { id: membre } })).toBe(1);
+  });
+
+  it("EX-ORG-03 — la suppression est portée au journal d'audit", async () => {
+    const dep = await orga.creerDepartement({ nom: `D-${uuid().slice(0, 6)}` }, acteur);
+    const svc = await orga.creerService(
+      { nom: `S-${uuid().slice(0, 6)}`, departementId: dep.id },
+      acteur,
+    );
+    await orga.supprimerService(svc.id, acteur);
+
+    const trace = await prisma.auditLog.findFirst({
+      where: { action: "service.delete", entiteId: svc.id },
+    });
+    expect(trace?.acteurId).toBe(acteur);
+  });
+
+  it("EX-ORG-03 — un service inconnu est refusé, pas silencieusement ignoré", async () => {
+    await expect(orga.impactSuppressionService(crypto.randomUUID())).rejects.toMatchObject({
+      code: "introuvable",
+    });
   });
 });

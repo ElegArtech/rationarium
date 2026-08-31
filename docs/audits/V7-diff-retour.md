@@ -699,3 +699,26 @@ Deux chemins menaient au même effacement, un seul le refusait, et mal.
 
 Les deux marqueurs `it.fails` de la vague 7-4 sont repris en tests ordinaires, et
 vérifiés rouges sans le correctif.
+
+---
+
+## EX-ORG-03 — le verbe du milieu, quatrième occurrence
+
+Le référentiel des services se créait et se modifiait ; il ne se supprimait pas. Ni
+`supprimerService`, ni `DELETE /organisation/services/:id`.
+
+C'est la **quatrième occurrence de la même famille** dans ce dépôt, après `EX-PRJ-05`
+(modifier un projet), `EX-USR-04` (modifier un compte) et `EX-EVT-06` (modifier un
+événement) — toutes trois trouvées et fermées dans cette même vague. Une exigence qui
+énumère « créer, modifier, supprimer » se livre régulièrement sans son verbe du milieu,
+et rien ne le signale : les deux autres verbes marchent, la vue paraît complète.
+
+L'impact est rendu **avant** la suppression, comme pour un département : la vue 29
+montre le compte de ce qui sera détaché avant de demander confirmation. Un service
+supprimé **détache** ses agents, il n'en supprime aucun — testé.
+
+Les deux routes sont déclarées dans `SANS_CLIENT` avec leur raison : la vue 29 porte le
+geste pour un département, pas encore pour un service.
+
+**Les trois marqueurs de défaut de la vague 7-4 sont désormais tous repris** : la suite
+d'intégration ne porte plus aucun `expected fail`.
