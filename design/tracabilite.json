@@ -343,10 +343,6 @@
       "aTrancher": "cadrage/01 § M19 — la règle et le code ne décrivent pas le même comportement."
     },
     {
-      "id": "RG-GEN-02",
-      "raison": "Quantificateur universel — « TOUTE action produit un retour immédiat ». Un test nommé prouverait le retour d'UNE action, pas la règle. La règle se tient par la conception (les mutations passent toutes par FournisseurMessages) et par les tests de message de chaque module, aucun ne pouvant honnêtement porter ce nom."
-    },
-    {
       "id": "RG-GEN-05",
       "raison": "Quantificateur universel — « TOUTE vue de données a un état de chargement ». Même raison que RG-GEN-02 : 35 vues, et un test nommé n'en prouverait qu'une. C'est design/etats.json qui énumère l'état « chargement » vue par vue, et la revue de vue qui le constate."
     }

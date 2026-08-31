@@ -476,3 +476,30 @@ Les plus lourds, tous dans `design/tracabilite.json` avec un champ `defaut` :
   laissé le versant concurrent ouvert, en proposant la vraie parade — **une contrainte
   d'unicité en base** sur `(userId, type, lien, jour)`.
 - **Ne pas toucher à `nonTestable`** : toujours six entrées.
+
+---
+
+## RG-GEN-02 — le piège était écrit, le test ne l'était pas
+
+`RG-GEN-02` était rangée en `nonTestable` comme **quantificateur universel** — et à
+juste titre pour sa lettre : un test nommé prouverait le retour d'**une** action, pas
+la règle. Mais l'agent de L-41 avait aussi nommé ce qui **est** testable derrière :
+l'invariant structurel, c'est-à-dire que le fournisseur de messages est monté.
+
+Et c'est précisément le contrôle qui manquait. `CLAUDE.md` consigne le piège depuis des
+mois : « un fournisseur React non monté ne casse rien — il se tait. `FournisseurMessages`
+est resté **six lots** hors de l'arbre : `useMessages` ne lève pas hors contexte, donc
+aucune confirmation d'action ne s'affichait, et aucune boucle ne s'en apercevait. **Tout
+composant à défaillance silencieuse veut un test qui affirme sa présence.** »
+
+Le piège était écrit ; le test qu'il réclame n'existait pas. C'est la même forme que le
+commentaire de `renommer` qui décrivait le trou qu'il ne bouchait pas — **savoir n'est
+pas tenir**.
+
+Deux contrôles, vérifiés rouges en démontant le fournisseur : les deux régions
+d'annonce (`polite` pour ce qui attend, `assertive` pour ce qui n'attend pas), et leur
+présence **sur les vues d'accès aussi** — la page de connexion vit hors de la coquille,
+et un test sur la seule page d'accueil aurait laissé les cinq vues d'accès sans retour
+d'action.
+
+`RG-GEN-02` sort de `nonTestable` : cinq entrées restantes, toutes motivées.
