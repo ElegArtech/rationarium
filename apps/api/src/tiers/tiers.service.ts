@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma.service.js";
 import { AuditService } from "../commun/audit.service.js";
-import type { TypeTiers } from "@trame/contracts";
+import type { TypeTiers } from "@rationarium/contracts";
 
 /**
  * Tiers et clients — M14, vues 23 à 26.

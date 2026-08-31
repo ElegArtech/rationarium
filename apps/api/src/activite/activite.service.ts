@@ -2,7 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma.service.js";
 import { AuditService } from "../commun/audit.service.js";
 import { PerimetreService, type Perimetre } from "../commun/perimetre.service.js";
-import type { PeriodeJournee, DureeTachePredefinie } from "@trame/contracts";
+import type { PeriodeJournee, DureeTachePredefinie } from "@rationarium/contracts";
 
 /**
  * Activité récurrente — M8, vues 09 et 34.

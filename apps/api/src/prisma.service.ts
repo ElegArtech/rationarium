@@ -1,6 +1,6 @@
 import { Injectable, type OnModuleDestroy, type OnModuleInit } from "@nestjs/common";
 import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "@trame/db";
+import { PrismaClient } from "@rationarium/db";
 
 /**
  * Accès à la base. Un seul client pour tout le serveur.

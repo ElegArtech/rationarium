@@ -4,7 +4,7 @@ import { exporterTout } from "./reversibilite.js";
 /**
  * C14 — l'export de réversibilité, en ligne de commande.
  *
- *     DATABASE_URL=… node dist/reversibilite-cli.js /var/exports/trame-2027-01
+ *     DATABASE_URL=… node dist/reversibilite-cli.js /var/exports/rationarium-2027-01
  *
  * Un outil d'exploitant, pas un point d'entrée HTTP. Motif : l'export porte sur
  * **toute** la base, sans périmètre organisationnel ni filtre de

@@ -179,7 +179,7 @@ export class FileService implements OnModuleInit, OnModuleDestroy {
       // exécutent qu'un. C'est `RG-NTF-02`, et il est natif.
       await boss.schedule(travail.nom, travail.cron, {} as never, {
         singletonKey: travail.nom,
-        tz: process.env["TRAME_FUSEAU"] ?? "Europe/Paris",
+        tz: process.env["RATIONARIUM_FUSEAU"] ?? "Europe/Paris",
       });
       this.journal.log(`travail périodique « ${travail.nom} » planifié (${travail.cron})`);
     } catch (e) {

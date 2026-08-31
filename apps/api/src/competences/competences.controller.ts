@@ -1,6 +1,6 @@
 import { Body, Controller, Delete, Get, Param, Post, Put, Query } from "@nestjs/common";
 import { z } from "zod";
-import { enumDe, CATEGORIES_COMPETENCE, NIVEAUX_COMPETENCE } from "@trame/contracts";
+import { enumDe, CATEGORIES_COMPETENCE, NIVEAUX_COMPETENCE } from "@rationarium/contracts";
 import { CompetencesService } from "./competences.service.js";
 import { Demande, RequiertPermission, type ContexteDemande } from "../commun/permissions.garde.js";
 import { valider } from "../commun/http.js";

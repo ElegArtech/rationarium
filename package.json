@@ -1,8 +1,8 @@
 {
-  "name": "trame",
+  "name": "rationarium",
   "version": "0.0.0",
   "private": true,
-  "description": "Trame — plateforme de pilotage des projets et des ressources humaines",
+  "description": "Rationarium — plateforme de pilotage des projets et des ressources humaines",
   "type": "module",
   "packageManager": "pnpm@11.22.0",
   "engines": {

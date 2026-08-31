@@ -12,7 +12,7 @@ import { genererIcs, analyserIcs, plier, deplier } from "./ics.js";
 const ESTAMPILLE = new Date("2026-08-16T10:30:00.000Z");
 
 const evenement = {
-  uid: "evt-1@trame",
+  uid: "evt-1@rationarium",
   titre: "Comité de pilotage",
   description: null,
   date: "2026-09-15",
@@ -184,7 +184,7 @@ describe("EX-PLN-15 — lecture", () => {
     const genere = genererIcs([evenement], ESTAMPILLE);
     const relu = analyserIcs(genere).evenements[0];
     expect(relu).toMatchObject({
-      uid: "evt-1@trame",
+      uid: "evt-1@rationarium",
       titre: "Comité de pilotage",
       date: "2026-09-15",
       heureDebut: "14:00",

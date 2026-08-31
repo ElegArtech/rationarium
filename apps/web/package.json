@@ -1,5 +1,5 @@
 {
-  "name": "@trame/web",
+  "name": "@rationarium/web",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -24,7 +24,7 @@
     "@tanstack/react-router": "1.170.29",
     "@tanstack/react-table": "9.1.2",
     "@tanstack/react-virtual": "3.14.9",
-    "@trame/contracts": "workspace:*",
+    "@rationarium/contracts": "workspace:*",
     "i18next": "26.3.6",
     "i18next-icu": "2.4.4",
     "intl-messageformat": "11.2.13",

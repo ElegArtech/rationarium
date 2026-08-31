@@ -1,6 +1,6 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query } from "@nestjs/common";
 import { z } from "zod";
-import { PERMISSIONS, MODELES_ROLES } from "@trame/contracts";
+import { PERMISSIONS, MODELES_ROLES } from "@rationarium/contracts";
 import { RolesService } from "./roles.service.js";
 import { AuditQueryService } from "./audit.query.service.js";
 import { Demande, RequiertPermission, type ContexteDemande } from "../commun/permissions.garde.js";
@@ -28,7 +28,7 @@ export class AdministrationController {
    *
    * La vue 32 dessine une matrice : sans le catalogue, le client ne saurait
    * pas quelles colonnes afficher. Il vient du serveur et non d'une constante
-   * recopiée côté client — une seule définition, dans `@trame/contracts`.
+   * recopiée côté client — une seule définition, dans `@rationarium/contracts`.
    */
   @Get("catalogue")
   @RequiertPermission("users:manage_permissions")

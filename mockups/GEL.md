@@ -1,4 +1,38 @@
-# Gel de la référence d'interface
+# Gel de la référence d'interface — **LEVÉ**
+
+> **Gel levé le 2026-08-31, par décision humaine.** Le produit passe en finition
+> poussée : la maquette n'est plus l'étalon de conformité. Elle redevient une
+> intention de conception — consultable, discutable, modifiable.
+>
+> **Ce qui a été débranché** — la garde d'écriture `PreToolUse`
+> (`.claude/hooks/garde-ecriture.sh`, retirée de `.claude/settings.json`), qui
+> bloquait toute écriture sous `mockups/`, sous `cadrage/`, et sur
+> `schema.prisma` hors tâche de schéma déclarée.
+>
+> **Ce qui ne prononce plus** — `pnpm ui:diff <vue>` et `pnpm conformite`. Les
+> deux restent exécutables et restent utiles comme **relevé** d'écarts contre
+> l'intention ; aucun ne rend plus un verdict. `design/references/` n'est plus
+> une référence opposable : c'est un instantané daté de ce que les maquettes
+> montraient.
+>
+> **Ce que cela coûte, et qu'il faut savoir.** Le gel existait pour une raison
+> précise, énoncée plus bas : sans point fixe, un agent en difficulté sur une
+> conformité a une issue — modifier la référence — et le cycle perd son étalon.
+> Cette issue est rouverte. Trois défauts que ce dépôt a réellement connus —
+> une vue livrée sans une seule règle de style, cinq menus rendus nus, une
+> classe posée sans règle en face — n'ont été vus **que** par `ui:diff`. Ni
+> `axe`, ni les parcours de bout en bout, ni le typage ne regardent la mise en
+> page. Ce filet-là n'est remplacé par rien : il est passé de la boucle à
+> l'œil, et la définition de terminé de `CLAUDE.md` le dit désormais ainsi.
+>
+> **Renommage.** Le produit s'appelle **Rationarium** depuis le 2026-08-31 ; il
+> s'appelait Trame. Les 35 maquettes ont été modifiées en conséquence — titre,
+> `.side-mark`, `.wordmark-name`, fil d'Ariane, mention de version — première
+> écriture sous `mockups/` depuis le gel du 2026-08-16.
+
+---
+
+## 0. Ce que portait le gel (historique)
 
 **Gelé le 2026-08-16**, commit d'amorçage `df14c64`.
 
@@ -22,7 +56,7 @@ Chaque maquette porte un **panneau de revue** hors produit qui pilote ses états
 
 ---
 
-## 2. Procédure de dégel
+## 2. Procédure de dégel *(caduque depuis le 2026-08-31 — conservée pour mémoire)*
 
 Modifier une maquette est une **décision humaine**, jamais un effet de bord d'une session d'agent.
 

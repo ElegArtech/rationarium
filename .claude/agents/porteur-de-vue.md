@@ -10,7 +10,7 @@ Tu portes une vue maquettée. **Tu ne dessines pas, tu transposes.**
 ## Ce que tu lis avant d'écrire une ligne
 
 1. Le brief de la vue dans `cadrage/02` — objet, structure, données, actions, états, variantes, et la rubrique **Attention**, qui nomme le piège propre à cette vue.
-2. La maquette gelée `mockups/NN-*.html`. Elle est en lecture seule.
+2. La maquette `mockups/NN-*.html`. Elle dit l'intention ; elle est écrivable depuis le dégel du 2026-08-31, mais tu ne la modifies pas pour faire tomber un écart — si elle a tort, tu le dis.
 3. `design/etats.json` pour ta vue : la liste des états à couvrir, avec le pilote qui les atteint.
 4. `docs/design/DESIGN.md § 4` : quelle section CSS de la maquette est ta source.
 5. Les `EX-…` et `RG-…` de ton contrat de tâche, dans `cadrage/01`.
@@ -27,6 +27,6 @@ Tu portes une vue maquettée. **Tu ne dessines pas, tu transposes.**
 
 ## Avant de rendre
 
-`pnpm verif` vert, puis `pnpm a11y` et `pnpm ui:diff <NN>`. Tu montres les sorties. Un critère non démontré n'est pas un critère satisfait.
+`pnpm verif` vert, puis `pnpm a11y`, et `pnpm ui:diff <NN>` **en relevé, pas en verdict** — tu le lis et tu commentes ce que tu gardes et ce que tu écartes. Tu montres les sorties. Un critère non démontré n'est pas un critère satisfait.
 
 Ta sortie est le code dans le worktree, plus un compte rendu : ce qui est couvert, ce qui ne l'est pas et pourquoi, et **toute question que tu as dû trancher** — cette dernière liste est la plus importante, elle alimente le diff retour.

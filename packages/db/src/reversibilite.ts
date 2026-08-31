@@ -127,7 +127,7 @@ function versChampCsv(valeur: unknown): string {
 export type LigneManifeste = { table: string; lignes: number; jsonl: string; csv: string };
 
 export type Manifeste = {
-  produit: "trame";
+  produit: "rationarium";
   /** La dernière migration appliquée : la forme qu'avait la base ce jour-là. */
   schema: string | null;
   exporteLe: string;
@@ -152,7 +152,7 @@ export async function exporterTout(
 
   const tables = await listerTables(prisma);
   const manifeste: Manifeste = {
-    produit: "trame",
+    produit: "rationarium",
     schema: await derniereMigration(prisma),
     exporteLe: horodatage,
     tables: [],

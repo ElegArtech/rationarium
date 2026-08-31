@@ -24,7 +24,7 @@ ENV PATH=$PNPM_HOME:$PATH
 # terminal, et s'arrête. Dans une image, il n'y a jamais de terminal.
 ENV CI=true
 RUN corepack enable && corepack prepare pnpm@11.22.0 --activate
-WORKDIR /trame
+WORKDIR /rationarium
 
 # ── Dépendances ─────────────────────────────────────────────────────────────
 # Les manifestes d'abord : tant qu'ils ne changent pas, la couche d'install est
@@ -42,10 +42,10 @@ RUN pnpm install --frozen-lockfile
 FROM dependances AS construction
 COPY . .
 ENV DATABASE_URL=postgres://construction:construction@127.0.0.1:5432/construction
-RUN pnpm --filter @trame/contracts build \
- && pnpm --filter @trame/db exec prisma generate \
- && pnpm --filter @trame/db build \
- && pnpm --filter @trame/api build
+RUN pnpm --filter @rationarium/contracts build \
+ && pnpm --filter @rationarium/db exec prisma generate \
+ && pnpm --filter @rationarium/db build \
+ && pnpm --filter @rationarium/api build
 
 # ── Exécution ───────────────────────────────────────────────────────────────
 FROM base AS execution
@@ -54,15 +54,15 @@ FROM base AS execution
 # stable. Il est de 22 Mo et spécifique à la plateforme : le laisser dans
 # `node_modules/.pnpm` le rendrait dépendant d'un chemin haché.
 COPY --from=dependances \
-  /trame/node_modules/.pnpm/@prisma+engines@7.9.1/node_modules/@prisma/engines/schema-engine-debian-openssl-3.0.x \
+  /rationarium/node_modules/.pnpm/@prisma+engines@7.9.1/node_modules/@prisma/engines/schema-engine-debian-openssl-3.0.x \
   /usr/local/lib/prisma/schema-engine
 ENV PRISMA_SCHEMA_ENGINE_BINARY=/usr/local/lib/prisma/schema-engine
 
-COPY --from=construction /trame/node_modules /trame/node_modules
-COPY --from=construction /trame/package.json /trame/pnpm-workspace.yaml ./
-COPY --from=construction /trame/packages/contracts /trame/packages/contracts
-COPY --from=construction /trame/packages/db /trame/packages/db
-COPY --from=construction /trame/apps/api /trame/apps/api
+COPY --from=construction /rationarium/node_modules /rationarium/node_modules
+COPY --from=construction /rationarium/package.json /rationarium/pnpm-workspace.yaml ./
+COPY --from=construction /rationarium/packages/contracts /rationarium/packages/contracts
+COPY --from=construction /rationarium/packages/db /rationarium/packages/db
+COPY --from=construction /rationarium/apps/api /rationarium/apps/api
 
 # Le conteneur ne tourne pas en `root`. Voir aussi le piège de propriété des
 # fichiers montés, consigné dans `CLAUDE.md`.
@@ -72,5 +72,5 @@ ENV NODE_ENV=production
 ENV PORT=3000
 EXPOSE 3000
 
-WORKDIR /trame/apps/api
+WORKDIR /rationarium/apps/api
 CMD ["node", "dist/main.js"]

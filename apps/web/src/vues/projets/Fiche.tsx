@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { IconeProjet } from "../../composants/icones-projet.js";
 import { Link } from "@tanstack/react-router";
-import { STATUTS_PROJET, PRIORITES } from "@trame/contracts";
+import { STATUTS_PROJET, PRIORITES } from "@rationarium/contracts";
 import type { FicheProjet } from "../../api/projets.js";
 import { Pastille } from "../../composants/pastilles.js";
 import "../../composants/partages.css";

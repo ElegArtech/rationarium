@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { IconeProjet } from "../../composants/icones-projet.js";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Tab, TabList, TabPanel, Tabs } from "react-aria-components";
-import { STATUTS_PROJET, STATUTS_TACHE } from "@trame/contracts";
+import { STATUTS_PROJET, STATUTS_TACHE } from "@rationarium/contracts";
 import * as api from "../../api/tableau.js";
 import * as apiTaches from "../../api/taches.js";
 import { saisirTemps, validerSansDeclaration } from "../../api/occupations.js";

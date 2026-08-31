@@ -1,6 +1,6 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query } from "@nestjs/common";
 import { z } from "zod";
-import { enumDe, DEMI_JOURNEES, STATUTS_CONGE } from "@trame/contracts";
+import { enumDe, DEMI_JOURNEES, STATUTS_CONGE } from "@rationarium/contracts";
 import { CongesService } from "./conges.service.js";
 import { Demande, RequiertPermission, type ContexteDemande } from "../commun/permissions.garde.js";
 import { valider, dateSchema } from "../commun/http.js";

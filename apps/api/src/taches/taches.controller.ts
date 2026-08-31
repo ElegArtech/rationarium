@@ -1,6 +1,6 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query } from "@nestjs/common";
 import { z } from "zod";
-import { enumDe, STATUTS_TACHE, PRIORITES, ROLES_RACI } from "@trame/contracts";
+import { enumDe, STATUTS_TACHE, PRIORITES, ROLES_RACI } from "@rationarium/contracts";
 import { TachesService } from "./taches.service.js";
 import { Demande, RequiertPermission, type ContexteDemande } from "../commun/permissions.garde.js";
 import { valider, dateSchema } from "../commun/http.js";

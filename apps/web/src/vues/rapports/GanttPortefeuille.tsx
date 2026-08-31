@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
-import { ETATS_RAG } from "@trame/contracts";
+import { ETATS_RAG } from "@rationarium/contracts";
 import * as api from "../../api/rapports.js";
 import { Chargement, ErreurDeChargement } from "../../composants/etats.js";
 import { formaterDate } from "../../formats.js";

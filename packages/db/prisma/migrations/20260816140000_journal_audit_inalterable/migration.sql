@@ -75,21 +75,21 @@ SELECT creer_partition_audit((CURRENT_DATE + interval '2 months')::date);
 
 DO $$
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'trame_app') THEN
-    CREATE ROLE trame_app NOLOGIN;
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'rationarium_app') THEN
+    CREATE ROLE rationarium_app NOLOGIN;
   END IF;
 END $$;
 
-GRANT USAGE ON SCHEMA public TO trame_app;
-GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO trame_app;
-GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO trame_app;
+GRANT USAGE ON SCHEMA public TO rationarium_app;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO rationarium_app;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO rationarium_app;
 
 ALTER DEFAULT PRIVILEGES IN SCHEMA public
-  GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO trame_app;
+  GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO rationarium_app;
 
 -- Puis on retire ce qui ne doit jamais être accordé sur le journal.
-REVOKE UPDATE, DELETE, TRUNCATE ON "audit_log" FROM trame_app;
-REVOKE UPDATE, DELETE, TRUNCATE ON "audit_log_defaut" FROM trame_app;
+REVOKE UPDATE, DELETE, TRUNCATE ON "audit_log" FROM rationarium_app;
+REVOKE UPDATE, DELETE, TRUNCATE ON "audit_log_defaut" FROM rationarium_app;
 
 -- Et sur toutes les partitions à venir : la révocation doit survivre à la
 -- création d'une partition, sinon elle serait contournée le mois prochain.
@@ -102,7 +102,7 @@ BEGIN
   WHERE command_tag = 'CREATE TABLE'
   LOOP
     IF objet.object_identity LIKE 'public.audit_log%' THEN
-      EXECUTE format('REVOKE UPDATE, DELETE, TRUNCATE ON %s FROM trame_app', objet.object_identity);
+      EXECUTE format('REVOKE UPDATE, DELETE, TRUNCATE ON %s FROM rationarium_app', objet.object_identity);
     END IF;
   END LOOP;
 END;

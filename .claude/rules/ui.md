@@ -8,7 +8,7 @@ paths:
 
 ## L'agent ne dessine pas, il transpose
 
-La maquette gelée est la cible. Ce qui n'y figure pas ne s'invente pas : cela remonte en question. Un état non prévu par `design/etats.json` est un manque de spec à combler **avant** de coder, pas un blanc à remplir au jugé.
+La maquette est l'intention d'origine, plus la cible opposable — le gel est levé depuis le 2026-08-31. Elle se lit, elle ne se recopie plus au pixel ; c'est `docs/design/DESIGN.md` et `socle.css` qui portent le contrat. Ce qui n'y figure pas ne s'invente pas : cela remonte en question. Un état non prévu par `design/etats.json` est un manque de spec à combler **avant** de coder, pas un blanc à remplir au jugé.
 
 ## Composants
 

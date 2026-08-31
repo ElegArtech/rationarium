@@ -13,7 +13,7 @@
 # superviser et redémarrer (`cadrage/03 § 231`).
 # ════════════════════════════════════════════════════════════════════════════
 
-name: trame
+name: rationarium
 
 services:
   base:
@@ -22,10 +22,10 @@ services:
     environment:
       POSTGRES_USER: ${POSTGRES_UTILISATEUR:?utilisateur de base requis}
       POSTGRES_PASSWORD: ${POSTGRES_MOTDEPASSE:?mot de passe de base requis}
-      POSTGRES_DB: ${POSTGRES_BASE:-trame}
+      POSTGRES_DB: ${POSTGRES_BASE:-rationarium}
       # Les dates métier n'ont ni heure ni fuseau (ADR-0010), mais les
       # horodatages d'audit en ont un : il est fixé, pas hérité de l'hôte.
-      TZ: ${TRAME_FUSEAU:-Europe/Paris}
+      TZ: ${RATIONARIUM_FUSEAU:-Europe/Paris}
     volumes:
       # `/var/lib/postgresql`, PAS `/var/lib/postgresql/data`. Depuis
       # PostgreSQL 18, l'image officielle range les données dans un
@@ -58,14 +58,14 @@ services:
       base:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgres://${POSTGRES_UTILISATEUR}:${POSTGRES_MOTDEPASSE}@base:5432/${POSTGRES_BASE:-trame}
-    working_dir: /trame/packages/db
-    # Le chemin du binaire est celui de l'espace de travail `@trame/db`, pas
+      DATABASE_URL: postgres://${POSTGRES_UTILISATEUR}:${POSTGRES_MOTDEPASSE}@base:5432/${POSTGRES_BASE:-rationarium}
+    working_dir: /rationarium/packages/db
+    # Le chemin du binaire est celui de l'espace de travail `@rationarium/db`, pas
     # celui de la racine : pnpm n'installe le lien que là où la dépendance est
     # déclarée. Un `pnpm exec` conviendrait aussi, mais il relance une
     # vérification de cohérence des dépendances au démarrage — inutile ici, et
     # une raison d'échouer de plus le jour du déploiement.
-    command: ["/trame/packages/db/node_modules/.bin/prisma", "migrate", "deploy"]
+    command: ["/rationarium/packages/db/node_modules/.bin/prisma", "migrate", "deploy"]
 
   # L'amorçage : le référentiel des 26 rôles, et le premier administrateur.
   #
@@ -86,13 +86,13 @@ services:
       migrations:
         condition: service_completed_successfully
     environment:
-      DATABASE_URL: postgres://${POSTGRES_UTILISATEUR}:${POSTGRES_MOTDEPASSE}@base:5432/${POSTGRES_BASE:-trame}
+      DATABASE_URL: postgres://${POSTGRES_UTILISATEUR}:${POSTGRES_MOTDEPASSE}@base:5432/${POSTGRES_BASE:-rationarium}
       COOKIE_SECRET: ${COOKIE_SECRET}
-      TRAME_ADMIN_LOGIN: ${TRAME_ADMIN_LOGIN:-admin}
-      TRAME_ADMIN_EMAIL: ${TRAME_ADMIN_EMAIL:-admin@localhost}
+      RATIONARIUM_ADMIN_LOGIN: ${RATIONARIUM_ADMIN_LOGIN:-admin}
+      RATIONARIUM_ADMIN_EMAIL: ${RATIONARIUM_ADMIN_EMAIL:-admin@localhost}
       # Absent : un mot de passe est engendré et affiché une fois dans le
       # journal du service. `docker compose logs amorcage` pour le relire.
-      TRAME_ADMIN_MOTDEPASSE: ${TRAME_ADMIN_MOTDEPASSE:-}
+      RATIONARIUM_ADMIN_MOTDEPASSE: ${RATIONARIUM_ADMIN_MOTDEPASSE:-}
     command: ["node", "dist/exploitation/amorcage.js"]
 
   api:
@@ -108,10 +108,10 @@ services:
       amorcage:
         condition: service_completed_successfully
     environment:
-      DATABASE_URL: postgres://${POSTGRES_UTILISATEUR}:${POSTGRES_MOTDEPASSE}@base:5432/${POSTGRES_BASE:-trame}
+      DATABASE_URL: postgres://${POSTGRES_UTILISATEUR}:${POSTGRES_MOTDEPASSE}@base:5432/${POSTGRES_BASE:-rationarium}
       COOKIE_SECRET: ${COOKIE_SECRET:?secret de session requis}
-      TRAME_FUSEAU: ${TRAME_FUSEAU:-Europe/Paris}
-      TRAME_CRON_ALERTES: ${TRAME_CRON_ALERTES:-0 7 * * *}
+      RATIONARIUM_FUSEAU: ${RATIONARIUM_FUSEAU:-Europe/Paris}
+      RATIONARIUM_CRON_ALERTES: ${RATIONARIUM_CRON_ALERTES:-0 7 * * *}
       SMTP_HOTE: ${SMTP_HOTE:-}
       SMTP_PORT: ${SMTP_PORT:-25}
       SMTP_TLS: ${SMTP_TLS:-false}
@@ -138,11 +138,11 @@ services:
       api:
         condition: service_healthy
     environment:
-      TRAME_HOTE: ${TRAME_HOTE:-localhost}
-      TRAME_API: api:3000
+      RATIONARIUM_HOTE: ${RATIONARIUM_HOTE:-localhost}
+      RATIONARIUM_API: api:3000
     ports:
-      - "${TRAME_PORT_HTTP:-80}:80"
-      - "${TRAME_PORT_HTTPS:-443}:443"
+      - "${RATIONARIUM_PORT_HTTP:-80}:80"
+      - "${RATIONARIUM_PORT_HTTPS:-443}:443"
     volumes:
       # L'autorité locale de Caddy : sans persistance, chaque redémarrage
       # régénère la racine, et tous les postes revoient un avertissement.

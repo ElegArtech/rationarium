@@ -2,11 +2,11 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
 import { execFileSync } from "node:child_process";
 import path from "node:path";
-import { creerClient, type PrismaClient } from "@trame/db";
+import { creerClient, type PrismaClient } from "@rationarium/db";
 import { RolesService, ErreurRole } from "./roles.service.js";
 import { AuditQueryService } from "./audit.query.service.js";
 import { AuditService } from "../commun/audit.service.js";
-import { NOMBRE_PERMISSIONS, NOMBRE_MODELES, modeleParCode } from "@trame/contracts";
+import { NOMBRE_PERMISSIONS, NOMBRE_MODELES, modeleParCode } from "@rationarium/contracts";
 
 /** L-08 — rôles, matrice, journal d'audit. Criticité haute. */
 

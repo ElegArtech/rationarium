@@ -1,7 +1,7 @@
-# Déploiement et exploitation de Trame
+# Déploiement et exploitation de Rationarium
 
 Ce dossier contient tout ce qu'il faut pour installer, sauvegarder, restaurer et
-quitter Trame. Il vise **une machine unique en Docker Compose**, qui est
+quitter Rationarium. Il vise **une machine unique en Docker Compose**, qui est
 l'hypothèse retenue par `cadrage/03 § 3.1`. La question B5 — machine unique ou
 orchestrateur existant — reste ouverte ; ce qu'elle changerait est au § 6.
 
@@ -9,6 +9,58 @@ Tout ce qui est écrit ici a été **exécuté**, pas seulement rédigé : const
 des deux images, démarrage complet, migration, sonde de disponibilité,
 sauvegarde, restauration et export de réversibilité. Ce qui n'a pas pu l'être
 est dit comme tel.
+
+---
+
+## 0. Migration depuis une instance « Trame » (2026-08-31)
+
+Le produit s'appelait **Trame**. Le renommage en **Rationarium** touche des noms
+qui portent de l'état : une instance déjà installée ne se met pas à jour par un
+`docker compose up` de plus.
+
+Ce qui change de nom, et ce que ça implique :
+
+| Ancien | Nouveau | Conséquence |
+| --- | --- | --- |
+| `name: trame` (projet Compose) | `name: rationarium` | **volumes neufs** : `trame_donnees` et `trame_caddy` deviennent `rationarium_donnees` et `rationarium_caddy`. Les anciens ne sont pas supprimés — ils deviennent orphelins. |
+| `POSTGRES_BASE=trame` | `POSTGRES_BASE=rationarium` | base neuve, vide. |
+| `POSTGRES_UTILISATEUR=trame` | `POSTGRES_UTILISATEUR=rationarium` | rôle de connexion neuf. |
+| `TRAME_*` (14 variables) | `RATIONARIUM_*` | **le `.env` existant est muet** : les variables ne sont plus lues, chacune retombe sur son défaut. `RATIONARIUM_HOTE` non repris fait servir Caddy sur `localhost`. |
+| rôle SQL `trame_app` | `rationarium_app` | posé par la migration du journal d'audit inaltérable. Sur une base neuve, il est créé au premier `migrate deploy`. |
+| cookie de session `trame_session` | `rationarium_session` | toutes les sessions ouvertes tombent. |
+| clés `localStorage` `trame.theme` / `trame.langue` | `rationarium.*` | chaque poste repart sur le thème et la langue détectés. |
+
+### Instance de recette — repartir à neuf
+
+Le plus court, si les données ne valent pas d'être gardées :
+
+```bash
+docker compose --project-name trame down -v   # DÉTRUIT les données de l'ancienne instance
+cp env.exemple .env && $EDITOR .env           # renseigner les RATIONARIUM_*
+docker compose up -d
+docker compose logs amorcage                  # y lire le mot de passe du premier administrateur
+```
+
+### Instance à données — reprendre le contenu
+
+```bash
+# 1. sauvegarder l'ANCIENNE instance, avec l'ancien nom de projet
+docker compose --project-name trame -f compose.yaml run --rm ... ./sauvegarde.sh
+# ou, plus simplement, depuis la copie de travail d'avant renommage :
+./sauvegarde.sh
+
+# 2. renseigner le nouveau .env, démarrer la nouvelle instance
+docker compose up -d base
+
+# 3. restaurer dans la base neuve
+./restauration.sh /var/sauvegardes/rationarium/rationarium-<horodatage>.dump
+```
+
+`restauration.sh` rejoue les rôles et leurs privilèges depuis le fichier
+`.roles.sql` qui accompagne l'archive. Ce fichier a été produit sous
+`trame_app` : **le relire et y substituer `rationarium_app` avant restauration**,
+sans quoi le journal d'audit est restauré sans ses restrictions `RG-ADM-01`.
+Le contrôle de `sauvegarde.int.test.ts` le vérifie côté produit, pas côté archive.
 
 ---
 
@@ -46,7 +98,7 @@ L'ordre est tenu par les conditions de démarrage, pas par des temporisations :
 **Vérification :**
 
 ```bash
-curl -k https://$TRAME_HOTE/api/sante/pret
+curl -k https://$RATIONARIUM_HOTE/api/sante/pret
 # {"etat":"pret","base":true,"schema":true,"file":true}
 ```
 
@@ -59,9 +111,9 @@ construites ailleurs :
 ```bash
 # sur la machine connectée
 docker compose build
-docker save trame-api trame-web postgres:18.6-bookworm | gzip > trame-images.tar.gz
+docker save rationarium-api rationarium-web postgres:18.6-bookworm | gzip > rationarium-images.tar.gz
 # sur la machine cible
-gunzip -c trame-images.tar.gz | docker load
+gunzip -c rationarium-images.tar.gz | docker load
 docker compose up -d          # sans --build
 ```
 
@@ -79,10 +131,10 @@ construction.
 ./sauvegarde.sh
 ```
 
-Produit deux fichiers horodatés dans `$TRAME_SAUVEGARDES` :
+Produit deux fichiers horodatés dans `$RATIONARIUM_SAUVEGARDES` :
 
-- `trame-<horodatage>.dump` — la base, en format personnalisé compressé ;
-- `trame-<horodatage>.roles.sql` — **les rôles et leurs privilèges**, que
+- `rationarium-<horodatage>.dump` — la base, en format personnalisé compressé ;
+- `rationarium-<horodatage>.roles.sql` — **les rôles et leurs privilèges**, que
   `pg_dump` n'emporte pas. `CREATE ROLE` est global à l'instance : une
   restauration sur une instance neuve sans ce fichier rendrait une base
   correcte à laquelle l'application ne peut pas se connecter, et dont le
@@ -95,7 +147,7 @@ plausible et illisible.
 Depuis `cron`, une fois par nuit :
 
 ```
-30 2 * * * cd /opt/trame/deploiement && ./sauvegarde.sh >> /var/log/trame-sauvegarde.log 2>&1
+30 2 * * * cd /opt/rationarium/deploiement && ./sauvegarde.sh >> /var/log/rationarium-sauvegarde.log 2>&1
 ```
 
 **Ce que le script ne fait pas** : la copie hors machine. Une sauvegarde qui vit
@@ -108,12 +160,12 @@ laissée ouverte par `cadrage/03 § 8.3`.
 ## 4. Restauration
 
 ```bash
-./restauration.sh /var/sauvegardes/trame/trame-20260816T023000Z.dump
+./restauration.sh /var/sauvegardes/rationarium/rationarium-20260816T023000Z.dump
 ```
 
 La procédure arrête l'application, restaure les rôles, recrée la base, restaure
 les données, **vérifie** — nombre d'utilisateurs, présence de la contrainte
-d'exclusion des congés, privilèges de `trame_app` sur le journal d'audit — puis
+d'exclusion des congés, privilèges de `rationarium_app` sur le journal d'audit — puis
 redémarre. Elle nomme ce qu'elle va détruire et demande confirmation.
 
 Le cycle complet est **rejoué à chaque boucle de vérification**, sur PostgreSQL
@@ -128,8 +180,8 @@ restauration jamais rejouée n'est pas une sauvegarde, c'est une intention.
 ouverts. »
 
 ```bash
-docker compose exec api node /trame/packages/db/dist/reversibilite-cli.js /tmp/export
-docker compose cp api:/tmp/export ./export-trame
+docker compose exec api node /rationarium/packages/db/dist/reversibilite-cli.js /tmp/export
+docker compose cp api:/tmp/export ./export-rationarium
 ```
 
 Produit, pour **chacune des 48 tables** :

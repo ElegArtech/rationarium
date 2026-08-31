@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
-import { VOCABULAIRES } from "@trame/contracts";
+import { VOCABULAIRES } from "@rationarium/contracts";
 
 /**
  * Le contrat et la base disent-ils la même chose ?
@@ -48,7 +48,7 @@ const CORRESPONDANCE: Record<string, string> = {
   dureeTachePredefinie: "DureeTachePredefinie",
 };
 
-describe("cohérence @trame/contracts ↔ schéma Prisma", () => {
+describe("cohérence @rationarium/contracts ↔ schéma Prisma", () => {
   const prisma = enumsPrisma();
 
   for (const [vocabulaire, nomPrisma] of Object.entries(CORRESPONDANCE)) {

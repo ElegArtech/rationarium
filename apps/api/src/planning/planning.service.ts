@@ -374,7 +374,7 @@ export class PlanningService {
 
     const entrees: EvenementIcs[] = [
       ...evenements.map((e) => ({
-        uid: `evt-${e.id}@trame`,
+        uid: `evt-${e.id}@rationarium`,
         titre: e.interventionExterieure ? `${e.titre} (intervention extérieure)` : e.titre,
         description: e.project ? e.project.nom : null,
         date: e.date,
@@ -389,7 +389,7 @@ export class PlanningService {
       ...conges
         .filter((c) => c.statut === "approved")
         .map((c) => ({
-          uid: `cng-${c.id}@trame`,
+          uid: `cng-${c.id}@rationarium`,
           titre: `${noms.get(c.userId) ?? ""} — ${c.type.nom}`.trim(),
           description: null,
           date: c.dateDebut,

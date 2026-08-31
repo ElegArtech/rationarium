@@ -48,12 +48,12 @@ import { chromium } from "playwright";
 const RACINE = process.cwd();
 const MANIFESTE = JSON.parse(fs.readFileSync(path.join(RACINE, "design/etats.json"), "utf8"));
 const ROUTES = JSON.parse(fs.readFileSync(path.join(RACINE, "design/routes.json"), "utf8"));
-const BASE = process.env.TRAME_URL ?? "http://localhost:5173";
+const BASE = process.env.RATIONARIUM_URL ?? "http://localhost:5173";
 const CAPTURES = path.join(RACINE, "design/captures");
 
 /** Compte pour la connexion — les vues 06+ sont derrière la session. */
-const IDENTIFIANT = process.env.TRAME_LOGIN ?? "admin";
-const MOT_DE_PASSE = process.env.TRAME_MOTDEPASSE ?? "TrameLocal!2026";
+const IDENTIFIANT = process.env.RATIONARIUM_LOGIN ?? "admin";
+const MOT_DE_PASSE = process.env.RATIONARIUM_MOTDEPASSE ?? "RationariumLocal!2026";
 
 /**
  * Classes hors produit : le panneau de revue des maquettes, et les états que
@@ -342,7 +342,22 @@ const vues = cible === "toutes" ? Object.keys(MANIFESTE).sort() : [cible];
 if (captures) fs.mkdirSync(CAPTURES, { recursive: true });
 
 const navigateur = await chromium.launch();
-const contexte = await navigateur.newContext({ viewport: { width: 1440, height: 900 } });
+/*
+ * La locale est FIXÉE, elle ne se subit pas.
+ *
+ * `detecter()` (`apps/web/src/i18n/index.ts`) retombe sur `navigator.language`
+ * quand `localStorage` est vide — ce qui est le cas de tout contexte Playwright
+ * neuf. Or Chromium suit la locale du PROCESSUS : avec `LC_ALL=C.UTF-8` il
+ * annonce `en-US`, l'application rend en anglais, et les 35 vues échouent d'un
+ * coup contre des maquettes françaises. Mesuré : 34/35 conformes puis 0/35 et
+ * 1379 écarts sur le MÊME commit, à une variable d'environnement près.
+ *
+ * Un contrôle dont le verdict dépend de la machine n'est pas un contrôle.
+ */
+const contexte = await navigateur.newContext({
+  viewport: { width: 1440, height: 900 },
+  locale: "fr-FR",
+});
 const page = await contexte.newPage();
 await connecter(page);
 

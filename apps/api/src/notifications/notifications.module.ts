@@ -27,7 +27,7 @@ export class NotificationsModule implements OnModuleInit {
     await this.file.planifier({
       nom: "notifications.alertes-echeance",
       // Par défaut à 7 h, dans le fuseau de l'organisation.
-      cron: process.env["TRAME_CRON_ALERTES"] ?? "0 7 * * *",
+      cron: process.env["RATIONARIUM_CRON_ALERTES"] ?? "0 7 * * *",
       traitement: async () => {
         await this.notifications.alertesEcheance(new Date());
       },

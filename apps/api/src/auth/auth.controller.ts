@@ -16,13 +16,13 @@ import {
   changementMotDePasseSchema,
   modificationProfilSchema,
   motDePasse as politiqueMotDePasse,
-} from "@trame/contracts";
+} from "@rationarium/contracts";
 import { z } from "zod";
 import { AuthService, ErreurAuth } from "./auth.service.js";
 import { Public, Personnel, Demande, type ContexteDemande } from "../commun/permissions.garde.js";
 import { MESSAGES } from "./messages.js";
 
-const COOKIE = "trame_session";
+const COOKIE = "rationarium_session";
 
 /** Le cookie de session : `HttpOnly`, `SameSite=Lax`, `Secure`. ADR-0008. */
 const optionsCookie = (jours: number) => ({

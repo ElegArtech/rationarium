@@ -124,7 +124,7 @@ describe("C15 — chevauchement de congés gardé par la base", () => {
 
 describe("RG-ADM-01 — journal d'audit inaltérable", () => {
   it("le rôle applicatif peut écrire et lire", async () => {
-    await db.query("SET ROLE trame_app");
+    await db.query("SET ROLE rationarium_app");
     await db.query(
       `INSERT INTO audit_log (action, "typeEntite", "entiteId") VALUES ('leave.approve', 'Leave', $1)`,
       [uuid()],
@@ -135,7 +135,7 @@ describe("RG-ADM-01 — journal d'audit inaltérable", () => {
   });
 
   it("le rôle applicatif ne peut PAS modifier une trace", async () => {
-    await db.query("SET ROLE trame_app");
+    await db.query("SET ROLE rationarium_app");
     await expect(db.query(`UPDATE audit_log SET action = 'falsifie'`)).rejects.toThrow(
       /permission denied/i,
     );
@@ -143,7 +143,7 @@ describe("RG-ADM-01 — journal d'audit inaltérable", () => {
   });
 
   it("le rôle applicatif ne peut PAS supprimer une trace", async () => {
-    await db.query("SET ROLE trame_app");
+    await db.query("SET ROLE rationarium_app");
     await expect(db.query(`DELETE FROM audit_log`)).rejects.toThrow(/permission denied/i);
     await expect(db.query(`TRUNCATE audit_log`)).rejects.toThrow(/permission denied/i);
     await db.query("RESET ROLE");
@@ -164,7 +164,7 @@ describe("RG-ADM-01 — journal d'audit inaltérable", () => {
   it("une partition créée après coup hérite de la révocation", async () => {
     await db.query(`SELECT creer_partition_audit('2028-06-15'::date)`);
     const { rows } = await db.query(
-      `SELECT has_table_privilege('trame_app', 'audit_log_2028_06', 'UPDATE') AS peut`,
+      `SELECT has_table_privilege('rationarium_app', 'audit_log_2028_06', 'UPDATE') AS peut`,
     );
     expect(rows[0].peut).toBe(false);
   });

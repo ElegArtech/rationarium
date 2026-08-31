@@ -59,7 +59,7 @@ réellement focalisable.
 
 ### 4. Le titre de page ne distinguait pas les vues — **corrigé**
 
-Les 35 vues s'appelaient « Trame ». RGAA 8.6. L'historique du navigateur
+Les 35 vues s'appelaient « Rationarium ». RGAA 8.6. L'historique du navigateur
 affichait trente-cinq entrées identiques, et un lecteur d'écran n'annonçait
 rien de distinctif au changement de vue.
 

@@ -3,7 +3,7 @@ import { PrismaService } from "../prisma.service.js";
 import { AuditService } from "../commun/audit.service.js";
 import { PerimetreService, type Perimetre } from "../commun/perimetre.service.js";
 import { NotificationsService } from "../notifications/notifications.service.js";
-import type { StatutTache, Priorite, RoleRaci } from "@trame/contracts";
+import type { StatutTache, Priorite, RoleRaci } from "@rationarium/contracts";
 
 /**
  * Tâches — M6, vues 12, 16, 17. Criticité haute.

@@ -1,6 +1,6 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from "@nestjs/common";
 import { z } from "zod";
-import { enumDe, TYPES_TIERS } from "@trame/contracts";
+import { enumDe, TYPES_TIERS } from "@rationarium/contracts";
 import { TiersService } from "./tiers.service.js";
 import { Demande, RequiertPermission, type ContexteDemande } from "../commun/permissions.garde.js";
 import { valider } from "../commun/http.js";

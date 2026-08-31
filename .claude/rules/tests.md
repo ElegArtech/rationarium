@@ -48,4 +48,4 @@ Exige Docker. Voir `CLAUDE.md`, piège sur la propriété des fichiers montés.
 
 - Les parcours de bout en bout couvrent les flux, pas les champs.
 - `@axe-core/playwright` sur chaque vue, dans les **deux thèmes**. Une violation est un échec, pas un avertissement.
-- La conformité de rendu contre la maquette gelée passe par `pnpm ui:diff <vue>`, état par état depuis `design/etats.json`.
+- `pnpm ui:diff <vue>` relève les écarts contre la maquette, état par état depuis `design/etats.json`. **Depuis le dégel du 2026-08-31 il ne prononce plus de verdict** : c'est un relevé, à lire, pas un critère à passer au vert. Ce qu'il voyait et que rien d'autre ne voit — une vue sans règle de style, une classe inerte, un composant rendu nu — se regarde désormais à l'œil.

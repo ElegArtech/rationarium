@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { navigationVisible, NAVIGATION } from "./navigation.js";
-import { modeleParCode, estAuCatalogue } from "@trame/contracts";
+import { modeleParCode, estAuCatalogue } from "@rationarium/contracts";
 
 const permissionsDe = (code: string) =>
   new Set(modeleParCode(code)!.permissions);

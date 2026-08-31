@@ -336,7 +336,7 @@ async function preparer(page: Page, session: "valide" | "absente", theme: "clair
   // Le thème est mémorisé avant le premier rendu : l'appliquer après ferait
   // mesurer axe sur la palette claire pendant un instant.
   await page.addInitScript((t: string) => {
-    window.localStorage.setItem("trame.theme", t);
+    window.localStorage.setItem("rationarium.theme", t);
   }, theme === "sombre" ? "sombre" : "clair");
 }
 

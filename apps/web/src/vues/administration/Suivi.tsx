@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { Button, Dialog, DialogTrigger, Popover } from "react-aria-components";
-import { STATUTS_TACHE, PRIORITES, STATUTS_CONGE, NIVEAUX_COMPETENCE, TYPES_ACTIVITE, CATEGORIES_COMPETENCE } from "@trame/contracts";
+import { STATUTS_TACHE, PRIORITES, STATUTS_CONGE, NIVEAUX_COMPETENCE, TYPES_ACTIVITE, CATEGORIES_COMPETENCE } from "@rationarium/contracts";
 import * as api from "../../api/administration.js";
 import { ErreurApi } from "../../api/client.js";
 import { usePeut } from "../../session/session.js";

@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════════════════
-// Trame — modèle de données
+// Rationarium — modèle de données
 //
 // Lot L-02, vague 1. Produit globalement et non lot par lot : voir
 // `cadrage/04 § 5.3` pour le motif et sa contrepartie — toute évolution
@@ -33,7 +33,7 @@ datasource db {
 }
 
 // ── Énumérations ───────────────────────────────────────────────────────────
-// Reprises à l'identique de @trame/contracts. Toute divergence est un défaut :
+// Reprises à l'identique de @rationarium/contracts. Toute divergence est un défaut :
 // un test de cohérence la refuse.
 
 enum StatutProjet {

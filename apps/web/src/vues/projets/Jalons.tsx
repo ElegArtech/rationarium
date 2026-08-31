@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import * as apiImports from "../../api/imports.js";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "react-aria-components";
-import { STATUTS_JALON, STATUTS_TACHE } from "@trame/contracts";
+import { STATUTS_JALON, STATUTS_TACHE } from "@rationarium/contracts";
 import * as api from "../../api/projets.js";
 import * as apiTaches from "../../api/taches.js";
 import { messageErreur } from "../../api/erreurs.js";

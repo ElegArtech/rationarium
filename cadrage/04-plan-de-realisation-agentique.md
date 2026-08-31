@@ -1,6 +1,6 @@
 # Plan de réalisation agentique
 
-**Trame — Plateforme de pilotage des projets et des ressources humaines**
+**Rationarium — Plateforme de pilotage des projets et des ressources humaines**
 Comment l'application est construite : harnais, découpage, orchestration, vérification
 
 ---

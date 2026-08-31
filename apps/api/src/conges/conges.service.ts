@@ -4,7 +4,7 @@ import { AuditService } from "../commun/audit.service.js";
 import { PerimetreService, type Perimetre } from "../commun/perimetre.service.js";
 import { CalendrierService } from "../parametrage/calendrier.service.js";
 import { NotificationsService } from "../notifications/notifications.service.js";
-import type { DemiJournee } from "@trame/contracts";
+import type { DemiJournee } from "@rationarium/contracts";
 
 /**
  * Congés — M10, vue 19. **Le module le plus riche en règles du cadrage** :

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Trame — Rapports &amp; analytics (Vue 30)</title>
+<title>Rationarium — Rapports &amp; analytics (Vue 30)</title>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -11,7 +11,7 @@
 
 <style>
 /* ==========================================================================
-   TRAME — SOCLE GRAPHIQUE
+   RATIONARIUM — SOCLE GRAPHIQUE
    Bloc canonique, recopié à l'identique dans chaque vue.
    Aucune dépendance externe hors polices (substituts système déclarés).
    Sommaire : 1 tokens · 2 base · 3 typo · 4 formulaires · 5 boutons
@@ -2261,7 +2261,7 @@ select.field{ appearance:none; background-image:none; }
   <!-- ══════════ BARRE LATÉRALE ══════════ -->
   <aside class="side">
     <div class="side-head">
-      <span class="side-mark">Trame</span>
+      <span class="side-mark">Rationarium</span>
       <button class="icon-btn" onclick="toggleSide()" id="collapse-btn"
               title="Replier la barre latérale" aria-label="Replier la barre latérale">
         <svg class="ico ico-sm"><use href="#i-collapse"/></svg>
@@ -2327,7 +2327,7 @@ select.field{ appearance:none; background-image:none; }
       <button class="icon-btn burger" onclick="openDrawer()" aria-label="Ouvrir le menu">
         <svg class="ico ico-sm"><use href="#i-burger"/></svg>
       </button>
-      <p class="crumb" style="margin:0">Trame <span aria-hidden="true">/</span>
+      <p class="crumb" style="margin:0">Rationarium <span aria-hidden="true">/</span>
         <b data-fr="Rapports" data-en="Reports">Rapports</b></p>
 
       <div class="search">
@@ -2802,7 +2802,7 @@ var PROJECTS = [
     svc:'Ressources humaines', bud:400, s:'2026-07-01', e:'2027-03-31', pg:8, prio:'normal' },
   { k:'VIDEO', n:'Vidéoprotection centre-ville', ic:'p-camera', lead:'Olivier Pereira',
     svc:'Services techniques', bud:1500, s:'2026-09-01', e:'2027-06-30', pg:0, prio:'low' },
-  { k:'TRAME', n:'Trame verte et bleue', ic:'p-leaf', lead:'Paul Lambert', svc:'Services techniques',
+  { k:'RATIONARIUM', n:'Rationarium verte et bleue', ic:'p-leaf', lead:'Paul Lambert', svc:'Services techniques',
     bud:700, s:'2025-09-01', e:'2026-06-30', pg:100, prio:'normal' },
   { k:'MEDIA', n:'Modernisation de la médiathèque', ic:'p-book', lead:'Olivier Pereira',
     svc:'Services techniques', bud:1100, s:'2026-02-15', e:'2027-03-31', pg:54, prio:'normal' },
@@ -2848,10 +2848,10 @@ M('MEDIA','Étude de programmation','2026-05-31','2026-05-20');
 M('MEDIA','Marché de travaux','2026-08-31');
 M('MEDIA','Fermeture temporaire','2027-01-15');
 M('MEDIA','Réouverture','2027-03-15');
-M('TRAME','Inventaire écologique','2025-12-31','2025-12-18');
-M('TRAME','Cartographie','2026-03-31','2026-03-27');
-M('TRAME','Plan d\u2019action','2026-05-31','2026-05-29');
-M('TRAME','Délibération','2026-06-30','2026-06-24');
+M('RATIONARIUM','Inventaire écologique','2025-12-31','2025-12-18');
+M('RATIONARIUM','Cartographie','2026-03-31','2026-03-27');
+M('RATIONARIUM','Plan d\u2019action','2026-05-31','2026-05-29');
+M('RATIONARIUM','Délibération','2026-06-30','2026-06-24');
 M('SIGNAL','Charte graphique','2026-09-30');
 M('SIGNAL','Pose','2026-10-31');
 M('ASSOS','Recueil des besoins','2026-06-30','2026-06-18');
@@ -2903,7 +2903,7 @@ T('SIGNAL', 1, 'done', 'low', false, 'Paul Lambert');
 T('ASSOS', 3, 'doing', 'normal', false, 'Anaïs Colin');
 T('ASSOS', 2, 'review', 'normal', false, 'Driss Amrani');
 T('ASSOS', 4, 'done', 'normal', false, 'Anaïs Colin');
-T('TRAME', 9, 'done', 'normal', false, 'Paul Lambert');
+T('RATIONARIUM', 9, 'done', 'normal', false, 'Paul Lambert');
 T('VIDEO', 2, 'todo', 'low', false, 'Olivier Pereira');
 
 /* Événements de période : des faits datés, distincts de l'état instantané. */

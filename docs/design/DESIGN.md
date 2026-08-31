@@ -1,6 +1,6 @@
 # DESIGN.md — le système de design comme contrainte
 
-**Trame.** Ce document transforme la génération d'interface en **assemblage contraint** : l'agent ne dessine pas, il compose.
+**Rationarium.** Ce document transforme la génération d'interface en **assemblage contraint** : l'agent ne dessine pas, il compose.
 
 ---
 
@@ -8,7 +8,7 @@
 
 > **`mockups/` est la référence. Ce document la décrit, il ne la remplace pas.**
 
-En cas d'écart entre ce document et une maquette, **la maquette gagne** et ce document est corrigé. Les maquettes sont gelées (`mockups/GEL.md`) et en lecture seule.
+En cas d'écart entre ce document et une maquette, **ce document gagne** depuis le dégel du 2026-08-31 : c'est lui, avec `socle.css`, qui porte le contrat de style. La maquette dit l'intention d'origine. Les maquettes étaient gelées (`mockups/GEL.md`) et en lecture seule.
 
 Trois interdits qui découlent de cette règle, et qui sont tenus mécaniquement, pas par consigne :
 
@@ -97,8 +97,8 @@ Les maquettes emploient `#fff`, `#000` et cinq `rgba(…)` dans leurs sections d
 | `--ombre-douce` | `rgba(0,0,0,.04)` | Ombre de survol, séparation légère |
 | `--ombre-portee` | `rgba(0,0,0,.35)` | Ombre de fenêtre et de panneau |
 | `--voile-fenetre` | `rgba(8,10,16,.45)` | Voile derrière une fenêtre modale |
-| `--trame-leave-douce` | `rgba(106,75,166,.30)` | Trame de congé validé, en fond de cellule |
-| `--trame-leave-pending-douce` | `rgba(120,110,150,.16)` | Trame de congé en attente |
+| `--trame-leave-douce` | `rgba(106,75,166,.30)` | Rationarium de congé validé, en fond de cellule |
+| `--trame-leave-pending-douce` | `rgba(120,110,150,.16)` | Rationarium de congé en attente |
 
 **Ce sont des ajouts, pas des réinterprétations** : les valeurs sont exactement celles des maquettes. Ils ne basculent pas avec le thème, et c'est délibéré.
 

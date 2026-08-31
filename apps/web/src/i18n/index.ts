@@ -45,7 +45,7 @@ import importsEn from "../locales/en/imports.json";
 export const LANGUES = ["fr", "en"] as const;
 export type Langue = (typeof LANGUES)[number];
 
-export const CLE_LANGUE = "trame.langue";
+export const CLE_LANGUE = "rationarium.langue";
 
 const detecter = (): Langue => {
   const memorisee = localStorage.getItem(CLE_LANGUE);

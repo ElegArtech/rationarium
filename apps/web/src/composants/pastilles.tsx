@@ -5,7 +5,7 @@ import {
   STATUTS_JALON,
   PRIORITES,
   type Terme,
-} from "@trame/contracts";
+} from "@rationarium/contracts";
 import "./partages.css";
 
 /**

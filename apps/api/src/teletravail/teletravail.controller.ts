@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Post, Query } from "@nestjs/common";
 import { z } from "zod";
-import { enumDe, ETATS_TELETRAVAIL } from "@trame/contracts";
+import { enumDe, ETATS_TELETRAVAIL } from "@rationarium/contracts";
 import { TeletravailService } from "./teletravail.service.js";
 import { Demande, RequiertPermission, type ContexteDemande } from "../commun/permissions.garde.js";
 import { valider, dateSchema } from "../commun/http.js";

@@ -2,7 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma.service.js";
 import { AuditService } from "../commun/audit.service.js";
 import { PerimetreService, type Perimetre } from "../commun/perimetre.service.js";
-import type { TypeActivite } from "@trame/contracts";
+import type { TypeActivite } from "@rationarium/contracts";
 
 /**
  * Temps passé — M12, vue 21.

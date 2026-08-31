@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma.service.js";
-import { PERMISSIONS_GESTION_GLOBALE } from "@trame/contracts";
+import { PERMISSIONS_GESTION_GLOBALE } from "@rationarium/contracts";
 
 /**
  * Constructeur de prédicats de périmètre — `RG-SCOPE-01` à `RG-SCOPE-04`.

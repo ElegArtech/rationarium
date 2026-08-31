@@ -11,7 +11,7 @@
 export const THEMES = ["clair", "sombre", "auto"] as const;
 export type Theme = (typeof THEMES)[number];
 
-export const CLE_THEME = "trame.theme";
+export const CLE_THEME = "rationarium.theme";
 
 const requeteSombre = () => window.matchMedia("(prefers-color-scheme: dark)");
 

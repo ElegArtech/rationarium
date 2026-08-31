@@ -1,4 +1,4 @@
-# Trame
+# Rationarium
 
 Plateforme de pilotage des projets et des ressources humaines, pour une
 collectivité territoriale organisée en **Directions → Départements → Services**.
@@ -24,19 +24,19 @@ pnpm install
 docker compose -f deploiement/compose.dev.yaml up -d
 
 # 2. Le schéma.
-export DATABASE_URL='postgres://trame:trame@localhost:55432/trame'
-pnpm --filter @trame/db exec prisma migrate deploy
+export DATABASE_URL='postgres://rationarium:rationarium@localhost:55432/rationarium'
+pnpm --filter @rationarium/db exec prisma migrate deploy
 
 # 3. L'amorçage — UNE SEULE FOIS, et il est rejouable sans risque.
 pnpm build
-pnpm --filter @trame/api amorcer
+pnpm --filter @rationarium/api amorcer
 #   → affiche l'identifiant et le mot de passe du premier administrateur.
 #     Le mot de passe n'est montré qu'une fois ; il est à changer à la
 #     première connexion.
 
 # 4. Le serveur, puis le client, dans deux terminaux.
-COOKIE_SECRET=dev pnpm --filter @trame/api dev     # http://localhost:3000
-pnpm --filter @trame/web dev                       # http://localhost:5173
+COOKIE_SECRET=dev pnpm --filter @rationarium/api dev     # http://localhost:3000
+pnpm --filter @rationarium/web dev                       # http://localhost:5173
 ```
 
 Puis <http://localhost:5173>, et la connexion avec les identifiants affichés à
@@ -66,7 +66,7 @@ Pour travailler sur des écrans réellement peuplés — 500 utilisateurs,
 
 ```bash
 node -e "
-  const { creerClient, peupler, CIBLE } = await import('@trame/db');
+  const { creerClient, peupler, CIBLE } = await import('@rationarium/db');
   const p = creerClient(process.env.DATABASE_URL);
   await peupler(p, CIBLE);
   await p.\$disconnect();

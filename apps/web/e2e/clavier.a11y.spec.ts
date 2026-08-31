@@ -274,12 +274,12 @@ test.describe("RGAA 8.3, 8.6 — la langue et le titre de page", () => {
     });
 
     await page.goto("/profil");
-    await expect(page).toHaveTitle(/Trame$/);
+    await expect(page).toHaveTitle(/Rationarium$/);
     const surLeProfil = await page.title();
 
     await page.goto("/utilisateurs");
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-    await expect(page).toHaveTitle(/Utilisateurs — Trame/);
+    await expect(page).toHaveTitle(/Utilisateurs — Rationarium/);
 
     // Deux vues, deux titres : c'est ce qui rend l'historique et le
     // basculement de fenêtre utilisables.

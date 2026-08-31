@@ -2,8 +2,9 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
 import { execFileSync } from "node:child_process";
 import path from "node:path";
-import { PrismaClient, creerClient } from "@trame/db";
+import { PrismaClient, creerClient } from "@rationarium/db";
 import { AuthService, ErreurAuth } from "./auth.service.js";
+import { modificationProfilSchema } from "@rationarium/contracts";
 import { AuditService } from "../commun/audit.service.js";
 import { hacherMotDePasse } from "./mots-de-passe.js";
 
@@ -383,6 +384,37 @@ describe("EX-AUTH-09 — modifier son profil", () => {
     const relu = await prisma.user.findUniqueOrThrow({ where: { id: u.id } });
     expect(relu.theme).toBe("sombre");
     expect(relu.langue).toBe("en");
+  });
+
+  /**
+   * `RG-GEN-07` — **`profil()` doit rendre la version qu'il faudra lui
+   * renvoyer.**
+   *
+   * Elle manquait. `modificationProfilSchema` l'exige, donc aucune requête de
+   * modification n'était composable depuis ce que `/auth/me` rendait : la vue
+   * 35 a vécu tout le projet en lecture seule, ses deux commandes désactivées
+   * derrière un commentaire concluant qu'« il n'existe ni PATCH /auth/me ni
+   * équivalent ». La route existait ; c'est ce champ qui manquait, et le
+   * diagnostic tiré était le mauvais.
+   *
+   * Aucune boucle ne pouvait le voir : la lecture était juste, l'écriture
+   * était juste, et rien ne vérifiait que la SORTIE DE L'UNE suffise à
+   * composer L'ENTRÉE DE L'AUTRE. C'est le contrôle qui l'affirme.
+   */
+  it("RG-GEN-07 — ce que `profil()` rend suffit à composer une modification", async () => {
+    const u = await poserUnCompte();
+    const lu = await auth.profil(u.id);
+
+    expect(lu).toHaveProperty("version");
+    expect(typeof lu.version).toBe("number");
+
+    // Le schéma du contrat, appliqué à un corps bâti UNIQUEMENT depuis la
+    // lecture : c'est la boucle complète, et c'est elle qui était rompue.
+    const corps = { prenom: lu.prenom, nom: lu.nom, email: lu.email, version: lu.version };
+    expect(() => modificationProfilSchema.parse(corps)).not.toThrow();
+
+    const apres = await auth.modifierProfil(u.id, { ...corps, prenom: "Inès" });
+    expect(apres.prenom).toBe("Inès");
   });
 
   it("RG-AUTH-09 — REFUSE un avatar à la fois fichier ET prédéfini", async () => {

@@ -23,9 +23,9 @@
  *   node scripts/donnees-vues-22-29.mjs
  */
 
-const BASE = process.env["TRAME_API"] ?? "http://localhost:3000";
-const IDENTIFIANT = process.env["TRAME_LOGIN"] ?? "admin";
-const MOT_DE_PASSE = process.env["TRAME_MOTDEPASSE"] ?? "TrameLocal!2026";
+const BASE = process.env["RATIONARIUM_API"] ?? "http://localhost:3000";
+const IDENTIFIANT = process.env["RATIONARIUM_LOGIN"] ?? "admin";
+const MOT_DE_PASSE = process.env["RATIONARIUM_MOTDEPASSE"] ?? "RationariumLocal!2026";
 
 const connexion = await fetch(`${BASE}/api/auth/login`, {
   method: "POST",

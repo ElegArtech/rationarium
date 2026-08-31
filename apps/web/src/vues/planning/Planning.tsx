@@ -2,7 +2,7 @@ import { useMemo, useState, type CSSProperties } from "react";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Menu, MenuItem, MenuTrigger, Popover } from "react-aria-components";
-import { STATUTS_TACHE } from "@trame/contracts";
+import { STATUTS_TACHE } from "@rationarium/contracts";
 import * as api from "../../api/planning.js";
 import { messageErreur } from "../../api/erreurs.js";
 import { usePeut } from "../../session/session.js";

@@ -5,7 +5,7 @@ import {
   DUREES_TACHE_PREDEFINIE,
   PERIODES_JOURNEE,
   TYPES_RECURRENCE,
-} from "@trame/contracts";
+} from "@rationarium/contracts";
 import { ActiviteService } from "./activite.service.js";
 import { Demande, RequiertPermission, type ContexteDemande } from "../commun/permissions.garde.js";
 import { valider, dateSchema } from "../commun/http.js";

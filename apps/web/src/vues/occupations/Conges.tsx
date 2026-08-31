@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "react-aria-components";
-import { DEMI_JOURNEES, STATUTS_CONGE } from "@trame/contracts";
+import { DEMI_JOURNEES, STATUTS_CONGE } from "@rationarium/contracts";
 import * as api from "../../api/occupations.js";
 import { messageErreur } from "../../api/erreurs.js";
 import { usePeut, useSession } from "../../session/session.js";

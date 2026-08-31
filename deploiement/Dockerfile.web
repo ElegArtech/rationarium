@@ -17,7 +17,7 @@ ENV PATH=$PNPM_HOME:$PATH
 # terminal, et s'arrête. Dans une image, il n'y a jamais de terminal.
 ENV CI=true
 RUN corepack enable && corepack prepare pnpm@11.22.0 --activate
-WORKDIR /trame
+WORKDIR /rationarium
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/api/package.json apps/api/
@@ -27,10 +27,10 @@ COPY packages/contracts/package.json packages/contracts/
 RUN pnpm install --frozen-lockfile
 
 COPY . .
-RUN pnpm --filter @trame/contracts build && pnpm --filter @trame/web build
+RUN pnpm --filter @rationarium/contracts build && pnpm --filter @rationarium/web build
 
 # ── Service ─────────────────────────────────────────────────────────────────
 FROM caddy:2-alpine AS execution
-COPY --from=construction /trame/apps/web/dist /srv
+COPY --from=construction /rationarium/apps/web/dist /srv
 COPY deploiement/Caddyfile /etc/caddy/Caddyfile
 EXPOSE 80 443

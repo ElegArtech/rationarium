@@ -1,5 +1,5 @@
 {
-  "name": "@trame/api",
+  "name": "@rationarium/api",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -25,8 +25,8 @@
     "@nestjs/swagger": "11.4.6",
     "@node-rs/argon2": "2.1.0",
     "@prisma/adapter-pg": "^7.9.1",
-    "@trame/contracts": "workspace:*",
-    "@trame/db": "workspace:*",
+    "@rationarium/contracts": "workspace:*",
+    "@rationarium/db": "workspace:*",
     "csv-parse": "7.0.2",
     "csv-stringify": "6.8.3",
     "fastify": "5.12.0",

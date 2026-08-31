@@ -27,7 +27,7 @@ import "./coquille.css";
  * repliable, en-tête, zone de contenu.
  *
  * **Le vocabulaire de classes est celui de la maquette.** `.side`,
- * `.side-head`, `.side-mark`, `.side-nav`, `.side-foot`, `.main`, `.topbar`,
+ * `.side-head`, `.side-mark`, `.side-nav`, `.main`, `.topbar`,
  * `.crumb`, `.search`, `.topbar-right`, `.usermenu-btn`, `.page`. La version
  * précédente en avait inventé un autre — `.sidebar`, `.zone`, `.fil-ariane`,
  * `.recherche-globale`, `.topbar-actions` —, et comme la coquille enveloppe
@@ -90,7 +90,6 @@ export function Coquille({
 
   const groupes = navigationVisible(permissions);
   const initiales = `${utilisateur.prenom[0] ?? ""}${utilisateur.nom[0] ?? ""}`.toUpperCase();
-  const entrees = groupes.reduce((n, g) => n + g.entrees.length, 0);
 
   const basculer = () => {
     definirTheme(sombre ? "clair" : "sombre");
@@ -104,8 +103,8 @@ export function Coquille({
    * fournit pas.
    *
    * `filAriane` était une propriété que personne n'a jamais passée : le fil se
-   * réduisait à « Trame » sur les trente-cinq vues, alors que les maquettes
-   * disent « Trame / Télétravail ». Rien ne pouvait le voir — une propriété
+   * réduisait à « Rationarium » sur les trente-cinq vues, alors que les maquettes
+   * disent « Rationarium / Télétravail ». Rien ne pouvait le voir — une propriété
    * facultative non transmise ne produit ni erreur ni avertissement.
    *
    * La section courante est celle dont le chemin correspond, la plus longue
@@ -120,7 +119,7 @@ export function Coquille({
   /*
    * `/profil` n'est PAS une entrée de navigation — on y arrive par le menu
    * utilisateur —, donc la dérivation ci-dessus ne le trouve pas et le fil se
-   * réduisait à « Trame » là où la maquette 35 dit « Trame / Mon profil ».
+   * réduisait à « Rationarium » là où la maquette 35 dit « Rationarium / Mon profil ».
    * Une vue hors navigation se nomme par le libellé qui y mène.
    */
   const ariane =
@@ -134,14 +133,14 @@ export function Coquille({
 
   /*
    * RGAA 8.6 — **le titre de page doit être pertinent**, et il ne l'était pas :
-   * toutes les vues s'appelaient « Trame ». Le titre est **dérivé du `h1`
+   * toutes les vues s'appelaient « Rationarium ». Le titre est **dérivé du `h1`
    * affiché** plutôt que déclaré vue par vue : une liste parallèle finirait par
    * diverger, et une vue nouvelle l'oublierait.
    */
   useEffect(() => {
     const image = requestAnimationFrame(() => {
       const titre = document.querySelector("main h1")?.textContent?.trim();
-      document.title = titre ? `${titre} — Trame` : "Trame";
+      document.title = titre ? `${titre} — Rationarium` : "Rationarium";
     });
     return () => cancelAnimationFrame(image);
   }, [chemin]);
@@ -175,14 +174,30 @@ export function Coquille({
         {/* ══════════ Barre latérale ══════════ */}
         <aside className="side">
           <div className="side-head">
-            <span className="side-mark">Trame</span>
+            {/* Le logo EST le R : c'est un R stylisé, il tient donc la place de
+                l'initiale plutôt que de s'ajouter à côté d'elle. L'ensemble
+                s'annonce « Rationarium » d'un seul tenant — un `role="img"`
+                porte le nom, et le dessin comme le reste du mot sont masqués
+                aux technologies d'assistance, sans quoi on entendrait « R »
+                puis « ationarium ». */}
+            <span className="side-mark" role="img" aria-label="Rationarium">
+              <span className="side-logo" aria-hidden="true" />
+              <span aria-hidden="true">ationarium</span>
+            </span>
+            {/* Repliée, la barre n'a plus de place pour deux repères : le logo
+                devient lui-même le bouton qui déplie. Déployée, il redevient
+                l'initiale et le chevron reprend son rôle. */}
             <Button
-              className="icon-btn"
+              className={`icon-btn${repliee ? " side-logo-btn" : ""}`}
               onPress={() => setRepliee((r) => !r)}
               aria-label={repliee ? t("navigation.deplier") : t("navigation.replier")}
               aria-expanded={!repliee}
             >
-              <Icone nom="i-collapse" petite />
+              {repliee ? (
+                <span className="side-logo" aria-hidden="true" />
+              ) : (
+                <Icone nom="i-collapse" petite />
+              )}
             </Button>
           </div>
 
@@ -221,11 +236,6 @@ export function Coquille({
             ))}
           </nav>
 
-          {/* Le pied compte les entrées : c'est ce que la maquette y met, et
-              c'est ce qui rend lisible la variation de droits (§ D.3). */}
-          <div className="side-foot">
-            <span className="eyebrow">{t("navigation.entrees", { n: entrees })}</span>
-          </div>
         </aside>
 
         {/* ══════════ Zone principale ══════════ */}
@@ -241,7 +251,7 @@ export function Coquille({
             </Button>
 
             <p className="crumb">
-              <a href="/">Trame</a>
+              <a href="/">Rationarium</a>
               {ariane.map((etape) => (
                 <span key={etape.libelle}>
                   <span aria-hidden="true"> / </span>

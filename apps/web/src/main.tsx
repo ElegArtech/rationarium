@@ -11,7 +11,7 @@ import { FournisseurMessages } from "./composants/messages.js";
 import { ErreurApi } from "./api/client.js";
 
 /**
- * @trame/web — point d'entrée du client.
+ * @rationarium/web — point d'entrée du client.
  *
  * Quatre choses sont posées ici, et rien d'autre : le cache de requêtes, le
  * thème mémorisé, la file de messages d'action, le routeur.
