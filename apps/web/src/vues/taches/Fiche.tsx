@@ -6,6 +6,7 @@ import { Button } from "react-aria-components";
 import { STATUTS_TACHE, PRIORITES, ROLES_RACI } from "@rationarium/contracts";
 import * as api from "../../api/taches.js";
 import * as apiTemps from "../../api/occupations.js";
+import * as apiProjets from "../../api/projets.js";
 import * as apiReferentiels from "../../api/referentiels.js";
 import { appeler, ErreurApi } from "../../api/client.js";
 import { messageErreur } from "../../api/erreurs.js";
@@ -134,10 +135,13 @@ export function FicheTache({ tacheId }: { tacheId: string }) {
         <div className="proj-acts">
           {/*
             « Modifier » ouvre, dans la maquette, un formulaire complet de
-            tâche. Le serveur sait modifier (`PATCH /taches/:id`) et la fiche
-            édite déjà en place titre, statut et avancement ; le formulaire
-            complet — dates, estimation, jalon, confidentialité — reste à
-            porter. Question remontée.
+            tâche. La fiche édite désormais en place le titre, le statut,
+            l'avancement, le **projet** et les **horaires** ; restent dates,
+            estimation, jalon et confidentialité. Question remontée.
+
+            Le commentaire est réécrit à chaque geste ajouté : un commentaire
+            qui affirme une absence est une affirmation que RIEN ne vérifie, et
+            le dépôt a déjà payé trois fois d'en avoir laissé vieillir un.
           */}
           {modifiable ? (
             <Button className="chip-btn" isDisabled aria-description={t("fiche.modifierIndisponible")}>
@@ -156,6 +160,7 @@ export function FicheTache({ tacheId }: { tacheId: string }) {
         ouverte={assignesOuvert}
         surFermeture={() => setAssignesOuvert(false)}
         tacheId={tacheId}
+        version={tache.version}
         projectId={tache.project?.id ?? null}
         actuels={tache.assignes.map((a) => a.userId)}
       />
@@ -259,7 +264,17 @@ export function FicheTache({ tacheId }: { tacheId: string }) {
               <span className="panel-title">{t("liste.colRattachement")}</span>
             </div>
             <dl className="side-dl">
-              <Ligne libelle={t("liste.projet")} valeur={tache.project?.nom ?? null} />
+              {/*
+                `EX-TSK-15` — le rattachement se change ICI. Il s'affichait en
+                lecture seule : le serveur ne savait pas le faire, et l'écran
+                n'avait rien à appeler. Une tâche née hors projet le restait
+                pour toujours.
+              */}
+              <RattachementProjet
+                tache={tache}
+                modifiable={modifiable}
+                surChangement={(projectId) => modifier.mutate({ version: tache.version, projectId })}
+              />
               <Ligne libelle={t("liste.jalon")} valeur={tache.milestone?.nom ?? null} />
               <Ligne libelle={t("fiche.epopee")} valeur={tache.epic?.nom ?? null} />
               <dt>{t("fiche.tiersAssignes")}</dt>
@@ -302,16 +317,15 @@ export function FicheTache({ tacheId }: { tacheId: string }) {
                       : null
                 }
               />
-              <Ligne
-                libelle={t("fiche.horaires")}
-                valeur={
-                  tache.heureDebut && tache.heureFin
-                    ? t("fiche.deAHeure", {
-                        debut: formaterHeure(tache.heureDebut),
-                        fin: formaterHeure(tache.heureFin),
-                      })
-                    : null
-                }
+              {/*
+                `EX-TSK-04` — les horaires se SAISISSENT. Ils étaient lus par
+                le planning et écrits par rien : deux colonnes mortes en
+                écriture, et un créneau de réunion insaisissable.
+              */}
+              <HorairesEditables
+                tache={tache}
+                modifiable={modifiable}
+                surEnregistrement={(champs) => modifier.mutate({ version: tache.version, ...champs })}
               />
               <Ligne
                 libelle={t("fiche.estimation")}
@@ -368,6 +382,176 @@ function Ligne({ libelle, valeur }: { libelle: string; valeur: string | null }) 
     <>
       <dt>{libelle}</dt>
       <dd className={valeur ? "" : "is-none"}>{valeur ?? t("nonRenseigne")}</dd>
+    </>
+  );
+}
+
+/**
+ * `EX-TSK-15` — **rattacher ou détacher la tâche d'un projet, a posteriori.**
+ *
+ * « Aucun projet (tâche indépendante) » est une option nommée, exactement comme
+ * à la création : `RG-TSK-01` en fait un cas nominal, et le présenter comme un
+ * champ qu'on vide dirait le contraire.
+ *
+ * Le détachement emporte le jalon et l'épopée — c'est le serveur qui le fait
+ * (`RG-JAL-04`), pas l'écran : la fiche est simplement rechargée et les montre
+ * vides. Le client ne devine pas ce que la règle produit.
+ */
+function RattachementProjet({
+  tache,
+  modifiable,
+  surChangement,
+}: {
+  tache: api.FicheTache;
+  modifiable: boolean;
+  surChangement: (projectId: string | null) => void;
+}) {
+  const { t } = useTranslation("taches");
+  const peut = usePeut();
+
+  /*
+   * `RG-GEN-06` — le client masque par courtoisie. Sans `projects:read`, il n'y
+   * a aucune liste à proposer : on retombe sur la lecture seule plutôt que sur
+   * un menu vide, qui donnerait à croire qu'il n'existe aucun projet.
+   */
+  const ouvert = modifiable && peut("projects:read");
+  const projets = useQuery({
+    queryKey: ["projets", {}],
+    queryFn: () => apiProjets.portefeuille({}),
+    enabled: ouvert,
+  });
+
+  if (!ouvert) {
+    return <Ligne libelle={t("liste.projet")} valeur={tache.project?.nom ?? null} />;
+  }
+
+  const liste = projets.data?.projets ?? [];
+  /*
+   * Le projet courant peut être hors de la liste rendue — filtre de
+   * portefeuille, projet archivé. L'omettre ferait retomber le `select` sur sa
+   * première option, et le prochain enregistrement déplacerait la tâche sans
+   * que personne ne l'ait demandé.
+   */
+  const options =
+    tache.project && !liste.some((p) => p.id === tache.project?.id)
+      ? [{ id: tache.project.id, nom: tache.project.nom }, ...liste]
+      : liste;
+
+  return (
+    <>
+      <dt>
+        <label htmlFor="fiche-projet">{t("liste.projet")}</label>
+      </dt>
+      <dd>
+        <select
+          className="mini-select"
+          id="fiche-projet"
+          value={tache.project?.id ?? ""}
+          onChange={(e) => surChangement(e.target.value === "" ? null : e.target.value)}
+        >
+          <option value="">{t("liste.aucunProjet")}</option>
+          {options.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.nom}
+            </option>
+          ))}
+        </select>
+      </dd>
+    </>
+  );
+}
+
+/**
+ * `EX-TSK-04` — les horaires, saisissables.
+ *
+ * L'état local suit les champs et **se resynchronise** quand la tâche change
+ * sous lui — même parti pris que le titre : un refus du serveur (horaires
+ * incohérents, conflit de version) recharge la fiche, et le champ doit alors
+ * revenir à ce que le serveur dit, pas rester sur une valeur refusée.
+ *
+ * Les deux champs partent ENSEMBLE : le serveur confronte la fin au début déjà
+ * en base, et n'envoyer que l'un des deux ferait dépendre le refus de l'ordre
+ * dans lequel on quitte les champs.
+ */
+function HorairesEditables({
+  tache,
+  modifiable,
+  surEnregistrement,
+}: {
+  tache: api.FicheTache;
+  modifiable: boolean;
+  surEnregistrement: (champs: { heureDebut: string | null; heureFin: string | null }) => void;
+}) {
+  const { t } = useTranslation("taches");
+  const [debut, setDebut] = useState(tache.heureDebut ?? "");
+  const [fin, setFin] = useState(tache.heureFin ?? "");
+
+  useEffect(() => {
+    setDebut(tache.heureDebut ?? "");
+    setFin(tache.heureFin ?? "");
+  }, [tache.heureDebut, tache.heureFin]);
+
+  if (!modifiable) {
+    return (
+      <Ligne
+        libelle={t("fiche.horaires")}
+        valeur={
+          tache.heureDebut && tache.heureFin
+            ? t("fiche.deAHeure", {
+                debut: formaterHeure(tache.heureDebut),
+                fin: formaterHeure(tache.heureFin),
+              })
+            : null
+        }
+      />
+    );
+  }
+
+  const enregistrer = () => {
+    const prochainDebut = debut === "" ? null : debut;
+    const prochaineFin = fin === "" ? null : fin;
+    if (prochainDebut === (tache.heureDebut ?? null) && prochaineFin === (tache.heureFin ?? null)) {
+      return;
+    }
+    surEnregistrement({ heureDebut: prochainDebut, heureFin: prochaineFin });
+  };
+
+  return (
+    <>
+      <dt>{t("fiche.horaires")}</dt>
+      <dd>
+        {/*
+          L'enregistrement se déclenche quand le focus quitte **le couple**, pas
+          chaque champ. Enregistrer à chaque champ posait un défaut réel : le
+          premier départ rechargeait la fiche, l'effet de resynchronisation
+          remettait le second champ à sa valeur serveur SOUS LA MAIN de
+          l'utilisateur, et la moitié de la saisie disparaissait. Une plage
+          horaire se saisit à deux valeurs : elle s'enregistre à deux valeurs.
+        */}
+        <div
+          className="day-row"
+          onBlur={(e) => {
+            if (e.currentTarget.contains(e.relatedTarget)) return;
+            enregistrer();
+          }}
+        >
+          <input
+            className="mini-select"
+            type="time"
+            value={debut}
+            aria-label={t("liste.heureDebut")}
+            onChange={(e) => setDebut(e.target.value)}
+          />
+          <input
+            className="mini-select"
+            type="time"
+            value={fin}
+            aria-label={t("liste.heureFin")}
+            onChange={(e) => setFin(e.target.value)}
+          />
+        </div>
+        <p className="field-hint">{t("liste.horairesAide")}</p>
+      </dd>
     </>
   );
 }
@@ -450,7 +634,8 @@ function SousTaches({ tache, modifiable }: { tache: api.FicheTache; modifiable: 
     onSuccess: rafraichir,
   });
   const reordonner = useMutation({
-    mutationFn: (ids: string[]) => api.reordonnerSousTaches(tache.id, ids),
+    // `RG-GEN-07` — l'ordre voyage entier, donc la version lue l'accompagne.
+    mutationFn: (ids: string[]) => api.reordonnerSousTaches(tache.id, ids, tache.version),
     onSuccess: rafraichir,
   });
 
@@ -747,6 +932,9 @@ function Commentaires({ tache }: { tache: api.FicheTache }) {
     onSuccess: () => void rafraichir(),
   });
 
+  /** `undefined` quand le serveur n'a pas rendu la clé — pas quand elle est vide. */
+  const fil = tache.commentaires;
+
   const envoi = useMutation({
     mutationFn: () => api.commenter(tache.id, contenu.trim()),
     onSuccess: () => {
@@ -759,13 +947,21 @@ function Commentaires({ tache }: { tache: api.FicheTache }) {
     <section className="panel">
       <div className="panel-head">
         <span className="panel-title">{t("fiche.commentaires")}</span>
-        <span className="kcol-n">{tache.commentaires.length}</span>
+        {fil ? <span className="kcol-n">{fil.length}</span> : null}
       </div>
 
-      {tache.commentaires.length === 0 ? (
+      {/*
+        `RG-DROITS-03` — le serveur ne rend PAS la clé `commentaires` à qui
+        n'a pas `comments:read`. Absente n'est pas vide : afficher « aucun
+        commentaire » mentirait sur l'état de la tâche. L'écran dit donc ce
+        qu'il en est, et le geste d'écriture disparaît avec la lecture.
+      */}
+      {!fil ? (
+        <p className="dep-none sous-taches-vide">{t("fiche.filNonAutorise")}</p>
+      ) : fil.length === 0 ? (
         <p className="dep-none sous-taches-vide">{t("fiche.aucunCommentaire")}</p>
       ) : (
-        tache.commentaires.map((c) => (
+        fil.map((c) => (
           <article className="cmt" key={c.id}>
             <AvatarAgent prenom={c.auteur.prenom} nom={c.auteur.nom} />
             <div className="bloc-etroit">
@@ -827,7 +1023,7 @@ function Commentaires({ tache }: { tache: api.FicheTache }) {
         ))
       )}
 
-      {peut("comments:create") ? (
+      {fil && peut("comments:create") ? (
         <form
           className="cmt-new"
           onSubmit={(e) => {
@@ -1244,12 +1440,15 @@ function FenetreAssignes({
   ouverte,
   surFermeture,
   tacheId,
+  version,
   projectId,
   actuels,
 }: {
   ouverte: boolean;
   surFermeture: () => void;
   tacheId: string;
+  /** `RG-GEN-07` — la liste part ENTIÈRE, donc la version lue l'accompagne. */
+  version: number;
   projectId: string | null;
   actuels: string[];
 }) {
@@ -1292,7 +1491,7 @@ function FenetreAssignes({
   const candidats = projectId && !projetSansMembre ? membres : (tous.data ?? []);
 
   const enregistrer = useMutation({
-    mutationFn: () => api.definirAssignes(tacheId, choisis),
+    mutationFn: () => api.definirAssignes(tacheId, choisis, version),
     onSuccess: () => {
       annoncer("ok", t("fiche.assignesEnregistres"));
       surFermeture();

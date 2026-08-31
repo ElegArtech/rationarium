@@ -46,6 +46,43 @@ export const RequiertPermission = (permission: string) => {
   return SetMetadata(CLE_PERMISSION, permission);
 };
 
+/**
+ * Déclare qu'un point d'entrée exige **au moins une** permission d'une liste.
+ *
+ * `RG-TSK-02` est la première règle du cadrage à l'imposer : « créer une tâche
+ * dans un projet et créer une tâche hors projet sont deux droits distincts.
+ * Sans aucun des deux, la création est refusée. » `POST /taches` n'a qu'une
+ * route pour les deux gestes, et douze modèles de rôles détiennent
+ * `tasks:create_standalone` sans `tasks:create` : les garder derrière
+ * `tasks:create` seul les empêchait de créer quoi que ce soit.
+ *
+ * **Ce décorateur ne dit pas quelle permission va avec quel corps** — il ouvre
+ * la porte, il ne trie pas. Le tri est fait à l'intérieur, sur le corps reçu
+ * (`TachesService.creer`), selon la même doctrine que `champs-gouvernes.ts` :
+ * la garde protège la route, le service requestionne le champ. Ici c'est
+ * l'ABSENCE du champ qui appelle l'autre permission.
+ *
+ * Nommé en toutes lettres plutôt que d'ajouter un variadique à
+ * `RequiertPermission` : « au moins une » et « toutes » se lisent pareil sur
+ * une liste d'arguments, et la confusion des deux, sur une garde, se paie.
+ */
+export const RequiertUnePermissionParmi = (...permissions: string[]) => {
+  if (permissions.length < 2) {
+    throw new Error(
+      "RequiertUnePermissionParmi attend au moins deux permissions ; " +
+        "pour une seule, employer RequiertPermission.",
+    );
+  }
+  for (const permission of permissions) {
+    if (!estAuCatalogue(permission)) {
+      throw new Error(
+        `Permission hors catalogue : « ${permission} ». Voir packages/contracts/src/permissions.ts.`,
+      );
+    }
+  }
+  return SetMetadata(CLE_PERMISSION, permissions);
+};
+
 /** Marque un point d'entrée comme ouvert — l'exception, jamais la règle. */
 export const CLE_PUBLIC = "trame:public";
 export const Public = () => SetMetadata(CLE_PUBLIC, true);
@@ -110,9 +147,14 @@ export class GardePermission implements CanActivate {
     //    lues depuis le client — ADR-0008.
     const permissions = await this.permissionsDe(session.userId);
 
-    // 3. La permission exigée. Liste blanche stricte.
-    const requise = this.reflector.getAllAndOverride<string>(CLE_PERMISSION, cibles);
-    if (requise && !permissions.has(requise)) {
+    // 3. La ou les permissions exigées. Liste blanche stricte.
+    //
+    // Un tableau vaut « au moins une » (`RequiertUnePermissionParmi`) : la
+    // route s'ouvre au premier droit détenu, et c'est le point d'entrée qui
+    // décide ensuite lequel le corps reçu appelle réellement.
+    const requise = this.reflector.getAllAndOverride<string | string[]>(CLE_PERMISSION, cibles);
+    const exigees = requise === undefined ? [] : Array.isArray(requise) ? requise : [requise];
+    if (exigees.length > 0 && !exigees.some((p) => permissions.has(p))) {
       // RG-ADM-03 — l'accès refusé est tracé, y compris sur le journal d'audit
       // lui-même. D'où l'appel ici, sur le chemin d'échec.
       await this.audit.tracer({
@@ -120,7 +162,7 @@ export class GardePermission implements CanActivate {
         typeEntite: "Endpoint",
         entiteId: `${requete.method} ${requete.url}`,
         acteurId: session.userId,
-        detail: { permission: requise },
+        detail: { permission: exigees.join(" ou ") },
       });
       throw new ForbiddenException({ cle: "commun:droits.permissionRequise" });
     }

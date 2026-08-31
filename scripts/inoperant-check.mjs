@@ -485,7 +485,15 @@ function balayerRoutes(gouvernes, services) {
         k++;
       }
       const decorateurs = voisins.join("\n");
-      const permission = /@RequiertPermission\(\s*"([^"]+)"\s*\)/.exec(decorateurs)?.[1] ?? null;
+      /*
+       * `@RequiertPermission("x")` comme `@RequiertUnePermissionParmi("x", "y")`
+       * — sans quoi une route gardée par la seconde serait lue « aucune garde »
+       * et ce contrôle deviendrait aveugle à ses champs sensibles, en silence.
+       * On retient la PREMIÈRE permission : c'est elle qui sert de contexte à
+       * `sensible()`, et la liste est toujours d'un même domaine.
+       */
+      const permission =
+        /@Requiert(?:Permission|UnePermissionParmi)\(\s*"([^"]+)"/.exec(decorateurs)?.[1] ?? null;
       const garde =
         permission ??
         (/@Personnel\(\)/.test(decorateurs)

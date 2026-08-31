@@ -32,6 +32,19 @@ let notifications: NotificationsService;
 let file: FileService;
 let conges: CongesService;
 let taches: TachesService;
+
+/*
+ * `RG-TSK-02` et `RG-TSK-03` — la création d'une tâche exige désormais les
+ * droits de l'acteur : deux droits distincts selon qu'elle a un projet ou non,
+ * et l'appartenance au projet. Ces suites-ci n'éprouvent aucune des deux ; on
+ * leur passe des droits sans réserve, dont `tasks:manage_any` qui lève
+ * l'appartenance. Les deux règles ont leurs propres suites dans `src/taches`.
+ */
+const DROITS_TACHE = new Set([
+  "tasks:create",
+  "tasks:create_standalone",
+  "tasks:manage_any",
+]) as ReadonlySet<string>;
 let perimetres: PerimetreService;
 
 let agent: string;
@@ -247,7 +260,7 @@ describe("cadrage/01 § M18 — les six déclencheurs", () => {
   });
 
   it("une tâche assignée prévient ses assignés, jamais son créateur", async () => {
-    await taches.creer({ titre: "Rédiger la note", assigneIds: [agent, validateur] }, validateur);
+    await taches.creer({ titre: "Rédiger la note", assigneIds: [agent, validateur] }, validateur, DROITS_TACHE);
 
     expect((await notifsDe(agent)).map((n) => n.type)).toEqual(["tache_assignee"]);
     // Celui qui crée la tâche vient de la voir.
