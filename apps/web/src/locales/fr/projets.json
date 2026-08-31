@@ -56,7 +56,17 @@
     "champsObligatoires": "Veuillez remplir tous les champs obligatoires.",
     "cree": "Projet créé.",
     "echecCreation": "Le projet n'a pas pu être créé.",
-    "modifier": "Modifier le projet"
+    "modifier": "Modifier le projet",
+    "iconeDuProjet": "Icône du projet",
+    "choisirIcone": "Choisir une icône du projet — actuellement : {icone}",
+    "aucune": "Aucune",
+    "aucuneIcone": "Aucune icône",
+    "iconeIndice": "Repère du projet dans le planning, les tâches et le Gantt",
+    "rechercherIcone": "Rechercher une icône…",
+    "categoriesIcone": "Catégories d'icônes",
+    "toutesCategories": "Toutes",
+    "bibliothequeIcones": "Bibliothèque d'icônes",
+    "aucuneIconeTrouvee": "Aucune icône trouvée"
   },
   "fiche": {
     "leProjet": "le projet",
@@ -104,7 +114,15 @@
     "annulerFait": "Projet annulé. Il reste restaurable.",
     "capturerInstantane": "Capturer un instantané",
     "instantanePris": "Instantané capturé — {pct} % au {date}.",
-    "echecInstantane": "L'instantané n'a pas pu être capturé."
+    "echecInstantane": "L'instantané n'a pas pu être capturé.",
+    "historiqueInstantanes": "Historique des instantanés",
+    "lHistorique": "l'historique des instantanés",
+    "instantanesCompte": "{n, plural, one {# relevé} other {# relevés}}",
+    "instantaneDate": "Date du relevé",
+    "progressionAu": "Progression au {date}",
+    "tachesFiniesSur": "{finies, number} terminées sur {total, number}",
+    "historiqueVide": "Aucun instantané pour ce projet",
+    "historiqueVideExplication": "Un relevé est capturé automatiquement chaque nuit. Utilisez « Capturer un instantané » pour figer l'avancement d'aujourd'hui sans attendre."
   },
   "jalons": {
     "laFeuille": "la feuille de route",

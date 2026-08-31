@@ -47,6 +47,9 @@ async function projet() {
   const p = await projets.creer(
     { nom: `Projet ${uuid().slice(0, 8)}`, dateDebut: utc("2026-01-01"), dateFin: utc("2026-12-31") },
     acteur,
+    // `RG-SCOPE-02` — la création gouverne `chefId`/`sponsorId` comme la
+    // modification. Ce projet n'en pose aucun ; l'ensemble reste vide.
+    new Set<string>(),
   );
   return p.id;
 }

@@ -18,6 +18,137 @@
   color: var(--muted);
 }
 
+/*
+ * `EX-PRJ-04` — le sélecteur d'icône. Section 14 des maquettes.
+ *
+ * Il vit ici plutôt que dans le socle : il n'a qu'un hôte, la fenêtre de
+ * création et de modification d'un projet, et un nom de classe qui monte au
+ * socle est un nom que la vue suivante croira disponible.
+ *
+ * Les bordures partent de `--line-strong`, pas de `--line` comme la maquette :
+ * `socle.css` relève déjà `.icat` au titre de « toute frontière de contrôle
+ * doit être perceptible ». L'écrire directement évite que deux règles de même
+ * spécificité se disputent l'ordre de chargement.
+ */
+.ipick-bloc {
+  margin-bottom: 4px;
+}
+.ipick {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+.ipick-btn {
+  width: 46px;
+  height: 46px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+  background: var(--surface);
+  flex: none;
+}
+.ipick-btn:hover {
+  border-color: var(--accent);
+}
+.ipick-btn.is-empty {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 9px;
+}
+.ipick-name {
+  font-size: 12.5px;
+}
+.ipick-hint {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.ilib {
+  margin-top: 11px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--surface-2);
+}
+.ilib-top {
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--line);
+}
+.ilib-recherche {
+  width: 100%;
+}
+.icats {
+  display: flex;
+  gap: 5px;
+  overflow-x: auto;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line);
+}
+.icat {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.05em;
+  padding: 3px 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: 2px;
+  color: var(--muted);
+  background: var(--surface);
+  white-space: nowrap;
+}
+.icat[aria-pressed="true"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+.igrid {
+  display: grid;
+  grid-template-columns: repeat(9, 1fr);
+  gap: 4px;
+  padding: 10px;
+  max-height: 186px;
+  overflow-y: auto;
+}
+.iopt {
+  aspect-ratio: 1;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  background: var(--surface);
+}
+.iopt:hover {
+  border-color: var(--line-strong);
+  color: var(--ink);
+}
+.iopt[aria-pressed="true"] {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+/*
+ * L'état nommé du brief : « Aucune icône trouvée ». Distinct de « Aucune
+ * icône », qui décrit la sélection — les deux peuvent être vrais ensemble.
+ */
+.ilib-none {
+  padding: 22px;
+  text-align: center;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+@media (max-width: 640px) {
+  .igrid {
+    grid-template-columns: repeat(6, 1fr);
+  }
+}
+
 /* Lignes-cartes : les valeurs s'alignent d'un projet à l'autre, donc se comparent. */
 .plist {
   display: flex;

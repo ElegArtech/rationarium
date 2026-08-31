@@ -1,4 +1,7 @@
-import { memo } from "react";
+import { memo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { Button } from "react-aria-components";
+import { CATEGORIES_ICONE_PROJET, ICONES_PROJET } from "@rationarium/contracts";
 
 /**
  * Les cinquante symboles de projet — `mockups/10`, bibliothèque d'icônes.
@@ -194,5 +197,160 @@ export function IconeProjet({
         <span aria-hidden="true">{nom.slice(0, 1).toUpperCase()}</span>
       )}
     </i>
+  );
+}
+
+/**
+ * Comparaison de recherche : sans casse ni diacritiques.
+ *
+ * « energie » doit trouver « Énergie ». Une recherche qui exige l'accent ne
+ * sert qu'à ceux qui savent déjà ce qu'ils cherchent — et onze des cinquante
+ * libellés français en portent un.
+ */
+const normaliser = (s: string) =>
+  s.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
+
+/**
+ * `EX-PRJ-04` — **le sélecteur d'icône, avec sa recherche et ses catégories.**
+ *
+ * La bibliothèque existait des deux côtés — les cinquante codes dans
+ * `@rationarium/contracts`, les cinquante tracés au-dessus — et **rien ne les
+ * employait** : aucun écran ne proposait de choisir, et le serveur acceptait
+ * `icone` en chaîne libre. Une exigence livrée avec ses deux moitiés et sans le
+ * raccord entre elles ; c'est exactement la famille de défauts qui survit à
+ * toutes les boucles vertes, puisqu'une fonctionnalité absente ne fait échouer
+ * aucun contrôle.
+ *
+ * Le brief de la vue 10 dit ce que le sélecteur doit porter : une recherche
+ * (« Rechercher une icône… »), les onze catégories, et deux états nommés —
+ * « Aucune icône » et « Aucune icône trouvée ». Il ajoute que « le sélecteur
+ * mérite plus de soin qu'un champ de formulaire ordinaire » : l'icône est le
+ * repère du projet dans le planning, les tâches et le Gantt.
+ *
+ * **Recherche et catégorie se CUMULENT**, elles ne se remplacent pas : filtrer
+ * sur « Environnement » puis chercher « eau » doit resserrer, pas repartir sur
+ * les cinquante. C'est la lecture qu'attend quelqu'un qui vient de cliquer une
+ * catégorie.
+ *
+ * La recherche porte sur le libellé **de la langue affichée**, jamais sur le
+ * code : personne ne cherche « p-drop ».
+ *
+ * **Rappuyer l'icône choisie la retire.** C'est ce que `aria-pressed` promet :
+ * un bouton bascule se relâche. Sans cela, une icône posée par erreur ne
+ * s'enlèverait plus, et « Aucune icône » deviendrait un état qu'on ne peut
+ * qu'avoir, jamais retrouver.
+ */
+export function SelecteurIconeProjet({
+  valeur,
+  surChangement,
+  idRecherche,
+}: {
+  valeur: string | null;
+  surChangement: (icone: string | null) => void;
+  /** L'identifiant du champ de recherche — unique par formulaire. */
+  idRecherche: string;
+}) {
+  const { t, i18n } = useTranslation("projets");
+  const langue = i18n.language.startsWith("en") ? "en" : "fr";
+
+  const [ouverte, setOuverte] = useState(false);
+  const [recherche, setRecherche] = useState("");
+  const [categorie, setCategorie] = useState("");
+
+  const choisie = ICONES_PROJET.find((i) => i.code === valeur) ?? null;
+  const nomChoisi = choisie ? choisie[langue] : t("portefeuille.aucuneIcone");
+
+  const q = normaliser(recherche);
+  const listees = ICONES_PROJET.filter(
+    (i) => (!categorie || i.categorie === categorie) && (!q || normaliser(i[langue]).includes(q)),
+  );
+
+  return (
+    <>
+      <div className="ipick">
+        <Button
+          className={`ipick-btn${choisie ? "" : " is-empty"}`}
+          aria-expanded={ouverte}
+          aria-label={t("portefeuille.choisirIcone", { icone: nomChoisi })}
+          onPress={() => setOuverte((v) => !v)}
+        >
+          {choisie ? (
+            <svg className="picon" aria-hidden="true">
+              <use href={`#${choisie.code}`} />
+            </svg>
+          ) : (
+            <span aria-hidden="true">{t("portefeuille.aucune")}</span>
+          )}
+        </Button>
+        <span>
+          {/* Le nom de l'icône change sans que le focus bouge : il est ANNONCÉ,
+              pas seulement repeint. Sans `aria-live`, un choix fait au clavier
+              ne se confirme nulle part. */}
+          <span className="ipick-name" aria-live="polite">
+            {nomChoisi}
+          </span>
+          <span className="ipick-hint">{t("portefeuille.iconeIndice")}</span>
+        </span>
+      </div>
+
+      {ouverte ? (
+        <div className="ilib">
+          <div className="ilib-top">
+            <input
+              className="f-input ilib-recherche"
+              id={idRecherche}
+              type="search"
+              value={recherche}
+              onChange={(e) => setRecherche(e.target.value)}
+              placeholder={t("portefeuille.rechercherIcone")}
+              aria-label={t("portefeuille.rechercherIcone")}
+            />
+          </div>
+
+          <div className="icats" role="group" aria-label={t("portefeuille.categoriesIcone")}>
+            <Button
+              className="icat"
+              aria-pressed={categorie === ""}
+              onPress={() => setCategorie("")}
+            >
+              {t("portefeuille.toutesCategories")}
+            </Button>
+            {CATEGORIES_ICONE_PROJET.map((c) => (
+              <Button
+                key={c.code}
+                className="icat"
+                aria-pressed={categorie === c.code}
+                onPress={() => setCategorie(c.code)}
+              >
+                {c[langue]}
+              </Button>
+            ))}
+          </div>
+
+          {listees.length > 0 ? (
+            <div className="igrid" role="group" aria-label={t("portefeuille.bibliothequeIcones")}>
+              {listees.map((i) => (
+                <Button
+                  key={i.code}
+                  className="iopt"
+                  aria-pressed={valeur === i.code}
+                  aria-label={i[langue]}
+                  onPress={() => surChangement(valeur === i.code ? null : i.code)}
+                >
+                  <svg className="picon" aria-hidden="true">
+                    <use href={`#${i.code}`} />
+                  </svg>
+                </Button>
+              ))}
+            </div>
+          ) : (
+            /* L'état nommé du brief. Il n'est pas interchangeable avec
+               « Aucune icône » : l'un décrit la sélection, l'autre le résultat
+               d'une recherche, et les deux peuvent être vrais en même temps. */
+            <p className="ilib-none">{t("portefeuille.aucuneIconeTrouvee")}</p>
+          )}
+        </div>
+      ) : null}
+    </>
   );
 }

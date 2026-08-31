@@ -178,6 +178,8 @@ export const modifierProjet = (
     dateDebut?: string;
     dateFin?: string;
     budgetHeures?: number | null;
+    /** `EX-PRJ-04` — `null` retire l'icône, une chaîne hors bibliothèque est refusée. */
+    icone?: string | null;
     version: number;
   },
 ) => appeler<{ id: string }>(`/projets/${id}`, { methode: "PATCH", corps: donnees });
@@ -216,12 +218,12 @@ export const restaurerProjet = (id: string) =>
  * haut. La lire comme un nombre marcherait à l'affichage et casserait à la
  * première comparaison.
  *
- * Deux réserves, tenues hors de ce lot et consignées :
+ * Les deux réserves consignées ici sont levées :
  * — `RG-PRJ-09` veut une capture **périodique** (`cadrage/03 § 5.4`, `pg-boss`)
- *   et **aucun travail de fond ne l'exécute** : cet appel est aujourd'hui le
- *   seul producteur d'instantanés du produit ;
- * — `EX-PRJ-13` demande de **consulter l'historique**, et aucune route ne
- *   l'expose : `fiche()` ne rend que `dernierInstantane`.
+ *   et `ProjetsModule` planifie désormais `projets.instantanes` chaque nuit,
+ *   avec le verrou d'instance unique. Ce bouton n'est plus le seul producteur ;
+ * — `EX-PRJ-13` demande de **consulter l'historique** : `instantanes()`
+ *   ci-dessous sert `GET /projets/:id/instantanes`, la ligne entière.
  */
 export type Instantane = {
   id: string;
@@ -236,6 +238,19 @@ export type Instantane = {
 
 export const capturerInstantane = (id: string, date: string) =>
   appeler<Instantane>(`/projets/${id}/instantane`, { methode: "POST", corps: { date } });
+
+/**
+ * `EX-PRJ-13` — **l'historique**, du plus récent au plus ancien.
+ *
+ * La ligne ENTIÈRE, et c'est le sujet : `GET /rapports?projets=<id>` rendait
+ * déjà une tendance, mais réduite à `date` + `progression` moyennés par date.
+ * Les trois autres colonnes — tâches totales, tâches finies, heures
+ * consommées — n'étaient lisibles nulle part, alors que la capture les écrit
+ * depuis le premier jour. Un instantané amputé ne dit pas si la progression a
+ * monté parce qu'on a fini des tâches ou parce qu'on en a supprimé.
+ */
+export const instantanes = (id: string) =>
+  appeler<Instantane[]>(`/projets/${id}/instantanes`);
 
 /**
  * L'inventaire de ce que la suppression détruirait.

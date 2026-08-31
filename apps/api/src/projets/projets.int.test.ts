@@ -4,6 +4,13 @@ import { execFileSync } from "node:child_process";
 import path from "node:path";
 import { creerClient, type PrismaClient } from "@rationarium/db";
 import { ProjetsService, ErreurProjet } from "./projets.service.js";
+/*
+ * `EX-PRJ-04` — la bibliothèque d'icônes est un vocabulaire FERMÉ, et la
+ * validation d'entrée vit au contrôleur. L'exercer au service prouverait une
+ * garantie qui n'existe pas : le service écrit ce qu'on lui passe.
+ */
+import { ProjetsController } from "./projets.controller.js";
+import type { ContexteDemande } from "../commun/permissions.garde.js";
 import { AuditService } from "../commun/audit.service.js";
 import { NotificationsService } from "../notifications/notifications.service.js";
 import { FileService } from "../notifications/file.service.js";
@@ -105,7 +112,7 @@ const toutes = new Set(["projects:manage_any"]);
 describe("RG-PRJ-01 — cohérence des dates", () => {
   it("refuse une fin antérieure au début", async () => {
     await expect(
-      projets.creer(nouveauProjet({ dateDebut: utc("2026-06-01"), dateFin: utc("2026-05-01") }), chef),
+      projets.creer(nouveauProjet({ dateDebut: utc("2026-06-01"), dateFin: utc("2026-05-01") }), chef, TOUS_DROITS_PROJET),
     ).rejects.toMatchObject({ code: "dates_incoherentes" });
   });
 });
@@ -113,12 +120,12 @@ describe("RG-PRJ-01 — cohérence des dates", () => {
 describe("RG-PRJ-07 — la progression est CALCULÉE, jamais saisie", () => {
   it("un projet sans tâche est à 0, pas à 100", async () => {
     // Une division vide mal gardée donnerait 100 %.
-    const p = await projets.creer(nouveauProjet(), chef);
+    const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
     expect(await projets.progression(p.id)).toBe(0);
   });
 
   it("moyenne des avancements, et non ratio de tâches terminées", async () => {
-    const p = await projets.creer(nouveauProjet(), chef);
+    const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
     await prisma.task.createMany({
       data: [
         { titre: "A", projectId: p.id, avancement: 90, statut: "doing" },
@@ -130,7 +137,7 @@ describe("RG-PRJ-07 — la progression est CALCULÉE, jamais saisie", () => {
   });
 
   it("toutes terminées donne 100", async () => {
-    const p = await projets.creer(nouveauProjet(), chef);
+    const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
     await prisma.task.createMany({
       data: [
         { titre: "A", projectId: p.id, avancement: 100, statut: "done" },
@@ -143,7 +150,7 @@ describe("RG-PRJ-07 — la progression est CALCULÉE, jamais saisie", () => {
 
 describe("RG-PRJ-08 — le budget consommé inclut le temps des TÂCHES", () => {
   it("somme le temps déclaré sur le projet et sur ses tâches", async () => {
-    const p = await projets.creer(nouveauProjet({ budgetHeures: 100 }), chef);
+    const p = await projets.creer(nouveauProjet({ budgetHeures: 100 }), chef, TOUS_DROITS_PROJET);
     const tache = await prisma.task.create({ data: { titre: "T", projectId: p.id } });
 
     await prisma.timeEntry.create({
@@ -162,7 +169,7 @@ describe("RG-PRJ-08 — le budget consommé inclut le temps des TÂCHES", () => 
   });
 
   it("signale le dépassement", async () => {
-    const p = await projets.creer(nouveauProjet({ budgetHeures: 4 }), chef);
+    const p = await projets.creer(nouveauProjet({ budgetHeures: 4 }), chef, TOUS_DROITS_PROJET);
     await prisma.timeEntry.create({
       data: { userId: chef, projectId: p.id, date: utc("2026-03-02"), heures: 6 },
     });
@@ -172,7 +179,7 @@ describe("RG-PRJ-08 — le budget consommé inclut le temps des TÂCHES", () => 
   });
 
   it("un projet sans budget alloué ne calcule pas de restant", async () => {
-    const p = await projets.creer(nouveauProjet(), chef);
+    const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
     const b = await projets.budget(p.id);
     expect(b.alloue).toBeNull();
     expect(b.restant).toBeNull();
@@ -181,14 +188,14 @@ describe("RG-PRJ-08 — le budget consommé inclut le temps des TÂCHES", () => 
 
 describe("RG-PRJ-02, RG-PRJ-04 — suppression logique et restauration", () => {
   it("annuler passe au statut Annulé, sans effacer", async () => {
-    const p = await projets.creer(nouveauProjet(), chef);
+    const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
     await projets.annuler(p.id, chef);
     const apres = await prisma.project.findUniqueOrThrow({ where: { id: p.id } });
     expect(apres.statut).toBe("cancelled");
   });
 
   it("un projet annulé refuse toute modification jusqu'à restauration", async () => {
-    const p = await projets.creer(nouveauProjet(), chef);
+    const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
     await projets.annuler(p.id, chef);
 
     const membre = await agent();
@@ -205,7 +212,7 @@ describe("RG-PRJ-02, RG-PRJ-04 — suppression logique et restauration", () => {
 
 describe("RG-PRJ-05 — archivage, deux refus DISTINCTS", () => {
   it("archiver deux fois est refusé, et le refus dit lequel des deux cas", async () => {
-    const p = await projets.creer(nouveauProjet(), chef);
+    const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
     await projets.archiver(p.id, true, chef);
     await expect(projets.archiver(p.id, true, chef)).rejects.toMatchObject({
       code: "deja_archive",
@@ -213,7 +220,7 @@ describe("RG-PRJ-05 — archivage, deux refus DISTINCTS", () => {
   });
 
   it("désarchiver un projet non archivé est refusé, avec l'autre code", async () => {
-    const p = await projets.creer(nouveauProjet(), chef);
+    const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
     await expect(projets.archiver(p.id, false, chef)).rejects.toMatchObject({
       code: "pas_archive",
     });
@@ -222,7 +229,7 @@ describe("RG-PRJ-05 — archivage, deux refus DISTINCTS", () => {
 
 describe("RG-PRJ-03 — la suppression définitive PROPOSE une alternative", () => {
   it("du temps déclaré bloque, et l'archivage est proposé", async () => {
-    const p = await projets.creer(nouveauProjet(), chef);
+    const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
     await prisma.timeEntry.create({
       data: { userId: chef, projectId: p.id, date: utc("2026-03-02"), heures: 3 },
     });
@@ -237,7 +244,7 @@ describe("RG-PRJ-03 — la suppression définitive PROPOSE une alternative", () 
   });
 
   it("un projet sans historique se supprime, et l'effacement est annoncé", async () => {
-    const p = await projets.creer(nouveauProjet(), chef);
+    const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
     await prisma.task.create({ data: { titre: "T", projectId: p.id } });
     const impact = await projets.impactSuppression(p.id);
     expect(impact.blocages).toEqual([]);
@@ -248,7 +255,7 @@ describe("RG-PRJ-03 — la suppression définitive PROPOSE une alternative", () 
 
 describe("RG-PRJ-06 — un membre ne s'ajoute pas deux fois", () => {
   it("le second ajout est refusé", async () => {
-    const p = await projets.creer(nouveauProjet(), chef);
+    const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
     const membre = await agent();
     await projets.ajouterMembre(p.id, { userId: membre, roleProjet: "Développeur" }, chef);
     await expect(
@@ -269,7 +276,7 @@ describe("EX-PRJ-09 — le rôle d'un membre se change SANS le retirer", () => {
    * absente de la vue, et la cause était en amont.
    */
   it("le rôle et l'allocation changent, l'appartenance ne bouge pas", async () => {
-    const p = await projets.creer(nouveauProjet(), chef);
+    const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
     const membre = await agent();
     await projets.ajouterMembre(p.id, { userId: membre, roleProjet: "Développeur", tauxAllocation: 50 }, chef);
 
@@ -290,7 +297,7 @@ describe("EX-PRJ-09 — le rôle d'un membre se change SANS le retirer", () => {
     // C'est tout l'intérêt du point d'entrée : le contournement par
     // retrait-puis-ajout prévenait la personne qu'elle rejoignait un projet
     // qu'elle n'avait jamais quitté.
-    const p = await projets.creer(nouveauProjet(), chef);
+    const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
     const membre = await agent();
     await projets.ajouterMembre(p.id, { userId: membre, roleProjet: "Développeur" }, chef);
     const avant = await prisma.notification.count({ where: { userId: membre } });
@@ -301,7 +308,7 @@ describe("EX-PRJ-09 — le rôle d'un membre se change SANS le retirer", () => {
   });
 
   it("RG-ADM — le changement est tracé, avec l'avant et l'après", async () => {
-    const p = await projets.creer(nouveauProjet(), chef);
+    const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
     const membre = await agent();
     await projets.ajouterMembre(p.id, { userId: membre, roleProjet: "Développeur" }, chef);
     await projets.changerRoleMembre(p.id, membre, { roleProjet: "Architecte" }, chef);
@@ -316,7 +323,7 @@ describe("EX-PRJ-09 — le rôle d'un membre se change SANS le retirer", () => {
   });
 
   it("une personne qui n'est pas membre est refusée, pas ajoutée en douce", async () => {
-    const p = await projets.creer(nouveauProjet(), chef);
+    const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
     const etranger = await agent();
     await expect(
       projets.changerRoleMembre(p.id, etranger, { roleProjet: "Testeur" }, chef),
@@ -332,7 +339,7 @@ describe("RG-JAL-05 — la feuille de route NOMME les tâches sans jalon", () =>
    * Une tâche rattachée à rien est précisément celle qu'on oublie.
    */
   it("elles sont rendues à part, et comptées", async () => {
-    const p = await projets.creer(nouveauProjet(), chef);
+    const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
     const j = await projets.creerJalon(
       { nom: "Jalon", dateEcheance: utc("2026-06-30"), projectId: p.id },
       chef,
@@ -355,7 +362,7 @@ describe("RG-JAL-05 — la feuille de route NOMME les tâches sans jalon", () =>
   it("la ligne porte QUI et COMBIEN, pas seulement quoi et quand", async () => {
     // La maquette pose une pile d'avatars et une charge sur chaque ligne.
     // Sans elles, la feuille de route ne dit pas si un jalon tiendra.
-    const p = await projets.creer(nouveauProjet(), chef);
+    const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
     const j = await projets.creerJalon(
       { nom: "Jalon", dateEcheance: utc("2026-06-30"), projectId: p.id },
       chef,
@@ -377,13 +384,13 @@ describe("RG-JAL-05 — la feuille de route NOMME les tâches sans jalon", () =>
 
 describe("RG-JAL-01 — le statut d'un jalon est CALCULÉ", () => {
   it("sans tâche : En attente", async () => {
-    const p = await projets.creer(nouveauProjet(), chef);
+    const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
     const j = await projets.creerJalon({ nom: "J1", dateEcheance: utc("2026-06-30"), projectId: p.id }, chef);
     expect(await projets.statutJalon(j.id)).toBe("pending");
   });
 
   it("toutes à faire : En attente", async () => {
-    const p = await projets.creer(nouveauProjet(), chef);
+    const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
     const j = await projets.creerJalon({ nom: "J", dateEcheance: utc("2026-06-30"), projectId: p.id }, chef);
     await prisma.task.createMany({
       data: [
@@ -395,7 +402,7 @@ describe("RG-JAL-01 — le statut d'un jalon est CALCULÉ", () => {
   });
 
   it("une seule en cours suffit : En cours", async () => {
-    const p = await projets.creer(nouveauProjet(), chef);
+    const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
     const j = await projets.creerJalon({ nom: "J", dateEcheance: utc("2026-06-30"), projectId: p.id }, chef);
     await prisma.task.createMany({
       data: [
@@ -407,7 +414,7 @@ describe("RG-JAL-01 — le statut d'un jalon est CALCULÉ", () => {
   });
 
   it("toutes terminées : Terminé", async () => {
-    const p = await projets.creer(nouveauProjet(), chef);
+    const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
     const j = await projets.creerJalon({ nom: "J", dateEcheance: utc("2026-06-30"), projectId: p.id }, chef);
     await prisma.task.createMany({
       data: [
@@ -419,7 +426,7 @@ describe("RG-JAL-01 — le statut d'un jalon est CALCULÉ", () => {
   });
 
   it("il n'est PAS stocké : changer une tâche change le statut, sans rafraîchissement", async () => {
-    const p = await projets.creer(nouveauProjet(), chef);
+    const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
     const j = await projets.creerJalon({ nom: "J", dateEcheance: utc("2026-06-30"), projectId: p.id }, chef);
     const t = await prisma.task.create({
       data: { titre: "A", projectId: p.id, milestoneId: j.id, statut: "todo" },
@@ -433,7 +440,7 @@ describe("RG-JAL-01 — le statut d'un jalon est CALCULÉ", () => {
 
 describe("RG-JAL-05 — supprimer un jalon DÉTACHE ses tâches", () => {
   it("les tâches survivent, sans jalon", async () => {
-    const p = await projets.creer(nouveauProjet(), chef);
+    const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
     const j = await projets.creerJalon({ nom: "J", dateEcheance: utc("2026-06-30"), projectId: p.id }, chef);
     const t = await prisma.task.create({
       data: { titre: "Survivante", projectId: p.id, milestoneId: j.id },
@@ -451,8 +458,8 @@ describe("RG-JAL-05 — supprimer un jalon DÉTACHE ses tâches", () => {
 describe("EX-PRJ-01 — portefeuille : compteur ET compteur filtré", () => {
   it("le total n'est pas déductible de la liste filtrée", async () => {
     const p = await global();
-    await projets.creer(nouveauProjet({ statut: "active" }), chef);
-    await projets.creer(nouveauProjet({ statut: "draft" }), chef);
+    await projets.creer(nouveauProjet({ statut: "active" }), chef, TOUS_DROITS_PROJET);
+    await projets.creer(nouveauProjet({ statut: "draft" }), chef, TOUS_DROITS_PROJET);
 
     const tout = await projets.portefeuille(p, toutes);
     const filtre = await projets.portefeuille(p, toutes, { statut: "draft" });
@@ -464,7 +471,7 @@ describe("EX-PRJ-01 — portefeuille : compteur ET compteur filtré", () => {
 
   it("les projets archivés sont hors du portefeuille par défaut", async () => {
     const p = await global();
-    const archive = await projets.creer(nouveauProjet(), chef);
+    const archive = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
     await projets.archiver(archive.id, true, chef);
 
     const actifs = await projets.portefeuille(p, toutes);
@@ -476,7 +483,7 @@ describe("EX-PRJ-01 — portefeuille : compteur ET compteur filtré", () => {
 
   it("RG-SCOPE-02 — le portefeuille respecte la visibilité des projets", async () => {
     const etranger = await agent("Étrangère");
-    await projets.creer(nouveauProjet(), chef);
+    await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
 
     const p = await perimetres.resoudre(etranger, new Set());
     const vus = await projets.portefeuille(p, new Set());
@@ -486,7 +493,7 @@ describe("EX-PRJ-01 — portefeuille : compteur ET compteur filtré", () => {
 
 describe("RG-PRJ-09 — instantanés d'avancement", () => {
   it("capture progression, tâches et heures", async () => {
-    const p = await projets.creer(nouveauProjet({ budgetHeures: 50 }), chef);
+    const p = await projets.creer(nouveauProjet({ budgetHeures: 50 }), chef, TOUS_DROITS_PROJET);
     await prisma.task.createMany({
       data: [
         { titre: "A", projectId: p.id, avancement: 100, statut: "done" },
@@ -505,7 +512,7 @@ describe("RG-PRJ-09 — instantanés d'avancement", () => {
   });
 
   it("recapturer le même jour met à jour, sans doublonner", async () => {
-    const p = await projets.creer(nouveauProjet(), chef);
+    const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
     await projets.capturerInstantane(p.id, utc("2026-04-30"));
     await prisma.task.create({ data: { titre: "A", projectId: p.id, avancement: 100, statut: "done" } });
     await projets.capturerInstantane(p.id, utc("2026-04-30"));
@@ -513,6 +520,263 @@ describe("RG-PRJ-09 — instantanés d'avancement", () => {
     const snaps = await prisma.projectSnapshot.findMany({ where: { projectId: p.id } });
     expect(snaps).toHaveLength(1);
     expect(snaps[0]!.progression).toBe(100);
+  });
+
+  /*
+   * La capture PÉRIODIQUE, qui n'existait pas : le bouton de la vue 11 était le
+   * seul producteur d'instantanés du produit. Une instance en exploitation
+   * gardait donc une courbe de tendance vide, et l'historique de `EX-PRJ-13`
+   * n'aurait rien eu à montrer. Le travail `pg-boss` est déclaré par
+   * `ProjetsModule` ; c'est son TRAITEMENT qui se vérifie ici.
+   */
+  it("RG-PRJ-09 — la capture périodique parcourt les projets vivants, et EUX SEULS", async () => {
+    const vivant = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
+    const archive = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
+    const annule = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
+    await projets.archiver(archive.id, true, chef);
+    await projets.annuler(annule.id, chef);
+
+    const jour = utc("2026-05-14");
+    const bilan = await projets.capturerInstantanesDuJour(jour);
+    expect(bilan.echecs).toEqual([]);
+    expect(bilan.captures).toBeGreaterThan(0);
+
+    const pris = async (id: string) =>
+      prisma.projectSnapshot.count({ where: { projectId: id, date: jour } });
+    expect(await pris(vivant.id)).toBe(1);
+    // Un projet mort n'avance plus : en capturer la ligne chaque nuit ferait
+    // grossir la table d'un point identique par jour et par projet clos.
+    expect(await pris(archive.id)).toBe(0);
+    expect(await pris(annule.id)).toBe(0);
+  });
+
+  /*
+   * HONNÊTETÉ SUR CE QUE CE TEST PROUVE : il ne rougit PAS si l'on retire la
+   * troncature explicite de `capturerInstantanesDuJour`, parce que la colonne
+   * est `@db.Date` et que PostgreSQL tronque de son côté. Ce qu'il pin, c'est
+   * la propriété du TRAVAIL de nuit : une seconde exécution le même jour —
+   * un rejeu après incident, deux instances mal verrouillées — rafraîchit la
+   * ligne du jour au lieu d'en empiler une seconde. La troncature du service
+   * reste écrite pour dire l'intention, pas pour être le seul rempart.
+   */
+  it("RG-PRJ-09 — deux exécutions du même jour rafraîchissent la ligne, elles ne l'empilent pas", async () => {
+    const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
+    // Deux instants du même jour, à onze heures d'écart.
+    await projets.capturerInstantanesDuJour(new Date("2026-05-15T06:30:00.000Z"));
+    await projets.capturerInstantanesDuJour(new Date("2026-05-15T17:45:00.000Z"));
+
+    const snaps = await prisma.projectSnapshot.findMany({ where: { projectId: p.id } });
+    expect(snaps).toHaveLength(1);
+    expect(snaps[0]!.date.toISOString().slice(0, 10)).toBe("2026-05-15");
+  });
+});
+
+/**
+ * `EX-PRJ-13` — « Consulter l'historique des instantanés d'avancement ».
+ *
+ * L'exigence porte DEUX verbes et un seul était servi. `fiche()` ne rend que
+ * `dernierInstantane` — un point —, et la seule autre lecture du produit,
+ * `tendance()` dans M17, moyenne `progression` par date sur un LOT de projets
+ * en jetant `tachesTotal`, `tachesFinies` et `heuresConsommees`. Un projet
+ * écrivait donc chaque nuit des colonnes que rien ne pouvait relire.
+ */
+describe("EX-PRJ-13 — consulter l'historique des instantanés", () => {
+  it("EX-PRJ-13 — rend la ligne ENTIÈRE, du plus récent au plus ancien", async () => {
+    const p = await projets.creer(nouveauProjet({ budgetHeures: 100 }), chef, TOUS_DROITS_PROJET);
+    await prisma.task.createMany({
+      data: [
+        { titre: "A", projectId: p.id, avancement: 100, statut: "done" },
+        { titre: "B", projectId: p.id, avancement: 20, statut: "doing" },
+      ],
+    });
+    await prisma.timeEntry.create({
+      data: { userId: chef, projectId: p.id, date: utc("2026-02-03"), heures: 9 },
+    });
+
+    await projets.capturerInstantane(p.id, utc("2026-02-28"));
+    await projets.capturerInstantane(p.id, utc("2026-01-31"));
+    await projets.capturerInstantane(p.id, utc("2026-03-31"));
+
+    const perimetre = await global();
+    const histo = await projets.instantanes(p.id, perimetre, toutes);
+
+    // L'ordre : le plus récent d'abord. Un historique long ne doit pas faire
+    // descendre le point le plus utile en bas de tableau.
+    expect(histo.map((i) => i.date.toISOString().slice(0, 10))).toEqual([
+      "2026-03-31",
+      "2026-02-28",
+      "2026-01-31",
+    ]);
+
+    // LES TROIS COLONNES QUE `tendance()` JETTE. C'est tout le sujet de
+    // l'exigence : sans elles, on ne sait pas si la progression a monté parce
+    // qu'on a fini des tâches ou parce qu'on en a supprimé.
+    const dernier = histo[0]!;
+    expect(dernier.progression).toBe(60);
+    expect(dernier.tachesTotal).toBe(2);
+    expect(dernier.tachesFinies).toBe(1);
+    expect(Number(dernier.heuresConsommees)).toBe(9);
+  });
+
+  it("EX-PRJ-13 — un projet sans instantané rend une liste vide, pas une erreur", async () => {
+    const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
+    const perimetre = await global();
+    expect(await projets.instantanes(p.id, perimetre, toutes)).toEqual([]);
+  });
+
+  /*
+   * Permission PUIS périmètre. La garde a exigé `reports:read` ; elle ne dit
+   * rien du projet visé. Sans ce contrôle, l'historique complet d'un projet
+   * hors périmètre — sa progression, sa charge, son effort — se lisait de qui
+   * en devinait l'identifiant.
+   */
+  it("EX-PRJ-13, RG-SCOPE-02 — l'historique d'un projet hors périmètre est REFUSÉ", async () => {
+    const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
+    await projets.capturerInstantane(p.id, utc("2026-06-30"));
+
+    const etranger = await agent("Étranger");
+    const dehors = await perimetres.resoudre(etranger, new Set(["reports:read"]));
+
+    await expect(projets.instantanes(p.id, dehors, new Set(["reports:read"]))).rejects.toMatchObject(
+      { code: "hors_perimetre" },
+    );
+
+    // Le chef, lui, le voit : c'est le MÊME appel, et c'est ce qui prouve que
+    // le refus tient au périmètre et non à l'appel lui-même.
+    const dedans = await perimetres.resoudre(chef, new Set(["reports:read"]));
+    expect(await projets.instantanes(p.id, dedans, new Set(["reports:read"]))).toHaveLength(1);
+  });
+
+  it("EX-PRJ-13 — un projet inexistant se dit introuvable, pas hors périmètre", async () => {
+    const perimetre = await global();
+    await expect(projets.instantanes(uuid(), perimetre, toutes)).rejects.toMatchObject({
+      code: "introuvable",
+    });
+  });
+});
+
+/**
+ * `EX-PRJ-04` — « Choisir une icône dans une bibliothèque thématique avec
+ * recherche ».
+ *
+ * Les cinquante codes vivaient dans `@rationarium/contracts`, les cinquante
+ * tracés dans le client, et **le serveur n'a jamais confronté les deux** :
+ * `icone: z.string().max(20)` acceptait n'importe quoi. La pastille rendait
+ * alors un `<use href="#nimportequoi">` que rien ne définit — une boîte vide,
+ * sans erreur, sans avertissement.
+ *
+ * Le contrôle se fait au CONTRÔLEUR, parce que c'est là que vit la validation
+ * d'entrée. L'exercer au service prouverait une garantie qui n'existe pas :
+ * le service écrit ce qu'on lui passe.
+ */
+/**
+ * `RG-SCOPE-02` à la CRÉATION — la moitié qui n'avait pas été alignée.
+ *
+ * `PATCH /projets/:id` refusait `chefId` à qui n'a que `projects:update` ;
+ * `POST /projets` l'acceptait de qui n'a que `projects:create`. Le même champ,
+ * la même règle, deux réponses selon le verbe : fermer une porte et laisser la
+ * fenêtre. Un relecteur qui vérifie la modification en conclut que la règle
+ * tient, et il a vérifié la mauvaise moitié.
+ *
+ * Un seul modèle de rôle est concerné — `PORTFOLIO_MANAGER`, seul à détenir
+ * `projects:create` sans `projects:manage_members`. Il ne perd rien de
+ * cohérent : il ne pouvait déjà pas changer le chef d'un projet existant.
+ */
+describe("RG-SCOPE-02 — nommer un chef ou un sponsor est gouverné DÈS LA CRÉATION", () => {
+  const creation = new Set(["projects:create"]);
+
+  it("RG-SCOPE-02 — `projects:create` seul REFUSE de nommer un chef à la création", async () => {
+    await expect(
+      projets.creer(nouveauProjet({ chefId: chef }), chef, creation),
+    ).rejects.toMatchObject({
+      code: "champ_hors_permission",
+      detail: { champ: "chefId", permission: "projects:manage_members" },
+    });
+  });
+
+  it("RG-SCOPE-02 — `projects:create` seul REFUSE aussi de nommer un sponsor", async () => {
+    const sponsor = await agent("Sponsor refusé");
+    await expect(
+      projets.creer(nouveauProjet({ sponsorId: sponsor }), chef, creation),
+    ).rejects.toMatchObject({
+      code: "champ_hors_permission",
+      detail: { champ: "sponsorId", permission: "projects:manage_members" },
+    });
+  });
+
+  it("RG-SCOPE-02 — sans ces champs, `projects:create` seul crée sans entrave", async () => {
+    // Le cas nominal doit rester ouvert : l'alignement ne ferme pas la
+    // création, il ferme l'attribution d'un accès à autrui.
+    const p = await projets.creer(nouveauProjet(), chef, creation);
+    expect(p.id).toBeTruthy();
+  });
+
+  it("RG-SCOPE-02 — avec `projects:manage_members`, le chef se nomme à la création", async () => {
+    const p = await projets.creer(
+      nouveauProjet({ chefId: chef }),
+      chef,
+      new Set(["projects:create", "projects:manage_members"]),
+    );
+    const relu = await prisma.project.findUniqueOrThrow({ where: { id: p.id } });
+    expect(relu.chefId).toBe(chef);
+  });
+});
+
+describe("EX-PRJ-04 — l'icône est choisie DANS la bibliothèque", () => {
+  /** Le contrôleur nu, et le contexte que la garde y dépose une fois passée. */
+  const controleur = () => new ProjetsController(projets);
+  const contexte = async (): Promise<ContexteDemande> => ({
+    userId: chef,
+    permissions: TOUS_DROITS_PROJET,
+    perimetre: await perimetres.resoudre(chef, new Set(["projects:manage_any"])),
+  });
+  const nouveau = (icone?: string) => ({
+    nom: `Projet ${uuid().slice(0, 8)}`,
+    dateDebut: "2026-01-01",
+    dateFin: "2026-12-31",
+    ...(icone === undefined ? {} : { icone }),
+  });
+
+  it("EX-PRJ-04 — la création REFUSE une icône hors bibliothèque", async () => {
+    const d = await contexte();
+    // `p-licorne` a la FORME d'un code : le préfixe, la longueur, la casse.
+    // Seule la confrontation à la liste la refuse — un `max(20)` la laissait
+    // passer, et la pastille rendait une boîte vide sans rien signaler.
+    await expect(
+      Promise.resolve().then(() => controleur().creer(nouveau("p-licorne"), d)),
+    ).rejects.toMatchObject({ status: 400 });
+  });
+
+  it("EX-PRJ-04 — la création ACCEPTE une icône du catalogue, et l'écrit", async () => {
+    const d = await contexte();
+    const cree = await controleur().creer(nouveau("p-recycle"), d);
+    const relu = await prisma.project.findUniqueOrThrow({ where: { id: cree.id } });
+    expect(relu.icone).toBe("p-recycle");
+  });
+
+  it("EX-PRJ-04 — la modification REFUSE aussi une icône hors bibliothèque", async () => {
+    const d = await contexte();
+    const p = await projets.creer(nouveauProjet({ icone: "p-folder" }), chef, TOUS_DROITS_PROJET);
+
+    await expect(
+      Promise.resolve().then(() =>
+        controleur().modifier(p.id, { icone: "☂", version: p.version }, d),
+      ),
+    ).rejects.toMatchObject({ status: 400 });
+
+    // Le refus n'a rien écrit : l'icône d'origine tient.
+    const relu = await prisma.project.findUniqueOrThrow({ where: { id: p.id } });
+    expect(relu.icone).toBe("p-folder");
+  });
+
+  it("EX-PRJ-04 — `null` RETIRE l'icône ; c'est l'état « Aucune icône », pas un refus", async () => {
+    const d = await contexte();
+    const p = await projets.creer(nouveauProjet({ icone: "p-leaf" }), chef, TOUS_DROITS_PROJET);
+
+    await controleur().modifier(p.id, { icone: null, version: p.version }, d);
+
+    const relu = await prisma.project.findUniqueOrThrow({ where: { id: p.id } });
+    expect(relu.icone).toBeNull();
   });
 });
 
@@ -529,7 +793,7 @@ describe("RG-PRJ-09 — instantanés d'avancement", () => {
  */
 describe("EX-PRJ-05 — modifier un projet", () => {
   it("change le nom, les dates et le chef, et le relit depuis la base", async () => {
-    const p = await projets.creer(nouveauProjet(), chef);
+    const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
     const r = await projets.modifier(
       p.id,
       { nom: "Refonte du portail", dateFin: utc("2027-06-30"), chefId: chef, version: p.version },
@@ -552,6 +816,7 @@ describe("EX-PRJ-05 — modifier un projet", () => {
     const p = await projets.creer(
       nouveauProjet({ dateDebut: utc("2026-06-01"), dateFin: utc("2026-12-31") }),
       chef,
+      TOUS_DROITS_PROJET,
     );
     await expect(
       projets.modifier(p.id, { dateFin: utc("2026-03-01"), version: p.version }, chef, TOUS_DROITS_PROJET),
@@ -559,7 +824,7 @@ describe("EX-PRJ-05 — modifier un projet", () => {
   });
 
   it("RG-PRJ-04 — REFUSE de modifier un projet annulé, mais laisse le RESTAURER", async () => {
-    const p = await projets.creer(nouveauProjet(), chef);
+    const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
     await projets.annuler(p.id, chef);
     const annule = await prisma.project.findUniqueOrThrow({ where: { id: p.id } });
 
@@ -575,7 +840,7 @@ describe("EX-PRJ-05 — modifier un projet", () => {
   });
 
   it("RG-GEN-07 — deux écritures concurrentes ne s'écrasent pas en silence", async () => {
-    const p = await projets.creer(nouveauProjet(), chef);
+    const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
     await projets.modifier(p.id, { nom: "Première", version: p.version }, chef, TOUS_DROITS_PROJET);
     await expect(
       projets.modifier(p.id, { nom: "Seconde", version: p.version }, chef, TOUS_DROITS_PROJET),
@@ -586,7 +851,7 @@ describe("EX-PRJ-05 — modifier un projet", () => {
   });
 
   it("M20 — la modification est tracée au journal d'audit", async () => {
-    const p = await projets.creer(nouveauProjet(), chef);
+    const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
     await projets.modifier(p.id, { nom: "Tracée", version: p.version }, chef, TOUS_DROITS_PROJET);
     const traces = await prisma.auditLog.findMany({
       where: { entiteId: p.id, action: "project.update" },
@@ -608,7 +873,7 @@ describe("L-38 — RG-SCOPE-02 : nommer un chef est un geste d'appartenance", ()
   const SANS_MEMBRES: ReadonlySet<string> = new Set(["projects:update"]);
 
   it("REFUSE d'écrire chefId sans projects:manage_members", async () => {
-    const p = await projets.creer(nouveauProjet(), chef);
+    const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
     const avant = await prisma.project.findUniqueOrThrow({ where: { id: p.id } });
     const intrus = crypto.randomUUID();
 
@@ -626,7 +891,7 @@ describe("L-38 — RG-SCOPE-02 : nommer un chef est un geste d'appartenance", ()
   });
 
   it("REFUSE de même sponsorId — les deux donnent la visibilité", async () => {
-    const p = await projets.creer(nouveauProjet(), chef);
+    const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
     await expect(
       projets.modifier(
         p.id,
@@ -638,7 +903,7 @@ describe("L-38 — RG-SCOPE-02 : nommer un chef est un geste d'appartenance", ()
   });
 
   it("laisse passer le reste — le refus est CIBLÉ, pas un verrou sur la route", async () => {
-    const p = await projets.creer(nouveauProjet(), chef);
+    const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
     const apres = await projets.modifier(
       p.id,
       { nom: "Refonte", version: p.version },
@@ -668,12 +933,13 @@ describe("EX-PRJ-03 — créer un projet : nom, description, statut, priorité, 
         dateDebut: utc("2026-02-01"),
         dateFin: utc("2026-11-30"),
         budgetHeures: 1200,
-        icone: "num-portail",
+        icone: "p-screen",
         chefId: chef,
         sponsorId: sponsor,
         departementId: departement,
       },
       chef,
+      TOUS_DROITS_PROJET,
     );
 
     const relu = await prisma.project.findUniqueOrThrow({ where: { id: p.id } });
@@ -684,7 +950,7 @@ describe("EX-PRJ-03 — créer un projet : nom, description, statut, priorité, 
     expect(relu.dateDebut.toISOString().slice(0, 10)).toBe("2026-02-01");
     expect(relu.dateFin.toISOString().slice(0, 10)).toBe("2026-11-30");
     expect(Number(relu.budgetHeures)).toBe(1200);
-    expect(relu.icone).toBe("num-portail");
+    expect(relu.icone).toBe("p-screen");
     expect(relu.chefId).toBe(chef);
     expect(relu.sponsorId).toBe(sponsor);
     expect(relu.departementId).toBe(departement);
@@ -697,7 +963,7 @@ describe("EX-PRJ-03 — créer un projet : nom, description, statut, priorité, 
      * apparaîtrait dans le portefeuille de tout le monde le jour de sa
      * création.
      */
-    const p = await projets.creer(nouveauProjet(), chef);
+    const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
     const relu = await prisma.project.findUniqueOrThrow({ where: { id: p.id } });
     expect(relu.statut).toBe("draft");
     expect(relu.priorite).toBe("normal");
@@ -708,14 +974,14 @@ describe("EX-PRJ-03 — créer un projet : nom, description, statut, priorité, 
 
   it("le CRÉATEUR est enregistré, distinct du chef de projet", async () => {
     const autre = await agent("Créateur");
-    const p = await projets.creer(nouveauProjet({ chefId: chef }), autre);
+    const p = await projets.creer(nouveauProjet({ chefId: chef }), autre, TOUS_DROITS_PROJET);
     const relu = await prisma.project.findUniqueOrThrow({ where: { id: p.id } });
     expect(relu.createurId).toBe(autre);
     expect(relu.chefId).toBe(chef);
   });
 
   it("la création est tracée", async () => {
-    const p = await projets.creer(nouveauProjet(), chef);
+    const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
     const trace = await prisma.auditLog.findFirst({
       where: { action: "project.create", entiteId: p.id },
     });
@@ -730,7 +996,7 @@ describe("EX-PRJ-06 — archiver / désarchiver un projet", () => {
      * C'est la différence avec `RG-PRJ-02` (annulation) et avec la suppression
      * définitive : l'archivage ne change pas le statut, il change la vitrine.
      */
-    const p = await projets.creer(nouveauProjet({ statut: "active" }), chef);
+    const p = await projets.creer(nouveauProjet({ statut: "active" }), chef, TOUS_DROITS_PROJET);
     await prisma.task.create({ data: { titre: "Un reste", projectId: p.id } });
 
     await projets.archiver(p.id, true, chef);
@@ -751,7 +1017,7 @@ describe("EX-PRJ-06 — archiver / désarchiver un projet", () => {
   });
 
   it("les archivés RESTENT DEMANDABLES — masquer sans moyen de retrouver ferait croire à une suppression", async () => {
-    const p = await projets.creer(nouveauProjet(), chef);
+    const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
     await projets.archiver(p.id, true, chef);
 
     const archives = await projets.portefeuille(await global(), toutes, { archive: true });
@@ -762,7 +1028,7 @@ describe("EX-PRJ-06 — archiver / désarchiver un projet", () => {
   });
 
   it("les deux gestes sont tracés SOUS DES ACTIONS DISTINCTES", async () => {
-    const p = await projets.creer(nouveauProjet(), chef);
+    const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
     await projets.archiver(p.id, true, chef);
     await projets.archiver(p.id, false, chef);
 
@@ -787,7 +1053,7 @@ describe("EX-PRJ-10 — rattacher des clients et des tiers au projet", () => {
      * unique obligerait le client à reconstituer la distinction depuis la
      * forme des données.
      */
-    const p = await projets.creer(nouveauProjet(), chef);
+    const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
     const client = await tiers.creerClient({ nom: `Ville ${uuid().slice(0, 6)}` }, chef);
     const presta = await tiers.creerTiers(
       { type: "organisation", organisation: `Presta ${uuid().slice(0, 6)}` },
@@ -809,7 +1075,7 @@ describe("EX-PRJ-10 — rattacher des clients et des tiers au projet", () => {
   });
 
   it("le rattachement d'un client est TRACÉ sur le projet — c'est une décision, pas un détail", async () => {
-    const p = await projets.creer(nouveauProjet(), chef);
+    const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
     const client = await tiers.creerClient({ nom: `Tracé ${uuid().slice(0, 6)}` }, chef);
     await tiers.rattacherClients(p.id, [client.id], chef);
 
@@ -820,7 +1086,7 @@ describe("EX-PRJ-10 — rattacher des clients et des tiers au projet", () => {
   });
 
   it("un tiers archivé n'est PAS rattachable — RG-TRS-02 vaut aussi depuis le projet", async () => {
-    const p = await projets.creer(nouveauProjet(), chef);
+    const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
     const t = await tiers.creerTiers({ type: "individual", contactNom: "Retiré" }, chef);
     await prisma.thirdParty.update({ where: { id: t.id }, data: { actif: false } });
 
@@ -841,7 +1107,7 @@ describe("EX-PRJ-11 — importer jalons et tâches depuis un CSV UNIQUE", () => 
      * reviendrait à demander à l'utilisateur de comprendre notre ordre
      * d'insertion — ce qui n'est pas son travail.
      */
-    const p = await projets.creer(nouveauProjet(), chef);
+    const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
     const csv = [
       enTete,
       // Les sous-tâches voyagent dans UNE colonne, séparées par des
@@ -873,7 +1139,7 @@ describe("EX-PRJ-11 — importer jalons et tâches depuis un CSV UNIQUE", () => 
      * Rejouer un fichier est un usage normal, pas un incident : fondre les
      * doublons dans les erreurs ferait paniquer sur un fichier rejoué.
      */
-    const p = await projets.creer(nouveauProjet(), chef);
+    const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
     const dejaLa = await projets.creerJalon({ nom: "Existant", projectId: p.id }, chef);
     const csv = [enTete, "MILESTONE;Existant;2026-05-31;;;;;;;;;;", "MILESTONE;Nouveau;2026-06-30;;;;;;;;;;"].join("\n");
 
@@ -888,8 +1154,8 @@ describe("EX-PRJ-11 — importer jalons et tâches depuis un CSV UNIQUE", () => 
   });
 
   it("l'import n'écrit QUE dans le projet visé", async () => {
-    const cible = await projets.creer(nouveauProjet(), chef);
-    const voisin = await projets.creer(nouveauProjet(), chef);
+    const cible = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
+    const voisin = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
     await imports.importerProjet(
       cible.id,
       [enTete, "MILESTONE;Isolé;2026-07-31;;;;;;;;;;"].join("\n"),
@@ -905,7 +1171,7 @@ describe("RG-PRJ-11 — les deux modes de l'import projet ; le blocage sur donn�
     "rowType;name;dueDate;title;description;status;priority;assigneeEmail;milestoneName;estimatedHours;startDate;endDate;subtasks";
 
   it("les VOLUMES sont chiffrés avant la confirmation — « êtes-vous sûr ? » sans chiffres ne permet pas de décider", async () => {
-    const p = await projets.creer(nouveauProjet(), chef);
+    const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
     const jalon = await projets.creerJalon({ nom: "À remplacer", projectId: p.id }, chef);
     const tache = await prisma.task.create({
       data: { titre: "À remplacer", projectId: p.id, milestoneId: jalon.id },
@@ -921,7 +1187,7 @@ describe("RG-PRJ-11 — les deux modes de l'import projet ; le blocage sur donn�
   });
 
   it("« Remplacer » supprime jalons, tâches ET sous-tâches, puis pose le contenu du fichier", async () => {
-    const p = await projets.creer(nouveauProjet(), chef);
+    const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
     const ancien = await projets.creerJalon({ nom: "Ancien", projectId: p.id }, chef);
     const ancienne = await prisma.task.create({
       data: { titre: "Ancienne", projectId: p.id, milestoneId: ancien.id },
@@ -948,7 +1214,7 @@ describe("RG-PRJ-11 — les deux modes de l'import projet ; le blocage sur donn�
      * moment où elle manque, et il est alors trop tard. Découvrir l'erreur
      * après la suppression est exactement ce qu'elle interdit.
      */
-    const p = await projets.creer(nouveauProjet(), chef);
+    const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
     const survivant = await projets.creerJalon({ nom: "Survivant", projectId: p.id }, chef);
     // `rowType` est obligatoire : la seconde ligne est en erreur.
     const csv = [enTete, "MILESTONE;Bon;2026-09-30;;;;;;;;;;", ";;;;;;;;;;;;"].join("\n");
@@ -962,7 +1228,7 @@ describe("RG-PRJ-11 — les deux modes de l'import projet ; le blocage sur donn�
   });
 
   it("chaque erreur porte SON NUMÉRO DE LIGNE — « 3 erreurs » oblige sinon à relire tout le fichier", async () => {
-    const p = await projets.creer(nouveauProjet(), chef);
+    const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
     const csv = [enTete, "MILESTONE;Bon;2026-09-30;;;;;;;;;;", ";;;;;;;;;;;;"].join("\n");
 
     const rendu = await imports.importerProjet(p.id, csv, "remplacer", chef);
@@ -1008,7 +1274,7 @@ describe("RG-PRJ-11 — les deux modes de l'import projet ; le blocage sur donn�
   it(
     "RG-PRJ-11 — « BLOQUÉ SI DES DONNÉES RATTACHÉES L'EMPÊCHENT », par un code métier",
     async () => {
-      const p = await projets.creer(nouveauProjet(), chef);
+      const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
       const jalon = await projets.creerJalon({ nom: "Avec heures", projectId: p.id }, chef);
       const tache = await prisma.task.create({
         data: { titre: "Déclarée", projectId: p.id, milestoneId: jalon.id },
@@ -1035,7 +1301,7 @@ describe("RG-PRJ-11 — les deux modes de l'import projet ; le blocage sur donn�
   it(
     "RG-PRJ-11 — la saisie qui porte AUSSI le projet bloque de même, elle n'est plus détachée en silence",
     async () => {
-      const p = await projets.creer(nouveauProjet(), chef);
+      const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
       const tache = await prisma.task.create({ data: { titre: "Déclarée", projectId: p.id } });
       const auteur = await agent("Déclarant");
       const saisie = await prisma.timeEntry.create({
@@ -1083,7 +1349,7 @@ describe("RG-PRJ-11 — les deux modes de l'import projet ; le blocage sur donn�
      * Un refus trop large aurait rendu le mode Remplacer inutilisable, ce qui
      * est une autre façon de ne pas tenir la règle.
      */
-    const p = await projets.creer(nouveauProjet(), chef);
+    const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
     await prisma.task.create({ data: { titre: "Sans heures", projectId: p.id } });
 
     const rendu = await imports.importerProjet(
@@ -1104,7 +1370,7 @@ describe("EX-PRJ-12 — exporter le contenu du projet", () => {
      * une capture d'écran en texte. Les en-têtes sont donc ceux du fichier
      * d'entrée, pas les libellés de l'interface.
      */
-    const p = await projets.creer(nouveauProjet(), chef);
+    const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
     const jalon = await projets.creerJalon({ nom: "Cadrage", projectId: p.id }, chef);
     const porteur = await agent("Porteur");
     const email = (await prisma.user.findUniqueOrThrow({ where: { id: porteur } })).email;
@@ -1137,7 +1403,7 @@ describe("EX-PRJ-12 — exporter le contenu du projet", () => {
   });
 
   it("l'export des jalons porte les siennes, ordonnées par échéance", async () => {
-    const p = await projets.creer(nouveauProjet(), chef);
+    const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
     await projets.creerJalon({ nom: "Second", dateEcheance: utc("2026-08-31"), projectId: p.id }, chef);
     await projets.creerJalon({ nom: "Premier", dateEcheance: utc("2026-04-30"), projectId: p.id }, chef);
 
@@ -1153,7 +1419,7 @@ describe("EX-PRJ-12 — exporter le contenu du projet", () => {
      * Un fichier de zéro octet ne se distingue pas d'un échec de
      * téléchargement, et il n'est pas réimportable.
      */
-    const p = await projets.creer(nouveauProjet(), chef);
+    const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
     const csv = (await imports.exporterTaches(p.id)).trim();
     expect(csv.replace(/^\uFEFF/g, "")).toBe(
       "title;description;status;priority;assigneeEmail;milestoneName;estimatedHours;startDate;endDate",
@@ -1161,7 +1427,7 @@ describe("EX-PRJ-12 — exporter le contenu du projet", () => {
   });
 
   it("l'export ÉCHAPPE ce qui casserait les colonnes", async () => {
-    const p = await projets.creer(nouveauProjet(), chef);
+    const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
     await prisma.task.create({
       data: { titre: 'Refonte; "urgente"', projectId: p.id },
     });
@@ -1174,7 +1440,7 @@ describe("EX-PRJ-12 — exporter le contenu du projet", () => {
 
 describe("EX-JAL-03, EX-JAL-04 — la feuille de route chronologique et ses indicateurs", () => {
   it("les jalons sortent DANS L'ORDRE DES ÉCHÉANCES, pas dans celui de la création", async () => {
-    const p = await projets.creer(nouveauProjet(), chef);
+    const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
     await projets.creerJalon({ nom: "Livraison", dateEcheance: utc("2026-11-30"), projectId: p.id }, chef);
     await projets.creerJalon({ nom: "Cadrage", dateEcheance: utc("2026-03-31"), projectId: p.id }, chef);
     await projets.creerJalon({ nom: "Recette", dateEcheance: utc("2026-09-30"), projectId: p.id }, chef);
@@ -1185,7 +1451,7 @@ describe("EX-JAL-03, EX-JAL-04 — la feuille de route chronologique et ses indi
   });
 
   it("les quatre indicateurs comptent ce qu'ils annoncent : total, terminés, en cours, tâches", async () => {
-    const p = await projets.creer(nouveauProjet(), chef);
+    const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
     const fini = await projets.creerJalon({ nom: "Fini", dateEcheance: utc("2026-03-31"), projectId: p.id }, chef);
     const enCours = await projets.creerJalon({ nom: "En cours", dateEcheance: utc("2026-06-30"), projectId: p.id }, chef);
     await projets.creerJalon({ nom: "À venir", dateEcheance: utc("2026-09-30"), projectId: p.id }, chef);
@@ -1210,14 +1476,14 @@ describe("EX-JAL-03, EX-JAL-04 — la feuille de route chronologique et ses indi
   });
 
   it("un projet sans jalon rend une feuille VIDE et des indicateurs à zéro, jamais une erreur", async () => {
-    const p = await projets.creer(nouveauProjet(), chef);
+    const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
     const route = await projets.feuilleDeRoute(p.id);
     expect(route.jalons).toEqual([]);
     expect(route.indicateurs).toMatchObject({ total: 0, termines: 0, enCours: 0, taches: 0 });
   });
 
   it("un jalon SANS échéance ne disparaît pas de la feuille — il passe en fin de chronologie", async () => {
-    const p = await projets.creer(nouveauProjet(), chef);
+    const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
     await projets.creerJalon({ nom: "Daté", dateEcheance: utc("2026-05-31"), projectId: p.id }, chef);
     await projets.creerJalon({ nom: "Sans date", projectId: p.id }, chef);
 
@@ -1230,8 +1496,8 @@ describe("EX-JAL-03, EX-JAL-04 — la feuille de route chronologique et ses indi
 
 describe("RG-JAL-02 — un jalon appartient à un et un seul projet", () => {
   it("le jalon naît dans SON projet, et n'apparaît dans la feuille d'aucun autre", async () => {
-    const a = await projets.creer(nouveauProjet(), chef);
-    const b = await projets.creer(nouveauProjet(), chef);
+    const a = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
+    const b = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
 
     const jalon = await projets.creerJalon({ nom: "Exclusif", projectId: a.id }, chef);
 
@@ -1255,8 +1521,8 @@ describe("RG-JAL-02 — un jalon appartient à un et un seul projet", () => {
   });
 
   it("deux projets peuvent avoir chacun leur « Cadrage » — l'unicité porte sur le COUPLE", async () => {
-    const a = await projets.creer(nouveauProjet(), chef);
-    const b = await projets.creer(nouveauProjet(), chef);
+    const a = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
+    const b = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
 
     await projets.creerJalon({ nom: "Cadrage", projectId: a.id }, chef);
     await expect(projets.creerJalon({ nom: "Cadrage", projectId: b.id }, chef)).resolves.toBeTruthy();
@@ -1265,8 +1531,8 @@ describe("RG-JAL-02 — un jalon appartient à un et un seul projet", () => {
   });
 
   it("supprimer un projet emporte SES jalons, et eux seuls", async () => {
-    const a = await projets.creer(nouveauProjet(), chef);
-    const b = await projets.creer(nouveauProjet(), chef);
+    const a = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
+    const b = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
     const sien = await projets.creerJalon({ nom: "Le sien", projectId: a.id }, chef);
     const autre = await projets.creerJalon({ nom: "L'autre", projectId: b.id }, chef);
 

@@ -126,24 +126,6 @@
       ]
     },
     {
-      "route": "POST /projets",
-      "champ": "chefId",
-      "raison": "ouvert — voir docs/audits/V7-diff-retour.md",
-      "regles": [
-        "RG-SCOPE-02",
-        "EX-PRJ-03"
-      ]
-    },
-    {
-      "route": "POST /projets",
-      "champ": "sponsorId",
-      "raison": "ouvert — voir docs/audits/V7-diff-retour.md",
-      "regles": [
-        "RG-SCOPE-02",
-        "EX-PRJ-03"
-      ]
-    },
-    {
       "route": "POST /teletravail",
       "champ": "userId",
       "raison": "ouvert — voir docs/audits/V7-diff-retour.md",

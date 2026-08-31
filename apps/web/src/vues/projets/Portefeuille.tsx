@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { IconeProjet } from "../../composants/icones-projet.js";
+import { IconeProjet, SelecteurIconeProjet } from "../../composants/icones-projet.js";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { Button } from "react-aria-components";
@@ -297,6 +297,8 @@ export function FenetreCreation({
     dateDebut: string;
     dateFin: string;
     budgetHeures: number | null;
+    /** `EX-PRJ-04` — la fenêtre sert aussi à CHANGER l'icône d'un projet. */
+    icone: string | null;
     version: number;
   } | null;
   surFermeture: () => void;
@@ -315,6 +317,13 @@ export function FenetreCreation({
     dateFin: "",
     budgetHeures: "",
   });
+  /*
+   * L'icône vit à part de `valeurs` : c'est un code de vocabulaire fermé, pas
+   * une chaîne saisie, et « aucune icône » est `null`, pas la chaîne vide.
+   * Les mêler ferait passer `""` au serveur, que la bibliothèque refuse — un
+   * refus juste, sur une intention qui ne l'était pas.
+   */
+  const [icone, setIcone] = useState<string | null>(null);
   const [manquants, setManquants] = useState<ChampObligatoire[]>([]);
   const [erreur, setErreur] = useState<string | null>(null);
   /*
@@ -335,6 +344,7 @@ export function FenetreCreation({
       dateFin: existant?.dateFin?.slice(0, 10) ?? "",
       budgetHeures: existant?.budgetHeures != null ? String(existant.budgetHeures) : "",
     });
+    setIcone(existant?.icone ?? null);
     setManquants([]);
     setErreur(null);
   }
@@ -350,6 +360,8 @@ export function FenetreCreation({
             dateDebut: valeurs.dateDebut,
             dateFin: valeurs.dateFin,
             budgetHeures: valeurs.budgetHeures ? Number(valeurs.budgetHeures) : null,
+            // `null` retire l'icône ; l'omettre la laisserait telle quelle.
+            icone,
             version: existant.version,
           })
         : api.creerProjet({
@@ -360,6 +372,9 @@ export function FenetreCreation({
         dateDebut: valeurs.dateDebut,
         dateFin: valeurs.dateFin,
         ...(valeurs.budgetHeures ? { budgetHeures: Number(valeurs.budgetHeures) } : {}),
+        // À la création, « aucune icône » se dit par l'absence du champ : le
+        // schéma le veut optionnel, jamais nul.
+        ...(icone ? { icone } : {}),
           }),
     onSuccess: surSucces,
     onError: (e) => setErreur(traduireErreur(e)),
@@ -419,6 +434,23 @@ export function FenetreCreation({
             <span>{erreur}</span>
           </div>
         ) : null}
+
+        {/*
+          `EX-PRJ-04` — le sélecteur ouvre le formulaire, comme la maquette 10 :
+          « L'icône de projet est un repère d'identification fort, réutilisé
+          dans le planning, les tâches et le Gantt. » Le mettre en dernier, à
+          côté du budget, en ferait une décoration facultative.
+        */}
+        <div className="field-block span2 ipick-bloc">
+          <label className="field-label" htmlFor="pf-icone-recherche">
+            {t("portefeuille.iconeDuProjet")}
+          </label>
+          <SelecteurIconeProjet
+            valeur={icone}
+            surChangement={setIcone}
+            idRecherche="pf-icone-recherche"
+          />
+        </div>
 
         <div className="form-grid form-grid-espace">
           <div className="field-block span2">
