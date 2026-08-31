@@ -531,7 +531,26 @@ export const MODELES_ROLES: readonly ModeleRole[] = [
     famille: "Restreints",
     systeme: false,
     description: "Contribution encadrée : ses tâches, son temps, ses congés. Pas de création de tâche hors projet.",
-    permissions: dedoublonne(SOCLE.filter((p) => p !== "tasks:create_standalone")),
+    /*
+     * **Sa description supposait un droit qu'il n'avait pas.** « Pas de
+     * création de tâche hors projet » dit en creux qu'il en crée DANS un
+     * projet ; or `SOCLE` porte `tasks:create_standalone` et non
+     * `tasks:create`, si bien que le retrait du premier ne lui laissait aucun
+     * droit de création du tout. Le stagiaire ne pouvait rien créer, nulle
+     * part.
+     *
+     * Le trou était invisible tant que la route de création n'exigeait que
+     * `tasks:create` quel que soit le corps : `RG-TSK-02` a rendu les deux
+     * droits distincts, et c'est en la portant qu'on l'a vu.
+     */
+    permissions: dedoublonne([
+      ...SOCLE.filter((p) => p !== "tasks:create_standalone"),
+      "tasks:create",
+      // De quoi rattacher la tâche qu'il crée : `RG-JAL-03` s'applique à lui
+      // comme aux autres, et un rattachement se choisit dans une liste.
+      "milestones:read",
+      "epics:read",
+    ]),
   },
 ];
 
