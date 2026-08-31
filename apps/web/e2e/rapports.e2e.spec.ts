@@ -151,6 +151,90 @@ test.describe("Vue 30 — rapports et analytics", () => {
     await expect(page.getByText("À venir", { exact: true })).toBeVisible();
   });
 
+  /**
+   * `socle.css` pose `.panel + .panel { margin-top: 16px }` pour les panneaux
+   * EMPILÉS. Dans `.two-col`, le second panneau reste le frère adjacent du
+   * premier : il héritait ces 16 px et pendait plus bas que son voisin, alors
+   * que `align-items: start` l'alignait déjà en haut de sa cellule.
+   *
+   * Rien ne pouvait le voir : `axe` ne regarde pas la mise en page, le typage
+   * non plus, et le composant est irréprochable à la lecture — le défaut est
+   * dans l'ADJACENCE, pas dans le balisage. Le contrôle porte donc sur la
+   * géométrie rendue, seul endroit où il existe.
+   */
+  test("les deux panneaux d'une rangée s'alignent en haut", async ({ page }) => {
+    await horlogeFixe(page);
+    await serveur(page, { session: SESSION_RAPPORTS, reponses });
+    await page.goto("/rapports");
+
+    // La rangée n'existe qu'une fois les données rendues : mesurer avant, c'est
+    // mesurer une page vide et conclure « aligné ». Le premier jet du contrôle
+    // faisait exactement cela — vert avec le défaut en place.
+    const rangees = page.locator(".two-col");
+    await expect(rangees.first().locator("> .panel").nth(1)).toBeVisible();
+
+    for (const rangee of await rangees.all()) {
+      const panneaux = rangee.locator("> .panel");
+      if ((await panneaux.count()) < 2) continue;
+
+      const hauts: number[] = [];
+      for (const panneau of await panneaux.all()) {
+        const boite = await panneau.boundingBox();
+        expect(boite).not.toBeNull();
+        hauts.push(boite!.y);
+      }
+      // Même bord supérieur, au pixel de rendu près.
+      expect(Math.max(...hauts) - Math.min(...hauts)).toBeLessThanOrEqual(1);
+    }
+  });
+
+  test("les rangées de l'onglet avancé s'alignent aussi", async ({ page }) => {
+    await horlogeFixe(page);
+    await serveur(page, { session: SESSION_RAPPORTS, reponses });
+    await page.goto("/rapports");
+    await page
+      .getByRole("navigation", { name: /Sections des rapports|Report sections/ })
+      .getByRole("button", { name: "Analytics avancés" })
+      .click();
+
+    const rangees = page.locator(".two-col");
+    await expect(rangees.first().locator("> .panel").nth(1)).toBeVisible();
+
+    for (const rangee of await rangees.all()) {
+      const panneaux = rangee.locator("> .panel");
+      if ((await panneaux.count()) < 2) continue;
+      const hauts: number[] = [];
+      for (const panneau of await panneaux.all()) {
+        hauts.push((await panneau.boundingBox())!.y);
+      }
+      expect(Math.max(...hauts) - Math.min(...hauts)).toBeLessThanOrEqual(1);
+    }
+  });
+
+  /**
+   * `.pl-toolbar` centre ses enfants : le libellé de période se centrait sur le
+   * bloc titre entier — surtitre plus `h1` — et tombait donc à mi-hauteur entre
+   * les deux, aligné sur ni l'un ni l'autre. Il se cale sur la ligne du `h1`, à
+   * droite de la vue.
+   */
+  test("le libellé de période s'aligne sur le titre, à droite", async ({ page }) => {
+    await horlogeFixe(page);
+    await serveur(page, { session: SESSION_RAPPORTS, reponses });
+    await page.goto("/rapports");
+
+    const libelle = page.locator(".rep-arrete");
+    await expect(libelle).toBeVisible();
+
+    const l = (await libelle.boundingBox())!;
+    const titre = (await page.locator("h1.titre-vue").boundingBox())!;
+    const barre = (await page.locator(".pl-toolbar").boundingBox())!;
+
+    // Même ligne de base que le titre, et non entre le surtitre et lui.
+    expect(Math.abs(l.y + l.height - (titre.y + titre.height))).toBeLessThanOrEqual(1);
+    // Rangé au bord droit de la vue.
+    expect(Math.abs(l.x + l.width - (barre.x + barre.width))).toBeLessThanOrEqual(1);
+  });
+
   test("EX-RPT-10 — LE RATIO EST INTERPRÉTÉ, pas laissé nu", async ({ page }) => {
     await horlogeFixe(page);
     await serveur(page, { session: SESSION_RAPPORTS, reponses });

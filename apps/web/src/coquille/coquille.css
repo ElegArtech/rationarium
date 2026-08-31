@@ -54,16 +54,83 @@
   font-size: 20px;
   font-weight: 600;
   letter-spacing: -0.01em;
+  display: inline-flex;
+  align-items: baseline;
 }
 
+/*
+ * Le logo tient la place du R. Il est en fond plutôt qu'en `<img>` : le thème
+ * est une classe sur `html`, pas une préférence système, donc c'est le CSS qui
+ * doit trancher — un `src` en dur obligerait le composant à s'abonner au thème
+ * pour un dessin. Le corps du R est en bleu nuit, illisible sur `--surface`
+ * sombre (#161922) : la variante claire du fichier n'est pas une coquetterie.
+ *
+ * `1ch` de retrait à droite : le R dessiné est plus large que le pas de la
+ * police, sans quoi « ationarium » paraît décollé.
+ */
+.side-logo {
+  display: inline-block;
+  width: 1.5em;
+  height: 1.5em;
+  margin-right: -0.1em;
+  transform: translateY(0.3em);
+  background: url("/logo.png") center / contain no-repeat;
+}
+
+html.dark .side-logo {
+  background-image: url("/logo-sombre.png");
+}
+
+/* Repliée, le logo devient le bouton : il grandit, et le chevron s'efface. */
+.side-logo-btn .side-logo {
+  width: 30px;
+  height: 30px;
+  transform: none;
+  margin: 0;
+}
+
+/* Repliée, la barre ne fait que 62 px : le nom du produit n'y tient pas, et
+   comme `.side` est en `overflow: hidden`, il poussait le bouton hors du cadre —
+   la barre se repliait sans pouvoir se déplier. Le bouton prend donc la place du
+   nom, et son chevron se retourne pour dire dans quel sens il agit. */
 .app.is-collapsed .side-mark {
-  font-size: 17px;
+  display: none;
+}
+
+.app.is-collapsed .side-head {
+  justify-content: center;
+  padding-inline: 8px;
+}
+
+.app.is-collapsed .side-head .icon-btn svg {
+  transform: rotate(180deg);
+}
+
+/* Le logo se suffit : lui laisser le cadre du bouton d'icône ferait un carré
+   dans un carré. La cible reste de 34 px, donc conforme au pointage. */
+.side-head .icon-btn.side-logo-btn {
+  border-color: transparent;
+  background: none;
+  padding: 0;
+  width: 34px;
+  height: 34px;
 }
 
 .side-nav {
   flex: 1;
   overflow-y: auto;
   padding: 12px 0 20px;
+}
+
+/* Repliée, la barre ne montre que des icônes : le contenu tient, et l'ascenseur
+   qui restait ne parcourait que du vide. Le défilement demeure possible sur un
+   écran très bas ; c'est sa barre qu'on retire, pas la capacité. */
+.app.is-collapsed .side-nav {
+  scrollbar-width: none;
+}
+
+.app.is-collapsed .side-nav::-webkit-scrollbar {
+  display: none;
 }
 
 .nav-group {
@@ -128,15 +195,6 @@
 .app.is-collapsed .nav-item {
   justify-content: center;
   padding: 9px 0;
-}
-
-.side-foot {
-  border-top: 1px solid var(--line);
-  padding: 10px 16px;
-}
-
-.app.is-collapsed .side-foot {
-  padding: 10px 8px;
 }
 
 /* ── En-tête ────────────────────────────────────────────────────────────── */

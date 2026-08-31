@@ -4,8 +4,7 @@
     "replier": "Replier la barre latérale",
     "deplier": "Déplier la barre latérale",
     "principale": "Navigation principale",
-    "allerAuContenu": "Aller au contenu principal",
-    "entrees": "{n, plural, =0 {aucune entrée} one {# entrée} other {# entrées}}"
+    "allerAuContenu": "Aller au contenu principal"
   },
   "groupes": {
     "pilotage": "Pilotage",
@@ -93,6 +92,8 @@
     "theme": "Thème",
     "themeClair": "Clair",
     "themeSombre": "Sombre",
-    "themeAuto": "Automatique"
+    "themeAuto": "Automatique",
+    "enregistre": "Profil enregistré.",
+    "echecEnregistrement": "L'enregistrement a échoué."
   }
 }

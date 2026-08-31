@@ -126,7 +126,6 @@
     "tiersAssignes": "Tiers assignés",
     "incoherenceDetail": "« {titre} » commence avant la fin de cette tâche.",
     "ajouterAssigne": "Ajouter un assigné",
-    "ajouterAssigneIndisponible": "L'ajout d'un assigné depuis la fiche n'est pas encore ouvert par le serveur.",
     "modifier": "Modifier",
     "modifierDependances": "Modifier les dépendances",
     "deposerFichier": "Déposez un fichier ici, ou cliquez pour parcourir.",
@@ -145,7 +144,11 @@
     "telecharger": "Télécharger",
     "heuresEtSaisies": "{heures, number} h · {n, plural, one {# saisie} other {# saisies}}",
     "modifierIndisponible": "Le formulaire complet de modification n'est pas encore porté ; le titre, le statut et l'avancement s'éditent directement sur la fiche.",
-    "dependanceMasquee": "Tâche non visible"
+    "dependanceMasquee": "Tâche non visible",
+    "assignesEnregistres": "Assignés enregistrés.",
+    "echecAssignes": "L'enregistrement des assignés a échoué.",
+    "enregistrerAssignes": "Enregistrer les assignés",
+    "premierEstPorteur": "Le premier assigné de la liste est le porteur de la tâche."
   },
   "onglet": {
     "titre": "Tableau des tâches",

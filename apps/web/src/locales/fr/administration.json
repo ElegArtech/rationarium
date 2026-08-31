@@ -71,7 +71,12 @@
     "suivi": "Suivi",
     "reinitialiserMotDePasse": "Réinitialiser le mot de passe",
     "pasSoiMemeMotDePasse": "Passez par « Mon profil » pour votre propre mot de passe.",
-    "motDePasseReinitialise": "Mot de passe réinitialisé. {nom} devra le changer à sa prochaine connexion."
+    "motDePasseReinitialise": "Mot de passe réinitialisé. {nom} devra le changer à sa prochaine connexion.",
+    "modifier": "Modifier",
+    "modifie": "Compte modifié.",
+    "echecModification": "La modification a échoué.",
+    "enregistrer": "Enregistrer",
+    "categorieModification": "Compte utilisateur"
   },
   "suivi": {
     "leSuivi": "le suivi individuel",

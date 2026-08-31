@@ -4,8 +4,7 @@
     "replier": "Collapse the sidebar",
     "deplier": "Expand the sidebar",
     "principale": "Main navigation",
-    "allerAuContenu": "Skip to main content",
-    "entrees": "{n, plural, =0 {no entries} one {# entry} other {# entries}}"
+    "allerAuContenu": "Skip to main content"
   },
   "groupes": {
     "pilotage": "Steering",
@@ -93,6 +92,8 @@
     "theme": "Theme",
     "themeClair": "Light",
     "themeSombre": "Dark",
-    "themeAuto": "Automatic"
+    "themeAuto": "Automatic",
+    "enregistre": "Profile saved.",
+    "echecEnregistrement": "Saving failed."
   }
 }
