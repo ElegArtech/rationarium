@@ -36,7 +36,22 @@ let documents: DocumentsService;
 let perimetres: PerimetreService;
 let acteur: string;
 
-const TOUTES = new Set(["tasks:manage_any", "tasks:read_confidential"]) as ReadonlySet<string>;
+/*
+ * `comments:read` en fait partie depuis que le fil embarqué dans la fiche est
+ * gardé pour lui-même : sans lui, la fiche ne rend PLUS la clé `commentaires`,
+ * et `EX-TSK-17` — que cette suite éprouve — ne pourrait pas être observée.
+ */
+const TOUTES = new Set([
+  "tasks:manage_any",
+  "tasks:read_confidential",
+  "comments:read",
+]) as ReadonlySet<string>;
+/** Voir `taches.int.test.ts` : ces suites n'éprouvent pas les droits d'écriture. */
+const DROITS_CREATION = new Set([
+  "tasks:create",
+  "tasks:create_standalone",
+  "tasks:manage_any",
+]) as ReadonlySet<string>;
 const perimetreGlobal = () => perimetres.resoudre(acteur, new Set(["tasks:manage_any"]));
 
 async function agent() {
@@ -87,7 +102,7 @@ afterAll(async () => {
 
 describe("EX-TSK-16 — assigner un TIERS EXTERNE à une tâche", () => {
   it("EX-TSK-16 — le tiers assigné REMONTE SUR LA FICHE de la tâche", async () => {
-    const t = await taches.creer({ titre: "Audit réseau" }, acteur);
+    const t = await taches.creer({ titre: "Audit réseau" }, acteur, DROITS_CREATION);
     const externe = await tiersExterne();
 
     // Avant : la fiche ne montre aucun tiers. Sans cette moitié, l'assertion
@@ -109,7 +124,7 @@ describe("EX-TSK-16 — assigner un TIERS EXTERNE à une tâche", () => {
      * l'écriture — proposer ce que le serveur refusera est une promesse non
      * tenue.
      */
-    const t = await taches.creer({ titre: "Câblage" }, acteur);
+    const t = await taches.creer({ titre: "Câblage" }, acteur, DROITS_CREATION);
     const externe = await tiersExterne();
 
     const avant = await tiers.candidatsPourTache(t.id);
@@ -130,7 +145,7 @@ describe("EX-TSK-16 — assigner un TIERS EXTERNE à une tâche", () => {
         dateFin: new Date("2026-12-31T00:00:00.000Z"),
       },
     });
-    const t = await taches.creer({ titre: "Lot 1", projectId: projet.id }, acteur);
+    const t = await taches.creer({ titre: "Lot 1", projectId: projet.id }, acteur, DROITS_CREATION);
     const etranger = await tiersExterne();
     const rattache = await tiersExterne();
     await prisma.projectThirdParty.create({
@@ -152,7 +167,7 @@ describe("EX-TSK-17 — commenter et joindre des documents", () => {
   it("EX-TSK-17 — le commentaire remonte sur la fiche, avec SON AUTEUR et dans l'ordre", async () => {
     const auteur = await agent();
     const second = await agent();
-    const t = await taches.creer({ titre: "Note de cadrage" }, acteur);
+    const t = await taches.creer({ titre: "Note de cadrage" }, acteur, DROITS_CREATION);
 
     const fraiche = await taches.fiche(t.id, await perimetreGlobal(), TOUTES);
     expect(fraiche.commentaires).toEqual([]);
@@ -163,26 +178,26 @@ describe("EX-TSK-17 — commenter et joindre des documents", () => {
     const fiche = await taches.fiche(t.id, await perimetreGlobal(), TOUTES);
     // L'ordre est celui de l'écriture : un fil qui se réordonne est un fil
     // qu'on ne peut plus suivre.
-    expect(fiche.commentaires.map((c) => c.contenu)).toEqual(["Premier point", "Second point"]);
+    expect(fiche.commentaires?.map((c) => c.contenu)).toEqual(["Premier point", "Second point"]);
     // `auteur` est nullable au schéma — un compte supprimé laisse son fil.
     // L'optionnel n'affaiblit pas l'assertion : un auteur perdu rendrait
     // `undefined`, et l'égalité tomberait.
-    expect(fiche.commentaires.map((c) => c.auteur?.id)).toEqual([auteur, second]);
+    expect(fiche.commentaires?.map((c) => c.auteur?.id)).toEqual([auteur, second]);
   });
 
   it("EX-TSK-17 — un commentaire d'UNE AUTRE tâche ne se glisse pas dans le fil", async () => {
-    const a = await taches.creer({ titre: "A" }, acteur);
-    const b = await taches.creer({ titre: "B" }, acteur);
+    const a = await taches.creer({ titre: "A" }, acteur, DROITS_CREATION);
+    const b = await taches.creer({ titre: "B" }, acteur, DROITS_CREATION);
     await documents.commenter({ contenu: "Pour A", taskId: a.id }, acteur);
     await documents.commenter({ contenu: "Pour B", taskId: b.id }, acteur);
 
     const fiche = await taches.fiche(a.id, await perimetreGlobal(), TOUTES);
-    expect(fiche.commentaires.map((c) => c.contenu)).toEqual(["Pour A"]);
+    expect(fiche.commentaires?.map((c) => c.contenu)).toEqual(["Pour A"]);
   });
 
   it("EX-TSK-17 — le document joint remonte sur la fiche, avec sa taille et son auteur", async () => {
     const auteur = await agent();
-    const t = await taches.creer({ titre: "Compte rendu" }, acteur);
+    const t = await taches.creer({ titre: "Compte rendu" }, acteur, DROITS_CREATION);
     const contenu = Buffer.from("compte rendu du 3 mars");
 
     await documents.joindre(
@@ -210,7 +225,7 @@ describe("EX-TSK-17 — commenter et joindre des documents", () => {
         dateFin: new Date("2026-12-31T00:00:00.000Z"),
       },
     });
-    const t = await taches.creer({ titre: "Lot", projectId: projet.id }, acteur);
+    const t = await taches.creer({ titre: "Lot", projectId: projet.id }, acteur, DROITS_CREATION);
     await documents.joindre(
       { nom: "charte.pdf", contenu: Buffer.from("%PDF"), typeMime: "application/pdf", projectId: projet.id },
       acteur,

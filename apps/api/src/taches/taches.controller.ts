@@ -1,8 +1,13 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query } from "@nestjs/common";
 import { z } from "zod";
-import { enumDe, STATUTS_TACHE, PRIORITES, ROLES_RACI } from "@rationarium/contracts";
+import { enumDe, heure, STATUTS_TACHE, PRIORITES, ROLES_RACI } from "@rationarium/contracts";
 import { TachesService } from "./taches.service.js";
-import { Demande, RequiertPermission, type ContexteDemande } from "../commun/permissions.garde.js";
+import {
+  Demande,
+  RequiertPermission,
+  RequiertUnePermissionParmi,
+  type ContexteDemande,
+} from "../commun/permissions.garde.js";
 import { valider, dateSchema } from "../commun/http.js";
 
 /** M6 — tâches, sous-tâches, dépendances, RACI, kanban. Vues 12, 16, 17. */
@@ -49,8 +54,21 @@ export class TachesController {
     return this.taches.fiche(id, d.perimetre, d.permissions);
   }
 
+  /**
+   * `RG-TSK-02` — **deux droits distincts pour un seul point d'entrée.**
+   *
+   * « Créer une tâche dans un projet et créer une tâche hors projet sont deux
+   * droits distincts. Sans aucun des deux, la création est refusée. » La garde
+   * ouvre donc la route à qui détient l'un OU l'autre ; c'est le service qui
+   * décide lequel le corps reçu appelle réellement, puisque c'est la présence
+   * de `projectId` qui tranche. Une permission garde une route, pas un champ.
+   *
+   * `EX-TSK-04` — les onze champs de l'exigence, **horaires compris**. Ils
+   * manquaient au schéma : Zod les retirait en silence et le créneau d'une
+   * réunion était insaisissable.
+   */
   @Post()
-  @RequiertPermission("tasks:create")
+  @RequiertUnePermissionParmi("tasks:create", "tasks:create_standalone")
   creer(@Body() corps: unknown, @Demande() d: ContexteDemande) {
     const donnees = valider(
       z.object({
@@ -63,6 +81,8 @@ export class TachesController {
         priorite: enumDe(PRIORITES).optional(),
         dateDebut: dateSchema.nullish(),
         dateFin: dateSchema.nullish(),
+        heureDebut: heure.nullish(),
+        heureFin: heure.nullish(),
         estimationHeures: z.number().min(0).optional(),
         confidentielle: z.boolean().optional(),
         interventionExterieure: z.boolean().optional(),
@@ -71,7 +91,7 @@ export class TachesController {
       }),
       corps,
     );
-    return this.taches.creer(donnees, d.userId);
+    return this.taches.creer(donnees, d.userId, d.permissions);
   }
 
   /**
@@ -93,6 +113,9 @@ export class TachesController {
         priorite: enumDe(PRIORITES).optional(),
         dateDebut: dateSchema.nullish(),
         dateFin: dateSchema.nullish(),
+        // `EX-TSK-04` — les horaires se corrigent après coup, comme les dates.
+        heureDebut: heure.nullish(),
+        heureFin: heure.nullish(),
         estimationHeures: z.number().min(0).nullish(),
         avancement: z.number().int().min(0).max(100).optional(),
         /*
@@ -105,10 +128,18 @@ export class TachesController {
         // `RG-JAL-03` — rattacher ou détacher après coup. `null` détache.
         milestoneId: z.uuid().nullish(),
         epicId: z.uuid().nullish(),
+        /*
+         * `EX-TSK-15` — **rattacher ou détacher une tâche d'un projet a
+         * posteriori.** Le champ n'était accepté nulle part ailleurs qu'à la
+         * création : Zod le retirait ici en silence, et l'appelant croyait
+         * avoir rattaché. `null` détache — et le service détache alors aussi
+         * le jalon et l'épopée, sans quoi `RG-JAL-04` serait enfreinte.
+         */
+        projectId: z.uuid().nullish(),
       }),
       corps,
     );
-    return this.taches.modifier(id, donnees, d.userId);
+    return this.taches.modifier(id, donnees, d.userId, d.permissions);
   }
 
   /**
@@ -117,21 +148,36 @@ export class TachesController {
    * La liste est posée **en entier**, jamais par différence : un ajout et un
    * retrait simultanés depuis deux écrans laisseraient sinon un état que
    * personne n'a voulu. Le premier de la liste est le porteur.
+   *
+   * `RG-GEN-07` — **et donc la version lue est transmise.** Elle manquait :
+   * poser un ensemble entier sans confronter la version est le « dernier
+   * arrivé gagne » dans sa forme la plus destructrice, puisque c'est toute la
+   * liste de l'autre qui disparaît, pas un champ.
    */
   @Put(":id/assignes")
   @RequiertPermission("tasks:update")
   definirAssignes(@Param("id") id: string, @Body() corps: unknown, @Demande() d: ContexteDemande) {
     const donnees = valider(
-      z.object({ userIds: z.array(z.uuid()).max(20) }),
+      z.object({
+        version: z.number().int().min(1),
+        userIds: z.array(z.uuid()).max(20),
+      }),
       corps,
     );
-    return this.taches.definirAssignes(id, donnees.userIds, d.userId);
+    return this.taches.definirAssignes(id, donnees.userIds, donnees.version, d.userId);
   }
 
+  /**
+   * `RG-TSK-14` — permission PUIS périmètre, puis la règle propre au geste :
+   * « sans permission élargie, un utilisateur ne peut supprimer que les tâches
+   * qui lui sont assignées. » La garde n'exigeait que `tasks:delete`, et le
+   * service ne recevait ni périmètre ni permissions : il ne pouvait rien
+   * décider, et ne décidait rien.
+   */
   @Delete(":id")
   @RequiertPermission("tasks:delete")
   supprimer(@Param("id") id: string, @Demande() d: ContexteDemande) {
-    return this.taches.supprimer(id, d.userId);
+    return this.taches.supprimer(id, d.userId, d.perimetre, d.permissions);
   }
 
   // ── Sous-tâches — EX-TSK-09 ──────────────────────────────────────────────
@@ -156,12 +202,23 @@ export class TachesController {
     return this.taches.supprimerSousTache(sousTacheId);
   }
 
-  /** L'ordre complet est transmis : réordonner n'est pas déplacer d'un cran. */
+  /**
+   * L'ordre complet est transmis : réordonner n'est pas déplacer d'un cran.
+   *
+   * `RG-GEN-07` — donc la version lue l'accompagne, pour la même raison que la
+   * liste des assignés : un ensemble posé entier écrase entier.
+   */
   @Put(":id/sous-taches/ordre")
   @RequiertPermission("tasks:update")
   reordonner(@Param("id") id: string, @Body() corps: unknown) {
-    const { ids } = valider(z.object({ ids: z.array(z.uuid()).max(200) }), corps);
-    return this.taches.reordonnerSousTaches(id, ids);
+    const { ids, version } = valider(
+      z.object({
+        version: z.number().int().min(1),
+        ids: z.array(z.uuid()).max(200),
+      }),
+      corps,
+    );
+    return this.taches.reordonnerSousTaches(id, ids, version);
   }
 
   // ── Dépendances — RG-TSK-04 ──────────────────────────────────────────────

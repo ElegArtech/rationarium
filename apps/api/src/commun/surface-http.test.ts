@@ -117,10 +117,24 @@ const PERSONNELLES_ATTENDUES = new Set([
 
 type Route = {
   nom: string;
-  permission: string | undefined;
+  /**
+   * Une route peut exiger UNE permission (`@RequiertPermission`) ou **au moins
+   * une parmi plusieurs** (`@RequiertUnePermissionParmi`, `RG-TSK-02`). Les
+   * deux écritures posent la même métadonnée ; la lecture les normalise en
+   * liste, sans quoi le tableau serait vu comme une chaîne et
+   * `estAuCatalogue` aurait répondu « non » à une route pourtant gardée.
+   */
+  permissions: string[];
   publique: boolean;
   personnelle: boolean;
 };
+
+/** La métadonnée de permission, normalisée en liste. */
+function permissionsDe(fn: unknown): string[] {
+  const brut = Reflect.getMetadata(CLE_PERMISSION, fn as object) as string | string[] | undefined;
+  if (brut === undefined) return [];
+  return Array.isArray(brut) ? brut : [brut];
+}
 
 function routes(): Route[] {
   const trouvees: Route[] = [];
@@ -134,7 +148,7 @@ function routes(): Route[] {
       if (Reflect.getMetadata(METHOD_METADATA, fn) === undefined) continue;
       trouvees.push({
         nom: `${controleur.name}.${methode}`,
-        permission: Reflect.getMetadata(CLE_PERMISSION, fn) as string | undefined,
+        permissions: permissionsDe(fn),
         publique: Reflect.getMetadata(CLE_PUBLIC, fn) === true,
         personnelle: Reflect.getMetadata(CLE_PERSONNEL, fn) === true,
       });
@@ -153,7 +167,7 @@ describe("RG-DROITS-03 — la surface HTTP est entièrement gardée", () => {
 
   it("chaque route déclare une permission, ou est explicitement publique ou personnelle", () => {
     const nues = toutes
-      .filter((r) => !r.permission && !r.publique && !r.personnelle)
+      .filter((r) => r.permissions.length === 0 && !r.publique && !r.personnelle)
       .map((r) => r.nom);
     expect(nues).toEqual([]);
   });
@@ -174,7 +188,9 @@ describe("RG-DROITS-03 — la surface HTTP est entièrement gardée", () => {
   });
 
   it("aucune route n'est à la fois publique et gardée — l'intention serait ambiguë", () => {
-    const deuxFois = toutes.filter((r) => r.publique && r.permission).map((r) => r.nom);
+    const deuxFois = toutes
+      .filter((r) => r.publique && r.permissions.length > 0)
+      .map((r) => r.nom);
     expect(deuxFois).toEqual([]);
   });
 
@@ -182,8 +198,9 @@ describe("RG-DROITS-03 — la surface HTTP est entièrement gardée", () => {
     // Le décorateur échoue déjà au chargement ; ce test le constate au lieu de
     // laisser la garantie reposer sur un effet de bord d'importation.
     const inconnues = toutes
-      .filter((r) => r.permission && !estAuCatalogue(r.permission))
-      .map((r) => `${r.nom} → ${r.permission}`);
+      .flatMap((r) => r.permissions.map((p) => ({ nom: r.nom, p })))
+      .filter((x) => !estAuCatalogue(x.p))
+      .map((x) => `${x.nom} → ${x.p}`);
     expect(inconnues).toEqual([]);
   });
 

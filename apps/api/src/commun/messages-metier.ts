@@ -175,6 +175,29 @@ export const MESSAGES_METIER: Record<string, Message> = {
     "erreurs:horsProjetAvecJalon",
     "Une tâche hors projet ne peut pas être rattachée à un jalon.",
   ),
+  /*
+   * `RG-TSK-02` — deux droits distincts, et un seul point d'entrée. Le message
+   * nomme LES DEUX gestes, parce que le refus se lit dans les deux sens :
+   * l'un manque le droit de créer hors projet, l'autre celui de créer dedans.
+   * Dire « refusé » sans dire lequel obligerait à deviner quoi changer.
+   */
+  droit_de_creation_manquant: m(
+    403,
+    "erreurs:droitDeCreationManquant",
+    "Créer une tâche dans un projet et créer une tâche hors projet sont deux droits distincts, et celui qu'il faut ici ne vous est pas accordé. Rattachez la tâche à un projet, ou demandez ce droit à un administrateur.",
+  ),
+  /** `RG-TSK-03` — être membre du projet, sauf gestion globale. */
+  pas_membre_du_projet: m(
+    403,
+    "erreurs:pasMembreDuProjet",
+    "Vous n'êtes pas membre de ce projet. Demandez à y être ajouté, ou créez cette tâche hors projet.",
+  ),
+  /** `RG-TSK-14` — sans permission élargie, on ne supprime que ses tâches. */
+  suppression_reservee_aux_assignes: m(
+    403,
+    "erreurs:suppressionReserveeAuxAssignes",
+    "Vous ne pouvez supprimer que les tâches qui vous sont assignées. Demandez la suppression à l'un de ses assignés, ou à un gestionnaire des tâches.",
+  ),
   multi_assignee_date: m(
     422,
     "erreurs:multiAssigneeDate",

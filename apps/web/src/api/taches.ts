@@ -52,7 +52,12 @@ export type FicheTache = LigneTache & {
   sousTaches: SousTache[];
   raci: { userId: string; role: string; user: { prenom: string; nom: string } }[];
   tiers: { id: string; organisation: string | null; contactNom: string | null }[];
-  commentaires: {
+  /**
+   * `RG-DROITS-03` — **absent, pas vide**, quand le lecteur n'a pas
+   * `comments:read`. Un tableau vide dirait « il n'y a pas de commentaire »,
+   * ce qui est faux : l'écran doit pouvoir distinguer les deux et le dire.
+   */
+  commentaires?: {
     id: string;
     contenu: string;
     creeLe: string;
@@ -109,6 +114,9 @@ export const creer = (donnees: {
   priorite?: string;
   dateDebut?: string | null;
   dateFin?: string | null;
+  /** `EX-TSK-04` — les horaires font partie des onze champs de l'exigence. */
+  heureDebut?: string | null;
+  heureFin?: string | null;
   estimationHeures?: number;
   interventionExterieure?: boolean;
   assigneIds?: string[];
@@ -131,8 +139,17 @@ export const modifier = (
     priorite?: string;
     dateDebut?: string | null;
     dateFin?: string | null;
+    heureDebut?: string | null;
+    heureFin?: string | null;
     estimationHeures?: number | null;
     avancement?: number;
+    /**
+     * `EX-TSK-15` — rattacher ou détacher a posteriori. `null` détache, et le
+     * serveur détache alors aussi le jalon et l'épopée (`RG-JAL-04`).
+     */
+    projectId?: string | null;
+    milestoneId?: string | null;
+    epicId?: string | null;
   },
 ) => appeler<{ version: number }>(`/taches/${id}`, { methode: "PATCH", corps: donnees });
 
@@ -148,10 +165,10 @@ export const modifier = (
  * assigné n'a pas de point d'entrée ». Quatrième commentaire de ce genre à se
  * révéler faux.
  */
-export const definirAssignes = (id: string, userIds: string[]) =>
-  appeler<{ assignes: string[] }>(`/taches/${id}/assignes`, {
+export const definirAssignes = (id: string, userIds: string[], version: number) =>
+  appeler<{ assignes: string[]; version: number }>(`/taches/${id}/assignes`, {
     methode: "PUT",
-    corps: { userIds },
+    corps: { version, userIds },
   });
 
 export const supprimer = (id: string) => appeler<void>(`/taches/${id}`, { methode: "DELETE" });
@@ -165,8 +182,11 @@ export const basculerSousTache = (sousTacheId: string, fait: boolean) =>
 export const supprimerSousTache = (sousTacheId: string) =>
   appeler<void>(`/taches/sous-taches/${sousTacheId}`, { methode: "DELETE" });
 
-export const reordonnerSousTaches = (id: string, ids: string[]) =>
-  appeler<SousTache[]>(`/taches/${id}/sous-taches/ordre`, { methode: "PUT", corps: { ids } });
+export const reordonnerSousTaches = (id: string, ids: string[], version: number) =>
+  appeler<SousTache[]>(`/taches/${id}/sous-taches/ordre`, {
+    methode: "PUT",
+    corps: { version, ids },
+  });
 
 /**
  * Les liens d'une tâche, sans sa fiche complète.
