@@ -292,7 +292,7 @@ test.describe("Vue 33 — journal d'audit", () => {
     await expect(page.getByText(/n'a que les droits de lecture et d'insertion/)).toBeVisible();
   });
 
-  test("RG-ADM-09 — le système, l'humain et le compte supprimé se distinguent", async ({
+  test("EX-ADM-09 — le système, l'humain et le compte supprimé se distinguent", async ({
     page,
   }) => {
     await serveur(page, { session: SESSION_CONFIG, reponses });

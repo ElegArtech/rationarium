@@ -80,7 +80,7 @@ describe("RG-TRS-01 — une personne morale ne porte pas de contact nommé", () 
   });
 });
 
-describe("RG-TRS-02, RG-TRS-04 — assignation d'un tiers", () => {
+describe("EX-TRS-02, RG-TRS-02, RG-TRS-04 — rattacher au projet, assigner à la tâche", () => {
   it("un tiers archivé n'est plus assignable", async () => {
     const t = await tiers.creerTiers({ type: "individual", contactNom: "Archivé" }, acteur);
     await prisma.thirdParty.update({ where: { id: t.id }, data: { actif: false } });
@@ -294,7 +294,17 @@ describe("RG-CMP-01, RG-CMP-02, RG-CMP-03 — couverture et écarts", () => {
   });
 });
 
-describe("EX-TRS-02 et EX-CLI-02 — un tiers et un client se MODIFIENT", () => {
+/*
+ * Le titre citait « EX-TRS-02 et EX-CLI-02 ». Les deux étaient faux, et de deux
+ * façons différentes : IL N'EXISTE AUCUN DOMAINE « CLI » au cadrage — les
+ * clients vivent dans M14 avec les tiers, et « Gérer les clients » est
+ * `EX-TRS-04` ; quant à `EX-TRS-02`, il dit « rattacher un tiers à un projet,
+ * l'assigner à une tâche », ce que cette suite ne fait pas. Modifier un tiers
+ * relève de `EX-TRS-01`, « gérer les tiers ». Une citation fausse fait croire à
+ * une couverture qui n'existe pas : `EX-TRS-02` est recité plus haut, sur la
+ * suite qui l'exerce réellement.
+ */
+describe("EX-TRS-01 et EX-TRS-04 — un tiers et un client se MODIFIENT", () => {
   /*
    * Ils se créaient, se lisaient et se supprimaient ; rien ne les modifiait.
    * Les maquettes 23 à 26 posent pourtant « Modifier » sur la liste ET sur la
@@ -352,5 +362,398 @@ describe("EX-TRS-02 et EX-CLI-02 — un tiers et un client se MODIFIENT", () => 
     await expect(tiers.modifierClient(inconnu, { nom: "x" }, acteur)).rejects.toMatchObject({
       code: "introuvable",
     });
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// Vague 7-4 — dette de traçabilité. M13 et M14.
+// ════════════════════════════════════════════════════════════════════════════
+
+describe("EX-CMP-02 — assigner des compétences à un agent avec un niveau", () => {
+  it("l'assignation porte le niveau, et le niveau est celui qui a été demandé", async () => {
+    const c = await competences.creer(
+      { nom: `Assignée ${uuid().slice(0, 6)}`, categorie: "technical" },
+      acteur,
+    );
+    const u = await agent();
+
+    await competences.definirNiveau(u, c.id, "intermediate", acteur);
+
+    const detention = await prisma.userSkill.findUniqueOrThrow({
+      where: { userId_skillId: { userId: u, skillId: c.id } },
+    });
+    expect(detention.niveau).toBe("intermediate");
+  });
+
+  it("un agent porte PLUSIEURS compétences, chacune à son propre niveau", async () => {
+    const a = await competences.creer({ nom: `A ${uuid().slice(0, 6)}`, categorie: "technical" }, acteur);
+    const b = await competences.creer({ nom: `B ${uuid().slice(0, 6)}`, categorie: "business" }, acteur);
+    const u = await agent();
+
+    await competences.definirNiveau(u, a.id, "beginner", acteur);
+    await competences.definirNiveau(u, b.id, "master", acteur);
+
+    const siennes = await prisma.userSkill.findMany({ where: { userId: u } });
+    expect(siennes).toHaveLength(2);
+    expect(siennes.find((s) => s.skillId === a.id)!.niveau).toBe("beginner");
+    expect(siennes.find((s) => s.skillId === b.id)!.niveau).toBe("master");
+  });
+
+  it("l'assignation est tracée, avec l'agent et le niveau", async () => {
+    const c = await competences.creer({ nom: `Tracée ${uuid().slice(0, 6)}`, categorie: "technical" }, acteur);
+    const u = await agent();
+    await competences.definirNiveau(u, c.id, "expert", acteur);
+
+    const trace = await prisma.auditLog.findFirst({
+      where: { action: "skill.set_level", entiteId: c.id },
+      orderBy: { horodatage: "desc" },
+    });
+    expect(trace).not.toBeNull();
+    expect(JSON.stringify(trace!.detail)).toContain(u);
+    expect(JSON.stringify(trace!.detail)).toContain("expert");
+  });
+});
+
+describe("EX-CMP-03 — modifier un niveau, retirer une compétence", () => {
+  it("le niveau se corrige en place, et l'ancien ne subsiste nulle part", async () => {
+    const c = await competences.creer({ nom: `Évolue ${uuid().slice(0, 6)}`, categorie: "technical" }, acteur);
+    const u = await agent();
+    await competences.definirNiveau(u, c.id, "beginner", acteur);
+
+    await competences.definirNiveau(u, c.id, "expert", acteur);
+
+    // `RG-CMP-06` : il y a LE niveau courant, pas un historique de niveaux.
+    const lignes = await prisma.userSkill.findMany({ where: { userId: u, skillId: c.id } });
+    expect(lignes).toHaveLength(1);
+    expect(lignes[0]!.niveau).toBe("expert");
+  });
+
+  it("retirer une compétence défait la détention SANS toucher au référentiel", async () => {
+    /*
+     * La distinction compte : retirer une compétence à quelqu'un et supprimer
+     * la compétence de l'organisation sont deux gestes que `RG-CMP-04` sépare
+     * précisément — le second est refusé tant qu'il reste des détenteurs.
+     */
+    const c = await competences.creer({ nom: `Retirée ${uuid().slice(0, 6)}`, categorie: "technical" }, acteur);
+    const u = await agent();
+    await competences.definirNiveau(u, c.id, "expert", acteur);
+
+    await competences.retirerCompetence(u, c.id, acteur);
+
+    expect(
+      await prisma.userSkill.findUnique({ where: { userId_skillId: { userId: u, skillId: c.id } } }),
+    ).toBeNull();
+    expect(await prisma.skill.findUnique({ where: { id: c.id } })).not.toBeNull();
+  });
+
+  it("et le retrait LIBÈRE la suppression que RG-CMP-04 bloquait", async () => {
+    const c = await competences.creer({ nom: `Libérée ${uuid().slice(0, 6)}`, categorie: "technical" }, acteur);
+    const u = await agent();
+    await competences.definirNiveau(u, c.id, "expert", acteur);
+    await expect(competences.supprimer(c.id, acteur)).rejects.toMatchObject({
+      code: "competence_assignee",
+    });
+
+    await competences.retirerCompetence(u, c.id, acteur);
+
+    await expect(competences.supprimer(c.id, acteur)).resolves.toBeUndefined();
+  });
+});
+
+describe("EX-CMP-04 — consulter la matrice collaborateurs × compétences", () => {
+  it("chaque ligne est un agent, chaque colonne une compétence, et les niveaux sont À L'INTERSECTION", async () => {
+    /*
+     * L'ordre des niveaux d'une ligne suit l'ordre des colonnes : c'est le
+     * seul contrat qui permette au client de rendre un tableau. Une liste de
+     * paires obligerait chaque cellule à chercher sa valeur.
+     */
+    const c = await competences.creer({ nom: `Aaa ${uuid().slice(0, 6)}`, categorie: "methodology" }, acteur);
+    const d = await competences.creer({ nom: `Zzz ${uuid().slice(0, 6)}`, categorie: "methodology" }, acteur);
+    const u = await agent();
+    await competences.definirNiveau(u, c.id, "expert", acteur);
+
+    const p = await globalP();
+    const m = await competences.matrice(p, { categorie: "methodology" });
+
+    const iC = m.colonnes.findIndex((x) => x.id === c.id);
+    const iD = m.colonnes.findIndex((x) => x.id === d.id);
+    const ligne = m.lignes.find((l) => l.agent.id === u)!;
+
+    expect(ligne.niveaux).toHaveLength(m.colonnes.length);
+    expect(ligne.niveaux[iC]).toBe("expert");
+    // Une case vide est `null`, pas une chaîne vide : « pas de niveau » et
+    // « niveau vide » ne se ressemblent qu'à l'affichage.
+    expect(ligne.niveaux[iD]).toBeNull();
+  });
+
+  it("un agent désactivé sort de la matrice — elle décrit l'effectif en poste", async () => {
+    const c = await competences.creer({ nom: `Partie ${uuid().slice(0, 6)}`, categorie: "methodology" }, acteur);
+    const parti = await agent();
+    await competences.definirNiveau(parti, c.id, "expert", acteur);
+    await prisma.user.update({ where: { id: parti }, data: { actif: false } });
+
+    const p = await globalP();
+    const m = await competences.matrice(p, { categorie: "methodology" });
+
+    expect(m.lignes.map((l) => l.agent.id)).not.toContain(parti);
+    // Et il ne compte plus dans la couverture non plus.
+    expect(m.colonnes.find((x) => x.id === c.id)!.detenteurs).toBe(0);
+  });
+
+  it("le filtre par catégorie ne ramène QUE ses colonnes", async () => {
+    const methode = await competences.creer(
+      { nom: `Filtrée ${uuid().slice(0, 6)}`, categorie: "methodology" },
+      acteur,
+    );
+    const technique = await competences.creer(
+      { nom: `Filtrée ${uuid().slice(0, 6)}`, categorie: "technical" },
+      acteur,
+    );
+
+    const p = await globalP();
+    const m = await competences.matrice(p, { categorie: "methodology" });
+
+    expect(m.colonnes.map((c) => c.id)).toContain(methode.id);
+    expect(m.colonnes.map((c) => c.id)).not.toContain(technique.id);
+    expect(m.colonnes.every((c) => c.categorie === "methodology")).toBe(true);
+  });
+});
+
+describe("EX-CMP-05 — modifier un niveau directement depuis une cellule de la matrice", () => {
+  it("l'écriture d'une cellule se relit DANS LA MATRICE, pas seulement en base", async () => {
+    /*
+     * Une cellule qui s'enregistre sans que la matrice change est le piège que
+     * ce dépôt connaît sous « un réglage qui s'enregistre n'est pas un réglage
+     * qui s'applique ». Le contrôle relit donc la matrice, pas la table.
+     */
+    const c = await competences.creer({ nom: `Cellule ${uuid().slice(0, 6)}`, categorie: "methodology" }, acteur);
+    const u = await agent();
+    const p = await globalP();
+
+    const avant = await competences.matrice(p, { categorie: "methodology" });
+    const iAvant = avant.colonnes.findIndex((x) => x.id === c.id);
+    expect(avant.lignes.find((l) => l.agent.id === u)!.niveaux[iAvant]).toBeNull();
+
+    await competences.definirNiveau(u, c.id, "intermediate", acteur);
+
+    const apres = await competences.matrice(p, { categorie: "methodology" });
+    const iApres = apres.colonnes.findIndex((x) => x.id === c.id);
+    expect(apres.lignes.find((l) => l.agent.id === u)!.niveaux[iApres]).toBe("intermediate");
+  });
+
+  it("et la cellule se VIDE : le retrait depuis la matrice la ramène à null", async () => {
+    const c = await competences.creer({ nom: `Vidée ${uuid().slice(0, 6)}`, categorie: "methodology" }, acteur);
+    const u = await agent();
+    await competences.definirNiveau(u, c.id, "master", acteur);
+
+    await competences.retirerCompetence(u, c.id, acteur);
+
+    const p = await globalP();
+    const m = await competences.matrice(p, { categorie: "methodology" });
+    const i = m.colonnes.findIndex((x) => x.id === c.id);
+    expect(m.lignes.find((l) => l.agent.id === u)!.niveaux[i]).toBeNull();
+  });
+
+  it("la cellule d'une compétence CHANGE le manque de sa colonne, immédiatement", async () => {
+    const c = await competences.creer(
+      { nom: `Manque ${uuid().slice(0, 6)}`, categorie: "methodology", effectifRequis: 2 },
+      acteur,
+    );
+    const p = await globalP();
+    expect((await competences.matrice(p, { categorie: "methodology" })).colonnes.find((x) => x.id === c.id)!.manque)
+      .toBe(2);
+
+    await competences.definirNiveau(await agent(), c.id, "expert", acteur);
+
+    expect((await competences.matrice(p, { categorie: "methodology" })).colonnes.find((x) => x.id === c.id)!.manque)
+      .toBe(1);
+  });
+});
+
+describe("EX-CMP-06 — consulter la couverture moyenne et les écarts de compétence", () => {
+  it("la synthèse compte les écarts et donne une couverture moyenne en pourcentage", async () => {
+    /*
+     * Isolé sur une catégorie afin que la synthèse porte sur un ensemble
+     * connu : sur la matrice entière elle dépendrait de tout ce que les autres
+     * contrôles ont semé.
+     */
+    const couverte = await competences.creer(
+      { nom: `Couverte ${uuid().slice(0, 6)}`, categorie: "soft_skill", effectifRequis: 1 },
+      acteur,
+    );
+    const beante = await competences.creer(
+      { nom: `Béante ${uuid().slice(0, 6)}`, categorie: "soft_skill", effectifRequis: 4 },
+      acteur,
+    );
+    await competences.definirNiveau(await agent(), couverte.id, "expert", acteur);
+    await competences.definirNiveau(await agent(), beante.id, "beginner", acteur);
+
+    const p = await globalP();
+    const { synthese, colonnes } = await competences.matrice(p, { categorie: "soft_skill" });
+
+    expect(colonnes).toHaveLength(2);
+    expect(synthese.competences).toBe(2);
+    expect(synthese.avecEcart).toBe(1);
+    // (100 % + 25 %) / 2 = 62,5 arrondi. La moyenne n'est PAS le ratio global
+    // des détenteurs sur les requis (2/5 = 40 %) : chaque compétence pèse
+    // pareil, sinon celle qui demande beaucoup de monde écraserait les autres.
+    expect(synthese.couvertureMoyenne).toBe(63);
+  });
+
+  it("un sur-effectif ne fait pas dépasser 100 % — la couverture d'une compétence est PLAFONNÉE", async () => {
+    /*
+     * Sans le plafond, trois détenteurs pour un requis rendraient 300 % et
+     * compenseraient arithmétiquement une lacune ailleurs : la synthèse
+     * annoncerait « couvert » sur une organisation qui ne l'est pas.
+     */
+    const c = await competences.creer(
+      { nom: `Pléthore ${uuid().slice(0, 6)}`, categorie: "technical", effectifRequis: 1 },
+      acteur,
+    );
+    for (let i = 0; i < 3; i += 1) {
+      await competences.definirNiveau(await agent(), c.id, "expert", acteur);
+    }
+
+    const p = await globalP();
+    const colonne = (await competences.matrice(p, { categorie: "technical" })).colonnes.find(
+      (x) => x.id === c.id,
+    )!;
+    expect(colonne.ratio).toBe("3/1");
+    expect(colonne.detenteurs).toBe(3);
+    // Le manque est plancher à zéro, jamais négatif.
+    expect(colonne.manque).toBe(0);
+    expect(colonne.couverture).toBe("complete");
+  });
+});
+
+describe("EX-TRS-03 — consulter la fiche d'un tiers et ses rattachements", () => {
+  it("la fiche rassemble projets, tâches, heures et période d'intervention", async () => {
+    const t = await tiers.creerTiers(
+      { type: "organisation", organisation: `Presta ${uuid().slice(0, 6)}` },
+      acteur,
+    );
+    const p = await projet();
+    await tiers.rattacherAuProjet(p, t.id, acteur);
+    const tache = await prisma.task.create({ data: { titre: "Audit", projectId: p } });
+    await tiers.assignerALaTache(tache.id, t.id, acteur);
+    await prisma.timeEntry.createMany({
+      data: [
+        { thirdPartyId: t.id, projectId: p, date: utc("2026-02-10"), heures: 7 },
+        { thirdPartyId: t.id, projectId: p, date: utc("2026-05-20"), heures: 3.5 },
+      ],
+    });
+
+    const fiche = await tiers.ficheTiers(t.id);
+
+    expect(fiche.projets.map((x) => x.id)).toEqual([p]);
+    expect(fiche.taches.map((x) => x.id)).toEqual([tache.id]);
+    // HEURES et NOMBRE DE SAISIES sont deux grandeurs distinctes : la vue 24
+    // les affichait toutes deux depuis un seul nombre, faux dans l'un des cas.
+    expect(fiche.heuresDeclarees).toBe(10.5);
+    expect(fiche.saisies).toBe(2);
+    expect(fiche.premiereIntervention).toBe("2026-02-10");
+    expect(fiche.derniereIntervention).toBe("2026-05-20");
+  });
+
+  it("le détail des saisies est PLAFONNÉ, et le reste est annoncé", async () => {
+    const t = await tiers.creerTiers(
+      { type: "organisation", organisation: `Prolixe ${uuid().slice(0, 6)}` },
+      acteur,
+    );
+    const p = await projet();
+    await prisma.timeEntry.createMany({
+      data: Array.from({ length: 8 }, (_, i) => ({
+        thirdPartyId: t.id,
+        projectId: p,
+        date: utc(`2026-03-${String(i + 1).padStart(2, "0")}`),
+        heures: 1,
+      })),
+    });
+
+    const fiche = await tiers.ficheTiers(t.id);
+
+    // Un panneau latéral qui déverserait tout l'historique cesserait d'être
+    // lisible au premier tiers actif.
+    expect(fiche.saisiesRecentes).toHaveLength(5);
+    expect(fiche.saisiesRestantes).toBe(3);
+    // Les plus RÉCENTES, pas les premières venues.
+    expect(fiche.saisiesRecentes[0]!.date).toBe("2026-03-08");
+  });
+
+  it("un tiers sans aucun rattachement rend des listes vides et des dates nulles, jamais une erreur", async () => {
+    const t = await tiers.creerTiers({ type: "individual", contactNom: "Solitaire" }, acteur);
+    const fiche = await tiers.ficheTiers(t.id);
+    expect(fiche.projets).toEqual([]);
+    expect(fiche.taches).toEqual([]);
+    expect(fiche.heuresDeclarees).toBe(0);
+    expect(fiche.premiereIntervention).toBeNull();
+    expect(fiche.derniereIntervention).toBeNull();
+  });
+
+  it("un tiers inconnu est refusé, pas rendu vide", async () => {
+    await expect(
+      tiers.ficheTiers("00000000-0000-4000-8000-000000000000"),
+    ).rejects.toMatchObject({ code: "introuvable" });
+  });
+});
+
+describe("EX-TRS-06 — consulter l'impact d'une suppression AVANT de la confirmer", () => {
+  it("l'impact du tiers distingue ce qui BLOQUE de ce qui S'EFFACE, et propose l'archivage", async () => {
+    const t = await tiers.creerTiers(
+      { type: "organisation", organisation: `Impact ${uuid().slice(0, 6)}` },
+      acteur,
+    );
+    const p = await projet();
+    await tiers.rattacherAuProjet(p, t.id, acteur);
+    const tache = await prisma.task.create({ data: { titre: "Reprise", projectId: p } });
+    await tiers.assignerALaTache(tache.id, t.id, acteur);
+    await prisma.timeEntry.create({
+      data: { thirdPartyId: t.id, projectId: p, date: utc("2026-04-01"), heures: 6 },
+    });
+
+    const impact = await tiers.impactSuppressionTiers(t.id);
+
+    expect(impact.blocages).toEqual([{ objet: "heures déclarées", nombre: 1 }]);
+    expect(impact.effacements).toContainEqual({ objet: "rattachements de projet", nombre: 1 });
+    expect(impact.effacements).toContainEqual({ objet: "assignations de tâche", nombre: 1 });
+    // Un refus sans alternative pousse l'utilisateur à contourner.
+    expect(impact.alternative).toBe("archiver");
+  });
+
+  it("sans historique, l'impact est vide ET n'annonce aucune alternative", async () => {
+    const t = await tiers.creerTiers({ type: "individual", contactNom: "Neuf" }, acteur);
+    const impact = await tiers.impactSuppressionTiers(t.id);
+    expect(impact.blocages).toEqual([]);
+    expect(impact.alternative).toBeNull();
+  });
+
+  it("l'impact ANNONCE ce que la suppression fera, et la suppression le fait", async () => {
+    const t = await tiers.creerTiers(
+      { type: "organisation", organisation: `Cohérent ${uuid().slice(0, 6)}` },
+      acteur,
+    );
+    const p = await projet();
+    await tiers.rattacherAuProjet(p, t.id, acteur);
+
+    const impact = await tiers.impactSuppressionTiers(t.id);
+    expect(impact.blocages).toEqual([]);
+    expect(impact.effacements).toContainEqual({ objet: "rattachements de projet", nombre: 1 });
+
+    await tiers.supprimerTiers(t.id, acteur);
+
+    expect(await prisma.projectThirdParty.count({ where: { thirdPartyId: t.id } })).toBe(0);
+    // Le projet, lui, survit : ce qui disparaît est le lien, pas le travail.
+    expect(await prisma.project.findUnique({ where: { id: p } })).not.toBeNull();
+  });
+
+  it("l'impact d'un CLIENT chiffre ses projets et propose la désactivation", async () => {
+    const c = await tiers.creerClient({ nom: `Ville ${uuid().slice(0, 6)}` }, acteur);
+    const p = await projet();
+    await tiers.rattacherClients(p, [c.id], acteur);
+
+    const impact = await tiers.impactSuppressionClient(c.id);
+
+    expect(impact.blocages).toEqual([{ objet: "projets rattachés", nombre: 1 }]);
+    expect(impact.alternative).toBe("desactiver");
   });
 });

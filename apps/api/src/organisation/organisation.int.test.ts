@@ -224,3 +224,129 @@ describe("EX-ORG-02 — les trois niveaux SE RENOMMENT", () => {
     ).rejects.toMatchObject({ code: "introuvable" });
   });
 });
+
+// ════════════════════════════════════════════════════════════════════════════
+// Vague 7-4 — dette de traçabilité.
+// ════════════════════════════════════════════════════════════════════════════
+
+describe("EX-ORG-01 — créer, modifier, supprimer une direction ; lui désigner un responsable", () => {
+  /** Un agent réel : le responsable est une clé étrangère, pas une étiquette. */
+  const responsable = async (prenom: string) => {
+    const id = uuid();
+    await prisma.user.create({
+      data: {
+        id, login: `r-${id.slice(0, 8)}`, email: `${id.slice(0, 8)}@x.fr`,
+        motDePasseHash: "x", prenom, nom: "Responsable",
+      },
+    });
+    return id;
+  };
+
+  it("les quatre verbes de l'exigence, dans l'ordre où on les emploie", async () => {
+    const marie = await responsable("Marie");
+    const paul = await responsable("Paul");
+
+    // Créer, avec son responsable dès l'origine.
+    const d = await orga.creerDirection(
+      { nom: unique("Direction"), description: "Systèmes d'information", responsableId: marie },
+      acteur,
+    );
+    expect(d.responsableId).toBe(marie);
+    expect(d.description).toBe("Systèmes d'information");
+
+    // Modifier — le nom ET le responsable, sans changer d'identité.
+    const apres = await orga.renommer(
+      "direction",
+      d.id,
+      { nom: unique("Numérique"), responsableId: paul },
+      acteur,
+    );
+    expect(apres.id).toBe(d.id);
+    const relu = await prisma.direction.findUniqueOrThrow({ where: { id: d.id } });
+    expect(relu.responsableId).toBe(paul);
+    expect(relu.nom).toBe(apres.nom);
+
+    // Supprimer.
+    await orga.supprimerDirection(d.id, acteur);
+    expect(await prisma.direction.findUnique({ where: { id: d.id } })).toBeNull();
+  });
+
+  it("le responsable se RETIRE, il n'est pas seulement remplaçable", async () => {
+    /*
+     * Un responsable qui quitte la collectivité doit pouvoir être détaché sans
+     * qu'on lui invente un successeur. `null` est donc une valeur, pas une
+     * absence de valeur : le service distingue les deux.
+     */
+    const marie = await responsable("Marie");
+    const d = await orga.creerDirection({ nom: unique("Détachable"), responsableId: marie }, acteur);
+
+    await orga.renommer("direction", d.id, { responsableId: null }, acteur);
+
+    expect(
+      (await prisma.direction.findUniqueOrThrow({ where: { id: d.id } })).responsableId,
+    ).toBeNull();
+  });
+
+  it("la création et la suppression sont tracées, l'une et l'autre", async () => {
+    const d = await orga.creerDirection({ nom: unique("Tracée") }, acteur);
+    await orga.supprimerDirection(d.id, acteur);
+
+    const actions = (
+      await prisma.auditLog.findMany({ where: { entiteId: d.id }, select: { action: true } })
+    ).map((a) => a.action);
+    expect(actions).toContain("direction.create");
+    expect(actions).toContain("direction.delete");
+  });
+});
+
+describe("EX-ORG-03 — créer, modifier un service ; le rattacher à un département, lui désigner un manager — SUPPRIMER manque, défaut consigné", () => {
+  /*
+   * L'exigence dit « Créer, modifier, supprimer un service ». Le verbe du
+   * milieu existe (`renommer`), le troisième **n'existe pas** : ni
+   * `OrganisationService.supprimerService`, ni route `DELETE
+   * /organisation/services/:id`. `EX-ORG-03` reste donc en dette, et le
+   * contrôle ci-dessous en fait la preuve plutôt qu'une note dans un rapport.
+   *
+   * C'est le quatrième membre d'une famille que ce dépôt connaît :
+   * `EX-ORG-02`, `EX-CLI-02` et `EX-PRJ-05` étaient trois exigences
+   * « créer, modifier, supprimer » livrées sans un de leurs verbes.
+   */
+  it("le service se crée avec son département et son manager", async () => {
+    const id = uuid();
+    await prisma.user.create({
+      data: {
+        id, login: `m-${id.slice(0, 8)}`, email: `${id.slice(0, 8)}@x.fr`,
+        motDePasseHash: "x", prenom: "Manager", nom: "M",
+      },
+    });
+    const dep = await orga.creerDepartement({ nom: unique("Porteur") }, acteur);
+
+    const svc = await orga.creerService(
+      { nom: "Réseaux et télécoms", departementId: dep.id, managerId: id },
+      acteur,
+    );
+
+    expect(svc.departementId).toBe(dep.id);
+    expect(svc.managerId).toBe(id);
+  });
+
+  it("le service se renomme, et son manager change", async () => {
+    const dep = await orga.creerDepartement({ nom: unique("Renommeur") }, acteur);
+    const svc = await orga.creerService({ nom: "Acceuil", departementId: dep.id }, acteur);
+
+    const apres = await orga.renommer("service", svc.id, { nom: "Accueil" }, acteur);
+
+    expect(apres.id).toBe(svc.id);
+    expect(apres.nom).toBe("Accueil");
+  });
+
+  it.fails("SUPPRIMER UN SERVICE N'EXISTE PAS — le troisième verbe manque", () => {
+    /*
+     * Défaut consigné, non corrigé : ce lot n'écrit pas de code de production.
+     * L'assertion porte sur la surface du service, parce que c'est là que
+     * l'absence se constate : rien à appeler.
+     */
+    const surface = orga as unknown as Record<string, unknown>;
+    expect(typeof surface["supprimerService"]).toBe("function");
+  });
+});
