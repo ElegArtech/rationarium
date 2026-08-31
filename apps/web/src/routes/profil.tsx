@@ -401,11 +401,26 @@ function Informations({
           </div>
         ))}
 
-        <div className="panel-body panel-body-separe">
-          <Button className="chip-btn" isDisabled>
-            {t("profil.demanderModification")}
-          </Button>
-        </div>
+        {/*
+          **Le bouton « Demander une modification » a été RETIRÉ le
+          2026-08-31.**
+
+          La maquette 35 le pose et le résout par un `askChange()` qui annonce
+          une demande transmise au manager et à l'administrateur. Rien de tel
+          n'existe : aucune exigence du cadrage n'ouvre ce geste, aucune route
+          ne le porte, et il n'y a personne à qui transmettre.
+
+          Il a vécu ici désactivé — et c'était le SEUL inerte du produit sans
+          explication au survol, donc un écart franc à `RG-GEN-06` : une action
+          interdite se masque, ou se désactive AVEC son motif. Entre inventer
+          une fonctionnalité et retirer une commande que rien ne sert, on
+          retire. Les champs verrouillés portent déjà, chacun, la raison de
+          leur verrou et le service qui les tient — c'est ce qui répond
+          réellement à la question « comment fait-on corriger ça ? ».
+
+          Décision portée dans `cadrage/02` § vue 35 pour qu'elle ne revienne
+          pas par la maquette.
+        */}
       </section>
     </div>
   );

@@ -774,8 +774,6 @@
     "regleCreee": "Règle de récurrence créée.",
     "regleArretee": "Règle arrêtée — ce qu'elle a déjà engendré est conservé.",
     "regleReprise": "Règle réactivée.",
-    "regleNonModifiable": "Une règle ne se réécrit pas : arrêtez-la et posez-en une nouvelle.",
-    "regleNonSupprimable": "Une règle ne s'efface pas : elle s'arrête, pour que ce qu'elle a engendré reste explicable.",
     "jusquAu": "jusqu'au {fin}",
     "sansDateDeFin": "sans date de fin",
     "assignationsTitre": "Assignations",
@@ -791,7 +789,14 @@
     "generer": "Générer",
     "fermer": "Fermer",
     "generationFaite": "{n, plural, =0 {Aucune assignation créée.} one {# assignation créée.} other {# assignations créées.}}",
-    "bilanGeneration": "{crees, plural, =0 {Aucune créée} one {# créée} other {# créées}} · {ignores, plural, =0 {aucune ignorée} one {# ignorée} other {# ignorées}}"
+    "bilanGeneration": "{crees, plural, =0 {Aucune créée} one {# créée} other {# créées}} · {ignores, plural, =0 {aucune ignorée} one {# ignorée} other {# ignorées}}",
+    "regleModifiee": "Règle modifiée.",
+    "modifierRegleTitre": "Modifier la règle",
+    "supprimerRegleTitre": "Supprimer la règle",
+    "confirmerSuppressionRegle": "Supprimer cette règle de récurrence ?",
+    "regleSuppressionMention": "Les assignations déjà engendrées ne sont pas supprimées.",
+    "effetSuppressionRegle": "La règle cesse d'engendrer des assignations. Celles qu'elle a déjà posées restent au planning.",
+    "regleSupprimee": "{n, plural, =0 {Règle supprimée.} one {Règle supprimée, 1 assignation conservée.} other {Règle supprimée, # assignations conservées.}}"
   },
   "jours": {
     "long": {

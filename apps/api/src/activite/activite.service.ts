@@ -22,6 +22,7 @@ export type EchecActivite =
   | "deja_assigne"
   | "agent_indisponible"
   | "dates_incoherentes"
+  | "conflit_de_version"
   | "introuvable";
 
 export class ErreurActivite extends Error {
@@ -163,6 +164,99 @@ export class ActiviteService {
       detail: { type: donnees.type, frequence: regle.frequence },
     });
     return regle;
+  }
+
+  /**
+   * `EX-ACT-04` — modifier une règle de récurrence.
+   *
+   * **Le verbe du milieu manquait.** Une règle se posait et s'arrêtait ; elle
+   * ne se corrigeait pas. Décaler un jour, changer une fréquence ou repousser
+   * une échéance imposait d'arrêter la règle et d'en poser une seconde —
+   * l'ancienne restant dans la liste, arrêtée, à côté de sa remplaçante. C'est
+   * le même trou que celui des règles de télétravail (`EX-TLT-04`), au même
+   * endroit du raisonnement : le catalogue sait poser et arrêter, pas
+   * réécrire.
+   *
+   * `RG-GEN-07` : la version lue accompagne l'écriture. Les règles engendrent
+   * des assignations pour tout un service — deux corrections concurrentes qui
+   * s'écraseraient produiraient un planning que personne n'a demandé.
+   *
+   * Ce qui a DÉJÀ été engendré n'est pas retouché : la règle décrit ce qui
+   * vient, pas ce qui est passé. C'est la même promesse que l'arrêt.
+   */
+  async modifierRecurrence(
+    id: string,
+    donnees: {
+      type?: string; frequence?: number; jourSemaine?: number | null;
+      jourMois?: number | null; ordinal?: number | null;
+      dateDebut?: Date; dateFin?: Date | null; active?: boolean;
+      version: number;
+    },
+    acteurId: string,
+  ) {
+    const avant = await this.prisma.predefinedTaskRecurrence.findUnique({ where: { id } });
+    if (!avant) throw new ErreurActivite("introuvable");
+
+    // Les dates se contrôlent sur l'état RÉSULTANT : ne changer que `dateFin`
+    // pour la faire passer avant un `dateDebut` déjà en base est licite
+    // requête par requête, et interdit en résultat.
+    const debut = donnees.dateDebut ?? avant.dateDebut;
+    const fin = donnees.dateFin === undefined ? avant.dateFin : donnees.dateFin;
+    if (fin && fin < debut) throw new ErreurActivite("dates_incoherentes");
+
+    const { count } = await this.prisma.predefinedTaskRecurrence.updateMany({
+      where: { id, version: donnees.version },
+      data: {
+        ...(donnees.type !== undefined ? { type: donnees.type } : {}),
+        ...(donnees.frequence !== undefined ? { frequence: donnees.frequence } : {}),
+        ...(donnees.jourSemaine !== undefined ? { jourSemaine: donnees.jourSemaine } : {}),
+        ...(donnees.jourMois !== undefined ? { jourMois: donnees.jourMois } : {}),
+        ...(donnees.ordinal !== undefined ? { ordinal: donnees.ordinal } : {}),
+        ...(donnees.dateDebut !== undefined ? { dateDebut: donnees.dateDebut } : {}),
+        ...(donnees.dateFin !== undefined ? { dateFin: donnees.dateFin } : {}),
+        ...(donnees.active !== undefined ? { active: donnees.active } : {}),
+        version: { increment: 1 },
+      },
+    });
+    if (count === 0) throw new ErreurActivite("conflit_de_version");
+
+    await this.audit.tracer({
+      action: "predefined_task.recurrence_update",
+      typeEntite: "PredefinedTask",
+      entiteId: avant.predefinedTaskId,
+      acteurId,
+      detail: { regle: id },
+    });
+    return this.prisma.predefinedTaskRecurrence.findUniqueOrThrow({ where: { id } });
+  }
+
+  /**
+   * `EX-ACT-04` — supprimer une règle de récurrence.
+   *
+   * **Elle n'efface pas ce qu'elle a engendré.** Une assignation posée est un
+   * fait du planning : quelqu'un l'a peut-être déjà tenue, ou déclarée. La
+   * règle disparaît, le travail reste — exactement ce que l'arrêt promet, sauf
+   * que la ligne ne traîne plus dans la liste.
+   *
+   * Les assignations sont comptées avant, pour pouvoir le DIRE. Un effacement
+   * muet est ce qui inquiète.
+   */
+  async supprimerRecurrence(id: string, acteurId: string) {
+    const regle = await this.prisma.predefinedTaskRecurrence.findUnique({ where: { id } });
+    if (!regle) throw new ErreurActivite("introuvable");
+
+    const engendrees = await this.prisma.predefinedTaskAssignment.count({
+      where: { predefinedTaskId: regle.predefinedTaskId },
+    });
+    await this.prisma.predefinedTaskRecurrence.delete({ where: { id } });
+    await this.audit.tracer({
+      action: "predefined_task.recurrence_delete",
+      typeEntite: "PredefinedTask",
+      entiteId: regle.predefinedTaskId,
+      acteurId,
+      detail: { regle: id, assignationsConservees: engendrees },
+    });
+    return { assignationsConservees: engendrees };
   }
 
   /** Une règle s'arrête sans s'effacer : ce qu'elle a engendré reste. */

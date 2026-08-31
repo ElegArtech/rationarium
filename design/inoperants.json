@@ -28,36 +28,9 @@
       ]
     },
     {
-      "fichier": "apps/web/src/routes/profil.tsx",
-      "repere": "profil.demanderModification",
-      "raison": "Aucune route serveur ne porte la demande de modification d'un champ géré par l'administration : la maquette 35 s'en tire par un toast (`askChange()` y annonce une demande transmise au manager et à l'administrateur), et le cadrage n'ouvre aucune exigence pour ce geste. Le bouton reste par fidélité à la maquette et n'agit pas. À noter : c'est le seul inerte du produit SANS explication au survol — un écart à RG-GEN-06, à traiter à part.",
-      "regles": [
-        "EX-AUTH-09",
-        "RG-GEN-06"
-      ]
-    },
-    {
-      "fichier": "apps/web/src/vues/administration/Predefinies.tsx",
-      "repere": "modifier",
-      "raison": "Motif vérifié contre le contrôleur : `PATCH /activite/recurrences/:id` n'accepte que `{ active }` — il arrête une règle, il ne la réécrit pas. Aucune route n'expose le jour, les dates ni la tâche d'une règle de récurrence à la modification. Le serveur sait la poser et l'arrêter, pas la réécrire.",
-      "regles": [
-        "EX-ACT-04",
-        "RG-GEN-06"
-      ]
-    },
-    {
-      "fichier": "apps/web/src/vues/administration/Predefinies.tsx",
-      "repere": "supprimer",
-      "raison": "Motif vérifié contre le contrôleur : aucun `@Delete` n'existe sur `activite/recurrences/:id`. Une règle s'arrête sans s'effacer — ce qu'elle a engendré reste —, donc il n'y a rien à appeler et la commande ne peut pas agir.",
-      "regles": [
-        "EX-ACT-04",
-        "RG-GEN-06"
-      ]
-    },
-    {
       "fichier": "apps/web/src/vues/administration/Roles.tsx",
       "repere": "roles.enregistrerPermissions",
-      "raison": "RG-ADM-02 — un rôle système n'est pas modifiable dans sa structure : ses permissions sont fixées par le modèle, et vider ADMIN des siennes verrouillerait définitivement l'administration. L'intention est donc juste. MAIS le motif n'est vrai QUE côté client : `PUT /administration/roles/:id/permissions` ne regarde pas `systeme`, que `roles.service.ts` n'oppose qu'au renommage et à la suppression. Une requête forgée passe. Écart ouvert à part — un droit ne se contrôle jamais côté client seul.",
+      "raison": "RG-ADM-02 — un rôle système n'est pas modifiable dans sa structure : ses permissions sont fixées par le modèle, et vider ADMIN des siennes verrouillerait définitivement l'administration, puisque restaurer exige `users:manage_permissions`, qui vit dedans. Le bouton est donc désactivé sur un rôle système par courtoisie, et le contrôle est au SERVEUR : `definirPermissions` refuse `role_systeme_non_modifiable` dès que `acteurId` est présent — l'amorçage du référentiel appelle sans, la route HTTP appelle avec. Une requête forgée est refusée. (Cette raison affirmait le contraire jusqu'au 2026-08-31 : elle décrivait l'écart tel qu'il était à sa rédaction, et il a été comblé le jour même sans qu'elle soit relue. Une raison déclarée est une affirmation que rien ne vérifie — même famille que le commentaire qui affirme l'absence d'une route.)",
       "regles": [
         "RG-ADM-02",
         "RG-DROITS-02"

@@ -221,3 +221,176 @@ describe("EX-ACT-04 — les règles de récurrence SE POSENT", () => {
     expect(bilan.crees).toBe(1);
   });
 });
+
+/**
+ * `EX-ACT-04` — « Définir des règles de récurrence », le verbe du milieu
+ * compris.
+ *
+ * **Une règle se posait et s'arrêtait ; elle ne se corrigeait pas.** La route
+ * `PATCH /activite/recurrences/:id` n'acceptait que `{ active }` et aucun
+ * `@Delete` n'existait. Décaler un jour ou repousser une échéance imposait
+ * d'arrêter la règle et d'en poser une seconde, l'ancienne restant dans la
+ * liste, arrêtée, à côté de sa remplaçante. Les deux commandes de la vue 22
+ * étaient désactivées derrière ce motif — exact, et laissant la commande
+ * inerte pour autant.
+ *
+ * Même trou, même endroit du raisonnement que `EX-TLT-04` sur les règles de
+ * télétravail : le catalogue savait poser et arrêter, pas réécrire.
+ */
+describe("EX-ACT-04 — modifier et supprimer une règle de récurrence", () => {
+  it("EX-ACT-04 — MODIFIER le jour change ce que la règle engendre", async () => {
+    const acteur = await agent();
+    const porteur = await agent();
+    const t = await activite.creerTache({ nom: nom("Permanence") }, acteur);
+    const regle = await activite.creerRecurrence(
+      t.id,
+      { type: "weekly", jourSemaine: 1, dateDebut: utc("2026-06-01") },
+      acteur,
+    );
+
+    // Le mardi, désormais.
+    const modifiee = await activite.modifierRecurrence(
+      regle.id,
+      { jourSemaine: 2, version: regle.version },
+      acteur,
+    );
+    expect(modifiee.jourSemaine).toBe(2);
+
+    // Et le moteur suit : les jours engendrés sont des mardis.
+    await activite.genererDepuisRecurrences(
+      t.id,
+      utc("2026-06-01"),
+      utc("2026-06-30"),
+      [porteur],
+      acteur,
+    );
+    const jours = await prisma.predefinedTaskAssignment.findMany({
+      where: { predefinedTaskId: t.id },
+      select: { date: true },
+    });
+    expect(jours.length).toBeGreaterThan(0);
+    expect(jours.every((j) => j.date.getUTCDay() === 2)).toBe(true);
+  });
+
+  it("EX-ACT-04 — la date de fin s'EFFACE par null, et son absence la laisse", async () => {
+    const acteur = await agent();
+    const t = await activite.creerTache({ nom: nom("Astreinte") }, acteur);
+    const regle = await activite.creerRecurrence(
+      t.id,
+      { type: "weekly", jourSemaine: 1, dateDebut: utc("2026-06-01"), dateFin: utc("2026-12-31") },
+      acteur,
+    );
+
+    // Ne rien dire de la date de fin la laisse en place.
+    const inchangee = await activite.modifierRecurrence(
+      regle.id,
+      { frequence: 2, version: regle.version },
+      acteur,
+    );
+    expect(inchangee.dateFin).not.toBeNull();
+
+    // `null` la retire : l'absence d'échéance est un état, pas un oubli.
+    const sansFin = await activite.modifierRecurrence(
+      regle.id,
+      { dateFin: null, version: inchangee.version },
+      acteur,
+    );
+    expect(sansFin.dateFin).toBeNull();
+  });
+
+  it("EX-ACT-04 — une fin qui précède le début est refusée sur l'état RÉSULTANT", async () => {
+    /*
+     * Ne changer que `dateDebut` pour le faire passer après une `dateFin` déjà
+     * en base est licite requête par requête, et interdit en résultat.
+     */
+    const acteur = await agent();
+    const t = await activite.creerTache({ nom: nom("Renfort") }, acteur);
+    const regle = await activite.creerRecurrence(
+      t.id,
+      { type: "weekly", jourSemaine: 1, dateDebut: utc("2026-06-01"), dateFin: utc("2026-06-30") },
+      acteur,
+    );
+
+    await expect(
+      activite.modifierRecurrence(regle.id, { dateDebut: utc("2026-07-15"), version: regle.version }, acteur),
+    ).rejects.toMatchObject({ code: "dates_incoherentes" });
+  });
+
+  it("RG-GEN-07 — une modification sur une version périmée est REFUSÉE", async () => {
+    /*
+     * Une règle engendre des assignations pour tout un service : deux
+     * corrections concurrentes qui s'écraseraient produiraient un planning que
+     * personne n'a demandé.
+     */
+    const acteur = await agent();
+    const t = await activite.creerTache({ nom: nom("Concurrence") }, acteur);
+    const regle = await activite.creerRecurrence(
+      t.id,
+      { type: "weekly", jourSemaine: 1, dateDebut: utc("2026-06-01") },
+      acteur,
+    );
+
+    await activite.modifierRecurrence(regle.id, { frequence: 2, version: regle.version }, acteur);
+    await expect(
+      activite.modifierRecurrence(regle.id, { frequence: 3, version: regle.version }, acteur),
+    ).rejects.toMatchObject({ code: "conflit_de_version" });
+
+    // Le premier écrit tient : le refus n'a rien écrasé.
+    const apres = await prisma.predefinedTaskRecurrence.findUniqueOrThrow({ where: { id: regle.id } });
+    expect(apres.frequence).toBe(2);
+  });
+
+  it("EX-ACT-04 — SUPPRIMER la règle laisse les assignations qu'elle a engendrées", async () => {
+    const acteur = await agent();
+    const porteur = await agent();
+    const t = await activite.creerTache({ nom: nom("Effacement") }, acteur);
+    const regle = await activite.creerRecurrence(
+      t.id,
+      { type: "weekly", jourSemaine: 1, dateDebut: utc("2026-06-01") },
+      acteur,
+    );
+    await activite.genererDepuisRecurrences(
+      t.id,
+      utc("2026-06-01"),
+      utc("2026-06-30"),
+      [porteur],
+      acteur,
+    );
+    const avant = await prisma.predefinedTaskAssignment.count({ where: { predefinedTaskId: t.id } });
+    expect(avant).toBeGreaterThan(0);
+
+    const { assignationsConservees } = await activite.supprimerRecurrence(regle.id, acteur);
+    expect(assignationsConservees).toBe(avant);
+
+    // La règle disparaît, le travail reste : quelqu'un l'a peut-être déjà tenu.
+    expect(await prisma.predefinedTaskRecurrence.count({ where: { id: regle.id } })).toBe(0);
+    expect(await prisma.predefinedTaskAssignment.count({ where: { predefinedTaskId: t.id } })).toBe(avant);
+  });
+
+  it("EX-ACT-04 — la suppression est TRACÉE, avec ce qu'elle conserve", async () => {
+    const acteur = await agent();
+    const t = await activite.creerTache({ nom: nom("Trace") }, acteur);
+    const regle = await activite.creerRecurrence(
+      t.id,
+      { type: "weekly", jourSemaine: 1, dateDebut: utc("2026-06-01") },
+      acteur,
+    );
+    await activite.supprimerRecurrence(regle.id, acteur);
+
+    const trace = await prisma.auditLog.findFirst({
+      where: { action: "predefined_task.recurrence_delete", entiteId: t.id },
+      orderBy: { horodatage: "desc" },
+    });
+    expect((trace?.detail as { regle?: string } | null)?.regle).toBe(regle.id);
+  });
+
+  it("EX-ACT-04 — une règle inexistante se dit introuvable, des deux côtés", async () => {
+    const acteur = await agent();
+    await expect(
+      activite.supprimerRecurrence(crypto.randomUUID(), acteur),
+    ).rejects.toMatchObject({ code: "introuvable" });
+    await expect(
+      activite.modifierRecurrence(crypto.randomUUID(), { version: 1 }, acteur),
+    ).rejects.toMatchObject({ code: "introuvable" });
+  });
+});

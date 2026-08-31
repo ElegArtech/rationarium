@@ -68,7 +68,6 @@
     "annuler": "Cancel",
     "gereParAdministration": "Managed by your administration",
     "gereParAdministrationAide": "These details commit the organisation: they cannot be changed from your profile.",
-    "demanderModification": "Request a change",
     "champLogin": "Login",
     "champRole": "Role",
     "pourquoiLogin": "Sign-in identifier, fixed at account creation: it is the reference used in the audit log.",

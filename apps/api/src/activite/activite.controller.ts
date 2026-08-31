@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Query } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from "@nestjs/common";
 import { z } from "zod";
 import {
   enumDe,
@@ -6,7 +6,7 @@ import {
   PERIODES_JOURNEE,
   TYPES_RECURRENCE,
 } from "@rationarium/contracts";
-import { ActiviteService } from "./activite.service.js";
+import { ActiviteService, ErreurActivite } from "./activite.service.js";
 import { Demande, RequiertPermission, type ContexteDemande } from "../commun/permissions.garde.js";
 import { valider, dateSchema } from "../commun/http.js";
 
@@ -113,12 +113,54 @@ export class ActiviteController {
     return this.activite.creerRecurrence(id, donnees, d.userId);
   }
 
-  /** Une règle s'arrête sans s'effacer : ce qu'elle a engendré reste. */
+  /**
+   * `EX-ACT-04` — modifier une règle, ou l'arrêter.
+   *
+   * La route n'acceptait que `{ active }` : elle arrêtait une règle, elle ne
+   * la réécrivait pas. Décaler un jour ou repousser une échéance imposait
+   * d'arrêter la règle et d'en poser une seconde, l'ancienne restant dans la
+   * liste à côté de sa remplaçante.
+   *
+   * `version` n'est exigée que pour une réécriture : l'arrêt seul reste
+   * joignable sans, parce que c'est un interrupteur — deux personnes qui
+   * l'actionnent veulent la même chose, et `RG-GEN-07` protège d'un écrasement
+   * involontaire, pas d'un accord.
+   */
   @Patch("recurrences/:id")
   @RequiertPermission("predefined_tasks:update")
-  basculerRecurrence(@Param("id") id: string, @Body() corps: unknown, @Demande() d: ContexteDemande) {
-    const { active } = valider(z.object({ active: z.boolean() }), corps);
-    return this.activite.basculerRecurrence(id, active, d.userId);
+  modifierRecurrence(@Param("id") id: string, @Body() corps: unknown, @Demande() d: ContexteDemande) {
+    const donnees = valider(
+      z.object({
+        type: enumDe(TYPES_RECURRENCE).optional(),
+        frequence: z.number().int().min(1).max(52).optional(),
+        jourSemaine: z.number().int().min(0).max(6).nullish(),
+        jourMois: z.number().int().min(1).max(31).nullish(),
+        ordinal: z.number().int().min(-1).max(5).nullish(),
+        dateDebut: dateSchema.optional(),
+        dateFin: dateSchema.nullish(),
+        active: z.boolean().optional(),
+        version: z.number().int().positive().optional(),
+      }),
+      corps,
+    );
+
+    const { version, ...champs } = donnees;
+    const seulementActive =
+      Object.keys(champs).length === 1 && champs.active !== undefined;
+    if (seulementActive) return this.activite.basculerRecurrence(id, champs.active!, d.userId);
+
+    if (version === undefined) throw new ErreurActivite("conflit_de_version");
+    return this.activite.modifierRecurrence(id, { ...champs, version }, d.userId);
+  }
+
+  /**
+   * `EX-ACT-04` — supprimer une règle. Elle n'efface pas ce qu'elle a
+   * engendré : une assignation posée est un fait du planning.
+   */
+  @Delete("recurrences/:id")
+  @RequiertPermission("predefined_tasks:update")
+  supprimerRecurrence(@Param("id") id: string, @Demande() d: ContexteDemande) {
+    return this.activite.supprimerRecurrence(id, d.userId);
   }
 
   /**

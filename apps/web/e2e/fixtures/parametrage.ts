@@ -265,6 +265,7 @@ export const PREDEFINIES = [
         dateDebut: "2026-09-01",
         dateFin: null,
         active: true,
+        version: 1,
       },
     ],
     _count: { assignations: 42 },
@@ -301,6 +302,7 @@ export const PREDEFINIES = [
         dateDebut: "2026-01-01",
         dateFin: "2026-12-31",
         active: true,
+        version: 1,
       },
       {
         id: "rc3",
@@ -312,6 +314,7 @@ export const PREDEFINIES = [
         dateDebut: "2026-09-01",
         dateFin: null,
         active: false,
+        version: 1,
       },
     ],
     _count: { assignations: 0 },
