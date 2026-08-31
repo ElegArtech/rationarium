@@ -153,6 +153,15 @@ export function Organisation() {
             </span>
             <p>{t("organisation.regleDepartement")}</p>
           </div>
+          {/* « Trois niveaux hiérarchiques avec des règles de suppression
+              différentes » — brief de la vue 29. La troisième manquait : le
+              service ne refuse ni n'emporte, il DÉTACHE. */}
+          <div className="org-rule">
+            <span className="org-rule-ic" aria-hidden="true">
+              ⇥
+            </span>
+            <p>{t("organisation.regleService")}</p>
+          </div>
         </div>
       </div>
 
@@ -473,40 +482,12 @@ function BlocDepartement({
             </div>
           ) : (
             departement.services.map((s) => (
-              <div className="svc" key={s.id}>
-                <span className="svc-dot" aria-hidden="true" />
-                <div style={{ minWidth: 0 }}>
-                  <p className="svc-n">{s.nom}</p>
-                  <span className="node-d">
-                    {s.description ?? t("organisation.sansDescription")}
-                  </span>
-                </div>
-                <Responsable personne={s.manager} />
-                <div className="head-count">
-                  <span>{t("organisation.membres", { n: s._count.membres })}</span>
-                </div>
-                <div className="lv-acts">
-                  {peut("departments:update") ? (
-                    <Button
-                      className="ms-toggle"
-                      onPress={() =>
-                        surOuvrir({
-                          nature: "service",
-                          noeud: {
-                            id: s.id,
-                            nom: s.nom,
-                            description: s.description,
-                            parentId: departement.id,
-                            responsableId: s.manager?.id ?? null,
-                          },
-                        })
-                      }
-                    >
-                      {t("modifier")}
-                    </Button>
-                  ) : null}
-                </div>
-              </div>
+              <ServiceLigne
+                key={s.id}
+                service={s}
+                departementId={departement.id}
+                surOuvrir={surOuvrir}
+              />
             ))
           )}
         </div>
@@ -518,6 +499,159 @@ function BlocDepartement({
         surFermeture={() => setSuppressionOuverte(false)}
       />
     </div>
+  );
+}
+
+/**
+ * Le troisième niveau — **et le troisième verbe, qui manquait**.
+ *
+ * Le service se créait et se modifiait ; il ne se supprimait pas, alors que
+ * `DELETE /organisation/services/:id` existe depuis la vague 7. Le geste est
+ * copié de celui du département, avec sa règle propre : un service n'emporte
+ * rien — il n'a pas d'enfant —, il **détache** ses agents. C'est la troisième
+ * règle de suppression de la vue, et elle est annoncée comme les deux autres,
+ * avant l'action.
+ */
+function ServiceLigne({
+  service,
+  departementId,
+  surOuvrir,
+}: {
+  service: api.Service;
+  departementId: string;
+  surOuvrir: (e: { nature: Nature; noeud: Noeud | null }) => void;
+}) {
+  const { t } = useTranslation("administration");
+  const peut = usePeut();
+  const [suppressionOuverte, setSuppressionOuverte] = useState(false);
+
+  return (
+    <div className="svc">
+      <span className="svc-dot" aria-hidden="true" />
+      <div style={{ minWidth: 0 }}>
+        <p className="svc-n">{service.nom}</p>
+        <span className="node-d">{service.description ?? t("organisation.sansDescription")}</span>
+      </div>
+      <Responsable personne={service.manager} />
+      <div className="head-count">
+        <span>{t("organisation.membres", { n: service._count.membres })}</span>
+      </div>
+      <div className="lv-acts">
+        {peut("departments:update") ? (
+          <Button
+            className="ms-toggle"
+            onPress={() =>
+              surOuvrir({
+                nature: "service",
+                noeud: {
+                  id: service.id,
+                  nom: service.nom,
+                  description: service.description,
+                  parentId: departementId,
+                  responsableId: service.manager?.id ?? null,
+                },
+              })
+            }
+          >
+            {t("modifier")}
+          </Button>
+        ) : null}
+        {peut("services:delete") ? (
+          /* Le nom accessible nomme le service : trois boutons « Supprimer »
+             identiques dans un même département ne se distinguent pas. */
+          <Button
+            className="ms-toggle"
+            style={{ color: "var(--st-blocked)", borderColor: "var(--st-blocked)" }}
+            aria-label={t("organisation.supprimerLeService", { nom: service.nom })}
+            onPress={() => setSuppressionOuverte(true)}
+          >
+            {t("supprimer")}
+          </Button>
+        ) : null}
+      </div>
+
+      <FenetreSuppressionService
+        service={service}
+        ouverte={suppressionOuverte}
+        surFermeture={() => setSuppressionOuverte(false)}
+      />
+    </div>
+  );
+}
+
+/**
+ * `EX-ORG-03` — un service **détache** ses agents, il ne les supprime pas.
+ *
+ * Troisième règle de la vue, à côté de la direction qui refuse et du
+ * département qui emporte. L'impact est demandé **avant** la confirmation, et
+ * il est chargé à l'ouverture seulement : interroger le serveur pour chaque
+ * service de l'arbre au premier rendu coûterait autant de requêtes que de
+ * lignes, pour une information que personne n'a demandée.
+ */
+function FenetreSuppressionService({
+  service,
+  ouverte,
+  surFermeture,
+}: {
+  service: api.Service;
+  ouverte: boolean;
+  surFermeture: () => void;
+}) {
+  const { t } = useTranslation("administration");
+  const { t: tErreurs } = useTranslation("erreurs");
+  const annoncer = useMessages();
+  const client = useQueryClient();
+
+  const impact = useQuery({
+    queryKey: ["organisation", "service", service.id, "impact"],
+    queryFn: () => api.impactService(service.id),
+    enabled: ouverte,
+  });
+
+  const suppression = useMutation({
+    mutationFn: () => api.supprimerService(service.id),
+    onSuccess: () => {
+      annoncer("ok", t("organisation.serviceSupprime"));
+      surFermeture();
+      void client.invalidateQueries({ queryKey: ["organisation"] });
+    },
+    onError: (e) => annoncer("err", messageErreur(e, tErreurs, t("organisation.echecAction"))),
+  });
+
+  return (
+    <Fenetre
+      ouverte={ouverte}
+      surFermeture={surFermeture}
+      categorie={t("organisation.actionIrreversible")}
+      titre={t("organisation.supprimerService")}
+      mention={t("organisation.mentionService")}
+      actions={
+        <>
+          <Button className="btn btn-secondary" onPress={surFermeture}>
+            {t("annuler")}
+          </Button>
+          <Button
+            className="btn btn-danger"
+            isPending={suppression.isPending}
+            onPress={() => suppression.mutate()}
+          >
+            {t("organisation.supprimerService")}
+          </Button>
+        </>
+      }
+    >
+      <p className="phrase-confirmation">
+        {t("organisation.confirmerService")} <span className="quoted">« {service.nom} »</span> ?
+      </p>
+
+      {impact.isPending ? <Chargement quoi={t("organisation.limpact")} /> : null}
+
+      {impact.data ? (
+        <p className="field-hint">
+          {t("organisation.agentsDetachesDuService", { n: impact.data.agentsDetaches })}
+        </p>
+      ) : null}
+    </Fenetre>
   );
 }
 

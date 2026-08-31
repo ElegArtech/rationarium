@@ -453,6 +453,17 @@ const SANS_CLIENT: { verbe: string; chemin: string; raison: string }[] = [
     raison:
       "redondante — `GET /taches/:id` embarque déjà le fil de la tâche, auteur et identifiant compris, et c'est le SEUL écran qui affiche des commentaires : aucun brief de vue projet (11 à 15) ne prévoit de fil de projet",
   },
+  /*
+   * Vague 7-5 — troisième requalification, et la plus contre-intuitive : la
+   * route porte `EX-TMP-06`, dont l'écran EXISTE. C'est l'accès direct qui est
+   * en trop, pas la fonctionnalité.
+   */
+  {
+    verbe: "GET",
+    chemin: "/temps/non-declarees",
+    raison:
+      "redondante — `GET /tableau` appelle LE MÊME `TempsService.tachesNonDeclarees(userId)`, sur le même utilisateur, et `cadrage/02` vue 06 nomme l'écran : « Mes tâches — sélecteur : À venir / Non déclarées », avec sa case « Valider sans déclaration » (`POST /temps/renoncement/:taskId`, branchée). Le brief de la vue 21, lui, n'en dit rien : l'y ajouter serait inventer une fonctionnalité, pas en brancher une",
+  },
   {
     verbe: "POST",
     chemin: "/taches/:id/deplacer",
@@ -475,21 +486,8 @@ const SANS_CLIENT: { verbe: string; chemin: string; raison: string }[] = [
     chemin: "/evenements/:id/participants/:userId",
     raison: "EX-EVT-08 — même raison que l'ajout : la liste des participants n'est pas rendue, seulement comptée.",
   },
-  {
-    verbe: "GET",
-    chemin: "/organisation/services/:id/impact",
-    raison:
-      "EX-ORG-03 — le troisième verbe du référentiel a été écrit dans la vague 7 ; la vue 29 porte déjà le geste pour un département, pas encore pour un service.",
-  },
-  {
-    verbe: "DELETE",
-    chemin: "/organisation/services/:id",
-    raison: "EX-ORG-03 — même raison que son impact : la vue 29 reste à compléter.",
-  },
   { verbe: "GET", chemin: "/parametrage/feries/statistiques", raison: A_BRANCHER },
   { verbe: "GET", chemin: "/parametrage/trame", raison: A_BRANCHER },
-  { verbe: "GET", chemin: "/temps/non-declarees", raison: A_BRANCHER },
-  { verbe: "GET", chemin: "/temps/rapport", raison: A_BRANCHER },
 ];
 
 describe("aucune route serveur sans appel client", () => {

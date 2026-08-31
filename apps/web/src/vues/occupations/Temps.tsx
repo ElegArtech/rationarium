@@ -363,12 +363,122 @@ export function Temps() {
         </>
       ) : null}
 
+      {/*
+        `EX-TMP-07` — le versant ÉQUIPE, gardé par sa permission propre.
+
+        Il ne double pas la répartition qui le précède : celle-ci est
+        personnelle et se calcule sur les saisies déjà chargées, celui-là est
+        agrégé EN BASE sur le périmètre de l'appelant, et sait ventiler par
+        agent — ce que la page personnelle ne peut pas faire.
+
+        Sans `time_tracking:read_team`, le panneau n'existe pas : la vue reste
+        exactement celle de la maquette 21, qui est une page personnelle.
+      */}
+      {peut("time_tracking:read_team") ? <RapportEquipe debut={debut} fin={fin} /> : null}
+
       <FenetreSaisie
         ouverte={saisieOuverte}
         surFermeture={() => setSaisieOuverte(false)}
         projets={projets.data?.projets ?? []}
       />
     </div>
+  );
+}
+
+/**
+ * `EX-TMP-07` — « consulter un rapport par agent, par projet, ou personnel ».
+ *
+ * Les trois axes du serveur sont `agent`, `projet` et `type` ; c'est le
+ * troisième qui rend le rapport « personnel » utile, puisque la ventilation par
+ * type d'activité est celle qu'on lit sur son propre temps.
+ *
+ * La fenêtre est celle des filtres de la page : demander deux périodes sur un
+ * même écran ferait diverger les deux moitiés sans que rien ne le dise.
+ * `debut` et `fin` sont obligatoires au serveur — on n'interroge donc pas tant
+ * que l'une des deux est vide, au lieu d'aller chercher un 400.
+ */
+function RapportEquipe({ debut, fin }: { debut: string; fin: string }) {
+  const { t } = useTranslation("occupations");
+  const libelle = useLibelle();
+  const [axe, setAxe] = useState<"agent" | "projet" | "type">("agent");
+
+  const requete = useQuery({
+    queryKey: ["temps", "rapport", { axe, debut, fin }],
+    queryFn: () => api.rapportTemps({ axe, debut, fin }),
+    enabled: Boolean(debut && fin),
+  });
+
+  const lignes = useMemo(
+    () => [...(requete.data ?? [])].sort((a, b) => b.heures - a.heures),
+    [requete.data],
+  );
+  const total = lignes.reduce((n, l) => n + l.heures, 0);
+
+  return (
+    <section className="panel">
+      <div className="panel-head">
+        <span className="panel-title">{t("temps.rapportTitre")}</span>
+        <div className="seg" role="group" aria-label={t("temps.rapportAxe")}>
+          <Button aria-pressed={axe === "agent"} onPress={() => setAxe("agent")}>
+            {t("temps.parAgent")}
+          </Button>
+          <Button aria-pressed={axe === "projet"} onPress={() => setAxe("projet")}>
+            {t("temps.parProjet")}
+          </Button>
+          <Button aria-pressed={axe === "type"} onPress={() => setAxe("type")}>
+            {t("temps.parType")}
+          </Button>
+        </div>
+      </div>
+
+      {!debut || !fin ? (
+        <div className="empty">
+          <p>{t("temps.rapportSansPeriode")}</p>
+          <small>{t("temps.rapportSansPeriodeAide")}</small>
+        </div>
+      ) : requete.isPending ? (
+        <Chargement quoi={t("temps.leRapport")} />
+      ) : requete.isError ? (
+        <ErreurDeChargement erreur={requete.error} surReessai={() => void requete.refetch()} />
+      ) : lignes.length === 0 ? (
+        <div className="empty">
+          <p>{t("temps.rapportVide")}</p>
+          <small>{t("temps.rapportVideAide")}</small>
+        </div>
+      ) : (
+        <div className="panel-body">
+          <div className="split-bar">
+            {lignes.map((l) => (
+              <i
+                key={l.cle ?? l.libelle}
+                style={{
+                  width: `${(l.heures / (total || 1)) * 100}%`,
+                  background: axe === "type" ? jetonDe(l.cle ?? "") : "var(--st-doing)",
+                }}
+              />
+            ))}
+          </div>
+          <div className="split-legend">
+            {lignes.map((l) => (
+              <span className="sl" key={l.cle ?? l.libelle}>
+                <span
+                  className="sl-sw"
+                  style={{ background: axe === "type" ? jetonDe(l.cle ?? "") : "var(--st-doing)" }}
+                  aria-hidden="true"
+                />
+                {/* Le serveur rend le CODE d'activité en libellé — « meeting »,
+                    pas « Réunion ». Le traduire ici est la même règle que
+                    partout ailleurs : aucune chaîne visible ne vient du serveur. */}
+                <span>{axe === "type" ? libelle(l.cle ?? "", TYPES_ACTIVITE) : l.libelle}</span>
+                <span className="sl-n">
+                  {t("temps.rapportLigne", { heures: l.heures, entrees: l.entrees })}
+                </span>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+    </section>
   );
 }
 

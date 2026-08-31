@@ -9,6 +9,13 @@ import {
   SUIVI_VIDE,
   ARBORESCENCE,
   IMPACT_DEPARTEMENT,
+  IMPACT_SERVICE,
+  SESSION_ADMIN_SERVICES,
+  SESSION_TEMPS,
+  SESSION_TEMPS_EQUIPE,
+  TEMPS_VIDE,
+  RAPPORT_AGENT,
+  RAPPORT_TYPE,
 } from "./fixtures/administration.js";
 
 /**
@@ -420,5 +427,220 @@ test.describe("Vue 29 — départements et services", () => {
     await serveur(page, { session: SESSION_LECTURE, reponses });
     await page.goto("/departements");
     await expect(page.getByText("Permission requise")).toBeVisible();
+  });
+
+  /**
+   * `EX-ORG-03` — **le troisième verbe du troisième niveau.**
+   *
+   * `DELETE /organisation/services/:id` et son impact existaient côté serveur
+   * depuis la vague 7 sans qu'aucun écran ne les atteigne : le service se
+   * créait et se modifiait, il ne se supprimait pas. Une action ABSENTE ne fait
+   * échouer aucun contrôle — c'est ce qui l'a laissée manquer.
+   */
+  test("EX-ORG-03 — l'impact d'un service est demandé AVANT la confirmation, et il détache", async ({
+    page,
+  }) => {
+    /* On observe l'appel : ce test doit distinguer « la fenêtre affiche 7 »
+       de « la fenêtre affiche le _count de l'arborescence, qui vaut aussi 7 ».
+       Sans cette observation, retirer entièrement la requête d'impact le
+       laisserait vert. */
+    const appels: string[] = [];
+    await serveur(page, {
+      session: SESSION_ADMIN_SERVICES,
+      reponses: { ...reponses, "/organisation/services/svc1/impact": { corps: IMPACT_SERVICE } },
+    });
+    page.on("request", (r) => {
+      const u = new URL(r.url());
+      if (u.pathname.startsWith("/api/organisation/services")) appels.push(`${r.method()} ${u.pathname}`);
+    });
+    await page.goto("/departements");
+
+    // Aucun impact n'est demandé tant que la fenêtre est fermée : une requête
+    // par service au premier rendu coûterait autant d'appels que de lignes.
+    // On attend que l'arbre soit rendu — sinon l'absence d'appel ne
+    // prouverait que la lenteur du chargement.
+    await expect(service(page, "Études et développement")).toBeVisible();
+    expect(appels).toEqual([]);
+
+    await page.getByRole("button", { name: "Supprimer le service Études et développement" }).click();
+    const fenetre = page.getByRole("dialog");
+
+    await expect(fenetre.getByText("Supprimer définitivement le service")).toBeVisible();
+    await expect(fenetre.getByText("« Études et développement »")).toBeVisible();
+    // Un service n'emporte rien : il DÉTACHE. C'est la troisième règle de la
+    // vue, et elle ne doit pas se lire comme celle du département.
+    await expect(
+      fenetre.getByText("7 agents seront détachés du service, sans être supprimés."),
+    ).toBeVisible();
+    await expect(fenetre.getByText("seront également supprimés")).toHaveCount(0);
+
+    expect(appels).toEqual(["GET /api/organisation/services/svc1/impact"]);
+  });
+
+  test("EX-ORG-03 — la suppression d'un service part en DELETE sur SON identifiant", async ({
+    page,
+  }) => {
+    let recu: string | null = null;
+    await serveur(page, {
+      session: SESSION_ADMIN_SERVICES,
+      reponses: { ...reponses, "/organisation/services/svc2/impact": { corps: IMPACT_SERVICE } },
+    });
+    await page.route(
+      (url) => url.pathname.startsWith("/api/organisation/services/"),
+      (route) => {
+        if (route.request().method() !== "DELETE") return route.fallback();
+        recu = new URL(route.request().url()).pathname;
+        return route.fulfill({ status: 200, contentType: "application/json", body: "{}" });
+      },
+    );
+    await page.goto("/departements");
+
+    // « Exploitation », le SECOND service du département : viser le premier
+    // laisserait passer une fenêtre qui supprime toujours le même.
+    await page.getByRole("button", { name: "Supprimer le service Exploitation" }).click();
+    await page
+      .getByRole("dialog")
+      .getByRole("button", { name: "Supprimer le service", exact: true })
+      .click();
+
+    await expect(page.getByText("Service supprimé.")).toBeVisible();
+    expect(recu).toBe("/api/organisation/services/svc2");
+  });
+
+  test("EX-ORG-03 — sans `services:delete`, le geste n'est pas proposé", async ({ page }) => {
+    // `SESSION_ADMIN` porte `services:read`, pas `services:delete`.
+    await serveur(page, { session: SESSION_ADMIN, reponses });
+    await page.goto("/departements");
+
+    /*
+     * **L'attente vient AVANT l'assertion d'absence, et c'est tout ce qui la
+     * rend probante.** `toHaveCount(0)` réussit dès le premier essai tant que
+     * l'arbre n'a pas rendu : écrit sans cette ligne, ce test passait au vert
+     * MÊME avec le bouton rendu sans garde — il mesurait la latence, pas la
+     * permission. Le département, lui, garde son bouton : c'est bien la
+     * permission du service qui manque.
+     */
+    await expect(service(page, "Études et développement")).toBeVisible();
+    await expect(
+      teteDepartement(page, "Direction des services numériques").getByRole("button", {
+        name: "Supprimer",
+      }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Supprimer le service Études et développement" }),
+    ).toHaveCount(0);
+  });
+
+  test("la troisième règle de suppression est annoncée en tête, comme les deux autres", async ({
+    page,
+  }) => {
+    await serveur(page, { session: SESSION_ADMIN_SERVICES, reponses });
+    await page.goto("/departements");
+
+    // « Trois niveaux hiérarchiques avec des règles de suppression
+    //   différentes » — brief de la vue 29. La troisième manquait.
+    await expect(page.getByText(/Un service ne porte rien/)).toBeVisible();
+  });
+});
+
+/**
+ * `EX-TMP-07` — le rapport agrégé de la vue 21.
+ *
+ * **Ces trois tests vivent ici faute de place ailleurs** : `occupations.e2e.spec.ts`
+ * porte la vue 21 mais un autre agent y travaillait pendant cette tâche. À
+ * regrouper avec le reste de la vue 21 à la première occasion.
+ *
+ * `GET /temps/rapport` n'avait aucun client : c'est le seul point d'entrée du
+ * produit qui sait ventiler le temps PAR AGENT, et aucun écran ne l'offrait.
+ */
+test.describe("Vue 21 — rapport d'équipe", () => {
+  const reponses = {
+    "/api/temps": { corps: TEMPS_VIDE },
+    "/api/projets": { corps: { projets: [] } },
+  };
+
+  test("EX-TMP-07 — le rapport ventile PAR AGENT, ce qu'aucune autre lecture ne sait faire", async ({
+    page,
+  }) => {
+    await serveur(page, {
+      session: SESSION_TEMPS_EQUIPE,
+      reponses: { ...reponses, "/api/temps/rapport": { corps: RAPPORT_AGENT } },
+    });
+    await page.goto("/temps");
+
+    const rapport = page.locator("section.panel").filter({ hasText: "Rapport d'équipe" });
+    await expect(rapport.getByText("Driss Amrani")).toBeVisible();
+    await expect(rapport.getByText("Hugo Nguyen")).toBeVisible();
+    // Une saisie faite pour un tiers n'a pas d'agent : le serveur la nomme.
+    await expect(rapport.getByText("Tiers", { exact: true })).toBeVisible();
+    // Les heures ET le nombre d'entrées : « 34 h » seul ne dit pas si c'est
+    // une grosse saisie ou neuf petites.
+    await expect(rapport.getByText("34 h · 9 entrées")).toBeVisible();
+    await expect(rapport.getByText("3,5 h · 1 entrée")).toBeVisible();
+  });
+
+  test("EX-TMP-07 — l'axe change la requête, et le type d'activité est TRADUIT", async ({
+    page,
+  }) => {
+    const axes: string[] = [];
+    await serveur(page, { session: SESSION_TEMPS_EQUIPE, reponses });
+    await page.route(
+      (url) => url.pathname === "/api/temps/rapport",
+      (route) => {
+        const axe = new URL(route.request().url()).searchParams.get("axe") ?? "";
+        axes.push(axe);
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify(axe === "type" ? RAPPORT_TYPE : RAPPORT_AGENT),
+        });
+      },
+    );
+    await page.goto("/temps");
+
+    const rapport = page.locator("section.panel").filter({ hasText: "Rapport d'équipe" });
+    await expect(rapport.getByText("Driss Amrani")).toBeVisible();
+
+    await rapport.getByRole("button", { name: "Par type d'activité" }).click();
+
+    /*
+     * Le serveur rend le CODE en guise de libellé — « development ». Aucune
+     * chaîne visible ne vient du serveur (`RG-GEN-08`) : la vue traduit par le
+     * vocabulaire de `@rationarium/contracts`. Afficher « development » serait
+     * passé inaperçu de toutes les autres boucles.
+     */
+    await expect(rapport.getByText("Développement")).toBeVisible();
+    await expect(rapport.getByText("Réunion")).toBeVisible();
+    await expect(rapport.getByText("development")).toHaveCount(0);
+
+    // La période part avec la requête : sans elle le serveur rend un 400.
+    expect(axes).toEqual(["agent", "type"]);
+    const requete = new URL(page.url());
+    expect(requete.pathname).toBe("/temps");
+  });
+
+  test("EX-TMP-07 — sans `time_tracking:read_team`, le rapport n'est ni affiché ni demandé", async ({
+    page,
+  }) => {
+    let demande = false;
+    await serveur(page, { session: SESSION_TEMPS, reponses });
+    page.on("request", (r) => {
+      if (new URL(r.url()).pathname === "/api/temps/rapport") demande = true;
+    });
+    await page.goto("/temps");
+
+    /*
+     * On attend un élément qui n'apparaît qu'APRÈS la réponse du serveur —
+     * « Répartition » vit sous `requete.data`. Le panneau du rapport le suit
+     * dans le document : sans cette attente, `toHaveCount(0)` réussirait avant
+     * même le premier rendu, et mesurerait la latence au lieu de la
+     * permission. Le piège s'est payé sur le test jumeau de la vue 29.
+     */
+    await expect(page.getByRole("heading", { name: "Temps passé", level: 1 })).toBeVisible();
+    await expect(page.getByText("Répartition", { exact: true })).toBeVisible();
+    await expect(page.getByText("Rapport d'équipe")).toHaveCount(0);
+    /* Le client masque par courtoisie (`RG-GEN-06`) ; ne pas ÉMETTRE la requête
+       est ce qui distingue « caché » de « refusé après coup ». */
+    expect(demande).toBe(false);
   });
 });
