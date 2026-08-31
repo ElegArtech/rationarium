@@ -457,7 +457,26 @@ export class EvenementsService {
   }
 
   /** `RG-EVT-01` — un même utilisateur ne peut être participant deux fois. */
-  async ajouterParticipant(eventId: string, userId: string, acteurId: string) {
+  /**
+   * `EX-EVT-08` — ajouter un participant.
+   *
+   * **Le contrôle de périmètre manquait**, et L-42 l'a signalé en le corrigeant
+   * sur `arreterRecurrence` : la garde de la route vérifie `events:update`, et
+   * rien ne vérifiait que l'appelant VOIT l'événement. `.claude/rules/api.md` est
+   * explicite — « un point d'entrée qui vérifie la permission mais pas le
+   * périmètre est un défaut de cloisonnement, pas une optimisation ». On pouvait
+   * s'inviter soi-même à une réunion qu'on n'a pas le droit de voir, et l'y voir
+   * ensuite : le prédicat de visibilité est « je suis participant ».
+   */
+  async ajouterParticipant(
+    eventId: string,
+    userId: string,
+    acteurId: string,
+    perimetre: Perimetre,
+    permissions: ReadonlySet<string>,
+  ) {
+    await this.chargerVisible(eventId, perimetre, permissions);
+
     const existe = await this.prisma.eventParticipant.findUnique({
       where: { eventId_userId: { eventId, userId } },
     });
@@ -470,7 +489,16 @@ export class EvenementsService {
     });
   }
 
-  async retirerParticipant(eventId: string, userId: string, acteurId: string) {
+  /** `EX-EVT-08` — retirer un participant. Même contrôle de périmètre. */
+  async retirerParticipant(
+    eventId: string,
+    userId: string,
+    acteurId: string,
+    perimetre: Perimetre,
+    permissions: ReadonlySet<string>,
+  ) {
+    await this.chargerVisible(eventId, perimetre, permissions);
+
     await this.prisma.eventParticipant.delete({ where: { eventId_userId: { eventId, userId } } });
     await this.audit.tracer({
       action: "event.participant_remove", typeEntite: "Event", entiteId: eventId, acteurId,

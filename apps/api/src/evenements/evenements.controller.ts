@@ -128,7 +128,7 @@ export class EvenementsController {
   @RequiertPermission("events:update")
   ajouterParticipant(@Param("id") id: string, @Body() corps: unknown, @Demande() d: ContexteDemande) {
     const { userId } = valider(z.object({ userId: z.uuid() }), corps);
-    return this.evenements.ajouterParticipant(id, userId, d.userId);
+    return this.evenements.ajouterParticipant(id, userId, d.userId, d.perimetre, d.permissions);
   }
 
   @Delete(":id/participants/:userId")
@@ -138,7 +138,7 @@ export class EvenementsController {
     @Param("userId") userId: string,
     @Demande() d: ContexteDemande,
   ) {
-    return this.evenements.retirerParticipant(id, userId, d.userId);
+    return this.evenements.retirerParticipant(id, userId, d.userId, d.perimetre, d.permissions);
   }
 
   /**

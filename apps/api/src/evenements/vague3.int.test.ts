@@ -163,9 +163,9 @@ describe("RG-EVT-01, RG-EVT-05 — participants et plage", () => {
       { titre: "Atelier", date: utc("2026-06-08"), journeeEntiere: true, participantIds: [u] },
       acteur,
     );
-    await expect(evenements.ajouterParticipant(evenement.id, u, acteur)).rejects.toMatchObject({
-      code: "participant_en_double",
-    });
+    await expect(
+      evenements.ajouterParticipant(evenement.id, u, acteur, await globalP(), PERMISSIONS_GLOBALES),
+    ).rejects.toMatchObject({ code: "participant_en_double" });
   });
 
   it("une plage incomplète est refusée — ce serait un export déguisé", async () => {
@@ -888,5 +888,69 @@ describe("EX-ACT-07 — la grille d'activité inverse les axes", () => {
     const lundi = g.lignes.find((l) => l.date === "2026-11-02")!;
     const cellule = lundi.cellules.find((c) => c.tacheId === t.id)!;
     expect(cellule.agents).toHaveLength(1);
+  });
+});
+
+/**
+ * `EX-EVT-08` — ajouter et retirer un participant.
+ *
+ * **Le contrôle de périmètre manquait sur les deux routes.** L-42 l'avait
+ * signalé en corrigeant le même défaut sur `arreterRecurrence` : la garde
+ * vérifiait `events:update`, et rien ne vérifiait que l'appelant **voit**
+ * l'événement. Or le prédicat de visibilité d'un événement est « je suis
+ * participant » : on pouvait donc s'inviter soi-même à une réunion qu'on n'a pas
+ * le droit de voir, et l'y voir ensuite. `.claude/rules/api.md` : « un point
+ * d'entrée qui vérifie la permission mais pas le périmètre est un défaut de
+ * cloisonnement, pas une optimisation ».
+ */
+describe("EX-EVT-08 — les participants, et leur cloisonnement", () => {
+  it("EX-EVT-08 — un participant s'ajoute puis se retire", async () => {
+    const u = await agent();
+    const { evenement } = await evenements.creer(
+      { titre: "Comité", date: utc("2026-06-15"), journeeEntiere: true, participantIds: [] },
+      acteur,
+    );
+    const p = await globalP();
+
+    await evenements.ajouterParticipant(evenement.id, u, acteur, p, PERMISSIONS_GLOBALES);
+    expect(await prisma.eventParticipant.count({ where: { eventId: evenement.id } })).toBe(1);
+
+    await evenements.retirerParticipant(evenement.id, u, acteur, p, PERMISSIONS_GLOBALES);
+    expect(await prisma.eventParticipant.count({ where: { eventId: evenement.id } })).toBe(0);
+  });
+
+  it("EX-EVT-08 — s'INVITER à un événement qu'on ne voit pas est refusé", async () => {
+    /*
+     * Le cas que l'absence de contrôle rendait possible, et le seul qui compte :
+     * l'invitation était le moyen d'obtenir la visibilité qu'on n'avait pas.
+     */
+    const etranger = await agent();
+    const { evenement } = await evenements.creer(
+      { titre: "Bureau restreint", date: utc("2026-06-16"), journeeEntiere: true, participantIds: [] },
+      acteur,
+    );
+    const pEtranger = await perimetres.resoudre(etranger, new Set());
+
+    await expect(
+      evenements.ajouterParticipant(evenement.id, etranger, etranger, pEtranger, new Set()),
+    ).rejects.toMatchObject({ code: "hors_perimetre" });
+
+    expect(await prisma.eventParticipant.count({ where: { eventId: evenement.id } })).toBe(0);
+  });
+
+  it("EX-EVT-08 — retirer quelqu'un d'un événement invisible est refusé de même", async () => {
+    const membre = await agent();
+    const etranger = await agent();
+    const { evenement } = await evenements.creer(
+      { titre: "Bureau", date: utc("2026-06-17"), journeeEntiere: true, participantIds: [membre] },
+      acteur,
+    );
+    const pEtranger = await perimetres.resoudre(etranger, new Set());
+
+    await expect(
+      evenements.retirerParticipant(evenement.id, membre, etranger, pEtranger, new Set()),
+    ).rejects.toMatchObject({ code: "hors_perimetre" });
+
+    expect(await prisma.eventParticipant.count({ where: { eventId: evenement.id } })).toBe(1);
   });
 });

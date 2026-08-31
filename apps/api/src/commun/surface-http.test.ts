@@ -454,8 +454,17 @@ const SANS_CLIENT: { verbe: string; chemin: string; raison: string }[] = [
   { verbe: "PATCH", chemin: "/documents/:id", raison: A_BRANCHER },
   { verbe: "DELETE", chemin: "/documents/:id", raison: A_BRANCHER },
   { verbe: "GET", chemin: "/documents/commentaires/fil", raison: A_BRANCHER },
-  { verbe: "POST", chemin: "/evenements/:id/participants", raison: A_BRANCHER },
-  { verbe: "DELETE", chemin: "/evenements/:id/participants/:userId", raison: A_BRANCHER },
+  {
+    verbe: "POST",
+    chemin: "/evenements/:id/participants",
+    raison:
+      "EX-EVT-08 — le cloisonnement a été posé (vague 7) ; le tiroir de la vue 18 montre un COMPTE de participants, pas leur liste, et l'ajout demande un sélecteur d'agents que la maquette n'a pas dessiné. À brancher avec ce sélecteur.",
+  },
+  {
+    verbe: "DELETE",
+    chemin: "/evenements/:id/participants/:userId",
+    raison: "EX-EVT-08 — même raison que l'ajout : la liste des participants n'est pas rendue, seulement comptée.",
+  },
   { verbe: "POST", chemin: "/parametrage/feries", raison: A_BRANCHER },
   { verbe: "GET", chemin: "/parametrage/feries/statistiques", raison: A_BRANCHER },
   { verbe: "GET", chemin: "/parametrage/trame", raison: A_BRANCHER },
