@@ -89,14 +89,6 @@
         "RG-GEN-04",
         "RG-GEN-06"
       ]
-    },
-    {
-      "fichier": "apps/web/src/vues/taches/Fiche.tsx",
-      "repere": "fiche.modifier",
-      "raison": "Ici le serveur N'EST PAS en cause : `PATCH /taches/:id` existe, et la fiche édite déjà en place le titre, le statut et l'avancement. C'est le formulaire complet de la maquette — dates, estimation, jalon, confidentialité — qui n'est pas porté. L'inertie tient au portage, pas à une route manquante ; question remontée.",
-      "regles": [
-        "EX-TSK-07"
-      ]
     }
   ],
   "champsAdmis": [

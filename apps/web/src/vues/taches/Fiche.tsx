@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
@@ -48,6 +48,7 @@ export function FicheTache({ tacheId }: { tacheId: string }) {
   const client = useQueryClient();
   const [suppressionOuverte, setSuppressionOuverte] = useState(false);
   const [assignesOuvert, setAssignesOuvert] = useState(false);
+  const [modificationOuverte, setModificationOuverte] = useState(false);
 
   const requete = useQuery({ queryKey: ["tache", tacheId], queryFn: () => api.fiche(tacheId) });
   const contexteTemps = useQuery({
@@ -134,17 +135,19 @@ export function FicheTache({ tacheId }: { tacheId: string }) {
         </div>
         <div className="proj-acts">
           {/*
-            « Modifier » ouvre, dans la maquette, un formulaire complet de
-            tâche. La fiche édite désormais en place le titre, le statut,
-            l'avancement, le **projet** et les **horaires** ; restent dates,
-            estimation, jalon et confidentialité. Question remontée.
+            « Modifier » ouvre le formulaire complet de la maquette. Il a vécu
+            désactivé plusieurs lots, derrière un motif qui disait vrai — la
+            route existait, c'est le formulaire qui manquait — et qui n'en
+            restait pas moins une commande inerte : la fiche édite en place le
+            titre, le statut, l'avancement, le projet et les horaires, et les
+            quatre champs restants n'étaient joignables par AUCUN chemin.
 
             Le commentaire est réécrit à chaque geste ajouté : un commentaire
             qui affirme une absence est une affirmation que RIEN ne vérifie, et
             le dépôt a déjà payé trois fois d'en avoir laissé vieillir un.
           */}
           {modifiable ? (
-            <Button className="chip-btn" isDisabled aria-description={t("fiche.modifierIndisponible")}>
+            <Button className="chip-btn" onPress={() => setModificationOuverte(true)}>
               {t("fiche.modifier")}
             </Button>
           ) : null}
@@ -155,6 +158,12 @@ export function FicheTache({ tacheId }: { tacheId: string }) {
           ) : null}
         </div>
       </div>
+
+      <FenetreModification
+        ouverte={modificationOuverte}
+        surFermeture={() => setModificationOuverte(false)}
+        tache={tache}
+      />
 
       <FenetreAssignes
         ouverte={assignesOuvert}
@@ -1846,5 +1855,253 @@ function AssignerTiers({ tache }: { tache: api.FicheTache }) {
         )}
       </Fenetre>
     </>
+  );
+}
+
+/**
+ * `EX-TSK-07` — le formulaire complet de modification d'une tâche.
+ *
+ * **Ce qu'il répare.** Le bouton « Modifier » a vécu plusieurs lots désactivé,
+ * derrière un motif qui disait vrai — `PATCH /taches/:id` existe, c'est le
+ * formulaire qui manquait — et qui n'en laissait pas moins quatre champs
+ * joignables par aucun chemin : les dates, l'estimation, le jalon et la
+ * confidentialité. La fiche édite le reste en place.
+ *
+ * `RG-SCOPE-04` mérite un mot : la confidentialité se change **après coup**.
+ * Le serveur l'accepte depuis L-38, le client ne l'envoyait pas — une tâche
+ * marquée par erreur restait donc invisible pour toujours à qui n'a pas la
+ * permission de lecture confidentielle, y compris à celui qui l'avait marquée.
+ *
+ * `RG-JAL-03` : le jalon proposé est celui **du projet de la tâche**, et une
+ * tâche hors projet n'en propose aucun (`RG-JAL-04`). Le sélecteur ne montre
+ * donc jamais un choix que le serveur refuserait.
+ */
+function FenetreModification({
+  ouverte,
+  surFermeture,
+  tache,
+}: {
+  ouverte: boolean;
+  surFermeture: () => void;
+  tache: api.FicheTache;
+}) {
+  const { t } = useTranslation("taches");
+  const { t: tErreurs } = useTranslation("erreurs");
+  const annoncer = useMessages();
+  const client = useQueryClient();
+
+  const [description, setDescription] = useState(tache.description ?? "");
+  const [priorite, setPriorite] = useState(tache.priorite);
+  const [debut, setDebut] = useState(tache.dateDebut?.slice(0, 10) ?? "");
+  const [fin, setFin] = useState(tache.dateFin?.slice(0, 10) ?? "");
+  const [estimation, setEstimation] = useState(tache.estimationHeures ?? "");
+  const [jalon, setJalon] = useState(tache.milestone?.id ?? "");
+  const [confidentielle, setConfidentielle] = useState(tache.confidentielle);
+  const [datesInversees, setDatesInversees] = useState(false);
+
+  /*
+   * Les champs se réamorcent sur la tâche à CHAQUE ouverture. Sans cela, une
+   * fenêtre rouverte après un enregistrement montrerait l'état d'avant, et
+   * l'enregistrer une seconde fois écraserait ce qu'on venait d'écrire.
+   */
+  const [pour, setPour] = useState<string | null>(null);
+  const cle = `${tache.id}:${tache.version}`;
+  if (ouverte && pour !== cle) {
+    setPour(cle);
+    setDescription(tache.description ?? "");
+    setPriorite(tache.priorite);
+    setDebut(tache.dateDebut?.slice(0, 10) ?? "");
+    setFin(tache.dateFin?.slice(0, 10) ?? "");
+    setEstimation(tache.estimationHeures ?? "");
+    setJalon(tache.milestone?.id ?? "");
+    setConfidentielle(tache.confidentielle);
+    setDatesInversees(false);
+  }
+
+  // `RG-JAL-04` — une tâche hors projet ne se rattache à aucun jalon : on ne
+  // demande même pas la feuille de route.
+  const route = useQuery({
+    queryKey: ["projet", tache.project?.id, "route"],
+    queryFn: () => apiProjets.feuilleDeRoute(tache.project!.id),
+    enabled: ouverte && Boolean(tache.project),
+  });
+
+  const enregistrement = useMutation({
+    mutationFn: () =>
+      api.modifier(tache.id, {
+        version: tache.version,
+        description: description.trim() || null,
+        priorite,
+        // Vider une date la RETIRE : l'absence de date est un état, pas une
+        // omission à ignorer.
+        dateDebut: debut || null,
+        dateFin: fin || null,
+        // `Number("")` vaut zéro : le filtre porte sur la chaîne, jamais sur
+        // sa conversion.
+        estimationHeures: String(estimation).trim() === "" ? null : Number(estimation),
+        ...(tache.project ? { milestoneId: jalon || null } : {}),
+        confidentielle,
+      }),
+    onSuccess: () => {
+      annoncer("ok", t("fiche.modifiee"));
+      surFermeture();
+      void client.invalidateQueries({ queryKey: ["tache", tache.id] });
+      void client.invalidateQueries({ queryKey: ["taches"] });
+    },
+    onError: (e) => annoncer("err", messageErreur(e, tErreurs, t("fiche.echecEnregistrement"))),
+  });
+
+  const valider = () => {
+    // Le refus se prononce ici plutôt qu'après l'aller-retour : la règle est
+    // la même des deux côtés, et l'utilisateur n'a pas à attendre pour
+    // l'apprendre. Le serveur la tient quand même.
+    const inversees = Boolean(debut && fin && fin < debut);
+    setDatesInversees(inversees);
+    if (!inversees) enregistrement.mutate();
+  };
+
+  return (
+    <Fenetre
+      ouverte={ouverte}
+      surFermeture={surFermeture}
+      categorie={t("fiche.categorie")}
+      titre={t("fiche.modifierTitre")}
+      actions={
+        <>
+          <Button className="btn btn-secondary" onPress={surFermeture}>
+            {t("annuler")}
+          </Button>
+          <Button
+            className="btn btn-primary"
+            isPending={enregistrement.isPending}
+            onPress={valider}
+          >
+            {t("enregistrer")}
+          </Button>
+        </>
+      }
+    >
+      <form
+        onSubmit={(e: FormEvent) => {
+          e.preventDefault();
+          valider();
+        }}
+        noValidate
+      >
+        <div className="field-block">
+          <label className="field-label" htmlFor="tm-desc">
+            {t("fiche.description")}
+          </label>
+          <textarea
+            className="field"
+            id="tm-desc"
+            rows={3}
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+          />
+        </div>
+
+        <div className="form-grid">
+          <div className="field-block">
+            <label className="field-label" htmlFor="tm-prio">
+              {t("fiche.priorite")}
+            </label>
+            <select
+              className="field"
+              id="tm-prio"
+              value={priorite}
+              onChange={(e) => setPriorite(e.target.value)}
+            >
+              {PRIORITES.map((p) => (
+                <option key={p.code} value={p.code}>
+                  {p.fr}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="field-block">
+            <label className="field-label" htmlFor="tm-est">
+              {t("fiche.estimation")}
+            </label>
+            <input
+              className="field"
+              id="tm-est"
+              type="number"
+              min={0}
+              step="0.5"
+              value={estimation}
+              onChange={(e) => setEstimation(e.target.value)}
+            />
+          </div>
+
+          <div className="field-block">
+            <label className="field-label" htmlFor="tm-debut">
+              {t("fiche.dateDebut")}
+            </label>
+            <input
+              className="field"
+              id="tm-debut"
+              type="date"
+              value={debut}
+              aria-invalid={datesInversees}
+              onChange={(e) => setDebut(e.target.value)}
+            />
+          </div>
+
+          <div className="field-block">
+            <label className="field-label" htmlFor="tm-fin">
+              {t("fiche.dateFin")}
+            </label>
+            <input
+              className="field"
+              id="tm-fin"
+              type="date"
+              value={fin}
+              aria-invalid={datesInversees}
+              onChange={(e) => setFin(e.target.value)}
+            />
+            <p className={`field-error${datesInversees ? "" : " is-quiet"}`}>
+              <span aria-hidden="true">↑</span>
+              <span>{t("fiche.datesInversees")}</span>
+            </p>
+          </div>
+        </div>
+
+        {tache.project ? (
+          <div className="field-block">
+            <label className="field-label" htmlFor="tm-jalon">
+              {t("fiche.jalon")}
+            </label>
+            <select
+              className="field"
+              id="tm-jalon"
+              value={jalon}
+              onChange={(e) => setJalon(e.target.value)}
+            >
+              <option value="">{t("fiche.aucunJalon")}</option>
+              {(route.data?.jalons ?? []).map((j) => (
+                <option key={j.id} value={j.id}>
+                  {j.nom}
+                </option>
+              ))}
+            </select>
+            <p className="field-hint">{t("fiche.jalonDuProjet")}</p>
+          </div>
+        ) : null}
+
+        <div className="field-block">
+          <label className="check">
+            <input
+              type="checkbox"
+              checked={confidentielle}
+              onChange={(e) => setConfidentielle(e.target.checked)}
+            />
+            <span>{t("fiche.confidentielle")}</span>
+          </label>
+          <p className="field-hint">{t("fiche.confidentielleAide")}</p>
+        </div>
+      </form>
+    </Fenetre>
   );
 }

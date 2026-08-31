@@ -147,7 +147,6 @@
     "estimation": "Estimate",
     "telecharger": "Download",
     "heuresEtSaisies": "{heures, number} h · {n, plural, one {# entry} other {# entries}}",
-    "modifierIndisponible": "The full edit form is not ported yet; title, status and progress are edited in place on this page.",
     "dependanceMasquee": "Task not visible",
     "assignesEnregistres": "Assignees saved.",
     "echecAssignes": "Saving the assignees failed.",
@@ -197,7 +196,18 @@
     "echecAssignationTiers": "The assignment failed.",
     "lesTiers": "third parties",
     "aucunTiersDuProjet": "No third party attached to this project can be assigned yet. Attach one to the project first.",
-    "aucunTiers": "No active third party can be assigned to this task yet."
+    "aucunTiers": "No active third party can be assigned to this task yet.",
+    "categorie": "Task",
+    "modifierTitre": "Edit task",
+    "modifiee": "Task updated.",
+    "priorite": "Priority",
+    "dateDebut": "Start date",
+    "dateFin": "End date",
+    "datesInversees": "The end date is before the start date.",
+    "jalon": "Milestone",
+    "aucunJalon": "No milestone",
+    "jalonDuProjet": "Only milestones of this project are offered.",
+    "confidentielleAide": "A confidential task is readable only with the dedicated permission — being assigned is not enough."
   },
   "onglet": {
     "titre": "Task board",
@@ -208,5 +218,6 @@
   },
   "ext": "EXT",
   "interventionExterieure": "External work",
-  "pourcent": "{n, number} %"
+  "pourcent": "{n, number} %",
+  "enregistrer": "Save"
 }
