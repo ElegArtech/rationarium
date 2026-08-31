@@ -243,6 +243,121 @@ export function Evenements() {
 }
 
 /**
+ * `EX-EVT-08` — la liste des participants, avec ses deux gestes.
+ *
+ * **Deux gestes unitaires plutôt qu'une liste réécrite.** Réécrire l'ensemble
+ * ferait disparaître puis réapparaître les participants inchangés, avec la
+ * notification d'invitation qui prévient quelqu'un d'un événement qu'il n'a
+ * jamais quitté. C'est le raisonnement déjà retenu pour les membres d'un
+ * projet, et il vaut ici pour la même raison.
+ *
+ * L'annuaire n'est lu que si l'on a le droit d'écrire : sans `events:update`,
+ * la liste se lit et rien ne se propose (`RG-GEN-06`).
+ */
+function Participants({ evenement }: { evenement: api.Evenement }) {
+  const { t } = useTranslation("occupations");
+  const { t: tErreurs } = useTranslation("erreurs");
+  const peut = usePeut();
+  const annoncer = useMessages();
+  const client = useQueryClient();
+  const modifiable = peut("events:update");
+  const [choisi, setChoisi] = useState("");
+
+  const annuaire = useQuery({
+    queryKey: ["utilisateurs", "tous"],
+    queryFn: () => appeler<{ id: string; prenom: string; nom: string }[]>("/utilisateurs"),
+    enabled: modifiable,
+  });
+
+  const rafraichir = () => client.invalidateQueries({ queryKey: ["evenements"] });
+
+  const ajout = useMutation({
+    mutationFn: (userId: string) => api.ajouterParticipant(evenement.id, userId),
+    onSuccess: async () => {
+      annoncer("ok", t("evenements.participantAjoute"));
+      setChoisi("");
+      await rafraichir();
+    },
+    onError: (e) => annoncer("err", messageErreur(e, tErreurs, t("evenements.echecParticipant"))),
+  });
+
+  const retrait = useMutation({
+    mutationFn: (userId: string) => api.retirerParticipant(evenement.id, userId),
+    onSuccess: async () => {
+      annoncer("ok", t("evenements.participantRetire"));
+      await rafraichir();
+    },
+    onError: (e) => annoncer("err", messageErreur(e, tErreurs, t("evenements.echecParticipant"))),
+  });
+
+  // Qui n'est pas déjà invité. Proposer un participant en place produirait une
+  // erreur que l'écran pouvait éviter.
+  const deja = new Set(evenement.participants.map((p) => p.userId));
+  const candidats = (annuaire.data ?? []).filter((u) => !deja.has(u.id));
+
+  return (
+    <div className="drawer-part">
+      {evenement.participants.length > 0 ? (
+        <ul className="part-liste">
+          {evenement.participants.map((p) => (
+            <li className="part-item" key={p.userId}>
+              <span>
+                {p.user.prenom} {p.user.nom}
+              </span>
+              {modifiable ? (
+                <Button
+                  className="icon-btn"
+                  isPending={retrait.isPending}
+                  onPress={() => retrait.mutate(p.userId)}
+                  aria-label={t("evenements.retirerParticipant", {
+                    nom: `${p.user.prenom} ${p.user.nom}`,
+                  })}
+                >
+                  <span aria-hidden="true">×</span>
+                </Button>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="part-vide">{t("evenements.aucunParticipant")}</p>
+      )}
+
+      {modifiable ? (
+        <div className="ligne-actions-fin">
+          <label className="sr-only" htmlFor="ev-ajout-part">
+            {t("evenements.ajouterParticipant")}
+          </label>
+          <select
+            className="field"
+            id="ev-ajout-part"
+            value={choisi}
+            onChange={(e) => setChoisi(e.target.value)}
+          >
+            <option value="">{t("selectionner")}</option>
+            {candidats.map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.prenom} {u.nom}
+              </option>
+            ))}
+          </select>
+          <Button
+            className="chip-btn"
+            isPending={ajout.isPending}
+            // Un `aria-disabled` plutôt qu'un `isDisabled` : un bouton
+            // désactivé au sens HTML ne reçoit ni survol ni focus.
+            aria-disabled={choisi === ""}
+            onPress={() => (choisi === "" ? undefined : ajout.mutate(choisi))}
+          >
+            {t("evenements.ajouterParticipant")}
+          </Button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/**
  * Le panneau de détail d'un événement.
  *
  * **« Modifier » et « Supprimer » agissent.** Ils sont restés désactivés tant
@@ -322,6 +437,16 @@ function PanneauDetail({
           <dt>{t("evenements.colParticipants")}</dt>
           <dd>{t("evenements.participants", { n: evenement?.participants.length ?? 0 })}</dd>
         </dl>
+
+        {/*
+          `EX-EVT-08` — ajouter et retirer des participants.
+
+          Le panneau n'en montrait que le COMPTE. Les deux routes existaient,
+          gardées et testées, et rien ne les appelait : on ne pouvait composer
+          la liste qu'à la création, et jamais la corriger — or une réunion
+          dont un participant change est le cas courant, pas l'exception.
+        */}
+        {evenement ? <Participants evenement={evenement} /> : null}
 
         {serie && evenement ? (
           <div className="drawer-serie">

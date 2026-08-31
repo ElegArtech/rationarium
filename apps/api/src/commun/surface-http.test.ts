@@ -500,17 +500,6 @@ const SANS_CLIENT: { verbe: string; chemin: string; raison: string }[] = [
     raison:
       "EX-CNG-10 / RG-CNG-24 — la capacité existe, l'ÉCRAN n'est spécifié nulle part : `cadrage/02` ferme la vue 19 à six onglets et la vue 31 à quatre, la vue 27 ne montre le solde qu'en consultation, et la maquette 19 ne fait que lire les soldes. Seule la ligne « Variantes » de la vue 19 (« plus les types et les soldes ») suggère le contraire, en se contredisant avec l'énumération de sa propre section. Question remontée ; à brancher dès l'arbitrage.",
   },
-  {
-    verbe: "POST",
-    chemin: "/evenements/:id/participants",
-    raison:
-      "EX-EVT-08 — le cloisonnement a été posé (vague 7) ; le tiroir de la vue 18 montre un COMPTE de participants, pas leur liste, et l'ajout demande un sélecteur d'agents que la maquette n'a pas dessiné. À brancher avec ce sélecteur.",
-  },
-  {
-    verbe: "DELETE",
-    chemin: "/evenements/:id/participants/:userId",
-    raison: "EX-EVT-08 — même raison que l'ajout : la liste des participants n'est pas rendue, seulement comptée.",
-  },
   { verbe: "GET", chemin: "/parametrage/feries/statistiques", raison: A_BRANCHER },
   { verbe: "GET", chemin: "/parametrage/trame", raison: A_BRANCHER },
 ];

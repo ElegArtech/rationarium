@@ -108,7 +108,13 @@
     "supprime": "{n, plural, one {# event deleted} other {# events deleted}}.",
     "echecSuppression": "The event could not be deleted.",
     "continuer": "Continue",
-    "supprimerConfirmer": "Delete permanently"
+    "supprimerConfirmer": "Delete permanently",
+    "participantAjoute": "Participant added.",
+    "participantRetire": "Participant removed.",
+    "echecParticipant": "Changing the participants failed.",
+    "aucunParticipant": "No participants yet.",
+    "ajouterParticipant": "Add",
+    "retirerParticipant": "Remove {nom}"
   },
   "conges": {
     "surtitre": "Human resources",
