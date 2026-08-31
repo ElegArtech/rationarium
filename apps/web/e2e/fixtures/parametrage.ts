@@ -1,3 +1,4 @@
+import type { Page } from "@playwright/test";
 import { SESSION_ADMIN } from "./administration.js";
 
 /**
@@ -17,7 +18,9 @@ export const SESSION_CONFIG = {
     "settings:update",
     "holidays:read",
     "holidays:import",
+    "holidays:create",
     "school_vacations:read",
+    "school_vacations:create",
     "users:manage_roles",
     "audit:read",
     "predefined_tasks:read",
@@ -41,7 +44,13 @@ export const SESSION_ACTIVITE = {
 export const SESSION_CONFIG_LECTURE = {
   ...SESSION_CONFIG,
   permissions: SESSION_CONFIG.permissions.filter(
-    (p) => p !== "settings:update" && p !== "holidays:import",
+    (p) =>
+      p !== "settings:update" &&
+      p !== "holidays:import" &&
+      // `RG-GEN-06` — sans le droit de créer, on ne propose pas de créer puis
+      // de refuser. Les deux nouvelles commandes de la vue 31 en dépendent.
+      p !== "holidays:create" &&
+      p !== "school_vacations:create",
   ),
 };
 
@@ -328,3 +337,96 @@ export const PREDEFINIES_AVEC_INACTIVE = [
     _count: { assignations: 118 },
   },
 ];
+
+// ── Vue 31 — l'EFFET d'un jour férié déclaré ────────────────────────────────
+
+/**
+ * Le jeudi 13 août 2026 : un jour ouvré ordinaire de la semaine servie par
+ * `SEMAINE` (jeu du planning). Ni week-end, ni férié — donc si la trame de
+ * fond le grise après la déclaration, c'est la déclaration qui l'a fait.
+ */
+export const JOUR_A_DECLARER = "2026-08-13";
+
+type Ferie = {
+  id: string;
+  date: string;
+  libelle: string;
+  type: string;
+  ouvre: boolean;
+  recurrent: boolean;
+};
+
+const statistiquesDe = (feries: Ferie[]) => ({
+  total: feries.length,
+  chomes: feries.filter((f) => !f.ouvre).length,
+  ouvres: feries.filter((f) => f.ouvre).length,
+  legaux: feries.filter((f) => f.type === "legal").length,
+});
+
+/**
+ * Un calendrier de test qui **garde ce qu'on lui déclare**.
+ *
+ * Les autres jeux de cette suite sont figés : ils répondent la même chose
+ * avant et après une écriture, donc ils ne peuvent rien dire de l'*effet* d'un
+ * réglage — seulement du fait qu'il a été envoyé. C'est exactement le piège
+ * consigné pour cette vue : « un réglage qui s'enregistre n'est pas un réglage
+ * qui s'applique ».
+ *
+ * La dérivation faite ici n'est pas une invention : `CalendrierService` sert
+ * la liste de la vue 31 **et** la trame de fond du planning depuis la même
+ * table, par `joursChomes` — un férié non ouvré y devient un jour chômé, un
+ * férié ouvré non. Ce lien est tenu au serveur par `calendrier.int.test.ts`
+ * (« un jour férié chômé retire un jour », « RG-PRM-01 — un férié marqué OUVRÉ
+ * ne retire rien », « EX-PLN-14 — la trame réunit fériés chômés et vacances »).
+ * Le jeu s'y conforme ; il ne décide rien.
+ *
+ * Rend la fonction qui donne le dernier corps reçu par le `POST` : les
+ * drapeaux à effet — `ouvre`, `recurrent` — doivent voyager, et un formulaire
+ * qui les laisserait tomber enregistrerait un jour sans conséquence.
+ */
+export async function calendrierQuiRetient(
+  page: Page,
+  semaine: { trame: { joursChomes: string[]; vacances: unknown[] } },
+) {
+  const feries: Ferie[] = structuredClone(FERIES.feries);
+  let dernierEnvoi: Record<string, unknown> | null = null;
+
+  await page.route(
+    (url) => url.pathname === "/api/parametrage/feries",
+    (route) => {
+      if (route.request().method() === "POST") {
+        const corps = route.request().postDataJSON() as Ferie;
+        dernierEnvoi = { ...corps };
+        feries.push({ ...corps, id: `f-${feries.length + 1}` });
+        return route.fulfill({
+          status: 201,
+          contentType: "application/json",
+          body: JSON.stringify({ ...corps, id: `f-${feries.length}` }),
+        });
+      }
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ feries, statistiques: statistiquesDe(feries) }),
+      });
+    },
+  );
+
+  await page.route(
+    (url) => url.pathname === "/api/planning",
+    (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ...semaine,
+          trame: {
+            ...semaine.trame,
+            joursChomes: feries.filter((f) => !f.ouvre).map((f) => f.date),
+          },
+        }),
+      }),
+  );
+
+  return () => dernierEnvoi;
+}

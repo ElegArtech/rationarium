@@ -696,3 +696,31 @@ textarea.field {
 .pill-ext {
   color: var(--event);
 }
+
+/* ── Infobulle ─────────────────────────────────────────────────────────── */
+
+/*
+ * `RG-GEN-06` — « une action désactivée porte une explication au survol ».
+ *
+ * `.tooltip` était posée par `action-protegee.tsx`, `Predefinies.tsx` et
+ * `Roles.tsx` et **définie nulle part** : les infobulles se rendaient nues,
+ * texte non encadré posé par-dessus le contenu. Cinquième membre de la famille
+ * « inerte et invisible » — ni `axe`, ni le typage, ni un parcours ne voient
+ * une classe sans règle. Elle vit ici plutôt que dans une feuille de vue :
+ * trois vues la posent, elle n'appartient à aucune.
+ *
+ * La maquette ne la porte pas — elle emploie l'attribut `title` natif —, la
+ * boîte reprend donc l'idiome de la surcouche du socle : fond de surface,
+ * bordure marquée, rayon institutionnel.
+ */
+.tooltip {
+  max-width: 260px;
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r);
+  padding: 7px 10px;
+  font-size: 12px;
+  line-height: 1.45;
+  z-index: 60;
+}
