@@ -97,10 +97,18 @@ export function Planning({ mode }: { mode: Mode }) {
    * `RG-PLN-05` — si l'écriture aboutit mais que le rafraîchissement échoue,
    * l'utilisateur est averti que l'affichage peut être périmé. Le silence
    * serait pire que l'échec : il laisserait agir sur des données fausses.
+   *
+   * **`throwOnError` n'est pas un détail : sans lui, la règle était vide.**
+   * `refetchQueries` résout sa promesse même quand les requêtes tombent —
+   * l'échec vit dans l'état de chaque requête, pas dans le rejet. Le `catch`
+   * ci-dessous n'était donc JAMAIS atteint : l'écriture aboutissait, la
+   * relecture échouait, et l'utilisateur restait devant une grille périmée
+   * sans un mot. Le commentaire décrivait exactement ce que le code ne faisait
+   * pas — même famille que le contrôle de `RG-ADM-02` sur les rôles système.
    */
   const rafraichir = async () => {
     try {
-      await client.refetchQueries({ queryKey: ["planning"] });
+      await client.refetchQueries({ queryKey: ["planning"] }, { throwOnError: true });
     } catch {
       annoncer("warn", t("erreurs.rafraichissement"));
     }
