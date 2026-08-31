@@ -472,33 +472,16 @@ const SANS_CLIENT: { verbe: string; chemin: string; raison: string }[] = [
 
   // ── 3. Capacités serveur qu'aucun écran n'offre encore ───────────────────
   /*
-   * `EX-CNG-10` / `RG-CNG-24` — attribuer des jours, par agent ou globalement.
+   * `PUT /conges/soldes` a quitté cette liste en L-48.
    *
-   * **L'écran hôte n'existe dans aucune source.** `cadrage/02` § vue 19 énumère
-   * six onglets — Mes demandes, À valider, Toutes, Délégations données,
-   * Délégations reçues, Types — et la variante de droits confirme le compte
-   * (« Camille en voit un, Hugo en voit six ») ; `cadrage/02` § vue 31 est
-   * fermée à quatre onglets (Affichage, Planning, Jours fériés, Vacances
-   * scolaires) ; `cadrage/02` § vue 27 montre le solde d'un agent **en
-   * consultation seule**. La maquette 19 ne fait que LIRE les soldes : rien
-   * ne les écrit.
-   *
-   * Une seule ligne penche dans l'autre sens — `cadrage/02` § vue 19,
-   * Variantes : « Hugo voit tout, plus les types **et les soldes** » — et elle
-   * contredit l'énumération à six de la même section, sans que rien n'arbitre.
-   *
-   * Ouvrir un septième onglet ici serait donc inventer un écran, ses états et
-   * son vocabulaire de classes sur la foi d'une demi-phrase contradictoire.
-   * `CLAUDE.md` : « Si une information manque, elle remonte en question — elle
-   * ne s'invente pas. » La question est posée ; l'entrée reste jusqu'à
-   * l'arbitrage.
+   * L'entrée disait « l'ÉCRAN n'est spécifié nulle part », sur la foi d'une
+   * contradiction interne à `cadrage/02` § vue 19 : son énumération
+   * « Structure » fermait la liste à six onglets, sa ligne « Variantes » disait
+   * « Hugo voit tout, plus les types **et les soldes** ». L'arbitrage est
+   * tranché et écrit dans `cadrage/02` : c'est la ligne Variantes qui l'emporte,
+   * seule des deux à parler d'un détenteur de `leaves:manage_balances`. La vue
+   * 19 porte donc un sixième onglet « Soldes », et la route a son client.
    */
-  {
-    verbe: "PUT",
-    chemin: "/conges/soldes",
-    raison:
-      "EX-CNG-10 / RG-CNG-24 — la capacité existe, l'ÉCRAN n'est spécifié nulle part : `cadrage/02` ferme la vue 19 à six onglets et la vue 31 à quatre, la vue 27 ne montre le solde qu'en consultation, et la maquette 19 ne fait que lire les soldes. Seule la ligne « Variantes » de la vue 19 (« plus les types et les soldes ») suggère le contraire, en se contredisant avec l'énumération de sa propre section. Question remontée ; à brancher dès l'arbitrage.",
-  },
   {
     verbe: "GET",
     chemin: "/parametrage/trame",
