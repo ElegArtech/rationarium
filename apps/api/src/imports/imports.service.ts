@@ -4,6 +4,8 @@ import { stringify } from "csv-stringify/sync";
 import {
   CATEGORIES_COMPETENCE,
   DEMI_JOURNEES,
+  PRIORITES,
+  STATUTS_TACHE,
   type CategorieCompetence,
   type DemiJournee,
 } from "@rationarium/contracts";
@@ -129,6 +131,34 @@ const COLONNES: Record<TypeImport, { nom: string; obligatoire: boolean }[]> = {
     { nom: "requiredCount", obligatoire: false },
   ],
 };
+/**
+ * `cadrage/01 § M21` — les colonnes d'énumération portent le **code**, pas le
+ * libellé.
+ *
+ * Le tableau des colonnes ne le disait pour aucune d'elles, et trois imports
+ * le faisaient par convention tacite : `role` cherche un `Role.code`,
+ * `status` et `priority` attendent les codes de `@rationarium/contracts`, et
+ * `rowType` accepte MILESTONE ou TASK à la casse près. La convention est
+ * désormais écrite au cadrage ET tenue ici — un fichier qui porte un libellé
+ * traduit est refusé ligne à ligne, avec ce qu'on attendait.
+ *
+ * `rowType` n'y figure pas : il est déjà normalisé à la lecture
+ * (`.toUpperCase()`), et une ligne d'un type inconnu est simplement ignorée
+ * par les deux filtres, ce qui est le comportement voulu.
+ */
+const ENUMERATIONS: Partial<
+  Record<TypeImport, { colonne: string; valeurs: readonly string[] }[]>
+> = {
+  taches: [
+    { colonne: "status", valeurs: STATUTS_TACHE.map((s) => s.code) },
+    { colonne: "priority", valeurs: PRIORITES.map((p) => p.code) },
+  ],
+  projet: [
+    { colonne: "status", valeurs: STATUTS_TACHE.map((s) => s.code) },
+    { colonne: "priority", valeurs: PRIORITES.map((p) => p.code) },
+  ],
+};
+
 
 /**
  * `RG-IMP-01` — virgule **et** point-virgule.
@@ -323,6 +353,31 @@ export class ImportsService {
           // Le numéro de ligne est celui du FICHIER : en-tête comprise, base 1.
           // C'est le seul repère que l'utilisateur puisse retrouver.
           erreurs.push({ ligne: i + 2, message: `colonne « ${colonne.nom} » vide` });
+        }
+      }
+      /*
+       * `RG-IMP-04` — une valeur d'énumération inconnue est une LIGNE EN
+       * ERREUR, pas un incident technique.
+       *
+       * `status` et `priority` partaient en base castés `as never` : un
+       * fichier portant « En cours » plutôt que `doing` faisait tomber la
+       * transaction entière sur une erreur d'énumération PostgreSQL, message
+       * technique compris. `RG-IMP-06` rend même l'échec plus large en mode
+       * Remplacer : une seule cellule mal remplie annulait tout, sans dire
+       * laquelle.
+       *
+       * Le contrôle est ici, à l'analyse, parce que c'est le seul endroit qui
+       * connaisse le numéro de ligne du fichier — et parce que `RG-IMP-03`
+       * veut que la prévisualisation montre le problème AVANT d'écrire.
+       */
+      for (const { colonne, valeurs } of ENUMERATIONS[type] ?? []) {
+        const brut = ligne[colonne];
+        if (!NON_VIDE(brut)) continue;
+        if (!valeurs.includes(brut.trim())) {
+          erreurs.push({
+            ligne: i + 2,
+            message: `colonne « ${colonne} » : « ${brut.trim()} » inconnu, attendu ${valeurs.join(", ")}`,
+          });
         }
       }
     });

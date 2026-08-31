@@ -565,7 +565,7 @@ Tout import passe par une **prévisualisation** avant exécution, puis un compte
 - *Aucune tâche dépendante* : « Aucune tâche dépendante ».
 - *Tâche prérequise supprimée* : « Tâche supprimée » (l'entrée reste visible).
 - *Conflit de dates* : bandeau « Attention : incohérences de dates détectées ».
-- *Dépendance circulaire* : « Cette dépendance créerait une dépendance circulaire ».
+- *Dépendance circulaire* : « Cette dépendance créerait un cycle : la tâche finirait par dépendre d'elle-même ». *(Formulation arrêtée le 2026-08-31. La précédente — « créerait une dépendance circulaire » — se contentait de renommer le refus ; `RG-GEN-03` veut un message qui dit ce qui se passerait. Le produit portait déjà celle-ci ; c'est le brief qui était en retard.)*
 - *Suppression bloquée* : « Impossible de supprimer une tâche dont d'autres tâches dépendent ».
 - *Décalage en cascade* : « Décaler aussi {n} tâche(s) dépendante(s) ? »
 - *Aucune tâche disponible* : « Aucune tâche disponible » / « Aucune tâche trouvée ».
