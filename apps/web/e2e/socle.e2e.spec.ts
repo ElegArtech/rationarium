@@ -267,3 +267,49 @@ test.describe("Vue 35 — modifier son profil", () => {
     await expect(page.getByRole("button", { name: "Enregistrer" })).toBeDisabled();
   });
 });
+
+/**
+ * `RG-GEN-02` — « toute action produit un retour immédiat : succès nommé, ou
+ * erreur explicite et actionnable ».
+ *
+ * **La règle est un quantificateur universel** : un test nommé prouverait le
+ * retour d'UNE action, pas la règle. Ce qui est réellement testable est
+ * l'invariant structurel derrière — que le fournisseur de messages est **monté
+ * dans l'arbre**, avec ses deux régions d'annonce.
+ *
+ * Et c'est le contrôle qui manquait. `CLAUDE.md` le consigne : « un fournisseur
+ * React non monté ne casse rien — il se tait. `FournisseurMessages` est resté
+ * SIX LOTS hors de l'arbre : `useMessages` ne lève pas hors contexte, donc
+ * aucune confirmation d'action ne s'affichait, et aucune boucle ne s'en
+ * apercevait. Tout composant à défaillance silencieuse veut un test qui affirme
+ * sa présence. » Le piège était écrit, le test ne l'était pas.
+ *
+ * Les deux régions sont distinctes et doivent le rester : `polite` n'interrompt
+ * pas la lecture en cours, `assertive` si — une erreur ne peut pas attendre que
+ * l'utilisateur ait fini de lire autre chose.
+ */
+test.describe("RG-GEN-02 — le retour d'action a où s'afficher", () => {
+  test("RG-GEN-02 — le fournisseur de messages est MONTÉ, avec ses deux régions", async ({
+    page,
+  }) => {
+    await serveur(page, { statut: 200, corps: SESSION });
+    await page.goto("/");
+
+    // `role="status"` + `aria-live="polite"` : les succès, qui attendent.
+    await expect(page.locator('.toasts [role="status"][aria-live="polite"]')).toHaveCount(1);
+    // `role="alert"` + `aria-live="assertive"` : les erreurs, qui n'attendent pas.
+    await expect(page.locator('.toasts [role="alert"][aria-live="assertive"]')).toHaveCount(1);
+  });
+
+  test("RG-GEN-02 — il est monté sur les vues d'accès AUSSI", async ({ page }) => {
+    /*
+     * La page de connexion vit hors de la coquille : si le fournisseur n'était
+     * monté que dans l'arbre authentifié, les cinq vues d'accès n'auraient aucun
+     * retour d'action — et c'est exactement le genre de trou qu'un test sur la
+     * seule page d'accueil laisserait passer.
+     */
+    await serveur(page, { statut: 401 });
+    await page.goto("/connexion");
+    await expect(page.locator(".toasts")).toHaveCount(1);
+  });
+});
