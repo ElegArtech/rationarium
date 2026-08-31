@@ -42,12 +42,6 @@
       "defaut": "PARTIEL — le verbe du milieu manque. `creerJalon` et `supprimerJalon` existent ; il n’y a NI `modifierJalon` NI route `PATCH` sur un jalon. Corriger une date d’échéance impose de supprimer le jalon, donc d’en détacher les tâches. Quatrième occurrence de la famille EX-ORG-02 / EX-CLI-02 / EX-PRJ-05."
     },
     {
-      "id": "EX-JAL-02",
-      "lot": "vague 7-4",
-      "module": "L-10",
-      "defaut": "À TRANCHER AU CADRAGE avant d’écrire un test. « Marquer un jalon comme atteint » est une action de l’utilisateur ; `RG-JAL-01` dit que le statut d’un jalon est CALCULÉ et « n’est pas saisi ». Les deux ne peuvent pas être vrais ensemble. Le produit a tranché pour le calcul (`statutJalon()`), et la colonne `Milestone.statut` du schéma n’est écrite ni lue par personne. Un test figerait l’une des deux lectures."
-    },
-    {
       "id": "EX-JAL-07",
       "lot": "vague 7-4",
       "module": "L-10",
@@ -189,77 +183,6 @@
       "module": "L-14"
     },
     {
-      "id": "EX-CNG-02",
-      "lot": "vague 7-4",
-      "module": "L-15"
-    },
-    {
-      "id": "EX-CNG-03",
-      "lot": "vague 7-4",
-      "module": "L-15"
-    },
-    {
-      "id": "EX-CNG-04",
-      "lot": "vague 7-4",
-      "module": "L-15"
-    },
-    {
-      "id": "EX-CNG-06",
-      "lot": "vague 7-4",
-      "module": "L-15"
-    },
-    {
-      "id": "EX-CNG-08",
-      "lot": "vague 7-4",
-      "module": "L-15"
-    },
-    {
-      "id": "EX-CNG-09",
-      "lot": "vague 7-4",
-      "module": "L-15"
-    },
-    {
-      "id": "EX-CNG-10",
-      "lot": "vague 7-4",
-      "module": "L-15"
-    },
-    {
-      "id": "EX-CNG-11",
-      "lot": "vague 7-4",
-      "module": "L-15"
-    },
-    {
-      "id": "EX-CNG-12",
-      "lot": "vague 7-4",
-      "module": "L-15"
-    },
-    {
-      "id": "EX-CNG-15",
-      "lot": "vague 7-4",
-      "module": "L-15"
-    },
-    {
-      "id": "RG-CNG-05",
-      "lot": "vague 7-4",
-      "module": "L-15"
-    },
-    {
-      "id": "RG-CNG-08",
-      "lot": "vague 7-4",
-      "module": "L-15",
-      "note": "Porte aussi RG-ORG-05, déclaré non testable parce qu'il n'est que la doctrine dont cette règle est la réalisation. Co-citer les deux dans le titre."
-    },
-    {
-      "id": "RG-CNG-23",
-      "lot": "vague 7-4",
-      "module": "L-15"
-    },
-    {
-      "id": "RG-CNG-27",
-      "lot": "vague 7-4",
-      "module": "L-15"
-    },
-    {
       "id": "EX-TLT-01",
       "lot": "vague 7-4",
       "module": "L-16"
@@ -316,6 +239,12 @@
       "id": "RG-PRM-05",
       "raison": "ÉCART DE SPÉCIFICATION, à trancher au cadrage avant d'écrire un test. La règle dit « quitter la page avec des modifications non enregistrées déclenche un avertissement » — un avertissement À LA SORTIE. L'implémentation annonce les modifications en permanence dans la page, ce qui est un autre comportement, pas une variante du même. Un test écrit aujourd'hui figerait l'un ou l'autre sans que la question soit tranchée.",
       "aTrancher": "cadrage/01 § M19 — la règle et le code ne décrivent pas le même comportement."
+    },
+    {
+      "id": "EX-JAL-02",
+      "raison": "ÉCART DE SPÉCIFICATION, à trancher au cadrage avant d'écrire un test. « Marquer un jalon comme atteint » est un geste de l'utilisateur ; RG-JAL-01, deux lignes plus bas, dit que le statut d'un jalon est CALCULÉ à partir de l'avancement de ses tâches et « n'est pas saisi ». Les deux ne peuvent pas être vrais ensemble. Le produit a tranché pour le calcul (statutJalon(), recalculé à chaque lecture), et la colonne Milestone.statut du schéma n'est écrite ni lue par personne. Un test qui exercerait le geste figerait une saisie que RG-JAL-01 interdit ; un test qui exercerait le calcul prouverait RG-JAL-01, déjà couvert, et non EX-JAL-02. La couverture reviendra dès que l'arbitrage aura dit lequel des deux textes tient.",
+      "aTrancher": "cadrage/01 § M5 — EX-JAL-02 et RG-JAL-01 se contredisent : le statut d'un jalon est-il saisi ou calculé ?",
+      "coCiter": "RG-JAL-01"
     }
   ],
   "citationsOrphelines": []
