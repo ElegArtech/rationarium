@@ -227,7 +227,11 @@ export function Evenements() {
         hors du cadre quand il est fermé — comme la maquette. Fermé, il est
         `inert` : sans cela, la tabulation traverserait un panneau invisible.
       */}
-      <PanneauDetail evenement={detail} surFermeture={() => setDetail(null)} />
+      <PanneauDetail
+        evenement={detail}
+        projets={projets.data?.projets ?? []}
+        surFermeture={() => setDetail(null)}
+      />
 
       <FenetreCreation
         ouverte={creationOuverte}
@@ -241,23 +245,44 @@ export function Evenements() {
 /**
  * Le panneau de détail d'un événement.
  *
- * **« Modifier » et « Supprimer » sont désactivés, et disent pourquoi.**
- * Le serveur n'expose aujourd'hui ni mise à jour ni suppression d'événement —
- * seulement la création, les participants et l'arrêt de récurrence. Les
- * proposer puis échouer serait le contraire de `RG-GEN-06` ; les cacher
- * ferait disparaître un manque qui doit se voir. Question remontée.
+ * **« Modifier » et « Supprimer » agissent.** Ils sont restés désactivés tant
+ * que `PATCH` et `DELETE /evenements/:id` n'existaient pas — le motif était
+ * exact, et il a été comblé par L-42. Les deux gestes passent maintenant par la
+ * question de portée quand l'événement appartient à une série : `RG-EVT-07`.
+ *
+ * `RG-GEN-06` — sans la permission, l'action n'est pas proposée puis refusée :
+ * elle n'est pas proposée. Le contrôle, lui, reste au serveur.
  */
 function PanneauDetail({
   evenement,
+  projets,
   surFermeture,
 }: {
   evenement: api.Evenement | null;
+  projets: apiProjets.LigneProjet[];
   surFermeture: () => void;
 }) {
   const { t } = useTranslation("occupations");
-  const [portee, setPortee] = useState(false);
+  const peut = usePeut();
+  const [geste, setGeste] = useState<Geste | null>(null);
+  const [edition, setEdition] = useState<api.PorteeEvenement | "aucune" | null>(null);
   const ouvert = evenement !== null;
-  const serie = Boolean(evenement?.parentId ?? evenement?.frequenceSemaines);
+  const serie = evenement !== null && api.estDUneSerie(evenement);
+
+  /*
+   * `askScope` de la maquette court-circuite la fenêtre quand l'événement n'est
+   * pas récurrent : une question à une seule réponse possible n'est pas une
+   * question. La modification ouvre donc directement son formulaire.
+   *
+   * La suppression, elle, garde sa confirmation hors série — la maquette
+   * supprime sur un simple clic, et c'est le seul geste irréversible du
+   * panneau. C'est la portée qui est court-circuitée, pas la confirmation :
+   * la fenêtre s'affiche alors sans ses deux options.
+   */
+  const demanderModification = () => {
+    if (serie) setGeste("modifier");
+    else setEdition("aucune");
+  };
 
   return (
     <aside
@@ -304,30 +329,60 @@ function PanneauDetail({
               <p className="drawer-serie-t">{t("evenements.faitPartieDuneSerie")}</p>
               <p className="drawer-serie-d">{t("evenements.serieExplication")}</p>
             </div>
-            <Button className="btn btn-secondary btn-block" onPress={() => setPortee(true)}>
-              {t("evenements.arreterRecurrence")}
-            </Button>
-            <FenetrePortee
-              evenement={evenement}
-              ouverte={portee}
-              surFermeture={() => setPortee(false)}
-            />
+            {peut("events:update") ? (
+              <Button className="btn btn-secondary btn-block" onPress={() => setGeste("arreter")}>
+                {t("evenements.arreterRecurrence")}
+              </Button>
+            ) : null}
           </div>
         ) : null}
 
         <div className="btn-stack">
-          <Button className="btn btn-secondary" isDisabled aria-description={t("evenements.gesteIndisponible")}>
-            {t("evenements.modifier")}
-          </Button>
-          <Button
-            className="btn btn-secondary btn-refus"
-            isDisabled
-            aria-description={t("evenements.gesteIndisponible")}
-          >
-            {t("evenements.supprimer")}
-          </Button>
+          {peut("events:update") ? (
+            <Button className="btn btn-secondary" onPress={demanderModification}>
+              {t("evenements.modifier")}
+            </Button>
+          ) : null}
+          {peut("events:delete") ? (
+            <Button
+              className="btn btn-secondary btn-refus"
+              onPress={() => setGeste("supprimer")}
+            >
+              {t("evenements.supprimer")}
+            </Button>
+          ) : null}
         </div>
       </div>
+
+      {/*
+        Les fenêtres se montent à l'ouverture et se démontent à la fermeture :
+        leur état — la portée choisie, les champs saisis — repart ainsi neuf à
+        chaque geste, au lieu de conserver celui du geste précédent.
+      */}
+      {evenement && geste ? (
+        <FenetrePortee
+          evenement={evenement}
+          action={geste}
+          surFermeture={() => setGeste(null)}
+          surPorteeChoisie={(portee) => {
+            setGeste(null);
+            setEdition(portee);
+          }}
+          surSuppression={() => {
+            setGeste(null);
+            surFermeture();
+          }}
+        />
+      ) : null}
+
+      {evenement && edition ? (
+        <FenetreEdition
+          evenement={evenement}
+          portee={edition === "aucune" ? undefined : edition}
+          projets={projets}
+          surFermeture={() => setEdition(null)}
+        />
+      ) : null}
     </aside>
   );
 }
@@ -340,7 +395,7 @@ function LigneEvenement({
   surOuverture: () => void;
 }) {
   const { t } = useTranslation("occupations");
-  const serie = Boolean(evenement.parentId ?? evenement.frequenceSemaines);
+  const serie = api.estDUneSerie(evenement);
   const sansHoraire = evenement.journeeEntiere || !evenement.heureDebut;
 
   /*
@@ -406,27 +461,55 @@ function LigneEvenement({
   );
 }
 
+/** Les trois gestes qui passent par la question de portée. */
+type Geste = "arreter" | "modifier" | "supprimer";
+
 /**
- * `RG-EVT-06` — arrêter une série **à partir d'une date**.
+ * `RG-EVT-07`, `RG-EVT-04` — la portée du geste, demandée AVANT d'agir.
  *
- * La fenêtre nomme les deux portées et décrit ce que chacune fait. Le passé
- * n'est jamais touché : des occurrences déjà tenues figurent dans l'historique
- * de gens qui y étaient.
+ * Le brief de la vue 18 le pose en point d'attention : « la distinction entre
+ * modifier une occurrence et modifier toute la série doit être explicite au
+ * moment de l'action, pas découverte après coup ». D'où cette fenêtre, avec ses
+ * deux options **décrites** — et non un bouton unique dont l'effet se révèle une
+ * fois exécuté. Le serveur tient la même exigence : il refuse une écriture sur
+ * une série qui ne déclare pas sa portée.
+ *
+ * Une seule fenêtre pour les trois gestes, parce que la question est la même.
+ * Ce qui change d'un geste à l'autre :
+ *
+ *   - **arrêter** — la portée est nécessairement la série ; « cette occurrence »
+ *     reste montrée et désactivée, avec sa raison : arrêter, c'est couper la
+ *     suite. Une option absente laisserait croire qu'elle n'existe pas.
+ *   - **modifier** — la fenêtre ne fait que choisir ; c'est le formulaire qui
+ *     suit qui écrit.
+ *   - **supprimer** — la fenêtre confirme et supprime. Hors série, elle n'a
+ *     plus d'options : elle reste une confirmation, parce que c'est le seul
+ *     geste irréversible du panneau.
+ *
+ * Le pied porte toujours « Le passé n'est jamais touché » : l'information qui
+ * lève l'inquiétude, à côté du bouton qui l'inspire.
  */
 function FenetrePortee({
   evenement,
-  ouverte,
+  action,
   surFermeture,
+  surPorteeChoisie,
+  surSuppression,
 }: {
   evenement: api.Evenement;
-  ouverte: boolean;
+  action: Geste;
   surFermeture: () => void;
+  surPorteeChoisie: (portee: api.PorteeEvenement | "aucune") => void;
+  surSuppression: () => void;
 }) {
   const { t } = useTranslation("occupations");
   const { t: tErreurs } = useTranslation("erreurs");
   const annoncer = useMessages();
   const client = useQueryClient();
-  const [portee, setPortee] = useState<"future" | "occurrence">("future");
+  const serie = api.estDUneSerie(evenement);
+  const [portee, setPortee] = useState<api.PorteeEvenement>(
+    action === "arreter" ? "serie" : "occurrence",
+  );
 
   const arret = useMutation({
     mutationFn: () => api.arreterRecurrence(evenement.id, evenement.date.slice(0, 10)),
@@ -438,21 +521,100 @@ function FenetrePortee({
     onError: (e) => annoncer("err", messageErreur(e, tErreurs, t("evenements.echecArret"))),
   });
 
-  const options = [
-    { cle: "future", titre: t("evenements.porteeSerie"), detail: t("evenements.porteeSerieDetail") },
-    {
-      cle: "occurrence",
-      titre: t("evenements.porteeOccurrence"),
-      detail: t("evenements.porteeOccurrenceDetail"),
+  const suppression = useMutation({
+    mutationFn: () =>
+      api.supprimerEvenement(evenement.id, {
+        version: evenement.version,
+        // `RG-EVT-07` — hors série, la portée n'a pas d'objet, et le serveur la
+        // refuse. La transmettre « au cas où » ferait échouer le geste.
+        ...(serie ? { portee } : {}),
+      }),
+    onSuccess: (r) => {
+      annoncer("ok", t("evenements.supprime", { n: r.supprimees }));
+      surSuppression();
+      void client.invalidateQueries({ queryKey: ["evenements"] });
     },
-  ] as const;
+    onError: (e) => annoncer("err", messageErreur(e, tErreurs, t("evenements.echecSuppression"))),
+  });
+
+  /* Les deux options, dans le vocabulaire du geste. « Arrêter » a le sien :
+     l'occurrence seule n'y est pas une portée possible, et le dire vaut mieux
+     que de la masquer. */
+  const options =
+    action === "arreter"
+      ? ([
+          {
+            cle: "serie",
+            titre: t("evenements.porteeSerie"),
+            detail: t("evenements.porteeSerieDetail"),
+            possible: true,
+          },
+          {
+            cle: "occurrence",
+            titre: t("evenements.porteeOccurrence"),
+            detail: t("evenements.porteeOccurrenceDetail"),
+            possible: false,
+          },
+        ] as const)
+      : ([
+          {
+            cle: "occurrence",
+            titre: t("evenements.porteeOccurrenceSeule"),
+            detail: t("evenements.porteeOccurrenceSeuleDetail"),
+            possible: true,
+          },
+          {
+            cle: "serie",
+            titre: t("evenements.porteeSerieDepuisIci"),
+            detail: t("evenements.porteeSerieDepuisIciDetail"),
+            possible: true,
+          },
+        ] as const);
+
+  const categorie =
+    action === "arreter" ? t("evenements.serieRecurrente") : t("evenements.porteeAction");
+  const titre =
+    action === "arreter"
+      ? t("evenements.arreterTitre")
+      : action === "modifier"
+        ? t("evenements.modifierTitre")
+        : t("evenements.supprimerTitre");
+  const question =
+    action === "arreter"
+      ? t("evenements.arreterQuestion")
+      : !serie
+        ? t("evenements.supprimerQuestion")
+        : action === "modifier"
+          ? t("evenements.porteeQuestionModifier")
+          : t("evenements.porteeQuestionSupprimer");
+  /*
+   * Le bouton de confirmation ne reprend PAS le libellé du bouton qui a ouvert
+   * la fenêtre. Deux raisons, et la seconde est la vraie : « Modifier » ici ne
+   * modifie rien — il ouvre le formulaire, donc « Continuer » dit ce qui se
+   * passe ; et « Supprimer définitivement » nomme l'irréversible à côté du
+   * geste qui l'exécute. Accessoirement, deux commandes de même nom accessible
+   * dans un même document sont indistinguables au lecteur d'écran comme au
+   * contrôle de bout en bout.
+   */
+  const confirmer =
+    action === "arreter"
+      ? t("evenements.arreterConfirmer")
+      : action === "modifier"
+        ? t("evenements.continuer")
+        : t("evenements.supprimerConfirmer");
+
+  const agir = () => {
+    if (action === "arreter") arret.mutate();
+    else if (action === "modifier") surPorteeChoisie(serie ? portee : "aucune");
+    else suppression.mutate();
+  };
 
   return (
     <Fenetre
-      ouverte={ouverte}
+      ouverte
       surFermeture={surFermeture}
-      categorie={t("evenements.serieRecurrente")}
-      titre={t("evenements.arreterTitre")}
+      categorie={categorie}
+      titre={titre}
       mention={t("evenements.passeIntact")}
       actions={
         <>
@@ -460,32 +622,271 @@ function FenetrePortee({
             {t("annuler")}
           </Button>
           <Button
-            className="btn btn-danger"
-            isPending={arret.isPending}
-            isDisabled={portee !== "future"}
-            onPress={() => arret.mutate()}
+            className={action === "modifier" ? "btn btn-primary" : "btn btn-danger"}
+            isPending={arret.isPending || suppression.isPending}
+            onPress={agir}
           >
-            {t("evenements.arreterConfirmer")}
+            {confirmer}
           </Button>
         </>
       }
     >
-      <p className="phrase-confirmation">{t("evenements.arreterQuestion")}</p>
-      <div className="scope-opts" role="radiogroup" aria-label={t("evenements.porteeDuGeste")}>
-        {options.map((o) => (
-          <Button
-            key={o.cle}
-            className="scope-opt"
-            aria-pressed={portee === o.cle}
-            onPress={() => setPortee(o.cle)}
-          >
-            <span className="scope-mark" aria-hidden="true" />
-            <span>
-              <span className="scope-t">{o.titre}</span>
-              <span className="scope-d">{o.detail}</span>
-            </span>
+      <p className="phrase-confirmation">{question}</p>
+      {serie ? (
+        <div className="scope-opts" role="radiogroup" aria-label={t("evenements.porteeDuGeste")}>
+          {options.map((o) => (
+            <Button
+              key={o.cle}
+              className="scope-opt"
+              aria-pressed={portee === o.cle}
+              isDisabled={!o.possible}
+              onPress={() => setPortee(o.cle)}
+            >
+              <span className="scope-mark" aria-hidden="true" />
+              <span>
+                <span className="scope-t">{o.titre}</span>
+                <span className="scope-d">{o.detail}</span>
+              </span>
+            </Button>
+          ))}
+        </div>
+      ) : null}
+    </Fenetre>
+  );
+}
+
+/**
+ * `EX-EVT-06` — le formulaire de modification.
+ *
+ * Il n'ouvre que les champs que `PATCH /evenements/:id` accepte : les
+ * participants ont leurs propres points d'entrée (`EX-EVT-08`), et les
+ * paramètres de récurrence ne se réécrivent pas — les changer régénérerait la
+ * série, ce qui est un autre geste que « modifier ».
+ *
+ * **La date disparaît en portée « série »**, et le formulaire dit pourquoi : le
+ * serveur la refuse (`date_non_propageable`), parce qu'elle est ce qui
+ * distingue deux occurrences l'une de l'autre. Un champ proposé puis refusé
+ * serait exactement ce que `RG-GEN-06` interdit.
+ */
+function FenetreEdition({
+  evenement,
+  portee,
+  projets,
+  surFermeture,
+}: {
+  evenement: api.Evenement;
+  portee: api.PorteeEvenement | undefined;
+  projets: apiProjets.LigneProjet[];
+  surFermeture: () => void;
+}) {
+  const { t } = useTranslation("occupations");
+  const { t: tErreurs } = useTranslation("erreurs");
+  const annoncer = useMessages();
+  const client = useQueryClient();
+
+  const [titre, setTitre] = useState(evenement.titre);
+  const [description, setDescription] = useState(evenement.description ?? "");
+  const [date, setDate] = useState(evenement.date.slice(0, 10));
+  const [journeeEntiere, setJourneeEntiere] = useState(evenement.journeeEntiere);
+  const [heureDebut, setHeureDebut] = useState(evenement.heureDebut ?? "09:00");
+  const [heureFin, setHeureFin] = useState(evenement.heureFin ?? "10:00");
+  const [projectId, setProjectId] = useState(evenement.project?.id ?? "");
+  const [interventionExterieure, setInterventionExterieure] = useState(
+    evenement.interventionExterieure,
+  );
+  const [erreur, setErreur] = useState<string | null>(null);
+  const [manquants, setManquants] = useState<string[]>([]);
+
+  const surSerie = portee === "serie";
+
+  const modification = useMutation({
+    mutationFn: () =>
+      api.modifierEvenement(evenement.id, {
+        // `RG-GEN-07` — la version lue voyage avec l'écriture. Sans elle, deux
+        // corrections concurrentes s'effaceraient sans que personne ne le sache.
+        version: evenement.version,
+        ...(portee ? { portee } : {}),
+        titre,
+        description: description.trim() === "" ? null : description,
+        ...(surSerie ? {} : { date }),
+        journeeEntiere,
+        heureDebut: journeeEntiere ? null : heureDebut,
+        heureFin: journeeEntiere ? null : heureFin,
+        projectId: projectId || null,
+        interventionExterieure,
+      }),
+    onSuccess: () => {
+      annoncer("ok", t("evenements.modifie"));
+      surFermeture();
+      void client.invalidateQueries({ queryKey: ["evenements"] });
+    },
+    onError: (e) => setErreur(messageErreur(e, tErreurs, t("evenements.echecModification"))),
+  });
+
+  const valider = () => {
+    setErreur(null);
+    const vides = [!titre.trim() && "titre", !surSerie && !date && "date"].filter(
+      Boolean,
+    ) as string[];
+    setManquants(vides);
+    if (vides.length > 0) {
+      setErreur(t("champsObligatoires"));
+      return;
+    }
+    modification.mutate();
+  };
+
+  return (
+    <Fenetre
+      ouverte
+      surFermeture={surFermeture}
+      categorie={t("evenements.detailTitre")}
+      titre={t("evenements.modifierTitre")}
+      large
+      mention={surSerie ? t("evenements.passeIntact") : t("champsObligatoires")}
+      actions={
+        <>
+          <Button className="btn btn-secondary" onPress={surFermeture}>
+            {t("annuler")}
           </Button>
-        ))}
+          <Button className="btn btn-primary" isPending={modification.isPending} onPress={valider}>
+            {t("evenements.enregistrer")}
+          </Button>
+        </>
+      }
+    >
+      {erreur ? (
+        <div className="alert alert-error" role="alert">
+          <span className="alert-icon" aria-hidden="true">
+            !
+          </span>
+          <span>{erreur}</span>
+        </div>
+      ) : null}
+
+      {surSerie ? (
+        <div className="alert alert-neutral drawer-alerte">
+          <p className="drawer-serie-t">{t("evenements.porteeSerieDepuisIci")}</p>
+          <p className="drawer-serie-d">{t("evenements.dateFigeeSurSerie")}</p>
+        </div>
+      ) : null}
+
+      <div className="form-grid form-grid-espace">
+        <div className="field-block span2">
+          <label className="field-label" htmlFor="ev-m-titre">
+            {t("evenements.titreChamp")} <span className="req">*</span>
+          </label>
+          <input
+            className="field"
+            id="ev-m-titre"
+            type="text"
+            value={titre}
+            aria-invalid={manquants.includes("titre")}
+            onChange={(e) => setTitre(e.target.value)}
+          />
+        </div>
+
+        <div className="field-block span2">
+          <label className="field-label" htmlFor="ev-m-desc">
+            {t("evenements.descriptionChamp")}
+          </label>
+          <textarea
+            className="field"
+            id="ev-m-desc"
+            rows={3}
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+          />
+        </div>
+
+        {/* En portée « série », la date n'est pas grisée : elle disparaît, et
+            l'encart ci-dessus dit pourquoi. Un champ grisé invite à chercher
+            comment le réactiver. */}
+        {surSerie ? null : (
+          <div className="field-block">
+            <label className="field-label" htmlFor="ev-m-date">
+              {t("evenements.date")} <span className="req">*</span>
+            </label>
+            <input
+              className="field"
+              id="ev-m-date"
+              type="date"
+              value={date}
+              aria-invalid={manquants.includes("date")}
+              onChange={(e) => setDate(e.target.value)}
+            />
+          </div>
+        )}
+
+        <div className="field-block">
+          <label className="check">
+            <input
+              type="checkbox"
+              checked={journeeEntiere}
+              onChange={(e) => setJourneeEntiere(e.target.checked)}
+            />
+            <span>{t("evenements.touteLaJournee")}</span>
+          </label>
+        </div>
+
+        {journeeEntiere ? null : (
+          <>
+            <div className="field-block">
+              <label className="field-label" htmlFor="ev-m-h1">
+                {t("evenements.heureDebut")}
+              </label>
+              <input
+                className="field"
+                id="ev-m-h1"
+                type="time"
+                value={heureDebut}
+                onChange={(e) => setHeureDebut(e.target.value)}
+              />
+            </div>
+            <div className="field-block">
+              <label className="field-label" htmlFor="ev-m-h2">
+                {t("evenements.heureFin")}
+              </label>
+              <input
+                className="field"
+                id="ev-m-h2"
+                type="time"
+                value={heureFin}
+                onChange={(e) => setHeureFin(e.target.value)}
+              />
+            </div>
+          </>
+        )}
+
+        <div className="field-block span2">
+          <label className="field-label" htmlFor="ev-m-projet">
+            {t("evenements.projet")}
+          </label>
+          <select
+            className="field"
+            id="ev-m-projet"
+            value={projectId}
+            onChange={(e) => setProjectId(e.target.value)}
+          >
+            <option value="">{t("evenements.sansProjet")}</option>
+            {projets.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.nom}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="field-block span2">
+          <label className="check">
+            <input
+              type="checkbox"
+              checked={interventionExterieure}
+              onChange={(e) => setInterventionExterieure(e.target.checked)}
+            />
+            <span>{t("evenements.interventionExterieure")}</span>
+          </label>
+        </div>
       </div>
     </Fenetre>
   );

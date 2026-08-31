@@ -511,6 +511,7 @@ Permanences, astreintes, accueil, gardes : activités qui reviennent, ne relève
 - **RG-EVT-04** — L'arrêt de récurrence supprime les occurrences futures et conserve les passées ; l'action est confirmée.
 - **RG-EVT-05** — Les paramètres de début et de fin sont obligatoires pour interroger une plage.
 - **RG-EVT-06** — Un événement marqué *intervention extérieure* est signalé distinctement dans le planning.
+- **RG-EVT-07** — Toute modification ou suppression d'un événement appartenant à une série **déclare sa portée** : *cette occurrence seulement*, ou *cette occurrence et les suivantes*. La portée est obligatoire sur une série et refusée hors série. La portée « série » **n'agit jamais sur les occurrences antérieures à celle qui est visée** — même borne que `RG-EVT-04` —, et la date, qui distingue les occurrences les unes des autres, ne se modifie que sur une occurrence. Supprimer l'occurrence porteuse de la récurrence ne supprime pas les autres : la plus ancienne conservée en prend la suite.
 
 ---
 

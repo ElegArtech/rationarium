@@ -95,3 +95,70 @@ travaillé sur une base périmée et l'un a recréé un `package.json` déjà br
 Par ailleurs `packages/db/src/generated` étant ignoré par git, `pnpm typecheck` échoue
 sur tout arbre neuf tant que `prisma generate` n'a pas été rejoué. Les trois agents
 s'y sont cognés.
+
+---
+
+## L-42 — Modifier et supprimer un événement
+
+`EX-EVT-06`. Les deux commandes du panneau de détail de la vue 18 étaient inertes, et
+leur motif était **exact** : `PATCH` et `DELETE /evenements/:id` n'existaient pas. Le
+lot crée les deux routes, écrit la règle de portée qui manquait, et les branche.
+
+### Écriture au cadrage : `RG-EVT-07`
+
+> **RG-EVT-07** — Toute modification ou suppression d'un événement appartenant à une
+> série **déclare sa portée** : *cette occurrence seulement*, ou *cette occurrence et
+> les suivantes*. La portée est obligatoire sur une série et refusée hors série. La
+> portée « série » **n'agit jamais sur les occurrences antérieures à celle qui est
+> visée** — même borne que `RG-EVT-04` —, et la date, qui distingue les occurrences
+> les unes des autres, ne se modifie que sur une occurrence. Supprimer l'occurrence
+> porteuse de la récurrence ne supprime pas les autres : la plus ancienne conservée en
+> prend la suite.
+
+**Pourquoi elle manquait.** Aucune `RG-EVT` ne disait ce que « modifier » ou
+« supprimer » font sur une occurrence d'une série, alors que le brief de la vue 18 en
+fait un point d'attention : « la distinction entre modifier une occurrence et modifier
+toute la série doit être explicite au moment de l'action, pas découverte après coup »
+(`cadrage/02:598`). Le produit ne pouvait pas servir `EX-EVT-06` sans trancher.
+
+**Pourquoi cette formulation.** Elle prolonge `RG-EVT-04` plutôt que d'inventer une
+doctrine : l'arrêt de récurrence « supprime les occurrences futures et conserve les
+passées ». La borne du passé y est la date que l'utilisateur vise, pas la date du
+jour ; « toute la série » emploie exactement la même. Une troisième portée — « la
+série entière, passé compris » — a été écartée : c'est précisément ce que `RG-EVT-04`
+refuse depuis `EX-EVT-07`, et l'ouvrir ici la contournerait par la porte d'à côté.
+
+### Décisions tranchées
+
+| # | Décision | Motivation |
+| --- | --- | --- |
+| 1 | La portée est **obligatoire sur une série et refusée hors série** — deux refus (`portee_requise`, `portee_sans_serie`), pas un défaut implicite. | Un défaut côté serveur laisserait un client sauter la question, et l'utilisateur découvrirait l'effet après coup : exactement ce que le brief refuse. La règle est tenue là où elle ne se contourne pas. |
+| 2 | Supprimer le parent d'une série **promeut** la plus ancienne occurrence conservée au rang de parent, au lieu de refuser la suppression. | `onDelete: Cascade` sur la relation « Serie » : sans promotion, une ligne détruite emporte toute la série, le passé compris. Refuser aurait rendu la première occurrence d'une série indestructible — une limitation arbitraire pour un défaut technique. Le schéma est gelé ; la parade est applicative et transactionnelle. |
+| 3 | La **date ne se propage jamais** à une série (`date_non_propageable`), et le formulaire ne propose pas le champ en portée « série ». | La date est ce qui distingue deux occurrences : la propager les effondrerait en doublons d'un même jour. Ignorer le champ en silence ferait croire à une modification appliquée. |
+| 4 | `version` voyage en **paramètre de requête** sur le `DELETE`, en corps sur le `PATCH`. | Un corps sur un `DELETE` est licite mais mal traité par les intermédiaires, et aucune autre route du produit n'en envoie. En requête, `version` est l'exact équivalent d'un `If-Match`. |
+| 5 | La suppression **hors série garde sa confirmation**, alors qu'`askScope` de la maquette supprime sur un simple clic. | Ce qui est court-circuité hors série, c'est la **question de portée** — une question à une seule réponse n'en est pas une. La confirmation, elle, reste : c'est le seul geste irréversible du panneau, et la maquette y prend un raccourci de maquette. La fenêtre est la même, sans ses deux options. |
+| 6 | Les libellés de confirmation ne reprennent pas ceux des commandes : « Continuer », « Supprimer définitivement ». | La fenêtre de portée ne modifie rien — elle ouvre le formulaire. Et deux commandes de même nom accessible dans un même document sont indistinguables au lecteur d'écran. |
+| 7 | `event.update` et `event.delete` sont portés au **journal d'audit**, alors que la liste fermée de `01 § M20` ne nomme pas les événements. | Le module trace déjà `event.create` et `event.recurrence_stop` depuis L-14. Tracer la création sans la suppression serait le pire des deux mondes. **À arbitrer** : soit `01 § M20` accueille les événements, soit le module cesse de tracer — mais pas à moitié. |
+
+### Défauts corrigés au passage
+
+| Défaut | Portée |
+| --- | --- |
+| **Le client inventait la forme de la réponse.** `api/occupations.ts` déclarait `frequenceSemaines` / `jourSemaine` / `recurrenceJusqua` — les noms du corps de **création** — quand `surPlage` rend les champs Prisma `recurrenceFrequence` / `recurrenceJourSemaine` / `recurrenceFin`. Trois champs toujours `undefined` : la moitié de la détection de série était morte, et un événement **parent** ne se signalait pas comme série. Le jeu d'essai de bout en bout recopiait l'invention et la validait. Deuxième occurrence exacte du couple client/fixture déjà payé sur la vue 27, quatrième de la famille. | Corrigé. Le type porte aussi `version`, sans laquelle aucune écriture n'est composable (`RG-GEN-07`) — c'est ce qui avait fait conclure à tort que `PATCH /auth/me` n'existait pas. |
+| **`arreterRecurrence` n'avait aucun contrôle de périmètre.** La route exigeait `events:update` et n'a jamais confronté l'événement au périmètre de l'appelant : écrire sur ce qu'on n'a pas le droit de lire. | Corrigé — même prédicat que la lecture, extrait en `clauseVisibilite` et partagé, pour qu'une lecture et une écriture de la même table ne divergent pas. |
+| **« Arrêter la récurrence » était proposé sans `events:update`.** La route l'exige : l'action était proposée puis refusée, contre `RG-GEN-06`. | Corrigé, et vérifié par un parcours de bout en bout en variante « droits minimaux ». |
+
+### Restes ouverts
+
+- **`POST`/`DELETE /evenements/:id/participants` n'ont toujours pas de contrôle de
+  périmètre** — hors périmètre de ce lot (un autre les branche), mais le défaut est le
+  même que celui d'`arreterRecurrence`, et il subsiste.
+- **Le journal d'audit du produit est alimenté à la main par les services**, alors que
+  `.claude/rules/api.md` dit « aucun code n'y écrit autrement que par l'intercepteur ».
+  Il n'existe aucun intercepteur d'audit dans `apps/api`. Ce lot a suivi la convention
+  du code, pas celle de la règle. L'écart est antérieur et général ; il se tranche
+  ailleurs.
+- **Les paramètres de récurrence ne sont pas modifiables** (`recurrenceFrequence`,
+  `recurrenceJourSemaine`, `recurrenceFin`). Les changer régénérerait la série, ce qui
+  est un autre geste que « modifier » ; `EX-EVT-06` ne le demande pas explicitement.
+  Si le besoin est réel, il veut son exigence.

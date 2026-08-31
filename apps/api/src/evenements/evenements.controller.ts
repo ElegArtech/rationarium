@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post, Query } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from "@nestjs/common";
 import { z } from "zod";
 import { heure } from "@rationarium/contracts";
 import { EvenementsService } from "./evenements.service.js";
@@ -64,6 +64,66 @@ export class EvenementsController {
     return this.evenements.creer(donnees, d.userId);
   }
 
+  /**
+   * `EX-EVT-06` — modifier un événement.
+   *
+   * Le schéma est celui de la création, tous champs optionnels, **plus deux
+   * champs qui ne sont pas des données** :
+   *
+   *   - `version`, obligatoire — `RG-GEN-07`. Sans elle, l'écriture serait
+   *     « dernier arrivé gagne », et deux personnes corrigeant le même horaire
+   *     s'effaceraient mutuellement sans qu'aucune ne le sache.
+   *   - `portee`, obligatoire dès que l'événement appartient à une série —
+   *     `RG-EVT-07`. Le service la refuse par ses deux bouts : absente sur une
+   *     série, présente hors série.
+   *
+   * Les participants n'y figurent pas : ils ont leurs propres points d'entrée
+   * (`EX-EVT-08`). Les paramètres de récurrence non plus — les changer
+   * régénérerait la série, ce qui est un autre geste que « modifier ».
+   */
+  @Patch(":id")
+  @RequiertPermission("events:update")
+  modifier(@Param("id") id: string, @Body() corps: unknown, @Demande() d: ContexteDemande) {
+    const donnees = valider(
+      z.object({
+        version: z.number().int().min(1),
+        portee: z.enum(["occurrence", "serie"]).optional(),
+        titre: z.string().min(1).max(200).optional(),
+        description: z.string().max(10000).nullish(),
+        date: dateSchema.optional(),
+        journeeEntiere: z.boolean().optional(),
+        heureDebut: heure.nullish(),
+        heureFin: heure.nullish(),
+        projectId: z.uuid().nullish(),
+        interventionExterieure: z.boolean().optional(),
+      }),
+      corps,
+    );
+    return this.evenements.modifier(id, donnees, d.userId, d.perimetre, d.permissions);
+  }
+
+  /**
+   * `EX-EVT-06` — supprimer un événement.
+   *
+   * `version` et `portee` voyagent en paramètres de requête et non en corps :
+   * un corps sur un `DELETE` est licite mais mal traité par la moitié des
+   * intermédiaires, et le reste du produit n'en envoie aucun. `version` y est
+   * l'exact équivalent d'un `If-Match` — la lecture sur laquelle l'appelant
+   * fonde sa suppression.
+   */
+  @Delete(":id")
+  @RequiertPermission("events:delete")
+  supprimer(@Param("id") id: string, @Query() requete: unknown, @Demande() d: ContexteDemande) {
+    const q = valider(
+      z.object({
+        version: z.coerce.number().int().min(1),
+        portee: z.enum(["occurrence", "serie"]).optional(),
+      }),
+      requete,
+    );
+    return this.evenements.supprimer(id, q, d.userId, d.perimetre, d.permissions);
+  }
+
   @Post(":id/participants")
   @RequiertPermission("events:update")
   ajouterParticipant(@Param("id") id: string, @Body() corps: unknown, @Demande() d: ContexteDemande) {
@@ -92,6 +152,6 @@ export class EvenementsController {
   @RequiertPermission("events:update")
   arreterRecurrence(@Param("id") id: string, @Body() corps: unknown, @Demande() d: ContexteDemande) {
     const { aPartirDe } = valider(z.object({ aPartirDe: dateSchema }), corps);
-    return this.evenements.arreterRecurrence(id, aPartirDe, d.userId);
+    return this.evenements.arreterRecurrence(id, aPartirDe, d.userId, d.perimetre, d.permissions);
   }
 }
