@@ -7,8 +7,13 @@ import {
   EVENEMENTS,
   TYPES_CONGE,
   SOLDES,
+  SOLDE_T1_2026,
+  SOLDE_T3_2026,
+  VALIDATEUR,
+  SANS_VALIDATEUR,
   DEMANDES,
   DEMANDE_ANNULATION,
+  DEMANDE_TYPE_DESACTIVE,
   JOURS_OUVRES_A_CHEVAL,
   JOURS_OUVRES_SEMAINE,
   DELEGATIONS,
@@ -182,6 +187,11 @@ test.describe("Vue 19 — congés : trois publics, un écran", () => {
     /* `RG-CNG-16` — le décompte en jours ouvrés est SERVEUR depuis L-46 : sans
        cette réponse, la fenêtre de demande n'a plus ni années ni total. */
     "/api/parametrage/jours-ouvres": { corps: JOURS_OUVRES_A_CHEVAL },
+    /* `EX-CNG-09` — le SOLDE de la fenêtre de demande vient de la route par
+       type depuis L-47 : `/api/conges/soldes` sert la carte de tête, celle-ci
+       sert le bloc « Contrôle du solde ». Deux routes, deux jeux de chiffres
+       délibérément distincts — c'est ce qui rend lisible qui sert quoi. */
+    "/api/conges/solde": { corps: SOLDE_T1_2026 },
   };
 
   test("Camille ne voit qu'un onglet", async ({ page }) => {
@@ -578,13 +588,13 @@ test.describe("Vue 19 — congés : trois publics, un écran", () => {
       reponses: {
         ...reponses,
         // 2026 : 10 disponibles. 2027 : une allocation neuve, 25 disponibles.
-        "/api/conges/soldes?annee=2027": {
-          corps: [
-            {
-              ...SOLDES[0]!,
-              solde: { annee: 2027, attribues: 25, consommes: 0, engages: 0, disponibles: 25 },
-            },
-          ],
+        // Chaque année a SA réponse, sur la route qui prend une année en
+        // paramètre — c'est la seule façon de les distinguer à l'écran.
+        "/api/conges/solde?typeId=t1&annee=2026": {
+          corps: { annee: 2026, attribues: 25, consommes: 12, engages: 3, disponibles: 10 },
+        },
+        "/api/conges/solde?typeId=t1&annee=2027": {
+          corps: { annee: 2027, attribues: 25, consommes: 0, engages: 0, disponibles: 25 },
         },
       },
     });
@@ -611,6 +621,187 @@ test.describe("Vue 19 — congés : trois publics, un écran", () => {
     await expect(ligne(1, "Déjà utilisés")).toHaveText("0,0");
     await expect(ligne(0, "Disponible")).toHaveText("10,0");
     await expect(ligne(1, "Disponible")).toHaveText("25,0");
+  });
+
+  // ── L-47 — deux des trois capacités qu'aucun écran n'atteignait ───────────
+
+  /**
+   * `EX-CNG-09` — « Consulter son solde par type et par année ».
+   *
+   * Deux routes servent des soldes et ne rendent pas le même ensemble :
+   * `GET /conges/soldes` rend le CATALOGUE des types actifs pour une année,
+   * `GET /conges/solde` rend UN type pour UNE année. La fenêtre de demande
+   * connaît son type : c'est la seconde qui la sert.
+   *
+   * Le contrôle les fait se contredire volontairement — la carte de tête dit
+   * 25 attribués, la route par type en dit 30 — et regarde qui parle où. Avec
+   * des chiffres identiques il passerait au vert quelle que soit la route
+   * appelée, c'est-à-dire sans rien mesurer.
+   */
+  test("EX-CNG-09 — le contrôle de solde de la fenêtre vient de la route PAR TYPE, pas du catalogue de l'année", async ({
+    page,
+  }) => {
+    await serveur(page, {
+      session: CAMILLE,
+      reponses: {
+        ...reponses,
+        "/api/parametrage/jours-ouvres": { corps: JOURS_OUVRES_SEMAINE },
+        "/api/conges/solde": { corps: SOLDE_T1_2026 },
+      },
+    });
+    await page.goto("/conges");
+
+    // La carte de tête, elle, lit bien le catalogue : 25 attribués sur t1.
+    await expect(page.getByText("Total 25")).toBeVisible();
+
+    await page.getByRole("button", { name: "Nouvelle demande" }).click();
+    await page.getByLabel("Type de congé").selectOption("t1");
+    await page.getByLabel("Date de début").fill("2026-09-07");
+    await page.getByLabel("Date de fin").fill("2026-09-11");
+
+    const bloc = page.locator(".cb-year");
+    await expect(bloc).toHaveCount(1);
+    const ligne = (libelle: string) =>
+      bloc.first().locator(".cb-line").filter({ hasText: libelle }).locator("b");
+
+    /*
+     * On vise la LIGNE, jamais le bloc : « 30,0 » et « 9,0 » sont les seuls
+     * chiffres que le catalogue ne porte pas, et une assertion large les
+     * trouverait ailleurs sur la page. Les trois lignes viennent de la même
+     * réponse, donc les trois doivent basculer ensemble.
+     */
+    await expect(ligne("Attribués 2026")).toHaveText("30,0");
+    await expect(ligne("Déjà utilisés")).toHaveText("21,0");
+    await expect(ligne("Disponible")).toHaveText("9,0");
+  });
+
+  /**
+   * `RG-CNG-29` — **le cas que le catalogue ne peut pas servir.**
+   *
+   * `GET /conges/soldes` boucle sur `leaveType where actif: true`. Un type
+   * désactivé n'y figure donc pas — alors que `RG-CNG-29` conserve les congés
+   * posés dessus et que `EX-CNG-05` les laisse modifier. La fenêtre cherchait
+   * son type dans une liste qui ne le contenait plus, ne trouvait rien, et le
+   * bloc « Contrôle du solde » **disparaissait entièrement** : l'agent
+   * corrigeait ses dates à l'aveugle, pendant que `RG-CNG-21` continuait de
+   * décider au serveur.
+   */
+  test("RG-CNG-29 — une demande sur un type DÉSACTIVÉ garde son contrôle de solde à la modification", async ({
+    page,
+  }) => {
+    await serveur(page, {
+      session: CAMILLE,
+      reponses: {
+        ...reponses,
+        // `t3` n'est ni dans `TYPES_CONGE` ni dans `SOLDES` : le référentiel
+        // actif et le catalogue de soldes l'ignorent tous les deux.
+        "/api/conges": { corps: [DEMANDE_TYPE_DESACTIVE] },
+        "/api/parametrage/jours-ouvres": { corps: JOURS_OUVRES_SEMAINE },
+        "/api/conges/solde": { corps: SOLDE_T3_2026 },
+      },
+    });
+    await page.goto("/conges");
+
+    await page.getByRole("button", { name: "Modifier" }).click();
+    await expect(page.getByText("Contrôle du solde")).toBeVisible();
+
+    const bloc = page.locator(".cb-year");
+    await expect(bloc).toHaveCount(1);
+    const ligne = (libelle: string) =>
+      bloc.first().locator(".cb-line").filter({ hasText: libelle }).locator("b");
+
+    await expect(ligne("Attribués 2026")).toHaveText("6,0");
+    await expect(ligne("Disponible")).toHaveText("5,0");
+  });
+
+  /**
+   * `RG-CNG-08` / `RG-ORG-05` — **qui** validera, nommé.
+   *
+   * Le validateur n'est pas devinable depuis l'écran : trois branches le
+   * déterminent — manager du service, à défaut responsable du département, à
+   * défaut personne — et une délégation active (`RG-CNG-10`) peut y
+   * substituer quelqu'un d'autre, à la date. La maquette le nomme depuis
+   * l'origine (« soumise à validation par Fatou Berthier ») ; le produit
+   * retombait sur « votre responsable », c'est-à-dire sur la formule qui
+   * n'engage personne.
+   */
+  test("RG-CNG-08 / RG-ORG-05 — la fenêtre de demande NOMME le validateur que le serveur a déterminé", async ({
+    page,
+  }) => {
+    await serveur(page, {
+      session: CAMILLE,
+      reponses: {
+        ...reponses,
+        "/api/parametrage/jours-ouvres": { corps: JOURS_OUVRES_SEMAINE },
+        "/api/conges/solde": { corps: SOLDE_T1_2026 },
+        "/api/conges/validateur": { corps: VALIDATEUR },
+      },
+    });
+    await page.goto("/conges");
+
+    await page.getByRole("button", { name: "Nouvelle demande" }).click();
+    // `t1` exige une validation ; `t2` est auto-approuvé et n'en annonce aucune.
+    await page.getByLabel("Type de congé").selectOption("t1");
+    await page.getByLabel("Date de début").fill("2026-09-07");
+
+    /*
+     * L'assertion est bornée à la mention elle-même. « Fatou Berthier » figure
+     * déjà sur chaque ligne de la liste, en colonne « Validateur » : la
+     * chercher sur la page entière la trouverait avec ET sans le correctif.
+     */
+    const mention = page.locator(".alert-neutral");
+    await expect(mention).toContainText(
+      "Votre demande sera soumise à validation par Fatou Berthier.",
+    );
+    // Et plus la formule générique : la nommer OU la taire, pas les deux.
+    await expect(mention).not.toContainText("votre responsable");
+  });
+
+  /**
+   * Le cas de refus de la règle précédente, et il compte autant.
+   *
+   * `determinerValidateur` rend `null` quand ni le service ni le département
+   * ne désignent quelqu'un : la demande ira alors à un détenteur de la
+   * permission de gestion globale, que le serveur ne nomme pas. L'écran doit
+   * retomber sur la formule générique — **inventer un nom serait pire que de
+   * n'en donner aucun.**
+   */
+  test("RG-CNG-08 — sans validateur déterminé à cette date, la mention ne nomme personne", async ({
+    page,
+  }) => {
+    await serveur(page, {
+      session: CAMILLE,
+      reponses: {
+        ...reponses,
+        "/api/parametrage/jours-ouvres": { corps: JOURS_OUVRES_SEMAINE },
+        "/api/conges/solde": { corps: SOLDE_T1_2026 },
+        "/api/conges/validateur": { corps: SANS_VALIDATEUR },
+      },
+    });
+    await page.goto("/conges");
+
+    await page.getByRole("button", { name: "Nouvelle demande" }).click();
+
+    /*
+     * La formule générique est aussi celle que la vue affichait AVANT d'appeler
+     * la route : s'en tenir à elle ferait passer ce contrôle au vert sans que
+     * rien n'ait été demandé au serveur — il ne mesurerait rien. On exige donc
+     * l'appel lui-même, et sa date : `RG-CNG-08` se détermine À LA DATE,
+     * puisqu'une délégation (`RG-CNG-10`) a un début et une fin.
+     */
+    const appel = page.waitForRequest(
+      (r) => new URL(r.url()).pathname === "/api/conges/validateur",
+    );
+    await page.getByLabel("Type de congé").selectOption("t1");
+    await page.getByLabel("Date de début").fill("2026-09-07");
+    expect(new URL((await appel).url()).searchParams.get("date")).toBe("2026-09-07");
+
+    const mention = page.locator(".alert-neutral");
+    await expect(mention).toContainText(
+      "Votre demande sera soumise à validation par votre responsable.",
+    );
+    // Aucun nom : le serveur n'en a pas donné, l'écran n'en fabrique pas.
+    await expect(mention).not.toContainText("Fatou");
   });
 });
 

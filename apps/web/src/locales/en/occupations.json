@@ -197,6 +197,7 @@
     "motif": "Reason",
     "approuveAutomatiquement": "This type is approved automatically.",
     "soumiseAValidation": "Your request will be submitted to your manager for approval.",
+    "soumiseAValidationPar": "Your request will be submitted to {validateur} for approval.",
     "controleSolde": "Balance check",
     "aChevalSurDeuxAns": "Spanning two years",
     "annee": "Granted {annee}",
