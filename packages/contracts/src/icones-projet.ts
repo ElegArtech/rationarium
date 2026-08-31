@@ -15,6 +15,8 @@
  * pourquoi deux projets peuvent partager une couleur mais pas une icône.
  */
 
+import { z } from "zod";
+
 export type CategorieIconeProjet = {
   readonly code: string;
   readonly fr: string;
@@ -96,3 +98,27 @@ export const ICONES_PROJET: readonly IconeProjet[] = [
 /** L'icône existe-t-elle au catalogue ? Une valeur hors liste est refusée. */
 export const estIconeProjet = (code: string): boolean =>
   ICONES_PROJET.some((i) => i.code === code);
+
+/**
+ * L'icône d'un projet, **confrontée à la bibliothèque**.
+ *
+ * `EX-PRJ-04` dit « choisir une icône *dans une bibliothèque* » : c'est un
+ * vocabulaire fermé, au même titre que les statuts et les priorités de
+ * `cadrage/01 § 4.1`. Le contrôleur acceptait pourtant `z.string().max(20)` et
+ * n'a jamais appelé `estIconeProjet` : n'importe quelle chaîne entrait en base,
+ * et la pastille rendait alors un `<use href="#nimportequoi">` que rien ne
+ * définit — une boîte vide, sans erreur, sans avertissement. Le membre de la
+ * famille « inerte et invisible » propre à ce champ.
+ *
+ * La contrainte se pose ICI, à côté de la liste, et non dans le contrôleur :
+ * deux définitions du même vocabulaire divergent à la première icône ajoutée.
+ *
+ * Le message est en langue naturelle et **dit quoi faire** (`RG-GEN-03`) : ce
+ * refus s'affiche sous le champ, il ne finit pas dans un journal.
+ */
+export const iconeProjetSchema = z
+  .string()
+  .refine(
+    estIconeProjet,
+    "Cette icône ne fait pas partie de la bibliothèque. Choisissez-en une dans le sélecteur d'icône.",
+  );

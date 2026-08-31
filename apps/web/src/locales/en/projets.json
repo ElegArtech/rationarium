@@ -56,7 +56,17 @@
     "champsObligatoires": "Please fill in all required fields.",
     "cree": "Project created.",
     "echecCreation": "The project could not be created.",
-    "modifier": "Edit project"
+    "modifier": "Edit project",
+    "iconeDuProjet": "Project icon",
+    "choisirIcone": "Choose a project icon — currently: {icone}",
+    "aucune": "None",
+    "aucuneIcone": "No icon",
+    "iconeIndice": "Identifies the project in the schedule, tasks and Gantt",
+    "rechercherIcone": "Search an icon…",
+    "categoriesIcone": "Icon categories",
+    "toutesCategories": "All",
+    "bibliothequeIcones": "Icon library",
+    "aucuneIconeTrouvee": "No icon found"
   },
   "fiche": {
     "leProjet": "the project",
@@ -104,7 +114,15 @@
     "annulerFait": "Project cancelled. It can still be restored.",
     "capturerInstantane": "Take a snapshot",
     "instantanePris": "Snapshot taken — {pct}% on {date}.",
-    "echecInstantane": "The snapshot could not be taken."
+    "echecInstantane": "The snapshot could not be taken.",
+    "historiqueInstantanes": "Snapshot history",
+    "lHistorique": "the snapshot history",
+    "instantanesCompte": "{n, plural, one {# snapshot} other {# snapshots}}",
+    "instantaneDate": "Snapshot date",
+    "progressionAu": "Progress on {date}",
+    "tachesFiniesSur": "{finies, number} done out of {total, number}",
+    "historiqueVide": "No snapshot for this project",
+    "historiqueVideExplication": "A snapshot is captured automatically every night. Use “Take a snapshot” to freeze today's progress without waiting."
   },
   "jalons": {
     "laFeuille": "the roadmap",
