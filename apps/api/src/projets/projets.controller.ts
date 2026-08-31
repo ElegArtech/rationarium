@@ -145,8 +145,8 @@ export class ProjetsController {
 
   @Get(":id/impact")
   @RequiertPermission("projects:delete")
-  impact(@Param("id") id: string) {
-    return this.projets.impactSuppression(id);
+  impact(@Param("id") id: string, @Demande() d: ContexteDemande) {
+    return this.projets.impactSuppression(id, d.perimetre, d.permissions);
   }
 
   @Delete(":id")
@@ -257,8 +257,8 @@ export class ProjetsController {
 
   @Get(":id/epopees")
   @RequiertPermission("epics:read")
-  epopees(@Param("id") id: string) {
-    return this.projets.epopees(id);
+  epopees(@Param("id") id: string, @Demande() d: ContexteDemande) {
+    return this.projets.epopees(id, d.perimetre, d.permissions);
   }
 
   @Post(":id/epopees")

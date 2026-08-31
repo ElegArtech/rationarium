@@ -514,7 +514,20 @@ export class ProjetsService {
    * Proposer une issue fait partie de la règle : un refus sans alternative
    * pousse l'utilisateur à contourner.
    */
-  async impactSuppression(id: string) {
+  async impactSuppression(
+    id: string,
+    perimetre: Perimetre,
+    permissions: ReadonlySet<string>,
+  ) {
+    // L'impact CHIFFRE le contenu du projet — tâches, jalons, heures. C'est
+    // une lecture du projet, et elle en hérite le périmètre.
+    await this.exigerVisible(id, perimetre, permissions);
+    return this.calculerImpact(id);
+  }
+
+  /* Le calcul nu : la suppression définitive l'appelle après avoir vérifié
+   * ses propres droits, et n'a pas à se fabriquer un périmètre pour cela. */
+  private async calculerImpact(id: string) {
     const [temps, taches, jalons, snapshots] = await Promise.all([
       this.prisma.timeEntry.count({ where: { OR: [{ projectId: id }, { task: { projectId: id } }] } }),
       this.prisma.task.count({ where: { projectId: id } }),
@@ -534,7 +547,7 @@ export class ProjetsService {
   }
 
   async supprimerDefinitivement(id: string, acteurId: string) {
-    const impact = await this.impactSuppression(id);
+    const impact = await this.calculerImpact(id);
     if (impact.blocages.length > 0) {
       throw new ErreurProjet("suppression_bloquee", {
         blocages: impact.blocages,
@@ -881,7 +894,10 @@ export class ProjetsService {
   // permettait de créer l'épopée à laquelle le rattacher.
 
   /** `EX-JAL-07` — les épopées d'un projet, avec le nombre de tâches de chacune. */
-  async epopees(projectId: string) {
+  async epopees(projectId: string, perimetre: Perimetre, permissions: ReadonlySet<string>) {
+    // Les épopées d'un projet sont une lecture DU projet : elles héritent de
+    // son périmètre, comme sa feuille de route et son équipe.
+    await this.exigerVisible(projectId, perimetre, permissions);
     const epopees = await this.prisma.epic.findMany({
       where: { projectId },
       orderBy: { nom: "asc" },

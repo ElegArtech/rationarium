@@ -41,7 +41,13 @@ let pg: StartedPostgreSqlContainer;
 let prisma: PrismaClient;
 let projets: ProjetsService;
 let taches: TachesService;
+let perimetres: PerimetreService;
 let acteur: string;
+
+/* Cette suite éprouve les épopées, pas le cloisonnement du projet qui les
+ * porte : elle passe donc un périmètre de gestion globale. */
+const global = () => perimetres.resoudre(acteur, new Set(["projects:manage_any"]));
+const toutes: ReadonlySet<string> = new Set(["projects:manage_any"]);
 
 async function projet() {
   const p = await projets.creer(
@@ -69,7 +75,7 @@ beforeAll(async () => {
   });
   prisma = creerClient(pg.getConnectionUri());
   const audit = new AuditService(prisma as never);
-  const perimetres = new PerimetreService(prisma as never);
+  perimetres = new PerimetreService(prisma as never);
   const notifications = new NotificationsService(prisma as never, new FileService());
   projets = new ProjetsService(prisma as never, audit, perimetres, notifications);
   taches = new TachesService(prisma as never, audit, perimetres, notifications);
@@ -97,7 +103,7 @@ describe("EX-JAL-07 — créer, modifier, supprimer une épopée", () => {
     );
     expect(e.projectId).toBe(p);
 
-    const liste = await projets.epopees(p);
+    const liste = await projets.epopees(p, await global(), toutes);
     expect(liste).toHaveLength(1);
     expect(liste[0]).toMatchObject({ id: e.id, nom: "Socle technique", taches: 0 });
   });
@@ -115,7 +121,7 @@ describe("EX-JAL-07 — créer, modifier, supprimer une épopée", () => {
     await taches.creer(nouvelleTache(p, { epicId: a.id }), acteur);
     await taches.creer(nouvelleTache(p), acteur);
 
-    const liste = await projets.epopees(p);
+    const liste = await projets.epopees(p, await global(), toutes);
     expect(liste.find((e) => e.nom === "A")?.taches).toBe(2);
     expect(liste.find((e) => e.nom === "B")?.taches).toBe(0);
   });

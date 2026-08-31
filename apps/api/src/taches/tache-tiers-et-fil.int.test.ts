@@ -74,7 +74,7 @@ beforeAll(async () => {
     new NotificationsService(prisma as never, new FileService()),
   );
   tiers = new TiersService(prisma as never, audit);
-  documents = new DocumentsService(prisma as never, audit);
+  documents = new DocumentsService(prisma as never, audit, perimetres);
   acteur = await agent();
 }, 240_000);
 

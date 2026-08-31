@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { createHash } from "node:crypto";
 import { PrismaService } from "../prisma.service.js";
 import { AuditService } from "../commun/audit.service.js";
+import { PerimetreService, type Perimetre } from "../commun/perimetre.service.js";
 
 /**
  * Documents et commentaires — M15.
@@ -23,6 +24,7 @@ export type EchecDocument =
   | "conflit_de_version"
   | "rattachement_requis"
   | "pas_son_contenu"
+  | "hors_perimetre"
   | "introuvable";
 
 export class ErreurDocument extends Error {
@@ -39,6 +41,7 @@ export class DocumentsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly perimetres: PerimetreService,
   ) {}
 
   /**
@@ -92,9 +95,55 @@ export class DocumentsService {
    * La consultation d'une pièce jointe est une action sensible : elle laisse
    * une trace, comme le téléchargement.
    */
-  async consulter(id: string, acteurId: string) {
+  /**
+   * `RG-SCOPE-02` / `RG-SCOPE-04` — un document n'est lisible que si son
+   * PORTEUR l'est.
+   *
+   * **Le document n'a pas de périmètre à lui.** Il est attaché à une tâche ou
+   * à un projet, et c'est de là que vient le droit de le lire — y compris
+   * l'exclusion des tâches confidentielles, qu'un document joint
+   * contournerait autrement en entier. `consulter` et `telecharger` ne
+   * prenaient qu'un identifiant : tout porteur de `documents:read` lisait le
+   * cahier des charges de n'importe quel projet, et téléchargeait la pièce
+   * jointe de n'importe quelle tâche confidentielle.
+   *
+   * Un document orphelin — attaché à rien — reste lisible : il n'a pas de
+   * porteur dont hériter, et le refuser rendrait inaccessible ce que
+   * `onDelete: SetNull` laisse derrière lui.
+   */
+  private async exigerVisible(
+    document: { projectId: string | null; taskId: string | null },
+    perimetre: Perimetre,
+    permissions: ReadonlySet<string>,
+  ) {
+    if (document.taskId) {
+      const tache = await this.prisma.task.findFirst({
+        where: { AND: [{ id: document.taskId }, this.perimetres.filtreTache(perimetre, permissions)] },
+        select: { id: true },
+      });
+      if (!tache) throw new ErreurDocument("hors_perimetre");
+      return;
+    }
+    if (document.projectId) {
+      const projet = await this.prisma.project.findFirst({
+        where: {
+          AND: [{ id: document.projectId }, this.perimetres.filtreProjet(perimetre, permissions)],
+        },
+        select: { id: true },
+      });
+      if (!projet) throw new ErreurDocument("hors_perimetre");
+    }
+  }
+
+  async consulter(
+    id: string,
+    acteurId: string,
+    perimetre: Perimetre,
+    permissions: ReadonlySet<string>,
+  ) {
     const document = await this.prisma.document.findUnique({ where: { id } });
     if (!document) throw new ErreurDocument("introuvable");
+    await this.exigerVisible(document, perimetre, permissions);
 
     await this.audit.tracer({
       action: "document.read", typeEntite: "Document", entiteId: id, acteurId,
@@ -103,9 +152,15 @@ export class DocumentsService {
   }
 
   /** `EX-DOC-02` — télécharger. Tracé distinctement de la consultation. */
-  async telecharger(id: string, acteurId: string) {
+  async telecharger(
+    id: string,
+    acteurId: string,
+    perimetre: Perimetre,
+    permissions: ReadonlySet<string>,
+  ) {
     const document = await this.prisma.document.findUnique({ where: { id } });
     if (!document) throw new ErreurDocument("introuvable");
+    await this.exigerVisible(document, perimetre, permissions);
 
     // Consulter et télécharger ne sont pas le même geste : le second sort la
     // donnée du système. Les tracer sous la même action les rendrait

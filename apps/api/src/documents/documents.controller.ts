@@ -47,7 +47,7 @@ export class DocumentsController {
   @Get(":id")
   @RequiertPermission("documents:read")
   consulter(@Param("id") id: string, @Demande() d: ContexteDemande) {
-    return this.documents.consulter(id, d.userId);
+    return this.documents.consulter(id, d.userId, d.perimetre, d.permissions);
   }
 
   /**
@@ -59,7 +59,7 @@ export class DocumentsController {
   @Get(":id/telecharger")
   @RequiertPermission("documents:download")
   telecharger(@Param("id") id: string, @Demande() d: ContexteDemande) {
-    return this.documents.telecharger(id, d.userId);
+    return this.documents.telecharger(id, d.userId, d.perimetre, d.permissions);
   }
 
   @Patch(":id")

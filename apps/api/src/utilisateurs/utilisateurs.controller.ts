@@ -45,9 +45,13 @@ export class UtilisateursController {
    */
   @Get(":id/suivi")
   @RequiertPermission("users:read_individual_tracking")
-  suivi(@Param("id") id: string, @Query() requete: unknown) {
+  suivi(
+    @Param("id") id: string,
+    @Query() requete: unknown,
+    @Demande() d: ContexteDemande,
+  ) {
     const q = valider(z.object({ debut: dateSchema, fin: dateSchema }), requete);
-    return this.utilisateurs.suiviIndividuel(id, q);
+    return this.utilisateurs.suiviIndividuel(id, q, d.perimetre);
   }
 
   @Post()
