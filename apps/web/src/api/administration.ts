@@ -220,6 +220,21 @@ export const creerService = (donnees: {
 }) => appeler<{ id: string }>("/organisation/services", { methode: "POST", corps: donnees });
 
 /**
+ * `EX-ORG-03` — l'impact d'une suppression de service, **avant** de la faire.
+ *
+ * Même discipline que pour un département : le compte de ce qui sera détaché
+ * précède la confirmation. Un service n'emporte rien — il n'a pas d'enfant —,
+ * donc l'impact n'a pas de liste, seulement le nombre d'agents détachés. C'est
+ * précisément ce qu'il faut annoncer : sans lui, « supprimer un service » a
+ * l'air anodin alors qu'il détache sept personnes.
+ */
+export const impactService = (id: string) =>
+  appeler<{ nom: string; agentsDetaches: number }>(`/organisation/services/${id}/impact`);
+
+export const supprimerService = (id: string) =>
+  appeler<void>(`/organisation/services/${id}`, { methode: "DELETE" });
+
+/**
  * `EX-ORG-02` — modifier l'un des trois niveaux.
  *
  * Un seul point d'entrée pour les trois, comme la maquette 29 n'a qu'une

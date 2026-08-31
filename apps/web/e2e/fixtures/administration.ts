@@ -261,3 +261,73 @@ export const IMPACT_DEPARTEMENT = {
   servicesSupprimes: ["Études et développement", "Exploitation"],
   agentsDetaches: 10,
 };
+
+/**
+ * `EX-ORG-03` — l'impact d'un SERVICE. Il n'a pas de liste : un service
+ * n'emporte rien. Sept agents, comme le `_count.membres` d'« Études et
+ * développement » dans `ARBORESCENCE` — les deux doivent concorder, sinon le
+ * test ne dit plus lequel des deux chiffres la fenêtre affiche.
+ */
+export const IMPACT_SERVICE = {
+  nom: "Études et développement",
+  agentsDetaches: 7,
+};
+
+/** La même session, plus le droit de supprimer un service. */
+export const SESSION_ADMIN_SERVICES = {
+  ...SESSION_ADMIN,
+  permissions: [...SESSION_ADMIN.permissions, "services:delete"],
+};
+
+// ── Vue 21 — le versant équipe (EX-TMP-07) ──────────────────────────────────
+
+/**
+ * `EX-TMP-07` — le rapport agrégé est gardé par `time_tracking:read_team`,
+ * que la session personnelle de la vue 21 ne porte pas.
+ *
+ * Les deux sessions vivent ici, et non dans les jeux de la vue 21, parce que
+ * c'est la DIFFÉRENCE entre elles qu'on vient mesurer : le panneau apparaît
+ * avec la permission et disparaît sans elle.
+ */
+export const SESSION_TEMPS = {
+  ...SESSION_ADMIN,
+  prenom: "Camille",
+  nom: "Roussel",
+  role: { code: "AGENT", nom: "Agent" },
+  permissions: ["time_tracking:read", "time_tracking:create", "projects:read", "tasks:read"],
+};
+
+export const SESSION_TEMPS_EQUIPE = {
+  ...SESSION_TEMPS,
+  role: { code: "ENCADREMENT", nom: "Encadrement" },
+  permissions: [...SESSION_TEMPS.permissions, "time_tracking:read_team"],
+};
+
+/** `GET /temps` — le strict nécessaire pour que la page 21 rende. */
+export const TEMPS_VIDE = {
+  saisies: [],
+  cumul: { entrees: 0, heures: 0, plafondJournalier: 8 },
+};
+
+/**
+ * `GET /temps/rapport` — la forme EXACTE du contrôleur : un TABLEAU de
+ * `{ cle, libelle, heures, entrees }`, jamais un objet enveloppe.
+ *
+ * `heures` est un NOMBRE, pas une chaîne : `TempsService.rapport` le passe par
+ * `Number(l._sum.heures)`. La liste des saisies, elle, rend `heures` en
+ * chaîne — les deux points d'entrée du même module ne s'accordent pas, et un
+ * jeu d'essai qui lisserait la différence validerait une conversion que le
+ * client ne fait pas.
+ */
+export const RAPPORT_AGENT = [
+  { cle: "a2", libelle: "Driss Amrani", heures: 34, entrees: 9 },
+  { cle: "a3", libelle: "Hugo Nguyen", heures: 12.5, entrees: 4 },
+  /* `userId` vaut `null` pour une saisie faite au nom d'un tiers : le service
+     la nomme « Tiers » plutôt que de la laisser sans libellé. */
+  { cle: null, libelle: "Tiers", heures: 3.5, entrees: 1 },
+];
+
+export const RAPPORT_TYPE = [
+  { cle: "development", libelle: "development", heures: 30, entrees: 8 },
+  { cle: "meeting", libelle: "meeting", heures: 20, entrees: 6 },
+];

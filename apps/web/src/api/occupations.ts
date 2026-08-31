@@ -428,6 +428,29 @@ export const saisirTemps = (donnees: {
 export const supprimerTemps = (id: string) =>
   appeler<void>(`/temps/${id}`, { methode: "DELETE" });
 
+/** Une ligne d'agrégat du rapport : une clé, son libellé, ses heures, ses entrées. */
+export type LigneRapportTemps = {
+  cle: string | null;
+  libelle: string;
+  heures: number;
+  entrees: number;
+};
+
+/**
+ * `EX-TMP-07` — le rapport agrégé, par agent, par projet ou par type d'activité.
+ *
+ * L'agrégation est faite **en base**, sur le périmètre de l'appelant : la vue
+ * ne redescend pas cinq ans de lignes pour les additionner. C'est le versant
+ * ÉQUIPE de la vue 21, distinct de la répartition personnelle qui, elle, se
+ * calcule sur les saisies déjà chargées.
+ *
+ * `debut` et `fin` sont **obligatoires** côté serveur : un rapport sans fenêtre
+ * n'a pas de sens, et le laisser facultatif le ferait tomber en 400 à la
+ * première ouverture.
+ */
+export const rapportTemps = (q: { axe: "agent" | "projet" | "type"; debut: string; fin: string }) =>
+  appeler<LigneRapportTemps[]>(`/temps/rapport${params(q)}`);
+
 /** `RG-TMP-07` — ce qui est déjà déclaré sur une tâche, tous contributeurs confondus. */
 export const contexteTemps = (taskId: string) =>
   appeler<{ heuresDeclarees: number; entrees: number; contributeurs: number }>(
