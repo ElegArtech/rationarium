@@ -5,8 +5,11 @@ import { Button } from "react-aria-components";
 import { DEMI_JOURNEES, STATUTS_CONGE } from "@rationarium/contracts";
 import * as api from "../../api/occupations.js";
 import * as apiImports from "../../api/imports.js";
+/* L'annuaire, pour choisir le bénéficiaire d'une attribution de solde. */
+import * as apiAdmin from "../../api/administration.js";
 import { messageErreur } from "../../api/erreurs.js";
 import { usePeut, useSession } from "../../session/session.js";
+import { ActionProtegee } from "../../composants/action-protegee.js";
 import { Chargement, ErreurDeChargement } from "../../composants/etats.js";
 import { Fenetre } from "../../composants/fenetre.js";
 import { FenetreImport } from "../../composants/Import.js";
@@ -34,7 +37,32 @@ import "./conges.css";
  * permanence, et recalculé par année dans la fenêtre de demande.
  */
 
-type Onglet = "mesDemandes" | "aValider" | "toutes" | "delegations" | "types";
+export type Onglet =
+  | "mesDemandes"
+  | "aValider"
+  | "toutes"
+  | "delegations"
+  | "types"
+  | "soldes";
+
+/**
+ * L'onglet à rendre, **recalé sur ce qui existe** — `RG-GEN-06`.
+ *
+ * La maquette le fait (`if(R.tabs.indexOf(tab) === -1) tab = 'mine'`), le
+ * produit ne le faisait pas : un changement de droits en session — une
+ * délégation qui expire, un rôle qu'on retire — laissait le choix courant
+ * désigner une section disparue, et la vue ne rendait plus AUCUN panneau. Un
+ * écran vide sans message, que rien ne signale.
+ *
+ * La décision est isolée du rendu, comme `decisionAction` l'est
+ * d'`ActionProtegee` : c'est elle qui porte la règle, et elle se vérifie sans
+ * monter de DOM ni fabriquer un changement de droits en cours de session — ce
+ * qu'un parcours de bout en bout ne sait pas produire, et qu'un test qui
+ * rechargerait la page consacrerait à tort, puisque le remontage suffit à le
+ * faire passer.
+ */
+export const ongletCourant = (existants: readonly Onglet[], choisi: Onglet): Onglet =>
+  existants.includes(choisi) ? choisi : (existants[0] ?? "mesDemandes");
 
 export function Conges() {
   const { t } = useTranslation("occupations");
@@ -64,10 +92,25 @@ export function Conges() {
       liste.push({ cle: "delegations", libelle: t("conges.ongletDelegations") });
     }
     if (peut("leaves:manage_types")) liste.push({ cle: "types", libelle: t("conges.ongletTypes") });
+    /*
+     * `EX-CNG-10`, `RG-CNG-24` — le sixième onglet, réservé à qui attribue.
+     *
+     * `cadrage/02` se contredisait : son énumération « Structure » fermait la
+     * liste à six entrées dont deux pour les délégations, sa ligne « Variantes »
+     * disait « Hugo voit tout, plus les types ET LES SOLDES ». C'est la ligne
+     * Variantes qui l'emporte — seule des deux à parler d'un détenteur de
+     * `leaves:manage_balances`, quand l'énumération décrit ce que voit un agent
+     * ordinaire. L'arbitrage est écrit dans `cadrage/02`, § vue 19.
+     */
+    if (peut("leaves:manage_balances")) {
+      liste.push({ cle: "soldes", libelle: t("conges.ongletSoldes") });
+    }
     return liste;
   }, [peut, t]);
 
-  const [onglet, setOnglet] = useState<Onglet>("mesDemandes");
+  const [ongletChoisi, setOnglet] = useState<Onglet>("mesDemandes");
+  /* `RG-GEN-06` — voir `ongletCourant` : l'onglet actif suit les droits. */
+  const onglet = ongletCourant(onglets.map((o) => o.cle), ongletChoisi);
   const [demandeOuverte, setDemandeOuverte] = useState(false);
   const [importOuvert, setImportOuvert] = useState(false);
 
@@ -150,6 +193,7 @@ export function Conges() {
       {onglet === "toutes" ? <ToutesLesDemandes /> : null}
       {onglet === "delegations" ? <Delegations /> : null}
       {onglet === "types" ? <TypesDeConge /> : null}
+      {onglet === "soldes" ? <AttributionDesSoldes /> : null}
 
       <FenetreDemande ouverte={demandeOuverte} surFermeture={() => setDemandeOuverte(false)} />
 
@@ -395,15 +439,26 @@ function LigneDemande({
     void client.invalidateQueries({ queryKey: ["conges"] });
   };
 
+  /*
+   * `RG-GEN-07` — **la version lue accompagne chaque geste.**
+   *
+   * Aucune de ces cinq mutations ne la transmettait, alors que
+   * `GET /conges` la rend depuis toujours sur chaque ligne : la règle était
+   * vide sur l'ensemble de la vue 19. Le serveur ne l'exigeait pas non plus,
+   * donc rien ne pouvait le dire — deux moitiés cohérentes entre elles et
+   * fausses ensemble. Elle est désormais obligatoire des deux côtés, et un
+   * écart se rend en `erreurs:conflitDeVersion`.
+   */
   const action = useMutation({
     mutationFn: (geste: Geste) => {
-      if (geste === "approuver") return api.approuverConge(demande.id);
-      if (geste === "annulation") return api.demanderAnnulation(demande.id);
+      const v = demande.version;
+      if (geste === "approuver") return api.approuverConge(demande.id, v);
+      if (geste === "annulation") return api.demanderAnnulation(demande.id, v);
       // `EX-CNG-07` — les deux issues d'une demande d'annulation passent par la
       // MÊME route, et ne se distinguent que par `accepte`.
-      if (geste === "accepterAnnulation") return api.traiterAnnulation(demande.id, true);
-      if (geste === "refuserAnnulation") return api.traiterAnnulation(demande.id, false);
-      return api.supprimerConge(demande.id);
+      if (geste === "accepterAnnulation") return api.traiterAnnulation(demande.id, true, v);
+      if (geste === "refuserAnnulation") return api.traiterAnnulation(demande.id, false, v);
+      return api.supprimerConge(demande.id, v);
     },
     onSuccess: (_, geste) => {
       annoncer("ok", t(`conges.${geste}Fait`));
@@ -832,6 +887,24 @@ function TypesDeConge() {
         </label>
       </div>
 
+      {/*
+        `RG-GEN-04` — l'état vide, rédigé avec sa sortie.
+        La grille se rendait NUE : sept intitulés de colonnes au-dessus de
+        rien. Le cas n'est pas théorique — décocher « Afficher les inactifs »
+        sur une instance dont tous les types sont désactivés le produit, et une
+        instance neuve avant import du référentiel aussi.
+      */}
+      {requete.data.length === 0 ? (
+        <div className="empty">
+          <p>{inactifs ? t("conges.videTypes") : t("conges.videTypesActifs")}</p>
+          <small>{t("conges.videTypesExplication")}</small>
+          {inactifs ? null : (
+            <Button className="btn btn-secondary" onPress={() => setInactifs(true)}>
+              {t("conges.afficherInactifs")}
+            </Button>
+          )}
+        </div>
+      ) : (
       <div>
         <div className="ty-grid ty-head" aria-hidden="true">
           <span>{t("conges.colCode")}</span>
@@ -913,6 +986,8 @@ function TypesDeConge() {
           </div>
         ))}
       </div>
+
+      )}
 
       {aRetirer ? (
         <FenetreRetraitType type={aRetirer} surFermeture={() => setARetirer(null)} />
@@ -1017,7 +1092,13 @@ function FenetreRefus({
   const [motif, setMotif] = useState("");
 
   const refus = useMutation({
-    mutationFn: () => api.refuserConge(demande.id, motif.trim() || t("conges.refusSansMotif")),
+    mutationFn: () =>
+      api.refuserConge(
+        demande.id,
+        motif.trim() || t("conges.refusSansMotif"),
+        // `RG-GEN-07` — la version lue voyage avec le refus.
+        demande.version,
+      ),
     onSuccess: () => {
       annoncer("ok", t("conges.refuserFait"));
       surFermeture();
@@ -1242,7 +1323,10 @@ function FenetreDemande({
         ...(demiFin ? { demiJourneeFin: demiFin } : {}),
         ...(motif ? { motif } : {}),
       };
-      if (demande) return api.modifierConge(demande.id, plage);
+      // `RG-GEN-07` — c'est ici que la version compte le plus : une
+      // modification ne change pas le statut, donc rien d'autre ne détecte
+      // deux corrections concurrentes de la même demande.
+      if (demande) return api.modifierConge(demande.id, { ...plage, version: demande.version });
       await api.deposerConge({ typeId, ...plage });
     },
     onSuccess: () => {
@@ -1469,5 +1553,258 @@ function FenetreDemande({
         ) : null}
       </div>
     </Fenetre>
+  );
+}
+
+/**
+ * `EX-CNG-10`, `RG-CNG-24` — **attribuer les jours de congé.**
+ *
+ * `PUT /conges/soldes` existait, gardée, testée, et **aucun écran ne
+ * l'appelait** : sur une instance neuve tous les soldes valaient zéro, donc
+ * `RG-CNG-20` refusait toute demande, et le module entier était inutilisable
+ * sans intervention en base. Une capacité sans client ne fait échouer aucune
+ * boucle — c'est la famille de défauts la plus coûteuse du dépôt.
+ *
+ * L'écran tient sur trois décisions :
+ *
+ *   1. **Une allocation globale est un cas nominal**, pas un cas limite.
+ *      `userId: null` ouvre l'année pour tout le monde d'un seul geste, et
+ *      l'allocation propre à un agent la surclasse. Le sélecteur de
+ *      bénéficiaire porte donc « Défaut global » en première position.
+ *
+ *   2. **La provenance se dit avant la correction.** `attribues` peut venir de
+ *      l'allocation propre ou du défaut global : les deux ne se corrigent pas
+ *      au même endroit, et corriger le mauvais des deux ne change rien de
+ *      visible pour l'agent concerné.
+ *
+ *   3. **Une ligne, une écriture, une version.** Chaque type porte sa propre
+ *      allocation, donc sa propre version (`RG-CNG-23`) : un enregistrement
+ *      d'ensemble qui échouerait à mi-parcours laisserait un état que personne
+ *      ne saurait relire.
+ */
+function AttributionDesSoldes() {
+  const { t } = useTranslation("occupations");
+  const peut = usePeut();
+  const { session } = useSession();
+  const [annee, setAnnee] = useState(new Date().getUTCFullYear());
+  /** L'agent visé ; la chaîne vide vaut le **défaut global** (`userId: null`). */
+  const [beneficiaire, setBeneficiaire] = useState("");
+
+  /*
+   * L'annuaire est gardé par `users:read`. Le rôle « Responsable RH » le
+   * détient avec `leaves:manage_balances` — les deux viennent du même faisceau
+   * —, mais un rôle sur mesure pourrait n'avoir que la seconde : l'écran reste
+   * alors utilisable sur le seul défaut global plutôt que de se rendre vide.
+   */
+  const annuaire = useQuery({
+    queryKey: ["utilisateurs", { actif: true }],
+    queryFn: () => apiAdmin.utilisateurs({ actif: true }),
+    enabled: peut("users:read"),
+  });
+
+  /*
+   * Le catalogue des types et leurs défauts globaux ne dépendent pas de l'agent
+   * interrogé : en portée globale on interroge donc le sien, et on ne lit que
+   * le champ `global` de chaque entrée. `GET /conges/soldes` exige un agent.
+   */
+  const cible = beneficiaire || session.id;
+  const requete = useQuery({
+    queryKey: ["conges", "soldes", annee, cible],
+    queryFn: () => api.soldes(annee, cible),
+  });
+
+  const annees = [annee - 1, annee, annee + 1, annee + 2];
+
+  if (requete.isPending) return <Chargement quoi={t("conges.lesSoldes")} />;
+  if (requete.isError)
+    return <ErreurDeChargement erreur={requete.error} surReessai={() => void requete.refetch()} />;
+
+  return (
+    <section className="panel">
+      <div className="panel-head">
+        <span className="panel-title">{t("conges.attributionDesSoldes")}</span>
+        <span className="eyebrow">
+          {beneficiaire ? t("conges.porteeAgent") : t("conges.porteeGlobale")}
+        </span>
+      </div>
+
+      <div className="panel-body">
+        <div className="form-grid">
+          <div className="field-block">
+            <label className="field-label" htmlFor="sd-beneficiaire">
+              {t("conges.beneficiaire")}
+            </label>
+            <select
+              className="field"
+              id="sd-beneficiaire"
+              value={beneficiaire}
+              onChange={(e) => setBeneficiaire(e.target.value)}
+            >
+              {/* `RG-CNG-24` — le défaut global en tête : c'est le geste qui
+                  ouvre une année pour tout le monde, pas une exception. */}
+              <option value="">{t("conges.defautGlobal")}</option>
+              {(annuaire.data ?? []).map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.prenom} {u.nom}
+                </option>
+              ))}
+            </select>
+            <p className="field-hint">
+              {beneficiaire
+                ? t("conges.porteeAgentExplication")
+                : t("conges.porteeGlobaleExplication")}
+            </p>
+          </div>
+
+          <div className="field-block">
+            <label className="field-label" htmlFor="sd-annee">
+              {t("conges.anneeAttribuee")}
+            </label>
+            <select
+              className="field"
+              id="sd-annee"
+              value={String(annee)}
+              onChange={(e) => setAnnee(Number(e.target.value))}
+            >
+              {/* Une année ne se formate pas comme un nombre : « 2 026 ». */}
+              {annees.map((a) => (
+                <option key={a} value={String(a)}>
+                  {String(a)}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* `RG-GEN-04` — l'état vide, rédigé avec sa sortie. Sans type actif
+              il n'y a rien à attribuer, et c'est le référentiel qu'il faut
+              nourrir d'abord. */}
+          {requete.data.length === 0 ? (
+            <div className="field-block span2">
+              <div className="empty">
+                <p>{t("conges.videSoldes")}</p>
+                <small>{t("conges.videSoldesExplication")}</small>
+              </div>
+            </div>
+          ) : (
+            requete.data.map((entree) => (
+              <LigneAttribution
+                key={`${entree.type.id}-${cible}-${annee}`}
+                entree={entree}
+                annee={annee}
+                userId={beneficiaire || null}
+              />
+            ))
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/**
+ * Une ligne d'attribution : un type, sa provenance, sa valeur, son geste.
+ *
+ * L'état du champ est local à la ligne — chaque type s'enregistre seul, avec
+ * **sa** version. La `key` posée par le parent porte le type, l'agent et
+ * l'année : changer l'un des trois remonte un champ neuf, plutôt que de garder
+ * la saisie précédente au-dessus de chiffres qui ne sont plus les siens.
+ */
+function LigneAttribution({
+  entree,
+  annee,
+  userId,
+}: {
+  entree: api.SoldeParType;
+  annee: number;
+  userId: string | null;
+}) {
+  const { t } = useTranslation("occupations");
+  const { t: tErreurs } = useTranslation("erreurs");
+  const { permissions } = useSession();
+  const annoncer = useMessages();
+  const client = useQueryClient();
+
+  /** L'allocation visée par l'écriture : la propre, ou le défaut global. */
+  const visee = userId ? entree.solde.propre : entree.solde.global;
+  const [jours, setJours] = useState(visee === null ? "" : String(visee.jours));
+
+  const attribution = useMutation({
+    mutationFn: () =>
+      api.attribuerSolde({
+        userId,
+        typeId: entree.type.id,
+        annee,
+        joursAttribues: Number(jours),
+        /* `RG-CNG-23` — la version lue, et seulement quand l'allocation
+           existe : le serveur traite une version absente sur une allocation
+           existante comme un conflit, jamais comme une dispense. */
+        ...(visee ? { version: visee.version } : {}),
+      }),
+    onSuccess: () => {
+      annoncer("ok", t("conges.soldeEnregistre", { nom: entree.type.nom }));
+      void client.invalidateQueries({ queryKey: ["conges"] });
+    },
+    onError: (e) => annoncer("err", messageErreur(e, tErreurs, t("conges.echecAction"))),
+  });
+
+  /**
+   * D'où vient le chiffre affiché — `RG-CNG-24`.
+   *
+   * En portée globale la question ne se pose pas : on regarde le défaut. En
+   * portée agent, elle est la seule qui compte, parce qu'un agent qui hérite
+   * du défaut ne verra rien changer tant qu'on corrige le défaut d'à côté.
+   */
+  const provenance = userId
+    ? entree.solde.origine === "propre"
+      ? t("conges.soldePropre")
+      : entree.solde.origine === "global"
+        ? t("conges.soldeHeriteGlobal", { n: formaterNombre(entree.solde.attribues, 1) })
+        : t("conges.soldeAucun")
+    : visee
+      ? t("conges.soldeGlobalDefini")
+      : t("conges.soldeGlobalAbsent");
+
+  const champ = `sd-${entree.type.id}`;
+
+  return (
+    <div className="field-block">
+      <label className="field-label" htmlFor={champ}>
+        {entree.type.nom}
+      </label>
+      <input
+        className="field"
+        id={champ}
+        type="number"
+        min={0}
+        max={365}
+        step={0.5}
+        value={jours}
+        onChange={(e) => setJours(e.target.value)}
+        placeholder={t("conges.joursAAttribuer")}
+      />
+      <p className="field-hint">{provenance}</p>
+      {/*
+        `RG-GEN-06` — la commande passe par `ActionProtegee`, qu'aucune vue
+        n'employait : sans `leaves:manage_balances`, elle reste joignable et
+        porte son explication au survol comme au clavier, plutôt que d'être
+        grisée en silence. La vue masquait ses commandes à la main, par
+        `peut(...) ? … : null` — ce qui ne dit rien à qui cherche pourquoi.
+
+        Le nom accessible porte le TYPE : dans une liste, six boutons nommés
+        « Enregistrer » ne disent pas lequel on enregistre, et c'est au clavier
+        que la question se pose.
+      */}
+      <ActionProtegee
+        permission="leaves:manage_balances"
+        permissions={permissions}
+        motif={t("conges.attribuerInterdit")}
+        className="chip-btn"
+        aria-label={t("conges.enregistrerLeSoldeDe", { nom: entree.type.nom })}
+        isPending={attribution.isPending}
+        onPress={() => attribution.mutate()}
+      >
+        {t("conges.enregistrer")}
+      </ActionProtegee>
+    </div>
   );
 }

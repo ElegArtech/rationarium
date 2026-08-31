@@ -162,12 +162,29 @@ export type TypeConge = {
   utilisations: number;
 };
 
+/**
+ * Une allocation telle qu'elle est stockée — sa valeur et **sa version**.
+ *
+ * `PUT /conges/soldes` exige la version dès qu'une allocation existe
+ * (`RG-CNG-23`) : sans elle dans la lecture, aucune requête d'écriture n'est
+ * composable, et l'écran conclurait à tort que la route n'existe pas.
+ */
+export type AllocationLue = { jours: number; version: number };
+
 export type Solde = {
   annee: number;
   attribues: number;
   consommes: number;
   engages: number;
   disponibles: number;
+  /**
+   * D'où vient `attribues` — `RG-CNG-24`. Une allocation propre à l'agent et
+   * le défaut global **ne se corrigent pas au même endroit** : l'écran doit
+   * pouvoir le dire avant de proposer la correction.
+   */
+  origine: "propre" | "global" | "aucune";
+  propre: AllocationLue | null;
+  global: AllocationLue | null;
 };
 
 export type SoldeParType = {
@@ -243,6 +260,27 @@ export const solde = (typeId: string, annee: number, userId?: string) =>
   appeler<Solde>(`/conges/solde${params({ typeId, annee, ...(userId ? { userId } : {}) })}`);
 
 /**
+ * `EX-CNG-10`, `RG-CNG-24` — **attribuer des jours**, par agent ou globalement.
+ *
+ * `userId` à `null` définit le **défaut global**, valable pour tous, que
+ * l'allocation propre à l'agent surclasse. Ce n'est pas un cas limite : c'est
+ * ainsi qu'on ouvre une année pour tout le monde d'un seul geste.
+ *
+ * `version` est celle que la lecture rend — `Solde.propre.version` ou
+ * `Solde.global.version` selon la portée visée. Elle est **absente** quand
+ * l'allocation n'existe pas encore, et seulement dans ce cas : le serveur
+ * traite une version manquante sur une allocation existante comme un conflit
+ * (`RG-CNG-23`), jamais comme une dispense.
+ */
+export const attribuerSolde = (donnees: {
+  userId: string | null;
+  typeId: string;
+  annee: number;
+  joursAttribues: number;
+  version?: number;
+}) => appeler<{ id: string; version: number }>("/conges/soldes", { methode: "PUT", corps: donnees });
+
+/**
  * `RG-CNG-08` — **qui** validera une demande déposée à cette date.
  *
  * Manager du service, à défaut responsable du département, à défaut personne
@@ -289,17 +327,23 @@ export const modifierConge = (
     demiJourneeDebut?: string | null;
     demiJourneeFin?: string | null;
     motif?: string;
+    /**
+     * `RG-GEN-07` — la version lue. Elle compte ici plus qu'ailleurs : une
+     * modification ne change pas le statut, donc le garde-fou de statut ne
+     * voit pas deux corrections concurrentes passer.
+     */
+    version: number;
   },
 ) => appeler<void>(`/conges/${id}`, { methode: "PATCH", corps: donnees });
 
-export const approuverConge = (id: string) =>
-  appeler<void>(`/conges/${id}/approuver`, { methode: "POST" });
+export const approuverConge = (id: string, version: number) =>
+  appeler<void>(`/conges/${id}/approuver`, { methode: "POST", corps: { version } });
 
-export const refuserConge = (id: string, motifRefus: string) =>
-  appeler<void>(`/conges/${id}/refuser`, { methode: "POST", corps: { motifRefus } });
+export const refuserConge = (id: string, motifRefus: string, version: number) =>
+  appeler<void>(`/conges/${id}/refuser`, { methode: "POST", corps: { motifRefus, version } });
 
-export const demanderAnnulation = (id: string) =>
-  appeler<void>(`/conges/${id}/annulation`, { methode: "POST" });
+export const demanderAnnulation = (id: string, version: number) =>
+  appeler<void>(`/conges/${id}/annulation`, { methode: "POST", corps: { version } });
 
 /**
  * `EX-CNG-07` — accepter ou refuser une demande d'annulation.
@@ -313,8 +357,11 @@ export const demanderAnnulation = (id: string) =>
  * `approved`** (`RG-CNG-01`, `RG-CNG-06`) — ce n'est donc pas un refus qui
  * laisse la demande en l'état, et l'interface doit le dire.
  */
-export const traiterAnnulation = (id: string, accepte: boolean) =>
-  appeler<void>(`/conges/${id}/annulation/traiter`, { methode: "POST", corps: { accepte } });
+export const traiterAnnulation = (id: string, accepte: boolean, version: number) =>
+  appeler<void>(`/conges/${id}/annulation/traiter`, {
+    methode: "POST",
+    corps: { accepte, version },
+  });
 
 /**
  * `EX-CNG-13` — retirer un type du référentiel.
@@ -350,8 +397,19 @@ export const joursOuvres = (requete: {
   demiJourneeFin?: boolean;
 }) => appeler<DecompteJoursOuvres>(`/parametrage/jours-ouvres${params(requete)}`);
 
-export const supprimerConge = (id: string) =>
-  appeler<void>(`/conges/${id}`, { methode: "DELETE" });
+/**
+ * `RG-GEN-07` — `version` voyage en paramètre de requête, comme sur
+ * `DELETE /evenements/:id` : un corps sur un `DELETE` est licite mais mal
+ * traité par la moitié des intermédiaires.
+ */
+export const supprimerConge = (id: string, version: number) => {
+  /* La chaîne de requête se compose à part : deux interpolations collées dans
+     un même gabarit produisent un chemin que `surface-http.test.ts` ne sait pas
+     segmenter, et une route illisible y est comptée comme jamais appelée.
+     Même précaution que `supprimerEvenement`. */
+  const requete = new URLSearchParams({ version: String(version) });
+  return appeler<void>(`/conges/${id}?${requete.toString()}`, { methode: "DELETE" });
+};
 
 export const desactiverDelegation = (id: string) =>
   appeler<void>(`/conges/delegations/${id}`, { methode: "DELETE" });

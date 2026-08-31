@@ -7,6 +7,14 @@ import { valider, dateSchema } from "../commun/http.js";
 
 /** M10 — congés : cycle de vie, validation, délégations, soldes. Vue 19. */
 
+/**
+ * `RG-GEN-07` — la version lue, transmise à chaque écriture.
+ *
+ * Elle n'est jamais facultative : une protection qui ne protège que celui qui
+ * y pense n'en est pas une — c'est la leçon déjà payée sur `PUT /conges/soldes`.
+ */
+const versionLue = z.number().int().min(1);
+
 const demi = enumDe(DEMI_JOURNEES).nullish();
 const plageDemandee = z.object({
   dateDebut: dateSchema,
@@ -146,16 +154,33 @@ export class CongesController {
     return this.conges.deposer({ ...donnees, userId: pour }, d.userId);
   }
 
+  /**
+   * `EX-CNG-05` — corriger une demande encore en attente.
+   *
+   * `RG-GEN-07` — `version` est **obligatoire**. Elle l'est ici plus qu'ailleurs
+   * dans ce contrôleur : une modification ne change pas le statut, donc le
+   * garde-fou de statut ne voit pas deux corrections concurrentes passer.
+   */
   @Patch(":id")
   @RequiertPermission("leaves:update")
   modifier(@Param("id") id: string, @Body() corps: unknown, @Demande() d: ContexteDemande) {
-    return this.conges.modifier(id, valider(plageDemandee, corps), d.userId);
+    return this.conges.modifier(
+      id,
+      valider(plageDemandee.extend({ version: versionLue }), corps),
+      d.userId,
+    );
   }
 
+  /**
+   * `version` voyage en paramètre de requête, comme sur `DELETE /evenements/:id`
+   * : un corps sur un `DELETE` est licite mais mal traité par la moitié des
+   * intermédiaires, et le reste du produit n'en envoie aucun.
+   */
   @Delete(":id")
   @RequiertPermission("leaves:delete")
-  supprimer(@Param("id") id: string, @Demande() d: ContexteDemande) {
-    return this.conges.supprimer(id, d.userId);
+  supprimer(@Param("id") id: string, @Query() requete: unknown, @Demande() d: ContexteDemande) {
+    const { version } = valider(z.object({ version: z.coerce.number().int().min(1) }), requete);
+    return this.conges.supprimer(id, d.userId, version);
   }
 
   // ── Circuit de validation ────────────────────────────────────────────────
@@ -169,8 +194,9 @@ export class CongesController {
    */
   @Post(":id/approuver")
   @RequiertPermission("leaves:approve")
-  approuver(@Param("id") id: string, @Demande() d: ContexteDemande) {
-    return this.conges.approuver(id, d.userId, d.permissions);
+  approuver(@Param("id") id: string, @Body() corps: unknown, @Demande() d: ContexteDemande) {
+    const { version } = valider(z.object({ version: versionLue }), corps);
+    return this.conges.approuver(id, d.userId, d.permissions, version);
   }
 
   @Post(":id/refuser")
@@ -178,21 +204,32 @@ export class CongesController {
   refuser(@Param("id") id: string, @Body() corps: unknown, @Demande() d: ContexteDemande) {
     // `RG-CNG-10` — le motif est obligatoire au refus. Un refus sans motif
     // renvoie l'agent au manager pour poser la question de vive voix.
-    const { motifRefus } = valider(z.object({ motifRefus: z.string().min(1).max(2000) }), corps);
-    return this.conges.refuser(id, motifRefus, d.userId);
+    const { motifRefus, version } = valider(
+      z.object({ motifRefus: z.string().min(1).max(2000), version: versionLue }),
+      corps,
+    );
+    return this.conges.refuser(id, motifRefus, d.userId, version);
   }
 
   @Post(":id/annulation")
   @RequiertPermission("leaves:request_cancellation")
-  demanderAnnulation(@Param("id") id: string, @Demande() d: ContexteDemande) {
-    return this.conges.demanderAnnulation(id, d.userId);
+  demanderAnnulation(
+    @Param("id") id: string,
+    @Body() corps: unknown,
+    @Demande() d: ContexteDemande,
+  ) {
+    const { version } = valider(z.object({ version: versionLue }), corps);
+    return this.conges.demanderAnnulation(id, d.userId, version);
   }
 
   @Post(":id/annulation/traiter")
   @RequiertPermission("leaves:approve")
   traiterAnnulation(@Param("id") id: string, @Body() corps: unknown, @Demande() d: ContexteDemande) {
-    const { accepte } = valider(z.object({ accepte: z.boolean() }), corps);
-    return this.conges.traiterAnnulation(id, accepte, d.userId);
+    const { accepte, version } = valider(
+      z.object({ accepte: z.boolean(), version: versionLue }),
+      corps,
+    );
+    return this.conges.traiterAnnulation(id, accepte, d.userId, version);
   }
 
   // ── Délégations — EX-CNG-19 ──────────────────────────────────────────────
