@@ -8,6 +8,9 @@ import {
   TYPES_CONGE,
   SOLDES,
   DEMANDES,
+  DEMANDE_ANNULATION,
+  JOURS_OUVRES_A_CHEVAL,
+  JOURS_OUVRES_SEMAINE,
   DELEGATIONS,
   PLANNING_TELETRAVAIL,
   REGLES_TELETRAVAIL,
@@ -176,6 +179,9 @@ test.describe("Vue 19 — congés : trois publics, un écran", () => {
     "/api/conges/types": { corps: TYPES_CONGE },
     "/api/conges/delegations": { corps: DELEGATIONS },
     "/api/conges": { corps: DEMANDES },
+    /* `RG-CNG-16` — le décompte en jours ouvrés est SERVEUR depuis L-46 : sans
+       cette réponse, la fenêtre de demande n'a plus ni années ni total. */
+    "/api/parametrage/jours-ouvres": { corps: JOURS_OUVRES_A_CHEVAL },
   };
 
   test("Camille ne voit qu'un onglet", async ({ page }) => {
@@ -300,6 +306,257 @@ test.describe("Vue 19 — congés : trois publics, un écran", () => {
     await expect(page.getByText("À cheval sur deux années")).toBeVisible();
     await expect(page.getByText("Attribués 2026")).toBeVisible();
     await expect(page.getByText("Attribués 2027")).toBeVisible();
+  });
+
+  // ── L-46 — les trois capacités qu'aucun écran n'atteignait ────────────────
+
+  /**
+   * LE DÉFAUT ACTIF, et le contrôle qui compte le plus de ce lot.
+   *
+   * `GET /conges?aValider=true` rend `pending` ET `cancellation_requested`.
+   * La ligne posait « Approuver » / « Refuser » sur les deux, et sur une
+   * annulation les deux appelaient `POST /conges/:id/approuver` — que le
+   * serveur refuse en `statut_incompatible`. Deux boutons qui ne pouvaient pas
+   * fonctionner, sous les yeux du validateur.
+   */
+  test("EX-CNG-07 — une demande d'annulation ne porte plus « Approuver », mais ses deux commandes propres", async ({
+    page,
+  }) => {
+    await serveur(page, {
+      session: FATOU,
+      reponses: { ...reponses, "/api/conges": { corps: [DEMANDE_ANNULATION] } },
+    });
+    await page.goto("/conges");
+    await page.getByRole("navigation", { name: "Sections des congés" }).getByRole("link", {
+      name: "À valider",
+    }).click();
+
+    // `{ exact: true }` : « Refuser l'annulation » contient « Refuser », et
+    // sans lui l'assertion négative passerait au vert en visant le mauvais
+    // bouton — `getByRole` cherche par sous-chaîne.
+    await expect(page.getByRole("button", { name: "Approuver", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Refuser", exact: true })).toHaveCount(0);
+
+    await expect(page.getByRole("button", { name: "Accepter l'annulation" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Refuser l'annulation" })).toBeVisible();
+    // L'onglet n'a pas de colonne de statut : la ligne le dit elle-même.
+    await expect(page.getByText("Annulation demandée")).toBeVisible();
+  });
+
+  test("EX-CNG-07 — les deux commandes appellent la route de traitement, et s'y distinguent par « accepte »", async ({
+    page,
+  }) => {
+    const corps: unknown[] = [];
+    await serveur(page, {
+      session: FATOU,
+      reponses: { ...reponses, "/api/conges": { corps: [DEMANDE_ANNULATION] } },
+    });
+    /* Enregistrée APRÈS `serveur` : Playwright essaie les interceptions dans
+       l'ordre inverse de leur déclaration, donc celle-ci l'emporte. */
+    await page.route(
+      (url) => url.pathname === `/api/conges/${DEMANDE_ANNULATION.id}/annulation/traiter`,
+      (route) => {
+        corps.push(route.request().postDataJSON());
+        return route.fulfill({ status: 200, contentType: "application/json", body: "{}" });
+      },
+    );
+    await page.goto("/conges");
+    await page.getByRole("navigation", { name: "Sections des congés" }).getByRole("link", {
+      name: "À valider",
+    }).click();
+
+    await page.getByRole("button", { name: "Accepter l'annulation" }).click();
+    await expect(page.getByText("Annulation acceptée : le congé est annulé.")).toBeVisible();
+
+    await page.getByRole("button", { name: "Refuser l'annulation" }).click();
+    await expect(page.getByText("Annulation refusée : le congé reste approuvé.")).toBeVisible();
+
+    // Le corps distingue les deux issues — c'est tout le contrat de la route.
+    expect(corps).toEqual([{ accepte: true }, { accepte: false }]);
+  });
+
+  /**
+   * `RG-CNG-06` — refuser une annulation ne laisse pas la demande en l'état :
+   * le congé **revient à « Approuvé »**. Un bouton nommé « Refuser » tout
+   * court laisserait croire que c'est le congé qui tombe.
+   */
+  test("RG-CNG-06 — refuser l'annulation dit que le congé RESTE approuvé", async ({ page }) => {
+    await serveur(page, {
+      session: FATOU,
+      reponses: {
+        ...reponses,
+        "/api/conges": { corps: [DEMANDE_ANNULATION] },
+        [`/api/conges/${DEMANDE_ANNULATION.id}/annulation/traiter`]: { corps: {} },
+      },
+    });
+    await page.goto("/conges");
+    await page.getByRole("navigation", { name: "Sections des congés" }).getByRole("link", {
+      name: "À valider",
+    }).click();
+    await page.getByRole("button", { name: "Refuser l'annulation" }).click();
+
+    await expect(page.getByText("Annulation refusée : le congé reste approuvé.")).toBeVisible();
+    // Le contraire — « le congé est annulé » — serait le message de l'autre
+    // issue : c'est le seul mot qui sépare les deux.
+    await expect(page.getByText("Annulation acceptée : le congé est annulé.")).toHaveCount(0);
+  });
+
+  /**
+   * `EX-CNG-13` — `DELETE /conges/types/:id` ne supprime pas toujours, et son
+   * retour n'est pas trivial : `{ desactive, conges, systeme }`.
+   */
+  test("EX-CNG-13 — retirer un type UTILISÉ annonce une désactivation chiffrée, jamais une suppression", async ({
+    page,
+  }) => {
+    await serveur(page, {
+      session: HUGO,
+      reponses: {
+        ...reponses,
+        // Le serveur DÉSACTIVE : le type est système et porte 42 congés.
+        "/api/conges/types/t1": { corps: { desactive: true, conges: 42, systeme: true } },
+      },
+    });
+    await page.goto("/conges");
+    await page.getByRole("navigation", { name: "Sections des congés" }).getByRole("link", {
+      name: "Types de congés",
+    }).click();
+    await page.getByRole("button", { name: "Désactiver Congés annuels" }).click();
+
+    // `cadrage/02`, état « Suppression d'un type utilisé » : le chiffre est
+    // dans la question, pas seulement dans la réponse.
+    await expect(
+      page.getByText(
+        "« Congés annuels » est utilisé par 42 congés. Il sera désactivé au lieu d'être supprimé. Continuer ?",
+      ),
+    ).toBeVisible();
+
+    await page.getByRole("dialog").getByRole("button", { name: "Désactiver", exact: true }).click();
+
+    await expect(page.getByText("Type désactivé — 42 congés le conservent.")).toBeVisible();
+    // Le mot qui serait faux : rien n'a été supprimé.
+    await expect(page.getByText("Type supprimé.")).toHaveCount(0);
+  });
+
+  test("RG-CNG-31 — un type qu'AUCUN congé n'emploie annonce bien une suppression, et le retour le confirme", async ({
+    page,
+  }) => {
+    await serveur(page, {
+      session: HUGO,
+      reponses: {
+        ...reponses,
+        // RTT : ni système, ni utilisé — le serveur supprime pour de bon.
+        "/api/conges/types/t2": { corps: { desactive: false, conges: 0, systeme: false } },
+      },
+    });
+    await page.goto("/conges");
+    await page.getByRole("navigation", { name: "Sections des congés" }).getByRole("link", {
+      name: "Types de congés",
+    }).click();
+    await page.getByRole("button", { name: "Désactiver RTT" }).click();
+
+    await expect(
+      page.getByText(
+        "« RTT » n'est utilisé par aucun congé : il sera supprimé définitivement. Continuer ?",
+      ),
+    ).toBeVisible();
+
+    await page.getByRole("dialog").getByRole("button", { name: "Supprimer", exact: true }).click();
+    await expect(page.getByText("Type supprimé.")).toBeVisible();
+  });
+
+  test("RG-CNG-30 — la pastille « Système » porte, au survol, ce qui reste modifiable", async ({
+    page,
+  }) => {
+    await serveur(page, { session: HUGO, reponses });
+    await page.goto("/conges");
+    await page.getByRole("navigation", { name: "Sections des congés" }).getByRole("link", {
+      name: "Types de congés",
+    }).click();
+
+    await expect(page.getByText("Système", { exact: true })).toHaveAttribute(
+      "title",
+      "Type système : seuls le nom, la description, l'icône, la couleur et la validation requise peuvent être modifiés.",
+    );
+  });
+
+  /**
+   * `RG-CNG-16` — « le nombre de jours est calculé en jours ouvrés : week-ends
+   * exclus, jours fériés non ouvrés exclus ».
+   *
+   * Du lundi 7 au dimanche 13 septembre : **sept jours de calendrier, cinq
+   * jours ouvrés**. L'écart entre les deux chiffres est toute la preuve — une
+   * découpe de chaîne au client ne peut donner que sept.
+   */
+  test("RG-CNG-16 — le décompte en jours ouvrés vient du SERVEUR : les samedis ne comptent pas", async ({
+    page,
+  }) => {
+    const appels: string[] = [];
+    await serveur(page, {
+      session: CAMILLE,
+      reponses: { ...reponses, "/api/parametrage/jours-ouvres": { corps: JOURS_OUVRES_SEMAINE } },
+    });
+    page.on("request", (r) => {
+      if (new URL(r.url()).pathname === "/api/parametrage/jours-ouvres") appels.push(r.url());
+    });
+    await page.goto("/conges");
+    await page.getByRole("button", { name: "Nouvelle demande" }).click();
+    await page.getByLabel("Type de congé").selectOption("t1");
+    await page.getByLabel("Date de début").fill("2026-09-07");
+    await page.getByLabel("Date de fin").fill("2026-09-13");
+
+    await expect(page.getByText("5 jours ouvrés")).toBeVisible();
+    // Sept jours de calendrier : le chiffre que le client produirait seul.
+    await expect(page.getByText("7 jours")).toHaveCount(0);
+    // Et c'est bien la plage saisie qui a été soumise au décompte.
+    await expect.poll(() => appels.at(-1) ?? "").toContain("debut=2026-09-07");
+    expect(appels.at(-1)).toContain("fin=2026-09-13");
+  });
+
+  /**
+   * `RG-CNG-17` — « une demi-journée peut être précisée en début et en fin de
+   * période ; le décompte en tient compte au demi-jour près ». Le demi-jour se
+   * retranche au serveur, et **seulement si le jour concerné est ouvrable** :
+   * la vue n'a pas de quoi le savoir, elle transmet.
+   */
+  test("RG-CNG-17 — la demi-journée choisie part au décompte serveur, elle n'est pas devinée à l'écran", async ({
+    page,
+  }) => {
+    const appels: string[] = [];
+    await serveur(page, {
+      session: CAMILLE,
+      reponses: { ...reponses, "/api/parametrage/jours-ouvres": { corps: JOURS_OUVRES_SEMAINE } },
+    });
+    page.on("request", (r) => {
+      if (new URL(r.url()).pathname === "/api/parametrage/jours-ouvres") appels.push(r.url());
+    });
+    await page.goto("/conges");
+    await page.getByRole("button", { name: "Nouvelle demande" }).click();
+    await page.getByLabel("Type de congé").selectOption("t1");
+    await page.getByLabel("Date de début").fill("2026-09-07");
+    await page.getByLabel("Date de fin").fill("2026-09-13");
+    await expect.poll(() => appels.length).toBeGreaterThan(0);
+
+    await page.getByLabel("Demi-journée de début").selectOption("morning");
+    await expect.poll(() => appels.at(-1) ?? "").toContain("demiJourneeDebut=true");
+    // La demi-journée de FIN n'a pas été choisie : elle ne part pas.
+    expect(appels.at(-1)).not.toContain("demiJourneeFin");
+  });
+
+  test("RG-CNG-19 — la répartition par année vient du serveur, et le pied de fenêtre la chiffre", async ({
+    page,
+  }) => {
+    await serveur(page, { session: CAMILLE, reponses });
+    await page.goto("/conges");
+    await page.getByRole("button", { name: "Nouvelle demande" }).click();
+    await page.getByLabel("Type de congé").selectOption("t1");
+    await page.getByLabel("Date de début").fill("2026-12-28");
+    await page.getByLabel("Date de fin").fill("2027-01-03");
+
+    // Quatre jours ouvrés sur sept de calendrier, deux de chaque côté du
+    // 1er janvier : ni la coupure d'année ni les week-ends ne se devinent.
+    await expect(page.getByText("4 jours ouvrés · répartis sur 2 années civiles")).toBeVisible();
+    await expect(page.getByText("Cette demande")).toHaveCount(2);
+    await expect(page.getByText("2,0 j", { exact: true })).toHaveCount(2);
   });
 });
 

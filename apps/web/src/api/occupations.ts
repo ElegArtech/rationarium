@@ -245,6 +245,55 @@ export const refuserConge = (id: string, motifRefus: string) =>
 export const demanderAnnulation = (id: string) =>
   appeler<void>(`/conges/${id}/annulation`, { methode: "POST" });
 
+/**
+ * `EX-CNG-07` — accepter ou refuser une demande d'annulation.
+ *
+ * Le serveur exige `cancellation_requested` et refuse tout autre statut
+ * (`statut_incompatible`). C'est la route que le validateur doit appeler sur
+ * une demande d'annulation : `POST /conges/:id/approuver` y échoue, parce que
+ * `RG-CNG-02` ne réapprouve pas une demande déjà décidée.
+ *
+ * `accepte` à vrai écrit `cancelled` ; à faux, le congé **revient à
+ * `approved`** (`RG-CNG-01`, `RG-CNG-06`) — ce n'est donc pas un refus qui
+ * laisse la demande en l'état, et l'interface doit le dire.
+ */
+export const traiterAnnulation = (id: string, accepte: boolean) =>
+  appeler<void>(`/conges/${id}/annulation/traiter`, { methode: "POST", corps: { accepte } });
+
+/**
+ * `EX-CNG-13` — retirer un type du référentiel.
+ *
+ * **La réponse n'est pas triviale, et l'interface doit la lire.** Le serveur
+ * *désactive* au lieu de supprimer dès que le type est système (`RG-CNG-30`)
+ * ou qu'il porte des congés (`RG-CNG-31`), et rend le nombre concerné : dire
+ * « supprimé » dans ce cas serait faux, et le chiffre est précisément ce que
+ * `RG-CNG-31` veut voir annoncé.
+ */
+export const supprimerTypeDeConge = (id: string) =>
+  appeler<{ desactive: boolean; conges: number; systeme: boolean }>(`/conges/types/${id}`, {
+    methode: "DELETE",
+  });
+
+/**
+ * `RG-CNG-16`, `RG-CNG-17`, `RG-CNG-19` — le décompte en jours ouvrés.
+ *
+ * **Il ne se calcule pas au client.** Les week-ends s'y devinent, mais pas les
+ * jours fériés ni les jours chômés du paramétrage : une découpe de chaîne
+ * annonçait « 7 jours » là où le serveur en compte 5, et le dépôt était refusé
+ * après coup sur un chiffre que l'écran n'avait jamais montré.
+ */
+export type DecompteJoursOuvres = {
+  jours: number;
+  parAnnee: { annee: number; jours: number }[];
+};
+
+export const joursOuvres = (requete: {
+  debut: string;
+  fin: string;
+  demiJourneeDebut?: boolean;
+  demiJourneeFin?: boolean;
+}) => appeler<DecompteJoursOuvres>(`/parametrage/jours-ouvres${params(requete)}`);
+
 export const supprimerConge = (id: string) =>
   appeler<void>(`/conges/${id}`, { methode: "DELETE" });
 
