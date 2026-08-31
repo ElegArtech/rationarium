@@ -36,12 +36,6 @@
       "defaut": "DÉFAUT TROUVÉ (vague 7-4), réduit de moitié en vague 7-3 bis, NON REFERMÉ. L'exigence porte deux verbes. **Capturer** est désormais branché : `POST /projets/:id/instantane` est appelé par la vue 11 (bouton « Capturer un instantané »), couvert par « LA CAPTURE PART AVEC LA DATE DU JOUR, jamais avec l'heure » et « l'accusé rend la progression REÇUE, pas celle qu'on affichait » (apps/web/e2e/tableau.e2e.spec.ts). **Consulter l'historique** n'existe toujours pas : `fiche()` ne rend que `dernierInstantane`, la tendance des rapports lit les instantanés d'un LOT de projets, et l'historique d'UN projet n'a ni méthode de service ni route. L'identifiant reste donc en dette : on ne cite pas une exigence dont un verbe manque. À ajouter, dans une tâche serveur : `GET /projets/:id/instantanes`, gardée `reports:read` et bornée au périmètre. Dette voisine, distincte : `RG-PRJ-09` veut une capture PÉRIODIQUE (`cadrage/03 § 5.4`, `pg-boss`) et aucun travail de fond ne l'exécute — le bouton de la vue 11 est aujourd'hui le seul producteur d'instantanés du produit."
     },
     {
-      "id": "EX-JAL-02",
-      "lot": "vague 7-4",
-      "module": "L-10",
-      "defaut": "À TRANCHER AU CADRAGE avant d’écrire un test. « Marquer un jalon comme atteint » est une action de l’utilisateur ; `RG-JAL-01` dit que le statut d’un jalon est CALCULÉ et « n’est pas saisi ». Les deux ne peuvent pas être vrais ensemble. Le produit a tranché pour le calcul (`statutJalon()`), et la colonne `Milestone.statut` du schéma n’est écrite ni lue par personne. Un test figerait l’une des deux lectures."
-    },
-    {
       "id": "EX-TSK-01",
       "lot": "vague 7-4",
       "module": "L-11"
@@ -177,77 +171,6 @@
       "module": "L-14"
     },
     {
-      "id": "EX-CNG-02",
-      "lot": "vague 7-4",
-      "module": "L-15"
-    },
-    {
-      "id": "EX-CNG-03",
-      "lot": "vague 7-4",
-      "module": "L-15"
-    },
-    {
-      "id": "EX-CNG-04",
-      "lot": "vague 7-4",
-      "module": "L-15"
-    },
-    {
-      "id": "EX-CNG-06",
-      "lot": "vague 7-4",
-      "module": "L-15"
-    },
-    {
-      "id": "EX-CNG-08",
-      "lot": "vague 7-4",
-      "module": "L-15"
-    },
-    {
-      "id": "EX-CNG-09",
-      "lot": "vague 7-4",
-      "module": "L-15"
-    },
-    {
-      "id": "EX-CNG-10",
-      "lot": "vague 7-4",
-      "module": "L-15"
-    },
-    {
-      "id": "EX-CNG-11",
-      "lot": "vague 7-4",
-      "module": "L-15"
-    },
-    {
-      "id": "EX-CNG-12",
-      "lot": "vague 7-4",
-      "module": "L-15"
-    },
-    {
-      "id": "EX-CNG-15",
-      "lot": "vague 7-4",
-      "module": "L-15"
-    },
-    {
-      "id": "RG-CNG-05",
-      "lot": "vague 7-4",
-      "module": "L-15"
-    },
-    {
-      "id": "RG-CNG-08",
-      "lot": "vague 7-4",
-      "module": "L-15",
-      "note": "Porte aussi RG-ORG-05, déclaré non testable parce qu'il n'est que la doctrine dont cette règle est la réalisation. Co-citer les deux dans le titre."
-    },
-    {
-      "id": "RG-CNG-23",
-      "lot": "vague 7-4",
-      "module": "L-15"
-    },
-    {
-      "id": "RG-CNG-27",
-      "lot": "vague 7-4",
-      "module": "L-15"
-    },
-    {
       "id": "EX-TLT-01",
       "lot": "vague 7-4",
       "module": "L-16"
@@ -304,6 +227,12 @@
       "id": "RG-PRM-05",
       "raison": "ÉCART DE SPÉCIFICATION, à trancher au cadrage avant d'écrire un test. La règle dit « quitter la page avec des modifications non enregistrées déclenche un avertissement » — un avertissement À LA SORTIE. L'implémentation annonce les modifications en permanence dans la page, ce qui est un autre comportement, pas une variante du même. Un test écrit aujourd'hui figerait l'un ou l'autre sans que la question soit tranchée.",
       "aTrancher": "cadrage/01 § M19 — la règle et le code ne décrivent pas le même comportement."
+    },
+    {
+      "id": "EX-JAL-02",
+      "raison": "ÉCART DE SPÉCIFICATION, à trancher au cadrage avant d'écrire un test. « Marquer un jalon comme atteint » est un geste de l'utilisateur ; RG-JAL-01, deux lignes plus bas, dit que le statut d'un jalon est CALCULÉ à partir de l'avancement de ses tâches et « n'est pas saisi ». Les deux ne peuvent pas être vrais ensemble. Le produit a tranché pour le calcul (statutJalon(), recalculé à chaque lecture), et la colonne Milestone.statut du schéma n'est écrite ni lue par personne. Un test qui exercerait le geste figerait une saisie que RG-JAL-01 interdit ; un test qui exercerait le calcul prouverait RG-JAL-01, déjà couvert, et non EX-JAL-02. La couverture reviendra dès que l'arbitrage aura dit lequel des deux textes tient.",
+      "aTrancher": "cadrage/01 § M5 — EX-JAL-02 et RG-JAL-01 se contredisent : le statut d'un jalon est-il saisi ou calculé ?",
+      "coCiter": "RG-JAL-01"
     }
   ],
   "citationsOrphelines": []
