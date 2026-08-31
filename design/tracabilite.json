@@ -14,16 +14,6 @@
       "defaut": "DÉFAUT TROUVÉ (vague 7-4), non corrigé — code de production. Le filtre existe (select « Filtrer par département », vue 29) et filtre les directions et leurs départements, mais le bloc « Départements sans direction » n’est filtré NI par le select NI par la recherche : filtrer sur un département laisse tous les départements hors direction affichés. La recherche texte ne filtre pas non plus les départements à l’intérieur d’une direction retenue. Un test écrit aujourd’hui figerait le défaut."
     },
     {
-      "id": "EX-USR-08",
-      "lot": "vague 7-4",
-      "module": "L-07"
-    },
-    {
-      "id": "RG-USR-06",
-      "lot": "vague 7-4",
-      "module": "L-07"
-    },
-    {
       "id": "EX-PRJ-04",
       "lot": "vague 7-4",
       "module": "L-10",
@@ -126,79 +116,10 @@
       "module": "L-20"
     },
     {
-      "id": "EX-ACT-03",
-      "lot": "vague 7-4",
-      "module": "L-17"
-    },
-    {
-      "id": "EX-ACT-05",
-      "lot": "vague 7-4",
-      "module": "L-17"
-    },
-    {
-      "id": "EX-EVT-01",
-      "lot": "vague 7-4",
-      "module": "L-14"
-    },
-    {
-      "id": "EX-EVT-02",
-      "lot": "vague 7-4",
-      "module": "L-14"
-    },
-    {
-      "id": "EX-EVT-03",
-      "lot": "vague 7-4",
-      "module": "L-14"
-    },
-    {
-      "id": "EX-EVT-04",
-      "lot": "vague 7-4",
-      "module": "L-14"
-    },
-    {
-      "id": "EX-EVT-05",
-      "lot": "vague 7-4",
-      "module": "L-14"
-    },
-    {
-      "id": "EX-EVT-07",
-      "lot": "vague 7-4",
-      "module": "L-14"
-    },
-    {
-      "id": "EX-EVT-09",
-      "lot": "vague 7-4",
-      "module": "L-14"
-    },
-    {
-      "id": "EX-TLT-01",
-      "lot": "vague 7-4",
-      "module": "L-16"
-    },
-    {
-      "id": "EX-TLT-02",
-      "lot": "vague 7-4",
-      "module": "L-16"
-    },
-    {
-      "id": "EX-TLT-03",
-      "lot": "vague 7-4",
-      "module": "L-16"
-    },
-    {
       "id": "EX-TLT-04",
       "lot": "vague 7-4",
-      "module": "L-16"
-    },
-    {
-      "id": "EX-TLT-06",
-      "lot": "vague 7-4",
-      "module": "L-16"
-    },
-    {
-      "id": "EX-TLT-07",
-      "lot": "vague 7-4",
-      "module": "L-16"
+      "module": "L-16",
+      "defaut": "DÉFAUT TROUVÉ (vague « tests manquants »), non corrigé — code de production. L'exigence énumère quatre facettes : « jour de la semaine, date de début, date de fin facultative, ACTIF ». Les trois premières se configurent (`creerRegle`, `POST /teletravail/regles`). La quatrième ne se configure PAS : `TeleworkRule.active` a un défaut à `true` et AUCUN chemin ne l'écrit — ni méthode de service, ni route, et il n'existe pas davantage de modification ni de suppression d'une règle. Une règle posée est donc définitive. Le commentaire de `regles()` décrit pourtant le trou qu'il ne bouche pas — « les inactives restent visibles : une règle désactivée explique pourquoi les jours qu'elle produisait ont cessé d'apparaître » — pour un état que le produit ne sait pas produire ; et `generer()` filtre sur `active: true`, un filtre qui n'écarte jamais rien. Cinquième occurrence de la famille EX-ORG-02 / EX-CLI-02 / EX-PRJ-05 / EX-JAL-01 : le verbe du milieu manque. Un test écrit aujourd'hui couvrirait trois facettes sur quatre et ferait passer l'exigence pour tenue."
     },
     {
       "id": "EX-CMP-07",

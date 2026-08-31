@@ -7,6 +7,11 @@ import { UtilisateursService, ErreurUtilisateur } from "./utilisateurs.service.j
 import { AuditService } from "../commun/audit.service.js";
 import { PerimetreService } from "../commun/perimetre.service.js";
 import { AuthService } from "../auth/auth.service.js";
+import { ImportsService } from "../imports/imports.service.js";
+import { CongesService } from "../conges/conges.service.js";
+import { CalendrierService } from "../parametrage/calendrier.service.js";
+import { NotificationsService } from "../notifications/notifications.service.js";
+import { FileService } from "../notifications/file.service.js";
 
 /**
  * Les droits de l'acteur, désormais transmis au service.
@@ -29,6 +34,8 @@ let prisma: PrismaClient;
 let users: UtilisateursService;
 let perimetres: PerimetreService;
 let auth: AuthService;
+/** `EX-USR-08` — l'import de comptes en masse passe par le socle de M21. */
+let imports: ImportsService;
 let karim: string;
 let deptA: string;
 let deptB: string;
@@ -53,6 +60,17 @@ beforeAll(async () => {
   perimetres = new PerimetreService(prisma as never);
   users = new UtilisateursService(prisma as never, audit, perimetres);
   auth = new AuthService(prisma as never, audit);
+  imports = new ImportsService(
+    prisma as never,
+    audit,
+    new CongesService(
+      prisma as never,
+      audit,
+      perimetres,
+      new CalendrierService(prisma as never, audit),
+      new NotificationsService(prisma as never, new FileService()),
+    ),
+  );
 
   deptA = uuid();
   deptB = uuid();
@@ -589,5 +607,138 @@ describe("EX-USR-07 — réinitialiser le mot de passe d'un utilisateur", () => 
     expect(
       (await prisma.user.findUniqueOrThrow({ where: { id: u.id } })).motDePasseAChanger,
     ).toBe(true);
+  });
+});
+
+/**
+ * `EX-USR-08`, `RG-USR-06` — l'import de comptes en masse.
+ *
+ * Le mécanisme est celui de M21 (`ImportsService`), mais l'exigence est celle
+ * de M3 : c'est la vue 27 qui l'offre, et c'est le compte rendu de l'import
+ * d'UTILISATEURS que `RG-USR-06` décrit — trois familles, avec le détail ligne
+ * à ligne. Les contrôles de `imports/imports.int.test.ts` portent sur le socle
+ * commun aux six types ; ceux-ci portent sur ce que la règle promet à
+ * l'administrateur qui dépose son fichier.
+ */
+
+/** L'en-tête du modèle d'import d'utilisateurs, au séparateur du tableur français. */
+const ENTETE_CSV = "email;login;password;firstName;lastName;role;departmentName;serviceNames";
+
+describe("EX-USR-08, RG-USR-06 — importer des comptes depuis un CSV", () => {
+  it("EX-USR-08 — un fichier de trois lignes crée trois comptes, avec leurs rattachements", async () => {
+    const s = uuid().slice(0, 8);
+    const csv = [
+      ENTETE_CSV,
+      `ada-${s}@x.fr;ada-${s};Motdepasse1!;Ada;Lovelace;;Département A;Service A`,
+      `alan-${s}@x.fr;alan-${s};Motdepasse1!;Alan;Turing;;Département A;`,
+      `grace-${s}@x.fr;grace-${s};Motdepasse1!;Grace;Hopper;;;`,
+    ].join("\n");
+
+    const rendu = await imports.importerUtilisateurs(csv, karim);
+    expect(rendu).toMatchObject({ importes: 3, ignores: 0 });
+    expect(rendu.erreurs).toEqual([]);
+
+    const ada = await prisma.user.findUniqueOrThrow({
+      where: { email: `ada-${s}@x.fr` },
+      include: { services: true },
+    });
+    // « En masse » ne veut pas dire « à moitié » : chaque compte entre complet.
+    expect([ada.prenom, ada.nom, ada.login]).toEqual(["Ada", "Lovelace", `ada-${s}`]);
+    expect(ada.departementId).toBe(deptA);
+    expect(ada.services.map((x) => x.serviceId)).toEqual([svcA]);
+
+    const grace = await prisma.user.findUniqueOrThrow({ where: { email: `grace-${s}@x.fr` } });
+    // Les colonnes facultatives laissées vides ne fabriquent pas de rattachement.
+    expect(grace.departementId).toBeNull();
+  });
+
+  it("EX-USR-08 — LA PRÉVISUALISATION N'ÉCRIT RIEN : c'est ce qui la sépare de l'exécution", async () => {
+    /*
+     * L'exigence dit « avec prévisualisation ». Le seul contrôle qui prouve
+     * qu'un aperçu est un aperçu, c'est de compter les comptes après : sur un
+     * import en masse, la différence entre voir d'abord et écrire d'abord est
+     * celle entre une correction et une restauration.
+     */
+    const s = uuid().slice(0, 8);
+    const csv = [
+      ENTETE_CSV,
+      `apercu-${s}@x.fr;apercu-${s};Motdepasse1!;Aper;Cu;;;`,
+      `apercu2-${s}@x.fr;apercu2-${s};Motdepasse1!;Aper;Cu2;;;`,
+    ].join("\n");
+
+    const avant = await prisma.user.count();
+    const apercu = imports.analyser("utilisateurs", csv);
+
+    expect(apercu.total).toBe(2);
+    expect(apercu.lignes[0]?.["firstName"]).toBe("Aper");
+    expect(apercu.erreurs).toEqual([]);
+    expect(await prisma.user.count()).toBe(avant);
+    expect(await prisma.user.findUnique({ where: { email: `apercu-${s}@x.fr` } })).toBeNull();
+  });
+
+  it("RG-USR-06 — le compte rendu distingue CRÉÉS, IGNORÉS et EN ERREUR, et nomme la ligne fautive", async () => {
+    /*
+     * Trois familles, jamais deux. Fondre les doublons dans les erreurs ferait
+     * paniquer sur un fichier rejoué ; les fondre dans les créés ferait croire
+     * à un import complet. Le fichier ci-dessous porte les trois d'un coup :
+     * un compte neuf, un compte déjà là, une ligne amputée, un compte neuf.
+     *
+     * Le numéro de ligne est celui du FICHIER, en-tête comprise : c'est le seul
+     * repère que l'administrateur puisse retrouver dans son tableur.
+     */
+    const s = uuid().slice(0, 8);
+    const deja = await users.creer(
+      { ...nouveau(`deja-${s}`) },
+      karim,
+      TOUS_DROITS_UTILISATEUR,
+    );
+
+    const csv = [
+      ENTETE_CSV,
+      `neuf1-${s}@x.fr;neuf1-${s};Motdepasse1!;Neuf;Un;;;`,
+      `${deja.email};${deja.login};Motdepasse1!;Deja;La;;;`,
+      `casse-${s}@x.fr;casse-${s};Motdepasse1!;Cyril;;;;`,
+      `neuf2-${s}@x.fr;neuf2-${s};Motdepasse1!;Neuf;Deux;;;`,
+    ].join("\n");
+
+    const rendu = await imports.importerUtilisateurs(csv, karim);
+
+    expect(rendu.importes).toBe(2);
+    // Un compte déjà présent est IGNORÉ. S'il basculait en erreur, ce nombre
+    // vaudrait zéro et le suivant deux : l'assertion sépare bien les familles.
+    expect(rendu.ignores).toBe(1);
+    expect(rendu.erreurs).toHaveLength(1);
+    expect(rendu.erreurs[0]?.ligne).toBe(4);
+    expect(rendu.erreurs[0]?.message).toContain("lastName");
+
+    // Les quatre lignes du fichier sont toutes rangées quelque part : un compte
+    // rendu qui en perd une est pire qu'un compte rendu faux.
+    expect(rendu.importes + rendu.ignores + rendu.erreurs.length).toBe(4);
+
+    // Et la ligne fautive n'a rien créé, malgré ses colonnes valides.
+    expect(await prisma.user.findUnique({ where: { email: `casse-${s}@x.fr` } })).toBeNull();
+    expect(await prisma.user.findUnique({ where: { email: `neuf2-${s}@x.fr` } })).not.toBeNull();
+  });
+
+  it("RG-USR-06 — l'aperçu ANNONCE la ligne fautive avant l'exécution, au même numéro", async () => {
+    /*
+     * « Un aperçu avant exécution, PUIS un compte rendu » : les deux doivent
+     * désigner la même ligne, sans quoi l'aperçu ne prépare à rien. Le raccord
+     * entre deux moitiés justes est ce qui casse — jamais les moitiés.
+     */
+    const s = uuid().slice(0, 8);
+    const csv = [
+      ENTETE_CSV,
+      `ok-${s}@x.fr;ok-${s};Motdepasse1!;Ok;Bon;;;`,
+      `ko-${s}@x.fr;;Motdepasse1!;Ko;Mauvais;;;`,
+    ].join("\n");
+
+    const apercu = imports.analyser("utilisateurs", csv);
+    expect(apercu.erreurs.map((e) => e.ligne)).toEqual([3]);
+    expect(apercu.erreurs[0]?.message).toContain("login");
+
+    const rendu = await imports.importerUtilisateurs(csv, karim);
+    expect(rendu.erreurs.map((e) => e.ligne)).toEqual(apercu.erreurs.map((e) => e.ligne));
+    expect(rendu.importes).toBe(1);
   });
 });

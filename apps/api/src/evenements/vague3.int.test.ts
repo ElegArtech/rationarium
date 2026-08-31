@@ -954,3 +954,611 @@ describe("EX-EVT-08 — les participants, et leur cloisonnement", () => {
     expect(await prisma.eventParticipant.count({ where: { eventId: evenement.id } })).toBe(1);
   });
 });
+
+// ═══════════ L-14 — les exigences de création et de consultation ═══════════
+
+/**
+ * Ces suites travaillent toutes sur **2027**, hors des fenêtres employées plus
+ * haut. Ce n'est pas une coquetterie : `surPlage` sous périmètre global rend
+ * *tous* les événements de l'instance, et les suites de ce fichier en sèment
+ * des dizaines sur 2026. Une plage partagée ferait dépendre le verdict de
+ * l'ordre d'exécution — le contraire d'un test.
+ *
+ * Chaque lecture est en outre bornée à un participant fabriqué pour elle : la
+ * plage isole le calendrier, le participant isole la suite.
+ */
+
+/** Un projet minimal — `Project` exige ses deux dates. */
+async function projet2027(nom: string) {
+  const id = uuid();
+  await prisma.project.create({
+    data: { id, nom, dateDebut: utc("2027-01-01"), dateFin: utc("2027-12-31") },
+  });
+  return id;
+}
+
+/** Un service peuplé — `Service` exige son département. */
+async function serviceAvec(nom: string, membres: string[]) {
+  const departementId = uuid();
+  await prisma.departement.create({ data: { id: departementId, nom: `Dép. ${nom}` } });
+  const id = uuid();
+  await prisma.service.create({ data: { id, nom, departementId } });
+  await prisma.userService.createMany({
+    data: membres.map((userId) => ({ userId, serviceId: id })),
+  });
+  return id;
+}
+
+describe("EX-EVT-03, EX-EVT-04, EX-EVT-05 — créer un événement", () => {
+  it("EX-EVT-03 — les huit champs de l'exigence font l'aller-retour, un par un", async () => {
+    /*
+     * L'exigence énumère : « titre, description, date, journée entière ou
+     * horaires, projet, participants, intervention extérieure ». Le test suit
+     * cette liste littéralement. Un `toBeDefined()` sur l'objet créé aurait
+     * passé même si le service avait avalé la moitié des champs.
+     */
+    const projet = await projet2027(`Refonte ${uuid().slice(0, 6)}`);
+    const claire = await agent();
+    const marc = await agent();
+
+    const { evenement } = await evenements.creer(
+      {
+        titre: "Atelier de cadrage",
+        description: "Ordre du jour : périmètre, jalons, budget.",
+        date: utc("2027-05-10"),
+        journeeEntiere: false,
+        heureDebut: "09:00",
+        heureFin: "10:30",
+        projectId: projet,
+        interventionExterieure: true,
+        participantIds: [claire, marc],
+      },
+      acteur,
+    );
+
+    const relu = await prisma.event.findUniqueOrThrow({
+      where: { id: evenement.id },
+      include: { participants: true },
+    });
+    expect(relu.titre).toBe("Atelier de cadrage");
+    expect(relu.description).toBe("Ordre du jour : périmètre, jalons, budget.");
+    expect(relu.date.toISOString().slice(0, 10)).toBe("2027-05-10");
+    expect(relu.journeeEntiere).toBe(false);
+    expect(relu.heureDebut).toBe("09:00");
+    expect(relu.heureFin).toBe("10:30");
+    expect(relu.projectId).toBe(projet);
+    expect(relu.interventionExterieure).toBe(true);
+    expect(relu.participants.map((p) => p.userId).sort()).toEqual([claire, marc].sort());
+  });
+
+  it("EX-EVT-03 — « journée entière » et « horaires » sont deux BRANCHES, pas deux champs cumulés", async () => {
+    /*
+     * L'exigence dit « journée entière **ou** horaires ». Les deux événements
+     * sont créés côte à côte et comparés : ce qui prouve l'alternative, c'est
+     * l'écart entre les deux, pas l'un des deux seul.
+     */
+    const { evenement: horaire } = await evenements.creer(
+      { titre: "Point produit", date: utc("2027-05-11"), heureDebut: "14:00", heureFin: "15:00" },
+      acteur,
+    );
+    const { evenement: journee } = await evenements.creer(
+      { titre: "Séminaire", date: utc("2027-05-11"), journeeEntiere: true },
+      acteur,
+    );
+
+    expect([horaire.journeeEntiere, horaire.heureDebut, horaire.heureFin]).toEqual([
+      false,
+      "14:00",
+      "15:00",
+    ]);
+    expect([journee.journeeEntiere, journee.heureDebut, journee.heureFin]).toEqual([
+      true,
+      null,
+      null,
+    ]);
+  });
+
+  it("EX-EVT-04 — inviter un service invite TOUS ses membres, et personne d'autre", async () => {
+    const claire = await agent();
+    const marc = await agent();
+    const ines = await agent();
+    const zoe = await agent();
+    const etudes = await serviceAvec(`Études ${uuid().slice(0, 6)}`, [claire, marc, ines]);
+    await serviceAvec(`Exploitation ${uuid().slice(0, 6)}`, [zoe]);
+
+    const { evenement } = await evenements.creer(
+      {
+        titre: "Réunion de service",
+        date: utc("2027-05-12"),
+        journeeEntiere: true,
+        serviceIds: [etudes],
+      },
+      acteur,
+    );
+
+    const invites = await prisma.eventParticipant.findMany({ where: { eventId: evenement.id } });
+    expect(invites.map((p) => p.userId).sort()).toEqual([claire, marc, ines].sort());
+    // La moitié qui compte : inviter un service n'invite pas l'organisation.
+    expect(invites.map((p) => p.userId)).not.toContain(zoe);
+  });
+
+  it("EX-EVT-04 — un agent nommé EN PLUS de son service n'est invité qu'une fois", async () => {
+    /*
+     * `EventParticipant` a une clé primaire composite : un doublon ferait
+     * échouer la création entière. Inviter un service dont on a aussi nommé un
+     * membre est pourtant le geste le plus ordinaire de la vue 18.
+     */
+    const claire = await agent();
+    const marc = await agent();
+    const etudes = await serviceAvec(`Études bis ${uuid().slice(0, 6)}`, [claire, marc]);
+
+    const { evenement } = await evenements.creer(
+      {
+        titre: "Revue de service",
+        date: utc("2027-05-13"),
+        journeeEntiere: true,
+        serviceIds: [etudes],
+        participantIds: [claire],
+      },
+      acteur,
+    );
+
+    expect(await prisma.eventParticipant.count({ where: { eventId: evenement.id } })).toBe(2);
+  });
+
+  it("EX-EVT-05 — « toutes les 2 semaines, le lundi, jusqu'au 26 avril » engendre QUATRE occurrences, aux dates dites", async () => {
+    /*
+     * Le 1ᵉʳ mars 2027 est un lundi. Une fréquence de deux semaines pose donc
+     * les 15 et 29 mars, les 12 et 26 avril — et rien au-delà de la date de
+     * fin. Compter les occurrences sans les nommer laisserait passer un pas de
+     * calcul faux qui rendrait le bon compte.
+     */
+    const participant = await agent();
+    const { evenement, occurrences } = await evenements.creer(
+      {
+        titre: "Comité de pilotage",
+        date: utc("2027-03-01"),
+        journeeEntiere: true,
+        participantIds: [participant],
+        recurrence: { frequenceSemaines: 2, jourSemaine: 1, jusqua: utc("2027-04-26") },
+      },
+      acteur,
+    );
+
+    expect(occurrences).toBe(4);
+    const filles = await prisma.event.findMany({
+      where: { parentId: evenement.id },
+      orderBy: { date: "asc" },
+      include: { participants: true },
+    });
+    expect(filles.map((e) => e.date.toISOString().slice(0, 10))).toEqual([
+      "2027-03-15",
+      "2027-03-29",
+      "2027-04-12",
+      "2027-04-26",
+    ]);
+
+    // Le parent porte les paramètres de la série ; les occurrences n'en portent
+    // aucun — sinon chacune serait une série à son tour.
+    expect(evenement.recurrenceFrequence).toBe(2);
+    expect(evenement.recurrenceJourSemaine).toBe(1);
+    expect(evenement.recurrenceFin?.toISOString().slice(0, 10)).toBe("2027-04-26");
+    expect(filles.every((e) => e.recurrenceFrequence === null)).toBe(true);
+
+    // Une occurrence hérite du contenu ET des invités : une série est une
+    // réunion répétée, pas quatre réunions homonymes.
+    expect(filles.every((e) => e.titre === "Comité de pilotage")).toBe(true);
+    expect(filles.every((e) => e.participants.length === 1)).toBe(true);
+  });
+
+  it("EX-EVT-05 — sans clause de récurrence, l'événement reste SEUL", async () => {
+    const { evenement, occurrences } = await evenements.creer(
+      { titre: "Point isolé", date: utc("2027-03-02"), journeeEntiere: true },
+      acteur,
+    );
+    expect(occurrences).toBe(0);
+    expect(evenement.recurrenceFrequence).toBeNull();
+    expect(evenement.recurrenceFin).toBeNull();
+    expect(await prisma.event.count({ where: { parentId: evenement.id } })).toBe(0);
+  });
+});
+
+describe("EX-EVT-01, EX-EVT-02, EX-EVT-09 — consulter, filtrer, cibler", () => {
+  it("EX-EVT-01 — une seule requête sert LA LISTE ET LE CALENDRIER : ordre chronologique, horaires et invités compris", async () => {
+    /*
+     * La liste et le calendrier ne sont pas deux lectures : c'est la même,
+     * rendue deux fois. Ce qui doit donc tenir en une réponse, c'est l'ordre
+     * (le calendrier place, la liste énumère), les horaires (le calendrier
+     * positionne dans la journée), le projet et les invités (la liste les
+     * affiche en colonne). Les événements sont créés dans le désordre exprès.
+     */
+    const lecteur = await agent();
+    const nomProjet = `Portail ${uuid().slice(0, 6)}`;
+    const projet = await projet2027(nomProjet);
+
+    await evenements.creer(
+      { titre: "Comité", date: utc("2027-06-03"), journeeEntiere: true, participantIds: [lecteur] },
+      acteur,
+    );
+    await evenements.creer(
+      {
+        titre: "Point produit",
+        date: utc("2027-06-01"),
+        heureDebut: "14:00",
+        heureFin: "15:00",
+        projectId: projet,
+        participantIds: [lecteur],
+      },
+      acteur,
+    );
+    await evenements.creer(
+      {
+        titre: "Revue",
+        date: utc("2027-06-01"),
+        heureDebut: "09:00",
+        heureFin: "10:00",
+        participantIds: [lecteur],
+      },
+      acteur,
+    );
+
+    const vus = await evenements.surPlage(
+      await globalP(),
+      PERMISSIONS_GLOBALES,
+      utc("2027-06-01"),
+      utc("2027-06-03"),
+      { userId: lecteur },
+    );
+
+    expect(vus.map((e) => e.titre)).toEqual(["Revue", "Point produit", "Comité"]);
+    // Ce dont le calendrier a besoin pour placer une case dans une journée.
+    expect(vus[0]?.heureDebut).toBe("09:00");
+    expect(vus[2]?.journeeEntiere).toBe(true);
+    // Ce dont la liste a besoin pour remplir ses colonnes, sans seconde requête.
+    expect(vus[1]?.project?.nom).toBe(nomProjet);
+    expect(vus[0]?.participants.map((p) => p.user.id)).toEqual([lecteur]);
+    expect(vus[0]?.participants[0]?.user.prenom).toBe("A");
+  });
+
+  it("EX-EVT-02 — le filtre par projet ne rend QUE ce projet, pas les événements sans projet", async () => {
+    const lecteur = await agent();
+    const portail = await projet2027(`Portail ${uuid().slice(0, 6)}`);
+    const finances = await projet2027(`Finances ${uuid().slice(0, 6)}`);
+
+    for (const [titre, projectId] of [
+      ["Atelier portail", portail],
+      ["Atelier finances", finances],
+      ["Réunion de service", null],
+    ] as [string, string | null][]) {
+      await evenements.creer(
+        {
+          titre,
+          date: utc("2027-07-05"),
+          journeeEntiere: true,
+          projectId,
+          participantIds: [lecteur],
+        },
+        acteur,
+      );
+    }
+
+    const filtres = await evenements.surPlage(
+      await globalP(),
+      PERMISSIONS_GLOBALES,
+      utc("2027-07-01"),
+      utc("2027-07-31"),
+      { projectId: portail, userId: lecteur },
+    );
+    expect(filtres.map((e) => e.titre)).toEqual(["Atelier portail"]);
+
+    // Le témoin : sans le filtre, les trois sont là. Sans lui, l'assertion
+    // ci-dessus passerait tout aussi bien sur une plage vide.
+    const tous = await evenements.surPlage(
+      await globalP(),
+      PERMISSIONS_GLOBALES,
+      utc("2027-07-01"),
+      utc("2027-07-31"),
+      { userId: lecteur },
+    );
+    expect(tous).toHaveLength(3);
+  });
+
+  it("EX-EVT-09 — les événements D'UN AGENT sont les siens, et rien de ce qui se tient sans lui", async () => {
+    const claire = await agent();
+    const marc = await agent();
+
+    await evenements.creer(
+      {
+        titre: "Entretien de Claire",
+        date: utc("2027-08-10"),
+        journeeEntiere: true,
+        participantIds: [claire],
+      },
+      acteur,
+    );
+    await evenements.creer(
+      {
+        titre: "Entretien de Marc",
+        date: utc("2027-08-10"),
+        journeeEntiere: true,
+        participantIds: [marc],
+      },
+      acteur,
+    );
+    await evenements.creer(
+      {
+        titre: "Réunion commune",
+        date: utc("2027-08-11"),
+        journeeEntiere: true,
+        participantIds: [claire, marc],
+      },
+      acteur,
+    );
+
+    const deClaire = await evenements.surPlage(
+      await globalP(),
+      PERMISSIONS_GLOBALES,
+      utc("2027-08-10"),
+      utc("2027-08-11"),
+      { userId: claire },
+    );
+    expect(deClaire.map((e) => e.titre)).toEqual(["Entretien de Claire", "Réunion commune"]);
+    expect(deClaire.map((e) => e.titre)).not.toContain("Entretien de Marc");
+  });
+
+  it("EX-EVT-09 — la plage est INCLUSIVE à ses deux bornes, et exclut ce qui les déborde", async () => {
+    /*
+     * Une borne exclusive à droite ferait manquer le dernier jour du mois
+     * affiché — un défaut qui ne se voit qu'au 31, donc pas tous les mois.
+     */
+    const lecteur = await agent();
+    for (const date of ["2027-09-30", "2027-10-01", "2027-10-31", "2027-11-01"]) {
+      await evenements.creer(
+        { titre: `Jalon ${date}`, date: utc(date), journeeEntiere: true, participantIds: [lecteur] },
+        acteur,
+      );
+    }
+
+    const octobre = await evenements.surPlage(
+      await globalP(),
+      PERMISSIONS_GLOBALES,
+      utc("2027-10-01"),
+      utc("2027-10-31"),
+      { userId: lecteur },
+    );
+    expect(octobre.map((e) => e.date.toISOString().slice(0, 10))).toEqual([
+      "2027-10-01",
+      "2027-10-31",
+    ]);
+  });
+});
+
+describe("EX-EVT-07 — arrêter une récurrence", () => {
+  it("EX-EVT-07 — l'arrêt supprime les occurrences futures, garde les passées, et la série DÉCLARE sa nouvelle fin", async () => {
+    /*
+     * Le second effet est celui qu'on oublie : sans repositionner
+     * `recurrenceFin`, la série continue d'annoncer une fin d'août alors
+     * qu'elle s'arrête à la mi-juillet, et toute regénération future recréerait
+     * ce qu'on vient de supprimer.
+     *
+     * Le 7 juin 2027 est un lundi ; la série hebdomadaire va jusqu'au 30 août,
+     * soit douze occurrences après le parent — 84 jours, donc douze pas de
+     * sept, la dernière tombant exactement sur la date de fin.
+     */
+    const { evenement, occurrences } = await evenements.creer(
+      {
+        titre: "Point hebdo 2027",
+        date: utc("2027-06-07"),
+        journeeEntiere: true,
+        recurrence: { frequenceSemaines: 1, jourSemaine: 1, jusqua: utc("2027-08-30") },
+      },
+      acteur,
+    );
+    expect(occurrences).toBe(12);
+
+    const arret = await evenements.arreterRecurrence(
+      evenement.id,
+      utc("2027-07-19"),
+      acteur,
+      await globalP(),
+      PERMISSIONS_GLOBALES,
+    );
+    expect(arret.supprimees).toBe(7);
+
+    const restantes = await prisma.event.findMany({
+      where: { parentId: evenement.id },
+      orderBy: { date: "asc" },
+    });
+    expect(restantes.map((e) => e.date.toISOString().slice(0, 10))).toEqual([
+      "2027-06-14",
+      "2027-06-21",
+      "2027-06-28",
+      "2027-07-05",
+      "2027-07-12",
+    ]);
+
+    const parent = await prisma.event.findUniqueOrThrow({ where: { id: evenement.id } });
+    expect(parent.recurrenceFin?.toISOString().slice(0, 10)).toBe("2027-07-19");
+  });
+
+  it("EX-EVT-07 — arrêter deux fois à la même date ne supprime rien de plus", async () => {
+    const { evenement } = await evenements.creer(
+      {
+        titre: "Point hebdo bis",
+        date: utc("2027-06-07"),
+        journeeEntiere: true,
+        recurrence: { frequenceSemaines: 1, jourSemaine: 1, jusqua: utc("2027-07-26") },
+      },
+      acteur,
+    );
+    const premier = await evenements.arreterRecurrence(
+      evenement.id,
+      utc("2027-07-05"),
+      acteur,
+      await globalP(),
+      PERMISSIONS_GLOBALES,
+    );
+    expect(premier.supprimees).toBe(4);
+
+    const second = await evenements.arreterRecurrence(
+      evenement.id,
+      utc("2027-07-05"),
+      acteur,
+      await globalP(),
+      PERMISSIONS_GLOBALES,
+    );
+    expect(second.supprimees).toBe(0);
+    expect(await prisma.event.count({ where: { parentId: evenement.id } })).toBe(3);
+  });
+});
+
+// ═════════════ L-17 — l'assignation en masse et la génération ══════════════
+
+describe("EX-ACT-03 — assigner en masse", () => {
+  it("EX-ACT-03 — un seul appel assigne TROIS agents à la même date et à la même période", async () => {
+    const tache = await activite.creerTache({ nom: `Accueil ${uuid().slice(0, 6)}` }, acteur);
+    const trio = [await agent(), await agent(), await agent()];
+
+    const r = await activite.assigner(
+      tache.id,
+      trio,
+      utc("2027-10-04"),
+      "full_day",
+      acteur,
+      await globalP(),
+    );
+    expect(r.crees).toBe(3);
+
+    const posees = await prisma.predefinedTaskAssignment.findMany({
+      where: { predefinedTaskId: tache.id },
+    });
+    expect(posees.map((a) => a.userId).sort()).toEqual([...trio].sort());
+    expect(posees.every((a) => a.periode === "full_day")).toBe(true);
+    expect(posees.every((a) => a.date.toISOString().slice(0, 10) === "2027-10-04")).toBe(true);
+  });
+
+  it("EX-ACT-03 — UN SEUL agent incompatible annule le lot ENTIER : aucun des trois n'est posé", async () => {
+    /*
+     * C'est la question propre à l'assignation en masse, et elle n'a pas de
+     * réponse évidente : poser les compatibles et signaler les autres, ou tout
+     * refuser ? Le produit refuse tout — un lot à moitié posé laisserait
+     * l'encadrant croire sa permanence couverte alors qu'il lui manque
+     * quelqu'un. Le contrôle vérifie donc les deux moitiés : le refus NOMME
+     * l'incompatible (`RG-ACT-03`), et la base est intacte.
+     */
+    const tache = await activite.creerTache(
+      { nom: `Astreinte ${uuid().slice(0, 6)}`, teletravailAutorise: false },
+      acteur,
+    );
+    const claire = await agent();
+    const marc = await agent();
+    const ines = await agent();
+    await prisma.telework.create({
+      data: { userId: marc, date: utc("2027-10-05"), etat: "telework" },
+    });
+
+    const erreur = await activite
+      .assigner(
+        tache.id,
+        [claire, marc, ines],
+        utc("2027-10-05"),
+        "full_day",
+        acteur,
+        await globalP(),
+      )
+      .catch((e: ErreurActivite) => e);
+
+    expect((erreur as ErreurActivite).code).toBe("agent_indisponible");
+    const nommes = (erreur as ErreurActivite).detail?.agents as { motif: string }[];
+    expect(nommes).toHaveLength(1);
+    expect(nommes[0]?.motif).toBe("en_teletravail");
+
+    expect(
+      await prisma.predefinedTaskAssignment.count({ where: { predefinedTaskId: tache.id } }),
+    ).toBe(0);
+  });
+});
+
+describe("EX-ACT-05 — générer les assignations sur une plage donnée", () => {
+  it("EX-ACT-05 — la génération ne pose QUE dans la plage demandée, pas partout où la règle s'applique", async () => {
+    /*
+     * La règle court depuis le 1ᵉʳ septembre et n'a pas de fin ; c'est la plage
+     * demandée qui borne la génération, et elle seule. Le 1ᵉʳ septembre 2027 est
+     * un mercredi : il tombe sous la règle et **hors** de la plage. Une
+     * génération qui l'aurait posé aurait rendu le même compte si l'on s'était
+     * contenté de compter les lignes.
+     */
+    const tache = await activite.creerTache({ nom: `Permanence ${uuid().slice(0, 6)}` }, acteur);
+    const u = await agent();
+    await prisma.predefinedTaskRecurrence.create({
+      data: {
+        predefinedTaskId: tache.id,
+        type: "weekly",
+        frequence: 1,
+        jourSemaine: 3,
+        dateDebut: utc("2027-09-01"),
+        active: true,
+      },
+    });
+
+    const r = await activite.genererDepuisRecurrences(
+      tache.id,
+      utc("2027-09-06"),
+      utc("2027-09-30"),
+      [u],
+      acteur,
+    );
+    expect(r).toMatchObject({ crees: 4, ignores: 0, dates: 4 });
+
+    const posees = await prisma.predefinedTaskAssignment.findMany({
+      where: { predefinedTaskId: tache.id },
+      orderBy: { date: "asc" },
+    });
+    expect(posees.map((a) => a.date.toISOString().slice(0, 10))).toEqual([
+      "2027-09-08",
+      "2027-09-15",
+      "2027-09-22",
+      "2027-09-29",
+    ]);
+  });
+
+  it("EX-ACT-05 — élargir la plage complète le passé sans redoubler ce qui existe", async () => {
+    const tache = await activite.creerTache(
+      { nom: `Permanence bis ${uuid().slice(0, 6)}` },
+      acteur,
+    );
+    const u = await agent();
+    await prisma.predefinedTaskRecurrence.create({
+      data: {
+        predefinedTaskId: tache.id,
+        type: "weekly",
+        frequence: 1,
+        jourSemaine: 3,
+        dateDebut: utc("2027-09-01"),
+        active: true,
+      },
+    });
+
+    await activite.genererDepuisRecurrences(
+      tache.id,
+      utc("2027-09-06"),
+      utc("2027-09-30"),
+      [u],
+      acteur,
+    );
+    const elargie = await activite.genererDepuisRecurrences(
+      tache.id,
+      utc("2027-09-01"),
+      utc("2027-10-06"),
+      [u],
+      acteur,
+    );
+
+    // Les deux mercredis neufs — le 1ᵉʳ septembre et le 6 octobre —, et les
+    // quatre déjà posés comptés comme ignorés, jamais comme créés.
+    expect(elargie).toMatchObject({ crees: 2, ignores: 4, dates: 6 });
+    expect(
+      await prisma.predefinedTaskAssignment.count({ where: { predefinedTaskId: tache.id } }),
+    ).toBe(6);
+  });
+});
