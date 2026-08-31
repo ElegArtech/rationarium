@@ -503,3 +503,37 @@ et un test sur la seule page d'accueil aurait laissé les cinq vues d'accès san
 d'action.
 
 `RG-GEN-02` sort de `nonTestable` : cinq entrées restantes, toutes motivées.
+
+---
+
+## RG-GEN-05 — le second quantificateur, tenu par un dispositif
+
+`RG-GEN-05` — « **toute** vue de données dispose d'un état de chargement explicite » —
+était en `nonTestable` pour la même raison que `RG-GEN-02` : un test nommé prouverait
+le chargement d'**une** vue, pas la règle.
+
+L'agent de L-41 avait nommé le remède sans l'écrire : « automatable seulement comme
+**suite balayante**, sur le modèle de `maquettes.a11y.spec.ts` qui affirme couvrir les
+35 vues — et sous la contrainte du piège “un contrôle sans fichier de contrôle passe au
+vert” : la suite doit **affirmer son inventaire**. Ce n'est pas un test, c'est un
+dispositif. » `apps/web/e2e/chargement.e2e.spec.ts` est ce dispositif.
+
+**Le montage est générique, et c'est ce qui le rend honnête.** Toute réponse d'API est
+retenue indéfiniment, sauf la session — sans elle la coquille ne rend rien. Il ne
+connaît **aucune fixture** : rien ne peut le faire passer par accident. La session porte
+toutes les permissions de lecture, sinon une vue masquée par courtoisie (`RG-GEN-06`)
+ne montrerait pas son chargement et le balayage conclurait à tort.
+
+**Les 29 vues de données annoncent leur chargement**, du premier coup. Six sont exclues,
+chacune avec sa raison écrite — les cinq vues d'accès, qui sont des formulaires purs, et
+la vue 35, dont tout vient de la session déjà chargée. Le contrôle refuse une exclusion
+dont la raison fait moins de vingt caractères : il a d'ailleurs commencé par refuser la
+mienne.
+
+L'inventaire est **dérivé** de `design/routes.json`, jamais tenu à la main — c'est la
+correction qu'avait déjà reçue la suite d'accessibilité après L-25, pour le même motif.
+Amputer l'inventaire fait rougir le contrôle : vérifié.
+
+`nonTestable` tombe de six à **quatre** entrées : `RG-ORG-05` (doctrine à co-citer),
+`RG-USR-07` (moitié non mesurable), `RG-TSK-13` (restatement de `RG-SCOPE-04`),
+`RG-PRM-05` (écart de spécification à trancher).
