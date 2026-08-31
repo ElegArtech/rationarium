@@ -83,5 +83,15 @@
       "5": "Ven",
       "6": "Sam"
     }
+  },
+  "presence": {
+    "titre": "Qui est là aujourd'hui",
+    "laPresence": "la présence du jour",
+    "compte": "{p} au bureau · {c} en congé · {tt} en télétravail",
+    "present": "Au bureau",
+    "conge": "En congé",
+    "teletravail": "Télétravail",
+    "vide": "Aucun agent dans votre périmètre",
+    "videAide": "La présence du jour se remplit dès qu'un agent vous est rattaché."
   }
 }

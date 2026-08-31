@@ -10,6 +10,7 @@ export const SESSION_REFERENTIELS = {
     "skills:create",
     "skills:delete",
     "skills:manage_matrix",
+    "skills:export",
     "third_parties:read",
     "third_parties:create",
     "third_parties:delete",
@@ -61,6 +62,44 @@ export const MATRICE = {
     },
   ],
   synthese: { competences: 2, avecEcart: 1, couvertureMoyenne: 67 },
+};
+
+/**
+ * `EX-CMP-10` — les détenteurs, dans la forme que rend le SERVEUR.
+ *
+ * `competences.service.ts` renvoie les lignes de `user_skills` telles quelles,
+ * jointes à leur agent : clé composite `userId`/`skillId`, aucun identifiant
+ * de ligne, aucun nom de compétence, aucun total. L'ordre est celui du serveur
+ * — par nom de famille — pour que le tri par niveau du client soit vraiment
+ * exercé : Amrani (expert) est déjà premier alphabétiquement, Zaidi (maître)
+ * dernier ; si la vue ne triait pas, l'ordre affiché serait l'inverse de
+ * l'attendu.
+ */
+export const DETENTEURS = [
+  { userId: "a1", skillId: "s1", niveau: "expert", user: { id: "a1", prenom: "Driss", nom: "Amrani" } },
+  { userId: "a4", skillId: "s1", niveau: "beginner", user: { id: "a4", prenom: "Léa", nom: "Vidal" } },
+  { userId: "a5", skillId: "s1", niveau: "master", user: { id: "a5", prenom: "Sofia", nom: "Zaidi" } },
+];
+
+/** Le même appel, filtré au plancher « Au moins Expert ». */
+export const DETENTEURS_EXPERTS = [DETENTEURS[0]!, DETENTEURS[2]!];
+
+/**
+ * `EX-CMP-08` — l'export de la matrice.
+ *
+ * **Le serveur rend un JSON `{ csv }`, pas un fichier** : ni `text/csv`, ni
+ * `Content-Disposition`. Le jeu d'essai le dit tel quel, pour que le test
+ * porte sur ce que la route promet et non sur ce qu'on aurait aimé qu'elle
+ * serve. Les colonnes sont celles d'`exporterMatrice` : « Agent » puis un
+ * nom de compétence par colonne, séparateur `;`.
+ */
+export const EXPORT_MATRICE = {
+  csv: [
+    "Agent;Cartographie SIG;Rédaction administrative",
+    "Driss Amrani;expert;master",
+    "Inès Rocher;;intermediate",
+    "Sans Competence;;",
+  ].join("\n"),
 };
 
 export const REFERENTIEL = [

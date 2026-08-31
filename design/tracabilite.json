@@ -33,7 +33,7 @@
       "id": "EX-PRJ-13",
       "lot": "vague 7-4",
       "module": "L-10",
-      "defaut": "DÉFAUT TROUVÉ (vague 7-4) — aucun point d’entrée pour CONSULTER l’historique. `capturerInstantane` écrit (`POST /projets/:id/instantane`), `fiche()` rend le DERNIER instantané, et la tendance des rapports lit les instantanés d’un lot de projets — mais « consulter l’historique des instantanés d’avancement » d’UN projet n’a ni méthode ni route."
+      "defaut": "DÉFAUT TROUVÉ (vague 7-4), réduit de moitié en vague 7-3 bis, NON REFERMÉ. L'exigence porte deux verbes. **Capturer** est désormais branché : `POST /projets/:id/instantane` est appelé par la vue 11 (bouton « Capturer un instantané »), couvert par « LA CAPTURE PART AVEC LA DATE DU JOUR, jamais avec l'heure » et « l'accusé rend la progression REÇUE, pas celle qu'on affichait » (apps/web/e2e/tableau.e2e.spec.ts). **Consulter l'historique** n'existe toujours pas : `fiche()` ne rend que `dernierInstantane`, la tendance des rapports lit les instantanés d'un LOT de projets, et l'historique d'UN projet n'a ni méthode de service ni route. L'identifiant reste donc en dette : on ne cite pas une exigence dont un verbe manque. À ajouter, dans une tâche serveur : `GET /projets/:id/instantanes`, gardée `reports:read` et bornée au périmètre. Dette voisine, distincte : `RG-PRJ-09` veut une capture PÉRIODIQUE (`cadrage/03 § 5.4`, `pg-boss`) et aucun travail de fond ne l'exécute — le bouton de la vue 11 est aujourd'hui le seul producteur d'instantanés du produit."
     },
     {
       "id": "EX-JAL-01",

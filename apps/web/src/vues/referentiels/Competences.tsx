@@ -280,9 +280,20 @@ export function Competences() {
                     </option>
                   ))}
                 </select>
+                {/*
+                  `EX-CMP-08` — « Exporter la **matrice** en CSV ».
+
+                  Ce bouton téléchargeait le RÉFÉRENTIEL : la liste des
+                  compétences, sans un seul agent. Le libellé de la maquette
+                  (« Export CSV »), sa place — la barre de filtres de la
+                  matrice — et l'exigence disent tous les trois la matrice.
+                  Les deux exports existent et sont distincts, ils portent
+                  donc désormais deux noms distincts.
+                */}
+                {peut("skills:export") ? <ExportMatrice /> : null}
                 {peut("skills:export") ? (
                   <a className="chip-btn" href={adresseExportCompetences()} download>
-                    {t("competences.exportCsv")}
+                    {t("competences.exportReferentiel")}
                   </a>
                 ) : null}
                 <span className="field-hint" style={{ margin: "0 0 0 auto" }}>
@@ -436,6 +447,49 @@ export function Competences() {
         />
       ) : null}
     </>
+  );
+}
+
+/**
+ * `EX-CMP-08` — l'export de la matrice.
+ *
+ * **Pourquoi un bouton et non un lien, contrairement aux autres exports du
+ * produit.** `GET /competences/export` porte le nom d'un export et n'en sert
+ * pas un : pas de `Content-Type: text/csv`, pas de `Content-Disposition`,
+ * juste un JSON `{ csv }`. Un `<a href download>` téléchargerait donc
+ * `{"csv":"Agent;Cartographie SIG;…"}` — un fichier qu'aucun tableur n'ouvre.
+ * On demande la charge, on fabrique le fichier.
+ *
+ * Le brief de la vue 22 nomme d'ailleurs l'état de retour : « Export CSV
+ * téléchargé ». Un lien n'en produit aucun ; un bouton, si.
+ */
+function ExportMatrice() {
+  const { t } = useTranslation("referentiels");
+  const { t: tErreurs } = useTranslation("erreurs");
+  const annoncer = useMessages();
+
+  const exporter = useMutation({
+    mutationFn: api.exporterMatrice,
+    onSuccess: ({ csv }) => {
+      const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+      const lien = document.createElement("a");
+      lien.href = url;
+      lien.download = "competences-matrice.csv";
+      lien.click();
+      URL.revokeObjectURL(url);
+      annoncer("ok", t("competences.exportFait"));
+    },
+    onError: (e) => annoncer("err", messageErreur(e, tErreurs, t("competences.exportEchec"))),
+  });
+
+  return (
+    <Button
+      className="chip-btn"
+      isPending={exporter.isPending}
+      onPress={() => exporter.mutate()}
+    >
+      {t("competences.exportCsv")}
+    </Button>
   );
 }
 
@@ -663,6 +717,9 @@ function Referentiel({ categorie, recherche }: { categorie: string; recherche: s
   const annoncer = useMessages();
   const client = useQueryClient();
 
+  /** `EX-CMP-10` — la compétence dont on regarde les détenteurs, ou aucune. */
+  const [detenteursDe, setDetenteursDe] = useState<api.Competence | null>(null);
+
   const requete = useQuery({
     queryKey: ["competences", "referentiel", categorie, recherche],
     queryFn: () => api.referentiel({ categorie, recherche }),
@@ -736,6 +793,28 @@ function Referentiel({ categorie, recherche }: { categorie: string; recherche: s
                       ratio: `${c.detenteurs}/${c.effectifRequis}`,
                     })}
               </span>
+              {/*
+                `EX-CMP-10` — « Rechercher les agents détenant une compétence
+                donnée ». Le brief de la vue 22 n'en dit rien : ni écran, ni
+                forme, ni état vide (consigné au rapport). La colonne
+                « Actions » du référentiel est le seul endroit que le brief
+                offre, et c'est le bon : la couverture y est déjà affichée en
+                ratio — « Partielle 1/3 » —, et la question qu'on se pose
+                devant ce ratio est précisément « lesquels ? ».
+
+                `skills:read` et non un droit plus strict : c'est la
+                permission que porte la route, et `RG-GEN-06` demande au
+                client de refléter le serveur, pas de le durcir.
+              */}
+              {peut("skills:read") ? (
+                <Button
+                  className="ms-toggle"
+                  onPress={() => setDetenteursDe(c)}
+                  aria-label={t("competences.voirDetenteursDe", { nom: c.nom })}
+                >
+                  {t("competences.detenteurs")}
+                </Button>
+              ) : null}
               {peut("skills:delete") ? (
                 <Button
                   className="ms-toggle"
@@ -755,7 +834,138 @@ function Referentiel({ categorie, recherche }: { categorie: string; recherche: s
           </div>
         ))}
       </div>
+
+      <FenetreDetenteurs
+        competence={detenteursDe}
+        surFermeture={() => setDetenteursDe(null)}
+      />
     </section>
+  );
+}
+
+/**
+ * `EX-CMP-10` — qui détient cette compétence, et à quel niveau.
+ *
+ * **Le filtre est un PLANCHER, et le libellé doit le dire.** Le serveur prend
+ * `niveauMinimum` et rend tout ce qui est au-dessus : demander « Expert » rend
+ * les experts *et* les maîtres. « Niveau : Expert » aurait menti sur la
+ * réponse ; « Au moins Expert » la décrit.
+ *
+ * Le tri est refait ici. Le serveur ordonne par nom de famille — utile pour
+ * retrouver quelqu'un, inutile pour la question posée : devant un écart de
+ * couverture, on cherche d'abord les niveaux hauts. Les maîtres d'abord, puis
+ * l'alphabet à niveau égal.
+ */
+function FenetreDetenteurs({
+  competence,
+  surFermeture,
+}: {
+  competence: api.Competence | null;
+  surFermeture: () => void;
+}) {
+  const { t } = useTranslation("referentiels");
+  const libelle = useLibelle();
+  const [minimum, setMinimum] = useState("");
+
+  const requete = useQuery({
+    queryKey: ["competences", "detenteurs", competence?.id, minimum],
+    // `minimum` vide n'est pas « niveau zéro » : c'est l'absence de filtre.
+    // `params()` le laisserait tomber de toute façon ; on le dit ici aussi,
+    // parce que c'est la chaîne qui porte l'information, pas sa conversion.
+    queryFn: () => api.detenteurs(competence!.id, minimum === "" ? undefined : minimum),
+    enabled: competence !== null,
+  });
+
+  /* Les maîtres d'abord ; à niveau égal, l'ordre alphabétique du serveur. */
+  const classes = useMemo(
+    () =>
+      [...(requete.data ?? [])].sort(
+        (a, b) =>
+          (RANG[b.niveau] ?? 0) - (RANG[a.niveau] ?? 0) ||
+          `${a.user.nom} ${a.user.prenom}`.localeCompare(`${b.user.nom} ${b.user.prenom}`),
+      ),
+    [requete.data],
+  );
+
+  return (
+    <Fenetre
+      ouverte={competence !== null}
+      surFermeture={surFermeture}
+      categorie={competence?.nom ?? ""}
+      titre={t("competences.detenteursTitre")}
+      actions={
+        <Button className="btn btn-secondary" onPress={surFermeture}>
+          {t("fermer")}
+        </Button>
+      }
+    >
+      {/*
+        **Aucun ratio n'est réaffiché ici, et c'est délibéré.** Trois lectures
+        du mot « détenteurs » coexistent au serveur et ne donnent pas le même
+        nombre : `referentiel()` compte toutes les lignes de `user_skills`,
+        `detenteurs()` écarte les comptes désactivés, `matrice()` applique en
+        plus le périmètre. Recopier « 1/3 » au-dessus d'une liste de trois noms
+        aurait produit une contradiction à l'écran, sans qu'aucune des deux
+        moitiés soit fausse. La couverture est dite là où elle est calculée —
+        la pastille « Partielle 1/3 » de la ligne, `RG-CMP-03` —, et cette
+        fenêtre ne parle que de ce qu'elle a reçu.
+      */}
+      <div className="field-block">
+        <label className="field-label" htmlFor="sk-min">
+          {t("competences.niveauMinimum")}
+        </label>
+        <select
+          className="field"
+          id="sk-min"
+          value={minimum}
+          onChange={(e) => setMinimum(e.target.value)}
+        >
+          <option value="">{t("competences.tousNiveaux")}</option>
+          {NIVEAUX_COMPETENCE.map((n) => (
+            <option key={n.code} value={n.code}>
+              {t("competences.auMoins", { niveau: libelle(n.code, NIVEAUX_COMPETENCE) })}
+            </option>
+          ))}
+        </select>
+        <p className="field-hint">{t("competences.niveauMinimumAide")}</p>
+      </div>
+
+      {requete.isPending ? <Chargement quoi={t("competences.lesDetenteurs")} /> : null}
+      {requete.isError ? (
+        <ErreurDeChargement erreur={requete.error} surReessai={() => void requete.refetch()} />
+      ) : null}
+
+      {requete.isSuccess && classes.length === 0 ? (
+        <div className="empty">
+          <p>{t("competences.detenteursVide")}</p>
+          <small>
+            {minimum === ""
+              ? t("competences.detenteursVideAide")
+              : t("competences.detenteursVideFiltre")}
+          </small>
+        </div>
+      ) : null}
+
+      {classes.length > 0 ? (
+        <>
+          <div className="sk-chips">
+            {classes.map((d) => (
+              <span className="sk-chip" key={d.userId}>
+                <span>
+                  {d.user.prenom} {d.user.nom}
+                </span>
+                <span className={`lvl lvl-${RANG[d.niveau] ?? 1}`}>
+                  {abreger(libelle(d.niveau, NIVEAUX_COMPETENCE))}
+                </span>
+              </span>
+            ))}
+          </div>
+          <p className="field-hint">
+            {t("competences.detenteursCompte", { n: classes.length })}
+          </p>
+        </>
+      ) : null}
+    </Fenetre>
   );
 }
 

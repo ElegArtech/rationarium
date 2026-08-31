@@ -217,12 +217,30 @@ export class CompetencesService {
   }
 
   /** `EX-CMP-10` — rechercher les agents détenant une compétence donnée. */
-  async detenteurs(skillId: string, niveauMinimum?: NiveauCompetence) {
+  /**
+   * `EX-CMP-05` — qui détient cette compétence, au moins à ce niveau.
+   *
+   * **Le périmètre manquait.** `skills:read` appartient au socle, donc à tout
+   * compte : cette route énumérait `id`, prénom, nom et niveau de **tous les
+   * agents actifs de l'instance**, département ignoré. Ses deux voisines du
+   * même service — `matrice()` et `exporterMatrice()` — l'appliquent ; celle-ci
+   * ne recevait même pas le périmètre en argument.
+   *
+   * `.claude/rules/api.md` : « un point d'entrée qui vérifie la permission mais
+   * pas le périmètre est un défaut de cloisonnement, pas une optimisation. »
+   * Trouvé par l'agent qui branchait la vue, en comparant les trois méthodes.
+   */
+  async detenteurs(skillId: string, perimetre: Perimetre, niveauMinimum?: NiveauCompetence) {
     const ordre: NiveauCompetence[] = ["beginner", "intermediate", "expert", "master"];
     const acceptes = niveauMinimum ? ordre.slice(ordre.indexOf(niveauMinimum)) : ordre;
 
     return this.prisma.userSkill.findMany({
-      where: { skillId, niveau: { in: acceptes }, user: { actif: true } },
+      where: {
+        skillId,
+        niveau: { in: acceptes },
+        user: { actif: true },
+        ...this.perimetres.filtreParAgent(perimetre),
+      },
       include: { user: { select: { id: true, prenom: true, nom: true } } },
       orderBy: { user: { nom: "asc" } },
     });

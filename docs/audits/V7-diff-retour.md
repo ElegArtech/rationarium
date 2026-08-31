@@ -868,3 +868,206 @@ divergentes de la même règle rendraient l'écran incohérent avec son propre s
 qui est précisément le défaut que cette vague rattrape.
 
 Sept tests, dont trois d'intégration sur les refus et un sur le cas hors projet.
+## T-053 — Vues 22, 06 et 11 : quatre routes qu'aucun écran ne visait
+
+Quatre capacités serveur vivaient dans `SANS_CLIENT` : gardées, testées en intégration,
+et hors d'atteinte depuis un écran. Elles en sortent toutes les quatre. Ce que le
+branchement a appris compte davantage que le branchement.
+
+### Ce que les routes promettaient, et ce qu'elles rendent
+
+**`GET /competences/export` ne sert pas un fichier.** Malgré son nom et sa permission
+`skills:export`, elle rend un JSON `{ csv }` : ni `Content-Type: text/csv`, ni
+`Content-Disposition`, contrairement aux trois exports d'`ImportsController` juste à
+côté. Le lien `<a href download>` que le contrat de tâche proposait comme modèle aurait
+téléchargé `{"csv":"Agent;Cartographie SIG;…"}` — un fichier qu'aucun tableur n'ouvre.
+La vue la demande donc en `fetch` et fabrique le téléchargement.
+
+**`POST /projets/:id/instantane` rend `heuresConsommees` en CHAÎNE.** La colonne est un
+`Decimal`, et un `Decimal` Prisma porte un `toJSON` qui rend du texte — comme
+`budgetHeures` de la fiche projet, que le client typait déjà correctement. Le type
+client le dit ; le jeu d'essai aussi.
+
+**`GET /competences/:id/detenteurs` ne rend ni identifiant de ligne, ni nom de
+compétence, ni total** — la clé de `user_skills` est composite et le service renvoie les
+lignes telles quelles. Et son `niveauMinimum` est un **plancher** : demander « Expert »
+rend les experts *et* les maîtres. Un libellé « Niveau : Expert » aurait décrit une
+réponse que la route ne rend pas ; la fenêtre écrit « Au moins Expert ».
+
+### Le défaut le plus lourd : `GET /competences/:id/detenteurs` n'a AUCUN périmètre
+
+`CompetencesController.detenteurs` ne prend pas `@Demande()`, et
+`CompetencesService.detenteurs` ne pose pas `filtreParAgent`. Elle est pourtant gardée
+par `skills:read` — qui est **dans `SOCLE`**, donc détenue par tous les rôles du
+catalogue. N'importe quel compte authentifié peut ainsi énumérer, compétence par
+compétence, l'identité (`id`, `prenom`, `nom`) et le niveau de **tous les agents actifs
+de l'organisation**, département d'appartenance ignoré.
+
+Ce n'est pas une omission isolée : ses deux voisines immédiates du même service,
+`matrice()` et `exporterMatrice()`, reçoivent et appliquent le périmètre. La route est
+la seule des trois à ne pas le faire, et c'est la seule qui rend des **noms** sans
+agrégation.
+
+Le correctif tient en deux lignes, et il est **serveur** — donc hors de ce lot :
+
+```ts
+// competences.controller.ts
+detenteurs(@Demande() d: ContexteDemande, @Param("id") id: string, …) {
+  return this.competences.detenteurs(d.perimetre, id, minimum);
+}
+// competences.service.ts — la table porte un `userId`, donc `filtreParAgent`.
+where: { AND: [this.perimetres.filtreParAgent(perimetre), { skillId, niveau: { in: acceptes }, user: { actif: true } }] }
+```
+
+**L'écran a été branché malgré tout**, la commande gardée sur `skills:read` comme la
+route — `RG-GEN-06` demande au client de refléter le serveur, pas de le durcir, et
+durcir le client n'aurait rien fermé : la requête forgée passe de toute façon. Le durcir
+aurait seulement caché la fuite à la revue.
+
+### « Détenteurs » veut dire trois choses différentes au serveur
+
+Troisième occurrence du piège « deux lectures d'une même donnée peuvent se contredire ».
+Pour une même compétence :
+
+| Méthode | Ce qu'elle compte | Périmètre | Comptes désactivés |
+| --- | --- | --- | --- |
+| `referentiel()` | toutes les lignes de `user_skills` | non | **inclus** |
+| `detenteurs()` | les lignes des comptes actifs | **non** | exclus |
+| `matrice()` | les niveaux des agents du périmètre | oui | exclus |
+
+Les trois sont justes séparément et donnent trois nombres. La fenêtre des détenteurs ne
+réaffiche donc **aucun ratio** : recopier le « Partielle 1/3 » du référentiel au-dessus
+d'une liste de trois noms aurait mis une contradiction à l'écran sans qu'aucune moitié
+soit fausse. La couverture est dite là où elle est calculée. Un contrôle fige ce choix,
+pour qu'une bonne intention ne le défasse pas.
+
+### Le bouton « Export CSV » de la vue 22 exportait le référentiel
+
+`EX-CMP-08` dit « Exporter **la matrice** en CSV ». Le bouton, posé par la maquette dans
+la barre de filtres **de la matrice**, pointait `/imports/export/competences` — le
+catalogue des compétences, sans un seul agent. Les deux exports existent et n'exportent
+pas la même chose ; ils portent désormais deux noms distincts, « Export CSV » (la
+matrice, avec l'état de retour que le brief nomme mot pour mot) et « Exporter le
+référentiel » (le catalogue, contrepartie réimportable d'`EX-CMP-09`).
+
+Aucun contrôle ne pouvait le voir : le bouton s'affichait, le lien répondait 200, et un
+CSV arrivait. C'est la famille des défauts qui survivent aux boucles vertes — non pas
+« ça ne marche pas », mais « ça marche, et ce n'est pas ce qui était demandé ».
+
+### `EX-USR-09` et `EX-PRJ-13` n'ont aucun brief
+
+Ni la vue 06, ni la vue 27, ni la vue 11 ne portent ces exigences dans `cadrage/02`, et
+aucune des trois maquettes n'a de bloc, de classe ou de bouton correspondant. Deux
+décisions ont donc été prises à l'exécution — donc deux manques de spec.
+
+**`EX-USR-09` va sur la vue 06.** Trois raisons. *(1)* « du jour » : la vue 06 est la
+seule dont l'axe est aujourd'hui — son brief l'écrit, « ce qui concerne l'utilisateur
+aujourd'hui », et son surtitre porte la date ; la vue 27 administre des comptes, où la
+notion de journée n'existe nulle part. *(2)* Le destinataire : `cadrage/01 § 2` donne le
+besoin à Fatou, manager de service — « voir le taux de présence » —, qui détient
+`users:read` par `ENCADREMENT`. *(3)* La contrainte du brief tient : « pour Camille, la
+vue doit être complète en un écran, sans défilement », et Camille, contributrice, n'a
+pas `users:read` — le bloc n'apparaît pas pour elle. Il apparaît exactement pour qui l'a
+demandé.
+
+**Le bloc n'est pas fondu dans `/tableau-de-bord`**, contrairement à tout le reste de la
+vue : la charge unique devrait alors rendre un champ vide pour la majorité des comptes,
+ou changer de forme selon l'appelant. Le serveur étant en lecture seule sur ce lot, la
+question reste ouverte pour le jour où `/tableau-de-bord` pourra apprendre à la servir.
+
+**La vue 27 reste le bon hôte d'un annuaire de présence complet et filtrable.** Le bloc
+de la vue 06 répond à « qui est là ce matin », pas à « donne-moi la liste ».
+
+### Le piège du lot, payé d'avance
+
+`GET /utilisateurs/presence` accepte `jour` en option et retombe sinon sur `new Date()`
+— un instant, avec son heure. Or elle compare cet instant à `telework.date` par
+**égalité stricte** et à `leave.dateFin` par `>=`, deux colonnes `date` stockées à
+minuit. **Appelée sans `jour`, elle ne trouve jamais personne en télétravail et manque
+tout congé qui s'achève aujourd'hui** : elle répond « tout le monde est présent », à
+toute heure sauf minuit pile. Le test d'intégration existant ne pouvait pas le voir — il
+appelle le service avec un `Date` à minuit, jamais le contrôleur sans paramètre.
+
+Le client transmet donc toujours la date nue `AAAA-MM-JJ`, et un contrôle nommé le
+vérifie sur la requête sortante, horloge figée. Le serveur, lui, garde son défaut : sa
+valeur par défaut devrait être normalisée à minuit.
+
+### Ce qui reste ouvert
+
+- **`EX-PRJ-13` reste en dette, et son `defaut` est mis à jour.** La capture est
+  branchée et couverte ; **consulter l'historique** n'a toujours ni méthode de service
+  ni route — `fiche()` ne rend que `dernierInstantane`. L'identifiant n'est cité par
+  aucun titre de test : on ne cite pas une exigence dont un verbe manque, comme la
+  vague 7-4 l'avait décidé pour `EX-JAL-01` et `EX-CMP-09`. À ajouter, tâche serveur :
+  `GET /projets/:id/instantanes`, gardée `reports:read`, bornée au périmètre.
+- **`RG-PRJ-09` — la capture périodique n'existe pas.** La règle veut un relevé
+  périodique, `cadrage/03 § 5.4` le confie à `pg-boss`, et aucun travail de fond ne
+  l'exécute. Le bouton de la vue 11 est aujourd'hui **le seul producteur d'instantanés
+  du produit** : sans lui, `dernierInstantane` et la courbe de tendance de la vue 30
+  restent vides à jamais. La règle est pourtant déclarée couverte par un test
+  d'intégration qui exerce la capture, pas sa périodicité.
+- **`POST /projets/:id/instantane` est une écriture gardée par une permission de
+  lecture** (`reports:read`) et **ne trace rien au journal d'audit**, là où
+  `supprimerJalon`, son voisin immédiat, appelle `audit.tracer`. À arbitrer :
+  `01 § M20` ne liste pas la capture d'instantané, mais une écriture sur `reports:read`
+  mérite au moins un commentaire qui l'assume.
+- **Trois commentaires d'exigence faux dans le serveur**, trouvés en chemin et non
+  corrigés (serveur en lecture seule) : `competences.controller.ts` annonce `EX-CMP-05`
+  sur `detenteurs` (c'est `EX-CMP-10` ; `EX-CMP-05` est « modifier un niveau depuis une
+  cellule ») ; `utilisateurs.controller.ts` annonce `EX-USR-06` sur `presence` (c'est
+  `EX-USR-09`) et `EX-USR-07` sur `suivi` (c'est `EX-USR-10` — la même faute que la
+  vague 7-4 avait déjà corrigée dans `suivi.int.test.ts`, restée dans le contrôleur) ;
+  `projets.controller.ts` annonce `EX-PRJ-14`, qui n'existe pas au cadrage. Quatre
+  citations fausses, dont aucune n'est vue par `tracabilite-check.mjs` : il ne lit que
+  les **titres de test**, jamais les commentaires du code de production.
+- **Les contrôles de la capture d'instantané décrivent la vue 11 et vivent dans
+  `tableau.e2e.spec.ts`.** `projets.e2e.spec.ts` était travaillé par un autre lot au
+  même moment, et deux lots dans le même fichier se perdent l'un l'autre. À la fusion,
+  ce bloc et ses deux jeux d'essai (`SESSION_INSTANTANE`, `INSTANTANE_PRIS`) rejoignent
+  `projets.e2e.spec.ts` et `fixtures/projets.ts`.
+- **`/imports/export/competences` ne serait plus détectable comme orpheline** si un jour
+  la vue 22 cessait de l'appeler : `surface-http.test.ts` compte un littéral `/api/…`
+  trouvé n'importe où dans `apps/web/src`, et la constante `adresseExportCompetences`
+  vit dans `api/imports.ts` indépendamment de son usage. Le contrôle mesure la présence
+  d'une chaîne, pas celle d'un appel.
+
+---
+
+## RG-SCOPE-01 sur les détenteurs d'une compétence — une fuite d'annuaire
+
+Trouvé par l'agent de T-053 **en comparant les trois méthodes du même service l'une à
+l'autre**, pendant qu'il branchait la vue 22.
+
+`GET /competences/:id/detenteurs` n'appliquait **aucun périmètre** : ni `@Demande()` au
+contrôleur, ni filtre au service — il ne le recevait même pas en argument. Or
+`skills:read` appartient au **socle**, donc à tout compte authentifié : la route
+énumérait `id`, prénom, nom et niveau de **tous les agents actifs de l'instance**,
+département ignoré.
+
+Ses deux voisines immédiates du même fichier, `matrice()` et `exporterMatrice()`,
+l'appliquent toutes les deux. **C'est cet écart entre voisines qui l'a rendu visible** —
+pas une boucle, pas un test : une lecture comparée.
+
+L'agent a branché la vue **quand même**, en la gardant sur `skills:read` comme la route,
+et l'a signalé plutôt que de durcir le client : « durcir le client aurait caché la fuite
+sans la fermer ». C'est le bon réflexe, et c'est l'interdit du dépôt appliqué à
+l'envers — un client plus strict que son serveur donne l'illusion d'un contrôle.
+
+Deux tests, dont un vérifié rouge sans le filtre.
+
+### Ce que le même agent a trouvé et qui reste ouvert
+
+- **`POST /projets/:id/instantane` est une ÉCRITURE gardée par `reports:read`**, et elle
+  ne trace rien au journal d'audit.
+- **`RG-PRJ-09` n'est pas tenue** : aucun travail planifié ne capture d'instantané
+  périodiquement. Ce bouton est aujourd'hui le **seul producteur d'instantanés du
+  produit**.
+- **`GET /competences/export` ne sert pas un fichier** mais un JSON `{ csv }`, sans
+  `Content-Type` ni `Content-Disposition`, contrairement aux trois exports voisins
+  d'`ImportsController`. Un `<a download>` aurait téléchargé `{"csv":"…"}`.
+- **« Détenteurs » désigne trois nombres différents** selon la méthode qui le calcule :
+  `referentiel()` compte tout, désactivés inclus et sans périmètre ; `detenteurs()`
+  exclut les désactivés ; `matrice()` applique le périmètre. Décor exact du piège « deux
+  lectures d'une même donnée peuvent se contredire ».
+- **Quatre citations d'exigence fausses dans des commentaires serveur**, qu'aucun
+  contrôle ne voit puisque `tracabilite-check.mjs` ne lit que les titres de test.

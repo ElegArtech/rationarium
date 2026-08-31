@@ -83,5 +83,15 @@
       "5": "Fri",
       "6": "Sat"
     }
+  },
+  "presence": {
+    "titre": "Who is in today",
+    "laPresence": "today's attendance",
+    "compte": "{p} in the office · {c} on leave · {tt} working remotely",
+    "present": "In the office",
+    "conge": "On leave",
+    "teletravail": "Remote",
+    "vide": "No one in your scope",
+    "videAide": "Today's attendance fills in as soon as someone is attached to you."
   }
 }

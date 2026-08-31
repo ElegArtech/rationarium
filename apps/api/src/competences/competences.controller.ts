@@ -45,9 +45,13 @@ export class CompetencesController {
   /** `EX-CMP-05` — qui détient cette compétence, au moins à ce niveau. */
   @Get(":id/detenteurs")
   @RequiertPermission("skills:read")
-  detenteurs(@Param("id") id: string, @Query("niveauMinimum") niveau?: string) {
+  detenteurs(
+    @Param("id") id: string,
+    @Demande() d: ContexteDemande,
+    @Query("niveauMinimum") niveau?: string,
+  ) {
     const minimum = niveau ? valider(enumDe(NIVEAUX_COMPETENCE), niveau) : undefined;
-    return this.competences.detenteurs(id, minimum);
+    return this.competences.detenteurs(id, d.perimetre, minimum);
   }
 
   @Get("export")
