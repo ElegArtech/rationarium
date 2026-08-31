@@ -582,7 +582,8 @@ Le module le plus riche en règles.
 - **RG-CNG-29** — Un type de congé désactivé n'est plus sélectionnable ; les congés existants le conservent.
 - **RG-CNG-30** — Un type système n'est pas supprimable ; seuls son nom, sa description, son icône, sa couleur et son exigence de validation sont modifiables.
 - **RG-CNG-31** — Un type utilisé par des congés est **désactivé** plutôt que supprimé ; l'utilisateur est averti du nombre de congés concernés.
-- **RG-CNG-32** — L'import CSV ignore doublons et chevauchements, et rend compte : importés / ignorés / en erreur.
+- **RG-CNG-32** — L'import CSV ignore doublons et chevauchements, et rend compte : importés / ignorés / en erreur. **Ignoré** ne couvre que ces deux cas : tout autre refus — agent inconnu ou hors périmètre, type inconnu ou désactivé, dates incohérentes — est **en erreur**, avec son numéro de ligne. Le contrôle de solde (`RG-CNG-21`) s'applique à l'import comme au dépôt : une ligne au-delà du disponible est en erreur, avec le message chiffré de la règle.
+- **RG-CNG-33** — Un congé importé est un état constaté, pas une demande : il est **directement approuvé**, l'importateur pour validateur de fait, par application de `RG-CNG-14` — l'import est par nature une déclaration pour autrui. **Exception : la ligne qui désigne l'importateur lui-même** suit le régime ordinaire du dépôt, donc `RG-CNG-13` et `RG-CNG-09`. Sans cette exception, l'import offrirait une auto-approbation que la route de validation refuse.
 
 ---
 

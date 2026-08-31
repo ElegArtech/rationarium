@@ -369,11 +369,6 @@
       "module": "L-15"
     },
     {
-      "id": "EX-CNG-14",
-      "lot": "vague 7-4",
-      "module": "L-15"
-    },
-    {
       "id": "EX-CNG-15",
       "lot": "vague 7-4",
       "module": "L-15"
@@ -395,28 +390,12 @@
       "note": "Porte aussi RG-ORG-05, déclaré non testable parce qu'il n'est que la doctrine dont cette règle est la réalisation. Co-citer les deux dans le titre."
     },
     {
-      "id": "RG-CNG-15",
-      "lot": "vague 7-4",
-      "module": "L-15"
-    },
-    {
       "id": "RG-CNG-23",
       "lot": "vague 7-4",
       "module": "L-15"
     },
     {
       "id": "RG-CNG-27",
-      "lot": "vague 7-4",
-      "module": "L-15"
-    },
-    {
-      "id": "RG-CNG-29",
-      "lot": "vague 7-4",
-      "module": "L-15",
-      "note": "Passait pour couvert par describe(« RG-CNG-29 à 31 »). Une plage ne cite rien : aucun `it` n'exerce le fait qu'un type désactivé cesse d'être sélectionnable."
-    },
-    {
-      "id": "RG-CNG-32",
       "lot": "vague 7-4",
       "module": "L-15"
     },
@@ -522,11 +501,6 @@
     },
     {
       "id": "EX-CMP-07",
-      "lot": "vague 7-4",
-      "module": "L-13"
-    },
-    {
-      "id": "EX-CMP-09",
       "lot": "vague 7-4",
       "module": "L-13"
     },
