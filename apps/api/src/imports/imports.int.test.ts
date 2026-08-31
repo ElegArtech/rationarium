@@ -1094,3 +1094,47 @@ describe("EX-TSK-18, EX-JAL-06 — importer les tâches ou les jalons seuls", ()
     expect(trace?.detail).toMatchObject({ source: "csv", objet: "jalons", importes: 1 });
   });
 });
+
+describe("§ M21 — les colonnes d'énumération portent le CODE, pas le libellé", () => {
+  const ENTETE =
+    "rowType;name;dueDate;title;description;status;priority;assigneeEmail;milestoneName;estimatedHours;startDate;endDate;subtasks\n";
+
+  it("RG-IMP-04 — un statut TRADUIT est une ligne en erreur, pas une panne technique", async () => {
+    /*
+     * `status` et `priority` partaient en base castés `as never` : « En cours »
+     * plutôt que `doing` faisait tomber la transaction entière sur une erreur
+     * d'énumération PostgreSQL, message technique compris — et `RG-IMP-06`
+     * élargissait la casse en mode Remplacer, où une seule cellule mal
+     * remplie annulait tout sans dire laquelle.
+     *
+     * La convention était tacite : le tableau des colonnes de `§ M21` ne
+     * disait pour aucune d'elles si elle portait le code ou le libellé. Elle
+     * y est désormais écrite.
+     */
+    const fichier = ENTETE + "TASK;;;Rédiger la note;;En cours;normal;;;8;;;\n";
+
+    const apercu = imports.analyser("projet", fichier);
+    expect(apercu.erreurs).toHaveLength(1);
+    expect(apercu.erreurs[0]?.ligne).toBe(2);
+    expect(apercu.erreurs[0]?.message).toContain("En cours");
+    // Le message DIT ce qu'on attendait : sans cela il nomme le refus sans
+    // permettre de le corriger.
+    expect(apercu.erreurs[0]?.message).toContain("todo");
+  });
+
+  it("RG-IMP-04 — une priorité inconnue est signalée AVANT toute écriture", async () => {
+    const fichier = ENTETE + "TASK;;;Rédiger la note;;todo;Haute;;;8;;;\n";
+    const apercu = imports.analyser("projet", fichier);
+    expect(apercu.erreurs.map((e) => e.message).join(" ")).toContain("priority");
+  });
+
+  it("les codes du vocabulaire passent, eux — c'est le cas nominal", async () => {
+    const fichier = ENTETE + "TASK;;;Rédiger la note;;doing;high;;;8;;;\n";
+    expect(imports.analyser("projet", fichier).erreurs).toEqual([]);
+  });
+
+  it("une colonne d'énumération VIDE reste licite : elle prend le défaut", async () => {
+    const fichier = ENTETE + "TASK;;;Rédiger la note;;;;;;8;;;\n";
+    expect(imports.analyser("projet", fichier).erreurs).toEqual([]);
+  });
+});

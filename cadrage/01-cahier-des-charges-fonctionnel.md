@@ -854,6 +854,16 @@ Consultation en lecture seule des actions sensibles : **qui a fait quoi, quand, 
 
 \* champ obligatoire
 
+**Les colonnes d'énumération portent le CODE, pas le libellé.** `role` désigne
+un code de rôle (`AGENT`, `ADMIN`…), `status` et `priority` les codes du
+vocabulaire de `§ 4.1` (`todo`, `doing`, `done`… · `low`, `normal`, `high`,
+`critical`), `rowType` vaut `MILESTONE` ou `TASK`. Les colonnes en `…Name` et
+`…Email`, elles, désignent bien un libellé ou une adresse : ce sont des
+références à des objets existants, pas des énumérations. *(Précision portée le
+2026-08-31 : la convention était tacite dans trois imports, et une valeur
+traduite faisait tomber la transaction sur une erreur technique au lieu d'une
+ligne en erreur.)*
+
 - **RG-IMP-01** — Virgule et point-virgule sont acceptés comme séparateurs.
 - **RG-IMP-02** — Un modèle de fichier est téléchargeable pour chaque type d'import.
 - **RG-IMP-03** — Tout import passe par une **prévisualisation** avant exécution.
