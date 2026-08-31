@@ -151,11 +151,7 @@ export function Conges() {
       {onglet === "delegations" ? <Delegations /> : null}
       {onglet === "types" ? <TypesDeConge /> : null}
 
-      <FenetreDemande
-        ouverte={demandeOuverte}
-        surFermeture={() => setDemandeOuverte(false)}
-        annee={annee}
-      />
+      <FenetreDemande ouverte={demandeOuverte} surFermeture={() => setDemandeOuverte(false)} />
 
       {/* `EX-CNG-14` — l'import en masse, dans la fenêtre partagée de M21.
           Les listes et les soldes sont réinvalidés : un import qui n'aurait
@@ -603,7 +599,6 @@ function LigneDemande({
         <FenetreDemande
           ouverte
           surFermeture={() => setModificationOuverte(false)}
-          annee={new Date(demande.dateDebut).getUTCFullYear()}
           demande={demande}
         />
       ) : null}
@@ -1076,16 +1071,20 @@ function FenetreRefus({
  *
  * Un type approuvé automatiquement le dit : la personne n'attendra pas une
  * validation qui ne viendra jamais.
+ *
+ * Elle ne prend plus d'année en paramètre. Elle en portait une — celle de la
+ * vue — et s'en servait à charger le catalogue de soldes de CETTE année-là,
+ * qui n'est pas nécessairement une des années couvertes par la demande. Les
+ * années viennent désormais du seul endroit qui les connaisse : la
+ * répartition que le serveur calcule (`RG-CNG-19`).
  */
 function FenetreDemande({
   ouverte,
   surFermeture,
-  annee,
   demande,
 }: {
   ouverte: boolean;
   surFermeture: () => void;
-  annee: number;
   /**
    * La demande à corriger, quand la fenêtre sert à modifier.
    *
@@ -1102,6 +1101,7 @@ function FenetreDemande({
   const libelle = useLibelle();
   const annoncer = useMessages();
   const client = useQueryClient();
+  const { session } = useSession();
 
   const [typeId, setTypeId] = useState(demande?.type.id ?? "");
   const [dateDebut, setDateDebut] = useState(demande?.dateDebut.slice(0, 10) ?? "");
@@ -1116,14 +1116,60 @@ function FenetreDemande({
     queryFn: () => api.typesDeConge(false),
     enabled: ouverte,
   });
-  const soldes = useQuery({
-    queryKey: ["conges", "soldes", annee],
-    queryFn: () => api.soldes(annee),
-    enabled: ouverte,
+  const type = types.data?.find((x) => x.id === typeId);
+
+  /**
+   * `RG-CNG-08` — **qui** validera cette demande, à cette date.
+   *
+   * La maquette le nomme (« Votre demande sera soumise à validation par Fatou
+   * Berthier »), le produit ne le nommait pas : la mention retombait sur
+   * « votre responsable », c'est-à-dire sur la formule générique de
+   * `cadrage/02` § vue 19. Le validateur n'est pourtant pas devinable — trois
+   * branches le déterminent (manager du service, responsable du département,
+   * défaut), et une délégation active (`RG-CNG-10`) peut y substituer
+   * quelqu'un d'autre **selon la date**. Seul le serveur le sait.
+   */
+  const validateur = useQuery({
+    queryKey: ["conges", "validateur", dateDebut],
+    queryFn: () => api.validateurDeConge(dateDebut),
+    enabled: ouverte && dateDebut !== "" && type?.validationRequise === true,
   });
 
-  const type = types.data?.find((x) => x.id === typeId);
-  const solde = soldes.data?.find((s) => s.type.id === typeId)?.solde;
+  /**
+   * **DÉFAUT SERVEUR CONTOURNÉ ICI, pas corrigé.**
+   *
+   * `GET /conges/validateur` rend `{ validateurId }` — un UUID, jamais un nom.
+   * Elle est gardée par `leaves:read` ; le seul annuaire du produit,
+   * `GET /utilisateurs`, l'est par `users:read`, qu'un agent ordinaire n'a
+   * pas. Le client qui a le droit d'appeler la route n'a donc pas le droit de
+   * traduire sa réponse.
+   *
+   * Le seul nom qu'un agent possède légitimement est celui que ses PROPRES
+   * demandes portent déjà : `GET /conges` rend `validateur` en clair. On y
+   * cherche l'identifiant reçu. La clé est celle de la vue parente — React
+   * Query sert la même entrée de cache, il n'y a pas de second appel.
+   *
+   * Ce qui reste découvert, et qui est le défaut : une PREMIÈRE demande, par
+   * quelqu'un qui n'en a jamais déposé, n'a aucun nom à joindre. La mention
+   * retombe alors sur la formule générique de `cadrage/02`. Refermer ce cas
+   * demande que la route rende `{ id, prenom, nom }` — c'est une tâche
+   * serveur.
+   */
+  const mesDemandes = useQuery({
+    queryKey: ["conges", { userId: session.id }],
+    queryFn: () => api.conges({ userId: session.id }),
+    enabled: ouverte && type?.validationRequise === true,
+  });
+
+  const nomValidateur = useMemo(() => {
+    const id = validateur.data?.validateurId;
+    if (!id) return null;
+    const connu = [
+      demande?.validateur,
+      ...(mesDemandes.data ?? []).map((d) => d.validateur),
+    ].find((v) => v?.id === id);
+    return connu ? `${connu.prenom} ${connu.nom}` : null;
+  }, [validateur.data, mesDemandes.data, demande]);
 
   /**
    * `RG-CNG-16`, `RG-CNG-17`, `RG-CNG-19` — le décompte vient du **serveur**.
@@ -1170,11 +1216,22 @@ function FenetreDemande({
    */
   const soldesParAnnee = useQueries({
     queries: parAnnee.map((p) => ({
-      queryKey: ["conges", "soldes", p.annee],
-      queryFn: () => api.soldes(p.annee),
+      queryKey: ["conges", "solde", typeId, p.annee],
+      queryFn: () => api.solde(typeId, p.annee),
       enabled: ouverte && Boolean(typeId),
     })),
   });
+
+  /**
+   * Le contrôle à afficher : une année, ce qu'elle coûte, et SON solde.
+   *
+   * On n'affiche rien tant que les soldes ne sont pas tous là. Un bloc partiel
+   * afficherait l'étiquette « à cheval sur deux années » au-dessus d'une seule
+   * année — c'est-à-dire le contraire de ce qu'elle annonce.
+   */
+  const controle = parAnnee
+    .map((p, i) => ({ annee: p.annee, jours: p.jours, solde: soldesParAnnee[i]?.data }))
+    .filter((x): x is { annee: number; jours: number; solde: api.Solde } => x.solde !== undefined);
 
   const depot = useMutation({
     mutationFn: async () => {
@@ -1357,7 +1414,7 @@ function FenetreDemande({
         </div>
 
         {/* Le contrôle de solde, par année. À cheval sur deux ans, deux blocs. */}
-        {solde && parAnnee.length > 0 ? (
+        {controle.length > 0 && controle.length === parAnnee.length ? (
           <div className="field-block span2">
             <div className="check-bal">
               <div className="cb-head">
@@ -1366,23 +1423,19 @@ function FenetreDemande({
                   <span className="cb-tag">{t("conges.aChevalSurDeuxAns")}</span>
                 ) : null}
               </div>
-              {parAnnee.map((p, i) => {
-                // Le solde de CETTE année-là, pas celui de l'année courante.
-                const sa =
-                  soldesParAnnee[i]?.data?.find((x) => x.type.id === typeId)?.solde ?? solde;
-                return (
+              {controle.map((p) => (
                 <div className="cb-year" key={p.annee}>
                   <p className="cb-line">
                     <span>{t("conges.annee", { annee: p.annee })}</span>
-                    <b>{formaterNombre(sa.attribues, 1)}</b>
+                    <b>{formaterNombre(p.solde.attribues, 1)}</b>
                   </p>
                   <p className="cb-line">
                     <span>{t("conges.dejaUtilises")}</span>
-                    <b>{formaterNombre(sa.consommes, 1)}</b>
+                    <b>{formaterNombre(p.solde.consommes, 1)}</b>
                   </p>
                   <p className="cb-line is-total">
                     <span>{t("conges.disponible")}</span>
-                    <b>{formaterNombre(sa.disponibles, 1)}</b>
+                    <b>{formaterNombre(p.solde.disponibles, 1)}</b>
                   </p>
                   {/* `RG-CNG-19` — ce que la demande coûte à CETTE année, en
                       jours ouvrés, à côté du solde de cette même année. Un
@@ -1393,19 +1446,24 @@ function FenetreDemande({
                     <b>{t("conges.enJours", { n: formaterNombre(p.jours, 1) })}</b>
                   </p>
                 </div>
-                );
-              })}
+              ))}
             </div>
           </div>
         ) : null}
 
+        {/* `RG-CNG-08` — la validation s'annonce avec le NOM de qui la fera,
+            dès que le serveur l'a déterminée et que l'écran sait la traduire. */}
         {type?.validationRequise ? (
           <div className="field-block span2">
             <div className="alert alert-neutral">
               <span className="alert-icon" aria-hidden="true">
                 →
               </span>
-              <span>{t("conges.soumiseAValidation")}</span>
+              <span>
+                {nomValidateur
+                  ? t("conges.soumiseAValidationPar", { validateur: nomValidateur })
+                  : t("conges.soumiseAValidation")}
+              </span>
             </div>
           </div>
         ) : null}

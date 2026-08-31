@@ -214,14 +214,10 @@
       "module": "L-15"
     },
     {
-      "id": "EX-CNG-09",
-      "lot": "vague 7-4",
-      "module": "L-15"
-    },
-    {
       "id": "EX-CNG-10",
       "lot": "vague 7-4",
-      "module": "L-15"
+      "module": "L-15",
+      "defaut": "LA CAPACITÉ EXISTE, L'ÉCRAN N'EST SPÉCIFIÉ NULLE PART. `PUT /conges/soldes` est posée, gardée `leaves:manage_balances`, versionnée (`RG-CNG-23`) et testée au serveur ; aucun écran ne l'appelle, et le cadrage ne dit pas lequel devrait. `cadrage/02` § vue 19 ferme la liste à six onglets (« Camille en voit un, Hugo en voit six ») sans onglet de soldes ; § vue 31 la ferme à quatre onglets de paramétrage ; § vue 27 montre le solde d'un agent en consultation seule ; la maquette 19 ne fait que LIRE les soldes. Seule la ligne « Variantes » de la vue 19 — « Hugo voit tout, plus les types et les soldes » — suggère un écran d'attribution, et elle contredit l'énumération de sa propre section. Question remontée plutôt qu'arbitrée : ouvrir un septième onglet reviendrait à inventer un écran, ses états (`design/etats.json`) et son vocabulaire de classes sur la foi d'une demi-phrase. L'entrée reste en dette, et `PUT /conges/soldes` reste dans `SANS_CLIENT` avec la même raison."
     },
     {
       "id": "EX-CNG-11",
@@ -242,12 +238,6 @@
       "id": "RG-CNG-05",
       "lot": "vague 7-4",
       "module": "L-15"
-    },
-    {
-      "id": "RG-CNG-08",
-      "lot": "vague 7-4",
-      "module": "L-15",
-      "note": "Porte aussi RG-ORG-05, déclaré non testable parce qu'il n'est que la doctrine dont cette règle est la réalisation. Co-citer les deux dans le titre."
     },
     {
       "id": "RG-CNG-23",
