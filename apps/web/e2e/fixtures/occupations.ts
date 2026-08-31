@@ -49,6 +49,18 @@ export const HUGO = {
 
 // ── Vue 18 — Événements ─────────────────────────────────────────────────────
 
+/**
+ * Les événements de la vue 18.
+ *
+ * **Les champs de récurrence sont ceux que le SERVEUR rend** —
+ * `recurrenceFrequence`, `recurrenceJourSemaine`, `recurrenceFin`, tels que
+ * `EvenementsService.surPlage` les tire de Prisma. Ce jeu d'essai déclarait
+ * `frequenceSemaines` / `jourSemaine` / `recurrenceJusqua`, c'est-à-dire les
+ * noms du corps de CRÉATION, et il validait ainsi l'invention du client : la
+ * détection de série ne tombait jamais sur cette branche, et le test passait au
+ * vert sur une forme que le serveur n'a jamais rendue. Un jeu d'essai se calque
+ * sur la signature du service, jamais sur ce que le client croit recevoir.
+ */
 export const EVENEMENTS = [
   {
     id: "e1",
@@ -60,9 +72,10 @@ export const EVENEMENTS = [
     heureFin: "10:30",
     interventionExterieure: false,
     parentId: null,
-    frequenceSemaines: 2,
-    jourSemaine: 3,
-    recurrenceJusqua: "2026-12-31",
+    recurrenceFrequence: 2,
+    recurrenceJourSemaine: 3,
+    recurrenceFin: "2026-12-31",
+    version: 1,
     project: { id: "p1", nom: "Refonte du portail citoyen" },
     participants: [
       { userId: "a1", user: { prenom: "Driss", nom: "Amrani" } },
@@ -79,9 +92,10 @@ export const EVENEMENTS = [
     heureFin: null,
     interventionExterieure: true,
     parentId: null,
-    frequenceSemaines: null,
-    jourSemaine: null,
-    recurrenceJusqua: null,
+    recurrenceFrequence: null,
+    recurrenceJourSemaine: null,
+    recurrenceFin: null,
+    version: 1,
     project: null,
     participants: [],
   },
