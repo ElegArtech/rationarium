@@ -512,7 +512,7 @@ function LigneDemande({
          * autre chose que sur la ligne d'à côté. Le style est en ligne parce
          * que la feuille de la vue 19 n'appartient pas à ce lot.
          */
-        <span className="lv-acts" style={enAnnulation ? { flexWrap: "wrap" } : undefined}>
+        <span className="lv-acts">
           {enAnnulation ? (
             <>
               {/* `EX-CNG-07`, `RG-CNG-06` — accepter écrit « Annulé ». */}
