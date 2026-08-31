@@ -313,3 +313,35 @@ test.describe("RG-GEN-02 — le retour d'action a où s'afficher", () => {
     await expect(page.locator(".toasts")).toHaveCount(1);
   });
 });
+
+/**
+ * `RG-GEN-06` — « le client masque ou désactive **par courtoisie** ; une action
+ * désactivée porte une explication au survol ».
+ *
+ * **La seconde moitié n'était tenue nulle part.** Trois fichiers posaient le
+ * motif dans un `<Tooltip>` attaché à un `<Button isDisabled>` — et un bouton
+ * nativement désactivé ne reçoit **ni survol ni focus** : `useTooltipTrigger`
+ * n'est jamais déclenché. Le bouton était bien grisé, `axe` ne réclamait rien,
+ * et l'explication promise n'existait pas.
+ *
+ * `action-protegee.tsx` est le composant par lequel passe **toute** action
+ * refusée pour cause de droits : la règle était donc vide sur l'ensemble du
+ * produit. Sixième membre de la famille « inerte et invisible », après le
+ * sélecteur sans correspondance, la classe sans règle, `ui:diff` qui ne
+ * comparait rien, les menus rendus nus, et la commande sans point d'entrée.
+ */
+test.describe("RG-GEN-06 — une action désactivée dit POURQUOI", () => {
+  test("RG-GEN-06 — l'action refusée reste joignable, donc son motif lisible", async ({ page }) => {
+    await serveur(page, { statut: 200, corps: { ...SESSION, permissions: ["planning:read"] } });
+    await page.goto("/roles");
+
+    /*
+     * Sans `users:manage_roles`, la vue 32 rend son refus d'accès — c'est le
+     * bon écran pour vérifier l'invariant : une commande désactivée porte
+     * `aria-disabled`, jamais l'attribut natif `disabled`, sinon son infobulle
+     * est inatteignable à la souris comme au clavier.
+     */
+    const natifs = page.locator("button[disabled]");
+    await expect(natifs).toHaveCount(0);
+  });
+});

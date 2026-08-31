@@ -1166,3 +1166,36 @@ Deux autres constats, non corrigés :
 3. **Un rôle se crée sans modèle**, et le client n'envoie alors aucun `depuisModele` —
    `RG-DROITS-01`, « un modèle est un point de départ, pas une contrainte ». La liste
    porte donc sa propre mention « Aucun modèle : la matrice partira vide ».
+
+---
+
+## RG-GEN-06 — la moitié « avec son motif » n'était tenue nulle part
+
+Trouvé par l'agent de T-052, corrigé partiellement par lui, achevé ici.
+
+La règle dit : « le client masque ou désactive **par courtoisie** ; une action
+désactivée porte une explication au survol ». Trois fichiers posaient ce motif dans un
+`<Tooltip>` attaché à un `<Button isDisabled>` — et **un bouton nativement désactivé ne
+reçoit ni survol ni focus** : `useTooltipTrigger` n'est jamais déclenché.
+
+Le bouton était bien grisé, `axe` ne réclamait rien, et l'explication promise
+n'existait pas. Sixième membre de la famille « inerte et invisible », après le sélecteur
+sans correspondance, la classe sans règle, `ui:diff` qui ne comparait rien, les menus
+rendus nus et la commande sans point d'entrée.
+
+**`action-protegee.tsx` est le composant par lequel passe TOUTE action refusée pour
+cause de droits** : la règle était donc vide sur l'ensemble du produit, pas sur une vue.
+L'agent avait corrigé la vue 32 ; les deux occurrences de `Predefinies.tsx` et surtout
+ce composant-là restaient. Fermés.
+
+Seconde moitié du défaut, relevée par le même agent : **`.tooltip` et `.tip` n'étaient
+définies dans aucune feuille**. Une infobulle qui ne s'ouvre jamais et qui n'aurait
+aucun style si elle s'ouvrait — les deux moitiés du défaut se cachaient l'une l'autre.
+
+### Le garde-fou a failli devenir aveugle
+
+`inoperant-check.mjs` cherchait `isDisabled` sans expression. Le motif correct étant
+désormais `aria-disabled`, **le contrôle aurait cessé de voir exactement ce qu'il existe
+pour voir** — et il l'a dit lui-même, en signalant les deux premières conversions comme
+des déclarations orphelines. C'est ce signal qui a révélé le trou. Il reconnaît
+maintenant les deux écritures.
