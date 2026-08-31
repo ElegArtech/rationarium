@@ -604,3 +604,29 @@ paramétrage, ni les demi-journées : trois des quatre termes de `RG-CNG-16` et
 calcul** que celui qui décidera du dépôt (`CalendrierService.repartitionParAnnee`).
 Deux calculs auraient divergé, et c'est l'écran qui aurait eu tort au moment le
 plus coûteux : après coup, sur un refus.
+
+---
+
+## EX-EVT-08 — le cloisonnement des participants
+
+L-42 avait signalé, sans le corriger, que **les routes de participants n'ont aucun
+contrôle de périmètre** — il l'avait corrigé sur `arreterRecurrence`, qui portait le
+même défaut. Fermé ici.
+
+Ce que l'absence rendait possible, et c'est le seul cas qui compte : **le prédicat de
+visibilité d'un événement est « je suis participant »**. On pouvait donc s'inviter
+soi-même à une réunion qu'on n'a pas le droit de voir — et l'y voir ensuite.
+L'invitation était le moyen d'obtenir la visibilité qu'on n'avait pas.
+
+Trois tests, deux vérifiés rouges sans le correctif.
+
+**Le câblage client reste à faire, et la raison est écrite dans `SANS_CLIENT`** : le
+tiroir de la vue 18 montre un **compte** de participants, pas leur liste, et l'ajout
+demande un sélecteur d'agents que la maquette n'a pas dessiné. C'est le même manque que
+pour l'assignation de tiers — le geste unitaire existe, ce qu'il faut lui donner à
+choisir n'est pas rendu.
+
+Note de cloisonnement, non tranchée : le module lève `hors_perimetre` plutôt
+qu'`introuvable`, ce qui **confirme l'existence** de l'événement à qui n'a pas le droit
+de le voir. C'est la convention du module, cohérente partout ; la changer est une
+décision à part.
