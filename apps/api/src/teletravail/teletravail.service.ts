@@ -3,6 +3,7 @@ import { PrismaService } from "../prisma.service.js";
 import { AuditService } from "../commun/audit.service.js";
 import { PerimetreService, type Perimetre } from "../commun/perimetre.service.js";
 import type { EtatTeletravail } from "@rationarium/contracts";
+import { autruiRefuse } from "../commun/champs-gouvernes.js";
 
 /**
  * Télétravail — M11, vue 20.
@@ -15,6 +16,7 @@ import type { EtatTeletravail } from "@rationarium/contracts";
  */
 
 export type EchecTeletravail =
+  | "autrui_sans_permission"
   | "plage_trop_longue"
   | "regle_en_double"
   | "hors_perimetre"
@@ -33,6 +35,38 @@ const jour = (d: Date) => d.toISOString().slice(0, 10);
 
 @Injectable()
 export class TeletravailService {
+  /**
+   * `RG-TLT-07` — « Agir sur le télétravail d'autrui exige une permission
+   * dédiée, **distincte selon l'action** (consulter, saisir, modifier,
+   * supprimer, gérer les règles). »
+   *
+   * La règle était énoncée au cadrage et tenue **nulle part** : `basculer`,
+   * `generer` et `statistiques` recevaient `userId` et `acteurId` sans jamais
+   * les comparer, et les trois routes qui les servent font retomber `userId` sur
+   * l'acteur *par défaut* — ce qui donne l'apparence d'un contrôle là où il n'y
+   * en a pas. N'importe quel porteur de `telework:create`, c'est-à-dire tout
+   * agent, pouvait poser du télétravail sur le calendrier de n'importe qui.
+   *
+   * **La granularité retenue**, et c'est une décision : le catalogue est fermé
+   * (`cadrage/01 § 3.2`) et ne porte pas une permission « pour autrui » par
+   * action. « Distincte selon l'action » se lit donc en deux temps — la
+   * permission de l'action garde la route (`create`, `generate`,
+   * `manage_rules`, `read`), et une seconde permission autorise à viser
+   * quelqu'un d'autre : `manage_any` pour écrire, `read_team` pour lire. Les
+   * deux vivent dans le bloc `ENCADREMENT`, donc un agent n'agit que sur
+   * lui-même et un encadrant sur son équipe, sans qu'aucun modèle de rôle ne
+   * change.
+   */
+  private refuserAutrui(
+    cible: string,
+    acteurId: string,
+    permissions: ReadonlySet<string>,
+    permission: string,
+  ): void {
+    const refus = autruiRefuse(cible, acteurId, permission, permissions);
+    if (refus) throw new ErreurTeletravail("autrui_sans_permission", refus);
+  }
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
@@ -49,7 +83,14 @@ export class TeletravailService {
    * ce qui crée une exception**. L'exception est marquée pour que la
    * régénération ne l'écrase pas.
    */
-  async basculer(userId: string, date: Date, etat: EtatTeletravail, acteurId: string) {
+  async basculer(
+    userId: string,
+    date: Date,
+    etat: EtatTeletravail,
+    acteurId: string,
+    permissions: ReadonlySet<string> = new Set(),
+  ) {
+    this.refuserAutrui(userId, acteurId, permissions, "telework:manage_any");
     const existant = await this.prisma.telework.findUnique({
       where: { userId_date: { userId, date } },
       select: { issuDeRegle: true },
@@ -193,7 +234,14 @@ export class TeletravailService {
    * marquage `RG-TLT-04`. Sans cela, la régénération annulerait silencieusement
    * les ajustements de l'agent.
    */
-  async generer(userId: string, debut: Date, fin: Date, acteurId: string) {
+  async generer(
+    userId: string,
+    debut: Date,
+    fin: Date,
+    acteurId: string,
+    permissions: ReadonlySet<string> = new Set(),
+  ) {
+    this.refuserAutrui(userId, acteurId, permissions, "telework:manage_any");
     const regles = await this.prisma.teleworkRule.findMany({
       where: {
         userId,
@@ -268,7 +316,15 @@ export class TeletravailService {
   }
 
   /** `EX-TLT-08` — statistiques d'un agent : cumuls et moyenne mensuelle. */
-  async statistiques(userId: string, annee: number) {
+  async statistiques(
+    userId: string,
+    annee: number,
+    acteurId: string = userId,
+    permissions: ReadonlySet<string> = new Set(),
+  ) {
+    // Lire le télétravail d'autrui est une action distincte d'y écrire :
+    // `read_team` la gouverne, `manage_any` gouverne l'écriture (`RG-TLT-07`).
+    this.refuserAutrui(userId, acteurId, permissions, "telework:read_team");
     const debut = new Date(Date.UTC(annee, 0, 1));
     const fin = new Date(Date.UTC(annee, 11, 31));
     const jours = await this.prisma.telework.findMany({
@@ -280,8 +336,17 @@ export class TeletravailService {
     for (const j of jours) parMois[j.date.getUTCMonth()]! += 1;
 
     const moisEcoules = Math.max(1, new Set(jours.map((j) => j.date.getUTCMonth())).size);
+    /*
+     * `annee` portait `jours.length` — le champ nommé « année » rendait un
+     * NOMBRE DE JOURS. Le contrat du contrôleur annonce pourtant une année, et
+     * la requête en prend une en entrée. Personne ne l'avait vu parce que
+     * personne n'appelait cette route : aucun écran ne la consommait, donc
+     * aucune assertion ne portait sur sa forme. Trouvé en écrivant le test de
+     * `RG-TLT-07`.
+     */
     return {
-      annee: jours.length,
+      annee,
+      total: jours.length,
       parMois,
       moyenneMensuelle: Number((jours.length / moisEcoules).toFixed(1)),
     };

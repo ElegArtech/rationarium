@@ -35,7 +35,7 @@ export class TeletravailController {
       z.object({ userId: z.uuid().optional(), annee: z.coerce.number().int() }),
       requete,
     );
-    return this.teletravail.statistiques(q.userId ?? d.userId, q.annee);
+    return this.teletravail.statistiques(q.userId ?? d.userId, q.annee, d.userId, d.permissions);
   }
 
   /**
@@ -56,7 +56,7 @@ export class TeletravailController {
       }),
       corps,
     );
-    return this.teletravail.basculer(q.userId ?? d.userId, q.date, q.etat, d.userId);
+    return this.teletravail.basculer(q.userId ?? d.userId, q.date, q.etat, d.userId, d.permissions);
   }
 
   // ── Règles récurrentes — EX-TLT-03 ───────────────────────────────────────
@@ -110,6 +110,6 @@ export class TeletravailController {
       z.object({ userId: z.uuid().optional(), debut: dateSchema, fin: dateSchema }),
       corps,
     );
-    return this.teletravail.generer(q.userId ?? d.userId, q.debut, q.fin, d.userId);
+    return this.teletravail.generer(q.userId ?? d.userId, q.debut, q.fin, d.userId, d.permissions);
   }
 }

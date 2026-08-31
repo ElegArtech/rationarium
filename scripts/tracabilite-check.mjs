@@ -40,7 +40,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { execFileSync } from "node:child_process";
+import { readdirSync } from "node:fs";
 
 const RACINE = path.resolve(import.meta.dirname, "..");
 const CADRAGE = path.join(RACINE, "cadrage/01-cahier-des-charges-fonctionnel.md");
@@ -82,9 +82,27 @@ function identifiantsDeclares() {
  * 2. Les identifiants CITÉS par un test                              *
  * ------------------------------------------------------------------ */
 
-function fichiersDeTest() {
-  const sortie = execFileSync("git", ["ls-files"], { cwd: RACINE, encoding: "utf8" });
-  return sortie.split("\n").filter((f) => /\.(test|spec)\.ts$/.test(f));
+/**
+ * Le SYSTÈME DE FICHIERS, pas `git ls-files`.
+ *
+ * La première version lisait l'index git : **un fichier de test neuf y est
+ * invisible tant qu'il n'a pas été indexé**. Le contrôle répondait alors « aucun
+ * test ne cite cette règle » à quelqu'un qui venait précisément de l'écrire —
+ * et l'invitait à inscrire en dette une règle déjà couverte. Un contrôle qui
+ * ment sur le travail qu'on vient de faire cesse d'être lu.
+ *
+ * Le balayage saute les dossiers qui ne portent jamais de source du dépôt.
+ */
+const IGNORES = new Set(["node_modules", ".git", "dist", ".turbo", "test-results", ".claude"]);
+
+function fichiersDeTest(dossier = RACINE, trouves = []) {
+  for (const entree of readdirSync(dossier, { withFileTypes: true })) {
+    if (IGNORES.has(entree.name)) continue;
+    const chemin = path.join(dossier, entree.name);
+    if (entree.isDirectory()) fichiersDeTest(chemin, trouves);
+    else if (/\.(test|spec)\.ts$/.test(entree.name)) trouves.push(path.relative(RACINE, chemin));
+  }
+  return trouves;
 }
 
 /**

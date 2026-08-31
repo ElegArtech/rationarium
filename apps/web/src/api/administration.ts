@@ -334,7 +334,7 @@ export const catalogue = () =>
  * calculés par `GET /teletravail/statistiques`, que personne n'appelait.
  */
 export const statistiquesTeletravail = (userId: string, annee: number) =>
-  appeler<{ annee: number; parMois: number[]; moyenneMensuelle: number }>(
+  appeler<{ annee: number; total: number; parMois: number[]; moyenneMensuelle: number }>(
     `/teletravail/statistiques?userId=${userId}&annee=${annee}`,
   );
 
