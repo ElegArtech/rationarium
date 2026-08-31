@@ -4,6 +4,9 @@ import {
   SESSION_REFERENTIELS,
   MATRICE,
   REFERENTIEL,
+  DETENTEURS,
+  DETENTEURS_EXPERTS,
+  EXPORT_MATRICE,
   LISTE_TIERS,
   TIERS_ARCHIVE,
   FICHE_TIERS,
@@ -117,6 +120,193 @@ test.describe("Vue 22 — compétences", () => {
     await expect(
       page.getByRole("button", { name: /Driss Amrani — Cartographie SIG/ }),
     ).toBeDisabled();
+  });
+});
+
+/**
+ * Vue 22 — les deux capacités serveur que la vue n'offrait pas.
+ *
+ * `GET /competences/export` et `GET /competences/:id/detenteurs` vivaient dans
+ * `SANS_CLIENT` : gardées, testées côté serveur, et hors d'atteinte depuis un
+ * écran. Ce qui suit vérifie ce que chacune **promet**, pas seulement qu'elle
+ * répond.
+ */
+test.describe("Vue 22 — export de la matrice et détenteurs", () => {
+  const reponses = {
+    "/api/competences/matrice": { corps: MATRICE },
+    "/api/competences": { corps: REFERENTIEL },
+  };
+
+  test("EX-CMP-08 — L'EXPORT PORTE LA MATRICE, PAS LE RÉFÉRENTIEL", async ({ page }) => {
+    /*
+     * Le défaut que ce contrôle ferme : le bouton « Export CSV » de la barre
+     * de filtres de la matrice pointait `/imports/export/competences`, qui
+     * exporte le RÉFÉRENTIEL — la liste des compétences, sans un seul agent.
+     * `EX-CMP-08` dit « exporter la matrice ». On vise donc la route, pas
+     * l'apparence du bouton.
+     */
+    let demande: string | null = null;
+    await serveur(page, { session: SESSION_REFERENTIELS, reponses });
+    await page.route("**/api/competences/export", (route) => {
+      demande = new URL(route.request().url()).pathname;
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(EXPORT_MATRICE),
+      });
+    });
+    await page.goto("/competences");
+
+    await page.getByRole("button", { name: "Export CSV", exact: true }).click();
+
+    // Le brief de la vue 22 nomme l'état de retour mot pour mot.
+    await expect(page.getByText("Export CSV téléchargé.")).toBeVisible();
+    expect(demande).toBe("/api/competences/export");
+  });
+
+  test("EX-CMP-08 — les deux exports portent DEUX NOMS distincts", async ({ page }) => {
+    await serveur(page, { session: SESSION_REFERENTIELS, reponses });
+    await page.goto("/competences");
+
+    /*
+     * Les deux capacités existent et n'exportent pas la même chose : la
+     * matrice (agents × compétences) et le référentiel (le catalogue,
+     * réimportable). Deux boutons portant tous deux « Export CSV » auraient
+     * rendu l'un des deux impossible à demander.
+     */
+    await expect(page.getByRole("button", { name: "Export CSV", exact: true })).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: "Exporter le référentiel", exact: true }),
+    ).toHaveAttribute("href", "/api/imports/export/competences");
+  });
+
+  test("RG-GEN-06 — sans skills:export, aucun export n'est proposé", async ({ page }) => {
+    await serveur(page, { session: SESSION_LECTURE, reponses });
+    await page.goto("/competences");
+
+    // Ni proposé puis refusé : absent.
+    await expect(page.getByRole("button", { name: "Export CSV", exact: true })).toHaveCount(0);
+    await expect(
+      page.getByRole("link", { name: "Exporter le référentiel", exact: true }),
+    ).toHaveCount(0);
+  });
+
+  test("EX-CMP-10 — le référentiel dit QUI détient la compétence, et à quel niveau", async ({
+    page,
+  }) => {
+    await serveur(page, {
+      session: SESSION_REFERENTIELS,
+      reponses: { ...reponses, "/api/competences/s1/detenteurs": { corps: DETENTEURS } },
+    });
+    await page.goto("/competences");
+    await page.getByRole("button", { name: "Référentiel" }).click();
+    await page.getByRole("button", { name: "Voir les détenteurs de Cartographie SIG" }).click();
+
+    const fenetre = page.getByRole("dialog");
+    await expect(fenetre.getByText("Cartographie SIG", { exact: true })).toBeVisible();
+    /*
+     * La fenêtre ne réaffiche AUCUN ratio, et ce contrôle le fige. Le
+     * référentiel compte 1 détenteur pour cette compétence (« Partielle 1/3 »)
+     * là où la route en rend 3 : `referentiel()` compte toutes les lignes de
+     * `user_skills`, `detenteurs()` écarte les comptes désactivés, `matrice()`
+     * y ajoute le périmètre. Recopier « 1/3 » au-dessus de trois noms aurait
+     * mis une contradiction à l'écran sans qu'aucune moitié soit fausse.
+     */
+    await expect(fenetre.getByText("Partielle 1/3")).toHaveCount(0);
+    await expect(fenetre.getByText("Driss Amrani")).toBeVisible();
+    await expect(fenetre.getByText("Sofia Zaidi")).toBeVisible();
+    await expect(fenetre.getByText("Léa Vidal")).toBeVisible();
+    await expect(fenetre.getByText("3 personnes affichées.")).toBeVisible();
+  });
+
+  test("EX-CMP-10 — les niveaux hauts d'abord, quel que soit l'ordre du serveur", async ({
+    page,
+  }) => {
+    /*
+     * Le serveur ordonne par nom de famille. Devant un écart de couverture on
+     * cherche d'abord les niveaux hauts : le classement est refait ici. Le jeu
+     * d'essai est construit pour que les deux ordres diffèrent — Amrani
+     * (expert) est premier alphabétiquement, Zaidi (maître) dernier.
+     */
+    await serveur(page, {
+      session: SESSION_REFERENTIELS,
+      reponses: { ...reponses, "/api/competences/s1/detenteurs": { corps: DETENTEURS } },
+    });
+    await page.goto("/competences");
+    await page.getByRole("button", { name: "Référentiel" }).click();
+    await page.getByRole("button", { name: "Voir les détenteurs de Cartographie SIG" }).click();
+
+    const noms = page.getByRole("dialog").locator(".sk-chip");
+    await expect(noms).toHaveCount(3);
+    await expect(noms.nth(0)).toContainText("Sofia Zaidi");
+    await expect(noms.nth(1)).toContainText("Driss Amrani");
+    await expect(noms.nth(2)).toContainText("Léa Vidal");
+  });
+
+  test("EX-CMP-10 — LE FILTRE DE NIVEAU EST UN PLANCHER, et il le dit", async ({ page }) => {
+    /*
+     * Le serveur prend `niveauMinimum` et rend tout ce qui est au-dessus :
+     * demander « Expert » rend les experts ET les maîtres. Un libellé
+     * « Niveau : Expert » aurait décrit une réponse que la route ne rend pas.
+     */
+    let demandee: string | null = null;
+    await serveur(page, { session: SESSION_REFERENTIELS, reponses });
+    await page.route("**/api/competences/s1/detenteurs**", (route) => {
+      const requete = new URL(route.request().url());
+      demandee = requete.searchParams.get("niveauMinimum");
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(demandee === "expert" ? DETENTEURS_EXPERTS : DETENTEURS),
+      });
+    });
+    await page.goto("/competences");
+    await page.getByRole("button", { name: "Référentiel" }).click();
+    await page.getByRole("button", { name: "Voir les détenteurs de Cartographie SIG" }).click();
+
+    const fenetre = page.getByRole("dialog");
+    await expect(fenetre.getByText("Léa Vidal")).toBeVisible();
+
+    await fenetre.getByLabel("Niveau minimum").selectOption("expert");
+
+    /* L'effet AVANT la variable : lire `demandee` tout de suite reviendrait à
+       la lire avant l'aller-retour réseau, et le contrôle passerait au vert
+       ou au rouge selon la charge de la machine. */
+    await expect(fenetre.getByText("Léa Vidal")).toHaveCount(0);
+    expect(demandee).toBe("expert");
+    // Le maître reste : c'est ce que « plancher » veut dire.
+    await expect(fenetre.getByText("Sofia Zaidi")).toBeVisible();
+    await expect(fenetre.getByText("Driss Amrani")).toBeVisible();
+    await expect(fenetre.getByText("Le filtre est un plancher")).toBeVisible();
+  });
+
+  test("RG-GEN-04 — personne au-dessus du plancher : la fenêtre l'écrit et dit quoi faire", async ({
+    page,
+  }) => {
+    await serveur(page, {
+      session: SESSION_REFERENTIELS,
+      reponses: { ...reponses, "/api/competences/s1/detenteurs": { corps: [] } },
+    });
+    await page.goto("/competences");
+    await page.getByRole("button", { name: "Référentiel" }).click();
+    await page.getByRole("button", { name: "Voir les détenteurs de Cartographie SIG" }).click();
+
+    const fenetre = page.getByRole("dialog");
+    // Jamais une zone blanche : l'absence s'explique et propose la suite.
+    await expect(fenetre.getByText("Personne ne détient cette compétence")).toBeVisible();
+    await expect(
+      fenetre.getByText("Assignez-la depuis la matrice ou depuis la vue par utilisateur."),
+    ).toBeVisible();
+  });
+
+  test("RG-GEN-06 — sans skills:read, les détenteurs ne sont pas proposés", async ({ page }) => {
+    await serveur(page, { session: SESSION_LECTURE, reponses });
+    await page.goto("/competences");
+    await page.getByRole("button", { name: "Référentiel" }).click();
+
+    await expect(
+      page.getByRole("button", { name: "Voir les détenteurs de Cartographie SIG" }),
+    ).toHaveCount(0);
   });
 });
 

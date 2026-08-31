@@ -11,7 +11,7 @@ import { messageErreur } from "../../api/erreurs.js";
 import { useSession, usePeut } from "../../session/session.js";
 import { Chargement, ErreurDeChargement, AccesRefuse } from "../../composants/etats.js";
 import { useMessages } from "../../composants/messages.js";
-import { useLibelle } from "../../composants/pastilles.js";
+import { AvatarAgent, useLibelle } from "../../composants/pastilles.js";
 import { formaterDate, formaterDateAvecJour } from "../../formats.js";
 import { CELLULE_VIDE, indexer, COUCHES_PAR_DEFAUT } from "../planning/grille.js";
 import "./tableau.css";
@@ -85,6 +85,7 @@ export function TableauDeBord() {
         <div>
           <MaToDo todos={todos} />
           <MesProjets projets={projets} />
+          <PresenceDuJour />
         </div>
       </div>
     </div>
@@ -665,6 +666,118 @@ function MaToDo({ todos }: { todos: api.Todos }) {
     </section>
   );
 }
+
+/**
+ * `EX-USR-09` — la présence du jour : qui est là, en congé, en télétravail.
+ *
+ * **Pourquoi ici, et pas sur la vue 27.** Aucun brief ne porte cette
+ * exigence — ni celui de la 06, ni celui de la 27 : c'est un manque de spec,
+ * consigné comme tel. Trois raisons ont tranché.
+ *
+ * 1. **« Du jour ».** La vue 06 est la seule dont l'axe est *aujourd'hui* —
+ *    son brief l'écrit : « ce qui concerne l'utilisateur aujourd'hui », et son
+ *    surtitre porte la date. La vue 27 administre des comptes ; la notion de
+ *    journée n'y existe nulle part.
+ * 2. **Le destinataire.** `cadrage/01 § 2` donne le besoin à Fatou, manager de
+ *    service : « voir le taux de présence ». Fatou détient `users:read` par
+ *    `ENCADREMENT` ; Camille, contributrice, ne l'a pas.
+ * 3. **La contrainte du brief tient.** « Pour Camille, la vue doit être
+ *    complète en un écran, sans défilement » — et le bloc ne s'affiche pas
+ *    pour elle, faute de `users:read`. Il apparaît exactement pour qui l'a
+ *    demandé, et pour personne d'autre.
+ *
+ * La vue 27 reste le bon hôte d'un annuaire de présence complet, filtrable ;
+ * ce bloc-ci répond à « qui est là ce matin », pas à « donne-moi la liste ».
+ */
+function PresenceDuJour() {
+  const { t } = useTranslation("tableau");
+  const peut = usePeut();
+
+  /*
+   * `EX-USR-09` — la date est ENVOYÉE, jamais laissée au serveur.
+   *
+   * Sans elle la route retombe sur `new Date()`, un instant avec son heure,
+   * qu'elle compare à des colonnes `date` stockées à minuit : plus aucun
+   * télétravail ne ressort, et tout congé qui s'achève aujourd'hui est
+   * manqué. Le bloc dirait « tout le monde est présent » — faux, et
+   * plausible. Voir `api/tableau.ts`.
+   */
+  const jour = new Date().toISOString().slice(0, 10);
+
+  const requete = useQuery({
+    queryKey: ["presence", jour],
+    queryFn: () => api.presenceDuJour(jour),
+    enabled: peut("users:read"),
+  });
+
+  // `RG-GEN-06` — sans le droit de lire l'annuaire, le bloc n'existe pas.
+  // Ni grisé, ni vide : absent. Une présence d'équipe n'est pas une donnée
+  // qu'on annonce à qui n'y a pas droit.
+  if (!peut("users:read")) return null;
+
+  const agents = requete.data ?? [];
+  const compte = (etat: api.PresenceAgent["etat"]) =>
+    agents.filter((a) => a.etat === etat).length;
+
+  return (
+    <section className="panel">
+      <div className="panel-head">
+        <span className="panel-title">{t("presence.titre")}</span>
+        {requete.isSuccess ? (
+          <span className="eyebrow">
+            {t("presence.compte", {
+              p: compte("present"),
+              c: compte("conge"),
+              tt: compte("teletravail"),
+            })}
+          </span>
+        ) : null}
+      </div>
+      <div className="panel-body is-flush">
+        {requete.isPending ? <Chargement quoi={t("presence.laPresence")} /> : null}
+        {requete.isError ? (
+          <ErreurDeChargement erreur={requete.error} surReessai={() => void requete.refetch()} />
+        ) : null}
+
+        {requete.isSuccess && agents.length === 0 ? (
+          <div className="empty">
+            <p>{t("presence.vide")}</p>
+            <small>{t("presence.videAide")}</small>
+          </div>
+        ) : null}
+
+        {agents.map((agent) => (
+          <div className="prow" key={agent.id}>
+            <AvatarAgent prenom={agent.prenom} nom={agent.nom} />
+            <p className="prow-name">
+              {agent.prenom} {agent.nom}
+            </p>
+            {/*
+              Le mot AVANT la couleur. Trois jetons distinguent les trois
+              états, mais « en congé » et « en télétravail » ne se devinent pas
+              d'une nuance — et le type de congé, quand il est connu, dit
+              davantage que « en congé ».
+            */}
+            <span className="tchip tchip-flat" style={couleurDe(JETON_PRESENCE[agent.etat])}>
+              <span>
+                {agent.etat === "conge"
+                  ? (agent.typeConge ?? t("presence.conge"))
+                  : t(`presence.${agent.etat}`)}
+              </span>
+            </span>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/** Les trois jetons de `socle.css` — section « Présence & absences ». */
+const JETON_PRESENCE: Record<api.PresenceAgent["etat"], string> = {
+  present: "office",
+  conge: "leave",
+  teletravail: "telework",
+};
 
 /** `EX-DSH-07` — mes projets, retrouvés d'un clic. */
 function MesProjets({ projets }: { projets: api.ProjetTableau[] }) {
