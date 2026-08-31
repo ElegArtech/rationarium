@@ -4,10 +4,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "react-aria-components";
 import { DEMI_JOURNEES, STATUTS_CONGE } from "@rationarium/contracts";
 import * as api from "../../api/occupations.js";
+import * as apiImports from "../../api/imports.js";
 import { messageErreur } from "../../api/erreurs.js";
 import { usePeut, useSession } from "../../session/session.js";
 import { Chargement, ErreurDeChargement } from "../../composants/etats.js";
 import { Fenetre } from "../../composants/fenetre.js";
+import { FenetreImport } from "../../composants/Import.js";
 import { useMessages } from "../../composants/messages.js";
 import { Pastille, AvatarAgent, useLibelle } from "../../composants/pastilles.js";
 import { formaterDate, formaterNombre } from "../../formats.js";
@@ -36,8 +38,14 @@ type Onglet = "mesDemandes" | "aValider" | "toutes" | "delegations" | "types";
 
 export function Conges() {
   const { t } = useTranslation("occupations");
+  /* Deux espaces de noms dans un même fichier : la fenêtre d'import est
+     partagée par M21, ses libellés vivent donc dans `imports`. Les deux
+     liaisons sont nommées différemment — le contrôle i18n attribue chaque
+     appel à SA liaison, et deux `t` le rendraient aveugle. */
+  const { t: tImports } = useTranslation("imports");
   const peut = usePeut();
   const { session } = useSession();
+  const client = useQueryClient();
   const annee = new Date().getUTCFullYear();
 
   /**
@@ -61,6 +69,7 @@ export function Conges() {
 
   const [onglet, setOnglet] = useState<Onglet>("mesDemandes");
   const [demandeOuverte, setDemandeOuverte] = useState(false);
+  const [importOuvert, setImportOuvert] = useState(false);
 
   const soldes = useQuery({
     queryKey: ["conges", "soldes", annee],
@@ -90,13 +99,21 @@ export function Conges() {
           <span className="eyebrow">{t("conges.surtitre")}</span>
           <h1 className="h1 titre-vue">{t("conges.titre")}</h1>
         </div>
-        {peut("leaves:create") ? (
-          <div className="pl-toolbar-fin">
+        <div className="pl-toolbar-fin">
+          {/* `RG-GEN-06` — on ne propose pas ce qui sera refusé. Le contrôle
+              reste au serveur : `leaves:import`, puis le périmètre, ligne à
+              ligne. */}
+          {peut("leaves:import") ? (
+            <Button className="chip-btn" onPress={() => setImportOuvert(true)}>
+              {tImports("importerCsv")}
+            </Button>
+          ) : null}
+          {peut("leaves:create") ? (
             <Button className="btn btn-primary" onPress={() => setDemandeOuverte(true)}>
               {t("conges.nouvelleDemande")}
             </Button>
-          </div>
-        ) : null}
+          ) : null}
+        </div>
       </div>
 
       {/* Le solde en tête, toujours. Il ne se cherche pas. */}
@@ -139,6 +156,23 @@ export function Conges() {
         surFermeture={() => setDemandeOuverte(false)}
         annee={annee}
       />
+
+      {/* `EX-CNG-14` — l'import en masse, dans la fenêtre partagée de M21.
+          Les listes et les soldes sont réinvalidés : un import qui n'aurait
+          pas d'effet visible ferait douter qu'il ait eu lieu. */}
+      {importOuvert ? (
+        <FenetreImport
+          type="conges"
+          titre={tImports("titreConges")}
+          colonnes={["userEmail", "leaveTypeName", "startDate", "endDate", "halfDay", "comment"]}
+          surExecuter={async (contenu) => {
+            const rendu = await apiImports.importerConges(contenu);
+            await client.invalidateQueries({ queryKey: ["conges"] });
+            return rendu;
+          }}
+          surFermer={() => setImportOuvert(false)}
+        />
+      ) : null}
     </div>
   );
 }

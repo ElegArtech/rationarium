@@ -1,8 +1,16 @@
 import { Injectable } from "@nestjs/common";
 import { parse } from "csv-parse/sync";
 import { stringify } from "csv-stringify/sync";
+import {
+  CATEGORIES_COMPETENCE,
+  DEMI_JOURNEES,
+  type CategorieCompetence,
+  type DemiJournee,
+} from "@rationarium/contracts";
 import { PrismaService } from "../prisma.service.js";
 import { AuditService } from "../commun/audit.service.js";
+import { CongesService, ErreurConge } from "../conges/conges.service.js";
+import type { Perimetre } from "../commun/perimetre.service.js";
 
 /**
  * M21 — imports et exports.
@@ -138,11 +146,78 @@ const dateDe = (valeur: string | undefined): Date | null => {
   return Number.isNaN(d.getTime()) ? null : d;
 };
 
+
+/**
+ * La catégorie d'une compétence, lue depuis un CSV — **le code fait foi**.
+ *
+ * Le format n'était pas arrêté et les deux bouts se contredisaient : le modèle
+ * proposait « Technique » (libellé français) quand `exporterCompetences`
+ * écrivait `technical` (code du vocabulaire). **Un export n'était donc pas
+ * réimportable**, ce que le commentaire de `exporterTaches` promet pourtant
+ * pour tous les exports du module.
+ *
+ * L'arbitrage : le CSV porte le **code** de `CATEGORIES_COMPETENCE`. C'est la
+ * seule valeur stable — elle ne dépend ni de la langue de l'agent ni de la
+ * casse de son tableur —, c'est celle que la base stocke, et c'est elle qui
+ * fait de l'export un aller-retour. Le modèle a été corrigé en conséquence.
+ *
+ * Les libellés français et anglais restent **acceptés en lecture** : une
+ * personne qui remplit un tableau à la main écrit « Savoir-être », pas
+ * `soft_skill`, et refuser son fichier au nom d'une valeur qu'elle n'a jamais
+ * vue serait une rigueur sans destinataire. Tolérant en entrée, strict en
+ * sortie.
+ */
+function categorieDe(valeur: string): CategorieCompetence | null {
+  const brut = valeur.trim().toLowerCase();
+  const terme = CATEGORIES_COMPETENCE.find(
+    (c) => c.code === brut || c.fr.toLowerCase() === brut || c.en.toLowerCase() === brut,
+  );
+  return terme?.code ?? null;
+}
+
+/** Les codes acceptés, énumérés dans le message d'erreur : deviner coûte plus cher. */
+const CODES_CATEGORIE = CATEGORIES_COMPETENCE.map((c) => c.code).join(", ");
+
+/**
+ * La demi-journée d'une ligne de congé — `RG-CNG-17`, `RG-CNG-18`.
+ *
+ * Le fichier n'a qu'une colonne `halfDay` là où le modèle en porte deux
+ * (début et fin) : un CSV plat ne peut pas exprimer « matin le premier jour,
+ * après-midi le dernier ». C'est cohérent avec `RG-CNG-18`, qui réserve la
+ * demi-journée simple au congé d'**une seule journée**.
+ */
+function demiJourneeDe(valeur: string): DemiJournee | null {
+  const brut = valeur.trim().toLowerCase();
+  const terme = DEMI_JOURNEES.find(
+    (d) => d.code === brut || d.fr.toLowerCase() === brut || d.en.toLowerCase() === brut,
+  );
+  return terme?.code ?? null;
+}
+
+const CODES_DEMI_JOURNEE = DEMI_JOURNEES.map((d) => d.code).join(", ");
+
+/**
+ * La contrainte d'exclusion GiST `leaves_pas_de_chevauchement`, vue depuis le
+ * client Prisma.
+ *
+ * Le contrôle applicatif de `refuserChevauchement` couvre le cas nominal ; la
+ * contrainte en base couvre la concurrence, et c'est elle qui parle quand deux
+ * imports se croisent. **`RG-CNG-32` veut le chevauchement en ignoré**, quelle
+ * que soit la moitié du dispositif qui l'a vu : les deux chemins mènent donc
+ * au même compteur.
+ */
+const CHEVAUCHEMENT_EN_BASE = /leaves_pas_de_chevauchement|23P01|exclusion constraint/i;
+
+const estUnChevauchement = (e: unknown): boolean =>
+  (e instanceof ErreurConge && e.code === "chevauchement") ||
+  CHEVAUCHEMENT_EN_BASE.test(String((e as { message?: string })?.message ?? e));
+
 @Injectable()
 export class ImportsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly conges: CongesService,
   ) {}
 
   /**
@@ -178,7 +253,10 @@ export class ImportsService {
         startDate: "2026-08-10", endDate: "2026-08-14", halfDay: "", comment: "",
       },
       competences: {
-        name: "PostgreSQL", category: "Technique", description: "", requiredCount: "2",
+        // Le CODE du vocabulaire, pas son libellé. Voir `categorieDe` : c'est
+        // ce que l'export écrit, donc la seule valeur qui fasse du modèle et
+        // de l'export un aller-retour.
+        name: "PostgreSQL", category: "technical", description: "", requiredCount: "2",
       },
     };
 
@@ -539,5 +617,304 @@ export class ImportsService {
       })),
       { header: true, columns: COLONNES.competences.map((c) => c.nom), delimiter: ";", bom: true },
     );
+  }
+
+  // ── Compétences — EX-CMP-09 ──────────────────────────────────────────────
+
+  /**
+   * `EX-CMP-09` — le référentiel de compétences, importé depuis un CSV.
+   *
+   * `RG-CMP-05` — **les noms sont uniques**, et un nom déjà pris est
+   * **ignoré**, pas mis en erreur : rejouer le référentiel d'une direction
+   * après y avoir ajouté trois lignes est l'usage normal, pas un incident
+   * (`RG-IMP-04`). L'unicité est doublée en base par `Skill.nom @unique` :
+   * le contrôle applicatif rédige le compte rendu, la contrainte tient la
+   * concurrence — d'où le rattrapage du `P2002` ci-dessous, qui range le
+   * doublon né d'une course dans le même compteur que celui né d'un rejeu.
+   *
+   * **Ligne à ligne, jamais en transaction globale.** Une seule catégorie mal
+   * orthographiée sur deux cents lignes ferait échouer les deux cents, et
+   * l'agent n'aurait aucun moyen de savoir laquelle.
+   *
+   * Le périmètre ne s'applique pas ici, et c'est une propriété du référentiel,
+   * pas un oubli : une compétence n'appartient à aucun département. La garde
+   * exige `skills:import` ; il n'y a rien à cloisonner en dessous.
+   */
+  async importerCompetences(contenu: string, acteurId: string): Promise<CompteRendu> {
+    const apercu = this.analyser("competences", contenu);
+    const rendu: CompteRendu = { importes: 0, ignores: 0, erreurs: [...apercu.erreurs] };
+    const enErreur = new Set(apercu.erreurs.map((e) => e.ligne));
+
+    for (const [i, ligne] of apercu.lignes.entries()) {
+      // Le numéro est celui du FICHIER, en-tête comprise : le seul repère que
+      // l'utilisateur puisse retrouver dans son tableur.
+      const numero = i + 2;
+      if (enErreur.has(numero)) continue;
+      const enPanne = (message: string) => rendu.erreurs.push({ ligne: numero, message });
+
+      const nom = ligne["name"]!.trim();
+
+      const categorie = categorieDe(ligne["category"]!);
+      if (categorie === null) {
+        enPanne(
+          `catégorie « ${ligne["category"]!.trim()} » inconnue. ` +
+            `Valeurs attendues : ${CODES_CATEGORIE}.`,
+        );
+        continue;
+      }
+
+      /*
+       * `Number("")` vaut zéro : le filtre porte sur la CHAÎNE, pas sur sa
+       * conversion. Sans `NON_VIDE`, une colonne laissée vide poserait un
+       * effectif requis de 0 — donc une compétence qu'aucun écart ne
+       * signalera jamais (`RG-CMP-02`), en silence.
+       */
+      let effectifRequis = 1;
+      if (NON_VIDE(ligne["requiredCount"])) {
+        const n = Number(ligne["requiredCount"].trim());
+        if (!Number.isInteger(n) || n < 0) {
+          enPanne(
+            `effectif requis « ${ligne["requiredCount"].trim()} » invalide : ` +
+              `un nombre entier positif ou nul est attendu.`,
+          );
+          continue;
+        }
+        effectifRequis = n;
+      }
+
+      // `RG-CMP-05` — le nom déjà pris est ignoré, pas mis en erreur.
+      const existante = await this.prisma.skill.findUnique({
+        where: { nom },
+        select: { id: true },
+      });
+      if (existante) {
+        rendu.ignores += 1;
+        continue;
+      }
+
+      try {
+        await this.prisma.skill.create({
+          data: {
+            nom,
+            categorie,
+            description: NON_VIDE(ligne["description"]) ? ligne["description"].trim() : null,
+            effectifRequis,
+          },
+        });
+        rendu.importes += 1;
+      } catch (e) {
+        // `P2002` — l'unicité en base a parlé la première : deux imports
+        // concurrents, ou deux graphies du même nom. C'est un doublon, donc
+        // un ignoré, pas une erreur.
+        if (/P2002|Unique constraint/i.test(String(e))) {
+          rendu.ignores += 1;
+          continue;
+        }
+        enPanne(String(e).slice(0, 200));
+      }
+    }
+
+    await this.audit.tracer({
+      action: "skill.create", typeEntite: "Skill", entiteId: "import-csv", acteurId,
+      detail: { source: "csv", ...rendu, erreurs: rendu.erreurs.length },
+    });
+    return rendu;
+  }
+
+  // ── Congés — EX-CNG-14, RG-CNG-32 ────────────────────────────────────────
+
+  /**
+   * `EX-CNG-14` — les congés, importés en masse depuis un CSV.
+   *
+   * ══════════════════════════════════════════════════════════════════════════
+   * **Trois décisions qui ne se devinent pas, et qui gouvernent cette
+   * fonction.**
+   *
+   * **1. Ligne à ligne, jamais en une transaction.** `leaves_pas_de_chevauchement`
+   * est une contrainte d'EXCLUSION GiST : dans une transaction unique, une
+   * seule ligne chevauchante ferait échouer les deux cents autres — et
+   * `RG-CNG-32` veut précisément le chevauchement en **ignoré**. Le
+   * tout-ou-rien de `RG-IMP-06` est réservé au mode Remplacer de l'import
+   * projet ; il n'a pas cours ici.
+   *
+   * **2. Le dépôt passe par `CongesService.deposer`, sans le réécrire.** Le
+   * décompte en jours ouvrés (`RG-CNG-16`), la demi-journée (`RG-CNG-17`), la
+   * répartition par année (`RG-CNG-19`), le contrôle de solde (`RG-CNG-21`),
+   * le refus de chevauchement (`RG-CNG-25` à `27`), la détermination du
+   * validateur (`RG-CNG-08`) et l'approbation directe (`RG-CNG-13`,
+   * `RG-CNG-14`) y sont déjà, avec leurs tests. Les redire ici en produirait
+   * une seconde version, qui divergerait au premier amendement — et
+   * l'expérience du dépôt dit que deux lectures d'une même donnée finissent
+   * toujours par se contredire sans qu'aucune boucle ne le voie.
+   *
+   * **Conséquence tenue, pas subie : un import est « pour autrui », donc
+   * directement approuvé** (`RG-CNG-14`), avec l'importateur pour validateur
+   * de fait. Un fichier RH de deux cents congés qui produirait deux cents
+   * demandes en attente noierait le validateur et n'aurait aucun sens : ce
+   * qu'on importe est un état constaté, pas une intention.
+   *
+   * L'exception, et elle est **volontaire** : la ligne qui désigne
+   * l'importateur lui-même n'est pas « pour autrui », et suit donc le régime
+   * ordinaire — en attente si son type exige une validation. Approuver cette
+   * ligne-là ferait de l'import un contournement de `RG-CNG-09`, qui interdit
+   * d'approuver sa propre demande sans permission explicite. Une route d'import
+   * ne doit pas offrir ce qu'une route de validation refuse.
+   *
+   * **3. Le solde est CONTRÔLÉ, il n'est pas contourné.** `RG-CNG-21` ne
+   * prévoit aucune dispense pour l'import, et `RG-CNG-32` n'énumère que deux
+   * cas d'ignoré — doublon et chevauchement. Une ligne au-delà du disponible
+   * part donc en **erreur**, avec le message chiffré de la règle : année,
+   * jours demandés, jours disponibles, jours manquants. Passer outre écrirait
+   * des soldes négatifs que rien, ensuite, ne signale — et le compte rendu
+   * annoncerait « 200 importés » sur un référentiel devenu faux.
+   * ══════════════════════════════════════════════════════════════════════════
+   *
+   * Le **périmètre** s'applique après la permission, comme partout : un agent
+   * hors du périmètre de l'importateur est refusé ligne à ligne. Sans cela,
+   * `leaves:import` deviendrait une écriture globale déguisée.
+   */
+  async importerConges(
+    contenu: string,
+    acteurId: string,
+    perimetre: Perimetre,
+  ): Promise<CompteRendu> {
+    const apercu = this.analyser("conges", contenu);
+    const rendu: CompteRendu = { importes: 0, ignores: 0, erreurs: [...apercu.erreurs] };
+    const enErreur = new Set(apercu.erreurs.map((e) => e.ligne));
+
+    /*
+     * Le référentiel des types est chargé UNE FOIS. La colonne s'appelle
+     * `leaveTypeName`, donc le nom d'abord ; le code ensuite, parce qu'un
+     * fichier venu d'un autre outil RH porte plus souvent « CA » que
+     * « Congés annuels ».
+     */
+    const types = await this.prisma.leaveType.findMany({
+      select: { id: true, nom: true, code: true },
+    });
+    const parNom = new Map(types.map((t) => [t.nom.trim().toLowerCase(), t]));
+    const parCode = new Map(types.map((t) => [t.code.trim().toLowerCase(), t]));
+
+    for (const [i, ligne] of apercu.lignes.entries()) {
+      const numero = i + 2;
+      if (enErreur.has(numero)) continue;
+      const enPanne = (message: string) => rendu.erreurs.push({ ligne: numero, message });
+
+      const email = ligne["userEmail"]!.trim().toLowerCase();
+      const agent = await this.prisma.user.findUnique({
+        where: { email },
+        select: { id: true, actif: true },
+      });
+      if (!agent) {
+        enPanne(`aucun compte ne porte l'adresse « ${email} ».`);
+        continue;
+      }
+      // `RG-CNG-15` — un collaborateur inactif est refusé, ici comme au dépôt.
+      if (!agent.actif) {
+        enPanne(`le compte « ${email} » est désactivé : aucun congé ne peut lui être ajouté.`);
+        continue;
+      }
+      // Le périmètre, APRÈS la permission — `cadrage/03 § 5.4`.
+      if (!perimetre.global && !perimetre.utilisateurs.has(agent.id)) {
+        enPanne(`le compte « ${email} » est hors de votre périmètre.`);
+        continue;
+      }
+
+      const nomType = ligne["leaveTypeName"]!.trim();
+      const type = parNom.get(nomType.toLowerCase()) ?? parCode.get(nomType.toLowerCase());
+      if (!type) {
+        enPanne(`aucun type de congé ne s'appelle « ${nomType} ».`);
+        continue;
+      }
+
+      const debut = dateDe(ligne["startDate"]);
+      const fin = dateDe(ligne["endDate"]);
+      if (!debut || !fin) {
+        enPanne(
+          `date illisible : « ${ligne["startDate"] ?? ""} » → « ${ligne["endDate"] ?? ""} ». ` +
+            `Le format attendu est AAAA-MM-JJ.`,
+        );
+        continue;
+      }
+      // `RG-CNG-28` — la date de fin est postérieure ou égale à la date de début.
+      if (fin < debut) {
+        enPanne(
+          `la date de fin (${ligne["endDate"]}) précède la date de début ` +
+            `(${ligne["startDate"]}) : inversez-les.`,
+        );
+        continue;
+      }
+
+      let demi: DemiJournee | null = null;
+      if (NON_VIDE(ligne["halfDay"])) {
+        demi = demiJourneeDe(ligne["halfDay"]);
+        if (demi === null) {
+          enPanne(
+            `demi-journée « ${ligne["halfDay"].trim()} » inconnue. ` +
+              `Valeurs attendues : ${CODES_DEMI_JOURNEE}, ou la colonne laissée vide.`,
+          );
+          continue;
+        }
+        // `RG-CNG-18` — la demi-journée simple ne vaut que sur un seul jour.
+        if (debut.getTime() !== fin.getTime()) {
+          enPanne(
+            "une demi-journée ne s'applique qu'à un congé d'une seule journée : " +
+              "laissez la colonne vide, ou ramenez les deux dates au même jour.",
+          );
+          continue;
+        }
+      }
+
+      try {
+        await this.conges.deposer(
+          {
+            userId: agent.id,
+            typeId: type.id,
+            dateDebut: debut,
+            dateFin: fin,
+            demiJourneeDebut: demi,
+            demiJourneeFin: demi,
+            ...(NON_VIDE(ligne["comment"]) ? { motif: ligne["comment"].trim() } : {}),
+          },
+          acteurId,
+        );
+        rendu.importes += 1;
+      } catch (e) {
+        /*
+         * `RG-CNG-32` — doublon ET chevauchement sont des IGNORÉS. Un doublon
+         * exact est d'ailleurs un chevauchement parfait : les deux passent par
+         * le même refus, applicatif ou en base, et par le même compteur.
+         */
+        if (estUnChevauchement(e)) {
+          rendu.ignores += 1;
+          continue;
+        }
+        if (e instanceof ErreurConge && e.code === "solde_insuffisant") {
+          // `RG-CNG-21` — le message est CHIFFRÉ. « Solde insuffisant » tout
+          // court oblige à aller chercher ailleurs de quoi corriger la ligne.
+          const d = e.detail ?? {};
+          enPanne(
+            `solde insuffisant pour ${String(d["annee"])} : ${String(d["demandes"])} jour(s) ` +
+              `demandé(s), ${String(d["disponibles"])} disponible(s), ` +
+              `${String(d["manquants"])} manquant(s).`,
+          );
+          continue;
+        }
+        if (e instanceof ErreurConge && e.code === "type_inactif") {
+          // `RG-CNG-29` — un type désactivé n'est plus sélectionnable.
+          enPanne(
+            `le type de congé « ${type.nom} » est désactivé : réactivez-le, ` +
+              `ou choisissez un autre type sur cette ligne.`,
+          );
+          continue;
+        }
+        enPanne(String(e).slice(0, 200));
+      }
+    }
+
+    await this.audit.tracer({
+      action: "leave.create", typeEntite: "Leave", entiteId: "import-csv", acteurId,
+      detail: { source: "csv", ...rendu, erreurs: rendu.erreurs.length },
+    });
+    return rendu;
   }
 }

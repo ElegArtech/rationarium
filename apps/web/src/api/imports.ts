@@ -39,15 +39,26 @@ export const importerUtilisateurs = (contenu: string) =>
   appeler<CompteRendu>("/imports/utilisateurs", { methode: "POST", corps: { contenu } });
 
 /**
- * L'import du référentiel de compétences — vue 22, action « Importer CSV ».
+ * `EX-CMP-09` — l'import du référentiel de compétences, vue 22.
  *
- * **La route serveur n'existe pas encore.** `POST /imports/competences` est
- * absent du contrôleur M21, qui n'expose que l'aperçu (`analyser`) et l'export.
- * L'aperçu, lui, fonctionne : le modèle et l'analyse connaissent le type
- * `competences`. Le manque est remonté au cadrage plutôt que comblé ici.
+ * La colonne `category` porte le **code** du vocabulaire (`technical`,
+ * `methodology`, `soft_skill`, `business`) : c'est ce que le modèle propose et
+ * ce que l'export écrit, donc ce qui fait de l'export un aller-retour. Les
+ * libellés français et anglais restent acceptés en lecture, pour le fichier
+ * rempli à la main.
  */
 export const importerCompetences = (contenu: string) =>
   appeler<CompteRendu>("/imports/competences", { methode: "POST", corps: { contenu } });
+
+/**
+ * `EX-CNG-14` — l'import de congés en masse, vue 19.
+ *
+ * `RG-CNG-32` — doublons et **chevauchements** reviennent en « ignorés », pas
+ * en erreurs : rejouer un fichier RH est un usage normal. Le compte rendu est
+ * celui des autres imports, et la fenêtre partagée l'affiche telle quelle.
+ */
+export const importerConges = (contenu: string) =>
+  appeler<CompteRendu>("/imports/conges", { methode: "POST", corps: { contenu } });
 
 /**
  * L'import CSV des seules tâches d'un projet — vue 12, bouton « Importer CSV ».

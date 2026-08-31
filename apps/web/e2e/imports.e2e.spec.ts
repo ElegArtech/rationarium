@@ -225,3 +225,100 @@ test.describe("Vue 12 — import projet complet", () => {
     );
   });
 });
+
+test.describe("Vue 19 — import de congés", () => {
+  /**
+   * L-43. Le brief de la vue 19 liste « Importer CSV » dans ses actions et la
+   * maquette porte le bouton (`#btn-import`, `chip-btn`) — il n'était branché
+   * sur rien. Ces contrôles portent sur ce que le serveur ne peut pas dire :
+   * que le bouton existe, qu'il ouvre la fenêtre partagée sur le bon type, et
+   * que le compte rendu montre les IGNORÉS de `RG-CNG-32` comme des ignorés.
+   */
+  const SESSION_RH = {
+    ...SESSION_ADMIN,
+    permissions: [...SESSION_ADMIN.permissions, "leaves:read", "leaves:create", "leaves:import"],
+  };
+
+  const APERCU_CONGES = {
+    lignes: [
+      {
+        userEmail: "ana@exemple.fr", leaveTypeName: "Congés annuels",
+        startDate: "2026-03-02", endDate: "2026-03-06", halfDay: "", comment: "",
+      },
+      {
+        userEmail: "bob@exemple.fr", leaveTypeName: "Congés annuels",
+        startDate: "2026-05-11", endDate: "2026-05-13", halfDay: "", comment: "",
+      },
+    ],
+    total: 2,
+    erreurs: [],
+  };
+
+  const FICHIER_CONGES =
+    "userEmail;leaveTypeName;startDate;endDate;halfDay;comment\n" +
+    "ana@exemple.fr;Congés annuels;2026-03-02;2026-03-06;;\n" +
+    "bob@exemple.fr;Congés annuels;2026-05-11;2026-05-13;;\n";
+
+  const reponses = {
+    "/api/conges/soldes": { corps: [] },
+    "/api/conges": { corps: [] },
+    "/api/imports/apercu?type=conges": { corps: APERCU_CONGES },
+    // `RG-CNG-32` — le chevauchement revient en IGNORÉ, jamais en erreur.
+    "/api/imports/conges": { corps: { importes: 2, ignores: 1, erreurs: [] } },
+  };
+
+  async function ouvrirLImport(page: Page) {
+    await page.goto("/conges");
+    await page.getByRole("button", { name: "Importer CSV" }).click();
+  }
+
+  test("EX-CNG-14 — le bouton d'import ouvre la fenêtre sur le format des congés", async ({
+    page,
+  }) => {
+    await serveur(page, { session: SESSION_RH, reponses });
+    await ouvrirLImport(page);
+
+    await expect(page.getByText("Format attendu")).toBeVisible();
+    // Le format colonne par colonne : sans lui, on devine, et on se trompe.
+    await expect(page.getByText(/userEmail · leaveTypeName · startDate/)).toBeVisible();
+    await expect(page.getByRole("link", { name: "Télécharger le modèle CSV" })).toHaveAttribute(
+      "href",
+      "/api/imports/modele?type=conges",
+    );
+  });
+
+  test("RG-CNG-32 — le compte rendu montre les IGNORÉS comme des ignorés", async ({ page }) => {
+    await serveur(page, { session: SESSION_RH, reponses });
+    await ouvrirLImport(page);
+    await page.getByLabel("Fichier CSV").setInputFiles({
+      name: "conges.csv",
+      mimeType: "text/csv",
+      buffer: Buffer.from(FICHIER_CONGES, "utf8"),
+    });
+    await expect(page.getByText("2 lignes détectées")).toBeVisible();
+
+    // « Importer CSV » dans la barre d'outils, « Importer » dans la fenêtre :
+    // on vise celui de la fenêtre, par correspondance exacte.
+    await page.getByRole("button", { name: "Importer", exact: true }).click();
+
+    await expect(page.getByText("2 importés")).toBeVisible();
+    // Un chevauchement rangé dans les erreurs ferait paniquer sur un fichier
+    // dont deux tiers sont entrés.
+    await expect(page.getByText("1 ignoré")).toBeVisible();
+    await expect(page.getByText("0 en erreur")).toBeVisible();
+  });
+
+  test("RG-GEN-06 — sans leaves:import, le bouton n'est pas proposé", async ({ page }) => {
+    const sansImport = {
+      ...SESSION_RH,
+      permissions: SESSION_RH.permissions.filter((p) => p !== "leaves:import"),
+    };
+    await serveur(page, { session: sansImport, reponses });
+    await page.goto("/conges");
+
+    await expect(page.getByRole("button", { name: "Importer CSV" })).toHaveCount(0);
+    // Le contrôle reste au serveur ; ici on vérifie qu'on ne PROPOSE pas ce
+    // qui sera refusé — et que la vue n'a pas disparu pour autant.
+    await expect(page.getByRole("heading", { name: "Gestion des congés" })).toBeVisible();
+  });
+});
