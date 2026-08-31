@@ -218,6 +218,27 @@ export const MESSAGES_METIER: Record<string, Message> = {
     "erreurs:horairesIncoherents",
     "L'heure de fin précède l'heure de début.",
   ),
+  /*
+   * `RG-EVT-07` — la portée se déclare, elle ne se devine pas. Les deux refus
+   * qui suivent tiennent la même règle par ses deux bouts : un défaut de portée
+   * sur une série, une portée sur un événement isolé. Le message dit dans les
+   * deux cas ce qu'il faut faire, pas seulement ce qui a échoué.
+   */
+  portee_requise: m(
+    422,
+    "erreurs:porteeRequise",
+    "Cet événement appartient à une série : indiquez si l'action porte sur cette occurrence seulement, ou sur celle-ci et les suivantes.",
+  ),
+  portee_sans_serie: m(
+    422,
+    "erreurs:porteeSansSerie",
+    "Cet événement n'appartient à aucune série : il n'y a pas de portée à choisir. Reprenez sans la préciser.",
+  ),
+  date_non_propageable: m(
+    422,
+    "erreurs:dateNonPropageable",
+    "La date distingue les occurrences les unes des autres : elle se change sur cette occurrence seulement, pas sur toute la série.",
+  ),
 
   // ── Congés — M10 ─────────────────────────────────────────────────────────
   type_inactif: m(
