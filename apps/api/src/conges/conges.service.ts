@@ -25,6 +25,16 @@ import type { DemiJournee } from "@rationarium/contracts";
  *   l'approbation, pas seulement au dépôt.
  */
 
+/*
+ * `conflit_de_version` — `RG-GEN-07`, sur les écritures du CYCLE DE VIE d'une
+ * demande. `allocation_modifiee` porte le même sens pour les ALLOCATIONS
+ * (`RG-CNG-23`) ; les deux ne se confondent pas, parce qu'ils ne disent pas
+ * quoi recharger : l'un renvoie au solde attribué, l'autre à la demande.
+ *
+ * Le commentaire est AU-DESSUS de l'union, pas dedans : `messages-metier.test.ts`
+ * lit ces unions à l'expression rationnelle, et un commentaire intercalé lui
+ * fait perdre la déclaration entière — les onze codes passent alors pour morts.
+ */
 export type EchecConge =
   | "type_inactif"
   | "chevauchement"
@@ -36,6 +46,7 @@ export type EchecConge =
   | "pas_son_conge"
   | "delegue_inactif"
   | "allocation_modifiee"
+  | "conflit_de_version"
   | "introuvable";
 
 export class ErreurConge extends Error {
@@ -47,12 +58,35 @@ export class ErreurConge extends Error {
   }
 }
 
+/**
+ * Une allocation telle qu'elle est stockée — sa valeur et **sa version**.
+ *
+ * `PUT /conges/soldes` exige la version dès qu'une allocation existe
+ * (`RG-CNG-23`). Sans elle dans la lecture, aucune requête d'écriture n'est
+ * composable : c'est le piège de `profil()` consigné dans `CLAUDE.md`, où un
+ * champ manquant à la lecture rend l'écriture impossible et fait conclure à
+ * tort que la route n'existe pas.
+ */
+export type AllocationLue = { jours: number; version: number };
+
 export type Solde = {
   annee: number;
   attribues: number;
   consommes: number;
   engages: number;
   disponibles: number;
+  /**
+   * D'où vient `attribues` — `RG-CNG-24`.
+   *
+   * L'écran doit pouvoir le dire : une allocation propre et un défaut global
+   * **ne se corrigent pas au même endroit**, et corriger le mauvais des deux
+   * ne change rien de visible pour l'agent concerné.
+   */
+  origine: "propre" | "global" | "aucune";
+  /** L'allocation propre à l'agent, si elle existe. */
+  propre: AllocationLue | null;
+  /** Le défaut global du type pour cette année, si défini. */
+  global: AllocationLue | null;
 };
 
 @Injectable()
@@ -182,15 +216,21 @@ export class CongesService {
     const [propre, global] = await Promise.all([
       this.prisma.leaveBalance.findUnique({
         where: { userId_typeId_annee: { userId, typeId, annee } },
-        select: { joursAttribues: true },
+        select: { joursAttribues: true, version: true },
       }),
       this.prisma.leaveBalance.findFirst({
         where: { userId: null, typeId, annee },
-        select: { joursAttribues: true },
+        select: { joursAttribues: true, version: true },
       }),
     ]);
 
+    const lue = (a: { joursAttribues: unknown; version: number } | null): AllocationLue | null =>
+      a === null ? null : { jours: Number(a.joursAttribues), version: a.version };
+
     const attribues = Number(propre?.joursAttribues ?? global?.joursAttribues ?? 0);
+    /* `RG-CNG-24` — l'allocation propre l'emporte sur le défaut global. Dire
+       laquelle des deux a servi, c'est dire où va la correction. */
+    const origine: Solde["origine"] = propre ? "propre" : global ? "global" : "aucune";
 
     const parts = await this.prisma.leaveYearAllocation.findMany({
       where: {
@@ -213,6 +253,9 @@ export class CongesService {
       consommes,
       engages,
       disponibles: attribues - consommes - engages,
+      origine,
+      propre: lue(propre),
+      global: lue(global),
     };
   }
 
@@ -518,6 +561,47 @@ export class CongesService {
     if (!collaborateur?.actif) throw new ErreurConge("collaborateur_inactif");
   }
 
+  // ── Concurrence — RG-GEN-07 ──────────────────────────────────────────────
+
+  /**
+   * `RG-GEN-07` — la version lue est transmise, et un écart lève.
+   *
+   * **Le contrôle de statut ne remplace pas celui-ci.** Il attrape la
+   * concurrence qui change l'état — deux validateurs qui approuvent la même
+   * demande —, jamais celle qui n'en change pas : deux personnes qui corrigent
+   * les dates d'une demande restée `pending` passaient toutes les deux, et la
+   * seconde écrasait la première en silence. C'est exactement le « dernier
+   * arrivé gagne » que le contrat interdit.
+   */
+  private verifierVersion(lue: { version: number }, transmise: number) {
+    if (lue.version !== transmise) {
+      throw new ErreurConge("conflit_de_version", {
+        attendue: lue.version,
+        recue: transmise,
+      });
+    }
+  }
+
+  /**
+   * `C15` — le même contrôle, doublé en base.
+   *
+   * `verifierVersion` lit puis compare : entre les deux, une écriture reste
+   * possible. La version est donc AUSSI dans le `where` de l'écriture, et
+   * Prisma lève `P2025` quand la ligne ne correspond plus. Sans cette
+   * traduction, ce cas-là sortirait en 500 — une concurrence détectée mais
+   * rendue illisible, ce qui vaut à peine mieux que non détectée.
+   */
+  private async ecrireSurVersion<T>(version: number, geste: () => Promise<T>): Promise<T> {
+    try {
+      return await geste();
+    } catch (e) {
+      if ((e as { code?: string }).code === "P2025") {
+        throw new ErreurConge("conflit_de_version", { attendue: null, recue: version });
+      }
+      throw e;
+    }
+  }
+
   // ── Décision — EX-CNG-05 ─────────────────────────────────────────────────
 
   /**
@@ -532,7 +616,12 @@ export class CongesService {
    * D'où la transaction en `RepeatableRead` avec verrou sur la ligne
    * d'allocation, prescrite par `cadrage/03 § 5.3`.
    */
-  async approuver(congeId: string, acteurId: string, permissions: ReadonlySet<string>) {
+  async approuver(
+    congeId: string,
+    acteurId: string,
+    permissions: ReadonlySet<string>,
+    version: number,
+  ) {
     const conge = await this.prisma.leave.findUnique({
       where: { id: congeId },
       include: { repartitions: true },
@@ -543,6 +632,8 @@ export class CongesService {
     if (conge.statut !== "pending") {
       throw new ErreurConge("statut_incompatible", { statut: conge.statut });
     }
+
+    this.verifierVersion(conge, version);
 
     // RG-CNG-09 — nul n'approuve sa propre demande, sauf permission explicite.
     const sienne = conge.userId === acteurId;
@@ -580,8 +671,10 @@ export class CongesService {
           }
         }
 
-        await tx.leave.update({
-          where: { id: congeId },
+        /* `C15` — `RG-GEN-07` doublée en base : la version est dans le `where`.
+           Le contrôle ci-dessus lit hors transaction ; celui-ci est atomique. */
+        const { count } = await tx.leave.updateMany({
+          where: { id: congeId, version },
           data: {
             statut: "approved",
             decideLe: new Date(),
@@ -589,6 +682,9 @@ export class CongesService {
             version: { increment: 1 },
           },
         });
+        if (count === 0) {
+          throw new ErreurConge("conflit_de_version", { attendue: null, recue: version });
+        }
       },
       { isolationLevel: "RepeatableRead" },
     );
@@ -611,17 +707,20 @@ export class CongesService {
   }
 
   /** `EX-CNG-05` — refuser, **avec motif**. */
-  async refuser(congeId: string, motifRefus: string, acteurId: string) {
+  async refuser(congeId: string, motifRefus: string, acteurId: string, version: number) {
     const conge = await this.prisma.leave.findUnique({ where: { id: congeId } });
     if (!conge) throw new ErreurConge("introuvable");
     if (conge.statut !== "pending") {
       throw new ErreurConge("statut_incompatible", { statut: conge.statut });
     }
+    this.verifierVersion(conge, version);
 
-    await this.prisma.leave.update({
-      where: { id: congeId },
-      data: { statut: "refused", motifRefus, decideLe: new Date(), version: { increment: 1 } },
-    });
+    await this.ecrireSurVersion(version, () =>
+      this.prisma.leave.update({
+        where: { id: congeId, version },
+        data: { statut: "refused", motifRefus, decideLe: new Date(), version: { increment: 1 } },
+      }),
+    );
     await this.audit.tracer({
       action: "leave.refuse", typeEntite: "Leave", entiteId: congeId, acteurId,
       detail: { agent: conge.userId },
@@ -647,7 +746,7 @@ export class CongesService {
    *
    * `RG-CNG-07` — on ne demande l'annulation que de ses propres congés.
    */
-  async demanderAnnulation(congeId: string, acteurId: string) {
+  async demanderAnnulation(congeId: string, acteurId: string, version: number) {
     const conge = await this.prisma.leave.findUnique({ where: { id: congeId } });
     if (!conge) throw new ErreurConge("introuvable");
     if (conge.userId !== acteurId) throw new ErreurConge("pas_son_conge");
@@ -655,11 +754,14 @@ export class CongesService {
     if (conge.statut !== "approved") {
       throw new ErreurConge("statut_incompatible", { statut: conge.statut });
     }
+    this.verifierVersion(conge, version);
 
-    await this.prisma.leave.update({
-      where: { id: congeId },
-      data: { statut: "cancellation_requested", version: { increment: 1 } },
-    });
+    await this.ecrireSurVersion(version, () =>
+      this.prisma.leave.update({
+        where: { id: congeId, version },
+        data: { statut: "cancellation_requested", version: { increment: 1 } },
+      }),
+    );
     await this.audit.tracer({
       action: "leave.cancellation_request", typeEntite: "Leave", entiteId: congeId, acteurId,
     });
@@ -670,18 +772,26 @@ export class CongesService {
    * `RG-CNG-06` — seules les demandes approuvées ou en annulation demandée
    * peuvent être annulées.
    */
-  async traiterAnnulation(congeId: string, accepte: boolean, acteurId: string) {
+  async traiterAnnulation(
+    congeId: string,
+    accepte: boolean,
+    acteurId: string,
+    version: number,
+  ) {
     const conge = await this.prisma.leave.findUnique({ where: { id: congeId } });
     if (!conge) throw new ErreurConge("introuvable");
     if (conge.statut !== "cancellation_requested") {
       throw new ErreurConge("statut_incompatible", { statut: conge.statut });
     }
+    this.verifierVersion(conge, version);
 
-    await this.prisma.leave.update({
-      where: { id: congeId },
-      // Refusée, la demande d'annulation rend le congé à son état approuvé.
-      data: { statut: accepte ? "cancelled" : "approved", version: { increment: 1 } },
-    });
+    await this.ecrireSurVersion(version, () =>
+      this.prisma.leave.update({
+        where: { id: congeId, version },
+        // Refusée, la demande d'annulation rend le congé à son état approuvé.
+        data: { statut: accepte ? "cancelled" : "approved", version: { increment: 1 } },
+      }),
+    );
     await this.audit.tracer({
       action: accepte ? "leave.cancel" : "leave.cancellation_refused",
       typeEntite: "Leave", entiteId: congeId, acteurId,
@@ -689,27 +799,44 @@ export class CongesService {
   }
 
   /** `RG-CNG-03` — seules les demandes en attente ou refusées peuvent être supprimées. */
-  async supprimer(congeId: string, acteurId: string) {
+  async supprimer(congeId: string, acteurId: string, version: number) {
     const conge = await this.prisma.leave.findUnique({ where: { id: congeId } });
     if (!conge) throw new ErreurConge("introuvable");
     if (conge.statut !== "pending" && conge.statut !== "refused") {
       throw new ErreurConge("statut_incompatible", { statut: conge.statut });
     }
+    this.verifierVersion(conge, version);
     await this.audit.tracer({
       action: "leave.delete", typeEntite: "Leave", entiteId: congeId, acteurId,
     });
-    await this.prisma.leave.delete({ where: { id: congeId } });
+    /* `C15` — la version est dans le `where` de la suppression : une demande
+       modifiée entre la lecture et le geste n'est pas effacée en silence. */
+    const { count } = await this.prisma.leave.deleteMany({ where: { id: congeId, version } });
+    if (count === 0) {
+      throw new ErreurConge("conflit_de_version", { attendue: null, recue: version });
+    }
   }
 
   // ── Modification — EX-CNG-03 ─────────────────────────────────────────────
 
-  /** `RG-CNG-02`, `RG-CNG-27` — modifier une demande en attente, sans créer de chevauchement. */
+  /**
+   * `RG-CNG-02`, `RG-CNG-27` — modifier une demande en attente, sans créer de
+   * chevauchement.
+   *
+   * `RG-GEN-07` — **c'est ici que la version compte le plus.** Les transitions
+   * d'état sont gardées par leur statut : deux approbations concurrentes se
+   * détectent parce que la seconde ne trouve plus `pending`. Une modification
+   * ne change pas le statut : deux personnes qui corrigent la même demande
+   * restée en attente passaient toutes les deux, et la seconde écrasait la
+   * première sans que rien ne le dise.
+   */
   async modifier(
     congeId: string,
     donnees: {
       dateDebut: Date; dateFin: Date;
       demiJourneeDebut?: DemiJournee | null; demiJourneeFin?: DemiJournee | null;
       motif?: string;
+      version: number;
     },
     acteurId: string,
   ) {
@@ -718,6 +845,7 @@ export class CongesService {
     if (conge.statut !== "pending") {
       throw new ErreurConge("statut_incompatible", { statut: conge.statut });
     }
+    this.verifierVersion(conge, donnees.version);
 
     await this.refuserChevauchement(conge.userId, donnees.dateDebut, donnees.dateFin, congeId);
 
@@ -731,22 +859,28 @@ export class CongesService {
     );
     await this.controlerSolde(conge.userId, conge.typeId, repartition, congeId);
 
-    await this.prisma.$transaction([
-      this.prisma.leaveYearAllocation.deleteMany({ where: { leaveId: congeId } }),
-      this.prisma.leave.update({
-        where: { id: congeId },
-        data: {
-          dateDebut: donnees.dateDebut,
-          dateFin: donnees.dateFin,
-          demiJourneeDebut: donnees.demiJourneeDebut ?? null,
-          demiJourneeFin: donnees.demiJourneeFin ?? null,
-          joursOuvres: repartition.reduce((n, p) => n + p.jours, 0),
-          motif: donnees.motif ?? null,
-          version: { increment: 1 },
-          repartitions: { create: repartition.map((p) => ({ annee: p.annee, jours: p.jours })) },
-        },
-      }),
-    ]);
+    await this.ecrireSurVersion(donnees.version, () =>
+      this.prisma.$transaction([
+        this.prisma.leaveYearAllocation.deleteMany({ where: { leaveId: congeId } }),
+        this.prisma.leave.update({
+          // `C15` — la version double le contrôle en base, dans la transaction
+          // qui réécrit aussi la répartition par année.
+          where: { id: congeId, version: donnees.version },
+          data: {
+            dateDebut: donnees.dateDebut,
+            dateFin: donnees.dateFin,
+            demiJourneeDebut: donnees.demiJourneeDebut ?? null,
+            demiJourneeFin: donnees.demiJourneeFin ?? null,
+            joursOuvres: repartition.reduce((n, p) => n + p.jours, 0),
+            motif: donnees.motif ?? null,
+            version: { increment: 1 },
+            repartitions: {
+              create: repartition.map((p) => ({ annee: p.annee, jours: p.jours })),
+            },
+          },
+        }),
+      ]),
+    );
 
     await this.audit.tracer({
       action: "leave.update", typeEntite: "Leave", entiteId: congeId, acteurId,

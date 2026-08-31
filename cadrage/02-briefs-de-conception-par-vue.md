@@ -611,7 +611,9 @@ Tout import passe par une **prévisualisation** avant exécution, puis un compte
 
 **Utilisateurs** — Camille (demande, 4 fois par an) · Fatou (valide, chaque semaine) · Hugo (administre, en continu).
 
-**Structure** — En-tête « Gestion des congés » · **Onglets** : Mes demandes · À valider · Toutes les demandes · Délégations données · Délégations reçues · Types de congés · Actions (Nouvelle demande, Importer CSV).
+**Structure** — En-tête « Gestion des congés » · **Onglets** : Mes demandes · À valider · Toutes les demandes · Délégations (données et reçues, deux listes dans un même onglet) · Types de congés · **Soldes** · Actions (Nouvelle demande, Importer CSV).
+
+> **Arbitrage du 2026-08-31 — le sixième onglet est « Soldes ».** Cette énumération fermait la liste sans lui pendant que la ligne « Variantes » ci-dessous disait « Hugo voit tout, plus les types **et les soldes** ». La contradiction a laissé `PUT /conges/soldes` sans écran pendant tout le projet : la capacité existait, gardée et testée, et **rien ne l'appelait** — donc, sur une instance neuve, aucun solde attribué, et `RG-CNG-20` refusant toute demande. C'est la ligne « Variantes » qui l'emporte, parce qu'elle est la seule des deux à décrire ce que voit un détenteur de `leaves:manage_balances`, quand l'énumération décrivait ce que voit un agent ordinaire. Le compte de six est conservé : les deux listes de délégations tiennent dans un seul onglet, comme la vue les rend.
 
 **Onglet Mes demandes** — Liste : type (icône + couleur), période « Du {date} Au {date} », « {n} jour(s) », statut, validateur assigné, motif. Actions : Modifier, Supprimer, Demander l'annulation.
 
@@ -620,6 +622,8 @@ Tout import passe par une **prévisualisation** avant exécution, puis un compte
 **Onglet Toutes les demandes** — Filtre « Tous les utilisateurs », mêmes données, vue de contrôle.
 
 **Onglet Délégations** — Deux listes : données et reçues. Par délégation : délégué, période « De … à … », état Active / Inactive, action « Désactiver ». Création : « Déléguer à », « Sélectionner un utilisateur », période, avec l'explication : « Durant cette période, l'utilisateur sélectionné pourra valider les demandes de congé à votre place. »
+
+**Onglet Soldes** — Réservé aux détenteurs de `leaves:manage_balances` (`EX-CNG-10`, `RG-CNG-24`). Choix du **bénéficiaire** — « Défaut global (tous les agents) » en première position, puis un agent — et de l'**année**. Un champ par type de congé actif, avec le nombre de jours attribués et, sous lui, **d'où vient le chiffre** : allocation propre à l'agent, héritage du défaut global, ou aucune allocation. Les deux ne se corrigent pas au même endroit, et corriger le mauvais des deux ne change rien de visible pour l'agent concerné : la provenance se dit donc avant la correction, pas après. Chaque type s'enregistre seul, avec **sa** version (`RG-CNG-23`). *Aucun type actif* : « Aucun type de congé actif » + « Il n'y a rien à attribuer tant que le référentiel des types est vide. Créez-en un dans l'onglet Types de congés. »
 
 **Onglet Types de congés** — Tableau : Code · Nom · Description · Icône · Couleur · Options (Rémunéré / Non rémunéré) · Validation (Requise / Auto) · Limite/an (ou « Illimité ») · Utilisations (« {n} congé(s) ») · Statut (Actif / Inactif / Système). Actions : Nouveau type, Modifier, Désactiver, Réactiver. Case « Afficher les inactifs ».
 
@@ -636,7 +640,8 @@ Tout import passe par une **prévisualisation** avant exécution, puis un compte
 - *Chevauchement* : « Cette demande chevauche un congé déjà approuvé pour cet utilisateur » / « Cette demande chevauche une demande de congé existante » / « Cette modification créerait un chevauchement avec une autre demande ».
 - *Auto-validation interdite* : « Vous n'êtes pas autorisé à valider cette demande ».
 - *Annulation directe interdite* : « Vous ne pouvez pas annuler directement un congé approuvé. Utilisez la demande d'annulation. »
-- *Modification concurrente* : « La demande de congé a été modifiée pendant le traitement. Veuillez réessayer. »
+- *Modification concurrente* : « La demande de congé a été modifiée pendant le traitement. Veuillez réessayer. » — `RG-GEN-07` porte sur **toutes** les écritures de la vue : approuver, refuser, demander et traiter une annulation, modifier, supprimer. La version lue voyage avec chacune. Sur une modification, c'est le seul garde-fou : le contrôle de statut ne voit pas passer deux corrections concurrentes d'une même demande restée en attente.
+- *Allocation concurrente* : « Le solde a changé depuis votre lecture. Rechargez la demande avant de valider. »
 - *Type système* : « Type système : seuls le nom, la description, l'icône, la couleur et la validation requise peuvent être modifiés. »
 - *Suppression d'un type utilisé* : « Ce type est utilisé par {n} congé(s). Il sera désactivé au lieu d'être supprimé. Continuer ? »
 
@@ -653,7 +658,7 @@ En attente ──approuver──▶ Approuvé ──demander l'annulation──�
 
 **Variantes** — Camille ne voit que « Mes demandes ». Fatou voit en plus « À valider » et ses délégations. Hugo voit tout, plus les types et les soldes.
 
-**Attention** — Trois publics, un seul écran. Les onglets doivent apparaître **selon les droits** : Camille en voit un, Hugo en voit six. Le solde disponible est l'information la plus attendue au moment de la demande : il ne doit pas être à chercher.
+**Attention** — Trois publics, un seul écran. Les onglets doivent apparaître **selon les droits** : Camille en voit un, Fatou trois, Hugo en voit six — le sixième étant « Soldes », que seul `leaves:manage_balances` ouvre. Un onglet qui disparaît en cours de session doit **recaler l'onglet actif** sur un onglet existant : sans cela, la vue ne rend plus aucun panneau, et rien ne le signale. Le solde disponible est l'information la plus attendue au moment de la demande : il ne doit pas être à chercher.
 
 ---
 

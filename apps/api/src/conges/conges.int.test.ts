@@ -54,6 +54,23 @@ async function creerType() {
   return id;
 }
 
+/**
+ * La version courante d'une demande — `RG-GEN-07`.
+ *
+ * Toutes les écritures du cycle de vie l'exigent depuis L-48. La relire ici
+ * plutôt que de la deviner est **délibéré** : un test qui compose sa version à
+ * partir du nombre de transitions déjà faites casserait au premier ajout
+ * d'étape, et il ne prouverait rien de plus. Ce que la règle promet est
+ * prouvé par les tests dédiés, qui transmettent une version PÉRIMÉE.
+ */
+async function versionDe(congeId: string) {
+  const { version } = await prisma.leave.findUniqueOrThrow({
+    where: { id: congeId },
+    select: { version: true },
+  });
+  return version;
+}
+
 async function attribuer(userId: string | null, typeId: string, annee: number, jours: number) {
   await prisma.leaveBalance.create({
     data: { userId, typeId, annee, joursAttribues: jours },
@@ -220,7 +237,7 @@ describe("RG-CNG-25..27 — chevauchement", () => {
       { userId: u, typeId: typeAvecValidation, dateDebut: utc("2026-10-05"), dateFin: utc("2026-10-09") },
       u,
     );
-    await conges.refuser(c.id, "Effectif insuffisant", await agent());
+    await conges.refuser(c.id, "Effectif insuffisant", await agent(), await versionDe(c.id));
     await expect(
       conges.deposer(
         { userId: u, typeId: typeAvecValidation, dateDebut: utc("2026-10-05"), dateFin: utc("2026-10-09") },
@@ -388,7 +405,7 @@ describe("RG-CNG-22 — le solde est REJOUÉ à l'approbation", () => {
       data: { joursAttribues: 2 },
     });
 
-    await expect(conges.approuver(c.id, validateur, new Set())).rejects.toMatchObject({
+    await expect(conges.approuver(c.id, validateur, new Set(), await versionDe(c.id))).rejects.toMatchObject({
       code: "solde_insuffisant",
     });
 
@@ -405,7 +422,7 @@ describe("RG-CNG-22 — le solde est REJOUÉ à l'approbation", () => {
       { userId: u, typeId: typeAvecValidation, dateDebut: utc("2026-02-09"), dateFin: utc("2026-02-13") },
       u,
     );
-    await conges.approuver(c.id, validateur, new Set());
+    await conges.approuver(c.id, validateur, new Set(), await versionDe(c.id));
 
     const apres = await prisma.leave.findUniqueOrThrow({ where: { id: c.id } });
     expect(apres.statut).toBe("approved");
@@ -424,7 +441,7 @@ describe("RG-CNG-09 — nul n'approuve sa propre demande", () => {
       { userId: u, typeId: typeAvecValidation, dateDebut: utc("2026-03-09"), dateFin: utc("2026-03-13") },
       u,
     );
-    await expect(conges.approuver(c.id, u, new Set())).rejects.toMatchObject({
+    await expect(conges.approuver(c.id, u, new Set(), await versionDe(c.id))).rejects.toMatchObject({
       code: "auto_validation_interdite",
     });
   });
@@ -436,7 +453,7 @@ describe("RG-CNG-09 — nul n'approuve sa propre demande", () => {
       { userId: u, typeId: typeAvecValidation, dateDebut: utc("2026-03-16"), dateFin: utc("2026-03-20") },
       u,
     );
-    await conges.approuver(c.id, u, new Set(["leaves:self_approve"]));
+    await conges.approuver(c.id, u, new Set(["leaves:self_approve"]), await versionDe(c.id));
 
     const apres = await prisma.leave.findUniqueOrThrow({ where: { id: c.id } });
     expect(apres.statut).toBe("approved");
@@ -456,7 +473,7 @@ describe("RG-CNG-01 à 07 — cycle de vie", () => {
     expect(c.statut).toBe("approved");
 
     // Il passe par une demande d'annulation.
-    await conges.demanderAnnulation(c.id, u);
+    await conges.demanderAnnulation(c.id, u, await versionDe(c.id));
     const apres = await prisma.leave.findUniqueOrThrow({ where: { id: c.id } });
     expect(apres.statut).toBe("cancellation_requested");
   });
@@ -469,7 +486,7 @@ describe("RG-CNG-01 à 07 — cycle de vie", () => {
       { userId: u, typeId: typeSansValidation, dateDebut: utc("2026-05-04"), dateFin: utc("2026-05-08") },
       u,
     );
-    await expect(conges.demanderAnnulation(c.id, autre)).rejects.toMatchObject({
+    await expect(conges.demanderAnnulation(c.id, autre, await versionDe(c.id))).rejects.toMatchObject({
       code: "pas_son_conge",
     });
   });
@@ -482,8 +499,8 @@ describe("RG-CNG-01 à 07 — cycle de vie", () => {
       { userId: u, typeId: typeSansValidation, dateDebut: utc("2026-06-01"), dateFin: utc("2026-06-05") },
       u,
     );
-    await conges.demanderAnnulation(c.id, u);
-    await conges.traiterAnnulation(c.id, false, validateur);
+    await conges.demanderAnnulation(c.id, u, await versionDe(c.id));
+    await conges.traiterAnnulation(c.id, false, validateur, await versionDe(c.id));
 
     const apres = await prisma.leave.findUniqueOrThrow({ where: { id: c.id } });
     expect(apres.statut).toBe("approved");
@@ -496,7 +513,7 @@ describe("RG-CNG-01 à 07 — cycle de vie", () => {
       { userId: u, typeId: typeSansValidation, dateDebut: utc("2026-06-08"), dateFin: utc("2026-06-12") },
       u,
     );
-    await expect(conges.supprimer(approuve.id, u)).rejects.toMatchObject({
+    await expect(conges.supprimer(approuve.id, u, await versionDe(approuve.id))).rejects.toMatchObject({
       code: "statut_incompatible",
     });
 
@@ -505,7 +522,7 @@ describe("RG-CNG-01 à 07 — cycle de vie", () => {
       { userId: u, typeId: typeAvecValidation, dateDebut: utc("2026-06-15"), dateFin: utc("2026-06-19") },
       u,
     );
-    await expect(conges.supprimer(enAttente.id, u)).resolves.toBeUndefined();
+    await expect(conges.supprimer(enAttente.id, u, await versionDe(enAttente.id))).resolves.toBeUndefined();
   });
 
   it("RG-CNG-02 — une demande déjà décidée ne se réapprouve pas", async () => {
@@ -516,8 +533,8 @@ describe("RG-CNG-01 à 07 — cycle de vie", () => {
       { userId: u, typeId: typeAvecValidation, dateDebut: utc("2026-09-14"), dateFin: utc("2026-09-18") },
       u,
     );
-    await conges.approuver(c.id, validateur, new Set());
-    await expect(conges.approuver(c.id, validateur, new Set())).rejects.toMatchObject({
+    await conges.approuver(c.id, validateur, new Set(), await versionDe(c.id));
+    await expect(conges.approuver(c.id, validateur, new Set(), await versionDe(c.id))).rejects.toMatchObject({
       code: "statut_incompatible",
     });
   });
@@ -823,6 +840,7 @@ describe("EX-CNG-03 — modifier une demande en attente", () => {
         dateFin: utc("2027-05-05"),
         demiJourneeFin: "morning",
         motif: "Finalement trois jours",
+        version: await versionDe(conge.id),
       },
       u,
     );
@@ -858,7 +876,15 @@ describe("EX-CNG-03 — modifier une demande en attente", () => {
     expect(conge.statut).toBe("approved");
 
     await expect(
-      conges.modifier(conge.id, { dateDebut: utc("2027-06-07"), dateFin: utc("2027-06-09") }, u),
+      conges.modifier(
+        conge.id,
+        {
+          dateDebut: utc("2027-06-07"),
+          dateFin: utc("2027-06-09"),
+          version: await versionDe(conge.id),
+        },
+        u,
+      ),
     ).rejects.toMatchObject({ code: "statut_incompatible" });
 
     const relu = await prisma.leave.findUniqueOrThrow({ where: { id: conge.id } });
@@ -892,7 +918,15 @@ describe("RG-CNG-27 — une modification créant un chevauchement est refusée",
 
     // Ramener la demande d'avril sur mars la ferait mordre sur la première.
     await expect(
-      conges.modifier(enAvril.id, { dateDebut: utc("2027-03-03"), dateFin: utc("2027-04-09") }, u),
+      conges.modifier(
+        enAvril.id,
+        {
+          dateDebut: utc("2027-03-03"),
+          dateFin: utc("2027-04-09"),
+          version: await versionDe(enAvril.id),
+        },
+        u,
+      ),
     ).rejects.toMatchObject({ code: "chevauchement" });
 
     const relu = await prisma.leave.findUniqueOrThrow({ where: { id: enAvril.id } });
@@ -919,7 +953,15 @@ describe("RG-CNG-27 — une modification créant un chevauchement est refusée",
 
     // Sans l'exclusion de sa propre ligne, ce prolongement se refuserait
     // lui-même : la nouvelle plage recouvre l'ancienne.
-    await conges.modifier(conge.id, { dateDebut: utc("2027-03-15"), dateFin: utc("2027-03-26") }, u);
+    await conges.modifier(
+      conge.id,
+      {
+        dateDebut: utc("2027-03-15"),
+        dateFin: utc("2027-03-26"),
+        version: await versionDe(conge.id),
+      },
+      u,
+    );
 
     const relu = await prisma.leave.findUniqueOrThrow({ where: { id: conge.id } });
     expect(jourDe(relu.dateFin)).toBe("2027-03-26");
@@ -943,7 +985,7 @@ describe("EX-CNG-04 — supprimer une demande", () => {
     );
     expect((await conges.solde(u, typeAvecValidation, 2027)).engages).toBe(5);
 
-    await conges.supprimer(conge.id, u);
+    await conges.supprimer(conge.id, u, await versionDe(conge.id));
 
     expect(await prisma.leave.findUnique({ where: { id: conge.id } })).toBeNull();
     // Une répartition orpheline laisserait le solde retenu sans demande visible.
@@ -966,7 +1008,7 @@ describe("EX-CNG-04 — supprimer une demande", () => {
       u,
     );
 
-    await conges.supprimer(conge.id, u);
+    await conges.supprimer(conge.id, u, await versionDe(conge.id));
 
     const trace = await prisma.auditLog.findFirst({
       where: { action: "leave.delete", entiteId: conge.id },
@@ -997,7 +1039,7 @@ describe("EX-CNG-06 — demander l'annulation d'un congé approuvé", () => {
     const { u, conge } = await congeApprouve(2027);
     expect((await conges.solde(u, typeSansValidation, 2027)).consommes).toBe(5);
 
-    await conges.demanderAnnulation(conge.id, u);
+    await conges.demanderAnnulation(conge.id, u, await versionDe(conge.id));
 
     const relu = await prisma.leave.findUniqueOrThrow({ where: { id: conge.id } });
     expect(relu.statut).toBe("cancellation_requested");
@@ -1026,7 +1068,7 @@ describe("EX-CNG-06 — demander l'annulation d'un congé approuvé", () => {
     );
     expect(conge.statut).toBe("pending");
 
-    await expect(conges.demanderAnnulation(conge.id, u)).rejects.toMatchObject({
+    await expect(conges.demanderAnnulation(conge.id, u, await versionDe(conge.id))).rejects.toMatchObject({
       code: "statut_incompatible",
     });
     const relu = await prisma.leave.findUniqueOrThrow({ where: { id: conge.id } });
@@ -1046,9 +1088,9 @@ describe("EX-CNG-06 — demander l'annulation d'un congé approuvé", () => {
       u,
     );
     const decideur = await agent();
-    await conges.refuser(conge.id, "Effectifs insuffisants", decideur);
+    await conges.refuser(conge.id, "Effectifs insuffisants", decideur, await versionDe(conge.id));
 
-    await expect(conges.demanderAnnulation(conge.id, u)).rejects.toMatchObject({
+    await expect(conges.demanderAnnulation(conge.id, u, await versionDe(conge.id))).rejects.toMatchObject({
       code: "statut_incompatible",
     });
     expect((await prisma.leave.findUniqueOrThrow({ where: { id: conge.id } })).statut).toBe(
@@ -1059,13 +1101,13 @@ describe("EX-CNG-06 — demander l'annulation d'un congé approuvé", () => {
   it("RG-CNG-05 — un congé DÉJÀ ANNULÉ ne s'annule pas une seconde fois", async () => {
     const { u, conge } = await congeApprouve(2028);
     const decideur = await agent();
-    await conges.demanderAnnulation(conge.id, u);
-    await conges.traiterAnnulation(conge.id, true, decideur);
+    await conges.demanderAnnulation(conge.id, u, await versionDe(conge.id));
+    await conges.traiterAnnulation(conge.id, true, decideur, await versionDe(conge.id));
     expect((await prisma.leave.findUniqueOrThrow({ where: { id: conge.id } })).statut).toBe(
       "cancelled",
     );
 
-    await expect(conges.demanderAnnulation(conge.id, u)).rejects.toMatchObject({
+    await expect(conges.demanderAnnulation(conge.id, u, await versionDe(conge.id))).rejects.toMatchObject({
       code: "statut_incompatible",
     });
   });
@@ -1689,5 +1731,290 @@ describe("RG-CNG-08 — la route nomme le validateur, elle ne rend pas qu'un ide
     const rendu = await conges.validateurNomme(isole, utc("2029-06-02"));
     expect(rendu.validateurId).toBeNull();
     expect(rendu.validateur).toBeNull();
+  });
+});
+
+/*
+ * ─────────────────────────────────────────────────────────────────────────────
+ * La lecture doit COMPOSER l'écriture.
+ *
+ * `PUT /conges/soldes` exige la version dès qu'une allocation existe
+ * (`RG-CNG-23`), et `GET /conges/soldes` ne la rendait pas : aucune requête
+ * d'écriture n'était composable depuis ce que le serveur donnait à lire. C'est
+ * le piège de `profil()` consigné dans `CLAUDE.md` — un champ manquant à la
+ * lecture rend l'écriture impossible, et on en conclut à tort que la route
+ * n'existe pas. Les moitiés étaient justes toutes les deux ; c'est le raccord
+ * qui cassait, et aucun test des moitiés ne pouvait le voir.
+ *
+ * Ces tests prennent la SORTIE de la lecture et en font l'ENTRÉE de l'écriture.
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
+describe("EX-CNG-10 — la sortie de la lecture compose l'entrée de l'écriture", () => {
+  it("EX-CNG-10 — `solde()` rend la version que `attribuerSolde` exige, sur une allocation propre", async () => {
+    const beneficiaire = await agent();
+    const type = await creerType();
+    const gestionnaire = await agent();
+    await conges.attribuerSolde(
+      { userId: beneficiaire, typeId: type, annee: 2031, joursAttribues: 25 },
+      gestionnaire,
+    );
+
+    // On ne relit RIEN d'autre que ce que l'écran reçoit.
+    const lu = await conges.solde(beneficiaire, type, 2031);
+    expect(lu.propre).not.toBeNull();
+
+    await conges.attribuerSolde(
+      {
+        userId: beneficiaire,
+        typeId: type,
+        annee: 2031,
+        joursAttribues: 30,
+        version: lu.propre!.version,
+      },
+      gestionnaire,
+    );
+    expect((await conges.solde(beneficiaire, type, 2031)).attribues).toBe(30);
+  });
+
+  it("EX-CNG-10 — `soldes()` compose de même, type par type, sans seconde lecture", async () => {
+    const beneficiaire = await agent();
+    const gestionnaire = await agent();
+    const type = await creerType();
+    await conges.attribuerSolde(
+      { userId: beneficiaire, typeId: type, annee: 2032, joursAttribues: 10 },
+      gestionnaire,
+    );
+
+    const catalogue = await conges.soldes(beneficiaire, 2032);
+    const entree = catalogue.find((e) => e.type.id === type);
+    expect(entree?.solde.propre).not.toBeNull();
+
+    await conges.attribuerSolde(
+      {
+        userId: beneficiaire,
+        typeId: type,
+        annee: 2032,
+        joursAttribues: 12,
+        version: entree!.solde.propre!.version,
+      },
+      gestionnaire,
+    );
+    expect((await conges.solde(beneficiaire, type, 2032)).attribues).toBe(12);
+  });
+
+  it("RG-CNG-24 — la lecture dit si `attribues` vient de l'allocation PROPRE ou du DÉFAUT GLOBAL", async () => {
+    const beneficiaire = await agent();
+    const gestionnaire = await agent();
+    const type = await creerType();
+
+    // Ni l'une ni l'autre : le solde disponible vaut zéro, et l'écran doit
+    // pouvoir le dire plutôt que d'afficher « 0 » sans explication.
+    const vierge = await conges.solde(beneficiaire, type, 2033);
+    expect(vierge.origine).toBe("aucune");
+    expect(vierge.propre).toBeNull();
+    expect(vierge.global).toBeNull();
+
+    // Défaut global seul : le chiffre vient de lui, et c'est LUI qu'il faudra
+    // corriger pour changer quelque chose à tous les agents sans allocation.
+    await conges.attribuerSolde(
+      { userId: null, typeId: type, annee: 2033, joursAttribues: 20 },
+      gestionnaire,
+    );
+    const herite = await conges.solde(beneficiaire, type, 2033);
+    expect(herite.origine).toBe("global");
+    expect(herite.attribues).toBe(20);
+    expect(herite.propre).toBeNull();
+    expect(herite.global).toMatchObject({ jours: 20 });
+
+    // Allocation propre : elle surclasse le défaut, et les DEUX restent
+    // lisibles — les deux ne se corrigent pas au même endroit.
+    await conges.attribuerSolde(
+      { userId: beneficiaire, typeId: type, annee: 2033, joursAttribues: 28 },
+      gestionnaire,
+    );
+    const propre = await conges.solde(beneficiaire, type, 2033);
+    expect(propre.origine).toBe("propre");
+    expect(propre.attribues).toBe(28);
+    expect(propre.propre).toMatchObject({ jours: 28 });
+    expect(propre.global).toMatchObject({ jours: 20 });
+  });
+
+  it("RG-CNG-24 — la version du DÉFAUT GLOBAL compose sa propre correction", async () => {
+    const beneficiaire = await agent();
+    const gestionnaire = await agent();
+    const type = await creerType();
+    await conges.attribuerSolde(
+      { userId: null, typeId: type, annee: 2034, joursAttribues: 20 },
+      gestionnaire,
+    );
+
+    // L'écran lit le solde D'UN AGENT et corrige le défaut GLOBAL : c'est le
+    // geste qui ouvre une année pour tout le monde, et il doit être composable
+    // depuis la même lecture.
+    const lu = await conges.solde(beneficiaire, type, 2034);
+    await conges.attribuerSolde(
+      {
+        userId: null,
+        typeId: type,
+        annee: 2034,
+        joursAttribues: 22,
+        version: lu.global!.version,
+      },
+      gestionnaire,
+    );
+    expect((await conges.solde(beneficiaire, type, 2034)).attribues).toBe(22);
+  });
+});
+
+/*
+ * ─────────────────────────────────────────────────────────────────────────────
+ * `RG-GEN-07` sur le CYCLE DE VIE d'une demande.
+ *
+ * Elle n'était tenue nulle part sur la vue 19 : ni le client ne transmettait la
+ * version, ni le serveur ne l'acceptait. Les deux moitiés étaient cohérentes
+ * entre elles et fausses ensemble, et aucune boucle ne pouvait le dire.
+ *
+ * Le contrôle de statut n'y suffit pas, et c'est le point : il attrape la
+ * concurrence qui CHANGE l'état, jamais celle qui n'en change pas.
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
+describe("RG-GEN-07 — la version lue accompagne chaque écriture d'une demande", () => {
+  /** Une demande en attente, prête à être corrigée. */
+  async function enAttente(u: string, debut: string, fin: string) {
+    await attribuer(u, typeAvecValidation, 2030, 25);
+    return conges.deposer(
+      { userId: u, typeId: typeAvecValidation, dateDebut: utc(debut), dateFin: utc(fin) },
+      u,
+    );
+  }
+
+  it("RG-GEN-07 — deux MODIFICATIONS concurrentes : la seconde est refusée, jamais écrasée", async () => {
+    const u = await agent();
+    const conge = await enAttente(u, "2030-03-04", "2030-03-08");
+    const lue = conge.version;
+
+    // Le premier enregistre sur la version qu'il a lue.
+    await conges.modifier(
+      conge.id,
+      { dateDebut: utc("2030-03-04"), dateFin: utc("2030-03-06"), version: lue },
+      u,
+    );
+
+    // Le second compose depuis la MÊME lecture : le statut n'a pas bougé, donc
+    // rien d'autre que la version ne peut le détecter.
+    await expect(
+      conges.modifier(
+        conge.id,
+        { dateDebut: utc("2030-03-04"), dateFin: utc("2030-03-05"), version: lue },
+        u,
+      ),
+    ).rejects.toMatchObject({ code: "conflit_de_version" });
+
+    // Le travail du premier est intact : le refus n'écrit rien.
+    const relu = await prisma.leave.findUniqueOrThrow({ where: { id: conge.id } });
+    expect(relu.dateFin.toISOString().slice(0, 10)).toBe("2030-03-06");
+  });
+
+  it("RG-GEN-07 — une APPROBATION sur version périmée est refusée", async () => {
+    const u = await agent();
+    const validateur = await agent();
+    const conge = await enAttente(u, "2030-04-01", "2030-04-03");
+    const perimee = conge.version;
+    // Quelqu'un corrige la demande entre-temps : le statut, lui, n'a pas bougé.
+    await conges.modifier(
+      conge.id,
+      { dateDebut: utc("2030-04-01"), dateFin: utc("2030-04-02"), version: perimee },
+      u,
+    );
+
+    await expect(
+      conges.approuver(conge.id, validateur, new Set(), perimee),
+    ).rejects.toMatchObject({ code: "conflit_de_version" });
+    // La demande reste en attente : on n'a pas décidé sur une plage périmée.
+    expect((await prisma.leave.findUniqueOrThrow({ where: { id: conge.id } })).statut).toBe(
+      "pending",
+    );
+  });
+
+  it("RG-GEN-07 — un REFUS sur version périmée est refusé", async () => {
+    const u = await agent();
+    const validateur = await agent();
+    const conge = await enAttente(u, "2030-05-06", "2030-05-08");
+    const perimee = conge.version;
+    await conges.modifier(
+      conge.id,
+      { dateDebut: utc("2030-05-06"), dateFin: utc("2030-05-07"), version: perimee },
+      u,
+    );
+
+    await expect(
+      conges.refuser(conge.id, "Effectif insuffisant", validateur, perimee),
+    ).rejects.toMatchObject({ code: "conflit_de_version" });
+    expect((await prisma.leave.findUniqueOrThrow({ where: { id: conge.id } })).statut).toBe(
+      "pending",
+    );
+  });
+
+  it("RG-GEN-07 — une SUPPRESSION sur version périmée est refusée, et la demande survit", async () => {
+    const u = await agent();
+    const conge = await enAttente(u, "2030-06-03", "2030-06-05");
+    const perimee = conge.version;
+    await conges.modifier(
+      conge.id,
+      { dateDebut: utc("2030-06-03"), dateFin: utc("2030-06-04"), version: perimee },
+      u,
+    );
+
+    await expect(conges.supprimer(conge.id, u, perimee)).rejects.toMatchObject({
+      code: "conflit_de_version",
+    });
+    expect(await prisma.leave.count({ where: { id: conge.id } })).toBe(1);
+  });
+
+  it("RG-GEN-07 — une DEMANDE D'ANNULATION sur version périmée est refusée", async () => {
+    const u = await agent();
+    await attribuer(u, typeSansValidation, 2030, 25);
+    const conge = await conges.deposer(
+      {
+        userId: u,
+        typeId: typeSansValidation,
+        dateDebut: utc("2030-07-01"),
+        dateFin: utc("2030-07-03"),
+      },
+      u,
+    );
+
+    await expect(
+      conges.demanderAnnulation(conge.id, u, conge.version + 1),
+    ).rejects.toMatchObject({ code: "conflit_de_version" });
+    expect((await prisma.leave.findUniqueOrThrow({ where: { id: conge.id } })).statut).toBe(
+      "approved",
+    );
+  });
+
+  it("RG-GEN-07 — le TRAITEMENT d'une annulation sur version périmée est refusé", async () => {
+    const u = await agent();
+    const validateur = await agent();
+    await attribuer(u, typeSansValidation, 2030, 25);
+    const conge = await conges.deposer(
+      {
+        userId: u,
+        typeId: typeSansValidation,
+        dateDebut: utc("2030-08-05"),
+        dateFin: utc("2030-08-07"),
+      },
+      u,
+    );
+    // La version d'AVANT la demande d'annulation : c'est celle que le
+    // validateur a en main s'il n'a pas rafraîchi sa liste.
+    const perimee = conge.version;
+    await conges.demanderAnnulation(conge.id, u, perimee);
+
+    await expect(
+      conges.traiterAnnulation(conge.id, true, validateur, perimee),
+    ).rejects.toMatchObject({ code: "conflit_de_version" });
+    expect((await prisma.leave.findUniqueOrThrow({ where: { id: conge.id } })).statut).toBe(
+      "cancellation_requested",
+    );
   });
 });
