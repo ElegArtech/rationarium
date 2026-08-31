@@ -75,7 +75,21 @@
     "personnesRequises": "{n, plural, one {# person} other {# people}}",
     "pillComplete": "Full {ratio}",
     "pillPartielle": "Partial {ratio}",
-    "suppressionBloquee": "A skill assigned to users cannot be deleted ({n})."
+    "suppressionBloquee": "A skill assigned to users cannot be deleted ({n}).",
+    "exportFait": "CSV export downloaded.",
+    "exportEchec": "The export could not be produced.",
+    "exportReferentiel": "Export catalogue",
+    "detenteurs": "Holders",
+    "voirDetenteursDe": "View holders of {nom}",
+    "detenteursTitre": "Who holds this skill",
+    "lesDetenteurs": "the holders",
+    "detenteursCompte": "{n, plural, one {# person shown} other {# people shown}}.",
+    "niveauMinimum": "Minimum level",
+    "niveauMinimumAide": "The filter is a floor: “At least Expert” also returns masters.",
+    "auMoins": "At least {niveau}",
+    "detenteursVide": "Nobody holds this skill",
+    "detenteursVideAide": "Assign it from the matrix or from the per-person view.",
+    "detenteursVideFiltre": "Nobody reaches this level. Lower the floor to see the other holders."
   },
   "tiers": {
     "surtitre": "Reference data",
@@ -274,5 +288,6 @@
   "enregistrer": "Save",
   "oui": "Yes",
   "non": "No",
-  "modifier": "Edit"
+  "modifier": "Edit",
+  "fermer": "Close"
 }

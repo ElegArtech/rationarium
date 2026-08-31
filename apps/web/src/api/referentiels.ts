@@ -77,6 +77,45 @@ export const definirNiveau = (userId: string, skillId: string, niveau: string) =
 export const retirerCompetence = (userId: string, skillId: string) =>
   appeler<void>(`/competences/agents/${userId}/${skillId}`, { methode: "DELETE" });
 
+/**
+ * `EX-CMP-10` — qui détient cette compétence, et à quel niveau.
+ *
+ * **La forme a été relevée sur le serveur, pas déduite du nom.** La route rend
+ * les lignes de la table de jointure telles quelles : ni identifiant de ligne
+ * (la clé est composite), ni nom de compétence, ni total. Le nom de la
+ * compétence est celui qu'on avait en main pour appeler — il n'est pas
+ * réémis.
+ *
+ * L'ordre est celui du serveur : par **nom de famille**, jamais par niveau.
+ * Un classement par niveau se fait ici, sur la liste reçue.
+ */
+export type Detenteur = {
+  userId: string;
+  skillId: string;
+  niveau: string;
+  user: { id: string; prenom: string; nom: string };
+};
+
+/**
+ * `niveauMinimum` est un **plancher**, pas une égalité : demander « Expert »
+ * rend les experts et les maîtres. C'est la lecture du serveur
+ * (`competences.service.ts`, `ordre.slice(indexOf)`), et l'intitulé du filtre
+ * doit le dire, sans quoi l'utilisateur lira « niveau = Expert ».
+ */
+export const detenteurs = (skillId: string, niveauMinimum?: string) =>
+  appeler<Detenteur[]>(`/competences/${skillId}/detenteurs${params({ niveauMinimum })}`);
+
+/**
+ * `EX-CMP-08` — l'export de la **matrice**.
+ *
+ * **Ce point d'entrée ne sert pas un fichier.** Malgré son nom, il rend un
+ * JSON `{ csv }` : ni `Content-Type: text/csv`, ni `Content-Disposition`. Le
+ * poser en `href` comme les exports de `imports.ts` ferait télécharger
+ * `{"csv":"Agent;…"}` — un fichier que ni un tableur ni le réimport ne
+ * lisent. On le demande donc en `fetch` et on fabrique le téléchargement.
+ */
+export const exporterMatrice = () => appeler<{ csv: string }>("/competences/export");
+
 // ── M14 — Tiers et clients, vues 23 à 26 ────────────────────────────────────
 
 export type Tiers = {

@@ -1,10 +1,15 @@
 import { test, expect, type Page } from "@playwright/test";
-import { serveur, SESSION_LECTURE } from "./fixtures/projets.js";
+import { serveur, SESSION_LECTURE, PROJET, ROUTE } from "./fixtures/projets.js";
 import {
   SESSION_TABLEAU,
+  SESSION_TABLEAU_SANS_ANNUAIRE,
+  SESSION_INSTANTANE,
   TABLEAU,
   TABLEAU_VIDE,
   TABLEAU_LIMITE,
+  PRESENCE,
+  PRESENCE_VIDE,
+  INSTANTANE_PRIS,
 } from "./fixtures/tableau.js";
 
 /**
@@ -246,5 +251,267 @@ test.describe("Vue 06 — tableau de bord", () => {
     await serveur(page, { session: SESSION_LECTURE, reponses });
     await page.goto("/");
     await expect(page.getByText("Permission requise")).toBeVisible();
+  });
+});
+
+/**
+ * `EX-USR-09` — la présence du jour.
+ *
+ * L'exigence vit au module M3 (utilisateurs et annuaire) et **aucun brief de
+ * vue ne la porte** : ni celui de la 06, ni celui de la 27. Le choix de la
+ * vue 06 est motivé dans `TableauDeBord.tsx` et consigné au rapport de lot.
+ *
+ * **L'horloge est figée dans chacun de ces contrôles.** Ce n'est pas une
+ * précaution de style : la vue calcule la date qu'elle demande, et le serveur
+ * simulé ne répond qu'à cette date-là. Sans horloge figée, ces tests
+ * passeraient le 12 août 2026 et échoueraient le 13.
+ */
+test.describe("Vue 06 — EX-USR-09, la présence du jour", () => {
+  /* Le serveur simulé ne connaît QUE le jour de `MOMENT`. Une vue qui
+     demanderait une autre date — ou aucune — recevrait un 404 et rendrait son
+     état d'erreur : c'est ce qui fait de ce motif une assertion. */
+  const avecPresence = {
+    ...reponses,
+    "/api/utilisateurs/presence?jour=2026-08-12": { corps: PRESENCE },
+  };
+
+  /*
+   * Le bloc, et rien que lui. « Camille Roussel » est aussi le nom du menu
+   * utilisateur de la coquille, et « Télétravail » un jeton de « Mon
+   * planning » : une assertion non bornée attrapait l'un ou l'autre **selon
+   * l'instant du rendu**, donc passait au vert par accident tant que le bloc
+   * n'était pas encore monté.
+   */
+  const bloc = (page: Page) =>
+    page.locator("section.panel").filter({ hasText: "Qui est là aujourd'hui" });
+
+  test("EX-USR-09 — QUI EST LÀ, QUI EST EN CONGÉ, QUI EST EN TÉLÉTRAVAIL", async ({ page }) => {
+    await horlogeFixe(page);
+    await serveur(page, { session: SESSION_TABLEAU, reponses: avecPresence });
+    await page.goto("/");
+
+    const panneau = bloc(page);
+    await expect(panneau).toBeVisible();
+
+    // Les trois états sont ÉCRITS. Trois jetons les distinguent aussi, mais
+    // « en congé » et « en télétravail » ne se devinent pas d'une nuance.
+    await expect(panneau.getByText("Camille Roussel")).toBeVisible();
+    await expect(panneau.getByText("Au bureau", { exact: true })).toBeVisible();
+    await expect(panneau.getByText("Driss Amrani")).toBeVisible();
+    await expect(panneau.getByText("Inès Rocher")).toBeVisible();
+    await expect(panneau.getByText("Télétravail", { exact: true })).toBeVisible();
+  });
+
+  test("EX-USR-09 — le type de congé est nommé, pas réduit à « en congé »", async ({ page }) => {
+    await horlogeFixe(page);
+    await serveur(page, { session: SESSION_TABLEAU, reponses: avecPresence });
+    await page.goto("/");
+
+    // Le serveur rend `typeConge` ; s'en servir dit « Congé annuel » là où
+    // « En congé » aurait perdu ce que la donnée portait déjà.
+    await expect(bloc(page).getByText("Congé annuel", { exact: true })).toBeVisible();
+  });
+
+  test("EX-USR-09 — le taux de présence est chiffré, pas seulement listé", async ({ page }) => {
+    await horlogeFixe(page);
+    await serveur(page, { session: SESSION_TABLEAU, reponses: avecPresence });
+    await page.goto("/");
+
+    // `cadrage/01 § 2`, Fatou : « voir le taux de présence ». Compter les
+    // lignes à l'œil n'est pas voir un taux.
+    await expect(page.getByText("1 au bureau · 1 en congé · 1 en télétravail")).toBeVisible();
+  });
+
+  test("EX-USR-09 — LA DATE DEMANDÉE EST CELLE DE L'HORLOGE, jamais laissée au serveur", async ({
+    page,
+  }) => {
+    /*
+     * Le défaut que ce contrôle ferme : `GET /utilisateurs/presence` accepte
+     * `jour` en option et retombe sinon sur `new Date()` — un instant, avec
+     * son heure —, qu'il compare à `telework.date` par égalité stricte et à
+     * `leave.dateFin` par `>=`, deux colonnes stockées à minuit. Sans `jour`,
+     * plus personne n'est jamais en télétravail et tout congé qui s'achève
+     * aujourd'hui est manqué : la réponse serait « tout le monde est
+     * présent » — fausse, et parfaitement plausible.
+     */
+    await horlogeFixe(page);
+    let demandee: string | null = null;
+    await serveur(page, { session: SESSION_TABLEAU, reponses: avecPresence });
+    await page.route("**/api/utilisateurs/presence**", (route) => {
+      demandee = new URL(route.request().url()).searchParams.get("jour");
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(PRESENCE),
+      });
+    });
+    await page.goto("/");
+
+    /* L'effet AVANT la variable : la liste rendue prouve que la réponse est
+       arrivée, donc que `demandee` a été renseignée. */
+    await expect(bloc(page).getByText("Driss Amrani")).toBeVisible();
+    // `MOMENT` vaut le 12 août 2026 : la date est calculée, transmise, et nue.
+    expect(demandee).toBe("2026-08-12");
+  });
+
+  test("RG-GEN-04 — un périmètre sans agent s'explique, il ne reste pas blanc", async ({
+    page,
+  }) => {
+    await horlogeFixe(page);
+    await serveur(page, {
+      session: SESSION_TABLEAU,
+      reponses: {
+        ...reponses,
+        "/api/utilisateurs/presence?jour=2026-08-12": { corps: PRESENCE_VIDE },
+      },
+    });
+    await page.goto("/");
+
+    await expect(bloc(page).getByText("Aucun agent dans votre périmètre")).toBeVisible();
+    await expect(
+      page.getByText("La présence du jour se remplit dès qu'un agent vous est rattaché."),
+    ).toBeVisible();
+  });
+
+  test("RG-GEN-06 — SANS users:read, LE BLOC N'EXISTE PAS", async ({ page }) => {
+    /*
+     * Le brief exige la vue « complète en un écran, sans défilement » pour
+     * Camille, contributrice. Elle ne détient pas `users:read` : le bloc ne
+     * s'affiche pas pour elle, et la contrainte du brief tient. Ni grisé, ni
+     * vide — une présence d'équipe ne s'annonce pas à qui n'y a pas droit.
+     */
+    await horlogeFixe(page);
+    let appelee = false;
+    await serveur(page, {
+      session: SESSION_TABLEAU_SANS_ANNUAIRE,
+      reponses: avecPresence,
+    });
+    await page.route("**/api/utilisateurs/presence**", (route) => {
+      appelee = true;
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(PRESENCE),
+      });
+    });
+    await page.goto("/");
+
+    // La page a bien rendu : c'est le bloc qui manque, pas le chargement.
+    await expect(page.getByRole("heading", { name: "Bonjour Camille", level: 1 })).toBeVisible();
+    await expect(bloc(page)).toHaveCount(0);
+    await expect(page.getByText("Driss Amrani")).toHaveCount(0);
+    // Et la donnée n'est même pas demandée.
+    expect(appelee).toBe(false);
+  });
+});
+
+/**
+ * La capture d'un instantané d'avancement — vue 11.
+ *
+ * **`EX-PRJ-13` n'est cité par aucun de ces titres, et c'est délibéré.**
+ * L'exigence dit « **consulter l'historique** des instantanés » : elle porte
+ * deux verbes, capturer et consulter. Le premier est branché ici ; le second
+ * n'a ni méthode de service, ni route — `fiche()` ne rend que le dernier
+ * relevé. La citer serait déclarer couverte une exigence dont la moitié
+ * n'existe pas, exactement ce que la vague 7-4 a refusé de faire pour
+ * `EX-JAL-01` et `EX-CMP-09`. Elle reste donc en dette, son `defaut` mis à
+ * jour pour dire ce qui est fait et ce qui manque.
+ *
+ * `RG-PRJ-09` n'est pas cité non plus : la règle veut une capture
+ * **périodique**, confiée à `pg-boss` par `cadrage/03 § 5.4`, et ce travail
+ * de fond n'existe pas. Ce bouton est aujourd'hui le seul producteur
+ * d'instantanés du produit — ce qui rend la capture nécessaire, pas la règle
+ * satisfaite.
+ *
+ * **Ce bloc décrit la vue 11 et vit pourtant dans le fichier de la vue 06.**
+ * `projets.e2e.spec.ts` est travaillé par un autre lot au même moment ; deux
+ * lots dans le même fichier se perdent l'un l'autre. À la fusion, sa place est
+ * là-bas, sous « Vue 11 ».
+ */
+test.describe("Vue 11 — capturer un instantané d'avancement", () => {
+  const CHEMIN = `/projets/${PROJET.id}`;
+  const reponsesProjet = {
+    [`/api${CHEMIN}`]: { corps: PROJET },
+    [`/api${CHEMIN}/feuille-de-route`]: { corps: ROUTE },
+  };
+
+  test("LA CAPTURE PART AVEC LA DATE DU JOUR, jamais avec l'heure", async ({ page }) => {
+    /*
+     * `RG-PRJ-09` confie la capture à un travail périodique (`cadrage/03
+     * § 5.4`) — qui n'existe pas. Cette commande est donc aujourd'hui le seul
+     * producteur d'instantanés du produit : sans elle, `dernierInstantane` et
+     * la courbe de tendance de la vue 30 restent vides à jamais.
+     *
+     * L'horloge est figée : la date envoyée est calculée par la vue.
+     */
+    await horlogeFixe(page);
+    let envoyee: unknown = null;
+    await serveur(page, { session: SESSION_INSTANTANE, reponses: reponsesProjet });
+    await page.route(`**/api${CHEMIN}/instantane`, (route) => {
+      envoyee = route.request().postDataJSON();
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(INSTANTANE_PRIS),
+      });
+    });
+    await page.goto(CHEMIN);
+
+    await page.getByRole("button", { name: "Capturer un instantané" }).click();
+
+    expect(envoyee).toEqual({ date: "2026-08-12" });
+  });
+
+  test("l'accusé rend la progression REÇUE, pas celle qu'on affichait", async ({
+    page,
+  }) => {
+    /*
+     * La fiche affiche 62 % et le serveur écrit ce qu'il a calculé. Relire la
+     * réponse plutôt que son propre état est la seule façon de voir que le
+     * serveur a bien enregistré ce qu'on croit : c'est le défaut qu'une
+     * capacité sans client cache par nature.
+     */
+    await horlogeFixe(page);
+    await serveur(page, {
+      session: SESSION_INSTANTANE,
+      reponses: {
+        ...reponsesProjet,
+        [`/api${CHEMIN}/instantane`]: { corps: { ...INSTANTANE_PRIS, progression: 58 } },
+      },
+    });
+    await page.goto(CHEMIN);
+
+    await page.getByRole("button", { name: "Capturer un instantané" }).click();
+
+    await expect(page.getByText("Instantané capturé — 58 % au 12/08/2026.")).toBeVisible();
+  });
+
+  test("RG-GEN-06 — sans reports:read, la capture n'est pas proposée", async ({ page }) => {
+    await horlogeFixe(page);
+    await serveur(page, { session: SESSION_TABLEAU, reponses: reponsesProjet });
+    await page.goto(CHEMIN);
+
+    // La page a rendu — c'est la commande qui manque.
+    await expect(page.getByRole("heading", { name: PROJET.nom })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Capturer un instantané" })).toHaveCount(0);
+  });
+
+  test("un projet annulé est figé : aucune capture", async ({ page }) => {
+    /*
+     * `cadrage/02`, vue 11 : « Ce projet est annulé […] toute modification
+     * bloquée ». Un instantané est une écriture.
+     */
+    await horlogeFixe(page);
+    await serveur(page, {
+      session: SESSION_INSTANTANE,
+      reponses: {
+        ...reponsesProjet,
+        [`/api${CHEMIN}`]: { corps: { ...PROJET, statut: "cancelled" } },
+      },
+    });
+    await page.goto(CHEMIN);
+
+    await expect(page.getByText("Ce projet est annulé")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Capturer un instantané" })).toHaveCount(0);
   });
 });

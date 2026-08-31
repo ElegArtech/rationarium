@@ -101,7 +101,10 @@
     "modifier": "Modifier",
     "modifie": "Projet enregistré.",
     "annulerProjet": "Annuler le projet",
-    "annulerFait": "Projet annulé. Il reste restaurable."
+    "annulerFait": "Projet annulé. Il reste restaurable.",
+    "capturerInstantane": "Capturer un instantané",
+    "instantanePris": "Instantané capturé — {pct} % au {date}.",
+    "echecInstantane": "L'instantané n'a pas pu être capturé."
   },
   "jalons": {
     "laFeuille": "la feuille de route",

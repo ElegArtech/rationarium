@@ -280,11 +280,43 @@ describe("RG-CMP-01, RG-CMP-02, RG-CMP-03 — couverture et écarts", () => {
     await competences.definirNiveau(debutant, c.id, "beginner", acteur);
     await competences.definirNiveau(expert, c.id, "expert", acteur);
 
-    const tous = await competences.detenteurs(c.id);
+    const global = await globalP();
+    const tous = await competences.detenteurs(c.id, global);
     expect(tous).toHaveLength(2);
 
-    const confirmes = await competences.detenteurs(c.id, "expert");
+    const confirmes = await competences.detenteurs(c.id, global, "expert");
     expect(confirmes.map((d) => d.userId)).toEqual([expert]);
+  });
+
+  /**
+   * `RG-SCOPE-01` — **le périmètre manquait sur cette route.**
+   *
+   * `skills:read` appartient au socle, donc à tout compte : la route énumérait
+   * `id`, prénom, nom et niveau de **tous les agents actifs de l'instance**,
+   * département ignoré. Ses deux voisines du même service, `matrice()` et
+   * `exporterMatrice()`, l'appliquent ; celle-ci ne le recevait même pas en
+   * argument. Trouvé par l'agent qui branchait la vue, en comparant les trois
+   * méthodes l'une à l'autre.
+   */
+  it("RG-SCOPE-01 — les détenteurs sont bornés au périmètre de qui demande", async () => {
+    const c = await competences.creer(
+      { nom: `Cloisonnee-${uuid().slice(0, 6)}`, categorie: "technical" },
+      acteur,
+    );
+    const dedans = await agent();
+    const dehors = await agent();
+    await competences.definirNiveau(dedans, c.id, "expert", acteur);
+    await competences.definirNiveau(dehors, c.id, "expert", acteur);
+
+    // Un périmètre qui ne contient qu'un seul agent ne doit en rendre qu'un.
+    const restreint = { userId: dedans, global: false, departements: new Set<string>(),
+                        utilisateurs: new Set([dedans]), confidentiel: false };
+    const vus = await competences.detenteurs(c.id, restreint);
+    expect(vus.map((d) => d.userId)).toEqual([dedans]);
+
+    // Le périmètre global, lui, voit les deux.
+    expect((await competences.detenteurs(c.id, await globalP())).map((d) => d.userId).sort())
+      .toEqual([dedans, dehors].sort());
   });
 
   it("EX-CMP-08 — l'export porte les agents en lignes et les compétences en colonnes", async () => {

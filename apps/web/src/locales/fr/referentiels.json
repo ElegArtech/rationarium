@@ -75,7 +75,21 @@
     "personnesRequises": "{n, plural, one {# personne} other {# personnes}}",
     "pillComplete": "Complète {ratio}",
     "pillPartielle": "Partielle {ratio}",
-    "suppressionBloquee": "Impossible de supprimer une compétence qui est assignée à des utilisateurs ({n})."
+    "suppressionBloquee": "Impossible de supprimer une compétence qui est assignée à des utilisateurs ({n}).",
+    "exportFait": "Export CSV téléchargé.",
+    "exportEchec": "L'export n'a pas pu être produit.",
+    "exportReferentiel": "Exporter le référentiel",
+    "detenteurs": "Détenteurs",
+    "voirDetenteursDe": "Voir les détenteurs de {nom}",
+    "detenteursTitre": "Qui détient cette compétence",
+    "lesDetenteurs": "les détenteurs",
+    "detenteursCompte": "{n, plural, one {# personne affichée} other {# personnes affichées}}.",
+    "niveauMinimum": "Niveau minimum",
+    "niveauMinimumAide": "Le filtre est un plancher : « Au moins Expert » rend aussi les maîtres.",
+    "auMoins": "Au moins {niveau}",
+    "detenteursVide": "Personne ne détient cette compétence",
+    "detenteursVideAide": "Assignez-la depuis la matrice ou depuis la vue par utilisateur.",
+    "detenteursVideFiltre": "Personne n'atteint ce niveau. Abaissez le plancher pour voir les autres détenteurs."
   },
   "tiers": {
     "surtitre": "Référentiels",
@@ -274,5 +288,6 @@
   "enregistrer": "Enregistrer",
   "oui": "Oui",
   "non": "Non",
-  "modifier": "Modifier"
+  "modifier": "Modifier",
+  "fermer": "Fermer"
 }
