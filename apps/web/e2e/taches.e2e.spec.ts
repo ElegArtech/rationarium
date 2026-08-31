@@ -155,6 +155,62 @@ test.describe("Vue 12 — kanban", () => {
     }
   });
 
+  /**
+   * `RG-TSK-16` — « Les colonnes *À faire* et *Terminé* du kanban ne peuvent
+   * pas être masquées. »
+   *
+   * **La règle tient par construction, et c'est ce qu'il faut prouver.** Le
+   * produit n'offre AUCUN masquage de colonne : la liste vient du vocabulaire
+   * de `cadrage/01 § 4.1`, dans son ordre, et rien ne la filtre. Un test qui
+   * exercerait un masquage n'aurait rien à exercer.
+   *
+   * Ce qu'on éprouve donc, c'est l'invariant : quoi qu'il arrive à l'écran —
+   * aucune tâche, un filtre qui ne rend rien, des droits minimaux —, les deux
+   * colonnes restent. C'est ce qui rougira le jour où quelqu'un ajoutera un
+   * paramétrage de colonnes sans les en exclure.
+   */
+  const DEUX_INAMOVIBLES = ["À faire", "Terminé"];
+
+  test("RG-TSK-16 — les deux colonnes restent quand AUCUNE tâche n'existe", async ({ page }) => {
+    await serveur(page, {
+      session: SESSION_TACHES,
+      reponses: { ...reponses, "/api/taches": { corps: [] } },
+    });
+    await page.goto(`/projets/${PROJET.id}/taches`);
+
+    for (const colonne of DEUX_INAMOVIBLES) {
+      await expect(page.getByRole("region", { name: new RegExp(colonne) })).toBeVisible();
+    }
+    // Et les cinq, tant qu'à vérifier qu'un état vide ne replie rien.
+    await expect(page.getByText("Aucune tâche", { exact: true })).toHaveCount(5);
+  });
+
+  test("RG-TSK-16 — elles restent aussi avec des DROITS MINIMAUX", async ({ page }) => {
+    /*
+     * `RG-GEN-06` masque des commandes, jamais la structure : un lecteur doit
+     * voir le tableau entier, sinon il ne comprend pas ce qu'il regarde.
+     */
+    await serveur(page, { session: SESSION_LECTURE, reponses });
+    await page.goto(`/projets/${PROJET.id}/taches`);
+
+    for (const colonne of DEUX_INAMOVIBLES) {
+      await expect(page.getByRole("region", { name: new RegExp(colonne) })).toBeVisible();
+    }
+  });
+
+  test("RG-TSK-16 — aucune commande de masquage de colonne n'est proposée", async ({ page }) => {
+    /*
+     * L'assertion qui donne son sens aux deux précédentes : si un masquage
+     * apparaît un jour, ce test tombe et oblige à relire la règle avant de
+     * livrer.
+     */
+    await serveur(page, { session: SESSION_TACHES, reponses });
+    await page.goto(`/projets/${PROJET.id}/taches`);
+
+    await expect(page.getByRole("button", { name: /Masquer/ })).toHaveCount(0);
+    await expect(page.getByRole("checkbox", { name: /colonne/i })).toHaveCount(0);
+  });
+
   test("une colonne vide le dit", async ({ page }) => {
     await serveur(page, { session: SESSION_TACHES, reponses });
     await page.goto(`/projets/${PROJET.id}/taches`);
