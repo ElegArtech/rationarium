@@ -683,3 +683,76 @@ test.describe("le vocabulaire de la maquette est posé dès que la donnée exist
     }
   });
 });
+
+/**
+ * `RG-PLN-05` — « Si une modification aboutit mais que le rafraîchissement
+ * échoue, l'utilisateur est averti que l'affichage peut être périmé. »
+ *
+ * La règle décrit une situation qui n'existe que dans le client : le serveur a
+ * répondu, et c'est la SECONDE requête, celle de relecture, qui tombe. Aucun
+ * point d'entrée ne peut la porter, aucun test d'intégration ne peut la
+ * provoquer — d'où sa dette jusqu'ici.
+ *
+ * Le montage : la première lecture du planning réussit, l'écriture réussit, et
+ * la relecture échoue. Le silence serait pire que l'échec — il laisserait agir
+ * sur des données fausses.
+ */
+test.describe("RG-PLN-05 — le rafraîchissement qui échoue après une écriture réussie", () => {
+  test("RG-PLN-05 — l'écriture aboutit, la relecture tombe, et l'utilisateur EST AVERTI", async ({
+    page,
+  }) => {
+    await horlogeFixe(page);
+
+    let lectures = 0;
+    await page.route(
+      (url) => url.pathname.startsWith("/api/"),
+      (route) => {
+        const chemin = new URL(route.request().url()).pathname;
+
+        if (chemin === "/api/auth/me") {
+          return route.fulfill({
+            status: 200,
+            contentType: "application/json",
+            body: JSON.stringify(SESSION_PLANNING),
+          });
+        }
+        if (chemin === "/api/planning/teletravail") {
+          // L'écriture, elle, réussit : c'est toute la difficulté de la règle.
+          return route.fulfill({
+            status: 200,
+            contentType: "application/json",
+            body: JSON.stringify({ id: "w1", etat: "office" }),
+          });
+        }
+        if (chemin === "/api/planning") {
+          lectures += 1;
+          // La première lecture peuple la grille ; la relecture tombe.
+          return lectures === 1
+            ? route.fulfill({
+                status: 200,
+                contentType: "application/json",
+                body: JSON.stringify(SEMAINE),
+              })
+            : route.fulfill({ status: 503, contentType: "application/json", body: "{}" });
+        }
+        return route.fulfill({ status: 200, contentType: "application/json", body: "{}" });
+      },
+    );
+
+    await page.goto("/planning");
+
+    const bascule = page.getByRole("button", { name: /Ana Berger, 2026-08-13/ });
+    await expect(bascule).toBeVisible();
+    await bascule.click();
+
+    // La confirmation de l'écriture arrive : elle a bien abouti.
+    await expect(page.getByText("Télétravail mis à jour.")).toBeVisible();
+
+    // Et l'avertissement de péremption avec elle. C'est lui que la règle exige.
+    await expect(
+      page.getByText(
+        "Modification enregistrée, mais l'affichage n'a pas pu être actualisé — données possiblement périmées.",
+      ),
+    ).toBeVisible();
+  });
+});

@@ -358,9 +358,16 @@ function LigneAgent({
 
   const realisation = useMutation({
     mutationFn: (realisee: boolean) => api.declarerRealisation(agent.assignationId, realisee),
-    onSuccess: () => {
+    onSuccess: async () => {
       annoncer("ok", t("activite.realisationEnregistree"));
-      void client.invalidateQueries({ queryKey: ["planning", "activite"] });
+      // `RG-PLN-05` — même promesse que la vue 07 : une relecture qui échoue
+      // se dit. `throwOnError` est indispensable, `refetchQueries` résolvant
+      // sa promesse même quand les requêtes tombent.
+      try {
+        await client.refetchQueries({ queryKey: ["planning", "activite"] }, { throwOnError: true });
+      } catch {
+        annoncer("warn", t("erreurs.rafraichissement"));
+      }
     },
     onError: (e) => annoncer("err", messageErreur(e, tErreurs, t("activite.echecRealisation"))),
   });
@@ -429,9 +436,13 @@ function FenetreAjout({
         date,
         periode: "full_day",
       }),
-    onSuccess: (r) => {
+    onSuccess: async (r) => {
       annoncer("ok", t("activite.assignationsCreees", { n: r.crees }));
-      void client.invalidateQueries({ queryKey: ["planning", "activite"] });
+      try {
+        await client.refetchQueries({ queryKey: ["planning", "activite"] }, { throwOnError: true });
+      } catch {
+        annoncer("warn", t("erreurs.rafraichissement"));
+      }
       surFermer();
     },
     onError: (e) => annoncer("err", messageErreur(e, tErreurs, t("activite.echecAssignation"))),

@@ -62,12 +62,6 @@
       "defaut": "RÈGLE D'INTERFACE PURE, sans contrepartie serveur — constaté vague 7-5. « Les colonnes À faire et Terminé du kanban ne peuvent pas être masquées » : le masquage de colonnes est un réglage de la vue 16, et le dépôt n'en porte AUCUNE trace côté serveur — ni réglage `Setting`, ni champ de préférence, ni contrat dans `packages/contracts`. Les colonnes sont les cinq statuts de `STATUTS_TACHE` (désormais cité par un test au titre d'`EX-TSK-01`), et le serveur ne sait pas lesquelles sont affichées. Le test qui la tiendrait est un test d'interface dans `apps/web` ; l'agent de la vague 7-5 avait interdiction d'y toucher, deux agents y branchant des routes en parallèle. Reste donc en dette, avec sa nature établie : à écrire côté vue, pas côté serveur."
     },
     {
-      "id": "RG-PLN-05",
-      "lot": "vague 7-4",
-      "module": "L-20",
-      "defaut": "RÈGLE D'INTERFACE PURE, sans contrepartie serveur — constaté vague 7-5. « Si une modification aboutit mais que le rafraîchissement échoue, l'utilisateur est averti que l'affichage peut être périmé » : la situation décrite n'existe que dans le client — le serveur a répondu, et c'est la seconde requête, celle de relecture, qui échoue. Aucun point d'entrée ne peut porter cette règle, et aucun test d'intégration ne peut la provoquer. Le test qui la tiendrait interrompt le second appel dans `apps/web` (Playwright, `page.route` sur `GET /api/planning`) et vérifie le message. L'agent de la vague 7-5 avait interdiction d'ouvrir `apps/web`. Reste en dette, avec sa nature établie : à écrire de bout en bout, pas au serveur."
-    },
-    {
       "id": "EX-TLT-04",
       "lot": "vague 7-4",
       "module": "L-16",
