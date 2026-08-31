@@ -40,6 +40,11 @@ export const MESSAGES_METIER: Record<string, Message> = {
     "erreurs:roleSystemeNonModifiable",
     "Les permissions d'un rôle système sont fixées par son modèle et ne se modifient pas. Dupliquez-le pour obtenir un rôle ajustable.",
   ),
+  autrui_sans_permission: m(
+    403,
+    "erreurs:autruiSansPermission",
+    "Agir sur le compte d'une autre personne demande une permission que vous n'avez pas. Vous pouvez le faire pour vous-même.",
+  ),
   conflit_de_version: m(
     409,
     "erreurs:conflitDeVersion",

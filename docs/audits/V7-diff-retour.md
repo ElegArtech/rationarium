@@ -108,3 +108,64 @@ s'y sont cognés.
 
 Aucune décision de cadrage. Cinq tests, dont deux vérifiés rouges sans le correctif.
 Dette de traçabilité : 117 → 115.
+
+---
+
+## RG-TLT-07 — la règle était écrite, tenue nulle part
+
+Ouverte par L-38, élargie par L-40 (« trois routes, pas une »), fermée ici.
+
+`basculer`, `generer` et `statistiques` recevaient `userId` **et** `acteurId` et ne
+les comparaient jamais. Les trois routes qui les servent font retomber `userId` sur
+l'acteur *par défaut* — ce qui donne l'apparence d'un contrôle là où il n'y en avait
+aucun. Tout porteur de `telework:create`, c'est-à-dire **tout agent**, pouvait poser du
+télétravail sur le calendrier de n'importe qui, et en générer un mois entier.
+
+### Décision : la granularité de « distincte selon l'action »
+
+`RG-TLT-07` dit « une permission dédiée, **distincte selon l'action** (consulter,
+saisir, modifier, supprimer, gérer les règles) ». Le catalogue est fermé
+(`cadrage/01 § 3.2`) et ne porte pas une permission « pour autrui » par action.
+
+**Lecture retenue, en deux temps** : la permission de l'action garde la route
+(`create`, `generate`, `manage_rules`, `read`), et une seconde autorise à viser
+quelqu'un d'autre — `telework:manage_any` pour écrire, `telework:read_team` pour lire.
+Les deux vivent dans le bloc `ENCADREMENT` du catalogue de rôles : **aucun modèle de
+rôle ne change**, un agent n'agit que sur lui-même, un encadrant sur son équipe.
+
+Écriture au cadrage : aucune. La règle existante se suffit ; c'est son application qui
+manquait. *(Si l'arbitrage humain préfère une permission par action, il faudra ouvrir
+le catalogue — décision plus lourde, et qui n'était pas nécessaire pour fermer le
+trou.)*
+
+### Un défaut trouvé en écrivant le test
+
+`statistiques` rendait **`annee: jours.length`** — le champ nommé « année » portait un
+nombre de jours, alors que la requête prend une année en entrée. Personne ne l'avait
+vu parce que **personne n'appelait cette route** : aucun écran ne la consommait, donc
+aucune assertion ne portait sur sa forme. C'est exactement le défaut qu'une capacité
+sans client cache par nature. Corrigé : `annee` porte l'année, `total` le décompte.
+
+### Un défaut du garde-fou lui-même
+
+`scripts/tracabilite-check.mjs` listait les fichiers de test par `git ls-files` : **un
+fichier neuf y est invisible tant qu'il n'est pas indexé**. Le contrôle répondait
+« aucun test ne cite cette règle » à qui venait de l'écrire, et l'invitait à inscrire
+en dette une règle déjà couverte. Il balaie désormais le système de fichiers. Le
+plancher d'inventaire mord toujours — vérifié en cassant l'extraction.
+
+Nouveau fichier : `apps/api/src/teletravail/teletravail.int.test.ts`. Le module était
+le seul module métier substantiel sans test à son nom.
+
+---
+
+## Vague 4 bis — les trois routes redondantes : décision
+
+**Elles restent, documentées dans `SANS_CLIENT` avec leur raison.** Le plan laissait le
+choix entre suppression et documentation.
+
+Motif du choix : supprimer une capacité calculée et testée a un coût, et
+`GET /projets/:id/budget` est précisément le point d'entrée naturel pour rafraîchir un
+indicateur après une saisie de temps — une vue future le voudra. La raison de leur
+existence est désormais écrite là où un lecteur la rencontrera, et le garde-fou de
+L-39 refuse toute route qui ne serait ni appelée ni déclarée. Le lot est clos.

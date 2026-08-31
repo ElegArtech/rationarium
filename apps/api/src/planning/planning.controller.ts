@@ -105,7 +105,13 @@ export class PlanningController {
       }),
       corps,
     );
-    return this.teletravail.basculer(donnees.userId, donnees.date, donnees.etat, d.userId);
+    return this.teletravail.basculer(
+      donnees.userId,
+      donnees.date,
+      donnees.etat,
+      d.userId,
+      d.permissions,
+    );
   }
 
   /**
