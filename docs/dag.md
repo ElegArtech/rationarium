@@ -200,6 +200,56 @@ Un audit **balaie exhaustivement**, jamais par échantillon, et ses correctifs s
 
 ---
 
+## Vague 7 — Rattrapage des inopérants
+
+**Ouverte le 2026-08-31, après le premier déploiement réel.** Ce n'est pas un audit
+de conformité de plus : c'est le rattrapage d'une **famille** de défauts que six
+vagues de boucles vertes n'ont pas vue, parce qu'elle est silencieuse par
+construction — *une fonctionnalité absente ne fait échouer aucun contrôle*.
+
+Quatre défauts de cette famille ont été trouvés **par l'utilisateur en une
+après-midi**, aucun par une boucle : une route gardée, testée, qu'aucun écran
+n'appelait ; un bouton désactivé derrière un motif périmé ; une forme de réponse
+inventée par le client et validée par son propre jeu d'essai ; un champ manquant dans
+une lecture, dont on avait conclu que la route d'écriture n'existait pas.
+
+| Lot | Contenu | Criticité | Mode | État |
+| --- | --- | --- | --- | --- |
+| ~~**L-38**~~ | **Cloisonnement des champs gouvernés.** Un champ dont l'écriture confère un droit est gouverné par la permission de ce droit, pas par celle de la route | **Haute** | pair | **livré** |
+| ~~**L-39**~~ | Garde-fou : aucune route serveur sans appel client | Moyenne | délégation | **livré** |
+| ~~**L-40**~~ | Garde-fou : aucune commande inerte ni champ sensible non déclarés | Moyenne | délégation | **livré** |
+| ~~**L-41**~~ | Garde-fou : aucune `EX-…`/`RG-…` sans test qui la cite | Moyenne | délégation | **livré** |
+| **L-42** | `PATCH` et `DELETE /evenements/:id`, avec la portée sur une série | Moyenne | délégation | en cours |
+| **L-43** | Exécution des imports de compétences et de congés | Moyenne | délégation | en cours |
+| **L-45** | Tâches candidates aux dépendances, et pose d'un ensemble | Moyenne | délégation | en cours |
+| ~~**L-47**~~ | Annulation logique d'un projet — le premier des trois temps de `RG-GEN-10` | Moyenne | pair | **livré** |
+| ~~**L-49**~~ | Suppression de rôle, statistiques de télétravail | Basse | pair | **livré** |
+| **7-4** | Dette de traçabilité — 362 identifiants, 120 en dette à l'ouverture | Basse | délégation | en cours |
+
+> **Ce que la vague 7 a trouvé, et que le plan ne prévoyait pas.** Deux défauts de
+> sécurité. **`IT_SUPPORT` pouvait s'attribuer `ADMIN`** : `PATCH /utilisateurs/:id`
+> est gardé par `users:update` et écrivait `roleId`, alors que le catalogue de rôles
+> énonce en toutes lettres « pas de gestion des rôles — c'est la limite qui sépare le
+> support de l'administration ». La limite était écrite et tenue nulle part. **Un rôle
+> système pouvait être vidé de ses permissions** : `RG-ADM-02` n'était tenue que côté
+> client, et une requête forgée sur `PUT /administration/roles/:id/permissions` vidait
+> `ADMIN` — que nul ne pouvait restaurer, puisque restaurer exige
+> `users:manage_permissions`, qui vit dedans. Le raisonnement était pourtant écrit
+> douze lignes plus haut dans le même fichier, sur `renommer` : **le commentaire
+> décrivait exactement le trou qu'il ne bouchait pas.**
+>
+> S'y ajoute **`RG-TLT-07`, énoncée au cadrage et appliquée nulle part** sur trois
+> routes : tout agent pouvait poser du télétravail sur le calendrier de n'importe
+> qui. Et un champ nommé `annee` qui portait un nombre de jours — invisible parce que
+> **personne n'appelait la route**, donc aucune assertion ne portait sur sa forme.
+>
+> Le compte des inopérants a doublé à chaque mesure plus fine : 13 routes sans client
+> à l'audit initial, **41** au croisement mécanique de L-39 ; 2 commandes inertes
+> annoncées, **12** au balayage de L-40. *Une famille de défauts silencieux se mesure
+> toujours en dessous de sa taille réelle tant qu'on ne l'instrumente pas.*
+
+---
+
 ## Arbitrages restants et leur échéance
 
 | # | Arbitrage | Échéance |
