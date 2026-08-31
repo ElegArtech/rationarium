@@ -126,8 +126,26 @@ export class CongesService {
           where: { userId: null, typeId: donnees.typeId, annee: donnees.annee },
         });
 
-    if (existante && donnees.version !== undefined && existante.version !== donnees.version) {
-      throw new ErreurConge("allocation_modifiee");
+    /*
+     * `RG-CNG-23` / `RG-GEN-07` — la version est EXIGÉE dès qu'une allocation
+     * existe.
+     *
+     * Elle était facultative : `donnees.version !== undefined` laissait passer
+     * l'appelant qui l'omettait, et le contrôleur la déclarait `optional()`.
+     * Un gestionnaire qui ne l'envoyait pas écrasait en silence l'écriture
+     * concurrente d'un autre — « dernier arrivé gagne », rentré par la porte de
+     * l'option. Le test de concurrence existant ne pouvait pas le voir : il
+     * transmet toujours la version.
+     *
+     * Une protection qui ne protège que celui qui y pense n'en est pas une.
+     * L'absence de version sur une allocation existante est donc traitée comme
+     * un conflit, pas comme une dispense.
+     */
+    if (existante && existante.version !== donnees.version) {
+      throw new ErreurConge("allocation_modifiee", {
+        attendue: existante.version,
+        recue: donnees.version ?? null,
+      });
     }
 
     const solde = existante
@@ -300,9 +318,38 @@ export class CongesService {
       validateur = dept?.responsableId ?? null;
     }
 
+    /*
+     * 3. À défaut, un détenteur de la permission de gestion globale.
+     *
+     * **Le troisième échelon de `RG-CNG-08` n'existait pas.** La fonction
+     * s'arrêtait au responsable de département et rendait `null` ; `deposer`
+     * créait alors la demande avec `validateurId: null`, et `lister` filtrant
+     * « à valider » sur `validateurId = acteur`, cette demande n'apparaissait
+     * **chez personne**. Elle retenait du solde engagé, n'atteignait jamais un
+     * décideur, et rien ne le signalait ni à l'agent ni à l'administration.
+     * Le cas s'atteint dès qu'un département neuf n'a pas encore de
+     * responsable.
+     *
+     * Le choix est déterministe — le plus anciennement créé, à égalité le plus
+     * petit identifiant — pour qu'un même dépôt rejoué désigne le même
+     * validateur. Un `findFirst` sans ordre rendrait la file d'attente
+     * dépendante du plan d'exécution de PostgreSQL.
+     */
+    if (!validateur) {
+      const global = await this.prisma.user.findFirst({
+        where: {
+          actif: true,
+          role: { permissions: { some: { permission: "leaves:manage_any" } } },
+        },
+        orderBy: [{ creeLe: "asc" }, { id: "asc" }],
+        select: { id: true },
+      });
+      validateur = global?.id ?? null;
+    }
+
     if (!validateur) return null;
 
-    // 3. Délégation active — CANTONNÉE au département du demandeur.
+    // 4. Délégation active — CANTONNÉE au département du demandeur.
     //
     // Un agent sans département ne peut cantonner personne : aucune délégation
     // ne s'applique, et le validateur d'origine garde la main. C'est le choix
