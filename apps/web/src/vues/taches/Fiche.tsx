@@ -722,6 +722,23 @@ function Commentaires({ tache }: { tache: api.FicheTache }) {
   const { session } = useSession();
   const client = useQueryClient();
   const [contenu, setContenu] = useState("");
+  const [edite, setEdite] = useState<string | null>(null);
+  const [brouillon, setBrouillon] = useState("");
+
+  const rafraichir = () => client.invalidateQueries({ queryKey: ["tache", tache.id] });
+
+  const edition = useMutation({
+    mutationFn: (id: string) => api.modifierCommentaire(id, brouillon.trim()),
+    onSuccess: () => {
+      setEdite(null);
+      void rafraichir();
+    },
+  });
+
+  const retrait = useMutation({
+    mutationFn: (id: string) => api.supprimerCommentaire(id),
+    onSuccess: () => void rafraichir(),
+  });
 
   const envoi = useMutation({
     mutationFn: () => api.commenter(tache.id, contenu.trim()),
@@ -750,8 +767,54 @@ function Commentaires({ tache }: { tache: api.FicheTache }) {
                   {c.auteur.prenom} {c.auteur.nom}
                 </span>
                 <span className="cmt-when">{formaterDateLongue(c.creeLe)}</span>
+                {/* `RG-DOC-01` — chacun modifie et supprime SES contributions.
+                    La maquette ne révèle `.cmt-acts` que pour l'auteur : le
+                    client masque par courtoisie, le refus reste au serveur. */}
+                {c.auteur.id === session.id ? (
+                  <div className="cmt-acts">
+                    {peut("comments:update") ? (
+                      <Button
+                        className="ms-toggle"
+                        onPress={() => {
+                          setEdite(c.id);
+                          setBrouillon(c.contenu);
+                        }}
+                      >
+                        {t("fiche.modifierCommentaire")}
+                      </Button>
+                    ) : null}
+                    {peut("comments:delete") ? (
+                      <Button className="ms-toggle" onPress={() => retrait.mutate(c.id)}>
+                        {t("fiche.supprimerCommentaire")}
+                      </Button>
+                    ) : null}
+                  </div>
+                ) : null}
               </div>
-              <p className="cmt-txt">{c.contenu}</p>
+              {edite === c.id ? (
+                <div className="cmt-edition">
+                  <textarea
+                    className="field"
+                    aria-label={t("fiche.modifierCommentaire")}
+                    value={brouillon}
+                    onChange={(e) => setBrouillon(e.target.value)}
+                  />
+                  <div className="ligne-actions">
+                    <Button
+                      className="btn btn-primary"
+                      isDisabled={!brouillon.trim() || edition.isPending}
+                      onPress={() => edition.mutate(c.id)}
+                    >
+                      {t("fiche.enregistrerCommentaire")}
+                    </Button>
+                    <Button className="btn btn-secondary" onPress={() => setEdite(null)}>
+                      {t("annuler")}
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <p className="cmt-txt">{c.contenu}</p>
+              )}
             </div>
           </article>
         ))
@@ -784,7 +847,39 @@ function Commentaires({ tache }: { tache: api.FicheTache }) {
 
 function Documents({ tache }: { tache: api.FicheTache }) {
   const { t } = useTranslation("taches");
+  const { t: tErreurs } = useTranslation("erreurs");
   const peut = usePeut();
+  const annoncer = useMessages();
+  const client = useQueryClient();
+
+  /*
+   * `EX-DOC-01` — la zone de dépôt était **purement décorative** : un
+   * paragraphe, sans champ de fichier ni gestionnaire. `POST /documents`
+   * existait, gardée par `documents:create`. On téléchargeait sans pouvoir
+   * déposer, et la moitié de `EX-TSK-17` — « commenter ET joindre » — n'était
+   * pas servie.
+   *
+   * Le contenu part en base64 : c'est ce que la route attend, et ce qui lui
+   * permet de rester une route JSON comme les autres.
+   */
+  const depot = useMutation({
+    mutationFn: async (fichier: File) => {
+      const octets = new Uint8Array(await fichier.arrayBuffer());
+      let binaire = "";
+      for (const octet of octets) binaire += String.fromCharCode(octet);
+      return api.televerserDocument({
+        nom: fichier.name,
+        contenuBase64: btoa(binaire),
+        typeMime: fichier.type || "application/octet-stream",
+        taskId: tache.id,
+      });
+    },
+    onSuccess: () => {
+      annoncer("ok", t("fiche.documentDepose"));
+      void client.invalidateQueries({ queryKey: ["tache", tache.id] });
+    },
+    onError: (e) => annoncer("err", messageErreur(e, tErreurs, t("fiche.echecDepot"))),
+  });
 
   return (
     <section className="panel">
@@ -823,8 +918,24 @@ function Documents({ tache }: { tache: api.FicheTache }) {
         ))
       )}
       {/* La zone de dépôt existe même quand la liste est vide : c'est elle qui
-          dit ce qu'on peut faire, pas le vide. */}
-      <p className="doc-dz">{t("fiche.deposerFichier")}</p>
+          dit ce qu'on peut faire, pas le vide. `RG-GEN-06` — sans le droit de
+          déposer, elle disparaît plutôt que de proposer un geste refusé. */}
+      {peut("documents:create") ? (
+        <label className="doc-dz">
+          {depot.isPending ? t("fiche.depotEnCours") : t("fiche.deposerFichier")}
+          <input
+            type="file"
+            className="champ-fichier"
+            aria-label={t("fiche.deposerFichier")}
+            disabled={depot.isPending}
+            onChange={(e) => {
+              const fichier = e.target.files?.[0];
+              if (fichier) depot.mutate(fichier);
+              e.target.value = "";
+            }}
+          />
+        </label>
+      ) : null}
     </section>
   );
 }

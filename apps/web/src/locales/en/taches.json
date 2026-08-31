@@ -162,7 +162,13 @@
     "enregistrerDependances": "Save dependencies",
     "dependancesEnregistrees": "Dependencies saved.",
     "echecDependances": "Saving the dependencies failed.",
-    "chargementCandidats": "Loading tasks…"
+    "chargementCandidats": "Loading tasks…",
+    "modifierCommentaire": "Edit",
+    "supprimerCommentaire": "Delete",
+    "enregistrerCommentaire": "Save",
+    "documentDepose": "Document uploaded.",
+    "echecDepot": "The upload failed.",
+    "depotEnCours": "Uploading…"
   },
   "onglet": {
     "titre": "Task board",
