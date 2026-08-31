@@ -152,14 +152,14 @@ Cette dernière décision est la plus importante de la vague. Elle a été reten
 
 | Mesure | À l'ouverture | À la clôture |
 | --- | --- | --- |
-| Routes sans appel client | 41 | **18**, toutes énumérées avec leur raison |
+| Routes sans appel client | 41 | **10**, toutes énumérées avec leur raison |
 | Appels client vers une route inexistante | 3 | **0** |
-| Commandes inertes | 12 | **9**, toutes déclarées et motivées |
-| Règles citées par un test | 239 / 364 | **304 / 364 (84 %)** |
+| Commandes inertes | 12 | **8**, toutes déclarées et motivées |
+| Règles citées par un test | 239 / 364 | **360 / 364 (99 %)** |
 | Citations pointant un identifiant inexistant | 4 | **0** |
-| Règles déclarées « non testables » | 6 | **4** |
-| Contrôles d'intégration | 546 | **758** |
-| Contrôles de bout en bout | 285 | **399** |
+| Règles déclarées « non testables » | 6 | **5**, chacune motivée |
+| Contrôles d'intégration | 546 | **989** |
+| Contrôles de bout en bout | 285 | **473** |
 
 **Six défauts de sécurité ou de cloisonnement**, aucun prévu au plan :
 
@@ -175,20 +175,81 @@ Cette dernière décision est la plus importante de la vague. Elle a été reten
 Plus une **perte de données silencieuse** : l'import en mode Remplacer détachait les
 heures déclarées sans rien dire, ou échouait sur un code de contrainte PostgreSQL.
 
-## Ce qui reste ouvert
+## Ce que la seconde passe a fermé
 
-- **Deux `PUT` sans contrôle de version** — `:id/assignes` et `:id/sous-taches/ordre` :
-  même profil de « dernier arrivé gagne » que ce que `RG-GEN-07` interdit.
-- **Les routes de participants d'un événement n'ont aucun contrôle de périmètre.**
-- **`POST /projets` accepte `chefId`/`sponsorId` sous `projects:create`** — motif
-  identique à L-38, mais nommer un chef à la création est le geste nominal
-  (`EX-PRJ-03`). À trancher avec les modèles de rôles sous les yeux.
-- **`cadrage/01 § M21` ne dit pour aucune colonne d'énumération** si elle porte le code
-  ou le libellé. Trois imports le font par convention tacite.
-- **Deux formulations divergentes du refus de cycle** entre `cadrage/02` et
-  `messages-metier.ts`.
-- La **dette de traçabilité** restante, inscrite et motivée dans
-  `design/tracabilite.json`.
+Les six points laissés ouverts à la clôture initiale l'ont tous été, et la
+famille a rendu davantage en se refermant qu'en s'ouvrant.
+
+| Laissé ouvert | Ce qu'il en est |
+| --- | --- |
+| Deux `PUT` sans contrôle de version | Fermés. `:id/assignes` et `:id/sous-taches/ordre` exigent la version lue, doublée en base. |
+| Participants d'événement sans périmètre | Fermé, **et branché** : le tiroir de la vue 18 n'affichait qu'un compte. |
+| `POST /projets` et `chefId`/`sponsorId` | Aligné sur `PATCH`. Un seul modèle de rôle était concerné (`PORTFOLIO_MANAGER`), et il ne pouvait déjà pas corriger un chef existant. |
+| `§ M21` muet sur code contre libellé | Écrit au cadrage, et tenu : un statut traduit dans un CSV faisait tomber l'import entier sur une erreur PostgreSQL. |
+| Deux formulations du refus de cycle | Le brief s'aligne sur le produit : « créerait une dépendance circulaire » renomme le refus, il ne dit pas ce qui se passerait. |
+| Dette de traçabilité | **Zéro.** 360 identifiants sur 364 cités par un test nommé ; les quatre autres inscrits comme non testables avec leur raison. |
+
+### Ce que la seconde passe a trouvé en plus, et qui ne figurait nulle part
+
+**Cinq lectures par identifiant ne contrôlaient aucun périmètre.** La fiche
+d'un projet, son budget, son équipe, sa feuille de route — puis, en balayant,
+le suivi individuel d'un agent et les documents. Tout porteur de
+`projects:read` obtenait n'importe quel projet de l'instance en devinant son
+identifiant ; tout porteur de `users:read_individual_tracking` obtenait les
+congés, le télétravail et le temps de n'importe qui ; tout porteur de
+`documents:read` téléchargeait la pièce jointe de n'importe quelle tâche
+confidentielle.
+
+Dans les cinq cas, **la liste filtrait bien et l'adresse directe non.** C'est
+ce qui rend cette famille coûteuse : un audit qui regarde la liste conclut que
+le cloisonnement tient. Le premier des cinq a été signalé par un agent qui
+n'en avait pas la charge — sa route neuve était bornée, ses quatre voisines ne
+l'étaient pas, et il l'a dit plutôt que de s'arrêter à son contrat.
+
+**Trois règles étaient tenues par un commentaire.** `RG-PLN-05` promettait un
+avertissement quand le rafraîchissement échoue : `refetchQueries` résout sa
+promesse même quand les requêtes tombent, donc le `catch` n'était jamais
+atteint. `RG-CNG-08` énumérait trois échelons de validateur et s'arrêtait au
+deuxième — une demande sans manager ni responsable de département n'apparaissait
+**chez personne** tout en retenant du solde. `RG-CNG-23` ne comparait les
+versions que si l'appelant en fournissait une.
+
+**Deux fonctionnalités entières manquaient** : les épopées (table, permissions,
+quatre modèles de rôles, champ `epicId` d'une tâche — et aucun service, donc
+`epicId` ne pouvait jamais valoir autre chose que `null`) et la modification
+d'un jalon.
+
+**Deux jeux de données se bloquaient eux-mêmes.** Le compte connecté du jeu de
+maquette gardait `motDePasseAChanger`, donc toute mesure de rendu relevait la
+vue 05 sur les trente-cinq vues. Et `STAGIAIRE_ALTERNANT`, dont la description
+dit « pas de création de tâche hors projet », ne pouvait créer aucune tâche
+nulle part : `SOCLE` porte `tasks:create_standalone` et non `tasks:create`.
+
+### La leçon de la seconde passe
+
+La première a mesuré la famille et posé des contrôles ; la seconde a rattrapé
+ce qu'ils désignaient. **Aucun des défauts ci-dessus n'a été trouvé par un
+contrôle** : ils l'ont été en écrivant, une règle du cadrage à la main, le test
+qui manquait. Le contrôle dit où chercher ; il ne cherche pas.
+
+Corollaire pour la prochaine fois : la dette de traçabilité n'est pas une liste
+de tests à écrire, c'est une liste d'**endroits où le produit n'a jamais été
+confronté à sa spécification**. Sur cinquante-six entrées, quatorze ont révélé
+un défaut.
+
+### Ce qui reste ouvert
+
+- **`ActionProtegee` porte une branche inatteignable sur l'onglet Soldes** : la
+  commande est gardée par la permission qui affiche déjà l'onglet. `RG-GEN-06` y
+  est tenue par le masquage, pas par l'infobulle. À trancher : second gardien,
+  ou onglet suffisant.
+- **Aucune lecture du défaut global de solde seul** — on interroge le solde de
+  l'utilisateur connecté et on ne lit que son champ `global`. Correct, indirect.
+- **`btn-danger` s'applique par accident** dans deux vues qui n'importent pas la
+  feuille qui la définit : le lot CSS est unique. À reprendre le jour où le
+  découpage CSS arrive.
+- **L'import CSV des tâches ne porte pas les horaires** — hors contrat de `§ M21`,
+  donc ce n'est pas un défaut, mais l'asymétrie mérite d'être vue.
 
 ---
 
