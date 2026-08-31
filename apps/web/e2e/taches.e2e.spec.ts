@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 import { serveur, SESSION, SESSION_LECTURE, PROJET } from "./fixtures/projets.js";
 import {
   LISTE,
@@ -247,9 +247,11 @@ test.describe("Vue 17 — fiche tâche", () => {
     await page.getByRole("checkbox", { name: "Hugo Nguyen" }).check();
     await page.getByRole("button", { name: "Enregistrer les assignés" }).click();
 
-    // La route REMPLACE : la liste part entière, jamais par différence.
+    // La route REMPLACE : la liste part entière, jamais par différence — et
+    // `RG-GEN-07` veut que la version LUE parte avec elle, sans quoi deux
+    // fenêtres ouvertes en même temps s'effaceraient l'une l'autre.
     await expect.poll(() => recu).not.toBeNull();
-    expect(recu).toEqual({ userIds: ["a1", "a2"] });
+    expect(recu).toEqual({ version: FICHE_VIDE.version, userIds: ["a1", "a2"] });
   });
 
   test("les dépendances sont montrées dans les deux sens", async ({ page }) => {
@@ -1086,5 +1088,198 @@ test.describe("Vue 17 — assigner un tiers", () => {
     });
     await page.goto(`/taches/${FICHE.id}`);
     await expect(page.getByRole("button", { name: "Assigner un tiers" })).toHaveCount(0);
+  });
+});
+
+/**
+ * Vague 7-5 — les trous que la fiche laissait ouverts à l'écran.
+ *
+ * `EX-TSK-04` et `EX-TSK-15` étaient absents des DEUX côtés : le serveur ne
+ * savait pas les faire, et la fiche n'avait rien à appeler. Une fonctionnalité
+ * absente ne fait échouer aucun contrôle — c'est ce qui les a laissés vivre.
+ */
+test.describe("Vue 17 — les horaires et le rattachement, à l'écran", () => {
+  /** Le journal des corps envoyés en PATCH : ce qui part, pas ce qui s'affiche. */
+  async function journalPatch(page: Page) {
+    const envois: Record<string, unknown>[] = [];
+    await page.route(
+      (url) => /^\/api\/taches\/[0-9a-f-]+$/.test(url.pathname),
+      (route) => {
+        if (route.request().method() !== "PATCH") return route.fallback();
+        envois.push(route.request().postDataJSON() as Record<string, unknown>);
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ version: FICHE.version + 1 }),
+        });
+      },
+    );
+    return envois;
+  }
+
+  const AUTRE_PROJET = "77777777-7777-4777-8777-777777777777";
+  const PORTEFEUILLE = {
+    corps: {
+      projets: [
+        { id: PROJET.id, nom: PROJET.nom },
+        { id: AUTRE_PROJET, nom: "Schéma directeur" },
+      ],
+      affiches: 2,
+      total: 2,
+    },
+  };
+  const fiche = {
+    [`/api/taches/${FICHE.id}`]: { corps: FICHE },
+    "/api/projets": PORTEFEUILLE,
+  };
+
+  test("EX-TSK-04 — l'horaire de la tâche se saisit depuis la fiche", async ({ page }) => {
+    await serveur(page, { session: SESSION_TACHES, reponses: fiche });
+    const envois = await journalPatch(page);
+    await page.goto(`/taches/${FICHE.id}`);
+
+    const fin = page.getByLabel("Heure de fin", { exact: true });
+    await expect(fin).toHaveValue("12:30");
+    await fin.fill("14:00");
+    await fin.blur();
+
+    // `RG-GEN-07` — la version lue part avec l'écriture. Les deux horaires
+    // partent ensemble : le serveur confronte la fin au début résultant.
+    await expect.poll(() => envois).toHaveLength(1);
+    expect(envois[0]).toEqual({
+      version: FICHE.version,
+      heureDebut: "09:00",
+      heureFin: "14:00",
+    });
+  });
+
+  test("EX-TSK-04 — vider les deux champs remet la tâche en journée entière", async ({ page }) => {
+    await serveur(page, { session: SESSION_TACHES, reponses: fiche });
+    const envois = await journalPatch(page);
+    await page.goto(`/taches/${FICHE.id}`);
+
+    await page.getByLabel("Heure de début", { exact: true }).fill("");
+    await page.getByLabel("Heure de fin", { exact: true }).fill("");
+    await page.getByLabel("Heure de fin", { exact: true }).blur();
+
+    /*
+     * UN seul envoi, pas deux. Enregistrer à chaque champ rechargeait la fiche
+     * entre les deux, et la resynchronisation remettait le second champ à sa
+     * valeur serveur sous la main de l'utilisateur : la moitié de la saisie
+     * disparaissait, et l'effacement ne partait jamais.
+     */
+    await expect.poll(() => envois).toHaveLength(1);
+    expect(envois[0]).toEqual({
+      version: FICHE.version,
+      heureDebut: null,
+      heureFin: null,
+    });
+  });
+
+  test("EX-TSK-15 — le projet se choisit sur la fiche, il n'est plus en lecture seule", async ({
+    page,
+  }) => {
+    await serveur(page, { session: SESSION_TACHES, reponses: fiche });
+    const envois = await journalPatch(page);
+    await page.goto(`/taches/${FICHE.id}`);
+
+    const champ = page.getByLabel("Projet", { exact: true });
+    await expect(champ).toHaveValue(PROJET.id);
+    await champ.selectOption(AUTRE_PROJET);
+
+    await expect.poll(() => envois).toHaveLength(1);
+    expect(envois[0]).toEqual({ version: FICHE.version, projectId: AUTRE_PROJET });
+  });
+
+  test("EX-TSK-15 — « Aucun projet » est une option nommée, et elle DÉTACHE", async ({ page }) => {
+    // `RG-TSK-01` — le hors-projet est un cas nominal : il se choisit, il ne
+    // s'obtient pas en vidant un champ.
+    await serveur(page, { session: SESSION_TACHES, reponses: fiche });
+    const envois = await journalPatch(page);
+    await page.goto(`/taches/${FICHE.id}`);
+
+    await expect(
+      page.getByRole("option", { name: "Aucun projet (tâche indépendante)" }),
+    ).toBeAttached();
+    await page.getByLabel("Projet", { exact: true }).selectOption("");
+
+    await expect.poll(() => envois).toHaveLength(1);
+    expect(envois[0]).toEqual({ version: FICHE.version, projectId: null });
+  });
+
+  test("RG-GEN-06 — sans tasks:update, ni le projet ni l'horaire ne s'éditent", async ({ page }) => {
+    await serveur(page, { session: SESSION_LECTURE, reponses: fiche });
+    await page.goto(`/taches/${FICHE.id}`);
+
+    await expect(page.getByLabel("Projet", { exact: true })).toHaveCount(0);
+    await expect(page.getByLabel("Heure de fin", { exact: true })).toHaveCount(0);
+    // La donnée reste lisible : masquer le geste n'est pas masquer la valeur.
+    await expect(page.getByText(PROJET.nom).first()).toBeVisible();
+  });
+
+  test("EX-TSK-04 — la fenêtre de création accepte un créneau", async ({ page }) => {
+    let recu: unknown = null;
+    await serveur(page, { session: SESSION_TACHES, reponses: reponsesListe });
+    await page.route(
+      (url) => url.pathname === "/api/taches",
+      (route) => {
+        if (route.request().method() !== "POST") return route.fallback();
+        recu = route.request().postDataJSON();
+        return route.fulfill({ status: 201, contentType: "application/json", body: '{"id":"x"}' });
+      },
+    );
+    await page.goto("/taches");
+    await page.getByRole("button", { name: "Créer une tâche" }).first().click();
+
+    await page.getByLabel("Titre").fill("Réunion de service");
+    await page.getByLabel("Heure de début", { exact: true }).fill("09:00");
+    await page.getByLabel("Heure de fin", { exact: true }).fill("10:30");
+    await page.getByRole("button", { name: "Créer la tâche" }).click();
+
+    await expect.poll(() => recu).not.toBeNull();
+    expect(recu).toMatchObject({ heureDebut: "09:00", heureFin: "10:30" });
+  });
+
+  test("EX-TSK-04 — un créneau inversé est refusé AVANT l'aller-retour", async ({ page }) => {
+    let appele = false;
+    await serveur(page, { session: SESSION_TACHES, reponses: reponsesListe });
+    await page.route(
+      (url) => url.pathname === "/api/taches",
+      (route) => {
+        if (route.request().method() !== "POST") return route.fallback();
+        appele = true;
+        return route.fulfill({ status: 201, contentType: "application/json", body: '{"id":"x"}' });
+      },
+    );
+    await page.goto("/taches");
+    await page.getByRole("button", { name: "Créer une tâche" }).first().click();
+
+    await page.getByLabel("Titre").fill("Créneau inversé");
+    await page.getByLabel("Heure de début", { exact: true }).fill("15:00");
+    await page.getByLabel("Heure de fin", { exact: true }).fill("09:00");
+    await page.getByRole("button", { name: "Créer la tâche" }).click();
+
+    await expect(
+      page.getByText("L’heure de fin doit être postérieure à l’heure de début."),
+    ).toBeVisible();
+    expect(appele).toBe(false);
+  });
+
+  test("RG-DROITS-03 — sans comments:read, le fil est dit ABSENT, pas vide", async ({ page }) => {
+    // Le serveur ne rend plus la clé `commentaires` : « Aucun commentaire »
+    // mentirait sur l'état de la tâche, et la zone de saisie promettrait un
+    // geste dont on ne pourrait pas relire le résultat.
+    const { commentaires: _fil, ...sansFil } = FICHE;
+    await serveur(page, {
+      session: SESSION_TACHES,
+      reponses: { [`/api/taches/${FICHE.id}`]: { corps: sansFil }, "/api/projets": PORTEFEUILLE },
+    });
+    await page.goto(`/taches/${FICHE.id}`);
+
+    await expect(
+      page.getByText("Vous n’avez pas le droit de lire les commentaires de cette tâche."),
+    ).toBeVisible();
+    await expect(page.getByText("Aucun commentaire", { exact: true })).toHaveCount(0);
+    await expect(page.getByLabel("Écrire un commentaire…")).toHaveCount(0);
   });
 });

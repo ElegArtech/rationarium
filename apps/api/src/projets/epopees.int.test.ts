@@ -41,6 +41,19 @@ let pg: StartedPostgreSqlContainer;
 let prisma: PrismaClient;
 let projets: ProjetsService;
 let taches: TachesService;
+
+/*
+ * `RG-TSK-02` et `RG-TSK-03` — la création d'une tâche exige désormais les
+ * droits de l'acteur : deux droits distincts selon qu'elle a un projet ou non,
+ * et l'appartenance au projet. Ces suites-ci n'éprouvent aucune des deux ; on
+ * leur passe des droits sans réserve, dont `tasks:manage_any` qui lève
+ * l'appartenance. Les deux règles ont leurs propres suites dans `src/taches`.
+ */
+const DROITS_TACHE = new Set([
+  "tasks:create",
+  "tasks:create_standalone",
+  "tasks:manage_any",
+]) as ReadonlySet<string>;
 let acteur: string;
 
 async function projet() {
@@ -108,9 +121,9 @@ describe("EX-JAL-07 — créer, modifier, supprimer une épopée", () => {
     const p = await projet();
     const a = await projets.creerEpopee({ nom: "A", projectId: p }, acteur);
     await projets.creerEpopee({ nom: "B", projectId: p }, acteur);
-    await taches.creer(nouvelleTache(p, { epicId: a.id }), acteur);
-    await taches.creer(nouvelleTache(p, { epicId: a.id }), acteur);
-    await taches.creer(nouvelleTache(p), acteur);
+    await taches.creer(nouvelleTache(p, { epicId: a.id }), acteur, DROITS_TACHE);
+    await taches.creer(nouvelleTache(p, { epicId: a.id }), acteur, DROITS_TACHE);
+    await taches.creer(nouvelleTache(p), acteur, DROITS_TACHE);
 
     const liste = await projets.epopees(p);
     expect(liste.find((e) => e.nom === "A")?.taches).toBe(2);
@@ -172,7 +185,7 @@ describe("EX-JAL-07 — créer, modifier, supprimer une épopée", () => {
   it("EX-JAL-07 — supprimer une épopée DÉTACHE ses tâches sans les supprimer", async () => {
     const p = await projet();
     const e = await projets.creerEpopee({ nom: "À supprimer", projectId: p }, acteur);
-    const t = await taches.creer(nouvelleTache(p, { epicId: e.id }), acteur);
+    const t = await taches.creer(nouvelleTache(p, { epicId: e.id }), acteur, DROITS_TACHE);
 
     const { tachesDetachees } = await projets.supprimerEpopee(e.id, acteur);
     expect(tachesDetachees).toBe(1);
@@ -185,7 +198,7 @@ describe("EX-JAL-07 — créer, modifier, supprimer une épopée", () => {
   it("EX-JAL-07 — la suppression est tracée avec le nombre de tâches détachées", async () => {
     const p = await projet();
     const e = await projets.creerEpopee({ nom: "Tracée", projectId: p }, acteur);
-    await taches.creer(nouvelleTache(p, { epicId: e.id }), acteur);
+    await taches.creer(nouvelleTache(p, { epicId: e.id }), acteur, DROITS_TACHE);
     await projets.supprimerEpopee(e.id, acteur);
 
     const trace = await prisma.auditLog.findFirst({
@@ -215,7 +228,7 @@ describe("RG-JAL-03 / RG-JAL-04 — le rattachement d'une tâche", () => {
     const chezB = await projets.creerEpopee({ nom: "Chez B", projectId: b }, acteur);
 
     await expect(
-      taches.creer(nouvelleTache(a, { epicId: chezB.id }), acteur),
+      taches.creer(nouvelleTache(a, { epicId: chezB.id }), acteur, DROITS_TACHE),
     ).rejects.toMatchObject({ code: "jalon_autre_projet" });
   });
 
@@ -223,7 +236,7 @@ describe("RG-JAL-03 / RG-JAL-04 — le rattachement d'une tâche", () => {
     const p = await projet();
     const e = await projets.creerEpopee({ nom: "Orpheline", projectId: p }, acteur);
     await expect(
-      taches.creer(nouvelleTache(null, { epicId: e.id }), acteur),
+      taches.creer(nouvelleTache(null, { epicId: e.id }), acteur, DROITS_TACHE),
     ).rejects.toMatchObject({ code: "hors_projet_avec_jalon" });
   });
 
@@ -235,29 +248,29 @@ describe("RG-JAL-03 / RG-JAL-04 — le rattachement d'une tâche", () => {
      */
     const p = await projet();
     const e = await projets.creerEpopee({ nom: "Après coup", projectId: p }, acteur);
-    const t = await taches.creer(nouvelleTache(p), acteur);
+    const t = await taches.creer(nouvelleTache(p), acteur, DROITS_TACHE);
     expect(t.epicId).toBeNull();
 
-    const apres = await taches.modifier(t.id, { epicId: e.id, version: t.version }, acteur);
+    const apres = await taches.modifier(t.id, { epicId: e.id, version: t.version }, acteur, DROITS_TACHE);
     expect(apres.epicId).toBe(e.id);
   });
 
   it("RG-JAL-03 — rattache une tâche à un JALON après coup, et l'en détache", async () => {
     const p = await projet();
     const j = await projets.creerJalon({ nom: "V1", projectId: p }, acteur);
-    const t = await taches.creer(nouvelleTache(p), acteur);
+    const t = await taches.creer(nouvelleTache(p), acteur, DROITS_TACHE);
 
     const rattachee = await taches.modifier(
       t.id,
       { milestoneId: j.id, version: t.version },
-      acteur,
+      acteur, DROITS_TACHE
     );
     expect(rattachee.milestoneId).toBe(j.id);
 
     const detachee = await taches.modifier(
       t.id,
       { milestoneId: null, version: rattachee.version },
-      acteur,
+      acteur, DROITS_TACHE
     );
     expect(detachee.milestoneId).toBeNull();
   });
@@ -266,20 +279,20 @@ describe("RG-JAL-03 / RG-JAL-04 — le rattachement d'une tâche", () => {
     const a = await projet();
     const b = await projet();
     const chezB = await projets.creerJalon({ nom: "Chez B", projectId: b }, acteur);
-    const t = await taches.creer(nouvelleTache(a), acteur);
+    const t = await taches.creer(nouvelleTache(a), acteur, DROITS_TACHE);
 
     await expect(
-      taches.modifier(t.id, { milestoneId: chezB.id, version: t.version }, acteur),
+      taches.modifier(t.id, { milestoneId: chezB.id, version: t.version }, acteur, DROITS_TACHE),
     ).rejects.toMatchObject({ code: "jalon_autre_projet" });
   });
 
   it("RG-JAL-04 — REFUSE de rattacher APRÈS COUP une tâche hors projet", async () => {
     const p = await projet();
     const e = await projets.creerEpopee({ nom: "Cible", projectId: p }, acteur);
-    const t = await taches.creer(nouvelleTache(null), acteur);
+    const t = await taches.creer(nouvelleTache(null), acteur, DROITS_TACHE);
 
     await expect(
-      taches.modifier(t.id, { epicId: e.id, version: t.version }, acteur),
+      taches.modifier(t.id, { epicId: e.id, version: t.version }, acteur, DROITS_TACHE),
     ).rejects.toMatchObject({ code: "hors_projet_avec_jalon" });
   });
 });

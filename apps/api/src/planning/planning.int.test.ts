@@ -37,6 +37,19 @@ let perimetres: PerimetreService;
  * ce qu'un geste écrit, la grille doit le rendre.
  */
 let taches: TachesService;
+
+/*
+ * `RG-TSK-02` et `RG-TSK-03` — la création d'une tâche exige désormais les
+ * droits de l'acteur : deux droits distincts selon qu'elle a un projet ou non,
+ * et l'appartenance au projet. Ces suites-ci n'éprouvent aucune des deux ; on
+ * leur passe des droits sans réserve, dont `tasks:manage_any` qui lève
+ * l'appartenance. Les deux règles ont leurs propres suites dans `src/taches`.
+ */
+const DROITS_TACHE = new Set([
+  "tasks:create",
+  "tasks:create_standalone",
+  "tasks:manage_any",
+]) as ReadonlySet<string>;
 let evenements: EvenementsService;
 
 let acteur: string;
@@ -724,7 +737,7 @@ describe("EX-PLN-11 — créer une tâche ou un événement DEPUIS le planning",
         dateFin: utc("2026-09-08"),
         assigneIds: [ana],
       },
-      acteur,
+      acteur, DROITS_TACHE
     );
 
     const grille = await planning.agreger(
@@ -773,7 +786,7 @@ describe("EX-PLN-11 — créer une tâche ou un événement DEPUIS le planning",
         dateFin: utc("2026-10-05"),
         assigneIds: [ana],
       },
-      acteur,
+      acteur, DROITS_TACHE
     );
     const grille = await planning.agreger(
       utc("2026-09-07"), utc("2026-09-13"), {}, await perimetreGlobal(), TOUT,
@@ -798,7 +811,7 @@ describe("EX-PLN-12 — ouvrir le DÉTAIL d'une tâche ou d'un événement", () 
         dateFin: utc("2026-11-03"),
         assigneIds: [ana],
       },
-      acteur,
+      acteur, DROITS_TACHE
     );
     const grille = await planning.agreger(
       utc("2026-11-02"), utc("2026-11-08"), {}, await perimetreGlobal(), TOUT,

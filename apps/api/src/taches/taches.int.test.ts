@@ -20,6 +20,24 @@ import { PerimetreService } from "../commun/perimetre.service.js";
 const PERIMETRE_TOTAL = { userId: "00000000-0000-4000-8000-000000000000", global: true, confidentiel: true } as never;
 const PERMISSIONS_TOTALES = new Set(["tasks:readAll", "tasks:manage_any"]) as ReadonlySet<string>;
 
+/*
+ * Les droits d'un créateur et d'un suppresseur sans réserve. Ces suites-ci
+ * éprouvent les dépendances, la cascade et la fiche — pas `RG-TSK-02`,
+ * `RG-TSK-03` ni `RG-TSK-14`, qui ont chacune la leur, plus bas, avec des
+ * droits volontairement partiels. `tasks:manage_any` y lève l'appartenance et
+ * la réserve d'assignation ; les deux droits de création y sont réunis parce
+ * que le corps décide lequel s'applique.
+ */
+const DROITS_CREATION = new Set([
+  "tasks:create",
+  "tasks:create_standalone",
+  "tasks:manage_any",
+]) as ReadonlySet<string>;
+const DROITS_SUPPRESSION = new Set([
+  "tasks:delete",
+  "tasks:manage_any",
+]) as ReadonlySet<string>;
+
 /** L-11 — tâches, dépendances, RACI, cascade. Criticité haute. */
 
 const RACINE_DB = path.resolve(import.meta.dirname, "../../../../packages/db");
@@ -34,6 +52,10 @@ let projetA: string;
 let projetB: string;
 
 const uuid = () => crypto.randomUUID();
+
+/** La version courante d'une tâche — `RG-GEN-07` la fait voyager partout. */
+const versionDe = async (id: string) =>
+  (await prisma.task.findUniqueOrThrow({ where: { id }, select: { version: true } })).version;
 
 async function agent() {
   const id = uuid();
@@ -54,7 +76,7 @@ async function creerTache(assignes: string[]) {
       horsProjet: true,
       ...(assignes.length > 0 ? { assigneIds: assignes } : {}),
     } as never,
-    assignes[0] ?? (await agent()),
+    assignes[0] ?? (await agent()), DROITS_CREATION
   );
   return t.id;
 }
@@ -103,12 +125,12 @@ const globalP = () => perimetres.resoudre(acteur, new Set(["tasks:manage_any"]))
 
 describe("RG-TSK-01 — le hors-projet est un CAS NOMINAL", () => {
   it("une tâche sans projet se crée sans réserve", async () => {
-    const t = await taches.creer({ titre: "Réunion transverse" }, acteur);
+    const t = await taches.creer({ titre: "Réunion transverse" }, acteur, DROITS_CREATION);
     expect(t.projectId).toBeNull();
   });
 
   it("et elle est nommée comme telle, pas laissée vide", async () => {
-    await taches.creer({ titre: "Sollicitation ponctuelle" }, acteur);
+    await taches.creer({ titre: "Sollicitation ponctuelle" }, acteur, DROITS_CREATION);
     const p = await globalP();
     const liste = await taches.lister(p, toutes, { horsProjet: true });
     expect(liste.length).toBeGreaterThan(0);
@@ -120,7 +142,7 @@ describe("RG-TSK-01 — le hors-projet est un CAS NOMINAL", () => {
       data: { nom: "J", dateEcheance: utc("2026-06-30"), projectId: projetA },
     });
     await expect(
-      taches.creer({ titre: "T", milestoneId: jalon.id }, acteur),
+      taches.creer({ titre: "T", milestoneId: jalon.id }, acteur, DROITS_CREATION),
     ).rejects.toMatchObject({ code: "hors_projet_avec_jalon" });
   });
 
@@ -129,15 +151,15 @@ describe("RG-TSK-01 — le hors-projet est un CAS NOMINAL", () => {
       data: { nom: "J", dateEcheance: utc("2026-06-30"), projectId: projetB },
     });
     await expect(
-      taches.creer({ titre: "T", projectId: projetA, milestoneId: jalon.id }, acteur),
+      taches.creer({ titre: "T", projectId: projetA, milestoneId: jalon.id }, acteur, DROITS_CREATION),
     ).rejects.toMatchObject({ code: "jalon_autre_projet" });
   });
 });
 
 describe("RG-TSK-04 — les dépendances circulaires, à toute longueur", () => {
   it("refuse le cycle immédiat A → B → A", async () => {
-    const a = await taches.creer({ titre: "A", projectId: projetA }, acteur);
-    const b = await taches.creer({ titre: "B", projectId: projetA }, acteur);
+    const a = await taches.creer({ titre: "A", projectId: projetA }, acteur, DROITS_CREATION);
+    const b = await taches.creer({ titre: "B", projectId: projetA }, acteur, DROITS_CREATION);
     await taches.ajouterDependance(b.id, a.id, acteur);
     await expect(taches.ajouterDependance(a.id, b.id, acteur)).rejects.toMatchObject({
       code: "dependance_circulaire",
@@ -150,7 +172,7 @@ describe("RG-TSK-04 — les dépendances circulaires, à toute longueur", () => 
     // deviendrait inexploitable sans que personne ne sache pourquoi.
     const ids: string[] = [];
     for (const titre of ["A", "B", "C", "D", "E"]) {
-      ids.push((await taches.creer({ titre, projectId: projetA }, acteur)).id);
+      ids.push((await taches.creer({ titre, projectId: projetA }, acteur, DROITS_CREATION)).id);
     }
     for (let i = 1; i < ids.length; i++) {
       await taches.ajouterDependance(ids[i]!, ids[i - 1]!, acteur);
@@ -161,15 +183,15 @@ describe("RG-TSK-04 — les dépendances circulaires, à toute longueur", () => 
   });
 
   it("une tâche ne dépend pas d'elle-même", async () => {
-    const a = await taches.creer({ titre: "Seule", projectId: projetA }, acteur);
+    const a = await taches.creer({ titre: "Seule", projectId: projetA }, acteur, DROITS_CREATION);
     await expect(taches.ajouterDependance(a.id, a.id, acteur)).rejects.toMatchObject({
       code: "dependance_sur_soi",
     });
   });
 
   it("RG-TSK-05 — le doublon est refusé", async () => {
-    const a = await taches.creer({ titre: "A", projectId: projetA }, acteur);
-    const b = await taches.creer({ titre: "B", projectId: projetA }, acteur);
+    const a = await taches.creer({ titre: "A", projectId: projetA }, acteur, DROITS_CREATION);
+    const b = await taches.creer({ titre: "B", projectId: projetA }, acteur, DROITS_CREATION);
     await taches.ajouterDependance(b.id, a.id, acteur);
     await expect(taches.ajouterDependance(b.id, a.id, acteur)).rejects.toMatchObject({
       code: "dependance_en_double",
@@ -177,8 +199,8 @@ describe("RG-TSK-04 — les dépendances circulaires, à toute longueur", () => 
   });
 
   it("RG-TSK-06 — deux tâches de projets différents ne se lient pas", async () => {
-    const a = await taches.creer({ titre: "A", projectId: projetA }, acteur);
-    const b = await taches.creer({ titre: "B", projectId: projetB }, acteur);
+    const a = await taches.creer({ titre: "A", projectId: projetA }, acteur, DROITS_CREATION);
+    const b = await taches.creer({ titre: "B", projectId: projetB }, acteur, DROITS_CREATION);
     await expect(taches.ajouterDependance(b.id, a.id, acteur)).rejects.toMatchObject({
       code: "dependance_autre_projet",
     });
@@ -187,9 +209,9 @@ describe("RG-TSK-04 — les dépendances circulaires, à toute longueur", () => 
 
 describe("EX-TSK-11, EX-TSK-12 — lire le graphe et ses incohérences", () => {
   it("dit ce dont on dépend ET ce qu'on bloque", async () => {
-    const amont = await taches.creer({ titre: "Amont", projectId: projetA }, acteur);
-    const milieu = await taches.creer({ titre: "Milieu", projectId: projetA }, acteur);
-    const aval = await taches.creer({ titre: "Aval", projectId: projetA }, acteur);
+    const amont = await taches.creer({ titre: "Amont", projectId: projetA }, acteur, DROITS_CREATION);
+    const milieu = await taches.creer({ titre: "Milieu", projectId: projetA }, acteur, DROITS_CREATION);
+    const aval = await taches.creer({ titre: "Aval", projectId: projetA }, acteur, DROITS_CREATION);
     await taches.ajouterDependance(milieu.id, amont.id, acteur);
     await taches.ajouterDependance(aval.id, milieu.id, acteur);
 
@@ -201,11 +223,11 @@ describe("EX-TSK-11, EX-TSK-12 — lire le graphe et ses incohérences", () => {
   it("signale une tâche qui commence avant la fin de son prérequis", async () => {
     const amont = await taches.creer(
       { titre: "Amont", projectId: projetA, dateDebut: utc("2026-03-01"), dateFin: utc("2026-03-20") },
-      acteur,
+      acteur, DROITS_CREATION
     );
     const aval = await taches.creer(
       { titre: "Aval", projectId: projetA, dateDebut: utc("2026-03-10"), dateFin: utc("2026-03-30") },
-      acteur,
+      acteur, DROITS_CREATION
     );
     await taches.ajouterDependance(aval.id, amont.id, acteur);
 
@@ -217,11 +239,11 @@ describe("EX-TSK-11, EX-TSK-12 — lire le graphe et ses incohérences", () => {
   it("ne signale rien quand l'enchaînement est correct", async () => {
     const amont = await taches.creer(
       { titre: "Amont", projectId: projetA, dateDebut: utc("2026-04-01"), dateFin: utc("2026-04-10") },
-      acteur,
+      acteur, DROITS_CREATION
     );
     const aval = await taches.creer(
       { titre: "Aval", projectId: projetA, dateDebut: utc("2026-04-11"), dateFin: utc("2026-04-20") },
-      acteur,
+      acteur, DROITS_CREATION
     );
     await taches.ajouterDependance(aval.id, amont.id, acteur);
     expect(await taches.incoherences(aval.id)).toEqual([]);
@@ -230,9 +252,9 @@ describe("EX-TSK-11, EX-TSK-12 — lire le graphe et ses incohérences", () => {
 
 describe("RG-TSK-09 — le décalage en cascade ANNONCE son ampleur", () => {
   it("l'aperçu donne les tâches touchées avant d'agir", async () => {
-    const a = await taches.creer({ titre: "A", projectId: projetA, dateDebut: utc("2026-05-01"), dateFin: utc("2026-05-05") }, acteur);
-    const b = await taches.creer({ titre: "B", projectId: projetA, dateDebut: utc("2026-05-06"), dateFin: utc("2026-05-10") }, acteur);
-    const c = await taches.creer({ titre: "C", projectId: projetA, dateDebut: utc("2026-05-11"), dateFin: utc("2026-05-15") }, acteur);
+    const a = await taches.creer({ titre: "A", projectId: projetA, dateDebut: utc("2026-05-01"), dateFin: utc("2026-05-05") }, acteur, DROITS_CREATION);
+    const b = await taches.creer({ titre: "B", projectId: projetA, dateDebut: utc("2026-05-06"), dateFin: utc("2026-05-10") }, acteur, DROITS_CREATION);
+    const c = await taches.creer({ titre: "C", projectId: projetA, dateDebut: utc("2026-05-11"), dateFin: utc("2026-05-15") }, acteur, DROITS_CREATION);
     await taches.ajouterDependance(b.id, a.id, acteur);
     await taches.ajouterDependance(c.id, b.id, acteur);
 
@@ -243,8 +265,8 @@ describe("RG-TSK-09 — le décalage en cascade ANNONCE son ampleur", () => {
   });
 
   it("le décalage déplace toute la chaîne, en conservant les durées", async () => {
-    const a = await taches.creer({ titre: "A", projectId: projetA, dateDebut: utc("2026-06-01"), dateFin: utc("2026-06-05") }, acteur);
-    const b = await taches.creer({ titre: "B", projectId: projetA, dateDebut: utc("2026-06-06"), dateFin: utc("2026-06-10") }, acteur);
+    const a = await taches.creer({ titre: "A", projectId: projetA, dateDebut: utc("2026-06-01"), dateFin: utc("2026-06-05") }, acteur, DROITS_CREATION);
+    const b = await taches.creer({ titre: "B", projectId: projetA, dateDebut: utc("2026-06-06"), dateFin: utc("2026-06-10") }, acteur, DROITS_CREATION);
     await taches.ajouterDependance(b.id, a.id, acteur);
 
     const r = await taches.decalerEnCascade(a.id, 7, acteur);
@@ -261,18 +283,18 @@ describe("RG-TSK-09 — le décalage en cascade ANNONCE son ampleur", () => {
 
 describe("RG-TSK-07 — une tâche dont d'autres dépendent ne se supprime pas", () => {
   it("le refus NOMME les dépendantes", async () => {
-    const amont = await taches.creer({ titre: "Amont", projectId: projetA }, acteur);
-    const aval = await taches.creer({ titre: "Aval bloquante", projectId: projetA }, acteur);
+    const amont = await taches.creer({ titre: "Amont", projectId: projetA }, acteur, DROITS_CREATION);
+    const aval = await taches.creer({ titre: "Aval bloquante", projectId: projetA }, acteur, DROITS_CREATION);
     await taches.ajouterDependance(aval.id, amont.id, acteur);
 
-    const erreur = await taches.supprimer(amont.id, acteur).catch((e: ErreurTache) => e);
+    const erreur = await taches.supprimer(amont.id, acteur, PERIMETRE_TOTAL, DROITS_SUPPRESSION).catch((e: ErreurTache) => e);
     expect((erreur as ErreurTache).code).toBe("supprimee_avec_dependantes");
     expect((erreur as ErreurTache).detail?.dependantes).toEqual(["Aval bloquante"]);
   });
 
   it("une tâche libre se supprime", async () => {
-    const t = await taches.creer({ titre: "Libre", projectId: projetA }, acteur);
-    await expect(taches.supprimer(t.id, acteur)).resolves.toBeUndefined();
+    const t = await taches.creer({ titre: "Libre", projectId: projetA }, acteur, DROITS_CREATION);
+    await expect(taches.supprimer(t.id, acteur, PERIMETRE_TOTAL, DROITS_SUPPRESSION)).resolves.toBeUndefined();
   });
 });
 
@@ -281,7 +303,7 @@ describe("RG-TSK-11 — glisser-déposer d'une tâche multi-assignée", () => {
     const u = await agent();
     const t = await taches.creer(
       { titre: "Mono", projectId: projetA, assigneIds: [u], dateDebut: utc("2026-07-01"), dateFin: utc("2026-07-03") },
-      acteur,
+      acteur, DROITS_CREATION
     );
     const r = await taches.deplacerDepuisPlanning(t.id, { nouvelleDate: utc("2026-07-08") }, acteur);
     expect(r.dateModifiee).toBe(true);
@@ -297,7 +319,7 @@ describe("RG-TSK-11 — glisser-déposer d'une tâche multi-assignée", () => {
     const u2 = await agent();
     const t = await taches.creer(
       { titre: "Multi", projectId: projetA, assigneIds: [u1, u2], dateDebut: utc("2026-07-01"), dateFin: utc("2026-07-03") },
-      acteur,
+      acteur, DROITS_CREATION
     );
     const r = await taches.deplacerDepuisPlanning(t.id, { nouvelleDate: utc("2026-07-08") }, acteur);
     expect(r.dateModifiee).toBe(false);
@@ -315,7 +337,7 @@ describe("RG-TSK-11 — glisser-déposer d'une tâche multi-assignée", () => {
     const u3 = await agent();
     const t = await taches.creer(
       { titre: "Multi", projectId: projetA, assigneIds: [u1, u2], dateDebut: utc("2026-07-01"), dateFin: utc("2026-07-03") },
-      acteur,
+      acteur, DROITS_CREATION
     );
 
     const r = await taches.deplacerDepuisPlanning(
@@ -333,7 +355,7 @@ describe("RG-TSK-11 — glisser-déposer d'une tâche multi-assignée", () => {
 
   it("RG-PLN-06 — assigner un agent déjà affecté est refusé", async () => {
     const u1 = await agent();
-    const t = await taches.creer({ titre: "T", projectId: projetA, assigneIds: [u1] }, acteur);
+    const t = await taches.creer({ titre: "T", projectId: projetA, assigneIds: [u1] }, acteur, DROITS_CREATION);
     await expect(
       taches.deplacerDepuisPlanning(t.id, { nouvelAssigneId: u1 }, acteur),
     ).rejects.toMatchObject({ code: "deja_assigne" });
@@ -343,7 +365,7 @@ describe("RG-TSK-11 — glisser-déposer d'une tâche multi-assignée", () => {
 describe("RG-TSK-10 — RACI", () => {
   it("un même utilisateur ne porte pas deux fois le même rôle", async () => {
     const u = await agent();
-    const t = await taches.creer({ titre: "T", projectId: projetA }, acteur);
+    const t = await taches.creer({ titre: "T", projectId: projetA }, acteur, DROITS_CREATION);
     await taches.attribuerRaci(t.id, u, "responsible", acteur);
     await expect(taches.attribuerRaci(t.id, u, "responsible", acteur)).rejects.toMatchObject({
       code: "raci_en_double",
@@ -352,7 +374,7 @@ describe("RG-TSK-10 — RACI", () => {
 
   it("mais il peut porter deux rôles différents", async () => {
     const u = await agent();
-    const t = await taches.creer({ titre: "T", projectId: projetA }, acteur);
+    const t = await taches.creer({ titre: "T", projectId: projetA }, acteur, DROITS_CREATION);
     await taches.attribuerRaci(t.id, u, "responsible", acteur);
     await expect(taches.attribuerRaci(t.id, u, "consulted", acteur)).resolves.toBeUndefined();
   });
@@ -371,7 +393,7 @@ describe("EX-TSK-06 — inviter des services entiers", () => {
       data: [{ userId: u1, serviceId: svc }, { userId: u2, serviceId: svc }],
     });
 
-    const t = await taches.creer({ titre: "Pour l'équipe", projectId: projetA, serviceIds: [svc] }, acteur);
+    const t = await taches.creer({ titre: "Pour l'équipe", projectId: projetA, serviceIds: [svc] }, acteur, DROITS_CREATION);
     const assignes = await prisma.taskAssignee.findMany({ where: { taskId: t.id } });
     expect(assignes.map((a) => a.userId).sort()).toEqual([u1, u2].sort());
 
@@ -387,7 +409,7 @@ describe("RG-TSK-12 — le retard est CALCULÉ", () => {
   it("une tâche dépassée non terminée est en retard", async () => {
     await taches.creer(
       { titre: "En retard", projectId: projetA, dateFin: utc("2020-01-01"), statut: "doing" },
-      acteur,
+      acteur, DROITS_CREATION
     );
     const p = await globalP();
     const liste = await taches.lister(p, toutes, { enRetard: true });
@@ -397,7 +419,7 @@ describe("RG-TSK-12 — le retard est CALCULÉ", () => {
   it("une tâche dépassée mais TERMINÉE n'est pas en retard", async () => {
     await taches.creer(
       { titre: "Finie à temps", projectId: projetA, dateFin: utc("2020-01-01"), statut: "done" },
-      acteur,
+      acteur, DROITS_CREATION
     );
     const p = await globalP();
     const liste = await taches.lister(p, toutes, { enRetard: true });
@@ -407,7 +429,7 @@ describe("RG-TSK-12 — le retard est CALCULÉ", () => {
 
 describe("EX-TSK-19, EX-TSK-20 — listes de rattrapage", () => {
   it("les orphelines : ni projet, ni assigné", async () => {
-    await taches.creer({ titre: "Orpheline" }, acteur);
+    await taches.creer({ titre: "Orpheline" }, acteur, DROITS_CREATION);
     const p = await globalP();
     const o = await taches.orphelines(p, toutes);
     expect(o.some((t) => t.titre === "Orpheline")).toBe(true);
@@ -417,9 +439,9 @@ describe("EX-TSK-19, EX-TSK-20 — listes de rattrapage", () => {
     const u = await agent();
     const avec = await taches.creer(
       { titre: "Déclarée", projectId: projetA, assigneIds: [u], statut: "done" },
-      acteur,
+      acteur, DROITS_CREATION
     );
-    await taches.creer({ titre: "Non déclarée", projectId: projetA, assigneIds: [u], statut: "done" }, acteur);
+    await taches.creer({ titre: "Non déclarée", projectId: projetA, assigneIds: [u], statut: "done" }, acteur, DROITS_CREATION);
     await prisma.timeEntry.create({
       data: { userId: u, taskId: avec.id, date: utc("2026-03-02"), heures: 2 },
     });
@@ -444,7 +466,7 @@ describe("EX-TSK-06 — la liste des assignés se FIXE depuis la fiche", () => {
     const b = await agent();
     const t = await creerTache([a]);
 
-    const r = await taches.definirAssignes(t, [b, a], a);
+    const r = await taches.definirAssignes(t, [b, a], await versionDe(t), a);
 
     expect(r.assignes).toEqual([b, a]);
     const lignes = await prisma.taskAssignee.findMany({
@@ -460,9 +482,9 @@ describe("EX-TSK-06 — la liste des assignés se FIXE depuis la fiche", () => {
     const a = await agent();
     const b = await agent();
     const t = await creerTache([a]);
-    await taches.definirAssignes(t, [a, b], a);
+    await taches.definirAssignes(t, [a, b], await versionDe(t), a);
 
-    await taches.definirAssignes(t, [a], a);
+    await taches.definirAssignes(t, [a], await versionDe(t), a);
 
     const restants = await prisma.taskAssignee.findMany({ where: { taskId: t } });
     expect(restants.map((l) => l.userId)).toEqual([a]);
@@ -471,7 +493,7 @@ describe("EX-TSK-06 — la liste des assignés se FIXE depuis la fiche", () => {
   it("un doublon dans la demande ne crée qu'une ligne", async () => {
     const a = await agent();
     const t = await creerTache([]);
-    await taches.definirAssignes(t, [a, a], a);
+    await taches.definirAssignes(t, [a, a], await versionDe(t), a);
     expect(await prisma.taskAssignee.count({ where: { taskId: t } })).toBe(1);
   });
 
@@ -482,10 +504,10 @@ describe("EX-TSK-06 — la liste des assignés se FIXE depuis la fiche", () => {
     const deja = await agent();
     const arrivant = await agent();
     const t = await creerTache([]);
-    await taches.definirAssignes(t, [deja], acteur);
+    await taches.definirAssignes(t, [deja], await versionDe(t), acteur);
     const avant = await prisma.notification.count({ where: { userId: deja } });
 
-    await taches.definirAssignes(t, [deja, arrivant, acteur], acteur);
+    await taches.definirAssignes(t, [deja, arrivant, acteur], await versionDe(t), acteur);
 
     expect(await prisma.notification.count({ where: { userId: deja } })).toBe(avant);
     expect(await prisma.notification.count({ where: { userId: arrivant } })).toBe(1);
@@ -496,7 +518,7 @@ describe("EX-TSK-06 — la liste des assignés se FIXE depuis la fiche", () => {
     const a = await agent();
     const t = await creerTache([a]);
     await expect(
-      taches.definirAssignes(t, [a, "00000000-0000-4000-8000-000000000000"], a),
+      taches.definirAssignes(t, [a, "00000000-0000-4000-8000-000000000000"], await versionDe(t), a),
     ).rejects.toMatchObject({ code: "introuvable" });
     expect(await prisma.taskAssignee.count({ where: { taskId: t } })).toBe(1);
   });
@@ -510,10 +532,10 @@ describe("RG-SCOPE-04 — la confidentialité se change APRÈS COUP", () => {
     const a = await agent();
     const t = await creerTache([a]);
 
-    const apres = await taches.modifier(t, { version: 1, confidentielle: true }, a);
+    const apres = await taches.modifier(t, { version: 1, confidentielle: true }, a, DROITS_CREATION);
     expect(apres.confidentielle).toBe(true);
 
-    const rendue = await taches.modifier(t, { version: apres.version, confidentielle: false }, a);
+    const rendue = await taches.modifier(t, { version: apres.version, confidentielle: false }, a, DROITS_CREATION);
     expect(rendue.confidentielle).toBe(false);
   });
 });
@@ -538,7 +560,7 @@ describe("RG-SCOPE-04 — la fiche et les dépendances sont bornées au périmè
   it("REFUSE la fiche d'une tâche confidentielle à qui n'y est qu'assigné", async () => {
     const a = await agent();
     const t = await creerTache([a]);
-    await taches.modifier(t, { version: 1, confidentielle: true }, a);
+    await taches.modifier(t, { version: 1, confidentielle: true }, a, DROITS_CREATION);
 
     // L'intuition dit qu'un assigné voit sa tâche. `RG-SCOPE-04` dit non.
     await expect(taches.fiche(t, lecteur(a), LECTURE)).rejects.toMatchObject({
@@ -549,7 +571,7 @@ describe("RG-SCOPE-04 — la fiche et les dépendances sont bornées au périmè
   it("la rend à qui détient la permission explicite", async () => {
     const a = await agent();
     const t = await creerTache([a]);
-    await taches.modifier(t, { version: 1, confidentielle: true }, a);
+    await taches.modifier(t, { version: 1, confidentielle: true }, a, DROITS_CREATION);
 
     const habilite = { userId: a, global: false, confidentiel: true } as never;
     await expect(taches.fiche(t, habilite, LECTURE)).resolves.toBeTruthy();
@@ -565,7 +587,7 @@ describe("RG-SCOPE-04 — la fiche et les dépendances sont bornées au périmè
     const amont = await creerTache([a]);
     const aval = await creerTache([a]);
     await taches.ajouterDependance(aval, amont, a);
-    await taches.modifier(amont, { version: 1, confidentielle: true }, a);
+    await taches.modifier(amont, { version: 1, confidentielle: true }, a, DROITS_CREATION);
 
     const g = await taches.dependances(aval, lecteur(a), LECTURE);
     expect(g.dependDe).toHaveLength(1);
@@ -602,9 +624,9 @@ describe("EX-TSK-10 — les candidats à une dépendance", () => {
 
   it("EX-TSK-10 — propose les tâches du même projet, non liées et hors cycle", async () => {
     const p = await projet();
-    const socle = await taches.creer({ titre: "Socle", projectId: p }, acteur);
-    const libre1 = await taches.creer({ titre: "Libre 1", projectId: p }, acteur);
-    const libre2 = await taches.creer({ titre: "Libre 2", projectId: p }, acteur);
+    const socle = await taches.creer({ titre: "Socle", projectId: p }, acteur, DROITS_CREATION);
+    const libre1 = await taches.creer({ titre: "Libre 1", projectId: p }, acteur, DROITS_CREATION);
+    const libre2 = await taches.creer({ titre: "Libre 2", projectId: p }, acteur, DROITS_CREATION);
 
     const c = await taches.candidatsDependance(socle.id, PERIMETRE_TOTAL, PERMISSIONS_TOTALES);
     expect(titres(c)).toEqual(["Libre 1", "Libre 2"]);
@@ -616,10 +638,10 @@ describe("EX-TSK-10 — les candidats à une dépendance", () => {
     // refermerait la boucle. `ajouterDependance` le refuse en aval ; la liste
     // doit l'écarter en amont, sinon on propose un clic qui échouera.
     const p = await projet();
-    const a = await taches.creer({ titre: "A", projectId: p }, acteur);
-    const b = await taches.creer({ titre: "B", projectId: p }, acteur);
-    const c = await taches.creer({ titre: "C", projectId: p }, acteur);
-    const d = await taches.creer({ titre: "D sans lien", projectId: p }, acteur);
+    const a = await taches.creer({ titre: "A", projectId: p }, acteur, DROITS_CREATION);
+    const b = await taches.creer({ titre: "B", projectId: p }, acteur, DROITS_CREATION);
+    const c = await taches.creer({ titre: "C", projectId: p }, acteur, DROITS_CREATION);
+    const d = await taches.creer({ titre: "D sans lien", projectId: p }, acteur, DROITS_CREATION);
     await taches.ajouterDependance(b.id, a.id, acteur);
     await taches.ajouterDependance(c.id, b.id, acteur);
 
@@ -639,9 +661,9 @@ describe("EX-TSK-10 — les candidats à une dépendance", () => {
   it("RG-TSK-06 — une tâche d'un AUTRE PROJET n'est pas proposée", async () => {
     const p1 = await projet();
     const p2 = await projet();
-    const ici = await taches.creer({ titre: "Ici", projectId: p1 }, acteur);
-    await taches.creer({ titre: "Voisine", projectId: p1 }, acteur);
-    await taches.creer({ titre: "Ailleurs", projectId: p2 }, acteur);
+    const ici = await taches.creer({ titre: "Ici", projectId: p1 }, acteur, DROITS_CREATION);
+    await taches.creer({ titre: "Voisine", projectId: p1 }, acteur, DROITS_CREATION);
+    await taches.creer({ titre: "Ailleurs", projectId: p2 }, acteur, DROITS_CREATION);
 
     const liste = await taches.candidatsDependance(ici.id, PERIMETRE_TOTAL, PERMISSIONS_TOTALES);
     expect(titres(liste)).toEqual(["Voisine"]);
@@ -649,9 +671,9 @@ describe("EX-TSK-10 — les candidats à une dépendance", () => {
 
   it("RG-TSK-05 — une tâche DÉJÀ LIÉE n'est plus proposée", async () => {
     const p = await projet();
-    const aval = await taches.creer({ titre: "Aval", projectId: p }, acteur);
-    const deja = await taches.creer({ titre: "Déjà liée", projectId: p }, acteur);
-    const pas = await taches.creer({ titre: "Pas encore", projectId: p }, acteur);
+    const aval = await taches.creer({ titre: "Aval", projectId: p }, acteur, DROITS_CREATION);
+    const deja = await taches.creer({ titre: "Déjà liée", projectId: p }, acteur, DROITS_CREATION);
+    const pas = await taches.creer({ titre: "Pas encore", projectId: p }, acteur, DROITS_CREATION);
 
     // Avant le lien, les deux sont proposées : c'est ce qui prouve que le
     // retrait qui suit vient bien du lien, et non d'une liste toujours vide.
@@ -668,7 +690,7 @@ describe("EX-TSK-10 — les candidats à une dépendance", () => {
 
   it("RG-TSK-04 — la tâche ne se propose pas ELLE-MÊME", async () => {
     const p = await projet();
-    const seule = await taches.creer({ titre: "Seule", projectId: p }, acteur);
+    const seule = await taches.creer({ titre: "Seule", projectId: p }, acteur, DROITS_CREATION);
 
     const liste = await taches.candidatsDependance(seule.id, PERIMETRE_TOTAL, PERMISSIONS_TOTALES);
     expect(liste.map((c) => c.id)).not.toContain(seule.id);
@@ -679,8 +701,8 @@ describe("EX-TSK-10 — les candidats à une dépendance", () => {
     // `ajouterDependance` compare `projectId` à `projectId` : `null === null`
     // passe. La liste doit dire la même chose, sinon le hors-projet — parti pris
     // n° 2 du cadrage — perdrait ses dépendances sans qu'aucune règle le dise.
-    const a = await taches.creer({ titre: "Hors projet A" }, acteur);
-    const b = await taches.creer({ titre: "Hors projet B" }, acteur);
+    const a = await taches.creer({ titre: "Hors projet A" }, acteur, DROITS_CREATION);
+    const b = await taches.creer({ titre: "Hors projet B" }, acteur, DROITS_CREATION);
 
     const liste = await taches.candidatsDependance(a.id, PERIMETRE_TOTAL, PERMISSIONS_TOTALES);
     expect(liste.map((c) => c.id)).toContain(b.id);
@@ -698,14 +720,14 @@ describe("EX-TSK-10 — les candidats à une dépendance", () => {
     const a = await agent();
     const depuis = await taches.creer(
       { titre: "Depuis", projectId: p, assigneIds: [a] },
-      acteur,
+      acteur, DROITS_CREATION
     );
-    await taches.creer({ titre: "Ouverte", projectId: p, assigneIds: [a] }, acteur);
+    await taches.creer({ titre: "Ouverte", projectId: p, assigneIds: [a] }, acteur, DROITS_CREATION);
     const secrete = await taches.creer(
       { titre: "Secrète", projectId: p, assigneIds: [a] },
-      acteur,
+      acteur, DROITS_CREATION
     );
-    await taches.modifier(secrete.id, { version: 1, confidentielle: true }, acteur);
+    await taches.modifier(secrete.id, { version: 1, confidentielle: true }, acteur, DROITS_CREATION);
 
     const lecteur = { userId: a, global: false, confidentiel: false } as never;
     const liste = await taches.candidatsDependance(depuis.id, lecteur, new Set(["tasks:read"]));
@@ -726,7 +748,7 @@ describe("EX-TSK-10 — les candidats à une dépendance", () => {
   it("RG-SCOPE-04 — et la liste elle-même est refusée sur une tâche hors périmètre", async () => {
     const a = await agent();
     const t = await creerTache([a]);
-    await taches.modifier(t, { version: 1, confidentielle: true }, a);
+    await taches.modifier(t, { version: 1, confidentielle: true }, a, DROITS_CREATION);
 
     await expect(
       taches.candidatsDependance(
@@ -741,15 +763,15 @@ describe("EX-TSK-10 — les candidats à une dépendance", () => {
     const p = await projet();
     const cible = await taches.creer(
       { titre: "Cible", projectId: p, dateDebut: utc("2026-09-10"), dateFin: utc("2026-09-20") },
-      acteur,
+      acteur, DROITS_CREATION
     );
     const tardive = await taches.creer(
       { titre: "Finit après", projectId: p, dateFin: utc("2026-09-15") },
-      acteur,
+      acteur, DROITS_CREATION
     );
     const propre = await taches.creer(
       { titre: "Finit avant", projectId: p, dateFin: utc("2026-09-01") },
-      acteur,
+      acteur, DROITS_CREATION
     );
 
     const liste = await taches.candidatsDependance(cible.id, PERIMETRE_TOTAL, PERMISSIONS_TOTALES);
@@ -779,16 +801,16 @@ describe("EX-TSK-10 — la fermeture transitive tient en UN SEUL parcours", () =
   /** Un projet, une chaîne descendante de `profondeur` liens, `largeur` tâches libres. */
   async function graphe(profondeur: number, largeur: number) {
     const p = await projet();
-    const racine = await taches.creer({ titre: "Racine", projectId: p }, acteur);
+    const racine = await taches.creer({ titre: "Racine", projectId: p }, acteur, DROITS_CREATION);
     let precedent = racine.id;
     for (let i = 0; i < profondeur; i++) {
-      const suivant = await taches.creer({ titre: `Chaîne ${i}`, projectId: p }, acteur);
+      const suivant = await taches.creer({ titre: `Chaîne ${i}`, projectId: p }, acteur, DROITS_CREATION);
       // « suivant dépend de precedent » : la chaîne DESCEND depuis la racine.
       await taches.ajouterDependance(suivant.id, precedent, acteur);
       precedent = suivant.id;
     }
     for (let i = 0; i < largeur; i++) {
-      await taches.creer({ titre: `Libre ${i}`, projectId: p }, acteur);
+      await taches.creer({ titre: `Libre ${i}`, projectId: p }, acteur, DROITS_CREATION);
     }
     return racine.id;
   }
@@ -840,10 +862,10 @@ describe("EX-TSK-10 — la fermeture transitive tient en UN SEUL parcours", () =
 
   it("EX-TSK-10 — la pose d'un ENSEMBLE ne parcourt pas non plus par candidat", async () => {
     const p = await projet();
-    const cible = await taches.creer({ titre: "Cible", projectId: p }, acteur);
+    const cible = await taches.creer({ titre: "Cible", projectId: p }, acteur, DROITS_CREATION);
     const ids: string[] = [];
     for (let i = 0; i < 12; i++) {
-      ids.push((await taches.creer({ titre: `P${i}`, projectId: p }, acteur)).id);
+      ids.push((await taches.creer({ titre: `P${i}`, projectId: p }, acteur, DROITS_CREATION)).id);
     }
 
     const n = await requetes(() =>
@@ -867,10 +889,10 @@ describe("EX-TSK-10 — la fermeture transitive tient en UN SEUL parcours", () =
 describe("EX-TSK-10 — la pose d'un ensemble de dépendances", () => {
   it("EX-TSK-10 — l'ensemble remplace : ce qui sort est retiré, ce qui entre est posé", async () => {
     const p = await projet();
-    const cible = await taches.creer({ titre: "Cible", projectId: p }, acteur);
-    const a = await taches.creer({ titre: "A", projectId: p }, acteur);
-    const b = await taches.creer({ titre: "B", projectId: p }, acteur);
-    const c = await taches.creer({ titre: "C", projectId: p }, acteur);
+    const cible = await taches.creer({ titre: "Cible", projectId: p }, acteur, DROITS_CREATION);
+    const a = await taches.creer({ titre: "A", projectId: p }, acteur, DROITS_CREATION);
+    const b = await taches.creer({ titre: "B", projectId: p }, acteur, DROITS_CREATION);
+    const c = await taches.creer({ titre: "C", projectId: p }, acteur, DROITS_CREATION);
     await taches.ajouterDependance(cible.id, a.id, acteur);
     await taches.ajouterDependance(cible.id, b.id, acteur);
 
@@ -886,8 +908,8 @@ describe("EX-TSK-10 — la pose d'un ensemble de dépendances", () => {
 
   it("EX-TSK-10 — un ensemble VIDE retire tout", async () => {
     const p = await projet();
-    const cible = await taches.creer({ titre: "Cible", projectId: p }, acteur);
-    const a = await taches.creer({ titre: "A", projectId: p }, acteur);
+    const cible = await taches.creer({ titre: "Cible", projectId: p }, acteur, DROITS_CREATION);
+    const a = await taches.creer({ titre: "A", projectId: p }, acteur, DROITS_CREATION);
     await taches.ajouterDependance(cible.id, a.id, acteur);
 
     await taches.definirDependances(cible.id, [], 1, acteur, PERIMETRE_TOTAL, PERMISSIONS_TOTALES);
@@ -896,10 +918,10 @@ describe("EX-TSK-10 — la pose d'un ensemble de dépendances", () => {
 
   it("RG-TSK-04 — un ensemble qui contient un CYCLE est refusé EN ENTIER, rien n'est écrit", async () => {
     const p = await projet();
-    const amont = await taches.creer({ titre: "Amont", projectId: p }, acteur);
-    const aval = await taches.creer({ titre: "Aval", projectId: p }, acteur);
-    const sain1 = await taches.creer({ titre: "Sain 1", projectId: p }, acteur);
-    const sain2 = await taches.creer({ titre: "Sain 2", projectId: p }, acteur);
+    const amont = await taches.creer({ titre: "Amont", projectId: p }, acteur, DROITS_CREATION);
+    const aval = await taches.creer({ titre: "Aval", projectId: p }, acteur, DROITS_CREATION);
+    const sain1 = await taches.creer({ titre: "Sain 1", projectId: p }, acteur, DROITS_CREATION);
+    const sain2 = await taches.creer({ titre: "Sain 2", projectId: p }, acteur, DROITS_CREATION);
     // « aval dépend de amont ». Poser « amont dépend de aval » fermerait la boucle.
     await taches.ajouterDependance(aval.id, amont.id, acteur);
 
@@ -925,9 +947,9 @@ describe("EX-TSK-10 — la pose d'un ensemble de dépendances", () => {
   it("RG-TSK-06 — un ensemble contenant une tâche d'un AUTRE projet est refusé en entier", async () => {
     const p1 = await projet();
     const p2 = await projet();
-    const cible = await taches.creer({ titre: "Cible", projectId: p1 }, acteur);
-    const bonne = await taches.creer({ titre: "Bonne", projectId: p1 }, acteur);
-    const etrangere = await taches.creer({ titre: "Étrangère", projectId: p2 }, acteur);
+    const cible = await taches.creer({ titre: "Cible", projectId: p1 }, acteur, DROITS_CREATION);
+    const bonne = await taches.creer({ titre: "Bonne", projectId: p1 }, acteur, DROITS_CREATION);
+    const etrangere = await taches.creer({ titre: "Étrangère", projectId: p2 }, acteur, DROITS_CREATION);
 
     await expect(
       taches.definirDependances(
@@ -939,8 +961,8 @@ describe("EX-TSK-10 — la pose d'un ensemble de dépendances", () => {
 
   it("RG-TSK-05 — un identifiant RÉPÉTÉ dans la demande est refusé, rien n'est écrit", async () => {
     const p = await projet();
-    const cible = await taches.creer({ titre: "Cible", projectId: p }, acteur);
-    const a = await taches.creer({ titre: "A", projectId: p }, acteur);
+    const cible = await taches.creer({ titre: "Cible", projectId: p }, acteur, DROITS_CREATION);
+    const a = await taches.creer({ titre: "A", projectId: p }, acteur, DROITS_CREATION);
 
     await expect(
       taches.definirDependances(
@@ -952,7 +974,7 @@ describe("EX-TSK-10 — la pose d'un ensemble de dépendances", () => {
 
   it("RG-TSK-04 — la tâche ne peut pas se mettre ELLE-MÊME dans l'ensemble", async () => {
     const p = await projet();
-    const cible = await taches.creer({ titre: "Cible", projectId: p }, acteur);
+    const cible = await taches.creer({ titre: "Cible", projectId: p }, acteur, DROITS_CREATION);
 
     await expect(
       taches.definirDependances(
@@ -963,8 +985,8 @@ describe("EX-TSK-10 — la pose d'un ensemble de dépendances", () => {
 
   it("EX-TSK-10 — une tâche inexistante dans l'ensemble est refusée en entier", async () => {
     const p = await projet();
-    const cible = await taches.creer({ titre: "Cible", projectId: p }, acteur);
-    const a = await taches.creer({ titre: "A", projectId: p }, acteur);
+    const cible = await taches.creer({ titre: "Cible", projectId: p }, acteur, DROITS_CREATION);
+    const a = await taches.creer({ titre: "A", projectId: p }, acteur, DROITS_CREATION);
 
     await expect(
       taches.definirDependances(
@@ -978,12 +1000,12 @@ describe("EX-TSK-10 — la pose d'un ensemble de dépendances", () => {
   it("RG-SCOPE-04 — poser un lien vers une tâche HORS PÉRIMÈTRE est refusé", async () => {
     const p = await projet();
     const a = await agent();
-    const cible = await taches.creer({ titre: "Cible", projectId: p, assigneIds: [a] }, acteur);
+    const cible = await taches.creer({ titre: "Cible", projectId: p, assigneIds: [a] }, acteur, DROITS_CREATION);
     const secrete = await taches.creer(
       { titre: "Secrète", projectId: p, assigneIds: [a] },
-      acteur,
+      acteur, DROITS_CREATION
     );
-    await taches.modifier(secrete.id, { version: 1, confidentielle: true }, acteur);
+    await taches.modifier(secrete.id, { version: 1, confidentielle: true }, acteur, DROITS_CREATION);
 
     const lecteur = { userId: a, global: false, confidentiel: false } as never;
     await expect(
@@ -1002,17 +1024,17 @@ describe("EX-TSK-10 — la pose d'un ensemble de dépendances", () => {
   it("RG-SCOPE-04 — un prérequis invisible SURVIT à une pose d'ensemble qui l'ignore", async () => {
     const p = await projet();
     const a = await agent();
-    const cible = await taches.creer({ titre: "Cible", projectId: p, assigneIds: [a] }, acteur);
+    const cible = await taches.creer({ titre: "Cible", projectId: p, assigneIds: [a] }, acteur, DROITS_CREATION);
     const visible = await taches.creer(
       { titre: "Visible", projectId: p, assigneIds: [a] },
-      acteur,
+      acteur, DROITS_CREATION
     );
     const secrete = await taches.creer(
       { titre: "Secrète", projectId: p, assigneIds: [a] },
-      acteur,
+      acteur, DROITS_CREATION
     );
     await taches.ajouterDependance(cible.id, secrete.id, acteur);
-    await taches.modifier(secrete.id, { version: 1, confidentielle: true }, acteur);
+    await taches.modifier(secrete.id, { version: 1, confidentielle: true }, acteur, DROITS_CREATION);
 
     const lecteur = { userId: a, global: false, confidentiel: false } as never;
     const avant = await prisma.task.findUniqueOrThrow({ where: { id: cible.id } });
@@ -1026,9 +1048,9 @@ describe("EX-TSK-10 — la pose d'un ensemble de dépendances", () => {
 
   it("RG-GEN-07 — une version périmée lève un conflit, elle n'écrase pas", async () => {
     const p = await projet();
-    const cible = await taches.creer({ titre: "Cible", projectId: p }, acteur);
-    const a = await taches.creer({ titre: "A", projectId: p }, acteur);
-    const b = await taches.creer({ titre: "B", projectId: p }, acteur);
+    const cible = await taches.creer({ titre: "Cible", projectId: p }, acteur, DROITS_CREATION);
+    const a = await taches.creer({ titre: "A", projectId: p }, acteur, DROITS_CREATION);
+    const b = await taches.creer({ titre: "B", projectId: p }, acteur, DROITS_CREATION);
 
     await taches.definirDependances(
       cible.id, [a.id], 1, acteur, PERIMETRE_TOTAL, PERMISSIONS_TOTALES,
@@ -1047,9 +1069,9 @@ describe("EX-TSK-10 — la pose d'un ensemble de dépendances", () => {
 
   it("EX-TSK-10 — le journal d'audit nomme CHAQUE lien posé et retiré", async () => {
     const p = await projet();
-    const cible = await taches.creer({ titre: "Cible", projectId: p }, acteur);
-    const a = await taches.creer({ titre: "A", projectId: p }, acteur);
-    const b = await taches.creer({ titre: "B", projectId: p }, acteur);
+    const cible = await taches.creer({ titre: "Cible", projectId: p }, acteur, DROITS_CREATION);
+    const a = await taches.creer({ titre: "A", projectId: p }, acteur, DROITS_CREATION);
+    const b = await taches.creer({ titre: "B", projectId: p }, acteur, DROITS_CREATION);
     await taches.definirDependances(
       cible.id, [a.id], 1, acteur, PERIMETRE_TOTAL, PERMISSIONS_TOTALES,
     );
@@ -1105,7 +1127,7 @@ describe("EX-TSK-01 — la liste ET le kanban à CINQ colonnes", () => {
   it("EX-TSK-01 — chaque carte tombe dans UNE colonne, et la liste les recompose", async () => {
     const projet16 = await projet();
     for (const s of STATUTS_TACHE) {
-      await taches.creer({ titre: `K-${s.code}`, projectId: projet16, statut: s.code }, acteur);
+      await taches.creer({ titre: `K-${s.code}`, projectId: projet16, statut: s.code }, acteur, DROITS_CREATION);
     }
     const p = await globalP();
 
@@ -1135,8 +1157,8 @@ describe("EX-TSK-03 — les quatre filtres, chacun avec son témoin exclu", () =
 
   beforeAll(async () => {
     projetC = await projet();
-    await taches.creer({ titre: "F-projet", projectId: projetC, priorite: "critical" }, acteur);
-    const hp = await taches.creer({ titre: "F-hors-projet", priorite: "low" }, acteur);
+    await taches.creer({ titre: "F-projet", projectId: projetC, priorite: "critical" }, acteur, DROITS_CREATION);
+    const hp = await taches.creer({ titre: "F-hors-projet", priorite: "low" }, acteur, DROITS_CREATION);
     idHorsProjet = hp.id;
     await taches.creer(
       {
@@ -1146,7 +1168,7 @@ describe("EX-TSK-03 — les quatre filtres, chacun avec son témoin exclu", () =
         dateFin: utc("2020-01-02"),
         statut: "doing",
       },
-      acteur,
+      acteur, DROITS_CREATION
     );
     await taches.creer(
       {
@@ -1156,7 +1178,7 @@ describe("EX-TSK-03 — les quatre filtres, chacun avec son témoin exclu", () =
         dateFin: utc("2099-01-02"),
         statut: "doing",
       },
-      acteur,
+      acteur, DROITS_CREATION
     );
   });
 
@@ -1213,7 +1235,7 @@ describe("EX-TSK-07 — modifier depuis la FICHE : ce que la fiche rend compose 
     await taches.modifier(
       t,
       { version: avant.version, titre: "Titre corrigé", priorite: "high" },
-      a,
+      a, DROITS_CREATION
     );
 
     const apres = await taches.fiche(t, p, toutes);
@@ -1228,9 +1250,9 @@ describe("EX-TSK-07 — modifier depuis la FICHE : ce que la fiche rend compose 
     const p = await globalP();
     const lue = await taches.fiche(t, p, toutes);
 
-    await taches.modifier(t, { version: lue.version, titre: "Premier" }, a);
+    await taches.modifier(t, { version: lue.version, titre: "Premier" }, a, DROITS_CREATION);
     await expect(
-      taches.modifier(t, { version: lue.version, titre: "Second" }, a),
+      taches.modifier(t, { version: lue.version, titre: "Second" }, a, DROITS_CREATION),
     ).rejects.toMatchObject({ code: "conflit_de_version" });
 
     expect((await taches.fiche(t, p, toutes)).titre).toBe("Premier");
@@ -1244,7 +1266,7 @@ describe("EX-TSK-08 — le pourcentage d'avancement", () => {
     const p = await globalP();
 
     expect((await taches.fiche(t, p, toutes)).avancement).toBe(0);
-    await taches.modifier(t, { version: 1, avancement: 40 }, a);
+    await taches.modifier(t, { version: 1, avancement: 40 }, a, DROITS_CREATION);
     expect((await taches.fiche(t, p, toutes)).avancement).toBe(40);
   });
 
