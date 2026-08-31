@@ -661,3 +661,41 @@ deux années. Le test ne mesurait rien. Il vise désormais la **ligne** — « D
 *Un test qu'on n'a pas vu échouer ne prouve pas ce qu'on croit.* C'est le critère
 d'acceptation de toute cette vague, et il vient de se justifier une fois de plus sur mon
 propre travail.
+
+---
+
+## RG-PRJ-11 — le refus existait, rédigé, et n'était jamais levé
+
+Le plus grave des douze défauts consignés par la vague 7-4, et le seul qui **perde des
+données**. Fermé ici.
+
+`EchecImport.remplacement_impossible` existait **complet** — code, statut 409, clé
+i18n, message rédigé — et n'était levé par **aucune ligne du dépôt**. Ce qui se passait
+à la place dépendait de la forme de la saisie de temps :
+
+- rattachée à la **tâche seule** : `task.deleteMany` déclenchait le `ON DELETE SET
+  NULL`, la ligne perdait tâche *et* projet, et la contrainte
+  `time_entries_rattachement_requis` la refusait. L'import échouait sur une **erreur
+  PostgreSQL brute 23514** — un code de contrainte là où `RG-GEN-03` exige un message
+  actionnable ;
+- rattachée à la tâche **et** au projet : la contrainte restait satisfaite par le
+  projet, donc **rien ne bloquait** et les heures étaient **détachées en silence**.
+  C'était le cas le plus dangereux : le premier échouait au moins bruyamment.
+
+Deux chemins menaient au même effacement, un seul le refusait, et mal.
+
+### Décisions
+
+1. **Le contrôle est AVANT toute écriture**, comme `RG-IMP-06` l'impose déjà pour les
+   erreurs de fichier. Découvrir l'empêchement après la suppression serait exactement
+   ce que la règle interdit.
+2. **Le message est chiffré et porte une issue** (`RG-GEN-03`). Il disait « des données
+   rattachées au projet empêchent le remplacement », ce qui laisse chercher lesquelles ;
+   il dit maintenant que du temps a été déclaré, combien, et les deux chemins qui
+   restent — importer en mode Ajouter, ou supprimer ces saisies.
+3. **Le refus est ciblé** : sans temps déclaré, le remplacement passe. Un refus trop
+   large aurait rendu le mode inutilisable, ce qui est une autre façon de ne pas tenir
+   la règle. Testé dans les deux sens.
+
+Les deux marqueurs `it.fails` de la vague 7-4 sont repris en tests ordinaires, et
+vérifiés rouges sans le correctif.

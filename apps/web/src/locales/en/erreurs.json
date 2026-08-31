@@ -68,7 +68,7 @@
   "limiteTodos": "You have reached the to-do limit. Complete or delete one to add another.",
   "colonnesManquantes": "The file is missing some required columns.",
   "fichierIllisible": "The file could not be read. Check that it is a CSV file.",
-  "remplacementImpossible": "Data attached to the project prevents replacement.",
+  "remplacementImpossible": "Time has been logged on this project's tasks: replacing would erase it. Import in Add mode, or delete those entries first.",
   "membreIntrouvable": "This person is not a member of the team.",
   "porteeRequise": "This event belongs to a series: say whether the action applies to this occurrence only, or to this one and the ones after it.",
   "porteeSansSerie": "This event does not belong to a series: there is no scope to choose. Try again without it.",

@@ -380,10 +380,15 @@ export const MESSAGES_METIER: Record<string, Message> = {
     "erreurs:fichierIllisible",
     "Le fichier n'a pas pu être lu. Vérifiez qu'il s'agit bien d'un CSV.",
   ),
+  /*
+   * `RG-GEN-03` — actionnable, donc chiffré et suivi d'une issue. « Des données
+   * empêchent le remplacement » laisse chercher lesquelles ; le détail porte le
+   * nombre de saisies, et le message dit le seul chemin qui reste.
+   */
   remplacement_impossible: m(
     409,
     "erreurs:remplacementImpossible",
-    "Des données rattachées au projet empêchent le remplacement.",
+    "Du temps a été déclaré sur les tâches de ce projet : le remplacement les effacerait. Importez en mode Ajouter, ou supprimez ces saisies d'abord.",
   ),
 
   limite_todos: m(
