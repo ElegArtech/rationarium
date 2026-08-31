@@ -421,6 +421,12 @@ export class AuthService {
         theme: true,
         derniereConnexion: true,
         creeLe: true,
+        /* `RG-GEN-07` — `modificationProfilSchema` EXIGE la version lue. Elle
+           manquait ici : la vue 35 ne pouvait donc pas composer une requête
+           valide, et ses commandes d'enregistrement sont restées désactivées
+           derrière un commentaire affirmant que la route n'existait pas. Elle
+           existait. C'est ce champ qui manquait. */
+        version: true,
         departement: { select: { nom: true } },
         services: { select: { service: { select: { nom: true } } } },
         role: { select: { code: true, nom: true, permissions: { select: { permission: true } } } },

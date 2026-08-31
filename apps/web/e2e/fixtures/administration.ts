@@ -12,6 +12,7 @@ export const SESSION_ADMIN = {
     ...SESSION.permissions,
     "users:read",
     "users:create",
+    "users:update",
     "users:deactivate",
     "users:delete_permanently",
     "users:read_individual_tracking",

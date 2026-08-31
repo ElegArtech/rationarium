@@ -136,6 +136,24 @@ export const modifier = (
   },
 ) => appeler<{ version: number }>(`/taches/${id}`, { methode: "PATCH", corps: donnees });
 
+/**
+ * `EX-TSK-06` — fixer la liste des assignés.
+ *
+ * La liste est posée **en entier**, jamais par différence : un ajout et un
+ * retrait simultanés depuis deux écrans laisseraient sinon un état que
+ * personne n'a voulu. Le premier de la liste est le porteur.
+ *
+ * La route existait depuis L-33 ; la fiche ne l'appelait pas, son bouton « + »
+ * restant désactivé derrière un commentaire affirmant qu'« l'ajout d'un
+ * assigné n'a pas de point d'entrée ». Quatrième commentaire de ce genre à se
+ * révéler faux.
+ */
+export const definirAssignes = (id: string, userIds: string[]) =>
+  appeler<{ assignes: string[] }>(`/taches/${id}/assignes`, {
+    methode: "PUT",
+    corps: { userIds },
+  });
+
 export const supprimer = (id: string) => appeler<void>(`/taches/${id}`, { methode: "DELETE" });
 
 export const ajouterSousTache = (id: string, libelle: string) =>

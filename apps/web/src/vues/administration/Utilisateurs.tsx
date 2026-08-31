@@ -260,6 +260,7 @@ function LigneUtilisateur({ utilisateur }: { utilisateur: api.Utilisateur }) {
   const annoncer = useMessages();
   const client = useQueryClient();
   const [suppressionOuverte, setSuppressionOuverte] = useState(false);
+  const [modificationOuverte, setModificationOuverte] = useState(false);
 
   /** `RG-USR-04` — soi-même est le cas qu'on n'a pas le droit de traiter. */
   const soiMeme = utilisateur.id === session.id;
@@ -351,9 +352,16 @@ function LigneUtilisateur({ utilisateur }: { utilisateur: api.Utilisateur }) {
           </Button>
           <Popover>
             <Menu className="pop-list">
-              {/* La route de réinitialisation existe côté serveur ; celle de
-                  modification d'un compte, non. « Modifier » de la maquette est
-                  remonté au cadrage plutôt qu'ébauché ici. */}
+              {/* `EX-USR-03`. Contrairement aux trois gestes suivants,
+                  modifier son propre compte est légitime : la restriction de
+                  `RG-USR-04` porte sur ce qui vous retirerait l'accès, pas sur
+                  votre nom. */}
+              {peut("users:update") ? (
+                <MenuItem className="pop-action" onAction={() => setModificationOuverte(true)}>
+                  {t("utilisateurs.modifier")}
+                </MenuItem>
+              ) : null}
+
               {peut("users:reset_password") ? (
                 <MenuItem
                   className="pop-action"
@@ -398,6 +406,11 @@ function LigneUtilisateur({ utilisateur }: { utilisateur: api.Utilisateur }) {
           </Popover>
         </MenuTrigger>
       </div>
+
+      <FenetreModification
+        utilisateur={modificationOuverte ? utilisateur : null}
+        surFermeture={() => setModificationOuverte(false)}
+      />
 
       <FenetreSuppression
         utilisateur={utilisateur}
@@ -540,6 +553,123 @@ function FenetreSuppression({
           <span>{t("utilisateurs.toutesLesDonnees")}</span>
         </div>
       ) : null}
+    </Fenetre>
+  );
+}
+
+/**
+ * `EX-USR-03` — modifier un compte.
+ *
+ * La vue portait « Réinitialiser », « Désactiver » et « Supprimer », mais pas
+ * « Modifier », derrière un commentaire affirmant que la route n'existait pas
+ * côté serveur. `PATCH /utilisateurs/:id` existe et porte `users:update` ; le
+ * commentaire était périmé, et rien ne pouvait le contredire — une action
+ * absente ne casse aucun test.
+ *
+ * `RG-AUTH-08` — l'identifiant de connexion reste hors du formulaire : il
+ * n'est modifiable par personne, et sert de référence au journal d'audit.
+ */
+function FenetreModification({
+  utilisateur,
+  surFermeture,
+}: {
+  utilisateur: api.Utilisateur | null;
+  surFermeture: () => void;
+}) {
+  const { t } = useTranslation("administration");
+  const { t: tErreurs } = useTranslation("erreurs");
+  const annoncer = useMessages();
+  const client = useQueryClient();
+
+  const [valeurs, setValeurs] = useState({ prenom: "", nom: "", email: "" });
+  const [erreur, setErreur] = useState<string | null>(null);
+  // Le formulaire se recharge quand la fenêtre change de compte : sans clé de
+  // remontage, la fiche suivante afficherait les valeurs de la précédente.
+  const [pour, setPour] = useState<string | null>(null);
+  if (utilisateur && pour !== utilisateur.id) {
+    setPour(utilisateur.id);
+    setValeurs({ prenom: utilisateur.prenom, nom: utilisateur.nom, email: utilisateur.email });
+    setErreur(null);
+  }
+
+  const modification = useMutation({
+    mutationFn: () =>
+      api.modifierUtilisateur(utilisateur!.id, { ...valeurs, version: utilisateur!.version }),
+    onSuccess: () => {
+      annoncer("ok", t("utilisateurs.modifie"));
+      surFermeture();
+      void client.invalidateQueries({ queryKey: ["utilisateurs"] });
+      // Se modifier soi-même change ce que la coquille affiche.
+      void client.invalidateQueries({ queryKey: ["session"] });
+    },
+    onError: (e) => setErreur(messageErreur(e, tErreurs, t("utilisateurs.echecModification"))),
+  });
+
+  const champ = (cle: keyof typeof valeurs) => ({
+    value: valeurs[cle],
+    onChange: (e: { target: { value: string } }) =>
+      setValeurs((v) => ({ ...v, [cle]: e.target.value })),
+  });
+
+  return (
+    <Fenetre
+      ouverte={Boolean(utilisateur)}
+      surFermeture={surFermeture}
+      categorie={t("utilisateurs.categorieModification")}
+      titre={t("utilisateurs.modifier")}
+      large
+      mention={t("champsObligatoires")}
+      actions={
+        <>
+          <Button className="btn btn-secondary" onPress={surFermeture}>
+            {t("annuler")}
+          </Button>
+          <Button
+            className="btn btn-primary"
+            isPending={modification.isPending}
+            onPress={() => modification.mutate()}
+          >
+            {t("utilisateurs.enregistrer")}
+          </Button>
+        </>
+      }
+    >
+      {erreur ? (
+        <div className="alert alert-error" role="alert">
+          <span className="alert-icon" aria-hidden="true">
+            !
+          </span>
+          <span>{erreur}</span>
+        </div>
+      ) : null}
+
+      <div className="form-grid form-grid-espace">
+        <div className="field-block">
+          <label className="field-label" htmlFor="usm-prenom">
+            {t("utilisateurs.prenom")} <span className="req">*</span>
+          </label>
+          <input className="field" id="usm-prenom" type="text" {...champ("prenom")} />
+        </div>
+        <div className="field-block">
+          <label className="field-label" htmlFor="usm-nom">
+            {t("utilisateurs.nom")} <span className="req">*</span>
+          </label>
+          <input className="field" id="usm-nom" type="text" {...champ("nom")} />
+        </div>
+        <div className="field-block span2">
+          <label className="field-label" htmlFor="usm-email">
+            {t("utilisateurs.email")} <span className="req">*</span>
+          </label>
+          <input className="field" id="usm-email" type="email" {...champ("email")} />
+        </div>
+        <div className="field-block span2">
+          <label className="field-label" htmlFor="usm-login">
+            {t("utilisateurs.login")}
+          </label>
+          <input className="field" id="usm-login" value={utilisateur?.login ?? ""} disabled />
+          <p className="field-hint">{t("utilisateurs.loginDefinitif")}</p>
+        </div>
+      </div>
     </Fenetre>
   );
 }

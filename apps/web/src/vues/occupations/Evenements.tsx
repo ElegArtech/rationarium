@@ -582,7 +582,7 @@ function FenetreCreation({
   const utilisateurs = useQuery({
     queryKey: ["utilisateurs", "tous"],
     queryFn: () =>
-      appeler<{ utilisateurs: { id: string; prenom: string; nom: string }[] }>("/utilisateurs"),
+      appeler<{ id: string; prenom: string; nom: string }[]>("/utilisateurs"),
     enabled: ouverte,
   });
 
@@ -765,7 +765,7 @@ function FenetreCreation({
             {t("evenements.participantsChamp")}
           </span>
           <div className="pickbox" role="group" aria-labelledby="ev-part-lab">
-            {(utilisateurs.data?.utilisateurs ?? []).map((u) => (
+            {(utilisateurs.data ?? []).map((u) => (
               <label className="pick-item" key={u.id}>
                 <input
                   type="checkbox"

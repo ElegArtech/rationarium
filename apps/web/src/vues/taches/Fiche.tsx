@@ -3,9 +3,10 @@ import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { Button } from "react-aria-components";
-import { STATUTS_TACHE, PRIORITES, ROLES_RACI } from "@trame/contracts";
+import { STATUTS_TACHE, PRIORITES, ROLES_RACI } from "@rationarium/contracts";
 import * as api from "../../api/taches.js";
 import * as apiTemps from "../../api/occupations.js";
+import { appeler } from "../../api/client.js";
 import { messageErreur } from "../../api/erreurs.js";
 import { usePeut, useSession } from "../../session/session.js";
 import { Chargement, ErreurDeChargement } from "../../composants/etats.js";
@@ -44,6 +45,7 @@ export function FicheTache({ tacheId }: { tacheId: string }) {
   const annoncer = useMessages();
   const client = useQueryClient();
   const [suppressionOuverte, setSuppressionOuverte] = useState(false);
+  const [assignesOuvert, setAssignesOuvert] = useState(false);
 
   const requete = useQuery({ queryKey: ["tache", tacheId], queryFn: () => api.fiche(tacheId) });
   const contexteTemps = useQuery({
@@ -149,6 +151,14 @@ export function FicheTache({ tacheId }: { tacheId: string }) {
         </div>
       </div>
 
+      <FenetreAssignes
+        ouverte={assignesOuvert}
+        surFermeture={() => setAssignesOuvert(false)}
+        tacheId={tacheId}
+        projectId={tache.project?.id ?? null}
+        actuels={tache.assignes.map((a) => a.userId)}
+      />
+
       {/* La barre du quotidien : statut, assignés, avancement. Elle ne défile pas. */}
       <div className="daybar">
         <div className="day-block">
@@ -180,17 +190,15 @@ export function FicheTache({ tacheId }: { tacheId: string }) {
             ) : (
               <span className="raci-none">{t("liste.sansAssigne")}</span>
             )}
-            {/*
-              L'ajout d'un assigné n'a pas de point d'entrée : le serveur pose
-              les assignés à la création (`POST /taches`) et sait les DÉPLACER
-              (`POST /taches/:id/deplacer`), mais n'en ajoute pas. Le bouton
-              reste, désactivé et expliqué — le cacher effacerait le manque.
-            */}
+            {/* `EX-TSK-06`. Le bouton a vécu désactivé derrière un commentaire
+                affirmant que « l'ajout d'un assigné n'a pas de point d'entrée » :
+                `PUT /taches/:id/assignes` existe depuis L-33. La fenêtre pose la
+                liste ENTIÈRE, comme la route l'exige. */}
             <Button
               className="who-add"
-              isDisabled
+              isDisabled={!peut("tasks:update")}
               aria-label={t("fiche.ajouterAssigne")}
-              aria-description={t("fiche.ajouterAssigneIndisponible")}
+              onPress={() => setAssignesOuvert(true)}
             >
               <span aria-hidden="true">+</span>
             </Button>
@@ -889,6 +897,132 @@ function FenetreSuppression({
           {t("fiche.confirmerSuppression")} <span className="quoted">« {tache.titre} »</span> ?
         </p>
       )}
+    </Fenetre>
+  );
+}
+
+/**
+ * `EX-TSK-06` — fixer la liste des assignés d'une tâche existante.
+ *
+ * `RG-TSK-15` commande la source des candidats : **en priorité les membres du
+ * projet ; si le projet n'a pas de membre, tous les utilisateurs**, et
+ * l'interface le dit. Hors projet, ce sont tous les utilisateurs — c'est le cas
+ * qui ne fonctionnait pas, faute d'assignation possible sur une tâche
+ * indépendante.
+ *
+ * La liste part **entière** : `PUT /taches/:id/assignes` remplace, il n'ajoute
+ * pas. Deux écrans qui ajoutent et retirent en même temps laisseraient sinon
+ * un état que personne n'a voulu.
+ */
+function FenetreAssignes({
+  ouverte,
+  surFermeture,
+  tacheId,
+  projectId,
+  actuels,
+}: {
+  ouverte: boolean;
+  surFermeture: () => void;
+  tacheId: string;
+  projectId: string | null;
+  actuels: string[];
+}) {
+  const { t } = useTranslation("taches");
+  const { t: tErreurs } = useTranslation("erreurs");
+  const annoncer = useMessages();
+  const client = useQueryClient();
+
+  const [choisis, setChoisis] = useState<string[]>(actuels);
+  const [pour, setPour] = useState<string | null>(null);
+  const cle = `${tacheId}:${actuels.join(",")}`;
+  if (ouverte && pour !== cle) {
+    setPour(cle);
+    setChoisis(actuels);
+  }
+
+  const equipe = useQuery({
+    queryKey: ["projet", projectId, "equipe"],
+    queryFn: () =>
+      appeler<{ agents: { userId: string; utilisateur: { prenom: string; nom: string } }[] }>(
+        `/projets/${projectId}/equipe`,
+      ),
+    enabled: ouverte && Boolean(projectId),
+  });
+
+  const tous = useQuery({
+    queryKey: ["utilisateurs", "tous"],
+    // `GET /utilisateurs` rend un TABLEAU. La forme `{ utilisateurs: [...] }`
+    // était une invention du client, et elle rendait ce repli inopérant.
+    queryFn: () => appeler<{ id: string; prenom: string; nom: string }[]>("/utilisateurs"),
+    enabled: ouverte,
+  });
+
+  const membres = (equipe.data?.agents ?? []).map((a) => ({
+    id: a.userId,
+    prenom: a.utilisateur.prenom,
+    nom: a.utilisateur.nom,
+  }));
+  const projetSansMembre = Boolean(projectId) && equipe.isSuccess && membres.length === 0;
+  const candidats = projectId && !projetSansMembre ? membres : (tous.data ?? []);
+
+  const enregistrer = useMutation({
+    mutationFn: () => api.definirAssignes(tacheId, choisis),
+    onSuccess: () => {
+      annoncer("ok", t("fiche.assignesEnregistres"));
+      surFermeture();
+      void client.invalidateQueries({ queryKey: ["tache", tacheId] });
+      void client.invalidateQueries({ queryKey: ["taches"] });
+    },
+    onError: (e) => annoncer("err", messageErreur(e, tErreurs, t("fiche.echecAssignes"))),
+  });
+
+  return (
+    <Fenetre
+      ouverte={ouverte}
+      surFermeture={surFermeture}
+      categorie={t("liste.colAssignes")}
+      titre={t("fiche.ajouterAssigne")}
+      actions={
+        <>
+          <Button className="btn btn-secondary" onPress={surFermeture}>
+            {t("annuler")}
+          </Button>
+          <Button
+            className="btn btn-primary"
+            isPending={enregistrer.isPending}
+            onPress={() => enregistrer.mutate()}
+          >
+            {t("fiche.enregistrerAssignes")}
+          </Button>
+        </>
+      }
+    >
+      <div className="pickbox" role="group" aria-label={t("liste.assignes")}>
+        <p className={`pick-hint${projetSansMembre ? " is-warn" : ""}`}>
+          {projectId
+            ? projetSansMembre
+              ? t("liste.projetSansMembre")
+              : t("liste.membresDuProjet")
+            : t("liste.tousLesUtilisateurs")}
+        </p>
+        {candidats.map((u) => (
+          <label className="pick-item" key={u.id}>
+            <input
+              type="checkbox"
+              checked={choisis.includes(u.id)}
+              onChange={(e) =>
+                setChoisis((s) => (e.target.checked ? [...s, u.id] : s.filter((x) => x !== u.id)))
+              }
+            />
+            <span>
+              {u.prenom} {u.nom}
+            </span>
+          </label>
+        ))}
+      </div>
+      {/* Le premier de la liste est le porteur : le dire évite de découvrir la
+          règle en constatant un porteur qu'on n'a pas choisi. */}
+      <p className="field-hint">{t("fiche.premierEstPorteur")}</p>
     </Fenetre>
   );
 }

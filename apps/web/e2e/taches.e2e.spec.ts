@@ -85,6 +85,41 @@ test.describe("Vue 16 — tâches, vue globale", () => {
     await expect(page.getByRole("option", { name: "Sélectionnez d'abord un projet" })).toBeAttached();
   });
 
+  /**
+   * `RG-TSK-15` — « les assignés proposés sont en priorité les membres du
+   * projet ; **si le projet n'a pas de membre, tous les utilisateurs sont
+   * proposés** ».
+   *
+   * Le repli n'a jamais fonctionné. `GET /api/utilisateurs` rend un TABLEAU ;
+   * trois vues lisaient `data.utilisateurs` dessus, donc `undefined`, donc
+   * zéro candidat — et l'interface montrait un état vide au lieu de la liste.
+   * On ne pouvait s'assigner une tâche hors projet à personne, soi compris.
+   *
+   * Même piège que la vue 27 en son temps : une forme de réponse inventée
+   * côté client, que le typage valide puisqu'il décrit la même invention.
+   */
+  test("RG-TSK-15 — sans projet, TOUS les utilisateurs sont proposés", async ({ page }) => {
+    await serveur(page, {
+      session: SESSION_TACHES,
+      reponses: {
+        ...reponsesListe,
+        // La forme réelle du serveur : un tableau nu.
+        "/api/utilisateurs": {
+          corps: [
+            { id: "u-1", prenom: "Administration", nom: "Rationarium" },
+            { id: "u-2", prenom: "Inès", nom: "Bertrand" },
+          ],
+        },
+      },
+    });
+    await page.goto("/taches");
+    await page.getByRole("button", { name: "Créer une tâche" }).click();
+
+    const boite = page.getByRole("group", { name: /Assignés/i });
+    await expect(boite.getByText("Administration Rationarium")).toBeVisible();
+    await expect(boite.getByText("Inès Bertrand")).toBeVisible();
+  });
+
   test("le titre est obligatoire", async ({ page }) => {
     await serveur(page, { session: SESSION_TACHES, reponses: reponsesListe });
     await page.goto("/taches");
@@ -153,6 +188,58 @@ test.describe("Vue 17 — fiche tâche", () => {
     await expect(page.getByLabel("Statut", { exact: true })).toHaveValue("doing");
     await expect(page.getByLabel("Avancement", { exact: true })).toHaveValue("45");
     await expect(page.getByText("Driss Amrani").first()).toBeVisible();
+  });
+
+  /**
+   * `EX-TSK-06` — fixer les assignés d'une tâche EXISTANTE.
+   *
+   * Le bouton « + » a vécu désactivé derrière un commentaire affirmant que
+   * « l'ajout d'un assigné n'a pas de point d'entrée ». `PUT /taches/:id/
+   * assignes` existe depuis L-33. Quatrième commentaire de ce genre à se
+   * révéler faux, et le quatrième défaut qu'aucune boucle ne pouvait voir :
+   * une commande désactivée ne fait échouer aucun contrôle.
+   *
+   * Le cas exercé est celui qui bloquait vraiment — une tâche **hors projet**,
+   * où `RG-TSK-15` veut que tous les utilisateurs soient proposés.
+   */
+  test("EX-TSK-06 — les assignés se fixent depuis la fiche, liste ENTIÈRE", async ({ page }) => {
+    let recu: unknown = null;
+    await serveur(page, {
+      session: SESSION_TACHES,
+      reponses: {
+        [`/api/taches/${FICHE_VIDE.id}`]: { corps: FICHE_VIDE },
+        "/api/utilisateurs": {
+          corps: [
+            { id: "a1", prenom: "Driss", nom: "Amrani" },
+            { id: "a2", prenom: "Hugo", nom: "Nguyen" },
+          ],
+        },
+      },
+    });
+    await page.route(
+      (url) => url.pathname.endsWith("/assignes"),
+      (route) => {
+        if (route.request().method() !== "PUT") return route.fallback();
+        recu = route.request().postDataJSON();
+        return route.fulfill({ status: 200, contentType: "application/json", body: "{}" });
+      },
+    );
+
+    await page.goto(`/taches/${FICHE_VIDE.id}`);
+
+    const plus = page.getByRole("button", { name: "Ajouter un assigné" });
+    await expect(plus).toBeEnabled();
+    await plus.click();
+
+    // Hors projet : tous les utilisateurs, et l'interface le dit.
+    await expect(page.getByText("Tous les utilisateurs")).toBeVisible();
+    await page.getByRole("checkbox", { name: "Driss Amrani" }).check();
+    await page.getByRole("checkbox", { name: "Hugo Nguyen" }).check();
+    await page.getByRole("button", { name: "Enregistrer les assignés" }).click();
+
+    // La route REMPLACE : la liste part entière, jamais par différence.
+    await expect.poll(() => recu).not.toBeNull();
+    expect(recu).toEqual({ userIds: ["a1", "a2"] });
   });
 
   test("les dépendances sont montrées dans les deux sens", async ({ page }) => {
