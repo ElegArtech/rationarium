@@ -160,7 +160,7 @@ describe("RG-PRJ-08 — le budget consommé inclut le temps des TÂCHES", () => 
       data: { userId: chef, taskId: tache.id, date: utc("2026-03-03"), heures: 5 },
     });
 
-    const b = await projets.budget(p.id);
+    const b = await projets.budget(p.id, await global(), toutes);
     // Omettre les tâches donnerait 10 au lieu de 15 : un budget systématiquement
     // sous-évalué.
     expect(b.consomme).toBe(15);
@@ -173,14 +173,14 @@ describe("RG-PRJ-08 — le budget consommé inclut le temps des TÂCHES", () => 
     await prisma.timeEntry.create({
       data: { userId: chef, projectId: p.id, date: utc("2026-03-02"), heures: 6 },
     });
-    const b = await projets.budget(p.id);
+    const b = await projets.budget(p.id, await global(), toutes);
     expect(b.depassement).toBe(true);
     expect(b.restant).toBe(-2);
   });
 
   it("un projet sans budget alloué ne calcule pas de restant", async () => {
     const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
-    const b = await projets.budget(p.id);
+    const b = await projets.budget(p.id, await global(), toutes);
     expect(b.alloue).toBeNull();
     expect(b.restant).toBeNull();
   });
@@ -351,7 +351,7 @@ describe("RG-JAL-05 — la feuille de route NOMME les tâches sans jalon", () =>
       ],
     });
 
-    const feuille = await projets.feuilleDeRoute(p.id);
+    const feuille = await projets.feuilleDeRoute(p.id, await global(), toutes);
 
     expect(feuille.sansJalon.map((t) => t.titre)).toEqual(["Orpheline"]);
     expect(feuille.indicateurs.sansJalon).toBe(1);
@@ -373,7 +373,7 @@ describe("RG-JAL-05 — la feuille de route NOMME les tâches sans jalon", () =>
     });
     await prisma.taskAssignee.create({ data: { taskId: t.id, userId: membre } });
 
-    const feuille = await projets.feuilleDeRoute(p.id);
+    const feuille = await projets.feuilleDeRoute(p.id, await global(), toutes);
     const ligne = feuille.jalons[0]?.taches[0];
 
     expect(Number(ligne?.estimationHeures)).toBe(12);
@@ -1063,11 +1063,11 @@ describe("EX-PRJ-10 — rattacher des clients et des tiers au projet", () => {
     await tiers.rattacherClients(p.id, [client.id], chef);
     await tiers.rattacherAuProjet(p.id, presta.id, chef);
 
-    const fiche = await projets.fiche(p.id);
+    const fiche = await projets.fiche(p.id, await global(), toutes);
     expect(fiche.clients.map((c) => c.id)).toEqual([client.id]);
     expect(fiche.equipe).toMatchObject({ clients: 1, tiers: 1, agents: 0 });
 
-    const equipe = await projets.equipe(p.id);
+    const equipe = await projets.equipe(p.id, await global(), toutes);
     expect(equipe.clients.map((c) => c.id)).toEqual([client.id]);
     expect(equipe.tiers.map((t) => t.id)).toEqual([presta.id]);
     // Un tiers ne consomme pas la charge des services.
@@ -1093,7 +1093,7 @@ describe("EX-PRJ-10 — rattacher des clients et des tiers au projet", () => {
     await expect(tiers.rattacherAuProjet(p.id, t.id, chef)).rejects.toMatchObject({
       code: "tiers_archive",
     });
-    expect((await projets.fiche(p.id)).equipe.tiers).toBe(0);
+    expect((await projets.fiche(p.id, await global(), toutes)).equipe.tiers).toBe(0);
   });
 });
 
@@ -1445,7 +1445,7 @@ describe("EX-JAL-03, EX-JAL-04 — la feuille de route chronologique et ses indi
     await projets.creerJalon({ nom: "Cadrage", dateEcheance: utc("2026-03-31"), projectId: p.id }, chef);
     await projets.creerJalon({ nom: "Recette", dateEcheance: utc("2026-09-30"), projectId: p.id }, chef);
 
-    const route = await projets.feuilleDeRoute(p.id);
+    const route = await projets.feuilleDeRoute(p.id, await global(), toutes);
 
     expect(route.jalons.map((j) => j.nom)).toEqual(["Cadrage", "Recette", "Livraison"]);
   });
@@ -1464,7 +1464,7 @@ describe("EX-JAL-03, EX-JAL-04 — la feuille de route chronologique et ses indi
       ],
     });
 
-    const { indicateurs } = await projets.feuilleDeRoute(p.id);
+    const { indicateurs } = await projets.feuilleDeRoute(p.id, await global(), toutes);
 
     expect(indicateurs.total).toBe(3);
     expect(indicateurs.termines).toBe(1);
@@ -1477,7 +1477,7 @@ describe("EX-JAL-03, EX-JAL-04 — la feuille de route chronologique et ses indi
 
   it("un projet sans jalon rend une feuille VIDE et des indicateurs à zéro, jamais une erreur", async () => {
     const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
-    const route = await projets.feuilleDeRoute(p.id);
+    const route = await projets.feuilleDeRoute(p.id, await global(), toutes);
     expect(route.jalons).toEqual([]);
     expect(route.indicateurs).toMatchObject({ total: 0, termines: 0, enCours: 0, taches: 0 });
   });
@@ -1487,7 +1487,7 @@ describe("EX-JAL-03, EX-JAL-04 — la feuille de route chronologique et ses indi
     await projets.creerJalon({ nom: "Daté", dateEcheance: utc("2026-05-31"), projectId: p.id }, chef);
     await projets.creerJalon({ nom: "Sans date", projectId: p.id }, chef);
 
-    const route = await projets.feuilleDeRoute(p.id);
+    const route = await projets.feuilleDeRoute(p.id, await global(), toutes);
 
     expect(route.jalons.map((j) => j.nom)).toEqual(["Daté", "Sans date"]);
     expect(route.indicateurs.total).toBe(2);
@@ -1502,8 +1502,8 @@ describe("RG-JAL-02 — un jalon appartient à un et un seul projet", () => {
     const jalon = await projets.creerJalon({ nom: "Exclusif", projectId: a.id }, chef);
 
     expect(jalon.projectId).toBe(a.id);
-    expect((await projets.feuilleDeRoute(a.id)).jalons.map((j) => j.id)).toEqual([jalon.id]);
-    expect((await projets.feuilleDeRoute(b.id)).jalons).toEqual([]);
+    expect((await projets.feuilleDeRoute(a.id, await global(), toutes)).jalons.map((j) => j.id)).toEqual([jalon.id]);
+    expect((await projets.feuilleDeRoute(b.id, await global(), toutes)).jalons).toEqual([]);
   });
 
   it("LE RATTACHEMENT EST DOUBLÉ EN BASE : la colonne est NON NULLE, un jalon orphelin est impossible", async () => {
@@ -1540,5 +1540,72 @@ describe("RG-JAL-02 — un jalon appartient à un et un seul projet", () => {
 
     expect(await prisma.milestone.findUnique({ where: { id: sien.id } })).toBeNull();
     expect(await prisma.milestone.findUnique({ where: { id: autre.id } })).not.toBeNull();
+  });
+});
+
+describe("RG-SCOPE-02 — lire UN projet par son identifiant est borné au périmètre", () => {
+  /*
+   * **Quatre lectures ne le contrôlaient pas du tout.** `fiche`, `budget`,
+   * `equipe` et `feuilleDeRoute` ne prenaient qu'un identifiant : tout porteur
+   * de `projects:read` — c'est-à-dire tout agent — obtenait n'importe quel
+   * projet de l'instance en devinant son identifiant, avec son budget, son
+   * équipe nominative et sa feuille de route.
+   *
+   * Le portefeuille, lui, filtrait bien. C'est ce qui rendait le trou
+   * invisible : la liste ne montrait que ce qu'on avait le droit de voir, et
+   * l'adresse directe montrait tout. Un audit qui regarde la liste conclut que
+   * le cloisonnement tient.
+   */
+  const LECTURE: ReadonlySet<string> = new Set(["projects:read", "milestones:read"]);
+
+  it("RG-SCOPE-02 — la FICHE d'un projet hors périmètre est REFUSÉE", async () => {
+    const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
+    const etranger = await agent("Étrangère");
+    const dehors = await perimetres.resoudre(etranger, LECTURE);
+
+    await expect(projets.fiche(p.id, dehors, LECTURE)).rejects.toMatchObject({
+      code: "hors_perimetre",
+    });
+  });
+
+  it("RG-SCOPE-02 — le BUDGET, l'ÉQUIPE et la FEUILLE DE ROUTE le sont aussi", async () => {
+    // Les quatre portent la même donnée sous quatre angles : en fermer une
+    // seule laisserait trois portes ouvertes sur la même pièce.
+    const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
+    const etranger = await agent("Étranger");
+    const dehors = await perimetres.resoudre(etranger, LECTURE);
+
+    await expect(projets.budget(p.id, dehors, LECTURE)).rejects.toMatchObject({
+      code: "hors_perimetre",
+    });
+    await expect(projets.equipe(p.id, dehors, LECTURE)).rejects.toMatchObject({
+      code: "hors_perimetre",
+    });
+    await expect(projets.feuilleDeRoute(p.id, dehors, LECTURE)).rejects.toMatchObject({
+      code: "hors_perimetre",
+    });
+  });
+
+  it("RG-SCOPE-03 — la gestion globale court-circuite le périmètre, comme partout", async () => {
+    const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
+    const etranger = await agent("Gestionnaire");
+    const large = await perimetres.resoudre(etranger, toutes);
+
+    await expect(projets.fiche(p.id, large, toutes)).resolves.toMatchObject({ id: p.id });
+  });
+
+  it("RG-SCOPE-02 — un projet INEXISTANT se dit introuvable, pas hors périmètre", async () => {
+    /*
+     * Confondre les deux empêcherait un chef de projet de comprendre pourquoi
+     * son lien ne s'ouvre pas. Le renseignement que la distinction donne — « ce
+     * projet existe » — est celui que le portefeuille livre déjà par son
+     * compteur de total.
+     */
+    const etranger = await agent("Curieuse");
+    const dehors = await perimetres.resoudre(etranger, LECTURE);
+
+    await expect(projets.fiche(crypto.randomUUID(), dehors, LECTURE)).rejects.toMatchObject({
+      code: "introuvable",
+    });
   });
 });

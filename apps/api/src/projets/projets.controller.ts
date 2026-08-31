@@ -33,20 +33,26 @@ export class ProjetsController {
   /** `EX-PRJ-02` — la fiche complète. Vue 11. */
   @Get(":id")
   @RequiertPermission("projects:read")
-  fiche(@Param("id") id: string) {
-    return this.projets.fiche(id);
+  fiche(@Param("id") id: string, @Demande() d: ContexteDemande) {
+    // `RG-SCOPE-02` — permission PUIS périmètre. La lecture d'un projet
+    // par son identifiant ne contrôlait que la première.
+    return this.projets.fiche(id, d.perimetre, d.permissions);
   }
 
   @Get(":id/budget")
   @RequiertPermission("projects:read")
-  budget(@Param("id") id: string) {
-    return this.projets.budget(id);
+  budget(@Param("id") id: string, @Demande() d: ContexteDemande) {
+    // `RG-SCOPE-02` — permission PUIS périmètre. La lecture d'un projet
+    // par son identifiant ne contrôlait que la première.
+    return this.projets.budget(id, d.perimetre, d.permissions);
   }
 
   @Get(":id/feuille-de-route")
   @RequiertPermission("milestones:read")
-  feuilleDeRoute(@Param("id") id: string) {
-    return this.projets.feuilleDeRoute(id);
+  feuilleDeRoute(@Param("id") id: string, @Demande() d: ContexteDemande) {
+    // `RG-SCOPE-02` — permission PUIS périmètre. La lecture d'un projet
+    // par son identifiant ne contrôlait que la première.
+    return this.projets.feuilleDeRoute(id, d.perimetre, d.permissions);
   }
 
   @Post()
@@ -153,8 +159,10 @@ export class ProjetsController {
 
   @Get(":id/equipe")
   @RequiertPermission("projects:read")
-  equipe(@Param("id") id: string) {
-    return this.projets.equipe(id);
+  equipe(@Param("id") id: string, @Demande() d: ContexteDemande) {
+    // `RG-SCOPE-02` — permission PUIS périmètre. La lecture d'un projet
+    // par son identifiant ne contrôlait que la première.
+    return this.projets.equipe(id, d.perimetre, d.permissions);
   }
 
   @Post(":id/membres")

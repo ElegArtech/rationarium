@@ -20,7 +20,16 @@ const utc = (s: string) => new Date(`${s}T00:00:00.000Z`);
 let pg: StartedPostgreSqlContainer;
 let prisma: PrismaClient;
 let projets: ProjetsService;
+let perimetres: PerimetreService;
 let acteur: string;
+
+/*
+ * Ces suites éprouvent le CONTENU des lectures, pas leur cloisonnement : elles
+ * passent donc un périmètre de gestion globale. Le cloisonnement de `fiche`,
+ * `budget`, `equipe` et `feuilleDeRoute` a sa propre suite.
+ */
+const global = () => perimetres.resoudre(acteur, new Set(["projects:manage_any"]));
+const toutes: ReadonlySet<string> = new Set(["projects:manage_any"]);
 
 async function agent(prenom = "A", nom = "T") {
   const id = crypto.randomUUID();
@@ -53,12 +62,8 @@ beforeAll(async () => {
   // prouvent au passage que les actions métier aboutissent sans elle.
   const notifications = new NotificationsService(prisma as never, new FileService());
   const audit = new AuditService(prisma as never);
-  projets = new ProjetsService(
-    prisma as never,
-    audit,
-    new PerimetreService(prisma as never),
-    notifications,
-  );
+  perimetres = new PerimetreService(prisma as never);
+  projets = new ProjetsService(prisma as never, audit, perimetres, notifications);
   acteur = await agent("Acteur", "Test");
 }, 240_000);
 
@@ -86,7 +91,7 @@ describe("EX-PRJ-02 — la fiche rassemble ce que la vue 11 affiche", () => {
       data: { userId: membre, projectId: p.id, date: utc("2026-03-02"), heures: 12 },
     });
 
-    const fiche = await projets.fiche(p.id);
+    const fiche = await projets.fiche(p.id, await global(), toutes);
 
     // La progression est la moyenne des avancements : (100 + 50 + 0) / 3.
     expect(fiche.progression).toBe(50);
@@ -96,14 +101,16 @@ describe("EX-PRJ-02 — la fiche rassemble ce que la vue 11 affiche", () => {
   });
 
   it("un projet inexistant est refusé, pas rendu vide", async () => {
-    await expect(projets.fiche(crypto.randomUUID())).rejects.toMatchObject({
+    await expect(
+      projets.fiche(crypto.randomUUID(), await global(), toutes),
+    ).rejects.toMatchObject({
       code: "introuvable",
     });
   });
 
   it("les valeurs absentes le restent — la fiche n'invente pas de zéro", async () => {
     const p = await projet("Sans rien");
-    const fiche = await projets.fiche(p.id);
+    const fiche = await projets.fiche(p.id, await global(), toutes);
     expect(fiche.budget.alloue).toBeNull();
     expect(fiche.budget.restant).toBeNull();
     expect(fiche.chef).toBeNull();
@@ -128,7 +135,7 @@ describe("EX-PRJ-09 — l'équipe distingue trois populations", () => {
     await prisma.projectThirdParty.create({ data: { projectId: p.id, thirdPartyId: t.id } });
     await prisma.projectClient.create({ data: { projectId: p.id, clientId: c.id } });
 
-    const equipe = await projets.equipe(p.id);
+    const equipe = await projets.equipe(p.id, await global(), toutes);
 
     expect(equipe.agents).toHaveLength(1);
     expect(equipe.tiers).toHaveLength(1);
@@ -151,7 +158,7 @@ describe("EX-PRJ-09 — l'équipe distingue trois populations", () => {
     await prisma.projectThirdParty.create({ data: { projectId: p.id, thirdPartyId: t.id } });
 
     // Un tiers ne consomme pas la charge des services : il ne s'ajoute pas.
-    expect((await projets.equipe(p.id)).allocationCumulee).toBe(130);
+    expect((await projets.equipe(p.id, await global(), toutes)).allocationCumulee).toBe(130);
   });
 
   it("un agent sans allocation ne fausse pas le cumul", async () => {
@@ -160,7 +167,7 @@ describe("EX-PRJ-09 — l'équipe distingue trois populations", () => {
     await prisma.projectMember.create({
       data: { projectId: p.id, userId: a, roleProjet: "observateur" },
     });
-    expect((await projets.equipe(p.id)).allocationCumulee).toBe(0);
+    expect((await projets.equipe(p.id, await global(), toutes)).allocationCumulee).toBe(0);
   });
 });
 
@@ -180,7 +187,7 @@ describe("EX-PRJ-09 — le retrait défait un lien, il n'efface rien", () => {
 
     await projets.retirerMembre(p.id, a, acteur);
 
-    expect((await projets.equipe(p.id)).agents).toHaveLength(0);
+    expect((await projets.equipe(p.id, await global(), toutes)).agents).toHaveLength(0);
     // Ce qui distingue « retirer » de « supprimer » : rien d'autre ne bouge.
     expect(await prisma.timeEntry.count({ where: { userId: a } })).toBe(1);
     expect(await prisma.taskAssignee.count({ where: { taskId: tache.id } })).toBe(1);
@@ -226,7 +233,7 @@ describe("Un jalon sans date — tâche de schéma du 2026-08-16", () => {
       acteur,
     );
 
-    const { jalons } = await projets.feuilleDeRoute(p.id);
+    const { jalons } = await projets.feuilleDeRoute(p.id, await global(), toutes);
     // « Sans date, le jalon reste en fin de chronologie » — vue 13, à la lettre.
     expect(jalons.map((j) => j.nom)).toEqual(["Mars", "Décembre", "Sans date"]);
   });
