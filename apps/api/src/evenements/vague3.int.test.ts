@@ -610,7 +610,7 @@ describe("RG-TLT-04, RG-TLT-05 — règles et exceptions", () => {
   it("la génération crée les jours et rend compte des ignorés", async () => {
     const u = await agent();
     // Lundi = 1.
-    await teletravail.creerRegle({ userId: u, jourSemaine: 1, dateDebut: utc("2026-03-01") }, acteur);
+    await teletravail.creerRegle({ userId: u, jourSemaine: 1, dateDebut: utc("2026-03-01") }, acteur, DROITS_ENCADRANT);
 
     const premier = await teletravail.generer(u, utc("2026-03-01"), utc("2026-03-31"), acteur, DROITS_ENCADRANT);
     expect(premier.crees).toBe(5);
@@ -623,7 +623,7 @@ describe("RG-TLT-04, RG-TLT-05 — règles et exceptions", () => {
 
   it("UNE EXCEPTION POSÉE À LA MAIN SURVIT À LA RÉGÉNÉRATION", async () => {
     const u = await agent();
-    await teletravail.creerRegle({ userId: u, jourSemaine: 2, dateDebut: utc("2026-04-01") }, acteur);
+    await teletravail.creerRegle({ userId: u, jourSemaine: 2, dateDebut: utc("2026-04-01") }, acteur, DROITS_ENCADRANT);
     await teletravail.generer(u, utc("2026-04-01"), utc("2026-04-30"), acteur, DROITS_ENCADRANT);
 
     // L'agent corrige un mardi : il sera au bureau ce jour-là.
@@ -645,9 +645,9 @@ describe("RG-TLT-04, RG-TLT-05 — règles et exceptions", () => {
 
   it("RG-TLT-03 — une règle est unique pour jour de semaine × date de début", async () => {
     const u = await agent();
-    await teletravail.creerRegle({ userId: u, jourSemaine: 3, dateDebut: utc("2026-05-01") }, acteur);
+    await teletravail.creerRegle({ userId: u, jourSemaine: 3, dateDebut: utc("2026-05-01") }, acteur, DROITS_ENCADRANT);
     await expect(
-      teletravail.creerRegle({ userId: u, jourSemaine: 3, dateDebut: utc("2026-05-01") }, acteur),
+      teletravail.creerRegle({ userId: u, jourSemaine: 3, dateDebut: utc("2026-05-01") }, acteur, DROITS_ENCADRANT),
     ).rejects.toMatchObject({ code: "regle_en_double" });
   });
 

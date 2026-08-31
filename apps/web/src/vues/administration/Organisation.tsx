@@ -64,7 +64,24 @@ export function Organisation() {
    */
   const [edition, setEdition] = useState<{ nature: Nature; noeud: Noeud | null } | null>(null);
 
-  const requete = useQuery({ queryKey: ["organisation"], queryFn: api.arborescence });
+  /*
+   * `EX-ORG-05` — **le filtre est passé au serveur, plus appliqué ici.**
+   *
+   * Il vivait dans cette vue et il y était faux : l'arborescence a deux
+   * racines — les directions et le bloc « Départements sans direction »
+   * (`RG-ORG-03`) — et seule la première était filtrée. Sélectionner un
+   * département laissait tous les orphelins affichés, et la recherche ne
+   * descendait pas à l'intérieur d'une direction retenue. Trois endroits à
+   * filtrer, deux filtrés.
+   *
+   * Au serveur, une seule clause sert les deux racines : le bloc orphelin ne
+   * peut plus diverger par construction, et les compteurs d'en-tête décrivent
+   * enfin ce qui est affiché.
+   */
+  const requete = useQuery({
+    queryKey: ["organisation", { departementId, recherche }],
+    queryFn: () => api.arborescence({ departementId, recherche }),
+  });
 
   if (!peut("departments:read")) return <AccesRefuse />;
   if (requete.isPending) return <Chargement quoi={t("organisation.larborescence")} />;
@@ -87,13 +104,12 @@ export function Organisation() {
     });
   const ouvert = (id: string) => !toutReplie && !replies.has(id);
 
-  const tousDepartements = [
-    ...directions.flatMap((d) => d.departements),
-    ...departementsSansDirection,
-  ];
-
-  const correspond = (nom: string) =>
-    !recherche || nom.toLowerCase().includes(recherche.toLowerCase());
+  /*
+   * `EX-ORG-05` — la liste des choix vient du serveur, à part et non filtrée.
+   * La composer depuis l'arborescence — ce qu'elle faisait — la viderait à la
+   * première sélection, maintenant que le filtre est appliqué en amont.
+   */
+  const tousDepartements = requete.data.departements;
 
   return (
     <>
@@ -214,22 +230,18 @@ export function Organisation() {
         </div>
       ) : null}
 
-      {directions
-        .filter(
-          (d) =>
-            (!departementId || d.departements.some((x) => x.id === departementId)) &&
-            (correspond(d.nom) || d.departements.some((x) => correspond(x.nom))),
-        )
-        .map((d) => (
-          <BlocDirection
-            key={d.id}
-            direction={d}
-            departementId={departementId}
-            ouvert={ouvert}
-            surBascule={basculer}
-            surOuvrir={setEdition}
-          />
-        ))}
+      {/* Plus de filtrage ici : ce que le serveur rend est ce qui s'affiche.
+          C'est la propriété qui manquait — deux filtrages côté client, dont un
+          oublié, ne se voient dans aucune boucle. */}
+      {directions.map((d) => (
+        <BlocDirection
+          key={d.id}
+          direction={d}
+          ouvert={ouvert}
+          surBascule={basculer}
+          surOuvrir={setEdition}
+        />
+      ))}
 
       {departementsSansDirection.length > 0 ? (
         <div className="dir">
@@ -271,13 +283,11 @@ export function Organisation() {
 
 function BlocDirection({
   direction,
-  departementId,
   ouvert,
   surBascule,
   surOuvrir,
 }: {
   direction: api.Direction;
-  departementId: string;
   ouvert: (id: string) => boolean;
   surBascule: (id: string) => void;
   surOuvrir: (e: { nature: Nature; noeud: Noeud | null }) => void;
@@ -286,9 +296,9 @@ function BlocDirection({
   const peut = usePeut();
   const [suppressionOuverte, setSuppressionOuverte] = useState(false);
   const deplie = ouvert(direction.id);
-  const departements = direction.departements.filter(
-    (d) => !departementId || d.id === departementId,
-  );
+  // `EX-ORG-05` — les départements retenus sont ceux que le serveur rend : le
+  // filtre s'applique en amont, aux deux racines à la fois.
+  const departements = direction.departements;
 
   return (
     <div className="dir">
@@ -901,15 +911,19 @@ function FenetreNoeud({
     setErreur(null);
   }
 
+  /*
+   * La fenêtre d'édition demande l'arborescence NON FILTRÉE : on doit pouvoir
+   * rattacher un service à un département que le filtre de la page écarte.
+   * D'où l'appel sans paramètre, et sa propre entrée de cache.
+   */
   const arbre = useQuery({
-    queryKey: ["organisation"],
-    queryFn: api.arborescence,
+    queryKey: ["organisation", {}],
+    queryFn: () => api.arborescence(),
     enabled: nature !== null,
   });
-  const departements = [
-    ...(arbre.data?.directions.flatMap((d) => d.departements) ?? []),
-    ...(arbre.data?.departementsSansDirection ?? []),
-  ];
+  // `EX-ORG-05` — le serveur rend la liste complète des départements du
+  // périmètre : plus besoin de la recomposer depuis les deux racines.
+  const departements = arbre.data?.departements ?? [];
 
   /*
    * La liste des responsables n'est lisible qu'avec `users:read`. Sans la

@@ -48,7 +48,21 @@ import "./competences.css";
  */
 
 type Vue = "parUtilisateur" | "referentiel" | "matrice";
-type Tri = "nom" | "nombre" | "competence";
+
+/**
+ * `EX-CMP-07` — **deux vocabulaires de tri, un par objet trié.**
+ *
+ * L'exigence disait « trier par nom, couverture ou compétence » et le produit
+ * proposait « nom / nombre de compétences / par niveau sur une compétence ».
+ * Les deux listes parlaient d'objets différents sans le dire : la
+ * **couverture** est le ratio détenteurs/requis (`RG-CMP-03`), donc une
+ * propriété de compétence, qui ordonne le RÉFÉRENTIEL ; « par compétence » ne
+ * veut rien dire d'autre que « par niveau sur une compétence choisie », et
+ * cela n'ordonne que la MATRICE, dont les lignes sont des agents. Tranché, et
+ * porté dans `cadrage/01 § M13`.
+ */
+type TriMatrice = "nom" | "nombre" | "competence";
+type TriReferentiel = "nom" | "couverture";
 
 const RANG: Record<string, number> = {
   beginner: 1,
@@ -72,51 +86,47 @@ export function Competences() {
   const [categorie, setCategorie] = useState("");
   const [recherche, setRecherche] = useState("");
   const [niveau, setNiveau] = useState("");
-  const [tri, setTri] = useState<Tri>("nom");
+  const [tri, setTri] = useState<TriMatrice>("nom");
+  const [triReferentiel, setTriReferentiel] = useState<TriReferentiel>("nom");
   const [competenceTri, setCompetenceTri] = useState("");
   const [ecartsDeplies, setEcartsDeplies] = useState(false);
   const [creationOuverte, setCreationOuverte] = useState(false);
 
+  /*
+   * `EX-CMP-07` — **la recherche, le filtre de niveau et le tri sont passés au
+   * serveur, plus appliqués ici.**
+   *
+   * Ils vivaient dans cette vue, appliqués aux lignes déjà reçues. Tant que la
+   * matrice tient entière en mémoire les deux se ressemblent ; le jour où la
+   * liste d'agents se pagine — le brief l'annonce à « 50 lignes × 40 colonnes »
+   * —, un tri d'écran ordonne une tranche en se donnant l'air d'ordonner
+   * l'ensemble, et rien ne le signale. Un filtre et un tri sont des propriétés
+   * du point d'entrée.
+   */
   const requete = useQuery({
-    queryKey: ["competences", "matrice", categorie],
-    queryFn: () => api.matrice({ categorie }),
+    queryKey: ["competences", "matrice", { categorie, recherche, niveau, tri, competenceTri }],
+    queryFn: () =>
+      api.matrice({
+        categorie,
+        recherche,
+        niveau,
+        tri,
+        ...(tri === "competence" && competenceTri ? { competenceId: competenceTri } : {}),
+      }),
   });
 
   const colonnes = requete.data?.colonnes ?? [];
-  const toutesLignes = requete.data?.lignes ?? [];
-
-  /* Les personnes visibles : recherche, puis filtre de niveau, puis tri. */
-  const lignes = useMemo(() => {
-    let liste = toutesLignes;
-    if (recherche) {
-      const q = recherche.toLowerCase();
-      liste = liste.filter((l) => `${l.agent.prenom} ${l.agent.nom}`.toLowerCase().includes(q));
-    }
-    if (niveau) liste = liste.filter((l) => l.niveaux.some((n) => n === niveau));
-    const detenues = (l: api.LigneMatrice) => l.niveaux.filter(Boolean).length;
-    if (tri === "nombre") {
-      liste = [...liste].sort((a, b) => detenues(b) - detenues(a));
-    } else if (tri === "competence") {
-      const i = colonnes.findIndex((c) => c.id === competenceTri);
-      const j = i === -1 ? 0 : i;
-      liste = [...liste].sort(
-        (a, b) =>
-          (RANG[b.niveaux[j] ?? ""] ?? 0) - (RANG[a.niveaux[j] ?? ""] ?? 0) ||
-          `${a.agent.prenom} ${a.agent.nom}`.localeCompare(`${b.agent.prenom} ${b.agent.nom}`),
-      );
-    }
-    return liste;
-  }, [toutesLignes, recherche, niveau, tri, competenceTri, colonnes]);
+  const lignes = requete.data?.lignes ?? [];
 
   const ecarts = colonnes.filter((c) => c.ecart);
   const affichees = ecartsDeplies ? ecarts : ecarts.slice(0, 3);
-  const detenues = toutesLignes.reduce((s, l) => s + l.niveaux.filter(Boolean).length, 0);
-  const experts = toutesLignes.reduce(
+  const detenues = lignes.reduce((s, l) => s + l.niveaux.filter(Boolean).length, 0);
+  const experts = lignes.reduce(
     (s, l) => s + l.niveaux.filter((n) => n !== null && (RANG[n] ?? 0) >= 3).length,
     0,
   );
   const couverture = requete.data?.synthese.couvertureMoyenne ?? 0;
-  const moyenne = toutesLignes.length ? (detenues / toutesLignes.length).toFixed(1) : "0";
+  const moyenne = lignes.length ? (detenues / lignes.length).toFixed(1) : "0";
 
   return (
     <>
@@ -218,17 +228,41 @@ export function Competences() {
             </div>
           </div>
 
-          {vue === "matrice" ? (
+          {/*
+            `EX-CMP-07` — **la barre de filtres sert aussi le référentiel.**
+
+            Elle était enfermée dans la branche « matrice » et le composant
+            `Referentiel` recevait pourtant `categorie` et `recherche` : sur
+            l'onglet Référentiel, les filtres gardaient donc la dernière valeur
+            posée ailleurs, sans un seul contrôle pour les changer. L'exigence
+            demande de rechercher et filtrer — sur les trois vues du module.
+          */}
+          {vue !== "parUtilisateur" ? (
             <>
               <div className="filters">
+                {/*
+                  La recherche ne cherche pas la même chose selon la vue : la
+                  matrice range des agents, le référentiel range des
+                  compétences. Un placeholder unique en désignerait un pour
+                  l'autre — « Rechercher un collaborateur… » au-dessus d'une
+                  liste de compétences.
+                */}
                 <input
                   className="f-input"
                   type="search"
                   style={{ width: "210px" }}
                   value={recherche}
                   onChange={(e) => setRecherche(e.target.value)}
-                  placeholder={t("competences.rechercher")}
-                  aria-label={t("competences.rechercher")}
+                  placeholder={
+                    vue === "matrice"
+                      ? t("competences.rechercher")
+                      : t("competences.rechercherCompetence")
+                  }
+                  aria-label={
+                    vue === "matrice"
+                      ? t("competences.rechercher")
+                      : t("competences.rechercherCompetence")
+                  }
                 />
                 <select
                   className="f-input"
@@ -256,20 +290,42 @@ export function Competences() {
                     </option>
                   ))}
                 </select>
-                <select
-                  className="f-input"
-                  value={tri}
-                  onChange={(e) => setTri(e.target.value as Tri)}
-                  aria-label={t("competences.tri")}
-                >
-                  <option value="nom">{t("competences.triNom")}</option>
-                  <option value="nombre">{t("competences.triNombre")}</option>
-                  <option value="competence">{t("competences.triCompetence")}</option>
-                </select>
+                {/*
+                  Deux vocabulaires de tri, un par objet trié. Le référentiel
+                  range des compétences — nom, couverture ; la matrice range
+                  des agents — nom, nombre de compétences, niveau sur l'une
+                  d'elles. Un sélecteur unique aux six entrées demanderait au
+                  lecteur de deviner lesquelles s'appliquent à ce qu'il regarde.
+                */}
+                {vue === "matrice" ? (
+                  <select
+                    className="f-input"
+                    value={tri}
+                    onChange={(e) => setTri(e.target.value as TriMatrice)}
+                    aria-label={t("competences.tri")}
+                  >
+                    <option value="nom">{t("competences.triNom")}</option>
+                    <option value="nombre">{t("competences.triNombre")}</option>
+                    <option value="competence">{t("competences.triCompetence")}</option>
+                  </select>
+                ) : (
+                  <select
+                    className="f-input"
+                    value={triReferentiel}
+                    onChange={(e) => setTriReferentiel(e.target.value as TriReferentiel)}
+                    aria-label={t("competences.tri")}
+                  >
+                    <option value="nom">{t("competences.triNom")}</option>
+                    {/* `RG-CMP-03` — le ratio détenteurs/requis. Le tri qui
+                        manquait, et celui qui répond à la question du module :
+                        « sommes-nous couverts ? ». Le moins couvert en tête. */}
+                    <option value="couverture">{t("competences.triCouverture")}</option>
+                  </select>
+                )}
                 {/* Le sélecteur de compétence n'apparaît que lorsqu'il sert. */}
                 <select
                   className="f-input"
-                  hidden={tri !== "competence"}
+                  hidden={vue !== "matrice" || tri !== "competence"}
                   value={competenceTri}
                   onChange={(e) => setCompetenceTri(e.target.value)}
                   aria-label={t("competences.competenceDeTri")}
@@ -290,18 +346,20 @@ export function Competences() {
                   Les deux exports existent et sont distincts, ils portent
                   donc désormais deux noms distincts.
                 */}
-                {peut("skills:export") ? <ExportMatrice /> : null}
+                {peut("skills:export") && vue === "matrice" ? <ExportMatrice /> : null}
                 {peut("skills:export") ? (
                   <a className="chip-btn" href={adresseExportCompetences()} download>
                     {t("competences.exportReferentiel")}
                   </a>
                 ) : null}
-                <span className="field-hint" style={{ margin: "0 0 0 auto" }}>
-                  {t("competences.indiceCellule")}
-                </span>
+                {vue === "matrice" ? (
+                  <span className="field-hint" style={{ margin: "0 0 0 auto" }}>
+                    {t("competences.indiceCellule")}
+                  </span>
+                ) : null}
               </div>
 
-              {colonnes.length === 0 || lignes.length === 0 ? (
+              {vue !== "matrice" ? null : colonnes.length === 0 || lignes.length === 0 ? (
                 <div className="empty empty-encadre">
                   <p>{t("competences.videTitre")}</p>
                   <small>{t("competences.videExplication")}</small>
@@ -426,7 +484,12 @@ export function Competences() {
             <ParUtilisateur lignes={lignes} colonnes={colonnes} />
           ) : null}
           {vue === "referentiel" ? (
-            <Referentiel categorie={categorie} recherche={recherche} />
+            <Referentiel
+              categorie={categorie}
+              recherche={recherche}
+              niveau={niveau}
+              tri={triReferentiel}
+            />
           ) : null}
         </>
       ) : null}
@@ -709,7 +772,18 @@ function ParUtilisateur({
   );
 }
 
-function Referentiel({ categorie, recherche }: { categorie: string; recherche: string }) {
+function Referentiel({
+  categorie,
+  recherche,
+  niveau,
+  tri,
+}: {
+  categorie: string;
+  recherche: string;
+  /** `EX-CMP-07` — filtre et tri passés au serveur, jamais appliqués ici. */
+  niveau: string;
+  tri: TriReferentiel;
+}) {
   const { t } = useTranslation("referentiels");
   const { t: tErreurs } = useTranslation("erreurs");
   const libelle = useLibelle();
@@ -721,8 +795,8 @@ function Referentiel({ categorie, recherche }: { categorie: string; recherche: s
   const [detenteursDe, setDetenteursDe] = useState<api.Competence | null>(null);
 
   const requete = useQuery({
-    queryKey: ["competences", "referentiel", categorie, recherche],
-    queryFn: () => api.referentiel({ categorie, recherche }),
+    queryKey: ["competences", "referentiel", { categorie, recherche, niveau, tri }],
+    queryFn: () => api.referentiel({ categorie, recherche, niveau, tri }),
   });
 
   const suppression = useMutation({

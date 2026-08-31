@@ -254,6 +254,20 @@ export const ARBORESCENCE = {
       _count: { membres: 2, services: 0 },
     },
   ],
+  /*
+   * `EX-ORG-05` — la liste des CHOIX du filtre, que le serveur rend à part et
+   * ne filtre jamais : le sélecteur se peuplait depuis l'arborescence qu'il
+   * filtre, ce qui l'aurait vidé à la première sélection une fois le filtre
+   * passé au serveur.
+   *
+   * Elle est ici parce que `GET /organisation` la rend : un jeu d'essai se
+   * calque sur la signature du service, jamais sur ce que le client croit
+   * recevoir — piège déjà payé deux fois sur `GET /utilisateurs`.
+   */
+  departements: [
+    { id: "dep1", nom: "Direction des services numériques" },
+    { id: "dep2", nom: "Mission transversale" },
+  ],
 };
 
 export const IMPACT_DEPARTEMENT = {
@@ -327,7 +341,17 @@ export const RAPPORT_AGENT = [
   { cle: null, libelle: "Tiers", heures: 3.5, entrees: 1 },
 ];
 
+/*
+ * L'axe « type » rend `codeActivite`, pas `libelle`.
+ *
+ * Le champ s'appelait `libelle` et contenait un CODE d'énumération — même
+ * famille que le `annee: jours.length` du télétravail : un nom qui ment sur
+ * son contenu. Sur les deux autres axes il y a un vrai libellé (nom d'agent,
+ * nom de projet) et il le reste ; ici il n'y a qu'un code, que la vue traduit
+ * par `TYPES_ACTIVITE` comme `RG-GEN-08` l'impose. Le jeu d'essai suit la
+ * signature du service.
+ */
 export const RAPPORT_TYPE = [
-  { cle: "development", libelle: "development", heures: 30, entrees: 8 },
-  { cle: "meeting", libelle: "meeting", heures: 20, entrees: 6 },
+  { cle: "development", codeActivite: "development", heures: 30, entrees: 8 },
+  { cle: "meeting", codeActivite: "meeting", heures: 20, entrees: 6 },
 ];

@@ -16,6 +16,14 @@ import {
   FICHE_CLIENT_VIDE,
   IMPACT_VIDE,
 } from "./fixtures/referentiels.js";
+/*
+ * Les trois trous de la vague 7-4 touchent les vues 20, 22 et 29.
+ * `occupations.e2e.spec.ts` et `administration.e2e.spec.ts` étant tenus par
+ * d'autres agents pendant cette vague, leurs contrôles vivent ici, avec leurs
+ * jeux d'origine.
+ */
+import { SESSION_ADMIN, ARBORESCENCE } from "./fixtures/administration.js";
+import { CAMILLE, PLANNING_TELETRAVAIL, REGLES_TELETRAVAIL } from "./fixtures/occupations.js";
 
 /**
  * L-35 — vues 22 à 26.
@@ -532,5 +540,321 @@ test.describe("Vues 25 et 26 — clients", () => {
 
     await expect(page.getByText(/Ce client est inactif/)).toBeVisible();
     await expect(page.getByText("Aucun projet rattaché")).toBeVisible();
+  });
+});
+
+/*
+ * Les trois trous de la vague 7-4, vérifiés de bout en bout.
+ *
+ * `occupations.e2e.spec.ts` et `administration.e2e.spec.ts` étant tenus par
+ * d'autres agents pendant cette vague, les contrôles des vues 20 et 29 vivent
+ * ici. Ils y sont à leur place : ce fichier couvre déjà la vue 22, et les
+ * trois portent la même règle — un filtre ou un tri est un paramètre du point
+ * d'entrée, pas une propriété de l'écran.
+ */
+
+test.describe("EX-CMP-07 — filtres et tris partent au SERVEUR", () => {
+  const reponses = {
+    "/api/competences/matrice": { corps: MATRICE },
+    "/api/competences": { corps: REFERENTIEL },
+  };
+
+  test("EX-CMP-07 — le filtre de niveau et le tri de la matrice sont dans la REQUÊTE", async ({
+    page,
+  }) => {
+    /*
+     * Le contrôle qui distingue « trié » de « trié à l'écran ». Il ne regarde
+     * pas l'ordre affiché — un tri client le produirait aussi — il regarde ce
+     * que la requête EMPORTE. C'est la seule chose que le portage change tant
+     * que la liste tient en mémoire, et c'est celle qui compte à la première
+     * pagination.
+     */
+    const requetes: string[] = [];
+    await serveur(page, { session: SESSION_REFERENTIELS, reponses });
+    await page.route(
+      (url) => url.pathname === "/api/competences/matrice",
+      (route) => {
+        requetes.push(new URL(route.request().url()).search);
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify(MATRICE),
+        });
+      },
+    );
+    await page.goto("/competences");
+
+    await page.getByLabel("Niveau", { exact: true }).selectOption("expert");
+    await page.getByLabel("Tri", { exact: true }).selectOption("nombre");
+    await page.getByPlaceholder("Rechercher un collaborateur…").fill("Driss");
+
+    await expect
+      .poll(() => requetes.some((q) => q.includes("niveau=expert")))
+      .toBe(true);
+    await expect.poll(() => requetes.some((q) => q.includes("tri=nombre"))).toBe(true);
+    await expect.poll(() => requetes.some((q) => q.includes("recherche=Driss"))).toBe(true);
+  });
+
+  test("EX-CMP-07 — le référentiel a SA barre de filtres, et son tri par couverture", async ({
+    page,
+  }) => {
+    /*
+     * La barre était enfermée dans la branche « matrice » : sur l'onglet
+     * Référentiel, `categorie` et `recherche` gardaient la dernière valeur
+     * posée ailleurs, sans un seul contrôle pour les changer. Et le tri par
+     * couverture — le ratio de `RG-CMP-03`, celui qui répond à la question du
+     * module — n'existait nulle part.
+     */
+    const requetes: string[] = [];
+    await serveur(page, { session: SESSION_REFERENTIELS, reponses });
+    await page.route(
+      (url) => url.pathname === "/api/competences",
+      (route) => {
+        requetes.push(new URL(route.request().url()).search);
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify(REFERENTIEL),
+        });
+      },
+    );
+    await page.goto("/competences");
+    await page.getByRole("button", { name: "Référentiel", exact: true }).click();
+
+    const tri = page.getByLabel("Tri", { exact: true });
+    await expect(tri).toBeVisible();
+    /*
+     * Le vocabulaire du référentiel, pas celui de la matrice : la couverture
+     * range des compétences, le nombre de compétences range des agents.
+     *
+     * Les options se visent par `locator("option")` et non `getByRole` : un
+     * `<select>` natif n'expose PAS ses options comme rôle `option` dans
+     * l'arbre d'accessibilité de Chromium. Un `getByRole` y renvoie zéro dans
+     * tous les cas — donc l'assertion « ce tri n'est pas là » passait sans
+     * rien mesurer, et celle qui compte l'a fait échouer. Faux témoin de la
+     * même famille que l'assertion portée sur le conteneur.
+     */
+    await expect(tri.locator("option[value='couverture']")).toHaveCount(1);
+    await expect(tri.locator("option[value='nombre']")).toHaveCount(0);
+    await expect(tri.locator("option[value='competence']")).toHaveCount(0);
+
+    await tri.selectOption("couverture");
+    await expect.poll(() => requetes.some((q) => q.includes("tri=couverture"))).toBe(true);
+  });
+});
+
+test.describe("EX-ORG-05 — le filtre de l'organisation part au SERVEUR", () => {
+  test("EX-ORG-05 — le département choisi et la recherche sont dans la REQUÊTE", async ({
+    page,
+  }) => {
+    /*
+     * Le filtre vivait dans la vue et n'y couvrait qu'une des deux racines de
+     * l'arborescence : le bloc « Départements sans direction » restait entier.
+     * Le portage se vérifie là où le défaut était impossible à voir — dans ce
+     * que la requête emporte.
+     */
+    const requetes: string[] = [];
+    await serveur(page, {
+      session: SESSION_ADMIN,
+      reponses: { "/api/organisation": { corps: ARBORESCENCE } },
+    });
+    await page.route(
+      (url) => url.pathname === "/api/organisation",
+      (route) => {
+        requetes.push(new URL(route.request().url()).search);
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify(ARBORESCENCE),
+        });
+      },
+    );
+    await page.goto("/departements");
+
+    const filtre = page.getByLabel("Filtrer par département");
+    // La liste des choix vient du serveur, à part : elle porte les DEUX
+    // départements, celui sous direction et l'orphelin. Peuplée depuis
+    // l'arborescence filtrée, elle se serait vidée à la première sélection.
+    await expect(filtre.locator("option")).toHaveCount(3);
+
+    await filtre.selectOption("dep2");
+    await expect.poll(() => requetes.some((q) => q.includes("departementId=dep2"))).toBe(true);
+
+    await page.getByPlaceholder("Rechercher…").fill("Mission");
+    await expect.poll(() => requetes.some((q) => q.includes("recherche=Mission"))).toBe(true);
+  });
+});
+
+test.describe("EX-TLT-04 — une règle de télétravail se modifie et se supprime", () => {
+  const reponses = {
+    "/api/teletravail": { corps: PLANNING_TELETRAVAIL },
+    "/api/teletravail/regles": { corps: REGLES_TELETRAVAIL },
+  };
+
+  test("EX-TLT-04 — la règle porte ses trois commandes, et la désactivation EMPORTE la version lue", async ({
+    page,
+  }) => {
+    /*
+     * `TeleworkRule.active` avait un défaut à `true` et aucun chemin ne
+     * l'écrivait : la maquette réservait deux colonnes d'actions à droite de
+     * chaque règle, vides parce que le serveur ne savait ni modifier, ni
+     * désactiver, ni supprimer.
+     *
+     * L'assertion porte sur le CORPS envoyé, pas seulement sur le clic : c'est
+     * `version` qui prouve que la lecture et l'écriture se raccordent — le
+     * raccord entre deux moitiés justes est ce qui casse, jamais les moitiés.
+     */
+    const corps: unknown[] = [];
+    await serveur(page, { session: CAMILLE, reponses });
+    await page.route(
+      (url) => url.pathname === "/api/teletravail/regles/r1",
+      (route) => {
+        corps.push({ methode: route.request().method(), donnees: route.request().postDataJSON() });
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ ...REGLES_TELETRAVAIL[0], active: false, version: 2 }),
+        });
+      },
+    );
+    await page.goto("/teletravail");
+    await page.getByRole("button", { name: "Configurer jours fixes" }).click();
+
+    const mardi = page.locator(".rule").filter({ hasText: "Mardi" });
+    await mardi.getByRole("button", { name: /^Désactiver la règle/ }).click();
+
+    await expect.poll(() => corps.length).toBe(1);
+    expect(corps[0]).toEqual({
+      methode: "PATCH",
+      // `version: 1`, celle que `GET /teletravail/regles` a rendue.
+      donnees: { version: 1, active: false },
+    });
+  });
+
+  test("EX-TLT-04 — la règle INACTIVE se réactive, et le libellé de la commande le dit", async ({
+    page,
+  }) => {
+    /*
+     * Le versant nominal. Sans lui, une vue qui n'enverrait jamais que
+     * `active: false` passerait le test précédent.
+     */
+    const corps: unknown[] = [];
+    await serveur(page, { session: CAMILLE, reponses });
+    await page.route(
+      (url) => url.pathname === "/api/teletravail/regles/r2",
+      (route) => {
+        corps.push(route.request().postDataJSON());
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ ...REGLES_TELETRAVAIL[1], active: true, version: 4 }),
+        });
+      },
+    );
+    await page.goto("/teletravail");
+    await page.getByRole("button", { name: "Configurer jours fixes" }).click();
+
+    const jeudi = page.locator(".rule").filter({ hasText: "Jeudi" });
+    await jeudi.getByRole("button", { name: /^Activer la règle/ }).click();
+    await expect.poll(() => corps.length).toBe(1);
+    expect(corps[0]).toEqual({ version: 3, active: true });
+  });
+
+  test("EX-TLT-04 — la suppression se confirme, et la fenêtre dit ce qu'elle NE fait PAS", async ({
+    page,
+  }) => {
+    const appels: string[] = [];
+    await serveur(page, { session: CAMILLE, reponses });
+    await page.route(
+      (url) => url.pathname === "/api/teletravail/regles/r1",
+      (route) => {
+        appels.push(route.request().method());
+        return route.fulfill({ status: 204, body: "" });
+      },
+    );
+    await page.goto("/teletravail");
+    await page.getByRole("button", { name: "Configurer jours fixes" }).click();
+    await page
+      .locator(".rule")
+      .filter({ hasText: "Mardi" })
+      .getByRole("button", { name: /^Supprimer la règle/ })
+      .click();
+
+    // Les jours déjà générés restent : le découvrir après coup, ou croire
+    // qu'ils ont disparu, est le genre d'apprentissage qu'on ne fait qu'une
+    // fois et mal.
+    await expect(page.getByText(/Les jours déjà générés au calendrier sont conservés/)).toBeVisible();
+    // Rien n'est parti tant que la confirmation n'est pas donnée.
+    expect(appels).toEqual([]);
+
+    // La confirmation est une SECONDE fenêtre par-dessus celle des règles : on
+    // la vise par ce qu'elle est seule à dire, sinon le sélecteur attrape les
+    // deux et le clic part au hasard.
+    await page
+      .getByRole("dialog")
+      .filter({ hasText: "Les jours déjà générés" })
+      .getByRole("button", { name: "Supprimer", exact: true })
+      .click();
+    await expect.poll(() => appels).toEqual(["DELETE"]);
+  });
+
+  test("EX-TLT-04 — MODIFIER charge le formulaire de la règle, et enregistre la nouvelle valeur", async ({
+    page,
+  }) => {
+    const corps: unknown[] = [];
+    await serveur(page, { session: CAMILLE, reponses });
+    await page.route(
+      (url) => url.pathname === "/api/teletravail/regles/r1",
+      (route) => {
+        corps.push(route.request().postDataJSON());
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ ...REGLES_TELETRAVAIL[0], jourSemaine: 3, version: 2 }),
+        });
+      },
+    );
+    await page.goto("/teletravail");
+    await page.getByRole("button", { name: "Configurer jours fixes" }).click();
+    await page
+      .locator(".rule")
+      .filter({ hasText: "Mardi" })
+      .getByRole("button", { name: /^Modifier la règle/ })
+      .click();
+
+    // Le formulaire s'est chargé de la règle : c'est ce qui distingue
+    // « modifier » de « créer une seconde règle à côté ».
+    await expect(page.getByLabel("Date de début")).toHaveValue("2026-03-01");
+    await page.getByLabel("Jour de la semaine").selectOption("3");
+    await page.getByRole("button", { name: "Enregistrer", exact: true }).click();
+
+    await expect.poll(() => corps.length).toBe(1);
+    expect(corps[0]).toMatchObject({ version: 1, jourSemaine: 3, dateDebut: "2026-03-01" });
+  });
+
+  test("RG-GEN-06 — sans telework:manage_rules, aucune commande n'est proposée", async ({
+    page,
+  }) => {
+    await serveur(page, {
+      session: {
+        ...CAMILLE,
+        permissions: CAMILLE.permissions.filter(
+          (p: string) => p !== "telework:manage_rules",
+        ),
+      },
+      reponses,
+    });
+    await page.goto("/teletravail");
+
+    /*
+     * La fenêtre des règles est elle-même gardée par `telework:manage_rules` :
+     * sans la permission, elle ne s'ouvre pas, donc les trois commandes ne sont
+     * pas atteignables — ce qui est le comportement voulu, et ce que ce
+     * contrôle fixe. Le calendrier, lui, reste consultable.
+     */
+    await expect(page.getByRole("button", { name: "Configurer jours fixes" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /^Désactiver la règle/ })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /^Supprimer la règle/ })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /^Modifier la règle/ })).toHaveCount(0);
   });
 });
