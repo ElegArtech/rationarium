@@ -200,6 +200,61 @@ export const DEMANDES = [
   },
 ];
 
+/**
+ * `EX-CNG-07` — une demande d'ANNULATION, telle que le serveur la sert au
+ * validateur.
+ *
+ * `GET /conges?aValider=true` filtre sur
+ * `statut: { in: ["pending", "cancellation_requested"] }` : cette ligne-là
+ * arrive donc dans le même tableau que les demandes en attente. Le jeu d'essai
+ * n'en portait aucune, et c'est précisément ce qui a laissé vivre le défaut —
+ * la branche « Approuver / Refuser » n'avait rien à quoi se heurter.
+ */
+export const DEMANDE_ANNULATION = {
+  id: "c3",
+  statut: "cancellation_requested",
+  dateDebut: "2026-10-05",
+  dateFin: "2026-10-09",
+  demiJourneeDebut: null,
+  demiJourneeFin: null,
+  motif: null,
+  motifRefus: null,
+  joursOuvres: "5",
+  version: 2,
+  type: { id: "t1", nom: "Congés annuels", couleur: "#6A4BA6", icone: null },
+  user: personne("Youssef", "Haddad", "u4"),
+  validateur: personne("Fatou", "Berthier", "u2"),
+  repartitions: [{ annee: 2026, jours: "5" }],
+};
+
+/**
+ * `RG-CNG-16` — le décompte en jours ouvrés, **tel que le serveur le rend**.
+ *
+ * `GET /parametrage/jours-ouvres` répond `{ jours, parAnnee }` : c'est la
+ * signature de `ParametrageController.joursOuvres`, qui compose
+ * `CalendrierService.joursOuvres` et `repartitionParAnnee`.
+ *
+ * Le jeu par défaut est celui de la demande à cheval du 28/12/2026 au
+ * 03/01/2027 : quatre jours ouvrés, deux de chaque côté du 1er janvier.
+ */
+export const JOURS_OUVRES_A_CHEVAL = {
+  jours: 4,
+  parAnnee: [
+    { annee: 2026, jours: 2 },
+    { annee: 2027, jours: 2 },
+  ],
+};
+
+/**
+ * Une semaine pleine — du lundi 7 au dimanche 13 septembre 2026 : **sept jours
+ * de calendrier, cinq jours ouvrés**. C'est l'écart entre les deux chiffres
+ * qui prouve d'où vient le décompte.
+ */
+export const JOURS_OUVRES_SEMAINE = {
+  jours: 5,
+  parAnnee: [{ annee: 2026, jours: 5 }],
+};
+
 export const DELEGATIONS = {
   donnees: [
     {

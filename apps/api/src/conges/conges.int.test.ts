@@ -474,7 +474,7 @@ describe("RG-CNG-01 à 07 — cycle de vie", () => {
     });
   });
 
-  it("une annulation refusée rend le congé à l'état approuvé", async () => {
+  it("EX-CNG-07, RG-CNG-06 — une annulation refusée rend le congé à l'état approuvé", async () => {
     const u = await agent();
     const validateur = await agent();
     await attribuer(u, typeSansValidation, 2026, 25);
@@ -539,7 +539,7 @@ describe("RG-CNG-29 à 31 — référentiel des types", () => {
     ).rejects.toMatchObject({ code: "type_inactif" });
   });
 
-  it("RG-CNG-31 — un type utilisé est DÉSACTIVÉ, pas supprimé, et le compte est rendu", async () => {
+  it("EX-CNG-13, RG-CNG-31 — un type utilisé est DÉSACTIVÉ, pas supprimé, et le compte est rendu", async () => {
     const type = uuid();
     await prisma.leaveType.create({ data: { id: type, code: `U${type.slice(0, 4)}`, nom: "Utilisé" } });
     const u = await agent();

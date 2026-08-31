@@ -367,6 +367,14 @@ function useDemiJournees(): (demande: api.DemandeConge) => string | null {
   };
 }
 
+/**
+ * Les gestes portés par une ligne de demande.
+ *
+ * Le nom du geste sert aussi de clé de message — `conges.<geste>Fait` — : il
+ * n'y a donc pas un second vocabulaire à tenir en regard de celui-ci.
+ */
+type Geste = "approuver" | "annulation" | "supprimer" | "accepterAnnulation" | "refuserAnnulation";
+
 function LigneDemande({
   demande,
   avecActions = false,
@@ -381,6 +389,7 @@ function LigneDemande({
   const { t } = useTranslation("occupations");
   const { t: tErreurs } = useTranslation("erreurs");
   const demiJournees = useDemiJournees();
+  const libelle = useLibelle();
   const annoncer = useMessages();
   const client = useQueryClient();
   const [refusOuvert, setRefusOuvert] = useState(false);
@@ -391,18 +400,35 @@ function LigneDemande({
   };
 
   const action = useMutation({
-    mutationFn: (geste: "approuver" | "annulation" | "supprimer") =>
-      geste === "approuver"
-        ? api.approuverConge(demande.id)
-        : geste === "annulation"
-          ? api.demanderAnnulation(demande.id)
-          : api.supprimerConge(demande.id),
+    mutationFn: (geste: Geste) => {
+      if (geste === "approuver") return api.approuverConge(demande.id);
+      if (geste === "annulation") return api.demanderAnnulation(demande.id);
+      // `EX-CNG-07` — les deux issues d'une demande d'annulation passent par la
+      // MÊME route, et ne se distinguent que par `accepte`.
+      if (geste === "accepterAnnulation") return api.traiterAnnulation(demande.id, true);
+      if (geste === "refuserAnnulation") return api.traiterAnnulation(demande.id, false);
+      return api.supprimerConge(demande.id);
+    },
     onSuccess: (_, geste) => {
       annoncer("ok", t(`conges.${geste}Fait`));
       rafraichir();
     },
     onError: (e) => annoncer("err", messageErreur(e, tErreurs, t("conges.echecAction"))),
   });
+
+  /*
+   * `RG-CNG-01` — une demande d'ANNULATION n'est pas une demande en attente.
+   *
+   * DÉFAUT ACTIF CORRIGÉ EN L-46. `GET /conges?aValider=true` rend les deux
+   * statuts — `pending` ET `cancellation_requested` — et cette ligne posait
+   * « Approuver » / « Refuser » sur les deux sans distinction. Sur une
+   * annulation, les deux boutons appelaient `POST /conges/:id/approuver`, que
+   * le serveur refuse en `statut_incompatible` (`RG-CNG-02` : une demande déjà
+   * décidée ne se réapprouve pas). Le validateur voyait donc deux commandes
+   * qui ne pouvaient pas aboutir, et rien ne le disait avant le clic — ce que
+   * `RG-GEN-06` interdit exactement.
+   */
+  const enAnnulation = demande.statut === "cancellation_requested";
 
   const classe = avecValidation ? "lv-row is-todo" : avecDemandeur ? "lv-row is-all" : "lv-row";
 
@@ -445,11 +471,22 @@ function LigneDemande({
           porte sur sa ligne d'une demi-journée. Les deux informations partagent
           la même place : elles répondent à la même question, « quoi au juste ».
         */}
-        {demiJournees(demande) === null && !demande.motif ? null : (
+        {/* L'onglet « À valider » n'a pas de colonne de statut : sans cette
+            mention, rien ne distinguerait à la lecture une demande d'annulation
+            d'une demande en attente — il faudrait déchiffrer ses boutons. */}
+        {(avecValidation && enAnnulation) || demiJournees(demande) !== null || demande.motif ? (
           <span className="lv-motif">
-            {[demiJournees(demande), demande.motif].filter(Boolean).join(" · ")}
+            {[
+              avecValidation && enAnnulation
+                ? libelle("cancellation_requested", STATUTS_CONGE)
+                : null,
+              demiJournees(demande),
+              demande.motif,
+            ]
+              .filter(Boolean)
+              .join(" · ")}
           </span>
-        )}
+        ) : null}
       </span>
 
       <span>
@@ -466,13 +503,45 @@ function LigneDemande({
       </span>
 
       {avecValidation ? (
-        <span className="lv-acts">
-          <Button className="btn btn-primary" onPress={() => action.mutate("approuver")}>
-            {t("conges.approuver")}
-          </Button>
-          <Button className="btn btn-secondary btn-refus" onPress={() => setRefusOuvert(true)}>
-            {t("conges.refuser")}
-          </Button>
+        /*
+         * La colonne « Décision » est calée sur les deux boutons de la
+         * maquette — « Approuver », « Refuser ». Les deux commandes d'une
+         * annulation sont plus longues et débordaient sur la colonne des
+         * jours : elles s'empilent, plutôt que de se faire abréger en
+         * « Accepter » / « Refuser », qui voudraient dire dans la même liste
+         * autre chose que sur la ligne d'à côté. Le style est en ligne parce
+         * que la feuille de la vue 19 n'appartient pas à ce lot.
+         */
+        <span className="lv-acts" style={enAnnulation ? { flexWrap: "wrap" } : undefined}>
+          {enAnnulation ? (
+            <>
+              {/* `EX-CNG-07`, `RG-CNG-06` — accepter écrit « Annulé ». */}
+              <Button
+                className="btn btn-primary"
+                onPress={() => action.mutate("accepterAnnulation")}
+              >
+                {t("conges.accepterAnnulation")}
+              </Button>
+              {/* `RG-CNG-01` — refuser ne laisse pas la demande en l'état : le
+                  congé REVIENT à « Approuvé ». Un bouton nommé « Refuser »
+                  laisserait croire que le congé tombe, c'est l'inverse. */}
+              <Button
+                className="btn btn-secondary btn-refus"
+                onPress={() => action.mutate("refuserAnnulation")}
+              >
+                {t("conges.refuserAnnulation")}
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button className="btn btn-primary" onPress={() => action.mutate("approuver")}>
+                {t("conges.approuver")}
+              </Button>
+              <Button className="btn btn-secondary btn-refus" onPress={() => setRefusOuvert(true)}>
+                {t("conges.refuser")}
+              </Button>
+            </>
+          )}
         </span>
       ) : (
         <>
@@ -743,6 +812,8 @@ function Delegations() {
 function TypesDeConge() {
   const { t } = useTranslation("occupations");
   const [inactifs, setInactifs] = useState(false);
+  /** Le type dont on a demandé le retrait, et qui attend sa confirmation. */
+  const [aRetirer, setARetirer] = useState<api.TypeConge | null>(null);
   const requete = useQuery({
     queryKey: ["conges", "types", inactifs],
     queryFn: () => api.typesDeConge(inactifs),
@@ -797,13 +868,140 @@ function TypesDeConge() {
             <span className="ty-use c-use">
               {t("conges.utilisations", { n: type.utilisations })}
             </span>
-            <span className="pill" style={{ color: type.systeme ? "var(--muted)" : type.actif ? "var(--st-done)" : "var(--st-todo)" }}>
-              {type.systeme ? t("conges.systeme") : type.actif ? t("conges.actif") : t("conges.inactif")}
+            {/*
+              La septième colonne de `.ty-head` — « Statut ». Elle ne portait
+              que la pastille : la rangée n'avait AUCUNE action, alors que
+              `DELETE /conges/types/:id` existait, gardé et testé, sans un seul
+              appel client. La pastille et la commande y cohabitent, comme la
+              maquette les y met.
+            */}
+            <span className="lv-acts">
+              <span
+                className="pill"
+                style={{
+                  color: type.systeme
+                    ? "var(--muted)"
+                    : type.actif
+                      ? "var(--st-done)"
+                      : "var(--st-todo)",
+                }}
+                /* `RG-CNG-30` — ce que « Système » interdit se lit sur place,
+                   plutôt que de se découvrir en heurtant la règle. */
+                title={type.systeme ? t("conges.systemeExplication") : undefined}
+              >
+                {type.systeme
+                  ? t("conges.systeme")
+                  : type.actif
+                    ? t("conges.actif")
+                    : t("conges.inactif")}
+              </span>
+              {/*
+                `RG-GEN-06` — la commande n'est proposée que là où elle aboutit.
+                Un type DÉJÀ inactif n'a pas de « Réactiver » : aucune route
+                serveur ne réactive un type de congé (voir le rapport L-46). Le
+                proposer serait promettre un geste que le serveur ne rend pas —
+                et sur un type inutilisé, `DELETE` le supprimerait pour de bon.
+              */}
+              {type.actif ? (
+                /* Le nom accessible porte le TYPE : dans une liste, sept
+                   boutons nommés « Désactiver » ne disent pas lequel on
+                   désactive — et c'est au clavier que la question se pose. */
+                <Button
+                  className="ms-toggle"
+                  aria-label={t("conges.desactiverLeTypeNomme", { nom: type.nom })}
+                  onPress={() => setARetirer(type)}
+                >
+                  {t("conges.desactiver")}
+                </Button>
+              ) : null}
             </span>
           </div>
         ))}
       </div>
+
+      {aRetirer ? (
+        <FenetreRetraitType type={aRetirer} surFermeture={() => setARetirer(null)} />
+      ) : null}
     </section>
+  );
+}
+
+/**
+ * `EX-CNG-13` — le retrait d'un type, et ses **deux issues**.
+ *
+ * `RG-CNG-30` et `RG-CNG-31` font que « supprimer » ne supprime pas toujours :
+ * un type système, ou un type portant des congés, est *désactivé*. Deux
+ * conséquences pour l'interface :
+ *
+ *   1. la confirmation annonce **laquelle des deux** va se produire, avec le
+ *      nombre de congés concernés — `cadrage/02` en donne le texte ;
+ *   2. le message de retour relit **la réponse du serveur**, jamais la
+ *      prévision faite à l'écran. Un type peut avoir gagné un congé entre
+ *      l'affichage de la liste et le clic : annoncer « supprimé » sur la foi
+ *      d'un `utilisations` périmé serait faux, et personne ne le verrait.
+ */
+function FenetreRetraitType({
+  type,
+  surFermeture,
+}: {
+  type: api.TypeConge;
+  surFermeture: () => void;
+}) {
+  const { t } = useTranslation("occupations");
+  const { t: tErreurs } = useTranslation("erreurs");
+  const annoncer = useMessages();
+  const client = useQueryClient();
+
+  /** Ce que le serveur fera, autant que la liste permette de le prévoir. */
+  const desactivera = type.systeme || type.utilisations > 0;
+
+  const retrait = useMutation({
+    mutationFn: () => api.supprimerTypeDeConge(type.id),
+    onSuccess: (rendu) => {
+      annoncer(
+        "ok",
+        !rendu.desactive
+          ? t("conges.typeSupprime")
+          : rendu.conges > 0
+            ? t("conges.typeDesactive", { n: rendu.conges })
+            : t("conges.typeSystemeDesactive"),
+      );
+      surFermeture();
+      void client.invalidateQueries({ queryKey: ["conges", "types"] });
+    },
+    onError: (e) => annoncer("err", messageErreur(e, tErreurs, t("conges.echecAction"))),
+  });
+
+  return (
+    <Fenetre
+      ouverte
+      surFermeture={surFermeture}
+      categorie={t("conges.referentielDesTypes")}
+      titre={desactivera ? t("conges.desactiverLeType") : t("conges.supprimerLeType")}
+      mention={t("conges.congesExistantsConservent")}
+      actions={
+        <>
+          <Button className="btn btn-secondary" onPress={surFermeture}>
+            {t("annuler")}
+          </Button>
+          <Button
+            className="btn btn-danger"
+            isPending={retrait.isPending}
+            onPress={() => retrait.mutate()}
+          >
+            {desactivera ? t("conges.desactiver") : t("conges.supprimer")}
+          </Button>
+        </>
+      }
+    >
+      <p className="dg-note">
+        {type.utilisations > 0
+          ? t("conges.confirmerRetraitUtilise", { nom: type.nom, n: type.utilisations })
+          : type.systeme
+            ? t("conges.confirmerRetraitSysteme", { nom: type.nom })
+            : t("conges.confirmerRetraitLibre", { nom: type.nom })}
+      </p>
+    </Fenetre>
   );
 }
 
@@ -927,13 +1125,34 @@ function FenetreDemande({
   const type = types.data?.find((x) => x.id === typeId);
   const solde = soldes.data?.find((s) => s.type.id === typeId)?.solde;
 
-  /** Les années couvertes par la demande : une, ou deux si elle est à cheval. */
-  const annees = useMemo(() => {
-    if (!dateDebut || !dateFin) return [];
-    const a = Number(dateDebut.slice(0, 4));
-    const b = Number(dateFin.slice(0, 4));
-    return a === b ? [a] : [a, b];
-  }, [dateDebut, dateFin]);
+  /**
+   * `RG-CNG-16`, `RG-CNG-17`, `RG-CNG-19` — le décompte vient du **serveur**.
+   *
+   * Cette fenêtre déduisait les années couvertes d'une découpe de chaîne —
+   * `Number(dateDebut.slice(0, 4))` — et n'annonçait aucun nombre de jours.
+   * Elle ne pouvait donc voir ni les week-ends, ni les jours fériés, ni les
+   * jours chômés du paramétrage, ni les demi-journées : trois des quatre
+   * termes de `RG-CNG-16` et `RG-CNG-17`. `GET /parametrage/jours-ouvres` les
+   * porte tous, et c'est le même calcul que celui qui décidera du dépôt —
+   * `CalendrierService.repartitionParAnnee`. Deux calculs auraient divergé, et
+   * c'est l'écran qui aurait eu tort au moment le plus coûteux : après coup.
+   */
+  const decompte = useQuery({
+    queryKey: ["parametrage", "jours-ouvres", dateDebut, dateFin, demiDebut, demiFin],
+    queryFn: () =>
+      api.joursOuvres({
+        debut: dateDebut,
+        fin: dateFin,
+        ...(demiDebut ? { demiJourneeDebut: true } : {}),
+        ...(demiFin ? { demiJourneeFin: true } : {}),
+      }),
+    // Une fin antérieure au début n'est pas une plage : le serveur rendrait
+    // zéro, et zéro se lirait comme un décompte plutôt que comme une erreur.
+    enabled: ouverte && dateDebut !== "" && dateFin !== "" && dateFin >= dateDebut,
+  });
+
+  /** `RG-CNG-19` — les années couvertes, telles que le serveur les répartit. */
+  const parAnnee = decompte.data?.parAnnee ?? [];
 
   const depot = useMutation({
     mutationFn: async () => {
@@ -976,7 +1195,22 @@ function FenetreDemande({
       categorie={t("conges.demande")}
       titre={demande ? t("conges.modifierLaDemande") : t("conges.nouvelleDemande")}
       large
-      mention={t("champsObligatoires")}
+      /*
+       * Le pied de la fenêtre porte le décompte, comme `#r-days` dans la
+       * maquette : c'est le chiffre qu'on relit juste avant de valider, donc
+       * il est à côté du bouton qui valide. Tant qu'il n'y a pas de plage, la
+       * mention retombe sur celle des champs obligatoires.
+       */
+      mention={
+        decompte.data
+          ? parAnnee.length > 1
+            ? t("conges.joursOuvresReparties", {
+                n: decompte.data.jours,
+                annees: parAnnee.length,
+              })
+            : t("conges.joursOuvresTotal", { n: decompte.data.jours })
+          : t("champsObligatoires")
+      }
       actions={
         <>
           <Button className="btn btn-secondary" onPress={surFermeture}>
@@ -1101,19 +1335,19 @@ function FenetreDemande({
         </div>
 
         {/* Le contrôle de solde, par année. À cheval sur deux ans, deux blocs. */}
-        {solde && annees.length > 0 ? (
+        {solde && parAnnee.length > 0 ? (
           <div className="field-block span2">
             <div className="check-bal">
               <div className="cb-head">
                 <span className="eyebrow">{t("conges.controleSolde")}</span>
-                {annees.length > 1 ? (
+                {parAnnee.length > 1 ? (
                   <span className="cb-tag">{t("conges.aChevalSurDeuxAns")}</span>
                 ) : null}
               </div>
-              {annees.map((a) => (
-                <div className="cb-year" key={a}>
+              {parAnnee.map((p) => (
+                <div className="cb-year" key={p.annee}>
                   <p className="cb-line">
-                    <span>{t("conges.annee", { annee: a })}</span>
+                    <span>{t("conges.annee", { annee: p.annee })}</span>
                     <b>{formaterNombre(solde.attribues, 1)}</b>
                   </p>
                   <p className="cb-line">
@@ -1123,6 +1357,14 @@ function FenetreDemande({
                   <p className="cb-line is-total">
                     <span>{t("conges.disponible")}</span>
                     <b>{formaterNombre(solde.disponibles, 1)}</b>
+                  </p>
+                  {/* `RG-CNG-19` — ce que la demande coûte à CETTE année, en
+                      jours ouvrés, à côté du solde de cette même année. Un
+                      total unique cacherait exactement le cas qui pose
+                      problème : une année où le compte ne passe pas. */}
+                  <p className="cb-line is-total">
+                    <span>{t("conges.cetteDemande")}</span>
+                    <b>{t("conges.enJours", { n: formaterNombre(p.jours, 1) })}</b>
                   </p>
                 </div>
               ))}

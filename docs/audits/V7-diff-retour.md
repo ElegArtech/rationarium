@@ -537,3 +537,70 @@ Amputer l'inventaire fait rougir le contrôle : vérifié.
 `nonTestable` tombe de six à **quatre** entrées : `RG-ORG-05` (doctrine à co-citer),
 `RG-USR-07` (moitié non mesurable), `RG-TSK-13` (restatement de `RG-SCOPE-04`),
 `RG-PRM-05` (écart de spécification à trancher).
+## L-46 — Trois capacités de congés qu'aucun écran n'atteignait, et un bug actif
+
+### Le bug actif : deux boutons qui ne pouvaient pas fonctionner
+
+`GET /conges?aValider=true` filtre sur `statut: { in: ["pending",
+"cancellation_requested"] }`. `LigneDemande` (branche `avecValidation`) posait
+« Approuver » et « Refuser » **inconditionnellement** sur ce que la route rend :
+sur une demande d'annulation, les deux appelaient `POST /conges/:id/approuver`,
+que `RG-CNG-02` refuse en `statut_incompatible`. Le validateur voyait donc deux
+commandes mortes, et rien ne le disait avant le clic — ce que `RG-GEN-06`
+interdit exactement.
+
+Rien ne pouvait le voir : le jeu d'essai de bout en bout ne portait **aucune**
+demande au statut `cancellation_requested`, donc la branche n'avait rien à quoi
+se heurter. C'est le même motif que le couple client/fixture des vues 14 et 27 —
+un jeu d'essai qui ne contient pas le cas ne peut pas révéler le défaut qui le
+concerne. Le jeu en porte désormais une (`DEMANDE_ANNULATION`).
+
+### Décisions tranchées
+
+| # | Décision | Motivation |
+| --- | --- | --- |
+| 1 | Les deux commandes d'une annulation s'appellent **« Accepter l'annulation »** et **« Refuser l'annulation »**. | Ni `cadrage/02` ni la maquette ne fournissent ces libellés : la maquette ne rend l'onglet « À valider » que pour `pending`, et le brief n'énumère que « Approuver · Refuser ». Le vocabulaire retenu est celui du **cycle de vie** que le brief dessine — « accepter ─▶ Annulé », « refuser ─▶ Approuvé ». « Refuser » tout court aurait laissé croire que c'est le congé qui tombe, alors que `RG-CNG-01` le **rend à l'état approuvé** ; le message de retour le dit en toutes lettres. |
+| 2 | Une ligne d'annulation, sur l'onglet « À valider », **dit son statut** sur sa ligne secondaire. | Cet onglet n'a pas de colonne de statut (quatre colonnes : demandeur, demande, jours, décision). Sans cette mention, le seul indice qu'une ligne est une annulation serait le libellé de ses boutons — c'est-à-dire qu'il faudrait déchiffrer l'action pour comprendre l'objet. |
+| 3 | Le bouton de retrait d'un type reste **« Désactiver »** dans tous les cas, la confirmation portant la vérité de ce qui va se produire. | C'est le vocabulaire de la maquette (`ms-toggle`), et `DELETE /conges/types/:id` ne dit pas d'avance laquelle des deux issues il prendra — le compte d'utilisations affiché peut avoir vieilli. La fenêtre de confirmation, elle, annonce la suppression ou la désactivation **avec son chiffre**, et le message de retour relit la **réponse du serveur**, jamais la prévision faite à l'écran. |
+| 4 | Le nom accessible du bouton porte le type : « Désactiver Congés annuels ». | Sept boutons nommés « Désactiver » dans une liste ne disent pas lequel on désactive, et c'est au clavier que la question se pose. Le libellé visible reste « Désactiver » — le nom accessible le contient, donc `label-in-name` est tenu. |
+| 5 | Le décompte du pied de fenêtre prend la place de la mention « champs obligatoires » dès qu'une plage est saisie. | C'est l'emplacement `#r-days` de la maquette, dans le `modal-foot` : le chiffre qu'on relit juste avant de valider est à côté du bouton qui valide. Les astérisques des champs obligatoires restent posés sur les libellés. |
+| 6 | Le tag `.cb-tag` (`#cb-state`) continue de dire « À cheval sur deux années » et **ne prononce pas de verdict de solde**. | La maquette y met « Solde suffisant / insuffisant », mais le rendre honnête exigerait le solde de **chaque** année couverte ; la fenêtre n'en tient qu'un, celui de son année. `RG-CNG-21` est tenue au serveur, au dépôt, avec son message chiffré. Un verdict client calculé sur le mauvais solde serait pire que pas de verdict. Le tag est désormais piloté par la répartition **serveur**, plus par une découpe de chaîne. |
+
+### Défauts constatés au serveur, non corrigés (lecture seule)
+
+1. **Aucune route ne réactive un type de congé.** Le contrat de tâche et la
+   maquette demandent un bouton « Désactiver » / « Réactiver ». `DELETE
+   /conges/types/:id` ne sait que désactiver ou supprimer ; il n'existe ni
+   `PATCH /conges/types/:id`, ni `POST /conges/types`. Le référentiel des types
+   est donc **en aller simple** : une fois inactif, un type ne revient pas, et
+   `cadrage/02` promet pourtant « Actions : Nouveau type, Modifier, Désactiver,
+   Réactiver ». Conséquence portée par cette vue : la commande n'est proposée
+   que sur un type **actif** (`RG-GEN-06`) — la proposer sur un type inactif
+   supprimerait pour de bon un type inutilisé, ce qui est l'inverse du geste
+   demandé. **Trois routes manquent au module M10.**
+
+2. **La fenêtre de demande montre le solde de l'année courante pour TOUTES les
+   années couvertes.** Défaut antérieur à ce lot, non corrigé ici : `GET
+   /conges/soldes?annee=` ne rend qu'une année, et `GET /conges/solde` — la
+   route par type et par année — est hors périmètre (autre lot). Une demande à
+   cheval du 28/12 au 03/01 affiche donc « Attribués 2027 » avec les chiffres de
+   2026. `RG-CNG-19` exige que **chaque année soit contrôlée contre son propre
+   solde** : le contrôle est juste au serveur, l'**affichage** ne l'est pas.
+   Depuis ce lot, la ligne « Cette demande » de chaque année porte au moins le
+   bon nombre de jours ouvrés, celui du serveur. À reprendre avec les soldes.
+
+3. **`traiterAnnulation` n'exige aucune version** (`RG-GEN-07`). Deux
+   validateurs sur la même demande d'annulation : le second écrase la décision
+   du premier sans que rien ne le signale. Même profil que `PUT
+   /taches/:id/assignes`, relevé en L-45.
+
+### Ce que le décompte serveur remplace
+
+`FenetreDemande` déduisait les années d'une découpe de chaîne —
+`Number(dateDebut.slice(0, 4))` — et n'annonçait **aucun** nombre de jours. Elle
+ne pouvait voir ni les week-ends, ni les jours fériés, ni les jours chômés du
+paramétrage, ni les demi-journées : trois des quatre termes de `RG-CNG-16` et
+`RG-CNG-17`. `GET /parametrage/jours-ouvres` les porte tous, et c'est **le même
+calcul** que celui qui décidera du dépôt (`CalendrierService.repartitionParAnnee`).
+Deux calculs auraient divergé, et c'est l'écran qui aurait eu tort au moment le
+plus coûteux : après coup, sur un refus.
