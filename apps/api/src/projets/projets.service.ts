@@ -32,6 +32,7 @@ export type EchecProjet =
   | "epopee_en_double"
   | "introuvable"
   | "conflit_de_version"
+  | "hors_perimetre"
   | "champ_hors_permission";
 
 export class ErreurProjet extends Error {
@@ -258,7 +259,33 @@ export class ProjetsService {
       chefId?: string | null; sponsorId?: string | null; departementId?: string | null;
     },
     acteurId: string,
+    permissions: ReadonlySet<string>,
   ) {
+    /*
+     * `RG-SCOPE-02` — **la même règle qu'à la modification, et pour la même
+     * raison.** Nommer un chef ou un sponsor donne la visibilité du projet ;
+     * c'est un geste d'appartenance, gouverné par `projects:manage_members`.
+     *
+     * Cette moitié-ci n'avait pas été alignée : `PATCH /projets/:id` refusait
+     * `chefId` à qui n'a que `projects:update`, et `POST /projets` l'acceptait
+     * de qui n'a que `projects:create`. Le même champ, la même règle, deux
+     * réponses selon le verbe — donc une règle qu'un relecteur croit tenue
+     * après avoir vérifié la mauvaise moitié. Fermer une porte et laisser la
+     * fenêtre.
+     *
+     * **Un seul modèle de rôle est concerné** : `PORTFOLIO_MANAGER`, seul à
+     * détenir `projects:create` sans `projects:manage_members`. Il ne perd
+     * rien de cohérent : il ne pouvait DÉJÀ pas changer le chef d'un projet
+     * existant, donc il pouvait seulement en nommer un mauvais sans jamais
+     * pouvoir le corriger. Aucun écran n'envoie ces champs à la création à ce
+     * jour — la fenêtre de la vue 10 ne les pose pas —, donc l'alignement ne
+     * retire aucune capacité exercée. Rendre à ce rôle le pouvoir de nommer un
+     * chef se fait en lui donnant `projects:manage_members`, pas en rouvrant
+     * un trou dans la règle de champ.
+     */
+    const refuse = champRefuse(donnees, CHAMPS_GOUVERNES_PROJET, permissions);
+    if (refuse) throw new ErreurProjet("champ_hors_permission", refuse);
+
     if (donnees.dateFin < donnees.dateDebut) throw new ErreurProjet("dates_incoherentes");
 
     const projet = await this.prisma.project.create({
@@ -895,5 +922,98 @@ export class ProjetsService {
       },
       update: { progression, tachesTotal: taches, tachesFinies: finies, heuresConsommees: budget.consomme },
     });
+  }
+
+  /**
+   * `EX-PRJ-13` — **l'historique** des instantanés d'un projet, en entier.
+   *
+   * Deux verbes à l'exigence, un seul était servi. La seule lecture existante
+   * était `tendance()` (M17, rapports) : elle moyenne `progression` par date
+   * sur un LOT de projets et **jette** `tachesTotal`, `tachesFinies` et
+   * `heuresConsommees`. Elle répond à « comment vont les projets », pas à
+   * « où en était CE projet le 12 mars ».
+   *
+   * Ordre du cloisonnement : la garde a exigé `reports:read` ; le périmètre se
+   * vérifie ici, et sur le PROJET, pas sur les instantanés. Le filtre de
+   * `RG-SCOPE-02` s'écrit sur `Project` — le rejouer sur `ProjectSnapshot`
+   * demanderait de le réécrire à travers la relation, donc de le dédoubler.
+   *
+   * Un projet hors périmètre est refusé, jamais rendu vide : une liste vide
+   * ferait croire à un projet sans historique, ce qui n'est pas la même chose
+   * et n'appelle pas la même conduite.
+   *
+   * L'ordre est **chronologique décroissant** : la vue lit d'abord le point le
+   * plus récent, et un historique long ne fait pas descendre le plus utile.
+   */
+  async instantanes(
+    projectId: string,
+    perimetre: Perimetre,
+    permissions: ReadonlySet<string>,
+  ) {
+    const projet = await this.prisma.project.findUnique({
+      where: { id: projectId },
+      select: { id: true },
+    });
+    if (!projet) throw new ErreurProjet("introuvable");
+
+    const visible = await this.prisma.project.findFirst({
+      where: { AND: [{ id: projectId }, this.perimetres.filtreProjet(perimetre, permissions)] },
+      select: { id: true },
+    });
+    if (!visible) throw new ErreurProjet("hors_perimetre");
+
+    return this.prisma.projectSnapshot.findMany({
+      where: { projectId },
+      orderBy: { date: "desc" },
+    });
+  }
+
+  /**
+   * `RG-PRJ-09` — la capture **périodique**, celle que la règle demande.
+   *
+   * Jusqu'ici le bouton « Capturer un instantané » de la vue 11 était le SEUL
+   * producteur d'instantanés du produit : une instance que personne ne
+   * pensait à cliquer gardait une courbe de tendance vide à jamais, et
+   * l'historique de `EX-PRJ-13` n'aurait rien eu à montrer. Une règle tenue
+   * par un geste humain quotidien n'est pas tenue.
+   *
+   * Le lot est **borné aux projets vivants** : archivés et annulés n'avancent
+   * plus, et en capturer la ligne chaque nuit ferait grossir la table d'un
+   * point identique par jour et par projet mort.
+   *
+   * **Aucun échec de projet n'arrête le lot.** Un instantané raté sur un
+   * projet est un trou dans une courbe ; le même échec propagé arrêterait la
+   * capture de tous les suivants, et le trou deviendrait une panne. Le compte
+   * rendu dit les deux nombres — c'est ce qu'on lit dans le journal pour
+   * savoir si la nuit s'est bien passée.
+   */
+  async capturerInstantanesDuJour(instant: Date) {
+    /*
+     * **Le JOUR, jamais l'instant.** La colonne est `@db.Date` et la clé
+     * d'unicité est `(projet, date)` : passer l'heure du déclenchement ferait
+     * dépendre l'idempotence d'un arrondi que le pilote décide, pas nous. Un
+     * rejeu manuel après un échec doit rafraîchir la ligne du jour, jamais en
+     * empiler une seconde.
+     */
+    const date = new Date(
+      Date.UTC(instant.getUTCFullYear(), instant.getUTCMonth(), instant.getUTCDate()),
+    );
+
+    const projets = await this.prisma.project.findMany({
+      where: { archive: false, statut: { not: "cancelled" } },
+      select: { id: true },
+    });
+
+    let captures = 0;
+    const echecs: string[] = [];
+    for (const p of projets) {
+      try {
+        await this.capturerInstantane(p.id, date);
+        captures += 1;
+      } catch {
+        echecs.push(p.id);
+      }
+    }
+    return { captures, echecs };
   }
 }

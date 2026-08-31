@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 import {
   serveur,
   SESSION,
@@ -8,6 +8,8 @@ import {
   ROUTE,
   EQUIPE,
   EPOPEES,
+  INSTANTANES,
+  SESSION_RAPPORTS,
 } from "./fixtures/projets.js";
 
 /**
@@ -85,6 +87,152 @@ test.describe("Vue 10 — portefeuille", () => {
 
     await expect(page.getByRole("link", { name: /Refonte du portail citoyen/ })).toBeVisible();
     await expect(page.getByRole("button", { name: "Créer un projet" })).toHaveCount(0);
+  });
+});
+
+/**
+ * `EX-PRJ-04` — « Choisir une icône dans une bibliothèque thématique **avec
+ * recherche** ».
+ *
+ * Les cinquante codes vivaient dans `@rationarium/contracts`, les cinquante
+ * tracés dans `composants/icones-projet.tsx`, et **rien ne les employait** :
+ * aucun sélecteur, aucune recherche, aucun champ « Icône du projet ». Les deux
+ * moitiés étaient justes ; c'est le raccord qui manquait — et une
+ * fonctionnalité absente ne fait échouer aucun contrôle.
+ */
+test.describe("EX-PRJ-04 — le sélecteur d'icône, avec sa recherche et ses catégories", () => {
+  const reponses = {
+    "/api/projets": { corps: { projets: [LIGNE_PROJET], affiches: 1, total: 1 } },
+  };
+
+  const ouvrirLaBibliotheque = async (page: Page) => {
+    await serveur(page, { reponses });
+    await page.goto("/projets");
+    await page.getByRole("button", { name: "Créer un projet" }).click();
+    await page.getByRole("button", { name: /Choisir une icône du projet/ }).click();
+  };
+
+  test("EX-PRJ-04 — la fenêtre de création porte le champ, dans l'état « Aucune icône »", async ({
+    page,
+  }) => {
+    await serveur(page, { reponses });
+    await page.goto("/projets");
+    await page.getByRole("button", { name: "Créer un projet" }).click();
+
+    await expect(page.getByText("Icône du projet", { exact: true })).toBeVisible();
+    // L'état nommé par le brief, distinct de « Aucune icône trouvée ».
+    await expect(page.getByText("Aucune icône", { exact: true })).toBeVisible();
+  });
+
+  test("EX-PRJ-04 — les onze catégories du cadrage sont proposées, plus « Toutes »", async ({
+    page,
+  }) => {
+    await ouvrirLaBibliotheque(page);
+
+    const categories = page.getByRole("group", { name: "Catégories d'icônes" });
+    // Onze familles + « Toutes » : le compte est celui du cadrage, pas un
+    // « au moins onze » qui passerait avec n'importe quel sur-ensemble.
+    await expect(categories.getByRole("button")).toHaveCount(12);
+    for (const nom of [
+      "Gestion",
+      "Numérique",
+      "Finances",
+      "RH",
+      "Territoire",
+      "Social",
+      "Culture & Éducation",
+      "Sécurité",
+      "Environnement",
+      "Juridique",
+      "Symboles",
+    ]) {
+      await expect(categories.getByRole("button", { name: nom, exact: true })).toBeVisible();
+    }
+  });
+
+  test("EX-PRJ-04 — la recherche filtre la bibliothèque, accents compris", async ({ page }) => {
+    await ouvrirLaBibliotheque(page);
+
+    const grille = page.getByRole("group", { name: "Bibliothèque d'icônes" });
+    await expect(grille.getByRole("button")).toHaveCount(50);
+
+    // Sans accent : « energie » doit trouver « Énergie ». Une recherche qui
+    // exige l'accent ne sert qu'à qui sait déjà ce qu'il cherche.
+    await page.getByLabel("Rechercher une icône…").fill("energie");
+    await expect(grille.getByRole("button", { name: "Énergie", exact: true })).toBeVisible();
+    await expect(grille.getByRole("button")).toHaveCount(1);
+  });
+
+  test("EX-PRJ-04 — recherche et catégorie se CUMULENT, elles ne se remplacent pas", async ({
+    page,
+  }) => {
+    await ouvrirLaBibliotheque(page);
+    const grille = page.getByRole("group", { name: "Bibliothèque d'icônes" });
+
+    await page
+      .getByRole("group", { name: "Catégories d'icônes" })
+      .getByRole("button", { name: "Environnement", exact: true })
+      .click();
+    await expect(grille.getByRole("button")).toHaveCount(5);
+
+    // « Territoire » existe dans la catégorie Territoire, PAS dans
+    // Environnement : si la recherche remplaçait la catégorie au lieu de s'y
+    // ajouter, on le verrait apparaître ici.
+    await page.getByLabel("Rechercher une icône…").fill("Territoire");
+    await expect(page.getByText("Aucune icône trouvée")).toBeVisible();
+    await expect(grille).toHaveCount(0);
+  });
+
+  test("EX-PRJ-04 — choisir une icône la nomme ; la rappuyer la retire", async ({ page }) => {
+    await ouvrirLaBibliotheque(page);
+    const grille = page.getByRole("group", { name: "Bibliothèque d'icônes" });
+    const eau = grille.getByRole("button", { name: "Eau", exact: true });
+
+    await eau.click();
+    await expect(eau).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByText("Eau", { exact: true })).toBeVisible();
+
+    // `aria-pressed` promet une bascule : sans le relâchement, une icône posée
+    // par erreur ne s'enlèverait plus.
+    await eau.click();
+    await expect(eau).toHaveAttribute("aria-pressed", "false");
+    await expect(page.getByText("Aucune icône", { exact: true })).toBeVisible();
+  });
+
+  test("EX-PRJ-04 — le CODE de la bibliothèque part au serveur, pas un libellé", async ({
+    page,
+  }) => {
+    let envoye: Record<string, unknown> | null = null;
+    await serveur(page, { reponses });
+    await page.route(
+      (url) => url.pathname === "/api/projets",
+      (route) => {
+        if (route.request().method() !== "POST") return route.fallback();
+        envoye = route.request().postDataJSON() as Record<string, unknown>;
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ id: PROJET.id }),
+        });
+      },
+    );
+    await page.goto("/projets");
+    await page.getByRole("button", { name: "Créer un projet" }).click();
+    await page.getByRole("button", { name: /Choisir une icône du projet/ }).click();
+    await page
+      .getByRole("group", { name: "Bibliothèque d'icônes" })
+      .getByRole("button", { name: "Déchets", exact: true })
+      .click();
+
+    await page.getByLabel(/^Nom/).fill("Collecte des biodéchets");
+    await page.getByLabel(/^Date de début/).fill("2026-01-01");
+    await page.getByLabel(/^Date de fin/).fill("2026-12-31");
+    await page.getByRole("button", { name: "Créer le projet" }).click();
+
+    // Le serveur refuse tout ce qui n'est pas un code du catalogue : envoyer
+    // « Déchets » ferait un 400. C'est `p-recycle` qui doit partir.
+    await expect.poll(() => envoye).not.toBeNull();
+    expect(envoye!["icone"]).toBe("p-recycle");
   });
 });
 
@@ -236,6 +384,126 @@ test.describe("Vue 11 — fiche projet", () => {
     await expect(page.getByText(/Impossible de supprimer définitivement/)).toBeVisible();
     await expect(page.getByRole("button", { name: "Supprimer définitivement" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Archiver le projet" })).toBeVisible();
+  });
+});
+
+/**
+ * `EX-PRJ-13` — « Consulter l'historique des instantanés d'avancement ».
+ *
+ * L'exigence porte deux verbes ; seul « capturer » était servi. `fiche()` ne
+ * rendait que `dernierInstantane` — UN point —, et la tendance des rapports
+ * moyenne `progression` par date sur un LOT de projets en jetant les tâches et
+ * les heures. Le projet écrivait un historique que personne ne pouvait relire.
+ */
+test.describe("EX-PRJ-13 — consulter l'historique des instantanés", () => {
+  const reponses = {
+    "/feuille-de-route": { corps: ROUTE },
+    "/instantanes": { corps: INSTANTANES },
+    [`/api/projets/${PROJET.id}`]: { corps: PROJET },
+  };
+  const session = SESSION_RAPPORTS;
+
+  test("EX-PRJ-13 — les trois colonnes que la tendance JETTE sont là, et l'ordre est le plus récent d'abord", async ({
+    page,
+  }) => {
+    await serveur(page, { session, reponses });
+    await page.goto(CHEMIN_PROJET);
+
+    const liste = page.getByRole("region", { name: "Historique des instantanés" });
+    await expect(liste).toBeVisible();
+
+    /*
+     * L'assertion porte sur LA LIGNE, jamais sur le panneau : « 61 % » figure
+     * déjà ailleurs dans la fiche, et une assertion large passerait avec comme
+     * sans le correctif. C'est le faux témoin le plus dangereux, parce qu'il a
+     * l'air plus robuste.
+     */
+    const lignes = liste.locator(".snap-row");
+    await expect(lignes).toHaveCount(3);
+
+    const premiere = lignes.first();
+    await expect(premiere).toContainText("11/08/2026");
+    await expect(premiere).toContainText("61 %");
+    // `tachesFinies` sur `tachesTotal` — ce que `tendance()` ne rend pas.
+    await expect(premiere).toContainText("19 terminées sur 34");
+    // `heuresConsommees` arrive en CHAÎNE décimale : « 744.00 », pas 744.
+    await expect(premiere).toContainText("744");
+
+    // L'ordre : le plus ancien ferme la marche.
+    await expect(lignes.last()).toContainText("30/06/2026");
+    await expect(lignes.last()).toContainText("22 %");
+  });
+
+  test("EX-PRJ-13 — l'état vide est nommé, et il dit sa sortie", async ({ page }) => {
+    await serveur(page, { session, reponses: { ...reponses, "/instantanes": { corps: [] } } });
+    await page.goto(CHEMIN_PROJET);
+
+    await expect(page.getByText("Aucun instantané pour ce projet")).toBeVisible();
+    // `RG-GEN-04` — l'état vide porte sa sortie, ici la commande d'en-tête.
+    await expect(page.getByText(/Capturer un instantané.*sans attendre/)).toBeVisible();
+    await expect(page.getByRole("button", { name: "Capturer un instantané" })).toBeVisible();
+  });
+
+  /*
+   * Le raccord entre les deux verbes de l'exigence : capturer, puis VOIR la
+   * ligne. C'est le contrôle qui manque partout ailleurs dans ce dépôt — celui
+   * qui prend la sortie de l'écriture et la retrouve dans la lecture.
+   */
+  test("EX-PRJ-13 — la capture rafraîchit l'historique affiché juste dessous", async ({ page }) => {
+    const NEUF = {
+      id: "sn4",
+      projectId: PROJET.id,
+      date: "2026-08-31",
+      progression: 66,
+      tachesTotal: 35,
+      tachesFinies: 23,
+      heuresConsommees: "801.00",
+    };
+    let capture = false;
+    await serveur(page, { session, reponses });
+    await page.route(
+      (url) => url.pathname.endsWith("/instantanes"),
+      (route) => {
+        const corps = capture ? [NEUF, ...INSTANTANES] : INSTANTANES;
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify(corps),
+        });
+      },
+    );
+    await page.route(
+      (url) => url.pathname.endsWith("/instantane"),
+      (route) => {
+        if (route.request().method() !== "POST") return route.fallback();
+        capture = true;
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify(NEUF),
+        });
+      },
+    );
+    await page.goto(CHEMIN_PROJET);
+
+    const liste = page.getByRole("region", { name: "Historique des instantanés" });
+    await expect(liste.locator(".snap-row")).toHaveCount(3);
+
+    await page.getByRole("button", { name: "Capturer un instantané" }).click();
+
+    await expect(liste.locator(".snap-row")).toHaveCount(4);
+    await expect(liste.locator(".snap-row").first()).toContainText("23 terminées sur 35");
+  });
+
+  test("EX-PRJ-13, RG-GEN-06 — sans reports:read, l'historique n'est pas proposé", async ({
+    page,
+  }) => {
+    await serveur(page, { session: SESSION_LECTURE, reponses });
+    await page.goto(CHEMIN_PROJET);
+
+    // La page a rendu — c'est la SECTION qui manque, pas la fiche.
+    await expect(page.getByRole("heading", { name: PROJET.nom, level: 1 })).toBeVisible();
+    await expect(page.getByRole("region", { name: "Historique des instantanés" })).toHaveCount(0);
   });
 });
 
