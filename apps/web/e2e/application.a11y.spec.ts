@@ -76,6 +76,26 @@ import {
 import { SEMAINE, GRILLE_ACTIVITE, ELIGIBILITE as ELIGIBILITE_A11Y } from "./fixtures/planning.js";
 import { TABLEAU } from "./fixtures/tableau.js";
 
+/**
+ * **L'horloge est figée.** Les jeux d'essai de ce fichier portent des dates en
+ * dur d'août 2026, et les vues construisent leurs grilles, leurs retards et
+ * leurs décomptes à partir d'« aujourd'hui ».
+ *
+ * Le piège est consigné — « un test vert le lundi tombe le mardi » — et il
+ * s'est réveillé le 1er septembre 2026 sur `occupations.e2e.spec.ts` : trois
+ * contrôles verts la veille cherchaient des cases d'août dans une grille de
+ * septembre. Neuf suites figeaient déjà leur horloge ; les autres ne tenaient
+ * que par la coïncidence du mois en cours.
+ *
+ * Le 11 août 2026 est un mardi, au milieu de la fenêtre des jeux d'essai.
+ */
+const MOMENT_FIGE = new Date("2026-08-11T09:00:00.000Z");
+
+test.beforeEach(async ({ page }) => {
+  await page.clock.setFixedTime(MOMENT_FIGE);
+});
+
+
 /** M18 — la cloche est présente sur toutes les vues de la coquille. */
 const NOTIFICATIONS_A11Y = {
   entrees: [
