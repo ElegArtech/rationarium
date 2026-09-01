@@ -179,6 +179,16 @@ export class TachesService {
       dateDebut?: Date | null; dateFin?: Date | null;
       heureDebut?: string | null; heureFin?: string | null;
       estimationHeures?: number; confidentielle?: boolean;
+      /**
+       * `EX-TSK-08` — le pourcentage d'avancement, accepté DÈS LA CRÉATION.
+       *
+       * Il ne l'était pas, et il figurait pourtant dans `tacheSchema`, le
+       * contrat exporté : la clé traversait la validation du contrôleur, où
+       * Zod la retirait sans rien dire, puis n'existait plus ici. Un projet
+       * chargé avec son historique affichait donc zéro pour cent, puisque
+       * `RG-PRJ-07` moyenne un champ que rien n'écrivait.
+       */
+      avancement?: number;
       interventionExterieure?: boolean;
       assigneIds?: string[]; serviceIds?: string[];
     },
@@ -275,6 +285,9 @@ export class TachesService {
         heureDebut: donnees.heureDebut ?? null,
         heureFin: donnees.heureFin ?? null,
         estimationHeures: donnees.estimationHeures ?? null,
+        // Absent du corps, il vaut zéro — la même valeur que le défaut de la
+        // colonne, écrite ici pour que les deux ne puissent pas diverger.
+        avancement: donnees.avancement ?? 0,
         confidentielle: donnees.confidentielle ?? false,
         interventionExterieure: donnees.interventionExterieure ?? false,
         assignes: {

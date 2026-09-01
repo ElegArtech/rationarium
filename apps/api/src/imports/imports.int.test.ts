@@ -1138,3 +1138,66 @@ describe("§ M21 — les colonnes d'énumération portent le CODE, pas le libell
     expect(imports.analyser("projet", fichier).erreurs).toEqual([]);
   });
 });
+
+describe("EX-TSK-08 — l'import porte l'avancement, et l'export le rend", () => {
+  const ENTETE_TACHES =
+    "title;description;status;priority;assigneeEmail;milestoneName;estimatedHours;startDate;endDate;progress\n";
+
+  it("EX-TSK-08 — une tâche importée à 100 % relit 100, pas zéro", async () => {
+    /*
+     * Le module existe pour charger en masse. Un chargement qui ne sait pas
+     * porter l'état d'avancement produit un portefeuille faux dès le premier
+     * fichier : `RG-PRJ-07` moyenne ce champ.
+     */
+    const fichier = ENTETE_TACHES + "Reprise de l'historique;;done;normal;;;8;;;100\n";
+    const rendu = await imports.importerTachesProjet(projet, fichier, acteur);
+    expect(rendu.importes).toBe(1);
+
+    const t = await prisma.task.findFirstOrThrow({
+      where: { projectId: projet, titre: "Reprise de l'historique" },
+    });
+    expect(t.avancement).toBe(100);
+  });
+
+  it("EX-TSK-08 — colonne vide : l'avancement vaut zéro, il ne vaut pas `NaN`", async () => {
+    // `Number("")` vaut zéro, mais `Number(" ")` aussi et `Number("x")` non :
+    // le filtre porte sur la chaîne, jamais sur sa conversion.
+    const fichier = ENTETE_TACHES + "Sans avancement;;todo;normal;;;;;;\n";
+    await imports.importerTachesProjet(projet, fichier, acteur);
+    const t = await prisma.task.findFirstOrThrow({
+      where: { projectId: projet, titre: "Sans avancement" },
+    });
+    expect(t.avancement).toBe(0);
+  });
+
+  it("RG-IMP-04 — un avancement hors de zéro à cent est une LIGNE EN ERREUR", async () => {
+    /*
+     * La colonne n'a aucune contrainte en base : 500 s'y écrirait, et la
+     * progression du projet dépasserait cent. La route HTTP le refuse par son
+     * schéma ; l'import doit le refuser aussi, sinon les deux chemins de
+     * création ne tiennent pas la même règle.
+     */
+    const fichier = ENTETE_TACHES + "Absurde;;todo;normal;;;;;;500\n";
+    const apercu = imports.analyser("taches", fichier);
+    expect(apercu.erreurs).toHaveLength(1);
+    expect(apercu.erreurs[0]?.ligne).toBe(2);
+    expect(apercu.erreurs[0]?.message).toContain("progress");
+    expect(apercu.erreurs[0]?.message).toContain("100");
+  });
+
+  it("EX-IMP — l'export ÉCRIT l'avancement, sans quoi l'aller-retour le perd", async () => {
+    /*
+     * Le défaut d'origine, remonté d'un cran : ajouter la colonne à l'import
+     * sans l'écrire à l'export aurait fait perdre le champ au premier
+     * export-réimport. Les colonnes de l'export sont celles de l'import — un
+     * export qui ne se réimporte pas n'est pas de la réversibilité.
+     */
+    const fichier = ENTETE_TACHES + "À exporter;;doing;normal;;;;;;42\n";
+    await imports.importerTachesProjet(projet, fichier, acteur);
+
+    const csv = await imports.exporterTaches(projet);
+    expect(csv.split("\n")[0]).toContain("progress");
+    const ligne = csv.split("\n").find((l) => l.startsWith("À exporter"));
+    expect(ligne).toContain(";42");
+  });
+});

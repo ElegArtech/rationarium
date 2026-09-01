@@ -326,4 +326,68 @@ describe("RG-GEN-07 — les deux poses d'ensemble exigent la version, jusque dan
     const charge = r.json() as { details: { champ: string }[] };
     expect(charge.details.map((d) => d.champ)).toContain("version");
   });
+
+  /*
+   * ─────────────────────────────────────────────────────────────────────────
+   * `EX-TSK-08` — `avancement` à la création.
+   *
+   * Quatrième défaut de la même famille dans ce fichier, et le plus coûteux :
+   * `tacheSchema` — le contrat exporté — déclarait le champ, le schéma en
+   * ligne de la route ne l'avait pas, Zod le retirait en silence. Un projet
+   * chargé avec son historique affichait zéro pour cent, `RG-PRJ-07` moyennant
+   * un champ que rien n'écrivait. La requête rendait `201`.
+   * ─────────────────────────────────────────────────────────────────────────
+   */
+  it("EX-TSK-08 — `POST /taches` avec `avancement` le relit, au lieu de zéro", async () => {
+    const r = await appel("POST", "/api/taches", {
+      jeton: jetonComplet,
+      corps: { titre: "Déjà faite", statut: "done", avancement: 100 },
+    });
+    expect(r.statusCode).toBe(201);
+    const { id } = r.json() as { id: string };
+
+    const relue = await appel("GET", `/api/taches/${id}`, { jeton: jetonComplet });
+    expect(relue.json()).toMatchObject({ avancement: 100 });
+  });
+
+  it("EX-TSK-08 — absent du corps, l'avancement vaut ZÉRO", async () => {
+    const r = await appel("POST", "/api/taches", {
+      jeton: jetonComplet,
+      corps: { titre: "À faire" },
+    });
+    const { id } = r.json() as { id: string };
+    const relue = await appel("GET", `/api/taches/${id}`, { jeton: jetonComplet });
+    expect(relue.json()).toMatchObject({ avancement: 0 });
+  });
+
+  it("EX-TSK-08 — une valeur hors de zéro à cent est REFUSÉE en 400", async () => {
+    for (const valeur of [101, -1, 12.5]) {
+      const r = await appel("POST", "/api/taches", {
+        jeton: jetonComplet,
+        corps: { titre: `Absurde ${valeur}`, avancement: valeur },
+      });
+      expect(r.statusCode, `avancement ${valeur}`).toBe(400);
+      const charge = r.json() as { details: { champ: string }[] };
+      expect(charge.details.map((d) => d.champ)).toContain("avancement");
+    }
+  });
+
+  it("une clé INCONNUE est refusée, elle n'est plus retirée en silence", async () => {
+    /*
+     * Le remède qui vise la cause plutôt que le symptôme, appliqué au module
+     * qui a payé la classe quatre fois. Un client qui envoie un champ
+     * inexistant l'apprend tout de suite, au lieu de croire l'avoir écrit.
+     *
+     * Il n'est PAS généralisé aux soixante-dix-huit autres routes d'écriture :
+     * un `400` là où le produit acceptait silencieusement casserait un
+     * appelant existant, et rien aujourd'hui ne prouve qu'aucun n'envoie de
+     * champ superflu. La divergence contrat/route, elle, est tenue partout par
+     * `schemas-ecriture.test.ts`.
+     */
+    const r = await appel("POST", "/api/taches", {
+      jeton: jetonComplet,
+      corps: { titre: "Avec un intrus", champInexistant: 1 },
+    });
+    expect(r.statusCode).toBe(400);
+  });
 });

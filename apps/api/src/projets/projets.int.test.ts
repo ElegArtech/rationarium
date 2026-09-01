@@ -1392,8 +1392,10 @@ describe("EX-PRJ-12 — exporter le contenu du projet", () => {
     const csv = await imports.exporterTaches(p.id);
     const lignes = csv.trim().split("\n");
 
+// `EX-TSK-08` — `progress` a rejoint les colonnes le 2026-09-01 : l'export
+    // écrit ce que l'import lit, et l'avancement en fait désormais partie.
     expect(lignes[0]!.replace(/^\uFEFF/g, "")).toBe(
-      "title;description;status;priority;assigneeEmail;milestoneName;estimatedHours;startDate;endDate",
+      "title;description;status;priority;assigneeEmail;milestoneName;estimatedHours;startDate;endDate;progress",
     );
     expect(lignes).toHaveLength(2);
     expect(lignes[1]).toContain("Ateliers usagers");
@@ -1422,7 +1424,7 @@ describe("EX-PRJ-12 — exporter le contenu du projet", () => {
     const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
     const csv = (await imports.exporterTaches(p.id)).trim();
     expect(csv.replace(/^\uFEFF/g, "")).toBe(
-      "title;description;status;priority;assigneeEmail;milestoneName;estimatedHours;startDate;endDate",
+      "title;description;status;priority;assigneeEmail;milestoneName;estimatedHours;startDate;endDate;progress",
     );
   });
 
