@@ -33,6 +33,25 @@ import {
  * « cinq apparences sur une même case », « rendre visible ce qui manque ».
  */
 
+/**
+ * **L'horloge est figée.** Les jeux d'essai de ce fichier vivent en août 2026 —
+ * un calendrier de télétravail, des demandes de congé, des saisies de temps.
+ * Les vues, elles, construisent leur grille à partir d'« aujourd'hui ».
+ *
+ * Ce fichier était le seul des neuf à ne pas la figer, et il s'est vu le
+ * 1er septembre : trois contrôles de la vue 20, verts la veille, cherchaient
+ * des cases d'août dans une grille de septembre. Le piège est consigné depuis
+ * longtemps — « un test vert le lundi tombe le mardi » — et c'est le mois qui
+ * l'a réveillé, pas le jour.
+ *
+ * Le 11 août 2026 est un mardi, à l'intérieur de la fenêtre des jeux d'essai.
+ */
+const MOMENT = new Date("2026-08-11T09:00:00.000Z");
+
+test.beforeEach(async ({ page }) => {
+  await page.clock.setFixedTime(MOMENT);
+});
+
 const PROJETS_VIDES = { "/api/projets": { corps: { projets: [], affiches: 0, total: 0 } } };
 
 test.describe("Vue 18 — événements", () => {
