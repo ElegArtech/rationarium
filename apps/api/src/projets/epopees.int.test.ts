@@ -455,3 +455,51 @@ describe("EX-JAL-02, RG-JAL-06 — marquer un jalon SANS TÂCHE comme atteint", 
     expect(route.indicateurs.termines).toBe(1);
   });
 });
+
+describe("EX-TSK-08 — un projet chargé avec son historique n'affiche plus zéro", () => {
+  /*
+   * Le symptôme qui a ouvert la fiche : un projet dont toutes les tâches sont
+   * créées terminées affichait `progression: 0`. `RG-PRJ-07` moyenne
+   * l'`avancement` des tâches, et la création ne l'écrivait pas — le champ
+   * était déclaré au contrat, retiré en silence par le schéma de la route.
+   *
+   * Les deux calculs sont justes ; c'étaient leurs entrées qui manquaient.
+   */
+  it("RG-PRJ-07 — trois tâches créées à 100 rendent une progression de 100", async () => {
+    const p = await projet();
+    for (const titre of ["Cadrage", "Développement", "Recette"]) {
+      await taches.creer(nouvelleTache(p, { titre, statut: "done", avancement: 100 }), acteur, DROITS_TACHE);
+    }
+    expect(await projets.progression(p)).toBe(100);
+  });
+
+  it("RG-PRJ-07 — la moyenne est bien une MOYENNE, pas un tout-ou-rien", async () => {
+    // Sans cette assertion, un code qui rendrait 100 dès qu'une tâche est
+    // terminée passerait le test précédent.
+    const p = await projet();
+    await taches.creer(nouvelleTache(p, { avancement: 100 }), acteur, DROITS_TACHE);
+    await taches.creer(nouvelleTache(p, { avancement: 50 }), acteur, DROITS_TACHE);
+    await taches.creer(nouvelleTache(p, { avancement: 0 }), acteur, DROITS_TACHE);
+    expect(await projets.progression(p)).toBe(50);
+  });
+
+  it("RG-JAL-01 — un jalon dont les tâches sont créées TERMINÉES est « done » sans marquage", async () => {
+    /*
+     * Ce contrôle-ci tenait DÉJÀ avant le correctif : `RG-JAL-01` lit le
+     * `statut` des tâches, pas leur `avancement`, et `statut` était accepté à
+     * la création. Il est écrit quand même parce que la fiche le demande, et
+     * parce qu'il pose le raccord : le jalon ne doit pas dépendre du champ
+     * qu'on vient de réparer.
+     */
+    const p = await projet();
+    const j = await projets.creerJalon({ nom: "Livraison", projectId: p }, acteur);
+    for (const titre of ["Un", "Deux"]) {
+      await taches.creer(
+        nouvelleTache(p, { titre, statut: "done", avancement: 100, milestoneId: j.id }),
+        acteur,
+        DROITS_TACHE,
+      );
+    }
+    expect(await projets.statutJalon(j.id)).toBe("done");
+  });
+});

@@ -387,11 +387,11 @@ Trois niveaux : **Direction → Département → Service**.
 | EX-TSK-01 | Consulter les tâches en liste et en tableau kanban à cinq colonnes |
 | EX-TSK-02 | Déplacer une tâche entre colonnes par glisser-déposer |
 | EX-TSK-03 | Filtrer par projet, priorité, retard, et isoler les tâches hors projet |
-| EX-TSK-04 | Créer une tâche : titre, description, projet *(facultatif)*, assignés, statut, priorité, dates, horaires, estimation, jalon, intervention extérieure |
+| EX-TSK-04 | Créer une tâche : titre, description, projet *(facultatif)*, assignés, statut, priorité, dates, horaires, estimation, jalon, **avancement**, intervention extérieure |
 | EX-TSK-05 | Assigner plusieurs personnes à une tâche |
 | EX-TSK-06 | Inviter des services entiers |
 | EX-TSK-07 | Modifier une tâche depuis sa fiche détaillée |
-| EX-TSK-08 | Renseigner un pourcentage d'avancement |
+| EX-TSK-08 | Renseigner un pourcentage d'avancement, **à la création comme après coup** |
 | EX-TSK-09 | Gérer des sous-tâches ordonnables, avec réordonnancement |
 | EX-TSK-10 | Déclarer des dépendances entre tâches |
 | EX-TSK-11 | Visualiser ce dont une tâche dépend et ce qu'elle bloque |
@@ -406,6 +406,16 @@ Trois niveaux : **Direction → Département → Service**.
 | EX-TSK-20 | Lister ses tâches terminées sans temps déclaré |
 
 #### Règles de gestion
+
+*Amendement du 2026-09-01 : `avancement` entre dans les champs de création.*
+*Il était déclaré dans `tacheSchema` — le contrat exporté — et absent du schéma*
+*de la route : Zod le retirait en silence, et un projet chargé avec son*
+*historique affichait zéro pour cent, puisque `RG-PRJ-07` moyenne un champ que*
+*rien n'écrivait. Charger un état déjà accompli est l'usage même du module*
+*d'import ; une création en masse qui ne sait pas le porter produit un*
+*portefeuille faux dès le premier fichier. La colonne CSV correspondante est*
+*`progress`, ajoutée aux deux types d'import qui créent des tâches et à*
+*l'export, sans quoi l'aller-retour perdrait ce qu'il vient de gagner.*
 
 - **RG-TSK-01** — Une tâche **peut ne pas avoir de projet**. C'est un cas nominal, pas une anomalie : réunions, travail transverse, sollicitations ponctuelles. Ces tâches sont dites *indépendantes* ou *hors projet* et apparaissent dans le planning au même titre que les autres.
 - **RG-TSK-02** — Créer une tâche dans un projet et créer une tâche hors projet sont deux droits distincts. Sans aucun des deux, la création est refusée.
@@ -853,13 +863,17 @@ Consultation en lecture seule des actions sensibles : **qui a fait quoi, quand, 
 | Objet | Colonnes |
 | --- | --- |
 | Utilisateurs | email\*, login\*, password\*, firstName\*, lastName\*, role, departmentName, serviceNames |
-| Tâches d'un projet | title\*, description, status, priority, assigneeEmail, milestoneName, estimatedHours, startDate, endDate |
+| Tâches d'un projet | title\*, description, status, priority, assigneeEmail, milestoneName, estimatedHours, startDate, endDate, progress |
 | Jalons d'un projet | name\*, description, dueDate\* |
-| Projet complet | rowType\* (MILESTONE ou TASK), name, dueDate, title, description, status, priority, assigneeEmail, milestoneName, estimatedHours, startDate, endDate, subtasks |
+| Projet complet | rowType\* (MILESTONE ou TASK), name, dueDate, title, description, status, priority, assigneeEmail, milestoneName, estimatedHours, startDate, endDate, progress, subtasks |
 | Congés | userEmail\*, leaveTypeName\*, startDate\*, endDate\*, halfDay, comment |
 | Compétences | name\*, category\*, description, requiredCount |
 
 \* champ obligatoire
+
+**`progress` est un entier de 0 à 100**, refusé ligne à ligne hors de cet
+intervalle : la colonne n'a pas de contrainte en base, et une valeur de 500
+rendrait une progression de projet supérieure à cent.
 
 **Les colonnes d'énumération portent le CODE, pas le libellé.** `role` désigne
 un code de rôle (`AGENT`, `ADMIN`…), `status` et `priority` les codes du

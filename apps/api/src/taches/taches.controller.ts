@@ -63,9 +63,17 @@ export class TachesController {
    * décide lequel le corps reçu appelle réellement, puisque c'est la présence
    * de `projectId` qui tranche. Une permission garde une route, pas un champ.
    *
-   * `EX-TSK-04` — les onze champs de l'exigence, **horaires compris**. Ils
+   * `EX-TSK-04` — les champs de l'exigence, **horaires compris**. Ils
    * manquaient au schéma : Zod les retirait en silence et le créneau d'une
    * réunion était insaisissable.
+   *
+   * **`avancement` s'y est ajouté le 2026-09-01**, et pour la même raison : il
+   * était déclaré dans `tacheSchema` — le contrat exporté — et absent d'ici.
+   * Un projet chargé avec son historique, toutes tâches créées terminées,
+   * affichait donc zéro pour cent de progression : `RG-PRJ-07` fait la moyenne
+   * d'un champ que la création n'écrivait jamais. La requête rendait `201`,
+   * sans une erreur. Deuxième occurrence de la même classe dans ce fichier,
+   * d'où le contrôle qui la tient désormais (`schemas-ecriture.test.ts`).
    */
   @Post()
   @RequiertUnePermissionParmi("tasks:create", "tasks:create_standalone")
@@ -84,11 +92,15 @@ export class TachesController {
         heureDebut: heure.nullish(),
         heureFin: heure.nullish(),
         estimationHeures: z.number().min(0).optional(),
+        // `EX-TSK-08` — le pourcentage d'avancement. Accepté à la création
+        // pour qu'un import puisse porter un historique déjà accompli ; absent
+        // du corps, il vaut zéro comme la colonne.
+        avancement: z.number().int().min(0).max(100).optional(),
         confidentielle: z.boolean().optional(),
         interventionExterieure: z.boolean().optional(),
         assigneIds: z.array(z.uuid()).optional(),
         serviceIds: z.array(z.uuid()).optional(),
-      }),
+      }).strict(),
       corps,
     );
     return this.taches.creer(donnees, d.userId, d.permissions);
@@ -136,7 +148,7 @@ export class TachesController {
          * le jalon et l'épopée, sans quoi `RG-JAL-04` serait enfreinte.
          */
         projectId: z.uuid().nullish(),
-      }),
+      }).strict(),
       corps,
     );
     return this.taches.modifier(id, donnees, d.userId, d.permissions);
@@ -161,7 +173,7 @@ export class TachesController {
       z.object({
         version: z.number().int().min(1),
         userIds: z.array(z.uuid()).max(20),
-      }),
+      }).strict(),
       corps,
     );
     return this.taches.definirAssignes(id, donnees.userIds, donnees.version, d.userId);
@@ -215,7 +227,7 @@ export class TachesController {
       z.object({
         version: z.number().int().min(1),
         ids: z.array(z.uuid()).max(200),
-      }),
+      }).strict(),
       corps,
     );
     return this.taches.reordonnerSousTaches(id, ids, version);
@@ -274,7 +286,7 @@ export class TachesController {
       z.object({
         version: z.number().int().min(1),
         prerequisIds: z.array(z.uuid()).max(200),
-      }),
+      }).strict(),
       corps,
     );
     return this.taches.definirDependances(
@@ -357,7 +369,7 @@ export class TachesController {
         nouvelleDate: dateSchema.optional(),
         nouvelAssigneId: z.uuid().optional(),
         ancienAssigneId: z.uuid().optional(),
-      }),
+      }).strict(),
       corps,
     );
     return this.taches.deplacerDepuisPlanning(id, cible, d.userId);

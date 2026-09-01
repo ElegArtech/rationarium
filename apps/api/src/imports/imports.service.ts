@@ -95,6 +95,17 @@ const COLONNES: Record<TypeImport, { nom: string; obligatoire: boolean }[]> = {
     { nom: "estimatedHours", obligatoire: false },
     { nom: "startDate", obligatoire: false },
     { nom: "endDate", obligatoire: false },
+    /*
+     * `EX-TSK-08` — l'avancement, en pourcentage.
+     *
+     * Le module existe pour charger en masse, et un chargement en masse qui ne
+     * sait pas porter l'état d'avancement produit un portefeuille faux dès le
+     * premier fichier : `RG-PRJ-07` moyenne ce champ, et un historique importé
+     * afficherait zéro pour cent. L'export ne l'écrivait pas davantage : les
+     * deux moitiés de la réversibilité perdaient le même champ, chacune de son
+     * côté.
+     */
+    { nom: "progress", obligatoire: false },
   ],
   jalons: [
     { nom: "name", obligatoire: true },
@@ -114,6 +125,9 @@ const COLONNES: Record<TypeImport, { nom: string; obligatoire: boolean }[]> = {
     { nom: "estimatedHours", obligatoire: false },
     { nom: "startDate", obligatoire: false },
     { nom: "endDate", obligatoire: false },
+    // `EX-TSK-08` — même colonne que l'import de tâches seules : les deux
+    // chemins créent la même entité, ils doivent porter les mêmes champs.
+    { nom: "progress", obligatoire: false },
     { nom: "subtasks", obligatoire: false },
   ],
   conges: [
@@ -131,6 +145,19 @@ const COLONNES: Record<TypeImport, { nom: string; obligatoire: boolean }[]> = {
     { nom: "requiredCount", obligatoire: false },
   ],
 };
+
+/**
+ * Les colonnes numériques bornées, refusées ligne à ligne hors intervalle.
+ *
+ * Même endroit et même raison que `ENUMERATIONS` : c'est l'analyse qui connaît
+ * le numéro de ligne du fichier, et `RG-IMP-03` veut que le problème se voie
+ * AVANT d'écrire.
+ */
+const BORNES: Partial<Record<TypeImport, { colonne: string; min: number; max: number }[]>> = {
+  taches: [{ colonne: "progress", min: 0, max: 100 }],
+  projet: [{ colonne: "progress", min: 0, max: 100 }],
+};
+
 /**
  * `cadrage/01 § M21` — les colonnes d'énumération portent le **code**, pas le
  * libellé.
@@ -276,13 +303,14 @@ export class ImportsService {
         title: "Rédiger la note de cadrage", description: "",
         status: "todo", priority: "normal", assigneeEmail: "camille.roussel@exemple.fr",
         milestoneName: "Lancement", estimatedHours: "8",
-        startDate: "2026-09-01", endDate: "2026-09-15",
+        startDate: "2026-09-01", endDate: "2026-09-15", progress: "0",
       },
       jalons: { name: "Lancement", description: "", dueDate: "2026-09-30" },
       projet: {
         rowType: "MILESTONE", name: "Lancement", dueDate: "2026-09-30",
         title: "", description: "", status: "", priority: "", assigneeEmail: "",
-        milestoneName: "", estimatedHours: "", startDate: "", endDate: "", subtasks: "",
+        milestoneName: "", estimatedHours: "", startDate: "", endDate: "", progress: "",
+        subtasks: "",
       },
       conges: {
         userEmail: "camille.roussel@exemple.fr", leaveTypeName: "Congés annuels",
@@ -370,6 +398,27 @@ export class ImportsService {
        * connaisse le numéro de ligne du fichier — et parce que `RG-IMP-03`
        * veut que la prévisualisation montre le problème AVANT d'écrire.
        */
+      /*
+       * `EX-TSK-08` — l'avancement est un POURCENTAGE, et il se refuse ligne à
+       * ligne comme une énumération inconnue.
+       *
+       * La colonne `avancement` n'a pas de contrainte en base : une valeur de
+       * 500 s'y écrirait, et `RG-PRJ-07` rendrait une progression supérieure à
+       * cent. La route HTTP le refuse par son schéma ; l'import doit le
+       * refuser aussi, sans quoi les deux chemins de création ne tiennent pas
+       * la même règle.
+       */
+      for (const { colonne, min, max } of BORNES[type] ?? []) {
+        const brut = ligne[colonne];
+        if (!NON_VIDE(brut)) continue;
+        const n = Number(brut.trim());
+        if (!Number.isInteger(n) || n < min || n > max) {
+          erreurs.push({
+            ligne: i + 2,
+            message: `colonne « ${colonne} » : « ${brut.trim()} » n'est pas un entier de ${min} à ${max}`,
+          });
+        }
+      }
       for (const { colonne, valeurs } of ENUMERATIONS[type] ?? []) {
         const brut = ligne[colonne];
         if (!NON_VIDE(brut)) continue;
@@ -647,6 +696,9 @@ export class ImportsService {
             milestoneId,
             statut: (NON_VIDE(ligne["status"]) ? ligne["status"].trim() : "todo") as never,
             priorite: (NON_VIDE(ligne["priority"]) ? ligne["priority"].trim() : "normal") as never,
+            // `EX-TSK-08` — l'avancement importé. `Number("")` vaut zéro : le
+            // filtre porte sur la chaîne, jamais sur sa conversion.
+            avancement: NON_VIDE(ligne["progress"]) ? Number(ligne["progress"]) : 0,
             dateDebut: dateDe(ligne["startDate"]),
             dateFin: dateDe(ligne["endDate"]),
             estimationHeures: NON_VIDE(ligne["estimatedHours"])
@@ -758,7 +810,7 @@ export class ImportsService {
       orderBy: { creeLe: "asc" },
       select: {
         titre: true, description: true, statut: true, priorite: true,
-        estimationHeures: true, dateDebut: true, dateFin: true,
+        estimationHeures: true, dateDebut: true, dateFin: true, avancement: true,
         milestone: { select: { nom: true } },
         assignes: { select: { user: { select: { email: true } } }, take: 1 },
       },
@@ -777,6 +829,10 @@ export class ImportsService {
         estimatedHours: t.estimationHeures ? String(t.estimationHeures) : "",
         startDate: t.dateDebut ? t.dateDebut.toISOString().slice(0, 10) : "",
         endDate: t.dateFin ? t.dateFin.toISOString().slice(0, 10) : "",
+        // Les colonnes de l'export sont celles de l'import : ajouter la
+        // colonne sans l'écrire aurait produit un aller-retour qui PERD
+        // l'avancement — le défaut d'origine, remonté d'un cran.
+        progress: String(t.avancement),
       })),
       { header: true, columns: COLONNES.taches.map((c) => c.nom), delimiter: ";", bom: true },
     );
