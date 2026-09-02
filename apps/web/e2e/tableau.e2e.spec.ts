@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { serveur, SESSION_LECTURE, PROJET, ROUTE } from "./fixtures/projets.js";
+import { FICHE } from "./fixtures/taches.js";
 import {
   SESSION_TABLEAU,
   SESSION_TABLEAU_SANS_ANNUAIRE,
@@ -215,6 +216,79 @@ test.describe("Vue 06 — tableau de bord", () => {
 
     await expect(page.getByText("Rédiger la note de cadrage").first()).toBeVisible();
     await expect(page.locator(".week a.tchip")).toHaveCount(0);
+  });
+
+  /*
+   * Le cache du client servait l'état d'AVANT une écriture faite ailleurs.
+   *
+   * Clore une tâche depuis sa fiche, revenir au tableau de bord par la barre
+   * latérale : la tâche y restait « à faire ». Seul un rechargement complet
+   * de la page montrait la vérité — le pire des symptômes, car l'affichage
+   * n'a pas l'air en panne, il a l'air d'avoir raison.
+   *
+   * Le contrôle NAVIGUE, il ne recharge pas. Écrit avec `page.goto`, il
+   * passait avant comme après le correctif : une navigation dure vide le
+   * cache et masque exactement ce qu'on cherche à voir.
+   */
+  test("une écriture faite AILLEURS se voit au retour, sans recharger la page", async ({
+    page,
+  }) => {
+    await horlogeFixe(page);
+    // Le serveur rend la tâche terminée UNE FOIS l'écriture reçue : c'est ce
+    // décalage qui distingue un affichage à jour d'un affichage en cache.
+    let ecrite = false;
+    page.on("request", (r) => {
+      if (r.method() === "PATCH") ecrite = true;
+    });
+    await serveur(page, {
+      session: SESSION_TABLEAU,
+      reponses: {
+        ...reponses,
+        "/api/taches/t-note": { corps: { ...FICHE, id: "t-note", titre: "Rédiger la note de cadrage" } },
+      },
+    });
+    await page.route(
+      (url) => url.pathname === "/api/tableau-de-bord",
+      (route) =>
+        route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify(
+            ecrite
+              ? {
+                  ...TABLEAU,
+                  planning: {
+                    ...TABLEAU.planning,
+                    occupations: {
+                      ...TABLEAU.planning.occupations,
+                      taches: TABLEAU.planning.occupations.taches.map((t) =>
+                        t.id === "t-note" ? { ...t, statut: "done" } : t,
+                      ),
+                    },
+                  },
+                }
+              : TABLEAU,
+          ),
+        }),
+    );
+    await page.goto("/");
+
+    const jeton = page.locator(".week a.tchip", { hasText: "Rédiger la note de cadrage" }).first();
+    await expect(jeton).toHaveAttribute("style", /st-doing/);
+
+    // Par le lien, pas par une adresse : c'est le trajet de l'utilisateur.
+    await jeton.click();
+    await page.waitForURL("**/taches/t-note");
+    const ecriture = page.waitForRequest(
+      (r) => r.method() === "PATCH" && r.url().includes("/api/taches/t-note"),
+    );
+    await page.locator("select.mini-select").first().selectOption("done");
+    await ecriture;
+
+    await page.getByRole("link", { name: "Tableau de bord", exact: true }).click();
+    await expect(
+      page.locator(".week a.tchip", { hasText: "Rédiger la note de cadrage" }).first(),
+    ).toHaveAttribute("style", /st-done/);
   });
 
   /*
