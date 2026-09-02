@@ -750,12 +750,17 @@ Trois onglets : **Vue d'ensemble** · **Analytics avancés** · **Gantt portefeu
 | EX-RPT-10 | Consulter l'activité récente sur 30 jours |
 | EX-RPT-11 | Consulter le Gantt portefeuille |
 | EX-RPT-12 | Être alerté du nombre de tâches en retard |
+| EX-RPT-13 | Choisir l'échelle de temps du Gantt portefeuille : jour, semaine, mois, trimestre |
 
 **Santé de projet** — trois niveaux : **Bon** · **Attention** · **Critique**, calculés à partir des tâches restantes, des tâches en retard et des jalons à venir.
 
 **RAG du Gantt portefeuille** — On track · À risque · En retard · À venir · Terminé.
 
 **Tris du Gantt portefeuille** — nom, progression, date de fin, priorité, santé, service, chef de projet.
+
+**Échelle de temps du Gantt portefeuille** — jour · semaine · mois · trimestre. Elle est distincte de la période d'analyse d'`EX-RPT-01`, qui choisit *quelles données* sont agrégées : l'échelle choisit *à quelle distance* on les regarde. Une frise figée au mois ne montre ni le détail d'une semaine chargée ni la forme d'un portefeuille qui court sur deux ans. Le jour et la semaine reprennent les largeurs du Gantt d'un projet, pour qu'une même durée se lise à la même largeur dans les deux vues ; le mois est la valeur par défaut.
+
+> Ajoutée le 2026-09-02 sur demande du commanditaire, l'onglet étant le seul des trois à ne rien offrir là où le Gantt d'un projet le fait depuis toujours.
 
 **Activité récente** — tâches terminées, créées, passées en retard, et **ratio de complétion** (terminées / créées) interprété : *« le backlog grossit »* ou *« le backlog se résorbe »*.
 

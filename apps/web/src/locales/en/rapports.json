@@ -129,7 +129,12 @@
       "priorite": "Priority (critical first)",
       "service": "By team",
       "chef": "By project lead"
-    }
+    },
+    "echelle": "Time scale",
+    "echelle_jour": "Day",
+    "echelle_semaine": "Week",
+    "echelle_mois": "Month",
+    "echelle_trimestre": "Quarter"
   },
   "ganttProjet": {
     "leProjet": "the project",
@@ -242,5 +247,7 @@
     "partJalonsTenus": "{n, number} % of due milestones met",
     "pourcent": "{n, number} %",
     "pourcentBrut": "{n, number}%"
-  }
+  },
+  "semaineCourte": "W{n}",
+  "trimestreCourt": "Q{n} {annee}"
 }

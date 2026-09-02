@@ -85,7 +85,12 @@
   border-right:1px solid var(--line-strong); }
 .pg-lhead{ position:sticky; top:0; z-index:5; height:42px; background:var(--surface-2);
   display:flex; align-items:center; padding:0 14px; border-bottom:1px solid var(--line-strong); }
-.pg-right{ position:relative; flex:none; }
+/* La largeur en pixels que pose l'échelle est un PLANCHER, pas une taille :
+   au trimestre, un portefeuille de dix-huit mois tient en six cent cinquante
+   pixels et laissait une gouttière vide à droite de la frise. La barre d'un
+   projet étant positionnée en pourcentage de ce cadre, l'étirer ne déforme
+   rien — il s'agit bien de la même durée, lue plus au large. */
+.pg-right{ position:relative; flex:1 0 auto; }
 .pg-head{ position:sticky; top:0; z-index:4; height:42px; background:var(--surface-2);
   border-bottom:1px solid var(--line-strong); display:flex; }
 .pg-m{ font-family:var(--font-cond); font-size:10px; font-weight:600; letter-spacing:.07em;
