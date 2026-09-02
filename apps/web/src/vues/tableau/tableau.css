@@ -94,6 +94,24 @@
   background: transparent;
 }
 
+/*
+ * Une occupation de type tâche mène à sa fiche : le jeton est alors un lien.
+ *
+ * Pas de soulignement — il hachurerait un libellé de 11 px déjà tronqué —,
+ * mais un survol, sans quoi rien ne dirait qu'il y a quelque chose à cliquer.
+ * La grammaire est celle du planning (`.occ:hover`), au même écart de teinte :
+ * deux gestes identiques doivent se ressembler d'une vue à l'autre. Le focus
+ * visible vient du socle.
+ */
+a.tchip {
+  text-decoration: none;
+  cursor: pointer;
+}
+
+a.tchip:hover {
+  background: color-mix(in srgb, currentcolor 22%, var(--surface));
+}
+
 /* Une tâche hors projet doit être visuellement distincte de la tâche projet. */
 .tchip-indep {
   border-left-style: dashed;
@@ -108,11 +126,15 @@
 
 /* `minmax(0, 1fr)`, jamais `1fr` : `1fr` vaut `minmax(auto, 1fr)`, donc la
    largeur intrinsèque du plus long intitulé élargit sa colonne et pousse les
-   autres. Les cinq jours doivent faire exactement un cinquième chacun — c'est
-   l'intitulé qui se coupe, pas la grille qui cède. */
+   autres. Les jours se partagent la largeur à parts égales — c'est l'intitulé
+   qui se coupe, pas la grille qui cède.
+
+   Le NOMBRE de colonnes vient du composant (`--jours`), pas d'un chiffre
+   écrit ici : il suit le paramétrage des jours visibles, cinq ou sept. Le
+   repli à 5 ne sert qu'au cas où la variable manquerait. */
 .week {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(var(--jours, 5), minmax(0, 1fr));
 }
 
 .week-col + .week-col {
@@ -454,7 +476,7 @@
 
 @media (max-width: 900px) {
   .week {
-    grid-template-columns: repeat(5, minmax(120px, 1fr));
+    grid-template-columns: repeat(var(--jours, 5), minmax(120px, 1fr));
     overflow-x: auto;
   }
 }
