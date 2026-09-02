@@ -6,6 +6,7 @@ import {
   formaterMois,
   premierJourSemaine,
   joursVisibles,
+  numeroDeSemaine,
 } from "./formats.js";
 
 /**
@@ -137,5 +138,43 @@ describe("Le mois d'un en-tête de planning", () => {
   it("rend un tiret cadratin sur une valeur absente, comme les autres formats", () => {
     expect(formaterMois(null)).toBe("—");
     expect(formaterMois(undefined)).toBe("—");
+  });
+});
+
+/**
+ * `EX-RPT-13` — le numéro de semaine gradue les deux frises de Gantt.
+ *
+ * Le défaut qu'il portait ne se voyait qu'au passage d'année, sur une seule
+ * graduation de l'année : c'est pourquoi il se contrôle ici, aux dates exactes
+ * où il apparaissait, et non par un échantillon quelconque.
+ */
+describe("Le numéro de semaine ISO", () => {
+  const semaine = (iso: string) => numeroDeSemaine(new Date(`${iso}T00:00:00.000Z`));
+
+  it("ne saute aucun numéro au passage d'année", () => {
+    // La semaine du 29 décembre 2025 porte le jeudi 1er janvier 2026 : elle
+    // est la première de 2026, et non la cinquante-troisième de 2025. Le
+    // calcul précédent rendait 53, puis 2 pour la suivante — sans jamais
+    // écrire S1.
+    expect(semaine("2025-12-29")).toBe(1);
+    expect(semaine("2026-01-05")).toBe(2);
+    expect(semaine("2026-01-12")).toBe(3);
+  });
+
+  it("rattache une semaine à l'année de son jeudi, dans les deux sens", () => {
+    // 2024 comptait cinquante-deux semaines ; le 30 décembre 2024 ouvre donc
+    // la première de 2025, dont le jeudi est le 2 janvier.
+    expect(semaine("2024-12-30")).toBe(1);
+    // À l'inverse, le 1er janvier 2027 est un vendredi : sa semaine a pour
+    // jeudi le 31 décembre 2026, et reste la cinquante-troisième de 2026.
+    expect(semaine("2027-01-01")).toBe(53);
+  });
+
+  it("donne le même numéro à tous les jours d'une même semaine", () => {
+    const lundi = semaine("2026-06-01");
+    for (const jour of ["2026-06-02", "2026-06-04", "2026-06-07"]) {
+      expect(semaine(jour)).toBe(lundi);
+    }
+    expect(semaine("2026-06-08")).toBe(lundi + 1);
   });
 });

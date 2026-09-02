@@ -129,7 +129,12 @@
       "priorite": "Priorité (critique d'abord)",
       "service": "Par service",
       "chef": "Par chef de projet"
-    }
+    },
+    "echelle": "Échelle de temps",
+    "echelle_jour": "Jour",
+    "echelle_semaine": "Semaine",
+    "echelle_mois": "Mois",
+    "echelle_trimestre": "Trimestre"
   },
   "ganttProjet": {
     "leProjet": "le projet",
@@ -242,5 +247,7 @@
     "partJalonsTenus": "{n, number} % des jalons échus tenus",
     "pourcent": "{n, number} %",
     "pourcentBrut": "{n, number}%"
-  }
+  },
+  "semaineCourte": "S{n}",
+  "trimestreCourt": "T{n} {annee}"
 }

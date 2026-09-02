@@ -279,3 +279,38 @@ export const joursAvant = (echeance: string | Date | null | undefined): number |
   );
   return Math.round((d.getTime() - minuitUtc) / 86_400_000);
 };
+
+/**
+ * Le numéro de semaine ISO 8601 d'une date.
+ *
+ * Il ne sert qu'à graduer une frise, jamais à calculer : les deux Gantt le
+ * partagent, et une seconde définition ferait diverger leurs graduations sans
+ * que rien ne le signale.
+ *
+ * La règle ISO attribue la semaine à l'année de son JEUDI. Sans cela, la
+ * semaine à cheval sur le nouvel an prend le numéro de l'année qu'elle quitte,
+ * et la frise affiche « S53 » puis « S2 » — un numéro manquant, sur la seule
+ * graduation où l'on regarde à deux fois. Le calcul précédent, repris de la
+ * maquette, comptait les jours depuis le 1er janvier de l'année civile.
+ */
+export const numeroDeSemaine = (valeur: Date): number => {
+  const jour = valeur.getUTCDay() || 7;
+  // Le jeudi de cette semaine : c'est lui qui décide de l'année de rattachement.
+  const jeudi = new Date(valeur.getTime() + (4 - jour) * 86_400_000);
+  const debutAnnee = Date.UTC(jeudi.getUTCFullYear(), 0, 1);
+  return Math.ceil(((jeudi.getTime() - debutAnnee) / 86_400_000 + 1) / 7);
+};
+
+/**
+ * Le jour et le mois, en chiffres — « 04/08 » en français, « 08/04 » en anglais.
+ *
+ * C'est l'étiquette d'une graduation journalière, large de trente-quatre
+ * pixels : la date complète n'y tiendrait pas, et le seul numéro du jour ne
+ * dirait pas de quel mois il relève.
+ */
+export const formaterJourMoisCourt = (valeur: Date): string =>
+  new Intl.DateTimeFormat(locale(), {
+    day: "2-digit",
+    month: "2-digit",
+    timeZone: "UTC",
+  }).format(valeur);

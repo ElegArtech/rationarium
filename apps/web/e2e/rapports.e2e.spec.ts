@@ -371,6 +371,61 @@ test.describe("Vue 30 — Gantt portefeuille", () => {
     await expect(page.getByText("Échéance passée")).toBeVisible();
   });
 
+  test("EX-RPT-13 — L'ÉCHELLE CHANGE LA FRISE, elle ne fait pas que s'enregistrer", async ({
+    page,
+  }) => {
+    await horlogeFixe(page);
+    await serveur(page, { session: SESSION_RAPPORTS, reponses });
+    await page.goto("/rapports");
+    await page.getByRole("navigation", { name: /Sections des rapports|Report sections/ }).getByRole("button", { name: "Gantt portefeuille" }).click();
+
+    const echelle = page.getByRole("group", { name: "Échelle de temps" });
+    for (const nom of ["Jour", "Semaine", "Mois", "Trimestre"]) {
+      await expect(echelle.getByRole("button", { name: nom, exact: true })).toBeVisible();
+    }
+    // Le mois est la valeur par défaut : l'onglet s'ouvre comme avant ce choix.
+    await expect(echelle.getByRole("button", { name: "Mois", exact: true })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+
+    /*
+      Ce qui est vérifié ici est l'EFFET, jamais l'état du bouton. Un réglage
+      qui s'enregistre sans agir a déjà vécu deux lots verts dans ce dépôt.
+      Deux effets indépendants sont donc mesurés : la graduation, qui change
+      de vocabulaire, et la largeur de la frise, qui change d'ordre de
+      grandeur.
+    */
+    const frise = page.locator(".pg-right");
+    const largeurDe = async () => (await frise.boundingBox())!.width;
+
+    await expect(page.getByText("juin 26", { exact: true })).toBeVisible();
+    const auMois = await largeurDe();
+
+    await echelle.getByRole("button", { name: "Trimestre", exact: true }).click();
+    await expect(page.getByText("T2 26", { exact: true })).toBeVisible();
+    await expect(page.getByText("juin 26", { exact: true })).toHaveCount(0);
+    expect(await largeurDe()).toBeLessThan(auMois);
+
+    await echelle.getByRole("button", { name: "Jour", exact: true }).click();
+    await expect(page.getByText("01/06", { exact: true }).first()).toBeVisible();
+    expect(await largeurDe()).toBeGreaterThan(auMois * 5);
+
+    await echelle.getByRole("button", { name: "Semaine", exact: true }).click();
+    await expect(page.getByText("S23", { exact: true }).first()).toBeVisible();
+
+    /*
+      Les barres sont positionnées en pourcentage de la frise : leur longueur
+      RELATIVE ne doit pas bouger d'une échelle à l'autre, sinon la frise et
+      les barres se désalignent. On le mesure sur une barre connue.
+    */
+    const barre = page.getByRole("img", { name: /Sur les rails/ });
+    const partAuSemaine = (await barre.boundingBox())!.width / (await largeurDe());
+    await echelle.getByRole("button", { name: "Mois", exact: true }).click();
+    const partAuMois = (await barre.boundingBox())!.width / (await largeurDe());
+    expect(Math.abs(partAuSemaine - partAuMois)).toBeLessThan(0.02);
+  });
+
   test("l'état vide du Gantt est celui du brief", async ({ page }) => {
     await horlogeFixe(page);
     await serveur(page, {

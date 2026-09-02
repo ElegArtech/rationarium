@@ -162,6 +162,8 @@ Enrichi à chaque capitalisation. Un piège rencontré deux fois sans être cons
 
 - **Un `upsert` de jeu de données doit répéter dans `update` tout ce qui peut changer.** Un projet passé à « Annulé » gardait `active` à chaque rejeu parce que seul `create` portait le statut. Même piège que l'appartenance d'une entrée : les identifiants stables rendent l'oubli invisible, puisque la ligne existe et paraît juste.
 
+- **Une graduation se recopie mal d'une frise à l'autre.** Le Gantt portefeuille a reçu l'échelle du Gantt de projet le 2026-09-02, et trois défauts sont sortis du même geste. La largeur du jour, trente-quatre pixels, était juste là-bas où l'étiquette est un numéro sous une bande de mois, et coupait ici l'étiquette « 01/01 » en « 01/0 » faute de seconde bande : **une valeur en pixels vaut pour un contenu, pas pour une échelle.** La largeur posée en pixels était traitée en taille par un `flex:none`, si bien qu'au trimestre un portefeuille de dix-huit mois tenait en six cent cinquante pixels et laissait une gouttière vide — c'est un plancher qu'il fallait, la barre étant positionnée en pourcentage de son cadre. Et le numéro de semaine repris de la maquette n'était pas ISO : il affichait « S53 » puis « S2 », **un numéro manquant une fois par an, sur la seule graduation où l'on regarde à deux fois**. Aucun des trois n'était visible autrement qu'en ouvrant la vue à chaque échelle : le contrôle disait que le réglage s'appliquait, pas qu'il se lisait.
+
 ## Convention de commit
 
 ```

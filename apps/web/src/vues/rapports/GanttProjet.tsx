@@ -10,7 +10,12 @@ import { usePeut } from "../../session/session.js";
 import { Chargement, ErreurDeChargement, AccesRefuse } from "../../composants/etats.js";
 import { Fenetre } from "../../composants/fenetre.js";
 import { useMessages } from "../../composants/messages.js";
-import { formaterDate, formaterMoisCourt, formaterNombre } from "../../formats.js";
+import {
+  formaterDate,
+  formaterMoisCourt,
+  formaterNombre,
+  numeroDeSemaine,
+} from "../../formats.js";
 import { CadreProjet } from "../projets/Fiche.js";
 import "../../composants/partages.css";
 import "./gantt.css";
@@ -60,12 +65,6 @@ const SEUIL_FLECHES = 12;
  */
 const jourDe = (iso: string) => new Date(`${iso.slice(0, 10)}T00:00:00.000Z`).getTime();
 
-/** Le numéro de semaine, repris de la maquette — il n'étiquette qu'une graduation. */
-const semaineDe = (d: Date) => {
-  const debutAnnee = Date.UTC(d.getUTCFullYear(), 0, 1);
-  const jourDeLAn = new Date(debutAnnee).getUTCDay();
-  return Math.ceil(((d.getTime() - debutAnnee) / JOUR_MS + jourDeLAn + 1) / 7);
-};
 const JOUR_MS = 86_400_000;
 
 /** Un décalage de dates lu à l'écran : la même valeur en jours dans les deux sens. */
@@ -485,7 +484,7 @@ function Grille({
         const d0 = jourA(k);
         // Le reste de la semaine en cours : la première peut être entamée.
         const n = Math.min(7 - ((d0.getUTCDay() + 6) % 7), jours - k);
-        unites.push({ cle: String(k), libelle: `S${semaineDe(d0)}`, largeur: n * ppd, lundi: true, chome: false });
+        unites.push({ cle: String(k), libelle: t("semaineCourte", { n: numeroDeSemaine(d0) }), largeur: n * ppd, lundi: true, chome: false });
         k += n;
       }
     } else {
