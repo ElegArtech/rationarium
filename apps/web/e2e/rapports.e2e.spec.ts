@@ -426,6 +426,46 @@ test.describe("Vue 30 — Gantt portefeuille", () => {
     expect(Math.abs(partAuSemaine - partAuMois)).toBeLessThan(0.02);
   });
 
+  test("LE GANTT SE DÉPLOIE : la page défile, le cadre ne défile pas verticalement", async ({
+    page,
+  }) => {
+    // Vingt projets, pour que la question se pose : cinq tiennent dans l'écran.
+    const GANTT_LONG = {
+      ...GANTT,
+      lignes: Array.from({ length: 20 }, (_, i) => {
+        const modele = GANTT.lignes[i % GANTT.lignes.length];
+        return { ...modele, id: `x${i}`, nom: `${modele.nom} ${i + 1}` };
+      }),
+    };
+    await page.setViewportSize({ width: 1400, height: 800 });
+    await horlogeFixe(page);
+    await serveur(page, {
+      session: SESSION_RAPPORTS,
+      reponses: { ...reponses, "/api/rapports/gantt": { corps: GANTT_LONG } },
+    });
+    await page.goto("/rapports");
+    await page.getByRole("navigation", { name: /Sections des rapports|Report sections/ }).getByRole("button", { name: "Gantt portefeuille" }).click();
+    await expect(page.getByText("Sur les rails 1", { exact: true })).toBeVisible();
+
+    const cadre = await page.evaluate(() => {
+      const c = document.querySelector(".pg-wrap") as HTMLElement;
+      return {
+        defileVerticalement: c.scrollHeight > c.clientHeight + 1,
+        defileHorizontalement: c.scrollWidth > c.clientWidth + 1,
+        pageDefile: document.documentElement.scrollHeight > window.innerHeight + 1,
+      };
+    });
+    /*
+      Une barre verticale dans le cadre, à l'intérieur d'une page qui en a déjà
+      une, fait défiler deux choses pour un seul geste de molette. La barre
+      HORIZONTALE, elle, reste indispensable : c'est elle qui porte la frise, et
+      c'est elle qui garde la colonne des projets collée à gauche.
+    */
+    expect(cadre.defileVerticalement).toBe(false);
+    expect(cadre.defileHorizontalement).toBe(true);
+    expect(cadre.pageDefile).toBe(true);
+  });
+
   test("l'état vide du Gantt est celui du brief", async ({ page }) => {
     await horlogeFixe(page);
     await serveur(page, {
