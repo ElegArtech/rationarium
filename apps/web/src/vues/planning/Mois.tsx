@@ -53,7 +53,17 @@ export function GrilleMois({
   // c'est même là qu'il fait gagner le plus de largeur.
   const jours = joursAffiches(donnees.periode.jours);
   const aujourdhui = new Date().toISOString().slice(0, 10);
-  const style = { "--cols": `190px repeat(${jours.length}, 34px)` } as CSSProperties;
+  /*
+   * `minmax(34px, 1fr)`, et non `34px` : les 34 px de la maquette sont un
+   * PLANCHER de lisibilité, pas une largeur définitive. Fixes, ils laissaient
+   * la grille s'arrêter à 938 px dans un cadre de 1260 — trois cents pixels
+   * de vide à droite, et vingt-deux colonnes serrées au plus étroit alors
+   * qu'elles avaient la place de respirer. La vue la plus contrainte du
+   * produit n'a aucune raison de se contraindre davantage que nécessaire :
+   * les colonnes prennent ce qui reste, et le défilement horizontal ne
+   * revient que quand le mois ne tient réellement plus.
+   */
+  const style = { "--cols": `190px repeat(${jours.length}, minmax(34px, 1fr))` } as CSSProperties;
 
   const jourSemaine = (jour: string) => new Date(`${jour}T00:00:00.000Z`).getUTCDay();
 
