@@ -197,10 +197,32 @@ export const SEMAINE_SANS_PERMANENCES = {
   occupations: { ...SEMAINE.occupations, permanences: null },
 };
 
-/** Le mois d'août 2026, sur la même population. */
+/**
+ * Le mois d'août 2026, sur la même population.
+ *
+ * Il ajoute à la semaine une journée SURCHARGÉE — le jeudi 13, cinq
+ * occupations pour Ana, qui y a déjà du télétravail déclaré. C'est le seul
+ * cas qui fasse apparaître `.mcount`, le compteur des occupations non
+ * dessinées, et le seul où il cohabite avec le filet de lieu. Sans lui, le
+ * contrôle de son placement n'a rien à mesurer et le dit.
+ */
 export const MOIS = {
   ...SEMAINE,
   periode: { debut: "2026-08-01", fin: "2026-08-31", jours: jours("2026-08-01", 31) },
+  occupations: {
+    ...SEMAINE.occupations,
+    taches: [
+      ...SEMAINE.occupations.taches,
+      ...["Reprise des libellés", "Recette portail", "Charte éditoriale"].map((titre, i) => ({
+        id: `t-charge-${i}`, titre, statut: "doing",
+        priorite: "normal", avancement: 10,
+        dateDebut: "2026-08-13", dateFin: "2026-08-13",
+        heureDebut: null, heureFin: null, interventionExterieure: false,
+        project: { id: "p1", nom: "Portail citoyen", icone: "◆" },
+        assignes: ["u-ana"], horsProjet: false, multiAssignee: false,
+      })),
+    ],
+  },
   synthese: jours("2026-08-01", 31).map((date, i) => ({
     date,
     absents: i % 5,

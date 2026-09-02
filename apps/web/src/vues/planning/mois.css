@@ -218,12 +218,26 @@
   background: var(--line-strong);
 }
 
+/* Le filet s'arrête avant le compteur quand il y en a un — voir `.mcount`. */
+.mplace.is-short {
+  right: 15px;
+}
+
+/*
+ * Le compteur des occupations non dessinées, en bas à droite.
+ *
+ * La maquette le pose en HAUT à droite (`top: 1px`), et c'est le seul endroit
+ * de la cellule qui soit déjà occupé : la première barre y commence, et le
+ * compteur se lisait par-dessus elle. Le bas de la cellule, lui, est libre —
+ * seul le filet de lieu y passe, et il lui cède ses quinze derniers pixels.
+ */
 .mcount {
   position: absolute;
   right: 2px;
-  top: 1px;
+  bottom: 0;
   font-family: var(--font-mono);
   font-size: 7.5px;
+  line-height: 1.2;
   color: var(--muted);
 }
 

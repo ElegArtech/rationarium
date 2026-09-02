@@ -648,6 +648,54 @@ test.describe("le vocabulaire de la maquette est posé dès que la donnée exist
     await expect(page.locator(".mo-band.is-vac")).not.toHaveCount(0);
     // La demi-journée : l'aplat ne couvre que la moitié de la micro-cellule.
     await expect(page.locator(".mleave.is-am, .mleave.is-pm")).not.toHaveCount(0);
+
+    // Une barre sans libellé est une texture muette : sur cette vue, c'est le
+    // survol qui dit ce qu'elle désigne.
+    const sansLibelle = await page
+      .locator(".mbar")
+      .evaluateAll((n) => n.filter((e) => !e.getAttribute("title")).length);
+    expect(sansLibelle).toBe(0);
+    await expect(page.locator('.mbar[title="Rédiger la note de cadrage"]')).not.toHaveCount(0);
+  });
+
+  /*
+   * Le compteur des occupations non dessinées était posé en HAUT à droite, à
+   * l'endroit exact où commence la première barre : il se lisait par-dessus
+   * elle. Ce contrôle porte sur la géométrie, seule chose qui le dise — une
+   * assertion de présence passait déjà, et passerait encore.
+   */
+  test("vue 08 — le compteur se lit sous les barres, jamais par-dessus", async ({ page }) => {
+    await horlogeFixe(page);
+    await serveur(page, {
+      session: SESSION_PLANNING,
+      reponses: { ...reponses, "/api/planning": { corps: MOIS } },
+    });
+    await page.goto("/planning/mois");
+
+    await expect(page.locator(".mcount")).not.toHaveCount(0);
+    const mesures = await page.locator(".mcount").evaluateAll((compteurs) =>
+      compteurs.map((c) => {
+        const cellule = c.closest(".mcell");
+        const rc = c.getBoundingClientRect();
+        const rcell = cellule.getBoundingClientRect();
+        const chevauche = (a, b) =>
+          !(a.right <= b.left || b.right <= a.left || a.bottom <= b.top || b.bottom <= a.top);
+        return {
+          dansLaMoitieBasse: rc.top >= rcell.top + rcell.height / 2,
+          surUneBarre: [...cellule.querySelectorAll(".mbar")].some((b) =>
+            chevauche(rc, b.getBoundingClientRect()),
+          ),
+          surLeFilet: [...cellule.querySelectorAll(".mplace")].some((p) =>
+            chevauche(rc, p.getBoundingClientRect()),
+          ),
+          hors: rc.right > rcell.right + 0.5 || rc.bottom > rcell.bottom + 0.5,
+        };
+      }),
+    );
+    expect(mesures.filter((m) => !m.dansLaMoitieBasse)).toEqual([]);
+    expect(mesures.filter((m) => m.surUneBarre)).toEqual([]);
+    expect(mesures.filter((m) => m.surLeFilet)).toEqual([]);
+    expect(mesures.filter((m) => m.hors)).toEqual([]);
   });
 
   test("vue 09 — la grille pose tout son vocabulaire dès qu'une tâche est active", async ({
