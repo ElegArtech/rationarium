@@ -74,7 +74,20 @@ export const VUE_ENSEMBLE = {
     gain: 25,
     stagnation: false,
   },
-  jalons: { total: 7, aTemps: 3, enRetard: 2, aVenir: 2, echus: 5 },
+  jalons: {
+    total: 7, aTemps: 3, enRetard: 2, aVenir: 2, echus: 5,
+    retards: [
+      {
+        id: "j1", nom: "Recette fonctionnelle", projetId: "p2", projetNom: "Sous tension",
+        dateEcheance: "2026-07-03", joursDeRetard: 39, tachesRestantes: 4,
+      },
+      {
+        id: "j2", nom: "Livraison du socle", projetId: "p3", projetNom: "Échéance passée",
+        dateEcheance: "2026-08-04", joursDeRetard: 7, tachesRestantes: 1,
+      },
+    ],
+    retardsNonListes: 0,
+  },
   repartitions: {
     priorite: [
       { cle: "critical", nombre: 2 },
@@ -112,7 +125,7 @@ export const VUE_ENSEMBLE_JEUNE = {
     gain: 0,
     stagnation: false,
   },
-  jalons: { total: 0, aTemps: 0, enRetard: 0, aVenir: 0, echus: 0 },
+  jalons: { total: 0, aTemps: 0, enRetard: 0, aVenir: 0, echus: 0, retards: [], retardsNonListes: 0 },
   activite: {
     terminees: 0, creees: 0, passeesEnRetard: 0, ratio: null, interpretation: null,
   },

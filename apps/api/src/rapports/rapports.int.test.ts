@@ -338,6 +338,91 @@ describe("EX-RPT-08 — la complétion des jalons", () => {
     expect(vue.jalons).toMatchObject({ total: 3, aTemps: 1, enRetard: 1, aVenir: 1, echus: 2 });
   });
 
+  it("UN JALON DÛ AUJOURD'HUI N'EST PAS EN RETARD, même en fin de journée", async () => {
+    const p = await projet({ nom: "Aujourd'hui", chefId: chef });
+    const dujour = await prisma.milestone.create({
+      data: { nom: "Dû ce soir", projectId: p.id, dateEcheance: utc("2026-08-11") },
+    });
+    await prisma.task.create({
+      data: { titre: "Encore ouverte", projectId: p.id, milestoneId: dujour.id, statut: "doing" },
+    });
+
+    /*
+      L'heure n'est pas un détail de mise en scène, elle EST le contrôle. Les
+      échéances sont des colonnes `@db.Date` et reviennent à minuit ; les
+      comparer à l'instant courant rendait « en retard » un jalon dû
+      aujourd'hui dès la première seconde — le seul jour où il peut encore être
+      tenu. À minuit pile, la comparaison fautive donne pourtant la bonne
+      réponse : un test qui fixe son horloge là ne peut pas voir le défaut.
+    */
+    for (const heure of ["08:30", "14:00", "23:59"]) {
+      const vue = await rapports.vueEnsemble(
+        { periode: "mois" }, await global(), PERMISSIONS,
+        new Date(`2026-08-11T${heure}:00.000Z`),
+      );
+      expect(vue.jalons.aVenir, `à ${heure}`).toBe(1);
+      expect(vue.jalons.enRetard, `à ${heure}`).toBe(0);
+      expect(vue.jalons.retards, `à ${heure}`).toEqual([]);
+      // La santé du projet lit les mêmes jalons : elle doit compter le même.
+      expect(vue.sante[0]?.jalonsAVenir, `à ${heure}`).toBe(1);
+    }
+  });
+
+  it("`RG-RPT-07` — LE DÉTAIL NOMME chaque retard, son projet, son ancienneté et son reste", async () => {
+    const vieux = await projet({ nom: "Chantier ancien", chefId: chef });
+    const recent = await projet({ nom: "Chantier récent", chefId: chef });
+    const jVieux = await prisma.milestone.create({
+      data: { nom: "Phase 1", projectId: vieux.id, dateEcheance: utc("2026-07-01") },
+    });
+    const jRecent = await prisma.milestone.create({
+      data: { nom: "Recette", projectId: recent.id, dateEcheance: utc("2026-08-05") },
+    });
+    await prisma.task.createMany({
+      data: [
+        { titre: "Reste A", projectId: vieux.id, milestoneId: jVieux.id, statut: "doing" },
+        { titre: "Reste B", projectId: vieux.id, milestoneId: jVieux.id, statut: "todo" },
+        { titre: "Faite", projectId: vieux.id, milestoneId: jVieux.id, statut: "done" },
+        { titre: "Reste C", projectId: recent.id, milestoneId: jRecent.id, statut: "todo" },
+      ],
+    });
+
+    const vue = await page();
+    expect(vue.jalons.enRetard).toBe(2);
+    // Du plus ancien retard au plus récent : c'est l'ordre où on les traite.
+    expect(vue.jalons.retards.map((j) => j.nom)).toEqual(["Phase 1", "Recette"]);
+    expect(vue.jalons.retards[0]).toMatchObject({
+      nom: "Phase 1",
+      projetId: vieux.id,
+      projetNom: "Chantier ancien",
+      dateEcheance: "2026-07-01",
+      joursDeRetard: 41,
+      // Deux ouvertes sur trois : c'est ce qui reste pour lever le retard.
+      tachesRestantes: 2,
+    });
+    expect(vue.jalons.retards[1]).toMatchObject({
+      projetNom: "Chantier récent", joursDeRetard: 6, tachesRestantes: 1,
+    });
+    expect(vue.jalons.retardsNonListes).toBe(0);
+  });
+
+  it("`RG-RPT-02` et `RG-RPT-07` — au-delà de dix retards, la liste s'arrête et le dit", async () => {
+    const p = await projet({ nom: "Débordé", chefId: chef });
+    for (let i = 0; i < 13; i += 1) {
+      const j = await prisma.milestone.create({
+        data: { nom: `Jalon ${i}`, projectId: p.id, dateEcheance: utc("2026-07-01") },
+      });
+      await prisma.task.create({
+        data: { titre: `T${i}`, projectId: p.id, milestoneId: j.id, statut: "todo" },
+      });
+    }
+
+    const vue = await page();
+    expect(vue.jalons.enRetard).toBe(13);
+    // Le compte global reste juste : c'est la LISTE qui est bornée.
+    expect(vue.jalons.retards).toHaveLength(10);
+    expect(vue.jalons.retardsNonListes).toBe(3);
+  });
+
   it("un jalon sans tâche et échu n'est pas « atteint à temps »", async () => {
     const p = await projet({ nom: "Vide", chefId: chef });
     await prisma.milestone.create({
