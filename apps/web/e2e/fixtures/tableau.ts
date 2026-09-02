@@ -112,6 +112,19 @@ const PLANNING_PERSONNEL = {
         project: { id: "p1", nom: "Portail citoyen", icone: "◆" },
         assignes: ["u-moi"], horsProjet: false, multiAssignee: false,
       },
+      {
+        /*
+         * Le SAMEDI 15 août 2026. Rien d'autre ne tombe le week-end : sans
+         * cette tâche, montrer ou masquer le samedi ne changerait qu'une
+         * colonne vide, et le contrôle du réglage des jours visibles ne
+         * pourrait pas dire que le contenu suit.
+         */
+        id: "t-samedi", titre: "Astreinte de week-end", statut: "todo",
+        priorite: "normal", avancement: 0,
+        dateDebut: "2026-08-15", dateFin: "2026-08-15",
+        heureDebut: null, heureFin: null, interventionExterieure: false,
+        project: null, assignes: ["u-moi"], horsProjet: true, multiAssignee: false,
+      },
     ],
     conges: [],
     teletravail: [

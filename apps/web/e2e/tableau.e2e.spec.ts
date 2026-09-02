@@ -176,6 +176,76 @@ test.describe("Vue 06 — tableau de bord", () => {
     await expect(page.getByRole("link", { name: "Ouvrir le planning" })).toBeVisible();
   });
 
+  /*
+   * L'extrait montrait le travail sans y donner accès : on y lisait le titre
+   * d'une tâche sans pouvoir l'ouvrir. Le contrôle porte sur la DESTINATION,
+   * pas sur la présence d'un lien — un lien vers la mauvaise fiche passerait
+   * une assertion de rôle.
+   */
+  test("EX-DSH-03 — une tâche de l'extrait MÈNE À SA FICHE", async ({ page }) => {
+    await horlogeFixe(page);
+    await serveur(page, { session: SESSION_TABLEAU, reponses });
+    await page.goto("/");
+
+    // La tâche court du lundi au mardi : elle a donc un jeton par jour, et les
+    // deux mènent au même endroit.
+    const jetons = page.locator(".week a.tchip", { hasText: "Rédiger la note de cadrage" });
+    await expect(jetons).toHaveCount(2);
+    const jeton = jetons.first();
+    await expect(jeton).toHaveAttribute("href", "/taches/t-note");
+    // Le libellé se coupe dans une colonne étroite : le titre complet doit
+    // rester lisible quelque part.
+    await expect(jeton).toHaveAttribute("title", "Rédiger la note de cadrage");
+  });
+
+  /*
+   * `RG-GEN-06` — sans le droit de lire une tâche, le jeton reste un libellé.
+   * Un lien qui mène à un refus est pire que pas de lien : il promet.
+   */
+  test("RG-GEN-06 — sans tasks:read, le jeton n'est pas un lien", async ({ page }) => {
+    await horlogeFixe(page);
+    await serveur(page, {
+      session: {
+        ...SESSION_TABLEAU,
+        permissions: SESSION_TABLEAU.permissions.filter((p) => p !== "tasks:read"),
+      },
+      reponses,
+    });
+    await page.goto("/");
+
+    await expect(page.getByText("Rédiger la note de cadrage").first()).toBeVisible();
+    await expect(page.locator(".week a.tchip")).toHaveCount(0);
+  });
+
+  /*
+   * `RG-PLN-03` — le réglage des jours visibles vaut ICI AUSSI.
+   *
+   * L'extrait découpait `slice(0, 5)` : activer le samedi et le dimanche
+   * changeait la vue 07 et laissait celle-ci du lundi au vendredi, sans que
+   * rien ne le dise. Le contrôle compte les colonnes ET cherche le contenu du
+   * samedi : un simple compte passerait sur cinq colonnes vides de plus.
+   */
+  test("RG-PLN-03 — l'extrait suit les jours visibles du paramétrage", async ({ page }) => {
+    await horlogeFixe(page);
+    await serveur(page, { session: SESSION_TABLEAU, reponses });
+    await page.goto("/");
+
+    await expect(page.locator(".week-col")).toHaveCount(5);
+    await expect(page.getByText("Astreinte de week-end")).toHaveCount(0);
+
+    await serveur(page, {
+      session: SESSION_TABLEAU,
+      reponses: {
+        ...reponses,
+        "/api/parametrage": { corps: { "planning.visibleDays": "0,1,2,3,4,5,6" } },
+      },
+    });
+    await page.goto("/");
+
+    await expect(page.locator(".week-col")).toHaveCount(7);
+    await expect(page.getByText("Astreinte de week-end")).toBeVisible();
+  });
+
   test("RG-DSH-03 — les to-do complétées sont regroupées à part, AVEC leur compte", async ({
     page,
   }) => {

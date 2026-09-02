@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { IconeProjet } from "../../composants/icones-projet.js";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Tab, TabList, TabPanel, Tabs } from "react-aria-components";
+import { Link } from "@tanstack/react-router";
 import { STATUTS_PROJET, STATUTS_TACHE } from "@rationarium/contracts";
 import * as api from "../../api/tableau.js";
 import * as apiTaches from "../../api/taches.js";
@@ -13,7 +14,13 @@ import { Chargement, ErreurDeChargement, AccesRefuse } from "../../composants/et
 import { useMessages } from "../../composants/messages.js";
 import { AvatarAgent, useLibelle } from "../../composants/pastilles.js";
 import { formaterDate, formaterDateAvecJour } from "../../formats.js";
-import { CELLULE_VIDE, indexer, COUCHES_PAR_DEFAUT } from "../planning/grille.js";
+import {
+  CELLULE_VIDE,
+  indexer,
+  joursAffiches,
+  COUCHES_PAR_DEFAUT,
+  type Occupation,
+} from "../planning/grille.js";
 import "./tableau.css";
 
 /**
@@ -149,8 +156,10 @@ function Pastille({ icone, titre }: { icone: string | null; titre: string }) {
 /**
  * `EX-DSH-03` — l'extrait de planning personnel de la semaine.
  *
- * Cinq colonnes : le brief cale la grille sur la semaine ouvrée, et le
- * week-end d'un tableau de bord personnel n'apprend rien.
+ * Autant de colonnes que le paramétrage en montre : la semaine ouvrée par
+ * défaut, le week-end compris si l'instance l'affiche. C'est le même réglage
+ * que la vue 07 (`RG-PLN-03`) — deux extraits de la même semaine qui ne
+ * montrent pas les mêmes jours, c'est l'un des deux qui a tort.
  */
 function MonPlanning({ planning }: { planning: api.TableauDeBord["planning"] }) {
   const { t } = useTranslation("tableau");
@@ -165,7 +174,16 @@ function MonPlanning({ planning }: { planning: api.TableauDeBord["planning"] }) 
   });
 
   const moi = planning.groupes[0]?.personnes[0]?.id;
-  const jours = planning.periode.jours.slice(0, 5);
+  /*
+   * `RG-PLN-03` — les jours visibles suivent le PARAMÉTRAGE, pas une tranche
+   * en dur. Un `slice(0, 5)` donnait toujours du lundi au vendredi : activer
+   * le samedi et le dimanche changeait la vue 07 et laissait celle-ci
+   * intacte, sans que rien ne le dise. Troisième occurrence du même défaut —
+   * un réglage qui s'enregistre n'est pas un réglage qui s'applique —, et la
+   * deuxième pour ce réglage-là, qui ne s'appliquait déjà nulle part avant
+   * `joursAffiches`.
+   */
+  const jours = joursAffiches(planning.periode.jours);
   const cellules = jours.map((jour) =>
     moi ? (index.get(`${moi}|${jour}`) ?? CELLULE_VIDE) : CELLULE_VIDE,
   );
@@ -191,7 +209,7 @@ function MonPlanning({ planning }: { planning: api.TableauDeBord["planning"] }) 
             <small>{t("planning.videAide")}</small>
           </div>
         ) : (
-          <div className="week">
+          <div className="week" style={{ "--jours": jours.length } as CSSProperties}>
             {jours.map((jour, i) => {
               const cellule = cellules[i] ?? CELLULE_VIDE;
               const d = new Date(`${jour}T00:00:00.000Z`);
@@ -212,34 +230,7 @@ function MonPlanning({ planning }: { planning: api.TableauDeBord["planning"] }) 
                       </span>
                     ) : null}
                     {cellule.occupations.map((o) => (
-                      <span
-                        key={o.cle}
-                        className={`tchip${
-                          o.genre === "tache" && o.tache.horsProjet
-                            ? " tchip-indep"
-                            : o.genre === "permanence"
-                              ? " tchip-flat"
-                              : ""
-                        }`}
-                        style={couleurDe(
-                          o.genre === "tache"
-                            ? `st-${o.tache.statut}`
-                            : o.genre === "evenement"
-                              ? "event"
-                              : "activity",
-                        )}
-                      >
-                        {o.genre === "tache" && o.tache.project ? (
-                          <Pastille icone={o.tache.project.icone} titre={o.tache.project.nom} />
-                        ) : null}
-                        <span>
-                          {o.genre === "tache"
-                            ? o.tache.titre
-                            : o.genre === "evenement"
-                              ? o.evenement.titre
-                              : o.permanence.predefinedTask.nom}
-                        </span>
-                      </span>
+                      <JetonOccupation key={o.cle} occupation={o} />
                     ))}
                     {!cellule.conge && !cellule.lieu && cellule.occupations.length === 0 ? (
                       <span className="week-none">{t("planning.rien")}</span>
@@ -252,6 +243,76 @@ function MonPlanning({ planning }: { planning: api.TableauDeBord["planning"] }) 
         )}
       </div>
     </section>
+  );
+}
+
+/**
+ * Une occupation de la semaine — et, pour une tâche, le chemin vers sa fiche.
+ *
+ * L'extrait de planning montrait le travail sans y donner accès : on y lisait
+ * « Reprise des libellés » sans pouvoir l'ouvrir, alors que la vue existe et
+ * que le jeton en connaît l'identifiant. Une tâche mène donc à `/taches/$id`.
+ *
+ * Trois précisions sur la forme, chacune pour une raison :
+ *
+ * - Un `Link` du routeur, pas une ancre nue. Une `<a href>` dans une
+ *   application à routeur RECHARGE le document entier — le lot, la session,
+ *   les réglages —, ce que rien ne signale : l'URL change, la vue s'affiche.
+ * - `RG-GEN-06` : sans `tasks:read`, la fiche est inaccessible, le jeton
+ *   reste donc un simple libellé plutôt qu'un lien qui mène à un refus.
+ * - Un `title`, parce que le jeton tronque. La colonne d'un jour a une
+ *   largeur fixe et l'intitulé s'y coupe : sans lui, le titre complet n'est
+ *   lisible nulle part. Même geste qu'à la vue 08, pour la même raison.
+ *
+ * Un événement et une permanence n'ont pas de fiche : ils restent muets.
+ */
+function JetonOccupation({ occupation: o }: { occupation: Occupation }) {
+  const peut = usePeut();
+
+  const libelle =
+    o.genre === "tache"
+      ? o.tache.titre
+      : o.genre === "evenement"
+        ? o.evenement.titre
+        : o.permanence.predefinedTask.nom;
+
+  const classe = `tchip${
+    o.genre === "tache" && o.tache.horsProjet
+      ? " tchip-indep"
+      : o.genre === "permanence"
+        ? " tchip-flat"
+        : ""
+  }`;
+
+  const style = couleurDe(
+    o.genre === "tache"
+      ? `st-${o.tache.statut}`
+      : o.genre === "evenement"
+        ? "event"
+        : "activity",
+  );
+
+  const contenu = (
+    <>
+      {o.genre === "tache" && o.tache.project ? (
+        <Pastille icone={o.tache.project.icone} titre={o.tache.project.nom} />
+      ) : null}
+      <span>{libelle}</span>
+    </>
+  );
+
+  if (o.genre === "tache" && peut("tasks:read")) {
+    return (
+      <Link to="/taches/$id" params={{ id: o.tache.id }} className={classe} style={style} title={libelle}>
+        {contenu}
+      </Link>
+    );
+  }
+
+  return (
+    <span className={classe} style={style} title={libelle}>
+      {contenu}
+    </span>
   );
 }
 
