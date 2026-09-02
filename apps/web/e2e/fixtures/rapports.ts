@@ -85,6 +85,12 @@ export const VUE_ENSEMBLE = {
         id: "j2", nom: "Livraison du socle", projetId: "p3", projetNom: "Échéance passée",
         dateEcheance: "2026-08-04", joursDeRetard: 7, tachesRestantes: 1,
       },
+      {
+        // Le cas trouvé en production : échu, aucune tâche rattachée. Zéro ne
+        // veut pas dire « tout est fait », il veut dire « rien n'est accroché ».
+        id: "j3", nom: "Cadrage à écrire", projetId: "p4", projetNom: "Pas encore lancé",
+        dateEcheance: "2026-08-09", joursDeRetard: 2, tachesRestantes: 0,
+      },
     ],
     retardsNonListes: 0,
   },

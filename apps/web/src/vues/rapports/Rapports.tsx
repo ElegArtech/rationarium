@@ -644,6 +644,13 @@ function Jalons({ jalons }: { jalons: api.VueEnsemble["jalons"] }) {
  * L'ordre est celui du plus ancien retard au plus récent, parce que c'est dans
  * cet ordre qu'ils se traitent, et parce qu'un projet qui concentre le retard
  * se voit alors d'un coup d'œil, ses jalons se suivant dans la liste.
+ *
+ * **Zéro tâche restante ne veut pas dire « tout est fait ».** Un jalon dont
+ * toutes les tâches sont faites est atteint à temps et ne figure pas ici :
+ * dans cette liste, un zéro ne peut donc signifier qu'une chose, aucune tâche
+ * n'est rattachée au jalon. C'est d'ailleurs la raison de son retard, et le
+ * libellé le dit — écrire « toutes les tâches sont faites » sous « en retard »
+ * était une contradiction, trouvée sur les données réelles.
  */
 function RetardsDeJalons({ jalons }: { jalons: api.VueEnsemble["jalons"] }) {
   const { t } = useTranslation("rapports");

@@ -430,7 +430,12 @@ describe("EX-RPT-08 — la complétion des jalons", () => {
     });
     // « Toutes les tâches terminées » sur zéro tâche serait vrai par vacuité :
     // c'est le piège que ce test tient.
-    expect((await page()).jalons.aTemps).toBe(0);
+    const vue = await page();
+    expect(vue.jalons.aTemps).toBe(0);
+    // `RG-RPT-07` — il figure donc dans le détail, avec zéro tâche restante.
+    // Ce zéro ne dit pas « tout est fait », il dit « rien n'est rattaché », et
+    // c'est la raison du retard : l'interface doit l'écrire ainsi.
+    expect(vue.jalons.retards).toMatchObject([{ nom: "Sans tâche", tachesRestantes: 0 }]);
   });
 });
 
