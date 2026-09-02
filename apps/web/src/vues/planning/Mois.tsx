@@ -17,7 +17,15 @@ import type { Selection } from "./Detail.js";
  * **Le détail sort de la cellule.** Il n'y est pas entassé en plus petit — la
  * cellule est un signal, pas un résumé. Chaque cellule est un bouton : elle
  * s'ouvre au clic **et** au clavier, ce qui est la seule façon d'atteindre le
- * détail sans souris. Un simple `title` au survol n'aurait pas cette propriété.
+ * détail sans souris.
+ *
+ * Chaque barre porte en outre le libellé de son occupation en `title`. C'est
+ * un COMPLÉMENT, jamais le mécanisme : `title` ne se déclenche pas au clavier
+ * et ne remplace donc rien de ce qui précède. Mais sur une vue dont la
+ * cellule est une texture, savoir ce qu'une barre désigne sans avoir à ouvrir
+ * le détail change la lecture — et l'attribut natif est ici le bon outil :
+ * une infobulle de bibliothèque par barre, ce sont plusieurs centaines de
+ * composants montés pour une grille de mois.
  *
  * La colonne « Ressource » reste figée au défilement horizontal, l'en-tête des
  * jours au défilement vertical.
@@ -30,6 +38,14 @@ import type { Selection } from "./Detail.js";
  * n'apparaissait qu'à cinq.
  */
 const MAX_BARRES = 3;
+
+/** Le libellé d'une occupation, quel que soit son genre. */
+const libelleOccupation = (o: Cellule["occupations"][number]): string =>
+  o.genre === "tache"
+    ? o.tache.titre
+    : o.genre === "evenement"
+      ? o.evenement.titre
+      : o.permanence.predefinedTask.nom;
 
 export function GrilleMois({
   donnees,
@@ -273,6 +289,7 @@ function MicroCellule({
               <span
                 key={o.cle}
                 className={`mbar${o.genre === "tache" && o.tache.horsProjet ? " is-indep" : ""}`}
+                title={libelleOccupation(o)}
                 style={{
                   color:
                     o.genre === "tache"
@@ -294,7 +311,12 @@ function MicroCellule({
 
       {occupationsVisibles && cellule.lieu ? (
         <span
-          className={`mplace${cellule.lieu.etat === "office" ? " is-office" : ""}`}
+          className={`mplace${cellule.lieu.etat === "office" ? " is-office" : ""}${
+            // Le filet de lieu court d'un bord à l'autre ; le compteur vit
+            // désormais dans le même coin. Il s'arrête donc avant lui plutôt
+            // que de passer dessous.
+            cellule.occupations.length > MAX_BARRES ? " is-short" : ""
+          }`}
           aria-hidden="true"
         />
       ) : null}
