@@ -1,6 +1,6 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { MutationCache, QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "@tanstack/react-router";
 
 import "./i18n/index.js";
@@ -31,7 +31,54 @@ import { ErreurApi } from "./api/client.js";
  * et le code sont dans le lot de construction.
  */
 
+/**
+ * Les vues qui AGRÈGENT le travail des autres.
+ *
+ * Rien de ce qu'elles montrent ne leur appartient : le tableau de bord et le
+ * planning affichent des tâches, des congés, des événements que l'on modifie
+ * ailleurs. Elles ne peuvent donc pas savoir quand leur contenu a changé, et
+ * c'est aux écritures de le leur dire — ce qu'aucune n'avait de raison de
+ * penser à faire.
+ *
+ * Le défaut observé : clore une tâche depuis sa fiche, revenir au tableau de
+ * bord par la barre latérale, et l'y retrouver « à faire ». La donnée était
+ * juste au serveur ; c'est le cache du client qui servait l'état d'avant. Il
+ * fallait recharger la page pour voir la vérité — le pire des symptômes, car
+ * l'affichage n'a pas l'air en panne, il a l'air d'avoir raison.
+ *
+ * Les lister ici plutôt que d'ajouter une invalidation à chaque mutation :
+ * elles sont une petite dizaine, les écritures se comptent par centaines, et
+ * c'est précisément l'oubli d'une écriture qui a produit ce défaut. Une règle
+ * qui dépend de la vigilance de chaque appel n'en est pas une.
+ */
+const VUES_AGREGEES = [
+  ["tableau-de-bord"],
+  ["planning"],
+  ["activite"],
+  ["presence"],
+  ["rapports"],
+  ["suivi"],
+  ["notifications"],
+];
+
 const cache = new QueryClient({
+  /*
+   * Après TOUTE écriture réussie, les vues d'agrégation sont périmées.
+   *
+   * `invalidateQueries` ne relance que les requêtes MONTÉES ; les autres sont
+   * seulement marquées, et se rechargent à leur prochain affichage. Depuis la
+   * fiche d'une tâche, cela ne déclenche donc aucune requête — le tableau de
+   * bord se recharge quand on y revient, et pas avant.
+   *
+   * Les invalidations que les vues font déjà pour leurs propres clés restent :
+   * celles-ci ne les remplacent pas, elles couvrent ce qu'aucune vue ne peut
+   * connaître depuis l'endroit où elle écrit.
+   */
+  mutationCache: new MutationCache({
+    onSuccess: () => {
+      for (const queryKey of VUES_AGREGEES) void cache.invalidateQueries({ queryKey });
+    },
+  }),
   defaultOptions: {
     queries: {
       // Réessayer un refus n'a jamais fait changer d'avis un serveur : 401,
