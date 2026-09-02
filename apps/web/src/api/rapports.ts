@@ -68,10 +68,8 @@ export type VueEnsemble = {
       ecart: number;
       taches: number;
     }[];
+    /** Tous les projets du périmètre — `RG-RPT-02` en fait l'exception. */
     total: number;
-    /** `RG-RPT-02` — annoncé, jamais silencieux. */
-    tronque: boolean;
-    plafond: number;
   };
   charge: {
     agents: { id: string; nom: string; taches: number; surcharge: boolean }[];

@@ -151,14 +151,22 @@ test.describe("Vue 30 — les rapports imprimés, et le PDF", () => {
     await expect(page.getByText("Portail citoyen").first()).toBeVisible();
   });
 
-  test("RG-RPT-02 — LE TRONCAGE RESTE ANNONCÉ SUR PAPIER", async ({ page }) => {
+  /*
+   * Ce contrôle vérifiait que le TRONCAGE était annoncé sur papier. Depuis
+   * l'exception de `RG-RPT-02` (2026-09-02), il n'y a plus de troncage à
+   * annoncer — et c'est sur papier que cela compte le plus : une feuille ne
+   * se fait pas défiler pour constater qu'il manque des projets.
+   */
+  test("RG-RPT-02 — TOUS LES PROJETS S'IMPRIMENT, aucun n'est laissé à l'écran", async ({
+    page,
+  }) => {
     await serveur(page, { session: SESSION_RAPPORTS, reponses });
     await page.goto("/rapports");
     await enImpression(page);
 
-    // C'est sur papier qu'il compte le plus : on ne peut plus faire défiler
-    // pour constater qu'il manque des projets.
-    await expect(page.getByText(/Affichage limité aux 10 premiers projets/)).toBeVisible();
+    const panneau = page.locator("section.panel", { hasText: "Avancement réel et attendu" });
+    await expect(panneau.locator(".hbar")).toHaveCount(12);
+    await expect(page.getByText(/Affichage limité/)).toHaveCount(0);
   });
 });
 
