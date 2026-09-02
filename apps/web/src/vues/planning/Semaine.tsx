@@ -71,7 +71,16 @@ export function GrilleSemaine({
   // `RG-PLN-03` — les jours visibles suivent le paramétrage global.
   const jours = joursAffiches(donnees.periode.jours);
   const aujourdhui = new Date().toISOString().slice(0, 10);
-  const styleGrille = { "--cols": `210px repeat(${jours.length}, minmax(122px, 1fr))` } as CSSProperties;
+  /*
+   * `minmax(0, 1fr)`, et non `minmax(122px, 1fr)` : le plancher de 122 px
+   * poussait la grille hors de son cadre dès que la largeur disponible ne
+   * suffisait plus, et le cadre répondait par une barre de défilement
+   * horizontale. Une semaine se lit d'un coup d'œil ou ne se lit pas — les
+   * sept jours tiennent donc toujours, et ce sont les intitulés qui se
+   * coupent. La colonne des ressources cède 20 px au passage : c'est elle qui
+   * a le plus de marge, ses noms étant déjà tronqués par `.res-name`.
+   */
+  const styleGrille = { "--cols": `190px repeat(${jours.length}, minmax(0, 1fr))` } as CSSProperties;
 
   const deposer = (userId: string, date: string) => {
     if (!glisse) return;
