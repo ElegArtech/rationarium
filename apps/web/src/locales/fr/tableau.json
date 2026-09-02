@@ -46,7 +46,8 @@
     "echecTemps": "Le temps n'a pas pu être enregistré.",
     "validerSansDeclaration": "Valider sans déclaration",
     "valideeSansDeclaration": "Tâche close sans déclaration.",
-    "echecValidation": "La validation n'a pas abouti."
+    "echecValidation": "La validation n'a pas abouti.",
+    "pourAujourdhui": "Aujourd'hui"
   },
   "todo": {
     "titre": "Ma to-do",

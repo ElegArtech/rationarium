@@ -219,5 +219,6 @@
   "ext": "EXT",
   "interventionExterieure": "External work",
   "pourcent": "{n, number} %",
-  "enregistrer": "Save"
+  "enregistrer": "Save",
+  "pourAujourdhui": "Today"
 }

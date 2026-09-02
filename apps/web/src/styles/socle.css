@@ -72,6 +72,11 @@
   --danger-soft:#FBECEC;
   --success-soft:#E8F4ED;
   --warn-soft:#FCF2E2;
+  /* « C'est pour aujourd'hui » — un signal, pas une alerte. Même ambre que
+     `--st-review`, sous un nom qui dit autre chose : l'un qualifie un STATUT
+     de tâche, l'autre une ÉCHÉANCE. S'ils partagent une teinte, ils ne
+     partagent pas une raison de changer. */
+  --echeance-jour:#9A5B00;
 
   /* Trames de fond */
   --trame-ferie:rgba(20,22,28,.055);
@@ -125,6 +130,8 @@ html.dark{
   --st-review:#E0A64B;
   --st-done:#5EC48D;
   --st-blocked:#F08585;
+
+  --echeance-jour:#E0A64B;
 
   --leave:#B39BE8;
   --leave-pending:#8E7FBD;

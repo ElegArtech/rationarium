@@ -219,5 +219,6 @@
   "ext": "EXT",
   "interventionExterieure": "Intervention extérieure",
   "pourcent": "{n, number} %",
-  "enregistrer": "Enregistrer"
+  "enregistrer": "Enregistrer",
+  "pourAujourdhui": "Aujourd'hui"
 }

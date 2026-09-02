@@ -463,8 +463,15 @@ function LigneTache({ tache }: { tache: api.TacheAVenir }) {
         <p className="trow-title">
           {tache.project ? <Pastille icone={tache.project.icone} titre={tache.project.nom} /> : null}
           <span>{tache.titre}</span>
-          {/* `RG-DSH-04` — le marqueur est textuel autant que coloré. */}
+          {/* `RG-DSH-04` — le marqueur est textuel autant que coloré. Et le
+              retard n'est le retard qu'une fois l'échéance DÉPASSÉE : une
+              tâche due aujourd'hui porte sa propre marque, en ambre, parce
+              que c'est le dernier jour où elle peut encore être tenue. Les
+              deux s'excluent — le serveur ne les rend jamais ensemble. */}
           {tache.enRetard ? <span className="badge badge-late">{t("taches.enRetard")}</span> : null}
+          {tache.pourAujourdhui ? (
+            <span className="badge badge-today">{t("taches.pourAujourdhui")}</span>
+          ) : null}
           {!tache.project ? (
             <span className="badge badge-indep">{t("taches.sansProjet")}</span>
           ) : null}

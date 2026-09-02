@@ -46,7 +46,8 @@
     "echecTemps": "The time could not be saved.",
     "validerSansDeclaration": "Close without logging",
     "valideeSansDeclaration": "Task closed without logging.",
-    "echecValidation": "The validation did not go through."
+    "echecValidation": "The validation did not go through.",
+    "pourAujourdhui": "Today"
   },
   "todo": {
     "titre": "My to-do",

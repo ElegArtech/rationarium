@@ -292,6 +292,11 @@ function LigneTache({
         <span className="t2-sub">
           <Pastille code={tache.priorite} vocabulaire={PRIORITES} />
           {tache.enRetard ? <span className="pill badge-late">{t("enRetard")}</span> : null}
+          {/* Due aujourd'hui : le rouge du retard serait faux — l'échéance
+              n'est pas dépassée, c'est le dernier jour pour la tenir. */}
+          {tache.pourAujourdhui ? (
+            <span className="pill badge-today">{t("pourAujourdhui")}</span>
+          ) : null}
           {tache.interventionExterieure ? (
             <span className="pill pill-ext" title={t("interventionExterieure")}>
               {t("ext")}

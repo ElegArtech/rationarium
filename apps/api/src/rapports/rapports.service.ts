@@ -3,6 +3,7 @@ import type { SanteProjet, EtatRag } from "@rationarium/contracts";
 import { PrismaService } from "../prisma.service.js";
 import { PerimetreService, type Perimetre } from "../commun/perimetre.service.js";
 import { AuditService } from "../commun/audit.service.js";
+import { debutDuJour, echeanceDepassee } from "../commun/dates.js";
 
 /**
  * M17 — rapports et analytics. Vues 15 et 30.
@@ -189,7 +190,10 @@ export class RapportsService {
       where: {
         projectId: { in: projetIds },
         statut: { not: "done" },
-        dateFin: { lt: reference },
+        // Le DÉBUT du jour, pas l'instant : `dateFin` est une colonne `Date`,
+        // donc à minuit, et comparée à l'heure courante toute échéance du
+        // jour comptait comme dépassée. Voir `commun/dates.ts`.
+        dateFin: { lt: debutDuJour(reference) },
       },
     });
     return { tachesEnRetard: enRetard };
@@ -301,7 +305,7 @@ export class RapportsService {
     return projets.map((p) => {
       const restantes = p.taches.filter((t) => t.statut !== "done").length;
       const enRetard = p.taches.filter(
-        (t) => t.statut !== "done" && t.dateFin !== null && t.dateFin < reference,
+        (t) => t.statut !== "done" && echeanceDepassee(t.dateFin, reference),
       ).length;
       const jalonsAVenir = p.jalons.filter(
         (j) => j.dateEcheance !== null && j.dateEcheance >= reference,
@@ -317,7 +321,8 @@ export class RapportsService {
       // difficulté, même si le pourcentage rassure.
       let sante: SanteProjet = "good";
       if (enRetard > 0) sante = "warning";
-      if (enRetard >= 3 || (enRetard > 0 && p.dateFin < reference)) sante = "critical";
+      if (enRetard >= 3 || (enRetard > 0 && echeanceDepassee(p.dateFin, reference)))
+        sante = "critical";
 
       return {
         id: p.id,

@@ -259,6 +259,12 @@ a.tchip:hover {
   color: var(--muted);
 }
 
+/* `RG-DSH-04` — l'échéance du jour se voit, mais pas en rouge : elle n'est pas
+   dépassée, elle arrive. Le mot porte le sens, la teinte porte l'urgence. */
+.badge-today {
+  color: var(--echeance-jour);
+}
+
 .mini-select {
   font-family: var(--font-ui);
   font-size: 12px;

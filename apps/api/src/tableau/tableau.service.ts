@@ -3,6 +3,7 @@ import { PrismaService } from "../prisma.service.js";
 import { PlanningService } from "../planning/planning.service.js";
 import { TempsService } from "../temps/temps.service.js";
 import type { Perimetre } from "../commun/perimetre.service.js";
+import { echeanceAujourdhui, echeanceDepassee } from "../commun/dates.js";
 
 /**
  * M16 — le tableau de bord. Vue 06.
@@ -115,10 +116,13 @@ export class TableauService {
     const terminees = taches.filter((t) => t.statut === "done").length;
     const enCours = taches.filter((t) => t.statut === "doing" || t.statut === "review").length;
 
-    // `RG-DSH-04` — en retard : échéance dépassée ET pas terminée. Une tâche
-    // finie hier n'est pas en retard, elle est finie.
+    // `RG-DSH-04` — en retard : échéance DÉPASSÉE ET pas terminée. Une tâche
+    // finie hier n'est pas en retard, elle est finie ; une tâche due
+    // aujourd'hui ne l'est pas non plus, elle est due — `echeanceDepassee`
+    // compare le jour, quand `dateFin < aujourdhui` comparait l'instant et
+    // mettait en retard, dès minuit, tout ce qui restait à faire du jour.
     const enRetard = taches.filter(
-      (t) => t.statut !== "done" && t.dateFin !== null && t.dateFin < aujourdhui,
+      (t) => t.statut !== "done" && echeanceDepassee(t.dateFin, aujourdhui),
     ).length;
 
     return {
@@ -161,7 +165,11 @@ export class TableauService {
       estimationHeures: t.estimationHeures ? Number(t.estimationHeures) : null,
       version: t.version,
       project: t.project,
-      enRetard: t.dateFin !== null && t.dateFin < aujourdhui,
+      enRetard: echeanceDepassee(t.dateFin, aujourdhui),
+      // Due aujourd'hui : ni en retard, ni silencieuse. C'est le seul jour où
+      // la personne peut encore la tenir, et l'écran doit le dire — mais
+      // autrement que par le rouge du retard.
+      pourAujourdhui: echeanceAujourdhui(t.dateFin, aujourdhui),
       heuresDeclarees: t.saisiesTemps.reduce((n, s) => n + Number(s.heures), 0),
     }));
   }

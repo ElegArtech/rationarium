@@ -4,6 +4,7 @@ import { AuditService } from "../commun/audit.service.js";
 import { PerimetreService, type Perimetre } from "../commun/perimetre.service.js";
 import { NotificationsService } from "../notifications/notifications.service.js";
 import type { StatutTache, Priorite, RoleRaci } from "@rationarium/contracts";
+import { debutDuJour, echeanceAujourdhui, echeanceDepassee } from "../commun/dates.js";
 
 /**
  * Tâches — M6, vues 12, 16, 17. Criticité haute.
@@ -85,7 +86,10 @@ export class TachesService {
     if (filtres.priorite) clauses.push({ priorite: filtres.priorite });
     if (filtres.assigneId) clauses.push({ assignes: { some: { userId: filtres.assigneId } } });
     if (filtres.enRetard) {
-      clauses.push({ dateFin: { lt: new Date() }, statut: { not: "done" } });
+      // Le DÉBUT du jour : `dateFin` est une colonne `Date`, donc à minuit, et
+      // comparée à l'heure courante le filtre ramassait tout le travail dû
+      // aujourd'hui. Voir `commun/dates.ts`.
+      clauses.push({ dateFin: { lt: debutDuJour(new Date()) }, statut: { not: "done" } });
     }
 
     const taches = await this.prisma.task.findMany({
@@ -102,7 +106,9 @@ export class TachesService {
     const maintenant = new Date();
     return taches.map((t) => ({
       ...t,
-      enRetard: t.dateFin !== null && t.dateFin < maintenant && t.statut !== "done",
+      enRetard: echeanceDepassee(t.dateFin, maintenant) && t.statut !== "done",
+      /** Due aujourd'hui : le dernier jour où elle peut encore être tenue. */
+      pourAujourdhui: echeanceAujourdhui(t.dateFin, maintenant) && t.statut !== "done",
       /** Parti pris n° 2 : le hors-projet est nommé, pas laissé vide. */
       horsProjet: t.projectId === null,
     }));
@@ -404,7 +410,9 @@ export class TachesService {
       tiers: tache.tiers.map((x) => x.thirdParty),
       dependances: liens,
       incoherences,
-      enRetard: tache.dateFin !== null && tache.dateFin < maintenant && tache.statut !== "done",
+      enRetard: echeanceDepassee(tache.dateFin, maintenant) && tache.statut !== "done",
+      /** Due aujourd'hui : le dernier jour où elle peut encore être tenue. */
+      pourAujourdhui: echeanceAujourdhui(tache.dateFin, maintenant) && tache.statut !== "done",
       /** Parti pris n° 2 : le hors-projet est nommé, pas laissé vide. */
       horsProjet: tache.projectId === null,
     };
