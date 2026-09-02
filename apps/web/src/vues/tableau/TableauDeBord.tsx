@@ -77,16 +77,18 @@ export function TableauDeBord() {
 
       <Indicateurs indicateurs={indicateurs} />
 
+      {/* Le planning occupe la largeur entière : c'est la seule tuile dont le
+          contenu est une grille de jours, et cinq colonnes serrées dans une
+          demi-page tronquaient les intitulés au premier mot. Le reste se lit
+          en deux colonnes — la gauche large pour ce qui demande un geste
+          (tâches, projets), la droite pour ce qui se consulte. */}
+      <MonPlanning planning={planning} />
+
       <div className="dash-grid">
-        <div>
-          <MonPlanning planning={planning} />
-          <MesTaches aVenir={taches.aVenir} nonDeclarees={taches.nonDeclarees} />
-        </div>
-        <div>
-          <MaToDo todos={todos} />
-          <MesProjets projets={projets} />
-          <PresenceDuJour />
-        </div>
+        <MesTaches aVenir={taches.aVenir} nonDeclarees={taches.nonDeclarees} />
+        <MaToDo todos={todos} />
+        <MesProjets projets={projets} />
+        <PresenceDuJour />
       </div>
     </div>
   );
