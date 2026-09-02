@@ -215,6 +215,9 @@ function Carte({
       <div className="kcard-top">
         <Pastille code={tache.priorite} vocabulaire={PRIORITES} />
         {tache.enRetard ? <span className="badge badge-late">{t("enRetard")}</span> : null}
+        {tache.pourAujourdhui ? (
+          <span className="badge badge-today">{t("pourAujourdhui")}</span>
+        ) : null}
         {tache.horsProjet ? (
           <span className="badge badge-indep">{t("tacheIndependante")}</span>
         ) : null}

@@ -75,8 +75,8 @@ afterAll(async () => {
 });
 
 const perimetre = () => perimetres.resoudre(moi, new Set(["users:manage_any"]));
-const accueil = async () =>
-  tableau.accueil(moi, await perimetre(), new Set(["planning:read"]), MOMENT);
+const accueil = async (moment: Date = MOMENT) =>
+  tableau.accueil(moi, await perimetre(), new Set(["planning:read"]), moment);
 
 // ════════════════════════════════════════════════════════════════════════════
 
@@ -159,6 +159,48 @@ describe("EX-DSH-02 — les quatre indicateurs", () => {
     const parTitre = new Map(page.taches.aVenir.map((t) => [t.titre, t]));
     expect(parTitre.get("Dépassée et ouverte")?.enRetard).toBe(true);
     expect(parTitre.get("À venir")?.enRetard).toBe(false);
+  });
+
+  /*
+   * RG-DSH-04 — une tâche due AUJOURD'HUI n'est pas en retard.
+   *
+   * Ce cas manquait, et son absence n'était pas un oubli anodin : `MOMENT`
+   * vaut minuit, or c'est la seule heure de la journée où l'ancien code
+   * (`dateFin < aujourdhui`, instant contre instant) donnait la bonne réponse.
+   * La suite était donc verte pendant que l'exploitation, qui appelle avec
+   * `new Date()`, marquait en rouge tout le travail du jour dès la première
+   * seconde. D'où l'heure de travail explicite ci-dessous : c'est elle qui
+   * distingue une comparaison de jours d'une comparaison d'instants.
+   */
+  it("RG-DSH-04 — UNE TÂCHE DUE AUJOURD'HUI N'EST PAS EN RETARD, à aucune heure", async () => {
+    await prisma.task.create({
+      data: {
+        titre: "Due aujourd'hui", statut: "doing", dateFin: utc("2026-08-11"),
+        assignes: { create: [{ userId: moi }] },
+      },
+    });
+    await prisma.task.create({
+      data: {
+        titre: "Due hier", statut: "doing", dateFin: utc("2026-08-10"),
+        assignes: { create: [{ userId: moi }] },
+      },
+    });
+
+    for (const heure of ["T00:00:00.000Z", "T09:30:00.000Z", "T23:59:59.000Z"]) {
+      const page = await accueil(new Date(`2026-08-11${heure}`));
+      const parTitre = new Map(page.taches.aVenir.map((t) => [t.titre, t]));
+
+      expect(parTitre.get("Due aujourd'hui")?.enRetard).toBe(false);
+      // Elle n'est pas silencieuse pour autant : c'est le dernier jour où
+      // elle peut être tenue, et l'écran doit le dire — autrement.
+      expect(parTitre.get("Due aujourd'hui")?.pourAujourdhui).toBe(true);
+
+      expect(parTitre.get("Due hier")?.enRetard).toBe(true);
+      expect(parTitre.get("Due hier")?.pourAujourdhui).toBe(false);
+
+      // Le compteur compte la même chose que les marqueurs.
+      expect(page.indicateurs.tachesEnRetard).toBe(1);
+    }
   });
 
   it("les tâches d'autrui ne comptent pas dans MES indicateurs", async () => {

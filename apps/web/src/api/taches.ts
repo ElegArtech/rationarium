@@ -25,6 +25,8 @@ export type LigneTache = {
   assignes: Assigne[];
   _count: { sousTaches: number; dependances: number };
   enRetard: boolean;
+  /** L'échéance tombe aujourd'hui : un signal, jamais une alerte. */
+  pourAujourdhui: boolean;
   /** Le hors-projet est **nommé**, jamais déduit d'un champ vide. */
   horsProjet: boolean;
 };

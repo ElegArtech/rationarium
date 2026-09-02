@@ -20,8 +20,10 @@ export type TacheAVenir = {
   estimationHeures: number | null;
   version: number;
   project: { id: string; nom: string; icone: string | null } | null;
-  /** `RG-DSH-04` — échéance dépassée ET pas terminée. */
+  /** `RG-DSH-04` — échéance DÉPASSÉE ET pas terminée. Aujourd'hui ne l'est pas. */
   enRetard: boolean;
+  /** L'échéance tombe aujourd'hui : un signal, jamais une alerte. */
+  pourAujourdhui: boolean;
   /** `RG-TMP-07` — tous contributeurs confondus, pour éviter la double saisie. */
   heuresDeclarees: number;
 };
