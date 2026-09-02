@@ -356,7 +356,19 @@ test.describe("Vue 30 — la complétion des jalons", () => {
     await expect(bloc.locator(".mile-item .mile-nom")).toHaveText([
       "Recette fonctionnelle",
       "Livraison du socle",
+      "Cadrage à écrire",
     ]);
+
+    /*
+      ZÉRO TÂCHE RESTANTE NE VEUT PAS DIRE « TOUT EST FAIT ». Un jalon dont
+      toutes les tâches sont faites est atteint à temps et ne figure pas dans
+      cette liste : un zéro n'y signifie donc que l'absence de tâche, qui est
+      la raison même du retard. Le libellé disait le contraire, et cela s'est
+      vu sur les données réelles avant de se voir ici.
+    */
+    await expect(
+      bloc.locator(".mile-item").last().getByText(/09\/08\/2026 · aucune tâche rattachée/),
+    ).toBeVisible();
 
     // Et la ligne MÈNE au projet, sans quoi il faudrait le retrouver à la main.
     await expect(premiere.getByRole("link")).toHaveAttribute("href", "/projets/p2/jalons");
