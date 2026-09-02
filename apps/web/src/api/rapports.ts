@@ -17,6 +17,16 @@ const params = (filtres: Record<string, string | undefined>) => {
   return s ? `?${s}` : "";
 };
 
+export type JalonEnRetard = {
+  id: string;
+  nom: string;
+  projetId: string;
+  projetNom: string;
+  dateEcheance: string;
+  joursDeRetard: number;
+  tachesRestantes: number;
+};
+
 export type Periode = "semaine" | "mois" | "trimestre" | "annee";
 
 export type FiltresRapport = {
@@ -78,7 +88,17 @@ export type VueEnsemble = {
     /** `RG-RPT-04` — calculée, pas laissée à l'œil. */
     stagnation: boolean;
   };
-  jalons: { total: number; aTemps: number; enRetard: number; aVenir: number; echus: number };
+  jalons: {
+    total: number;
+    aTemps: number;
+    enRetard: number;
+    aVenir: number;
+    echus: number;
+    /** Les jalons en retard, un à un, du plus ancien au plus récent. */
+    retards: JalonEnRetard[];
+    /** Ce que le plafond de lisibilité laisse hors de la liste. */
+    retardsNonListes: number;
+  };
   repartitions: {
     priorite: { cle: string; nombre: number }[];
     statut: { cle: string; nombre: number }[];

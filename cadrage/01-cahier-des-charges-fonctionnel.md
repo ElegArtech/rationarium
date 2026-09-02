@@ -745,7 +745,7 @@ Trois onglets : **Vue d'ensemble** · **Analytics avancés** · **Gantt portefeu
 | EX-RPT-05 | Consulter la répartition de charge par collaborateur et les surcharges |
 | EX-RPT-06 | Consulter la santé des projets |
 | EX-RPT-07 | Consulter la tendance de progression |
-| EX-RPT-08 | Consulter la complétion des jalons |
+| EX-RPT-08 | Consulter la complétion des jalons, et le détail des jalons en retard par projet |
 | EX-RPT-09 | Consulter la répartition des tâches par priorité et par statut |
 | EX-RPT-10 | Consulter l'activité récente sur 30 jours |
 | EX-RPT-11 | Consulter le Gantt portefeuille |
@@ -770,6 +770,9 @@ Trois onglets : **Vue d'ensemble** · **Analytics avancés** · **Gantt portefeu
 - **RG-RPT-04** — Une stagnation de progression est détectée et signalée.
 - **RG-RPT-05** — Une surcharge est détectée par écart à la moyenne de l'équipe.
 - **RG-RPT-06** — Chaque graphique dispose d'un état vide explicite plutôt que d'une zone blanche.
+- **RG-RPT-07** — Un compteur d'anomalies est décliné sous lui-même : les jalons en retard sont nommés un à un, avec leur projet, l'ancienneté du retard et ce qui reste à faire pour le lever, du plus ancien au plus récent. La liste est bornée par `RG-RPT-02` et son troncage est annoncé. L'absence de retard s'écrit, elle ne se déduit pas d'une zone vide.
+
+> `RG-RPT-07` ajoutée le 2026-09-02 sur demande du commanditaire : « il n'y a qu'une métrique globale, elle est utile, mais est-ce qu'en dessous il ne peut pas y avoir la déclinaison des jalons en retard identifiés par projet ». Un compte sans suite ne dit pas où agir.
 
 ---
 

@@ -1,6 +1,7 @@
 import { useMemo, useState, type CSSProperties } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { Button, Menu, MenuItem, MenuTrigger, Popover } from "react-aria-components";
 import * as api from "../../api/rapports.js";
 import { usePeut } from "../../session/session.js";
@@ -623,10 +624,67 @@ function Jalons({ jalons }: { jalons: api.VueEnsemble["jalons"] }) {
                 </span>
               ))}
             </div>
+
+            <RetardsDeJalons jalons={jalons} />
           </>
         )}
       </div>
     </section>
+  );
+}
+
+/**
+ * `EX-RPT-08` — le détail de ce qui est en retard, sous le compte global.
+ *
+ * Un compteur sans suite laisse chercher où agir : « trois jalons en retard »
+ * ne dit ni lesquels, ni dans quel projet, ni depuis quand. Chaque ligne nomme
+ * donc son jalon, son projet, l'ancienneté du retard et ce qui reste à faire
+ * pour le lever, et elle mène à la feuille de route du projet.
+ *
+ * L'ordre est celui du plus ancien retard au plus récent, parce que c'est dans
+ * cet ordre qu'ils se traitent, et parce qu'un projet qui concentre le retard
+ * se voit alors d'un coup d'œil, ses jalons se suivant dans la liste.
+ */
+function RetardsDeJalons({ jalons }: { jalons: api.VueEnsemble["jalons"] }) {
+  const { t } = useTranslation("rapports");
+
+  if (jalons.enRetard === 0) {
+    // L'absence de retard est une information, et elle vaut d'être écrite :
+    // rien afficher laisserait croire que le détail manque.
+    return <p className="mile-aucun">{t("jalons.aucunRetard")}</p>;
+  }
+
+  return (
+    <div className="mile-late">
+      <span className="eyebrow">{t("jalons.detailRetards")}</span>
+      <ul className="mile-list">
+        {jalons.retards.map((j) => (
+          <li className="mile-item" key={j.id}>
+            <Link
+              className="mile-lien"
+              to="/projets/$id/jalons"
+              params={{ id: j.projetId }}
+              title={t("jalons.allerAuProjet", { projet: j.projetNom })}
+            >
+              <span className="mile-nom">{j.nom}</span>
+              <span className="mile-projet">{j.projetNom}</span>
+            </Link>
+            <span className="mile-retard">
+              {t("jalons.retardDeJours", { n: j.joursDeRetard })}
+            </span>
+            <span className="mile-reste">
+              {t("jalons.echeanceEtReste", {
+                date: formaterDate(j.dateEcheance),
+                n: j.tachesRestantes,
+              })}
+            </span>
+          </li>
+        ))}
+      </ul>
+      {jalons.retardsNonListes > 0 ? (
+        <p className="mile-tronque">{t("jalons.autresRetards", { n: jalons.retardsNonListes })}</p>
+      ) : null}
+    </div>
   );
 }
 

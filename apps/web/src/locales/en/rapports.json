@@ -86,7 +86,13 @@
     "aTemps": "On time",
     "enRetard": "Late",
     "aVenir": "Upcoming",
-    "vide": "No milestone defined"
+    "vide": "No milestone defined",
+    "detailRetards": "What is late",
+    "aucunRetard": "No due milestone is late.",
+    "retardDeJours": "{n, plural, one {# day late} other {# days late}}",
+    "echeanceEtReste": "due {date} · {n, plural, =0 {all tasks done} one {# task left} other {# tasks left}}",
+    "allerAuProjet": "View milestones for {projet}",
+    "autresRetards": "{n, plural, one {# more late milestone is not listed} other {# more late milestones are not listed}}"
   },
   "repartitions": {
     "parPriorite": "Breakdown by priority",

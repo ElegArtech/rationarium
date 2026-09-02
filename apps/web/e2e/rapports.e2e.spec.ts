@@ -327,6 +327,65 @@ test.describe("Vue 30 — rapports et analytics", () => {
 
 // ── Vue 30, onglet Gantt ────────────────────────────────────────────────────
 
+test.describe("Vue 30 — la complétion des jalons", () => {
+  test("`RG-RPT-07` — LE COMPTE GLOBAL EST DÉCLINÉ : chaque retard nomme son projet", async ({
+    page,
+  }) => {
+    await horlogeFixe(page);
+    await serveur(page, { session: SESSION_RAPPORTS, reponses });
+    await page.goto("/rapports");
+
+    // Le compte global reste, c'est lui qui situe. Ce qui manquait est dessous.
+    await expect(page.getByText("3 / 5", { exact: true }).first()).toBeVisible();
+
+    const bloc = page.locator(".mile-late");
+    await expect(bloc.getByText("Ce qui est en retard", { exact: true })).toBeVisible();
+
+    /*
+      Un compteur sans suite laisse chercher où agir. Chaque ligne doit donc
+      porter les quatre faits ensemble : le jalon, le projet, l'ancienneté du
+      retard et ce qu'il reste à faire pour le lever.
+    */
+    const premiere = bloc.locator(".mile-item").first();
+    await expect(premiere.getByText("Recette fonctionnelle", { exact: true })).toBeVisible();
+    await expect(premiere.getByText("Sous tension", { exact: true })).toBeVisible();
+    await expect(premiere.getByText("39 jours de retard", { exact: true })).toBeVisible();
+    await expect(premiere.getByText(/03\/07\/2026 · 4 tâches restent/)).toBeVisible();
+
+    // Le plus ancien retard vient en tête : c'est l'ordre où on les traite.
+    await expect(bloc.locator(".mile-item .mile-nom")).toHaveText([
+      "Recette fonctionnelle",
+      "Livraison du socle",
+    ]);
+
+    // Et la ligne MÈNE au projet, sans quoi il faudrait le retrouver à la main.
+    await expect(premiere.getByRole("link")).toHaveAttribute("href", "/projets/p2/jalons");
+  });
+
+  test("`RG-RPT-07` — aucun retard : l'absence est ÉCRITE, elle ne se déduit pas d'un vide", async ({ page }) => {
+    await horlogeFixe(page);
+    await serveur(page, {
+      session: SESSION_RAPPORTS,
+      reponses: {
+        ...reponses,
+        "/api/rapports": {
+          corps: {
+            ...VUE_ENSEMBLE,
+            jalons: {
+              total: 4, aTemps: 2, enRetard: 0, aVenir: 2, echus: 2,
+              retards: [], retardsNonListes: 0,
+            },
+          },
+        },
+      },
+    });
+    await page.goto("/rapports");
+
+    await expect(page.getByText("Aucun jalon échu n'est en retard.")).toBeVisible();
+    await expect(page.locator(".mile-item")).toHaveCount(0);
+  });
+});
+
 test.describe("Vue 30 — Gantt portefeuille", () => {
   test("EX-RPT-11 — LES CINQ ÉTATS RAG sont distingués et légendés", async ({ page }) => {
     await horlogeFixe(page);

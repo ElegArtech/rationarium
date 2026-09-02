@@ -86,7 +86,13 @@
     "aTemps": "À temps",
     "enRetard": "En retard",
     "aVenir": "À venir",
-    "vide": "Aucun jalon défini"
+    "vide": "Aucun jalon défini",
+    "detailRetards": "Ce qui est en retard",
+    "aucunRetard": "Aucun jalon échu n'est en retard.",
+    "retardDeJours": "{n, plural, one {# jour de retard} other {# jours de retard}}",
+    "echeanceEtReste": "échue le {date} · {n, plural, =0 {toutes les tâches sont faites} one {# tâche reste} other {# tâches restent}}",
+    "allerAuProjet": "Voir les jalons de {projet}",
+    "autresRetards": "{n, plural, one {# autre jalon en retard n'est pas listé} other {# autres jalons en retard ne sont pas listés}}"
   },
   "repartitions": {
     "parPriorite": "Répartition par priorité",

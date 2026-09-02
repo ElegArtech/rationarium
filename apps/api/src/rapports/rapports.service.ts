@@ -41,6 +41,14 @@ const SEUIL_STAGNATION = 2;
 /** `RG-RPT-05` — une charge supérieure à ce multiple de la moyenne surcharge. */
 const FACTEUR_SURCHARGE = 1.5;
 
+/**
+ * `RG-RPT-02` — le nombre de jalons en retard détaillés sous le compte global.
+ *
+ * Dix lignes tiennent sous un panneau sans le faire déborder. Au-delà, la liste
+ * cesserait d'aider : ce qui reste est compté et annoncé, jamais tu.
+ */
+const PLAFOND_RETARDS = 10;
+
 const jour = (d: Date): string => d.toISOString().slice(0, 10);
 
 /**
@@ -308,7 +316,8 @@ export class RapportsService {
         (t) => t.statut !== "done" && echeanceDepassee(t.dateFin, reference),
       ).length;
       const jalonsAVenir = p.jalons.filter(
-        (j) => j.dateEcheance !== null && j.dateEcheance >= reference,
+        // Même règle qu'ailleurs : un jalon dû AUJOURD'HUI est encore à venir.
+        (j) => j.dateEcheance !== null && !echeanceDepassee(j.dateEcheance, reference),
       ).length;
       const completion =
         p.taches.length === 0
@@ -395,30 +404,67 @@ export class RapportsService {
     };
   }
 
-  /** `EX-RPT-08` — la complétion des jalons : à temps, en retard, à venir. */
+  /**
+   * `EX-RPT-08` — la complétion des jalons : à temps, en retard, à venir.
+   *
+   * Le compte global ne dit pas où agir. Les jalons en retard sont donc rendus
+   * un à un, avec leur projet, leur retard et ce qui leur reste à faire, du
+   * plus ancien au plus récent : c'est dans cet ordre qu'ils se traitent, et
+   * c'est là que se voit le projet qui concentre le retard.
+   */
   private async completionJalons(projetIds: string[], reference: Date) {
     const jalons = await this.prisma.milestone.findMany({
       where: { projectId: { in: projetIds } },
       select: {
         id: true, nom: true, dateEcheance: true,
+        project: { select: { id: true, nom: true } },
         taches: { select: { statut: true } },
       },
     });
 
     let aTemps = 0;
-    let enRetard = 0;
     let aVenir = 0;
+    const retards: {
+      id: string; nom: string; projetId: string; projetNom: string;
+      dateEcheance: string; joursDeRetard: number; tachesRestantes: number;
+    }[] = [];
 
     for (const j of jalons) {
       const termine = j.taches.length > 0 && j.taches.every((t) => t.statut === "done");
-      const echu = j.dateEcheance !== null && j.dateEcheance < reference;
+      // Une échéance qui tombe AUJOURD'HUI n'est pas dépassée : c'est le seul
+      // jour où le jalon peut encore être tenu. La comparaison est nommée dans
+      // `commun/dates.ts` et ne se réécrit pas ici.
+      const echu = echeanceDepassee(j.dateEcheance, reference);
 
       if (!echu) aVenir += 1;
       else if (termine) aTemps += 1;
-      else enRetard += 1;
+      else
+        retards.push({
+          id: j.id,
+          nom: j.nom,
+          projetId: j.project.id,
+          projetNom: j.project.nom,
+          dateEcheance: jour(j.dateEcheance!),
+          joursDeRetard: Math.round(
+            (debutDuJour(reference).getTime() - j.dateEcheance!.getTime()) / 86_400_000,
+          ),
+          tachesRestantes: j.taches.filter((t) => t.statut !== "done").length,
+        });
     }
 
-    return { total: jalons.length, aTemps, enRetard, aVenir, echus: aTemps + enRetard };
+    retards.sort((a, b) => b.joursDeRetard - a.joursDeRetard || a.projetNom.localeCompare(b.projetNom));
+
+    return {
+      total: jalons.length,
+      aTemps,
+      enRetard: retards.length,
+      aVenir,
+      echus: aTemps + retards.length,
+      // `RG-RPT-02` — la liste est bornée pour rester lisible, et ce qu'elle
+      // laisse de côté est compté plutôt que tu.
+      retards: retards.slice(0, PLAFOND_RETARDS),
+      retardsNonListes: Math.max(0, retards.length - PLAFOND_RETARDS),
+    };
   }
 
   /** `EX-RPT-09` — la répartition des tâches actives, par priorité et statut. */
