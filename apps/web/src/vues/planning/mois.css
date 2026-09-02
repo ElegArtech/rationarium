@@ -12,10 +12,26 @@
  * contrarient pas : ils portent sur des axes différents.
  */
 
+/*
+ * `min-width: min-content`, et non `max-content`.
+ *
+ * La contribution min-content d'une piste `minmax(34px, 1fr)` est son
+ * plancher — la grille ne descend donc jamais sous `190px + n × 34px`, et le
+ * cadre défile quand le mois ne tient réellement plus. Au-dessus de cette
+ * largeur, `width: auto` la cale sur le cadre et les `1fr` se partagent ce qui
+ * reste : plus de vide à droite.
+ *
+ * `max-content` faisait exactement l'inverse. Il prend la taille max-content
+ * de chaque piste PUIS normalise les `fr` sur la plus large : une seule
+ * cellule un peu chargée gonflait les vingt-deux colonnes à 76 px et la
+ * grille à 1863 px — un défilement horizontal là où il y avait de la place en
+ * trop. C'est pourquoi le passage aux pistes souples se paie ici d'un
+ * changement de mot-clé : les deux vont ensemble.
+ */
 .mo {
   display: grid;
   grid-template-columns: var(--cols);
-  min-width: max-content;
+  min-width: min-content;
 }
 
 .mo-head {
