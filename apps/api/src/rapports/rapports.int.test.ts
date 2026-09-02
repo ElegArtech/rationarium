@@ -146,23 +146,33 @@ describe("RG-RPT-01 — les agrégats respectent le périmètre", () => {
   });
 });
 
-describe("EX-RPT-04, RG-RPT-02 — la progression, plafonnée et ANNONCÉE", () => {
-  it("au-delà de dix projets, le troncage est signalé — jamais silencieux", async () => {
+describe("EX-RPT-04, RG-RPT-02 — la progression, ENTIÈRE", () => {
+  /*
+   * Elle a été plafonnée à dix barres, troncage annoncé en pied de panneau.
+   * `RG-RPT-02` en fait l'exception explicite depuis le 2026-09-02 : c'est le
+   * graphique qu'on ouvre pour savoir où en est le portefeuille, et en masquer
+   * une part fait conclure qu'il n'y en a pas d'autre — la mention du troncage
+   * ne se lit qu'après avoir déjà tiré cette conclusion.
+   */
+  it("RG-RPT-02 — AU-DELÀ DE DIX PROJETS, AUCUN N'EST MASQUÉ", async () => {
     for (let i = 0; i < 12; i += 1) {
       await projet({ nom: `Projet ${String(i).padStart(2, "0")}`, chefId: chef });
     }
 
     const vue = await page();
-    expect(vue.progression.projets).toHaveLength(10);
-    // Une liste coupée en silence fait conclure qu'il n'y a que dix projets.
+    expect(vue.progression.projets).toHaveLength(12);
+    // Et le compte annoncé décrit bien ce que la liste contient.
     expect(vue.progression.total).toBe(12);
-    expect(vue.progression.tronque).toBe(true);
   });
 
-  it("en deçà, rien n'est tronqué et le drapeau le dit", async () => {
-    await projet({ nom: "Unique", chefId: chef });
+  it("l'ordre reste celui du retard : ce qui appelle une décision vient en premier", async () => {
+    for (let i = 0; i < 12; i += 1) {
+      await projet({ nom: `Projet ${String(i).padStart(2, "0")}`, chefId: chef });
+    }
+
     const vue = await page();
-    expect(vue.progression.tronque).toBe(false);
+    const ecarts = vue.progression.projets.map((p) => p.ecart);
+    expect(ecarts).toEqual([...ecarts].sort((a, b) => b - a));
   });
 
   it("un projet sans tâche progresse de zéro, pas de NaN", async () => {

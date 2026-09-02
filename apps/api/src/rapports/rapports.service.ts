@@ -29,9 +29,6 @@ export type FiltresRapport = {
   responsables?: string[];
 };
 
-/** `RG-RPT-02` — au-delà de dix projets, l'affichage graphique est limité. */
-const PLAFOND_GRAPHIQUE = 10;
-
 /** `RG-RPT-03` — sous ce nombre d'instantanés, la courbe ne veut rien dire. */
 const HISTORIQUE_MINIMAL = 4;
 
@@ -208,11 +205,17 @@ export class RapportsService {
   }
 
   /**
-   * `EX-RPT-04`, `RG-RPT-02` — la progression par projet, **plafonnée**.
+   * `EX-RPT-04`, `RG-RPT-02` — la progression par projet, **entière**.
    *
-   * Au-delà de dix barres, le graphique cesse d'être lisible. Le troncage est
-   * **annoncé** : une liste silencieusement coupée fait conclure qu'il n'y a
-   * que dix projets, ce qui est une erreur de pilotage, pas d'affichage.
+   * Elle a été plafonnée à dix barres, avec le troncage annoncé en pied de
+   * panneau. `RG-RPT-02` en fait désormais l'exception explicite (2026-09-02,
+   * sur demande du commanditaire) : c'est le graphique qu'on ouvre pour savoir
+   * où en est le portefeuille, et en masquer une part fait conclure qu'il n'y
+   * en a pas d'autre — la mention du troncage ne se lit qu'après avoir déjà
+   * tiré cette conclusion.
+   *
+   * L'ordre, lui, reste celui du retard : ce qui appelle une décision arrive
+   * en premier, et cela vaut d'autant plus qu'aucune barre n'est masquée.
    */
   private progressionProjets(
     projets: Awaited<ReturnType<RapportsService["projetsVisibles"]>>,
@@ -237,17 +240,14 @@ export class RapportsService {
           taches: p.taches.length,
         };
       })
-      // Le titre du panneau promet « réel et attendu » et le pied annonce un
-      // troncage : couper dans l'ordre alphabétique masquerait justement les
-      // projets qu'on vient chercher. Le plus en retard passe devant.
+      // Le plus en retard passe devant : l'ordre alphabétique enfouirait au
+      // milieu de la liste ce qu'on vient précisément y chercher.
       .sort((a, b) => b.ecart - a.ecart || a.nom.localeCompare(b.nom));
 
-    return {
-      projets: calculees.slice(0, PLAFOND_GRAPHIQUE),
-      total: calculees.length,
-      tronque: calculees.length > PLAFOND_GRAPHIQUE,
-      plafond: PLAFOND_GRAPHIQUE,
-    };
+    // `total` reste, bien qu'il vaille désormais toujours le nombre de barres
+    // rendues : il dit ce que la liste couvre, et le retirer obligerait la vue
+    // à recompter ce que le serveur sait déjà.
+    return { projets: calculees, total: calculees.length };
   }
 
   /**

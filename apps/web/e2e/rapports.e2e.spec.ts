@@ -76,15 +76,29 @@ test.describe("Vue 30 — rapports et analytics", () => {
     await expect(page.getByText("Non assigné")).toBeVisible();
   });
 
-  test("RG-RPT-02 — LE TRONCAGE EST ANNONCÉ, jamais silencieux", async ({ page }) => {
+  /*
+   * `RG-RPT-02` — l'avancement réel et attendu montre TOUS les projets.
+   *
+   * Le panneau a longtemps affiché dix barres sur douze, avec la mention du
+   * troncage en pied. L'exception est entrée dans la règle le 2026-09-02 : ce
+   * graphique est celui qu'on ouvre pour savoir où en est le portefeuille, et
+   * en masquer une part fait conclure qu'il n'y en a pas d'autre — la mention
+   * ne se lit qu'après avoir déjà tiré cette conclusion.
+   *
+   * Le contrôle compte les barres, il ne cherche pas l'absence d'un texte :
+   * une assertion « le pied de troncage n'est plus là » passerait aussi si le
+   * panneau entier avait disparu.
+   */
+  test("RG-RPT-02 — AUCUN PROJET N'EST MASQUÉ dans l'avancement réel et attendu", async ({
+    page,
+  }) => {
     await horlogeFixe(page);
     await serveur(page, { session: SESSION_RAPPORTS, reponses });
     await page.goto("/rapports");
 
-    // Une liste coupée en silence fait conclure qu'il n'y a que dix projets.
-    await expect(
-      page.getByText(/Affichage limité aux 10 premiers projets pour lisibilité — 12 au total/),
-    ).toBeVisible();
+    const panneau = page.locator("section.panel", { hasText: "Avancement réel et attendu" });
+    await expect(panneau.locator(".hbar")).toHaveCount(12);
+    await expect(panneau.getByText(/Affichage limité/)).toHaveCount(0);
   });
 
   test("RG-RPT-05 — la surcharge est nommée, ET la moyenne est montrée", async ({ page }) => {

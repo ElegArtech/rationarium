@@ -765,12 +765,14 @@ Trois onglets : **Vue d'ensemble** · **Analytics avancés** · **Gantt portefeu
 **Activité récente** — tâches terminées, créées, passées en retard, et **ratio de complétion** (terminées / créées) interprété : *« le backlog grossit »* ou *« le backlog se résorbe »*.
 
 - **RG-RPT-01** — Les indicateurs respectent le périmètre de l'utilisateur : on ne voit d'agrégat que sur ce qu'on a le droit de voir.
-- **RG-RPT-02** — Au-delà de dix projets, l'affichage graphique est limité pour rester lisible, et le troncage est signalé.
+- **RG-RPT-02** — Au-delà de dix projets, l'affichage graphique est limité pour rester lisible, et le troncage est signalé. **L'avancement réel et attendu fait exception : il montre tous les projets du périmètre.** C'est le graphique qu'on ouvre pour savoir où en est le portefeuille ; en masquer une part fait conclure qu'il n'y en a pas d'autre, et le pied de panneau qui annonçait le troncage ne se lisait qu'après avoir déjà tiré cette conclusion. L'ordre reste celui du retard, du plus en retard au moins : ce qui appelle une décision arrive en premier.
 - **RG-RPT-03** — La tendance de progression s'appuie sur les instantanés historiques. Tant que l'historique est court, l'interface l'indique plutôt que d'afficher une courbe trompeuse.
 - **RG-RPT-04** — Une stagnation de progression est détectée et signalée.
 - **RG-RPT-05** — Une surcharge est détectée par écart à la moyenne de l'équipe.
 - **RG-RPT-06** — Chaque graphique dispose d'un état vide explicite plutôt que d'une zone blanche.
 - **RG-RPT-07** — Un compteur d'anomalies est décliné sous lui-même : les jalons en retard sont nommés un à un, avec leur projet, l'ancienneté du retard et ce qui reste à faire pour le lever, du plus ancien au plus récent. La liste est bornée par `RG-RPT-02` et son troncage est annoncé. L'absence de retard s'écrit, elle ne se déduit pas d'une zone vide.
+
+> Exception de `RG-RPT-02` ajoutée le 2026-09-02 sur demande du commanditaire : « j'aimerais qu'il y ait de visible l'ensemble des projets et non une limite à 10 ». Les autres bornes de la règle sont conservées — la santé du portefeuille et les jalons en retard gardent leur plafond, tempéré par une commande « Tout afficher » qui les rend intégralement consultables.
 
 > `RG-RPT-07` ajoutée le 2026-09-02 sur demande du commanditaire : « il n'y a qu'une métrique globale, elle est utile, mais est-ce qu'en dessous il ne peut pas y avoir la déclinaison des jalons en retard identifiés par projet ». Un compte sans suite ne dit pas où agir.
 

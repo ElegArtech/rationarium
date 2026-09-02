@@ -31,11 +31,10 @@ export const VUE_ENSEMBLE = {
   periode: { nature: "mois", debut: "2026-08-01", fin: "2026-08-11" },
   alerte: { tachesEnRetard: 7 },
   progression: {
-    // Douze projets, dix affichés : le troncage doit être annoncé.
-    projets: Array.from({ length: 10 }, (_, i) => projet(i + 1)),
+    // Douze projets, DOUZE affichés : `RG-RPT-02` fait de ce graphique son
+    // exception depuis le 2026-09-02, plus rien n'y est masqué.
+    projets: Array.from({ length: 12 }, (_, i) => projet(i + 1)),
     total: 12,
-    tronque: true,
-    plafond: 10,
   },
   charge: {
     agents: [
@@ -122,7 +121,7 @@ export const VUE_ENSEMBLE = {
 export const VUE_ENSEMBLE_JEUNE = {
   ...VUE_ENSEMBLE,
   alerte: { tachesEnRetard: 0 },
-  progression: { projets: [projet(1)], total: 1, tronque: false, plafond: 10 },
+  progression: { projets: [projet(1)], total: 1 },
   charge: { agents: [], moyenne: 0, surcharges: 0 },
   tendance: {
     points: [{ date: "2026-08-01", progression: 12 }],
@@ -156,7 +155,7 @@ export const VUE_ENSEMBLE_STAGNANTE = {
 
 export const VUE_ENSEMBLE_VIDE = {
   ...VUE_ENSEMBLE_JEUNE,
-  progression: { projets: [], total: 0, tronque: false, plafond: 10 },
+  progression: { projets: [], total: 0 },
   sante: [],
   repartitions: { priorite: [], statut: [], actives: 0 },
 };

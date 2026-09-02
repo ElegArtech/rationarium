@@ -558,17 +558,10 @@ function Progression({ progression }: { progression: api.VueEnsemble["progressio
         )}
       </div>
 
-      {/* `RG-RPT-02` — c'est le SERVEUR qui plafonne la liste, et le plafond
-          est annoncé ici. Une liste coupée en silence fait conclure qu'il n'y
-          a que dix projets. */}
-      {progression.tronque ? (
-        <div className="trunc">
-          <span aria-hidden="true">▾</span>
-          <span>
-            {t("progression.tronque", { n: progression.plafond, total: progression.total })}
-          </span>
-        </div>
-      ) : null}
+      {/* Plus de pied de troncage : `RG-RPT-02` fait de ce graphique son
+          exception depuis le 2026-09-02, et il montre tous les projets du
+          périmètre. Le panneau « Santé du portefeuille », lui, garde son
+          plafond et sa commande « Tout afficher ». */}
     </section>
   );
 }
