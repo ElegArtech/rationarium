@@ -59,10 +59,25 @@
   position: relative;
 }
 
+/*
+ * `min-width: 0`, et non `max-content` : la semaine tient dans son cadre.
+ *
+ * `max-content` fait de la largeur INTRINSÈQUE du contenu un plancher — le
+ * plus long intitulé d'occupation gonflait donc la grille au-delà du cadre,
+ * et le cadre répondait par une barre de défilement horizontale. Le plancher
+ * de `minmax(122px, 1fr)` sur chaque jour s'ajoutait par-dessus. Une semaine
+ * se lit d'un coup d'œil ou ne se lit pas : les cinq ou sept jours tiennent
+ * toujours, et ce sont les intitulés qui se coupent (voir `Semaine.tsx`).
+ *
+ * Cette classe n'appartient qu'à la vue Semaine. Le mois porte `.mo` et
+ * l'activité `.act`, chacune avec ses propres pistes — le mois défile
+ * horizontalement, et c'est voulu : trente et une colonnes de 34 px ne
+ * tiennent nulle part.
+ */
 .pl {
   display: grid;
   grid-template-columns: var(--cols);
-  min-width: max-content;
+  min-width: 0;
 }
 
 .pl-corner {
@@ -229,6 +244,9 @@
   flex-direction: column;
   gap: 3px;
   position: relative;
+  /* Sans cela la cellule refuse de descendre sous la largeur de son contenu,
+     et la piste `minmax(0, 1fr)` se retrouve poussée depuis l'intérieur. */
+  min-width: 0;
 }
 
 .cell.is-today {
@@ -276,6 +294,7 @@
   display: flex;
   align-items: center;
   gap: 5px;
+  min-width: 0;
   padding: 5px 7px;
   border-radius: 2px;
   font-family: var(--font-cond);
@@ -299,7 +318,15 @@
   border-left-style: dashed;
 }
 
+.leave > span:first-child {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .leave-tag {
+  flex: none;
   font-family: var(--font-mono);
   font-size: 8px;
   letter-spacing: 0.06em;
@@ -328,6 +355,14 @@
   color: var(--muted);
   background: transparent;
   width: 100%;
+  min-width: 0;
+}
+
+.pres > span:not(.pres-dot) {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .pres:hover {
@@ -376,6 +411,7 @@
   cursor: grab;
   text-align: left;
   width: 100%;
+  min-width: 0;
 }
 
 .occ:hover {
