@@ -24,6 +24,19 @@ export const SESSION_ADMIN = {
   ],
 };
 
+/**
+ * `EX-USR-04` — « y compris son rôle et ses rattachements ».
+ *
+ * `roleId` est le seul champ GOUVERNÉ de la fiche : `users:update` ouvre la
+ * route, `users:manage_roles` ouvre le champ, et c'est la ligne qui sépare le
+ * support de l'administration. `SESSION_ADMIN` ne le porte pas — il sert donc
+ * au cas inerte —, celui-ci le porte.
+ */
+export const SESSION_ADMIN_ROLES = {
+  ...SESSION_ADMIN,
+  permissions: [...SESSION_ADMIN.permissions, "users:manage_roles"],
+};
+
 // ── Vue 27 ──────────────────────────────────────────────────────────────────
 
 /*

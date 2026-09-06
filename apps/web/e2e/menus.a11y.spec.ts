@@ -3,6 +3,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { serveur, SESSION, PROJET } from "./fixtures/projets.js";
 import { SESSION_PLANNING, SEMAINE, GRILLE_ACTIVITE, ELIGIBILITE } from "./fixtures/planning.js";
 import { LISTE } from "./fixtures/taches.js";
+import { SESSION_ADMIN, UTILISATEURS } from "./fixtures/administration.js";
 import {
   SESSION_RAPPORTS,
   PROJET_GANTT,
@@ -382,6 +383,28 @@ test.describe("Les menus portent le vocabulaire de la maquette", () => {
     await page.goto(`/projets/${PROJET.id}/taches`);
     await expect(page.locator(".kmove").first()).toBeVisible();
     await ouvrirEtVerifier(page, "vue 12");
+  });
+
+  /*
+   * Vue 27 — le menu d'actions d'une ligne d'utilisateur.
+   *
+   * Il portait `.pop-list` sur son `Menu` et rien sur son `Popover`. Or
+   * `.pop-list` ne pose qu'une hauteur maximale et un défilement : le menu se
+   * rendait SANS fond ni bordure, débordant de la fenêtre, ses actions lisibles
+   * par-dessus la ligne du dessous. Sixième occurrence du piège, et la seule
+   * que ce fichier ne regardait pas — il s'arrêtait aux vues 07, 12 et 15.
+   * Une famille de défauts qu'on mesure une fois se remet à croître partout où
+   * la mesure ne porte pas.
+   */
+  test("vue 27 — le menu d'actions d'une ligne d'utilisateur", async ({ page }) => {
+    await page.clock.setFixedTime(MOMENT);
+    await serveur(page, {
+      session: SESSION_ADMIN,
+      reponses: { "/api/utilisateurs": { corps: UTILISATEURS } },
+    });
+    await page.goto("/utilisateurs");
+    await expect(page.locator(".row-more").first()).toBeVisible();
+    await ouvrirEtVerifier(page, "vue 27");
   });
 
   /* Vue 15 — le menu d'une barre de Gantt. Même défaut que le kanban. */

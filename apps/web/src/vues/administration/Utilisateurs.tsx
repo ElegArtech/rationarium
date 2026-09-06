@@ -352,8 +352,14 @@ function LigneUtilisateur({ utilisateur }: { utilisateur: api.Utilisateur }) {
           >
             <span aria-hidden="true">⋯</span>
           </Button>
+          {/* `.pop` sur la boîte, jamais `.pop-list` seul : `.pop-list` ne pose
+              qu'une hauteur maximale et un défilement, et le menu se rendait
+              donc SANS fond, SANS bordure et débordant de la fenêtre — les
+              actions se lisaient par-dessus la ligne du dessous. Sixième
+              occurrence du même piège, et la seule que `menus.a11y.spec.ts` ne
+              couvrait pas : il ouvre les menus des vues 07, 12 et 15. */}
           <Popover>
-            <Menu className="pop-list">
+            <Menu className="pop pop-sm">
               {/* `EX-USR-04`. Contrairement aux trois gestes suivants,
                   modifier son propre compte est légitime : la restriction de
                   `RG-USR-04` porte sur ce qui vous retirerait l'accès, pas sur
@@ -571,6 +577,158 @@ function FenetreSuppression({
  * `RG-AUTH-08` — l'identifiant de connexion reste hors du formulaire : il
  * n'est modifiable par personne, et sert de référence au journal d'audit.
  */
+/**
+ * `EX-USR-04` — rôle, département et services : les trois rattachements.
+ *
+ * L'exigence dit « modifier un compte, **y compris son rôle et ses
+ * rattachements** », et `POST`/`PATCH /utilisateurs` les acceptent tous les
+ * trois depuis toujours. Aucune des deux fenêtres ne les proposait : un compte
+ * créé depuis la vue 27 naissait sans rôle, donc sans une seule permission, et
+ * **rien dans le produit ne pouvait l'en sortir**. Le seul chemin restant était
+ * l'import CSV, qui les porte — une fonction de reprise employée comme unique
+ * moyen d'administrer.
+ *
+ * Trois points de conception, chacun pour une raison :
+ *
+ * - **Le rôle est gouverné.** `users:update` autorise la route, `RG` réserve le
+ *   champ `roleId` à `users:manage_roles` : c'est la ligne qui sépare le
+ *   support de l'administration. Sans la permission, le sélecteur reste
+ *   **lisible et inerte**, avec son motif — le masquer ferait croire qu'un
+ *   compte n'a pas de rôle.
+ * - **Les services suivent le département.** Le serveur refuse un service qui
+ *   n'appartient pas au département choisi. Ne proposer que les siens, et
+ *   retirer ceux qui ne le sont plus quand il change, évite un refus que
+ *   l'utilisateur n'a pas provoqué.
+ * - **Les listes viennent du cache.** `["organisation"]` et `["roles"]` sont
+ *   déjà chargées par la liste qui porte ces fenêtres : les redemander ici par
+ *   les mêmes clés ne produit aucune requête de plus.
+ */
+function ChampsRattachement({
+  prefixe,
+  roleId,
+  departementId,
+  serviceIds,
+  surChangement,
+}: {
+  prefixe: string;
+  roleId: string;
+  departementId: string;
+  serviceIds: ReadonlySet<string>;
+  surChangement: (v: {
+    roleId?: string;
+    departementId?: string;
+    serviceIds?: ReadonlySet<string>;
+  }) => void;
+}) {
+  const { t } = useTranslation("administration");
+  const peut = usePeut();
+  const orga = useQuery({ queryKey: ["organisation"], queryFn: () => api.arborescence() });
+  const roles = useQuery({ queryKey: ["roles"], queryFn: () => api.roles() });
+
+  const departements = [
+    ...(orga.data?.directions.flatMap((d) => d.departements) ?? []),
+    ...(orga.data?.departementsSansDirection ?? []),
+  ];
+  const servicesDuDepartement = departements.find((d) => d.id === departementId)?.services ?? [];
+  const roleModifiable = peut("users:manage_roles");
+
+  const changerDepartement = (id: string) => {
+    const permis = new Set(
+      (departements.find((d) => d.id === id)?.services ?? []).map((sv) => sv.id),
+    );
+    surChangement({
+      departementId: id,
+      serviceIds: new Set([...serviceIds].filter((sv) => permis.has(sv))),
+    });
+  };
+
+  const basculerService = (id: string) => {
+    const suivants = new Set(serviceIds);
+    if (!suivants.delete(id)) suivants.add(id);
+    surChangement({ serviceIds: suivants });
+  };
+
+  return (
+    <>
+      <div className="field-block">
+        <label className="field-label" htmlFor={`${prefixe}-role`}>
+          {t("utilisateurs.colRole")}
+        </label>
+        <select
+          className="field"
+          id={`${prefixe}-role`}
+          value={roleId}
+          /*
+           * Inerte tant que le catalogue n'est pas là. La VALEUR vient de la
+           * fiche, pas de la liste — elle est donc juste dès l'ouverture —,
+           * mais un `<select>` dont l'option courante manque affiche la
+           * première : « Aucun rôle » sous les yeux de quelqu'un qui en a un.
+           * Le laisser actif inviterait à corriger un affichage faux.
+           */
+          disabled={!roleModifiable || roles.isPending}
+          onChange={(e) => surChangement({ roleId: e.target.value })}
+        >
+          <option value="">{t("utilisateurs.sansRole")}</option>
+          {(roles.data ?? []).map((r) => (
+            <option key={r.id} value={r.id}>
+              {r.nom}
+            </option>
+          ))}
+        </select>
+        {/* `RG-GEN-06` — l'interdit porte sa raison, et il la porte en clair :
+            une explication au survol ne se lit ni au clavier ni au doigt. */}
+        {roleModifiable ? null : (
+          <p className="field-hint">{t("utilisateurs.roleNonModifiable")}</p>
+        )}
+      </div>
+
+      <div className="field-block">
+        <label className="field-label" htmlFor={`${prefixe}-departement`}>
+          {t("utilisateurs.departement")}
+        </label>
+        <select
+          className="field"
+          id={`${prefixe}-departement`}
+          value={departementId}
+          disabled={orga.isPending}
+          onChange={(e) => changerDepartement(e.target.value)}
+        >
+          <option value="">{t("utilisateurs.sansDepartement")}</option>
+          {departements.map((d) => (
+            <option key={d.id} value={d.id}>
+              {d.nom}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="field-block span2">
+        <span className="field-label" id={`${prefixe}-services`}>
+          {t("utilisateurs.services")}
+        </span>
+        {departementId === "" ? (
+          <p className="field-hint">{t("utilisateurs.servicesSansDepartement")}</p>
+        ) : servicesDuDepartement.length === 0 ? (
+          <p className="field-hint">{t("utilisateurs.departementSansService")}</p>
+        ) : (
+          <div className="layers" role="group" aria-labelledby={`${prefixe}-services`}>
+            {servicesDuDepartement.map((sv) => (
+              <label key={sv.id} className={`layer${serviceIds.has(sv.id) ? " is-on" : ""}`}>
+                <input
+                  type="checkbox"
+                  checked={serviceIds.has(sv.id)}
+                  onChange={() => basculerService(sv.id)}
+                />
+                {sv.nom}
+              </label>
+            ))}
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
 function FenetreModification({
   utilisateur,
   surFermeture,
@@ -583,20 +741,50 @@ function FenetreModification({
   const annoncer = useMessages();
   const client = useQueryClient();
 
-  const [valeurs, setValeurs] = useState({ prenom: "", nom: "", email: "" });
+  const peut = usePeut();
+
+  const [valeurs, setValeurs] = useState({
+    prenom: "",
+    nom: "",
+    email: "",
+    roleId: "",
+    departementId: "",
+  });
+  const [serviceIds, setServiceIds] = useState<ReadonlySet<string>>(new Set());
   const [erreur, setErreur] = useState<string | null>(null);
   // Le formulaire se recharge quand la fenêtre change de compte : sans clé de
   // remontage, la fiche suivante afficherait les valeurs de la précédente.
   const [pour, setPour] = useState<string | null>(null);
   if (utilisateur && pour !== utilisateur.id) {
     setPour(utilisateur.id);
-    setValeurs({ prenom: utilisateur.prenom, nom: utilisateur.nom, email: utilisateur.email });
+    setValeurs({
+      prenom: utilisateur.prenom,
+      nom: utilisateur.nom,
+      email: utilisateur.email,
+      roleId: utilisateur.role?.id ?? "",
+      departementId: utilisateur.departement?.id ?? "",
+    });
+    setServiceIds(new Set(utilisateur.services.map((sv) => sv.service.id)));
     setErreur(null);
   }
 
   const modification = useMutation({
     mutationFn: () =>
-      api.modifierUtilisateur(utilisateur!.id, { ...valeurs, version: utilisateur!.version }),
+      api.modifierUtilisateur(utilisateur!.id, {
+        prenom: valeurs.prenom,
+        nom: valeurs.nom,
+        email: valeurs.email,
+        version: utilisateur!.version,
+        /*
+         * `roleId` n'accompagne la requête QUE si l'appelant peut le changer :
+         * le serveur refuse la présence du champ, pas sa valeur. L'envoyer
+         * inchangé ferait échouer la correction d'une faute de frappe dans un
+         * nom, pour un compte de support parfaitement dans son droit.
+         */
+        ...(peut("users:manage_roles") ? { roleId: valeurs.roleId || null } : {}),
+        departementId: valeurs.departementId || null,
+        serviceIds: [...serviceIds],
+      }),
     onSuccess: () => {
       annoncer("ok", t("utilisateurs.modifie"));
       surFermeture();
@@ -671,6 +859,19 @@ function FenetreModification({
           <input className="field" id="usm-login" value={utilisateur?.login ?? ""} disabled />
           <p className="field-hint">{t("utilisateurs.loginDefinitif")}</p>
         </div>
+
+        <ChampsRattachement
+          prefixe="usm"
+          roleId={valeurs.roleId}
+          departementId={valeurs.departementId}
+          serviceIds={serviceIds}
+          surChangement={(v) => {
+            if (v.roleId !== undefined) setValeurs((x) => ({ ...x, roleId: v.roleId! }));
+            if (v.departementId !== undefined)
+              setValeurs((x) => ({ ...x, departementId: v.departementId! }));
+            if (v.serviceIds !== undefined) setServiceIds(v.serviceIds);
+          }}
+        />
       </div>
     </Fenetre>
   );
@@ -688,13 +889,18 @@ function FenetreCreation({
   const annoncer = useMessages();
   const client = useQueryClient();
 
+  const peut = usePeut();
+
   const [valeurs, setValeurs] = useState({
     prenom: "",
     nom: "",
     email: "",
     login: "",
     motDePasse: "",
+    roleId: "",
+    departementId: "",
   });
+  const [serviceIds, setServiceIds] = useState<ReadonlySet<string>>(new Set());
   const [erreur, setErreur] = useState<string | null>(null);
   /*
    * Les champs que le SERVEUR a refusés.
@@ -723,10 +929,26 @@ function FenetreCreation({
   };
 
   const creation = useMutation({
-    mutationFn: () => api.creerUtilisateur(valeurs),
+    mutationFn: () =>
+      api.creerUtilisateur({
+        prenom: valeurs.prenom,
+        nom: valeurs.nom,
+        email: valeurs.email,
+        login: valeurs.login,
+        motDePasse: valeurs.motDePasse,
+        // Même règle qu'à la modification : le champ n'accompagne la requête
+        // que si l'appelant peut le poser (`champs-gouvernes.ts`).
+        ...(peut("users:manage_roles") ? { roleId: valeurs.roleId || null } : {}),
+        departementId: valeurs.departementId || null,
+        serviceIds: [...serviceIds],
+      }),
     onSuccess: () => {
       annoncer("ok", t("utilisateurs.cree"));
-      setValeurs({ prenom: "", nom: "", email: "", login: "", motDePasse: "" });
+      setValeurs({
+        prenom: "", nom: "", email: "", login: "", motDePasse: "",
+        roleId: "", departementId: "",
+      });
+      setServiceIds(new Set());
       setRefuses([]);
       surFermeture();
       void client.invalidateQueries({ queryKey: ["utilisateurs"] });
@@ -873,6 +1095,22 @@ function FenetreCreation({
               400 sans dire lequel des quatre critères manquait. */}
           <PolitiqueMotDePasse id="us-mdp-politique" valeur={valeurs.motDePasse} />
         </div>
+
+        {/* `EX-USR-04` — un compte créé sans rôle n'a AUCUNE permission, et
+            rien dans le produit ne l'en sortait. Les rattachements se posent
+            donc dès la création, et se corrigent ensuite au même endroit. */}
+        <ChampsRattachement
+          prefixe="us"
+          roleId={valeurs.roleId}
+          departementId={valeurs.departementId}
+          serviceIds={serviceIds}
+          surChangement={(v) => {
+            if (v.roleId !== undefined) setValeurs((x) => ({ ...x, roleId: v.roleId! }));
+            if (v.departementId !== undefined)
+              setValeurs((x) => ({ ...x, departementId: v.departementId! }));
+            if (v.serviceIds !== undefined) setServiceIds(v.serviceIds);
+          }}
+        />
       </div>
     </Fenetre>
   );

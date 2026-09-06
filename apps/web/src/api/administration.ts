@@ -58,7 +58,26 @@ export const utilisateurs = (filtres: {
  */
 export const modifierUtilisateur = (
   id: string,
-  donnees: { prenom?: string; nom?: string; email?: string; version: number },
+  donnees: {
+    prenom?: string;
+    nom?: string;
+    email?: string;
+    version: number;
+    /*
+     * `EX-USR-04` dit « modifier un compte, y compris son rôle et ses
+     * rattachements ». La route les accepte depuis toujours ; le client n'en
+     * déclarait aucun, donc la vue 27 ne pouvait ni donner un rôle, ni rattacher
+     * à un département, ni placer dans un service. Un compte créé restait
+     * inerte, et rien ne pouvait l'en sortir.
+     *
+     * `roleId` n'est transmis QUE par un porteur de `users:manage_roles` : le
+     * serveur refuse le champ, pas sa valeur (`champs-gouvernes.ts`), donc
+     * l'envoyer inchangé ferait échouer la modification d'un nom.
+     */
+    roleId?: string | null;
+    departementId?: string | null;
+    serviceIds?: string[];
+  },
 ) => appeler<Utilisateur>(`/utilisateurs/${id}`, { methode: "PATCH", corps: donnees });
 
 export const creerUtilisateur = (donnees: {

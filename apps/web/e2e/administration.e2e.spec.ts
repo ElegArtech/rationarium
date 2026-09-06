@@ -2,6 +2,7 @@ import { test, expect, type Page } from "@playwright/test";
 import { serveur, SESSION_LECTURE } from "./fixtures/projets.js";
 import {
   SESSION_ADMIN,
+  SESSION_ADMIN_ROLES,
   UTILISATEURS,
   IMPACT_BLOQUE,
   IMPACT_LIBRE,
@@ -17,6 +18,7 @@ import {
   RAPPORT_AGENT,
   RAPPORT_TYPE,
 } from "./fixtures/administration.js";
+import { ROLES } from "./fixtures/parametrage.js";
 
 /**
  * **L'horloge est figée.** Les jeux d'essai de ce fichier portent des dates en
@@ -212,6 +214,140 @@ test.describe("Vue 27 — utilisateurs", () => {
 
     await expect(page.locator(".alert-error")).toContainText("Champs à corriger : Login.");
     await expect(page.getByLabel("Login *", { exact: true })).toHaveAttribute("aria-invalid", "true");
+  });
+
+  /*
+   * `EX-USR-04` — le rôle et les rattachements SE MODIFIENT.
+   *
+   * L'exigence les nomme, `PATCH /utilisateurs/:id` les accepte depuis L-30, et
+   * le client ne les déclarait dans aucun de ses deux formulaires : un compte
+   * créé depuis la vue 27 naissait sans rôle — donc sans une seule permission —
+   * et rien dans le produit ne pouvait l'en sortir. Le contrôle porte sur ce
+   * qui PART, pas sur ce qui s'affiche : c'est le corps de la requête qui dit
+   * si la fonction existe.
+   */
+  /* « Rôle » et « Département » sont AUSSI des filtres de la vue : un
+     `getByLabel` nu en trouve deux. La fenêtre est le seul cadre qui désigne
+     sans ambiguïté — même famille que l'onglet volé par la barre latérale. */
+  const fenetre = (page: Page) => page.getByRole("dialog");
+
+  const orgaEtRoles = {
+    "/api/utilisateurs": { corps: UTILISATEURS },
+    "/api/organisation": { corps: ARBORESCENCE },
+    "/api/administration/roles": { corps: ROLES },
+  };
+
+  test("EX-USR-04 — rôle, département et services partent avec la modification", async ({
+    page,
+  }) => {
+    let recu: Record<string, unknown> | null = null;
+    await serveur(page, { session: SESSION_ADMIN_ROLES, reponses: orgaEtRoles });
+    await page.route(
+      (url) => url.pathname.startsWith("/api/utilisateurs/"),
+      (route) => {
+        if (route.request().method() !== "PATCH") return route.fallback();
+        recu = route.request().postDataJSON() as Record<string, unknown>;
+        return route.fulfill({ status: 200, contentType: "application/json", body: "{}" });
+      },
+    );
+
+    await page.goto("/utilisateurs");
+    await page.getByRole("button", { name: "Actions pour Camille Roussel" }).click();
+    await page.getByRole("menuitem", { name: "Modifier" }).click();
+
+    await fenetre(page).getByLabel("Rôle", { exact: true }).selectOption({ label: "Administrateur" });
+    await fenetre(page)
+      .getByLabel("Département", { exact: true })
+      .selectOption({ label: "Direction des services numériques" });
+    await fenetre(page).getByRole("checkbox", { name: "Études et développement" }).check();
+    await page.getByRole("button", { name: "Enregistrer" }).click();
+
+    await expect.poll(() => recu).not.toBeNull();
+    expect(recu).toMatchObject({
+      roleId: "r-admin",
+      departementId: "dep1",
+      serviceIds: ["svc1"],
+    });
+  });
+
+  /*
+   * Un service n'existe QUE dans son département — le serveur le refuse
+   * autrement (`verifierServices`). Changer de département sans lâcher les
+   * services déjà cochés enverrait une requête vouée au 400, sur un geste que
+   * l'utilisateur n'a pas fait. Le contrôle regarde ce qui reste ET ce qui
+   * part : la liste seule ne dirait pas que la valeur a suivi.
+   */
+  test("les services suivent le département, et le quittent avec lui", async ({ page }) => {
+    let recu: Record<string, unknown> | null = null;
+    await serveur(page, { session: SESSION_ADMIN_ROLES, reponses: orgaEtRoles });
+    await page.route(
+      (url) => url.pathname.startsWith("/api/utilisateurs/"),
+      (route) => {
+        if (route.request().method() !== "PATCH") return route.fallback();
+        recu = route.request().postDataJSON() as Record<string, unknown>;
+        return route.fulfill({ status: 200, contentType: "application/json", body: "{}" });
+      },
+    );
+
+    await page.goto("/utilisateurs");
+    await page.getByRole("button", { name: "Actions pour Camille Roussel" }).click();
+    await page.getByRole("menuitem", { name: "Modifier" }).click();
+
+    // Sans département, aucun service n'est proposé — et la fenêtre le dit.
+    await expect(
+      page.getByText("Choisissez un département : les services proposés sont les siens."),
+    ).toBeVisible();
+
+    await fenetre(page)
+      .getByLabel("Département", { exact: true })
+      .selectOption({ label: "Direction des services numériques" });
+    await fenetre(page).getByRole("checkbox", { name: "Études et développement" }).check();
+
+    await fenetre(page)
+      .getByLabel("Département", { exact: true })
+      .selectOption({ label: "Mission transversale" });
+    await expect(fenetre(page).getByRole("checkbox", { name: "Études et développement" })).toHaveCount(0);
+
+    await page.getByRole("button", { name: "Enregistrer" }).click();
+    await expect.poll(() => recu).not.toBeNull();
+    expect(recu).toMatchObject({ departementId: "dep2", serviceIds: [] });
+  });
+
+  /*
+   * `users:update` ouvre la ROUTE, `users:manage_roles` ouvre le CHAMP.
+   *
+   * Le serveur refuse la PRÉSENCE de `roleId`, pas sa valeur : l'envoyer
+   * inchangé ferait échouer la correction d'une faute de frappe dans un nom,
+   * pour un compte de support parfaitement dans son droit. Le contrôle
+   * affirme donc que la clé est ABSENTE, et que l'interdit porte sa raison.
+   */
+  test("RG-GEN-06 — sans users:manage_roles, le rôle est inerte et ne part pas", async ({
+    page,
+  }) => {
+    let recu: Record<string, unknown> | null = null;
+    await serveur(page, { session: SESSION_ADMIN, reponses: orgaEtRoles });
+    await page.route(
+      (url) => url.pathname.startsWith("/api/utilisateurs/"),
+      (route) => {
+        if (route.request().method() !== "PATCH") return route.fallback();
+        recu = route.request().postDataJSON() as Record<string, unknown>;
+        return route.fulfill({ status: 200, contentType: "application/json", body: "{}" });
+      },
+    );
+
+    await page.goto("/utilisateurs");
+    await page.getByRole("button", { name: "Actions pour Camille Roussel" }).click();
+    await page.getByRole("menuitem", { name: "Modifier" }).click();
+
+    // Lisible, donc le rôle courant reste connu ; inerte, et il dit pourquoi.
+    await expect(fenetre(page).getByLabel("Rôle", { exact: true })).toBeDisabled();
+    await expect(
+      page.getByText("Changer le rôle d'un compte demande une permission dédiée."),
+    ).toBeVisible();
+
+    await page.getByRole("button", { name: "Enregistrer" }).click();
+    await expect.poll(() => recu).not.toBeNull();
+    expect(recu).not.toHaveProperty("roleId");
   });
 
   test("les deux suppressions sont distinctes : parcours, libellé, séparateur", async ({
