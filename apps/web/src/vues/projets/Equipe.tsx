@@ -46,8 +46,17 @@ type Equipe = {
       email: string;
       departement: { nom: string } | null;
     };
+    /** `RG-PRJ-12` — ce que le retrait retirera. Annoncé AVANT le geste. */
+    tachesAssignees: number;
   }[];
-  tiers: { id: string; type: string; organisation: string | null; contactNom: string | null }[];
+  tiers: {
+    id: string;
+    type: string;
+    organisation: string | null;
+    contactNom: string | null;
+    /** `RG-PRJ-12` — ce que le détachement retirera. Annoncé AVANT le geste. */
+    tachesAssignees: number;
+  }[];
   clients: { id: string; nom: string; contactNom: string | null }[];
   allocationCumulee: number;
 };
@@ -146,7 +155,7 @@ export function Equipe({ projetId }: { projetId: string }) {
         vide={{ titre: t("equipe.aucunTiers"), explication: t("equipe.aucunTiersExplication") }}
       >
         {tiers.map((x) => (
-          <LigneTiers key={x.id} tiers={x} />
+          <LigneTiers key={x.id} projetId={projetId} tiers={x} />
         ))}
       </Section>
 
@@ -160,23 +169,7 @@ export function Equipe({ projetId }: { projetId: string }) {
         vide={{ titre: t("equipe.aucunClient"), explication: t("equipe.aucunClientExplication") }}
       >
         {clients.map((c) => (
-          <div className="mrow" key={c.id}>
-            <span className="mav is-client" aria-hidden="true">
-              ▣
-            </span>
-            <div className="bloc-etroit">
-              <p className="mname">{c.nom}</p>
-              {c.contactNom ? <span className="msub">{c.contactNom}</span> : null}
-            </div>
-            {/* La maquette dit la nature du rattachement sur la ligne même :
-                un bénéficiaire n'est pas un contributeur, et la colonne
-                d'allocation ne suffit pas à le dire. */}
-            <div>
-              <span className="pill pill-muted">{t("equipe.beneficiaire")}</span>
-            </div>
-            <span className="malloc-na">{t("equipe.neContribuePas")}</span>
-            <span />
-          </div>
+          <LigneClient key={c.id} projetId={projetId} client={c} />
         ))}
       </Section>
 
@@ -243,9 +236,32 @@ function Section({
  * locale doublant un vocabulaire du cadrage est un interdit structurel ; ici
  * elle avait en plus divergé, et rien ne pouvait le dire.
  */
-function LigneTiers({ tiers }: { tiers: Equipe["tiers"][number] }) {
+function LigneTiers({
+  projetId,
+  tiers,
+}: {
+  projetId: string;
+  tiers: Equipe["tiers"][number];
+}) {
   const { t } = useTranslation("projets");
+  const { t: tErreurs } = useTranslation("erreurs");
+  const peut = usePeut();
+  const annoncer = useMessages();
+  const client = useQueryClient();
   const libelle = useLibelle();
+  const [detachementOuvert, setDetachementOuvert] = useState(false);
+
+  const nom = tiers.organisation ?? tiers.contactNom ?? "—";
+
+  const detachement = useMutation({
+    mutationFn: () => apiReferentiels.detacherTiersDuProjet(projetId, tiers.id),
+    onSuccess: () => {
+      annoncer("ok", t("equipe.tiersDetache", { nom }));
+      setDetachementOuvert(false);
+      void client.invalidateQueries({ queryKey: ["projet", projetId] });
+    },
+    onError: (e) => annoncer("err", messageErreur(e, tErreurs, t("fiche.echecAction"))),
+  });
 
   return (
     <div className="mrow">
@@ -253,7 +269,7 @@ function LigneTiers({ tiers }: { tiers: Equipe["tiers"][number] }) {
         {tiers.type === "organisation" ? "⌷" : "◇"}
       </span>
       <div className="bloc-etroit">
-        <p className="mname">{tiers.organisation ?? tiers.contactNom ?? "—"}</p>
+        <p className="mname">{nom}</p>
         <span className="msub">
           {libelle(tiers.type, TYPES_TIERS)}
           {tiers.type !== "organisation" && tiers.contactNom ? ` · ${tiers.contactNom}` : ""}
@@ -261,8 +277,172 @@ function LigneTiers({ tiers }: { tiers: Equipe["tiers"][number] }) {
       </div>
       <span className="malloc-na">{t("equipe.sansAllocation")}</span>
       <span />
-      <span />
+
+      {peut("third_parties:assign") ? (
+        <Button
+          className="mdel"
+          onPress={() => setDetachementOuvert(true)}
+          aria-label={t("equipe.detacherDu", { nom })}
+        >
+          <span aria-hidden="true">×</span>
+        </Button>
+      ) : (
+        <span />
+      )}
+
+      <FenetreRetrait
+        ouverte={detachementOuvert}
+        surFermeture={() => setDetachementOuvert(false)}
+        titre={t("equipe.detacherTitre")}
+        question={t("equipe.confirmerDetachementTiers", { nom })}
+        tachesRetirees={tiers.tachesAssignees}
+        conserve={t("equipe.tiersConserve")}
+        enCours={detachement.isPending}
+        surConfirmer={() => detachement.mutate()}
+      />
     </div>
+  );
+}
+
+/**
+ * La ligne d'un bénéficiaire.
+ *
+ * Un client n'est jamais assigné à une tâche — le modèle ne lui donne que ses
+ * projets. Le détacher ne retire donc que le rattachement, et la fenêtre ne
+ * promet rien d'autre.
+ */
+function LigneClient({
+  projetId,
+  client: beneficiaire,
+}: {
+  projetId: string;
+  client: Equipe["clients"][number];
+}) {
+  const { t } = useTranslation("projets");
+  const { t: tErreurs } = useTranslation("erreurs");
+  const peut = usePeut();
+  const annoncer = useMessages();
+  const cache = useQueryClient();
+  const [detachementOuvert, setDetachementOuvert] = useState(false);
+
+  const detachement = useMutation({
+    mutationFn: () => apiReferentiels.detacherClientDuProjet(projetId, beneficiaire.id),
+    onSuccess: () => {
+      annoncer("ok", t("equipe.clientDetache", { nom: beneficiaire.nom }));
+      setDetachementOuvert(false);
+      void cache.invalidateQueries({ queryKey: ["projet", projetId] });
+    },
+    onError: (e) => annoncer("err", messageErreur(e, tErreurs, t("fiche.echecAction"))),
+  });
+
+  return (
+    <div className="mrow">
+      <span className="mav is-client" aria-hidden="true">
+        ▣
+      </span>
+      <div className="bloc-etroit">
+        <p className="mname">{beneficiaire.nom}</p>
+        {beneficiaire.contactNom ? (
+          <span className="msub">{beneficiaire.contactNom}</span>
+        ) : null}
+      </div>
+      {/* La maquette dit la nature du rattachement sur la ligne même :
+          un bénéficiaire n'est pas un contributeur, et la colonne
+          d'allocation ne suffit pas à le dire. */}
+      <div>
+        <span className="pill pill-muted">{t("equipe.beneficiaire")}</span>
+      </div>
+      <span className="malloc-na">{t("equipe.neContribuePas")}</span>
+
+      {peut("clients:update") ? (
+        <Button
+          className="mdel"
+          onPress={() => setDetachementOuvert(true)}
+          aria-label={t("equipe.detacherDu", { nom: beneficiaire.nom })}
+        >
+          <span aria-hidden="true">×</span>
+        </Button>
+      ) : (
+        <span />
+      )}
+
+      <FenetreRetrait
+        ouverte={detachementOuvert}
+        surFermeture={() => setDetachementOuvert(false)}
+        titre={t("equipe.detacherTitre")}
+        question={t("equipe.confirmerDetachementClient", { nom: beneficiaire.nom })}
+        tachesRetirees={0}
+        conserve={t("equipe.clientConserve")}
+        enCours={detachement.isPending}
+        surConfirmer={() => detachement.mutate()}
+      />
+    </div>
+  );
+}
+
+/**
+ * La confirmation d'un retrait d'équipe, pour les trois natures.
+ *
+ * `RG-PRJ-12` — le retrait emporte les affectations aux tâches DU PROJET. La
+ * fenêtre le dit **avec son nombre**, avant le geste : « retirer » sans
+ * annoncer ce qui part est la moitié d'une confirmation. Le compte vient de
+ * l'équipe, déjà chargée — l'écran qui pose la question lit la réponse qu'il a
+ * déjà sous les yeux.
+ *
+ * Et elle dit aussi ce qui RESTE. C'est ce qui distingue « retirer du projet »
+ * de « supprimer », et la confusion des deux est le seul risque du geste.
+ */
+function FenetreRetrait({
+  ouverte,
+  surFermeture,
+  titre,
+  question,
+  tachesRetirees,
+  conserve,
+  enCours,
+  surConfirmer,
+}: {
+  ouverte: boolean;
+  surFermeture: () => void;
+  titre: string;
+  question: string;
+  tachesRetirees: number;
+  conserve: string;
+  enCours: boolean;
+  surConfirmer: () => void;
+}) {
+  const { t } = useTranslation("projets");
+
+  return (
+    <Fenetre
+      ouverte={ouverte}
+      surFermeture={surFermeture}
+      categorie={t("confirmation")}
+      titre={titre}
+      mention={conserve}
+      actions={
+        <>
+          <Button className="btn btn-secondary" onPress={surFermeture}>
+            {t("annuler")}
+          </Button>
+          <Button className="btn btn-danger" isPending={enCours} onPress={surConfirmer}>
+            {t("equipe.retirerAction")}
+          </Button>
+        </>
+      }
+    >
+      <p className="phrase-confirmation">{question}</p>
+      <div className="alert alert-neutral">
+        <span className="alert-icon" aria-hidden="true">
+          →
+        </span>
+        <span>
+          {tachesRetirees > 0
+            ? t("equipe.effetRetraitTaches", { n: tachesRetirees })
+            : t("equipe.effetRetraitAucuneTache")}
+        </span>
+      </div>
+    </Fenetre>
   );
 }
 
@@ -322,7 +502,9 @@ function LigneAgent({
 
   const retrait = useMutation({
     mutationFn: () =>
-      appeler<void>(`/projets/${projetId}/membres/${membre.userId}`, { methode: "DELETE" }),
+      appeler<{ tachesRetirees: number }>(`/projets/${projetId}/membres/${membre.userId}`, {
+        methode: "DELETE",
+      }),
     onSuccess: () => {
       annoncer("ok", t("equipe.retire", { nom: nomComplet }));
       setRetraitOuvert(false);
@@ -415,37 +597,24 @@ function LigneAgent({
         <span />
       )}
 
-      <Fenetre
+      {/*
+       * La confirmation est la MÊME que celle des tiers et des bénéficiaires.
+       * Elle disait jusqu'ici « le temps déclaré et les tâches assignées sont
+       * conservés » : la seconde moitié était fausse depuis `RG-PRJ-12`, et
+       * elle l'était déjà de fait — garder une affectation après le retrait
+       * laissait quelqu'un porteur d'une tâche d'un projet que `RG-SCOPE-02`
+       * lui ferme.
+       */}
+      <FenetreRetrait
         ouverte={retraitOuvert}
         surFermeture={() => setRetraitOuvert(false)}
-        categorie={t("confirmation")}
         titre={t("equipe.retirerTitre")}
-        // Retirer quelqu'un de l'équipe n'efface ni son temps déclaré ni ses
-        // tâches. Le dire ici évite de confondre retrait et suppression.
-        mention={t("equipe.aucuneDonneeSupprimee")}
-        actions={
-          <>
-            <Button className="btn btn-secondary" onPress={() => setRetraitOuvert(false)}>
-              {t("annuler")}
-            </Button>
-            <Button
-              className="btn btn-danger"
-              isPending={retrait.isPending}
-              onPress={() => retrait.mutate()}
-            >
-              {t("equipe.retirerTitre")}
-            </Button>
-          </>
-        }
-      >
-        <p className="phrase-confirmation">{t("equipe.confirmerRetrait", { nom: nomComplet })}</p>
-        <div className="alert alert-neutral">
-          <span className="alert-icon" aria-hidden="true">
-            →
-          </span>
-          <span>{t("equipe.effetRetrait")}</span>
-        </div>
-      </Fenetre>
+        question={t("equipe.confirmerRetrait", { nom: nomComplet })}
+        tachesRetirees={membre.tachesAssignees}
+        conserve={t("equipe.membreConserve")}
+        enCours={retrait.isPending}
+        surConfirmer={() => retrait.mutate()}
+      />
     </div>
   );
 }

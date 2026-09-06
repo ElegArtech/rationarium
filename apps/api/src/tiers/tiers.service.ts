@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma.service.js";
 import { AuditService } from "../commun/audit.service.js";
+import { PerimetreService, type Perimetre } from "../commun/perimetre.service.js";
 import type { TypeTiers } from "@rationarium/contracts";
 
 /**
@@ -13,6 +14,7 @@ import type { TypeTiers } from "@rationarium/contracts";
  */
 
 export type EchecTiers =
+  | "hors_perimetre"
   | "contact_sur_personne_morale"
   | "tiers_archive"
   | "deja_rattache"
@@ -46,7 +48,35 @@ export class TiersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly perimetres: PerimetreService,
   ) {}
+
+  /**
+   * Permission PUIS périmètre, sur l'écriture comme sur la lecture.
+   *
+   * Les rattachements de projet ne contrôlaient que la permission :
+   * `third_parties:assign` suffisait à poser un prestataire sur n'importe quel
+   * projet de l'instance en devinant son identifiant. Miroir exact du défaut
+   * déjà consigné sur les lectures par identifiant — la liste filtre,
+   * l'adresse directe non.
+   */
+  private async exigerProjetVisible(
+    projectId: string,
+    perimetre: Perimetre,
+    permissions: ReadonlySet<string>,
+  ) {
+    const projet = await this.prisma.project.findUnique({
+      where: { id: projectId },
+      select: { id: true },
+    });
+    if (!projet) throw new ErreurTiers("introuvable");
+
+    const visible = await this.prisma.project.findFirst({
+      where: { AND: [{ id: projectId }, this.perimetres.filtreProjet(perimetre, permissions)] },
+      select: { id: true },
+    });
+    if (!visible) throw new ErreurTiers("hors_perimetre");
+  }
 
   // ── Tiers — EX-TRS-01 ────────────────────────────────────────────────────
 
@@ -140,7 +170,14 @@ export class TiersService {
   }
 
   /** `EX-TRS-02` — rattacher un tiers à un projet. `RG-TRS-03` — pas deux fois. */
-  async rattacherAuProjet(projectId: string, thirdPartyId: string, acteurId: string) {
+  async rattacherAuProjet(
+    projectId: string,
+    thirdPartyId: string,
+    acteurId: string,
+    perimetre: Perimetre,
+    permissions: ReadonlySet<string>,
+  ) {
+    await this.exigerProjetVisible(projectId, perimetre, permissions);
     await this.refuserSiArchive(thirdPartyId);
     const existe = await this.prisma.projectThirdParty.findUnique({
       where: { projectId_thirdPartyId: { projectId, thirdPartyId } },
@@ -152,6 +189,48 @@ export class TiersService {
       action: "third_party.attach_project", typeEntite: "ThirdParty", entiteId: thirdPartyId,
       acteurId, detail: { projectId },
     });
+  }
+
+  /**
+   * `EX-PRJ-10`, `RG-PRJ-12` — **détacher** un tiers d'un projet.
+   *
+   * Le geste n'existait pas : un prestataire rattaché par erreur ne se retirait
+   * qu'en SUPPRIMANT le tiers, ce qui rompait tous ses autres rattachements et
+   * perdait son temps déclaré. Détacher, c'est défaire le rattachement — pas
+   * l'entité.
+   *
+   * Le détachement emporte les affectations aux tâches DU PROJET, et rien
+   * d'autre : `RG-TRS-04` refuse d'assigner un tiers à une tâche dont il ne
+   * porte pas le projet, donc les garder après le détachement laisserait
+   * exactement l'état que cette règle existe pour empêcher. Le temps déclaré
+   * pour le tiers, lui, reste : `RG-PRJ-08` en calcule le budget consommé.
+   */
+  async detacherDuProjet(
+    projectId: string,
+    thirdPartyId: string,
+    acteurId: string,
+    perimetre: Perimetre,
+    permissions: ReadonlySet<string>,
+  ) {
+    await this.exigerProjetVisible(projectId, perimetre, permissions);
+
+    const existe = await this.prisma.projectThirdParty.findUnique({
+      where: { projectId_thirdPartyId: { projectId, thirdPartyId } },
+    });
+    if (!existe) throw new ErreurTiers("non_rattache_au_projet");
+
+    const [, retirees] = await this.prisma.$transaction([
+      this.prisma.projectThirdParty.delete({
+        where: { projectId_thirdPartyId: { projectId, thirdPartyId } },
+      }),
+      this.prisma.taskThirdParty.deleteMany({ where: { thirdPartyId, task: { projectId } } }),
+    ]);
+
+    await this.audit.tracer({
+      action: "third_party.detach_project", typeEntite: "ThirdParty", entiteId: thirdPartyId,
+      acteurId, detail: { projectId, tachesRetirees: retirees.count },
+    });
+    return { tachesRetirees: retirees.count };
   }
 
   /**
@@ -475,7 +554,14 @@ export class TiersService {
    * entrées fautives**. Rattacher en silence ce qui existe et ignorer le reste
    * laisserait l'utilisateur croire que tout a été fait.
    */
-  async rattacherClients(projectId: string, clientIds: string[], acteurId: string) {
+  async rattacherClients(
+    projectId: string,
+    clientIds: string[],
+    acteurId: string,
+    perimetre: Perimetre,
+    permissions: ReadonlySet<string>,
+  ) {
+    await this.exigerProjetVisible(projectId, perimetre, permissions);
     const clients = await this.prisma.client.findMany({
       where: { id: { in: clientIds } },
       select: { id: true, nom: true, actif: true },
@@ -507,6 +593,42 @@ export class TiersService {
       detail: { rattaches: aCreer.length, deja: dejaSet.size },
     });
     return { rattaches: aCreer.length, dejaRattaches: dejaSet.size };
+  }
+
+  /**
+   * `EX-PRJ-10`, `RG-PRJ-12` — **détacher** un client d'un projet.
+   *
+   * Le point d'entrée d'écriture des clients s'annonce « remplacés en bloc »
+   * dans son propre commentaire ; il ne fait qu'AJOUTER — `createMany` des
+   * absents, aucune suppression. Renvoyer une liste raccourcie ne détachait
+   * donc personne, et le détachement n'existait nulle part. Le geste est ici,
+   * unitaire et nommé, plutôt qu'en effet de bord d'une écriture qui ne le
+   * produit pas.
+   *
+   * Un client n'est jamais assigné à une tâche — le modèle ne lui donne que
+   * `projets` : le détacher n'emporte donc rien d'autre que le rattachement.
+   */
+  async detacherClient(
+    projectId: string,
+    clientId: string,
+    acteurId: string,
+    perimetre: Perimetre,
+    permissions: ReadonlySet<string>,
+  ) {
+    await this.exigerProjetVisible(projectId, perimetre, permissions);
+
+    const existe = await this.prisma.projectClient.findUnique({
+      where: { projectId_clientId: { projectId, clientId } },
+    });
+    if (!existe) throw new ErreurTiers("non_rattache_au_projet");
+
+    await this.prisma.projectClient.delete({
+      where: { projectId_clientId: { projectId, clientId } },
+    });
+    await this.audit.tracer({
+      action: "client.detach_project", typeEntite: "Project", entiteId: projectId, acteurId,
+      detail: { clientId },
+    });
   }
 
   /** `EX-TRS-05` — la fiche d'un client et ses projets. */

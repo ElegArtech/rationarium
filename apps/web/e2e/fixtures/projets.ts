@@ -262,9 +262,16 @@ export const EQUIPE = {
         email: "driss.amrani@exemple.fr",
         departement: { nom: "Direction des services numériques" },
       },
+      /* `RG-PRJ-12` — ce que le retrait retirera, annoncé avant le geste. */
+      tachesAssignees: 2,
     },
   ],
-  tiers: [{ id: "x1", type: "organisation", organisation: "Presta SA", contactNom: null }],
+  tiers: [
+    {
+      id: "x1", type: "organisation", organisation: "Presta SA", contactNom: null,
+      tachesAssignees: 0,
+    },
+  ],
   clients: [{ id: "cl1", nom: "Direction de la relation citoyen", contactNom: null }],
   allocationCumulee: 60,
 };

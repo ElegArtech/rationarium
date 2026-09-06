@@ -321,8 +321,8 @@ Trois niveaux : **Direction → Département → Service**.
 | EX-PRJ-06 | Archiver / désarchiver un projet |
 | EX-PRJ-07 | Supprimer un projet (annulation logique, puis suppression définitive) |
 | EX-PRJ-08 | Consulter la fiche projet en cinq onglets |
-| EX-PRJ-09 | Gérer l'équipe : ajouter un membre avec un rôle projet et un taux d'allocation |
-| EX-PRJ-10 | Rattacher des clients et des tiers au projet |
+| EX-PRJ-09 | Gérer l'équipe : ajouter un membre avec un rôle projet et un taux d'allocation, changer son rôle, le retirer du projet |
+| EX-PRJ-10 | Rattacher **et détacher** des clients et des tiers au projet |
 | EX-PRJ-11 | Importer jalons et tâches depuis un CSV unique |
 | EX-PRJ-12 | Exporter le contenu du projet |
 | EX-PRJ-13 | Consulter l'historique des instantanés d'avancement |
@@ -351,6 +351,10 @@ Trois niveaux : **Direction → Département → Service**.
 - **RG-PRJ-08** — Le budget consommé est calculé à partir du temps déclaré sur le projet et ses tâches.
 - **RG-PRJ-09** — Un instantané d'avancement est capturé périodiquement pour alimenter les courbes de tendance.
 - **RG-PRJ-10** — Seuls les clients actifs sont rattachables ; un client introuvable ou inactif produit une erreur nommant les entrées fautives.
+- **RG-PRJ-12** — Retirer un membre, un tiers ou un client d'un projet défait **le rattachement, et les affectations aux tâches de ce projet**. L'entité elle-même — compte, tiers, client — n'est jamais supprimée, et le **temps déclaré est conservé** : `RG-PRJ-08` en calcule le budget consommé. Une tâche dont le seul assigné est retiré demeure, sans assigné. La confirmation annonce le nombre d'affectations concernées **avant** le geste.
+
+  *Écrit le 2026-09-06, à l'usage.* Le cadrage était muet sur les effets du retrait ; l'implémentation avait tranché seule et affichait « le temps déclaré et les tâches assignées sont conservés ». La seconde moitié contredisait `RG-SCOPE-02` — un projet est visible à ses **membres** : l'affectation conservée laissait quelqu'un porteur d'une tâche d'un projet qu'il ne peut plus ouvrir, et `RG-TSK-03` refuse par ailleurs d'y créer une tâche sans être membre. Pour un tiers, `RG-TRS-04` dit la même chose de l'assignation. Le détachement d'un tiers et d'un client n'existait par ailleurs **nulle part** : un tiers rattaché par erreur ne se retirait qu'en supprimant le tiers.
+
 - **RG-PRJ-11** — L'import projet accepte deux modes : **Ajouter** (conserve l'existant) et **Remplacer** (supprime jalons, tâches et sous-tâches avant import, en tout-ou-rien). Le mode Remplacer exige une confirmation affichant les volumes concernés, et est bloqué si des données rattachées l'empêchent.
 
 ---

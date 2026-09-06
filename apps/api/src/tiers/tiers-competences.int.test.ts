@@ -54,7 +54,7 @@ beforeAll(async () => {
   prisma = creerClient(pg.getConnectionUri());
   const audit = new AuditService(prisma as never);
   perimetres = new PerimetreService(prisma as never);
-  tiers = new TiersService(prisma as never, audit);
+  tiers = new TiersService(prisma as never, audit, perimetres);
   competences = new CompetencesService(prisma as never, audit, perimetres);
   acteur = await agent();
 }, 240_000);
@@ -65,6 +65,18 @@ afterAll(async () => {
 });
 
 const globalP = () => perimetres.resoudre(acteur, new Set(["users:manage_any"]));
+
+/*
+ * La portée PROJET des rattachements de tiers.
+ *
+ * Rattacher un tiers à un projet contrôle désormais permission PUIS périmètre
+ * — la famille entière des écritures de rattachement ne contrôlait que la
+ * première. Ces suites-ci portent sur la règle métier, pas sur le
+ * cloisonnement : elles se donnent donc la portée globale, et c'est
+ * `fiche-equipe.int.test.ts` qui vérifie le refus hors périmètre.
+ */
+const porteeProjet = () => perimetres.resoudre(acteur, new Set(["projects:manage_any"]));
+const droitsProjet = new Set(["projects:manage_any"]);
 
 describe("RG-TRS-01 — une personne morale ne porte pas de contact nommé", () => {
   it("refuse le contact sur une organisation", async () => {
@@ -85,7 +97,7 @@ describe("EX-TRS-02, RG-TRS-02, RG-TRS-04 — rattacher au projet, assigner à l
     const t = await tiers.creerTiers({ type: "individual", contactNom: "Archivé" }, acteur);
     await prisma.thirdParty.update({ where: { id: t.id }, data: { actif: false } });
     const p = await projet();
-    await expect(tiers.rattacherAuProjet(p, t.id, acteur)).rejects.toMatchObject({
+    await expect(tiers.rattacherAuProjet(p, t.id, acteur, await porteeProjet(), droitsProjet)).rejects.toMatchObject({
       code: "tiers_archive",
     });
   });
@@ -93,8 +105,8 @@ describe("EX-TRS-02, RG-TRS-02, RG-TRS-04 — rattacher au projet, assigner à l
   it("RG-TRS-03 — un tiers ne se rattache pas deux fois au même projet", async () => {
     const t = await tiers.creerTiers({ type: "individual", contactNom: "Double" }, acteur);
     const p = await projet();
-    await tiers.rattacherAuProjet(p, t.id, acteur);
-    await expect(tiers.rattacherAuProjet(p, t.id, acteur)).rejects.toMatchObject({
+    await tiers.rattacherAuProjet(p, t.id, acteur, await porteeProjet(), droitsProjet);
+    await expect(tiers.rattacherAuProjet(p, t.id, acteur, await porteeProjet(), droitsProjet)).rejects.toMatchObject({
       code: "deja_rattache",
     });
   });
@@ -110,7 +122,7 @@ describe("EX-TRS-02, RG-TRS-02, RG-TRS-04 — rattacher au projet, assigner à l
       code: "non_rattache_au_projet",
     });
 
-    await tiers.rattacherAuProjet(p, t.id, acteur);
+    await tiers.rattacherAuProjet(p, t.id, acteur, await porteeProjet(), droitsProjet);
     await expect(tiers.assignerALaTache(tache.id, t.id, acteur)).resolves.toBeUndefined();
   });
 
@@ -118,6 +130,138 @@ describe("EX-TRS-02, RG-TRS-02, RG-TRS-04 — rattacher au projet, assigner à l
     const t = await tiers.creerTiers({ type: "individual", contactNom: "Libre" }, acteur);
     const tache = await prisma.task.create({ data: { titre: "Hors projet" } });
     await expect(tiers.assignerALaTache(tache.id, t.id, acteur)).resolves.toBeUndefined();
+  });
+});
+
+/*
+ * `RG-PRJ-12` — DÉTACHER n'est pas SUPPRIMER.
+ *
+ * Le geste n'existait pas : un prestataire rattaché par erreur ne se retirait
+ * qu'en supprimant le tiers, ce qui rompait tous ses autres rattachements et
+ * perdait son temps déclaré. Chaque contrôle affirme les deux moitiés — ce
+ * qui part et ce qui reste —, parce que c'est leur opposition qui définit le
+ * geste.
+ */
+describe("RG-PRJ-12 — détacher un tiers d'un projet", () => {
+  it("le détachement emporte les affectations aux tâches DU PROJET, pas les autres", async () => {
+    const t = await tiers.creerTiers({ type: "individual", contactNom: "Détaché" }, acteur);
+    const p = await projet();
+    const autre = await projet();
+    await tiers.rattacherAuProjet(p, t.id, acteur, await porteeProjet(), droitsProjet);
+    await tiers.rattacherAuProjet(autre, t.id, acteur, await porteeProjet(), droitsProjet);
+
+    const tache = await prisma.task.create({ data: { titre: "Du projet", projectId: p } });
+    const ailleurs = await prisma.task.create({ data: { titre: "De l'autre", projectId: autre } });
+    await tiers.assignerALaTache(tache.id, t.id, acteur);
+    await tiers.assignerALaTache(ailleurs.id, t.id, acteur);
+    await prisma.timeEntry.create({
+      data: { thirdPartyId: t.id, projectId: p, date: new Date("2026-04-01"), heures: 4 },
+    });
+
+    const rendu = await tiers.detacherDuProjet(
+      p, t.id, acteur, await porteeProjet(), droitsProjet,
+    );
+
+    expect(rendu).toEqual({ tachesRetirees: 1 });
+    expect(
+      await prisma.projectThirdParty.count({ where: { projectId: p, thirdPartyId: t.id } }),
+    ).toBe(0);
+    expect(await prisma.taskThirdParty.count({ where: { taskId: tache.id } })).toBe(0);
+
+    // Ce qui reste, et c'est la moitié qui compte : le tiers lui-même, son
+    // autre rattachement, l'affectation qui en dépend, et le temps déclaré
+    // dont `RG-PRJ-08` tire le budget consommé.
+    expect(await prisma.thirdParty.count({ where: { id: t.id } })).toBe(1);
+    expect(
+      await prisma.projectThirdParty.count({ where: { projectId: autre, thirdPartyId: t.id } }),
+    ).toBe(1);
+    expect(await prisma.taskThirdParty.count({ where: { taskId: ailleurs.id } })).toBe(1);
+    expect(await prisma.timeEntry.count({ where: { thirdPartyId: t.id } })).toBe(1);
+  });
+
+  it("détacher un tiers qui n'est pas rattaché est refusé, et le dit", async () => {
+    const t = await tiers.creerTiers({ type: "individual", contactNom: "Jamais là" }, acteur);
+    const p = await projet();
+    await expect(
+      tiers.detacherDuProjet(p, t.id, acteur, await porteeProjet(), droitsProjet),
+    ).rejects.toMatchObject({ code: "non_rattache_au_projet" });
+  });
+
+  it("le détachement est TRACÉ — c'est une décision d'équipe, pas un détail", async () => {
+    const t = await tiers.creerTiers({ type: "individual", contactNom: "Tracé" }, acteur);
+    const p = await projet();
+    await tiers.rattacherAuProjet(p, t.id, acteur, await porteeProjet(), droitsProjet);
+    await tiers.detacherDuProjet(p, t.id, acteur, await porteeProjet(), droitsProjet);
+
+    const trace = await prisma.auditLog.findFirst({
+      where: { action: "third_party.detach_project", entiteId: t.id },
+    });
+    expect(trace?.acteurId).toBe(acteur);
+  });
+
+  /*
+   * Permission PUIS périmètre, sur l'écriture. `third_parties:assign`
+   * suffisait à poser — et maintenant à retirer — un prestataire sur
+   * n'importe quel projet de l'instance en devinant son identifiant.
+   */
+  it("RG-SCOPE-02 — un projet hors périmètre refuse le rattachement comme le détachement", async () => {
+    const t = await tiers.creerTiers({ type: "individual", contactNom: "Hors portée" }, acteur);
+    const p = await projet();
+    const etranger = await agent();
+    const dehors = await perimetres.resoudre(etranger, new Set());
+
+    await expect(
+      tiers.rattacherAuProjet(p, t.id, etranger, dehors, new Set(["third_parties:assign"])),
+    ).rejects.toMatchObject({ code: "hors_perimetre" });
+
+    await tiers.rattacherAuProjet(p, t.id, acteur, await porteeProjet(), droitsProjet);
+    await expect(
+      tiers.detacherDuProjet(p, t.id, etranger, dehors, new Set(["third_parties:assign"])),
+    ).rejects.toMatchObject({ code: "hors_perimetre" });
+  });
+});
+
+/*
+ * `RG-PRJ-12` — détacher un client.
+ *
+ * Le point d'entrée d'écriture des clients s'annonce « remplacés en bloc » et
+ * ne fait qu'AJOUTER : renvoyer une liste raccourcie ne détachait personne.
+ * Le premier contrôle le constate — il documente ce que la route fait, et
+ * c'est ce qui justifie que le détachement soit un geste à lui.
+ */
+describe("RG-PRJ-12 — détacher un client d'un projet", () => {
+  it("une liste raccourcie NE détache pas : l'écriture en bloc n'ajoute que", async () => {
+    const a = await tiers.creerClient({ nom: `Un ${uuid().slice(0, 6)}` }, acteur);
+    const b = await tiers.creerClient({ nom: `Deux ${uuid().slice(0, 6)}` }, acteur);
+    const p = await projet();
+    await tiers.rattacherClients(p, [a.id, b.id], acteur, await porteeProjet(), droitsProjet);
+
+    await tiers.rattacherClients(p, [a.id], acteur, await porteeProjet(), droitsProjet);
+    expect(await prisma.projectClient.count({ where: { projectId: p } })).toBe(2);
+  });
+
+  it("le détachement retire le rattachement, et le client reste au répertoire", async () => {
+    const c = await tiers.creerClient({ nom: `Détaché ${uuid().slice(0, 6)}` }, acteur);
+    const p = await projet();
+    const autre = await projet();
+    await tiers.rattacherClients(p, [c.id], acteur, await porteeProjet(), droitsProjet);
+    await tiers.rattacherClients(autre, [c.id], acteur, await porteeProjet(), droitsProjet);
+
+    await tiers.detacherClient(p, c.id, acteur, await porteeProjet(), droitsProjet);
+
+    expect(await prisma.projectClient.count({ where: { projectId: p, clientId: c.id } })).toBe(0);
+    expect(await prisma.client.count({ where: { id: c.id } })).toBe(1);
+    expect(
+      await prisma.projectClient.count({ where: { projectId: autre, clientId: c.id } }),
+    ).toBe(1);
+  });
+
+  it("détacher un client qui n'est pas rattaché est refusé, et le dit", async () => {
+    const c = await tiers.creerClient({ nom: `Jamais ${uuid().slice(0, 6)}` }, acteur);
+    const p = await projet();
+    await expect(
+      tiers.detacherClient(p, c.id, acteur, await porteeProjet(), droitsProjet),
+    ).rejects.toMatchObject({ code: "non_rattache_au_projet" });
   });
 });
 
@@ -151,7 +295,7 @@ describe("RG-PRJ-10 — seuls les clients ACTIFS sont rattachables", () => {
     const p = await projet();
 
     const erreur = await tiers
-      .rattacherClients(p, [actif.id, inactif.id], acteur)
+      .rattacherClients(p, [actif.id, inactif.id], acteur, await porteeProjet(), droitsProjet)
       .catch((e: ErreurTiers) => e);
     expect((erreur as ErreurTiers).code).toBe("client_inactif");
     expect((erreur as ErreurTiers).detail?.inactifs).toHaveLength(1);
@@ -160,7 +304,7 @@ describe("RG-PRJ-10 — seuls les clients ACTIFS sont rattachables", () => {
   it("un identifiant introuvable est signalé, pas ignoré", async () => {
     const p = await projet();
     const fantome = uuid();
-    const erreur = await tiers.rattacherClients(p, [fantome], acteur).catch((e: ErreurTiers) => e);
+    const erreur = await tiers.rattacherClients(p, [fantome], acteur, await porteeProjet(), droitsProjet).catch((e: ErreurTiers) => e);
     // Rattacher ce qui existe et ignorer le reste laisserait croire que tout
     // a été fait.
     expect((erreur as ErreurTiers).detail?.introuvables).toEqual([fantome]);
@@ -169,9 +313,9 @@ describe("RG-PRJ-10 — seuls les clients ACTIFS sont rattachables", () => {
   it("les clients actifs se rattachent, sans doublonner", async () => {
     const c = await tiers.creerClient({ nom: `Client ${uuid().slice(0, 6)}` }, acteur);
     const p = await projet();
-    const premier = await tiers.rattacherClients(p, [c.id], acteur);
+    const premier = await tiers.rattacherClients(p, [c.id], acteur, await porteeProjet(), droitsProjet);
     expect(premier.rattaches).toBe(1);
-    const second = await tiers.rattacherClients(p, [c.id], acteur);
+    const second = await tiers.rattacherClients(p, [c.id], acteur, await porteeProjet(), droitsProjet);
     expect(second.rattaches).toBe(0);
     expect(second.dejaRattaches).toBe(1);
   });
@@ -665,7 +809,7 @@ describe("EX-TRS-03 — consulter la fiche d'un tiers et ses rattachements", () 
       acteur,
     );
     const p = await projet();
-    await tiers.rattacherAuProjet(p, t.id, acteur);
+    await tiers.rattacherAuProjet(p, t.id, acteur, await porteeProjet(), droitsProjet);
     const tache = await prisma.task.create({ data: { titre: "Audit", projectId: p } });
     await tiers.assignerALaTache(tache.id, t.id, acteur);
     await prisma.timeEntry.createMany({
@@ -736,7 +880,7 @@ describe("EX-TRS-06 — consulter l'impact d'une suppression AVANT de la confirm
       acteur,
     );
     const p = await projet();
-    await tiers.rattacherAuProjet(p, t.id, acteur);
+    await tiers.rattacherAuProjet(p, t.id, acteur, await porteeProjet(), droitsProjet);
     const tache = await prisma.task.create({ data: { titre: "Reprise", projectId: p } });
     await tiers.assignerALaTache(tache.id, t.id, acteur);
     await prisma.timeEntry.create({
@@ -765,7 +909,7 @@ describe("EX-TRS-06 — consulter l'impact d'une suppression AVANT de la confirm
       acteur,
     );
     const p = await projet();
-    await tiers.rattacherAuProjet(p, t.id, acteur);
+    await tiers.rattacherAuProjet(p, t.id, acteur, await porteeProjet(), droitsProjet);
 
     const impact = await tiers.impactSuppressionTiers(t.id);
     expect(impact.blocages).toEqual([]);
@@ -781,7 +925,7 @@ describe("EX-TRS-06 — consulter l'impact d'une suppression AVANT de la confirm
   it("l'impact d'un CLIENT chiffre ses projets et propose la désactivation", async () => {
     const c = await tiers.creerClient({ nom: `Ville ${uuid().slice(0, 6)}` }, acteur);
     const p = await projet();
-    await tiers.rattacherClients(p, [c.id], acteur);
+    await tiers.rattacherClients(p, [c.id], acteur, await porteeProjet(), droitsProjet);
 
     const impact = await tiers.impactSuppressionClient(c.id);
 

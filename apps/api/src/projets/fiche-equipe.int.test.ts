@@ -172,7 +172,22 @@ describe("EX-PRJ-09 — l'équipe distingue trois populations", () => {
 });
 
 describe("EX-PRJ-09 — le retrait défait un lien, il n'efface rien", () => {
-  it("le temps déclaré et les tâches survivent au retrait", async () => {
+  /*
+   * `RG-PRJ-12` — le retrait emporte les affectations DU PROJET, et rien
+   * d'autre.
+   *
+   * Ce contrôle affirmait l'inverse jusqu'au 2026-09-06 : « les tâches
+   * survivent au retrait ». C'était une décision prise à l'implémentation sur
+   * une spécification muette, et elle contredisait `RG-SCOPE-02` — un projet
+   * est visible à ses MEMBRES : l'affectation conservée laissait quelqu'un
+   * porteur d'une tâche d'un projet qu'il ne peut plus ouvrir. La règle est
+   * désormais écrite au cadrage, et c'est elle que le contrôle cite.
+   *
+   * Les DEUX moitiés comptent, et elles s'opposent : la tâche hors projet et
+   * le temps déclaré ne bougent pas. Sans la tâche hors projet, un
+   * `deleteMany` trop large passerait au vert.
+   */
+  it("RG-PRJ-12 — le retrait emporte les affectations du projet, PAS le reste", async () => {
     const p = await projet("Retrait");
     const a = await agent("Parti", "Ailleurs");
     await prisma.projectMember.create({
@@ -181,16 +196,75 @@ describe("EX-PRJ-09 — le retrait défait un lien, il n'efface rien", () => {
     const tache = await prisma.task.create({
       data: { titre: "La sienne", projectId: p.id, assignes: { create: { userId: a } } },
     });
+    const ailleurs = await prisma.task.create({
+      data: { titre: "Hors projet", assignes: { create: { userId: a } } },
+    });
     await prisma.timeEntry.create({
       data: { userId: a, projectId: p.id, date: utc("2026-04-01"), heures: 5 },
     });
 
-    await projets.retirerMembre(p.id, a, acteur);
+    const rendu = await projets.retirerMembre(p.id, a, acteur, await global(), toutes);
 
+    expect(rendu).toEqual({ tachesRetirees: 1 });
     expect((await projets.equipe(p.id, await global(), toutes)).agents).toHaveLength(0);
-    // Ce qui distingue « retirer » de « supprimer » : rien d'autre ne bouge.
+    expect(await prisma.taskAssignee.count({ where: { taskId: tache.id } })).toBe(0);
+
+    // Ce qui distingue « retirer du projet » de « supprimer » : la tâche est
+    // toujours là, sans assigné ; le temps déclaré alimente encore `RG-PRJ-08` ;
+    // et une affectation qui ne relève pas du projet n'est pas concernée.
+    expect(await prisma.task.count({ where: { id: tache.id } })).toBe(1);
     expect(await prisma.timeEntry.count({ where: { userId: a } })).toBe(1);
-    expect(await prisma.taskAssignee.count({ where: { taskId: tache.id } })).toBe(1);
+    expect(await prisma.taskAssignee.count({ where: { taskId: ailleurs.id } })).toBe(1);
+  });
+
+  /*
+   * Le compte que la vue ANNONCE avant de retirer.
+   *
+   * Il voyage avec l'équipe : l'écran qui pose la question est celui qui lit
+   * la réponse, et une route d'impact par membre aurait fait un aller-retour
+   * de plus pour un nombre déjà calculable.
+   */
+  it("RG-PRJ-12 — l'équipe porte le compte des tâches assignées, par membre", async () => {
+    const p = await projet("Compte d'affectations");
+    const a = await agent("Compté", "Deux");
+    const b = await agent("Compté", "Zero");
+    await prisma.projectMember.createMany({
+      data: [
+        { projectId: p.id, userId: a, roleProjet: "membre" },
+        { projectId: p.id, userId: b, roleProjet: "membre" },
+      ],
+    });
+    await prisma.task.create({
+      data: { titre: "Une", projectId: p.id, assignes: { create: { userId: a } } },
+    });
+    await prisma.task.create({
+      data: { titre: "Deux", projectId: p.id, assignes: { create: { userId: a } } },
+    });
+
+    const equipe = await projets.equipe(p.id, await global(), toutes);
+    const compte = new Map(equipe.agents.map((m) => [m.userId, m.tachesAssignees]));
+    expect(compte.get(a)).toBe(2);
+    expect(compte.get(b)).toBe(0);
+  });
+
+  /*
+   * Permission PUIS périmètre, sur l'ÉCRITURE. `projects:manage_members`
+   * suffisait à composer l'équipe de n'importe quel projet de l'instance en
+   * devinant son identifiant : la garde faisait ce qu'on lui demandait, et le
+   * service ne requestionnait rien.
+   */
+  it("RG-SCOPE-02 — retirer d'un projet hors périmètre est refusé", async () => {
+    const p = await projet("Hors de portée");
+    const a = await agent("Membre", "Interne");
+    await prisma.projectMember.create({
+      data: { projectId: p.id, userId: a, roleProjet: "membre" },
+    });
+
+    const etranger = await agent("Étranger", "AuProjet");
+    const dehors = await perimetres.resoudre(etranger, new Set());
+    await expect(
+      projets.retirerMembre(p.id, a, etranger, dehors, new Set(["projects:manage_members"])),
+    ).rejects.toMatchObject({ code: "hors_perimetre" });
   });
 
   it("le retrait est tracé", async () => {
@@ -199,7 +273,7 @@ describe("EX-PRJ-09 — le retrait défait un lien, il n'efface rien", () => {
     await prisma.projectMember.create({
       data: { projectId: p.id, userId: a, roleProjet: "membre" },
     });
-    await projets.retirerMembre(p.id, a, acteur);
+    await projets.retirerMembre(p.id, a, acteur, await global(), toutes);
 
     const trace = await prisma.auditLog.findFirst({
       where: { action: "project.member_remove", entiteId: p.id },

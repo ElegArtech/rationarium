@@ -583,7 +583,7 @@ export class ProjetsService {
   ) {
     await this.exigerVisible(projectId, perimetre, permissions);
 
-    const [agents, tiers, clients] = await Promise.all([
+    const [agents, tiers, clients, affectations, affectationsTiers] = await Promise.all([
       this.prisma.projectMember.findMany({
         where: { projectId },
         include: {
@@ -607,7 +607,26 @@ export class ProjetsService {
         where: { projectId },
         include: { client: { select: { id: true, nom: true, contactNom: true } } },
       }),
+      /*
+       * `RG-PRJ-12` — retirer du projet retire les affectations aux tâches du
+       * projet. La vue doit l'ANNONCER avant de le faire, donc le compte
+       * voyage avec l'équipe plutôt que par une route d'impact par membre :
+       * l'écran qui pose la question est déjà celui qui lit cette réponse.
+       */
+      this.prisma.taskAssignee.groupBy({
+        by: ["userId"],
+        where: { task: { projectId } },
+        _count: { userId: true },
+      }),
+      this.prisma.taskThirdParty.groupBy({
+        by: ["thirdPartyId"],
+        where: { task: { projectId } },
+        _count: { thirdPartyId: true },
+      }),
     ]);
+
+    const parAgent = new Map(affectations.map((a) => [a.userId, a._count.userId]));
+    const parTiers = new Map(affectationsTiers.map((a) => [a.thirdPartyId, a._count.thirdPartyId]));
 
     return {
       agents: agents.map((m) => ({
@@ -615,8 +634,14 @@ export class ProjetsService {
         roleProjet: m.roleProjet,
         tauxAllocation: m.tauxAllocation,
         utilisateur: m.user,
+        tachesAssignees: parAgent.get(m.userId) ?? 0,
       })),
-      tiers: tiers.map((x) => x.thirdParty),
+      tiers: tiers.map((x) => ({
+        ...x.thirdParty,
+        tachesAssignees: parTiers.get(x.thirdPartyId) ?? 0,
+      })),
+      // Un client n'est jamais assigné à une tâche : le modèle ne lui donne
+      // que `projets`. Le détacher ne retire donc rien d'autre.
       clients: clients.map((x) => x.client),
       allocationCumulee: agents.reduce((n, m) => n + (m.tauxAllocation ?? 0), 0),
     };
@@ -627,7 +652,18 @@ export class ProjetsService {
     projectId: string,
     donnees: { userId: string; roleProjet: string; tauxAllocation?: number },
     acteurId: string,
+    perimetre: Perimetre,
+    permissions: ReadonlySet<string>,
   ) {
+    /*
+     * Permission PUIS périmètre, sur l'ÉCRITURE comme sur la lecture. La
+     * famille entière des écritures d'équipe ne contrôlait que la première :
+     * `projects:manage_members` suffisait à composer l'équipe de n'importe
+     * quel projet de l'instance en devinant son identifiant. Le miroir exact
+     * du défaut déjà consigné sur les lectures par identifiant — la liste
+     * filtre, l'adresse directe non.
+     */
+    await this.exigerVisible(projectId, perimetre, permissions);
     await this.refuserSiAnnule(projectId);
     const existe = await this.prisma.projectMember.findUnique({
       where: { projectId_userId: { projectId, userId: donnees.userId } },
@@ -688,7 +724,10 @@ export class ProjetsService {
     userId: string,
     donnees: { roleProjet?: string; tauxAllocation?: number | null },
     acteurId: string,
+    perimetre: Perimetre,
+    permissions: ReadonlySet<string>,
   ) {
+    await this.exigerVisible(projectId, perimetre, permissions);
     await this.refuserSiAnnule(projectId);
     const membre = await this.prisma.projectMember.findUnique({
       where: { projectId_userId: { projectId, userId } },
@@ -727,14 +766,48 @@ export class ProjetsService {
    * qu'on supprime — et l'interface le dit, parce que la confusion entre les
    * deux est la première raison qu'on a de ne pas oser cliquer.
    */
-  async retirerMembre(projectId: string, userId: string, acteurId: string) {
-    await this.prisma.projectMember.delete({
-      where: { projectId_userId: { projectId, userId } },
-    });
+  /**
+   * `EX-PRJ-09`, `RG-PRJ-12` — retirer un membre du projet.
+   *
+   * **Le retrait emporte les affectations aux tâches DU PROJET**, et rien
+   * d'autre. La vue disait l'inverse — « les tâches assignées sont
+   * conservées » — et c'était une décision prise à l'implémentation, sur une
+   * spécification muette : `cadrage/01` ne disait pas ce que le retrait fait.
+   * Or `RG-SCOPE-02` rend un projet visible à ses MEMBRES : garder une
+   * affectation après le retrait laissait quelqu'un porteur d'une tâche d'un
+   * projet qu'il ne peut plus ouvrir, et `RG-TSK-03` refuse par ailleurs d'en
+   * créer une sans être membre. L'incohérence était dans la règle, pas dans
+   * son application.
+   *
+   * **Le temps déclaré est conservé**, lui, et ce n'est pas une omission :
+   * `RG-PRJ-08` calcule le budget consommé à partir de lui. L'effacer
+   * falsifierait la consommation d'un projet parce que quelqu'un l'a quitté.
+   *
+   * La tâche n'est pas supprimée : elle se retrouve sans assigné, ce que la
+   * vue 16 sait montrer et ce qui appelle une réassignation — un état visible,
+   * pas une donnée perdue.
+   */
+  async retirerMembre(
+    projectId: string,
+    userId: string,
+    acteurId: string,
+    perimetre: Perimetre,
+    permissions: ReadonlySet<string>,
+  ) {
+    await this.exigerVisible(projectId, perimetre, permissions);
+
+    const [, retirees] = await this.prisma.$transaction([
+      this.prisma.projectMember.delete({
+        where: { projectId_userId: { projectId, userId } },
+      }),
+      this.prisma.taskAssignee.deleteMany({ where: { userId, task: { projectId } } }),
+    ]);
+
     await this.audit.tracer({
       action: "project.member_remove", typeEntite: "Project", entiteId: projectId, acteurId,
-      detail: { userId },
+      detail: { userId, tachesRetirees: retirees.count },
     });
+    return { tachesRetirees: retirees.count };
   }
 
   /** `RG-JAL-02` — un jalon appartient à un et un seul projet. */

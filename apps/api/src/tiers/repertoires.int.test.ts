@@ -43,7 +43,7 @@ beforeAll(async () => {
   prisma = creerClient(pg.getConnectionUri());
   const audit = new AuditService(prisma as never);
   const perimetres = new PerimetreService(prisma as never);
-  tiers = new TiersService(prisma as never, audit);
+  tiers = new TiersService(prisma as never, audit, perimetres);
   competences = new CompetencesService(prisma as never, audit, perimetres);
   acteur = await agent("Acteur", "Test");
 }, 240_000);

@@ -1026,14 +1026,104 @@ test.describe("Vue 14 — équipe", () => {
     await expect(page.getByRole("button", { name: /Client/ })).toHaveCount(0);
   });
 
-  test("le retrait dit ce qu'il ne supprime pas", async ({ page }) => {
+  /*
+   * `RG-PRJ-12` — la confirmation dit ce qui PART et ce qui RESTE.
+   *
+   * Elle disait jusqu'au 2026-09-06 « le temps déclaré et les tâches
+   * assignées sont conservés ». La seconde moitié était une décision prise à
+   * l'implémentation sur un cadrage muet, et elle contredisait `RG-SCOPE-02` :
+   * l'affectation conservée laissait quelqu'un porteur d'une tâche d'un projet
+   * qu'il ne peut plus ouvrir. Le nombre est ANNONCÉ — retirer sans dire ce
+   * qui part est la moitié d'une confirmation.
+   */
+  test("RG-PRJ-12 — le retrait annonce les affectations qu'il emporte, et ce qu'il garde", async ({
+    page,
+  }) => {
     await serveur(page, { reponses });
     await page.goto(`${CHEMIN_PROJET}/equipe`);
     await page.getByRole("button", { name: /Retirer Driss Amrani du projet/ }).click();
 
     await expect(page.getByText(/Voulez-vous vraiment retirer Driss Amrani/)).toBeVisible();
-    await expect(page.getByText(/Le temps déclaré et les tâches assignées sont conservés/)).toBeVisible();
-    await expect(page.getByText("Aucune donnée n'est supprimée")).toBeVisible();
+    await expect(
+      page.getByText(/2 tâches de ce projet lui sont assignées : elles lui seront retirées/),
+    ).toBeVisible();
+    await expect(page.getByText(/Les tâches elles-mêmes restent, sans assigné/)).toBeVisible();
+    await expect(page.getByText("Le compte et le temps déclaré sont conservés")).toBeVisible();
+  });
+
+  /*
+   * `EX-PRJ-10`, `RG-PRJ-12` — DÉTACHER n'est pas SUPPRIMER.
+   *
+   * Le geste n'existait dans aucun écran : un tiers rattaché par erreur ne se
+   * retirait qu'en supprimant le tiers du répertoire, ce qui rompait tous ses
+   * autres rattachements et perdait son temps déclaré. Le contrôle porte sur
+   * la REQUÊTE — c'est elle qui distingue les deux.
+   */
+  test("EX-PRJ-10 — un tiers se détache du projet, et la requête ne vise PAS le répertoire", async ({
+    page,
+  }) => {
+    const appels: string[] = [];
+    await serveur(page, { session: SESSION_EXTERNES, reponses });
+    await page.route(
+      (url) => url.pathname.startsWith("/api/tiers/"),
+      (route) => {
+        if (route.request().method() !== "DELETE") return route.fallback();
+        appels.push(new URL(route.request().url()).pathname);
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ tachesRetirees: 0 }),
+        });
+      },
+    );
+
+    await page.goto(`${CHEMIN_PROJET}/equipe`);
+    await page.getByRole("button", { name: "Détacher Presta SA du projet" }).click();
+    await expect(page.getByText(/Voulez-vous vraiment détacher Presta SA/)).toBeVisible();
+    await expect(page.getByText("Le tiers et son temps déclaré sont conservés")).toBeVisible();
+    await page.getByRole("button", { name: "Retirer", exact: true }).click();
+
+    await expect.poll(() => appels).toEqual([`/api/tiers/projets/${PROJET.id}/x1`]);
+  });
+
+  test("EX-PRJ-10 — un bénéficiaire se détache du projet", async ({ page }) => {
+    const appels: string[] = [];
+    await serveur(page, { session: SESSION_EXTERNES, reponses });
+    await page.route(
+      (url) => url.pathname.startsWith("/api/clients/"),
+      (route) => {
+        if (route.request().method() !== "DELETE") return route.fallback();
+        appels.push(new URL(route.request().url()).pathname);
+        return route.fulfill({ status: 204, body: "" });
+      },
+    );
+
+    await page.goto(`${CHEMIN_PROJET}/equipe`);
+    await page
+      .getByRole("button", { name: "Détacher Direction de la relation citoyen du projet" })
+      .click();
+    // Un client n'est jamais assigné à une tâche : la fenêtre ne promet rien.
+    await expect(page.getByText("Aucune tâche de ce projet ne lui est assignée.")).toBeVisible();
+    await expect(page.getByText("Le client est conservé au répertoire")).toBeVisible();
+    await page.getByRole("button", { name: "Retirer", exact: true }).click();
+
+    await expect.poll(() => appels).toEqual([`/api/clients/projets/${PROJET.id}/cl1`]);
+  });
+
+  /* `RG-GEN-06` — sans la permission, le détachement n'est pas proposé. Le
+     retrait d'un agent relève d'une AUTRE permission : les trois natures ne
+     se gouvernent pas ensemble. */
+  test("RG-GEN-06 — sans third_parties:assign ni clients:update, aucun détachement", async ({
+    page,
+  }) => {
+    await serveur(page, { reponses });
+    await page.goto(`${CHEMIN_PROJET}/equipe`);
+
+    await expect(page.getByRole("button", { name: /Retirer Driss Amrani/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Détacher Presta SA/ })).toHaveCount(0);
+    await expect(
+      page.getByRole("button", { name: /Détacher Direction de la relation citoyen/ }),
+    ).toHaveCount(0);
   });
 });
 

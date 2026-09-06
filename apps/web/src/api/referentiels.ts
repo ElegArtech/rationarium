@@ -283,6 +283,20 @@ export const rattacherTiersAuProjet = (projetId: string, thirdPartyId: string) =
     corps: { thirdPartyId },
   });
 
+/**
+ * `EX-PRJ-10`, `RG-PRJ-12` — **détacher** un tiers d'un projet.
+ *
+ * À ne pas confondre avec `supprimerTiers`, juste dessous : celle-là efface le
+ * tiers du répertoire, avec tous ses rattachements et son temps déclaré. Le
+ * détachement ne défait qu'un lien — et, avec lui, les affectations aux tâches
+ * de CE projet, `RG-TRS-04` refusant d'assigner un tiers à une tâche dont il
+ * ne porte pas le projet.
+ */
+export const detacherTiersDuProjet = (projetId: string, thirdPartyId: string) =>
+  appeler<{ tachesRetirees: number }>(`/tiers/projets/${projetId}/${thirdPartyId}`, {
+    methode: "DELETE",
+  });
+
 export const supprimerTiers = (id: string) => appeler<void>(`/tiers/${id}`, { methode: "DELETE" });
 
 export const listerClients = (filtres: { recherche?: string; actif?: boolean }) =>
@@ -307,6 +321,16 @@ export const definirClientsDuProjet = (projetId: string, clientIds: string[]) =>
     methode: "POST",
     corps: { clientIds },
   });
+
+/**
+ * `EX-PRJ-10`, `RG-PRJ-12` — **détacher** un client d'un projet.
+ *
+ * `definirClientsDuProjet` ci-dessus n'AJOUTE que, malgré son intitulé :
+ * renvoyer une liste raccourcie ne détache personne. Le détachement est donc
+ * un geste à lui, et non un effet de bord qu'il faudrait deviner.
+ */
+export const detacherClientDuProjet = (projetId: string, clientId: string) =>
+  appeler<void>(`/clients/projets/${projetId}/${clientId}`, { methode: "DELETE" });
 
 export const creerClient = (donnees: {
   nom: string;

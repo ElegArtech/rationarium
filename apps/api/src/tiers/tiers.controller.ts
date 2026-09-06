@@ -94,7 +94,28 @@ export class TiersController {
     @Demande() d: ContexteDemande,
   ) {
     const { thirdPartyId } = valider(z.object({ thirdPartyId: z.uuid() }), corps);
-    return this.tiers.rattacherAuProjet(projectId, thirdPartyId, d.userId);
+    return this.tiers.rattacherAuProjet(
+      projectId, thirdPartyId, d.userId, d.perimetre, d.permissions,
+    );
+  }
+
+  /**
+   * `EX-PRJ-10`, `RG-PRJ-12` — détacher un tiers d'un projet.
+   *
+   * Deux segments : aucune ambiguïté avec `@Delete(":id")`, qui supprime le
+   * TIERS. La distinction est tout l'objet de la route — retirer d'un projet
+   * n'est pas supprimer du répertoire.
+   */
+  @Delete("projets/:projectId/:thirdPartyId")
+  @RequiertPermission("third_parties:assign")
+  detacher(
+    @Param("projectId") projectId: string,
+    @Param("thirdPartyId") thirdPartyId: string,
+    @Demande() d: ContexteDemande,
+  ) {
+    return this.tiers.detacherDuProjet(
+      projectId, thirdPartyId, d.userId, d.perimetre, d.permissions,
+    );
   }
 
   /**
@@ -211,6 +232,26 @@ export class ClientsController {
       z.object({ clientIds: z.array(z.uuid()).max(50) }),
       corps,
     );
-    return this.tiers.rattacherClients(projectId, clientIds, d.userId);
+    return this.tiers.rattacherClients(
+      projectId, clientIds, d.userId, d.perimetre, d.permissions,
+    );
+  }
+
+  /**
+   * `EX-PRJ-10`, `RG-PRJ-12` — détacher un client d'un projet.
+   *
+   * L'écriture ci-dessus n'AJOUTE que : renvoyer une liste raccourcie ne
+   * détache personne, malgré ce que son intitulé annonce. Le détachement est
+   * donc un geste à lui, nommé, et non un effet de bord qu'il faudrait
+   * deviner.
+   */
+  @Delete("projets/:projectId/:clientId")
+  @RequiertPermission("clients:update")
+  detacher(
+    @Param("projectId") projectId: string,
+    @Param("clientId") clientId: string,
+    @Demande() d: ContexteDemande,
+  ) {
+    return this.tiers.detacherClient(projectId, clientId, d.userId, d.perimetre, d.permissions);
   }
 }
