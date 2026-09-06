@@ -48,6 +48,8 @@ type Equipe = {
     };
     /** `RG-PRJ-12` — ce que le retrait retirera. Annoncé AVANT le geste. */
     tachesAssignees: number;
+    /** `RG-PRJ-12` — le second attachement au travail du projet. */
+    raciSurTaches: number;
   }[];
   tiers: {
     id: string;
@@ -398,6 +400,7 @@ function FenetreRetrait({
   titre,
   question,
   tachesRetirees,
+  raciRetires = 0,
   conserve,
   enCours,
   surConfirmer,
@@ -407,6 +410,13 @@ function FenetreRetrait({
   titre: string;
   question: string;
   tachesRetirees: number;
+  /**
+   * Les rôles RACI que le retrait emporte. Nommés À PART des affectations :
+   * ce sont deux attachements distincts, et un total les rendrait
+   * irrecoupables à l'écran. Un tiers et un client n'en portent pas — la
+   * matrice RACI est nominative.
+   */
+  raciRetires?: number;
   conserve: string;
   enCours: boolean;
   surConfirmer: () => void;
@@ -440,6 +450,7 @@ function FenetreRetrait({
           {tachesRetirees > 0
             ? t("equipe.effetRetraitTaches", { n: tachesRetirees })
             : t("equipe.effetRetraitAucuneTache")}
+          {raciRetires > 0 ? ` ${t("equipe.effetRetraitRaci", { n: raciRetires })}` : ""}
         </span>
       </div>
     </Fenetre>
@@ -502,9 +513,10 @@ function LigneAgent({
 
   const retrait = useMutation({
     mutationFn: () =>
-      appeler<{ tachesRetirees: number }>(`/projets/${projetId}/membres/${membre.userId}`, {
-        methode: "DELETE",
-      }),
+      appeler<{ tachesRetirees: number; raciRetires: number }>(
+        `/projets/${projetId}/membres/${membre.userId}`,
+        { methode: "DELETE" },
+      ),
     onSuccess: () => {
       annoncer("ok", t("equipe.retire", { nom: nomComplet }));
       setRetraitOuvert(false);
@@ -611,6 +623,7 @@ function LigneAgent({
         titre={t("equipe.retirerTitre")}
         question={t("equipe.confirmerRetrait", { nom: nomComplet })}
         tachesRetirees={membre.tachesAssignees}
+        raciRetires={membre.raciSurTaches}
         conserve={t("equipe.membreConserve")}
         enCours={retrait.isPending}
         surConfirmer={() => retrait.mutate()}

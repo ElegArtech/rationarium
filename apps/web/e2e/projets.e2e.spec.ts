@@ -1048,6 +1048,11 @@ test.describe("Vue 14 — équipe", () => {
       page.getByText(/2 tâches de ce projet lui sont assignées : elles lui seront retirées/),
     ).toBeVisible();
     await expect(page.getByText(/Les tâches elles-mêmes restent, sans assigné/)).toBeVisible();
+    // Le RACI est un SECOND attachement : nommé à part, avec son propre
+    // nombre. Un total les rendrait irrecoupables à l'écran.
+    await expect(
+      page.getByText(/1 rôle RACI sur une tâche de ce projet lui sera également retiré/),
+    ).toBeVisible();
     await expect(page.getByText("Le compte et le temps déclaré sont conservés")).toBeVisible();
   });
 

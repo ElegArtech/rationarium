@@ -262,8 +262,11 @@ export const EQUIPE = {
         email: "driss.amrani@exemple.fr",
         departement: { nom: "Direction des services numériques" },
       },
-      /* `RG-PRJ-12` — ce que le retrait retirera, annoncé avant le geste. */
+      /* `RG-PRJ-12` — ce que le retrait retirera, annoncé avant le geste.
+         Deux comptes DIFFÉRENTS : un seul chiffre laisserait passer une
+         confirmation qui affiche le même nombre deux fois. */
       tachesAssignees: 2,
+      raciSurTaches: 1,
     },
   ],
   tiers: [

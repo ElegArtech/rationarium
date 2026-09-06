@@ -583,7 +583,7 @@ export class ProjetsService {
   ) {
     await this.exigerVisible(projectId, perimetre, permissions);
 
-    const [agents, tiers, clients, affectations, affectationsTiers] = await Promise.all([
+    const [agents, tiers, clients, affectations, affectationsTiers, raci] = await Promise.all([
       this.prisma.projectMember.findMany({
         where: { projectId },
         include: {
@@ -623,9 +623,20 @@ export class ProjetsService {
         where: { task: { projectId } },
         _count: { thirdPartyId: true },
       }),
+      /*
+       * Le RACI se compte à part de l'affectation : ce sont deux attachements
+       * distincts, et la confirmation les nomme séparément. Les additionner
+       * donnerait un nombre que rien ne permet de recouper à l'écran.
+       */
+      this.prisma.taskRaci.groupBy({
+        by: ["userId"],
+        where: { task: { projectId } },
+        _count: { userId: true },
+      }),
     ]);
 
     const parAgent = new Map(affectations.map((a) => [a.userId, a._count.userId]));
+    const raciParAgent = new Map(raci.map((a) => [a.userId, a._count.userId]));
     const parTiers = new Map(affectationsTiers.map((a) => [a.thirdPartyId, a._count.thirdPartyId]));
 
     return {
@@ -635,6 +646,7 @@ export class ProjetsService {
         tauxAllocation: m.tauxAllocation,
         utilisateur: m.user,
         tachesAssignees: parAgent.get(m.userId) ?? 0,
+        raciSurTaches: raciParAgent.get(m.userId) ?? 0,
       })),
       tiers: tiers.map((x) => ({
         ...x.thirdParty,
@@ -779,6 +791,12 @@ export class ProjetsService {
    * créer une sans être membre. L'incohérence était dans la règle, pas dans
    * son application.
    *
+   * **La matrice RACI suit l'affectation**, pour la même raison exactement :
+   * une personne « responsable » ou « garante » d'une tâche d'un projet
+   * qu'elle ne peut plus ouvrir est une responsabilité que personne ne peut
+   * plus exercer. Le rôle RACI et l'affectation sont deux façons d'être
+   * attaché au travail du projet, et le retrait défait les deux.
+   *
    * **Le temps déclaré est conservé**, lui, et ce n'est pas une omission :
    * `RG-PRJ-08` calcule le budget consommé à partir de lui. L'effacer
    * falsifierait la consommation d'un projet parce que quelqu'un l'a quitté.
@@ -796,18 +814,19 @@ export class ProjetsService {
   ) {
     await this.exigerVisible(projectId, perimetre, permissions);
 
-    const [, retirees] = await this.prisma.$transaction([
+    const [, retirees, raci] = await this.prisma.$transaction([
       this.prisma.projectMember.delete({
         where: { projectId_userId: { projectId, userId } },
       }),
       this.prisma.taskAssignee.deleteMany({ where: { userId, task: { projectId } } }),
+      this.prisma.taskRaci.deleteMany({ where: { userId, task: { projectId } } }),
     ]);
 
     await this.audit.tracer({
       action: "project.member_remove", typeEntite: "Project", entiteId: projectId, acteurId,
-      detail: { userId, tachesRetirees: retirees.count },
+      detail: { userId, tachesRetirees: retirees.count, raciRetires: raci.count },
     });
-    return { tachesRetirees: retirees.count };
+    return { tachesRetirees: retirees.count, raciRetires: raci.count };
   }
 
   /** `RG-JAL-02` — un jalon appartient à un et un seul projet. */

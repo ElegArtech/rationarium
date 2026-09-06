@@ -199,15 +199,30 @@ describe("EX-PRJ-09 — le retrait défait un lien, il n'efface rien", () => {
     const ailleurs = await prisma.task.create({
       data: { titre: "Hors projet", assignes: { create: { userId: a } } },
     });
+    /*
+     * Le RACI est un SECOND attachement au travail du projet, distinct de
+     * l'affectation : « garant » d'une tâche d'un projet qu'on ne peut plus
+     * ouvrir est une responsabilité que personne ne peut plus exercer. Il part
+     * avec, et celui de la tâche hors projet reste — sans cette seconde
+     * moitié, un `deleteMany` trop large passerait au vert.
+     */
+    await prisma.taskRaci.create({
+      data: { taskId: tache.id, userId: a, role: "accountable" },
+    });
+    await prisma.taskRaci.create({
+      data: { taskId: ailleurs.id, userId: a, role: "consulted" },
+    });
     await prisma.timeEntry.create({
       data: { userId: a, projectId: p.id, date: utc("2026-04-01"), heures: 5 },
     });
 
     const rendu = await projets.retirerMembre(p.id, a, acteur, await global(), toutes);
 
-    expect(rendu).toEqual({ tachesRetirees: 1 });
+    expect(rendu).toEqual({ tachesRetirees: 1, raciRetires: 1 });
     expect((await projets.equipe(p.id, await global(), toutes)).agents).toHaveLength(0);
     expect(await prisma.taskAssignee.count({ where: { taskId: tache.id } })).toBe(0);
+    expect(await prisma.taskRaci.count({ where: { taskId: tache.id } })).toBe(0);
+    expect(await prisma.taskRaci.count({ where: { taskId: ailleurs.id } })).toBe(1);
 
     // Ce qui distingue « retirer du projet » de « supprimer » : la tâche est
     // toujours là, sans assigné ; le temps déclaré alimente encore `RG-PRJ-08` ;
@@ -241,10 +256,20 @@ describe("EX-PRJ-09 — le retrait défait un lien, il n'efface rien", () => {
       data: { titre: "Deux", projectId: p.id, assignes: { create: { userId: a } } },
     });
 
+    await prisma.taskRaci.createMany({
+      data: [
+        { taskId: (await prisma.task.findFirstOrThrow({ where: { titre: "Une", projectId: p.id } })).id, userId: a, role: "responsible" },
+      ],
+    });
+
     const equipe = await projets.equipe(p.id, await global(), toutes);
     const compte = new Map(equipe.agents.map((m) => [m.userId, m.tachesAssignees]));
+    const compteRaci = new Map(equipe.agents.map((m) => [m.userId, m.raciSurTaches]));
     expect(compte.get(a)).toBe(2);
     expect(compte.get(b)).toBe(0);
+    // Deux attachements distincts, deux comptes : la fenêtre les nomme à part.
+    expect(compteRaci.get(a)).toBe(1);
+    expect(compteRaci.get(b)).toBe(0);
   });
 
   /*

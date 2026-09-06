@@ -256,6 +256,7 @@
     "tiersDetache": "{nom} has been detached from the project.",
     "clientDetache": "{nom} has been detached from the project.",
     "effetRetraitTaches": "{n, plural, one {# task of this project is assigned to them: it will be unassigned.} other {# tasks of this project are assigned to them: they will be unassigned.}} The tasks themselves remain, with no assignee.",
+    "effetRetraitRaci": "{n, plural, one {# RACI role on a task of this project will also be removed.} other {# RACI roles on tasks of this project will also be removed.}}",
     "effetRetraitAucuneTache": "No task of this project is assigned to them.",
     "membreConserve": "The account and the logged time are kept",
     "tiersConserve": "The third party and its logged time are kept",

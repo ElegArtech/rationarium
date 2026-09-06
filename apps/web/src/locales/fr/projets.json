@@ -256,6 +256,7 @@
     "tiersDetache": "{nom} a été détaché du projet.",
     "clientDetache": "{nom} a été détaché du projet.",
     "effetRetraitTaches": "{n, plural, one {# tâche de ce projet lui est assignée : elle lui sera retirée.} other {# tâches de ce projet lui sont assignées : elles lui seront retirées.}} Les tâches elles-mêmes restent, sans assigné.",
+    "effetRetraitRaci": "{n, plural, one {# rôle RACI sur une tâche de ce projet lui sera également retiré.} other {# rôles RACI sur des tâches de ce projet lui seront également retirés.}}",
     "effetRetraitAucuneTache": "Aucune tâche de ce projet ne lui est assignée.",
     "membreConserve": "Le compte et le temps déclaré sont conservés",
     "tiersConserve": "Le tiers et son temps déclaré sont conservés",
