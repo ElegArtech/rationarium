@@ -3,8 +3,10 @@ import { useTranslation } from "react-i18next";
 import { ROLES_PROJET, TYPES_TIERS } from "@rationarium/contracts";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "react-aria-components";
+import { Link } from "@tanstack/react-router";
 import { appeler } from "../../api/client.js";
 import * as api from "../../api/projets.js";
+import * as apiReferentiels from "../../api/referentiels.js";
 import { messageErreur } from "../../api/erreurs.js";
 import { usePeut } from "../../session/session.js";
 import { Chargement, ErreurDeChargement } from "../../composants/etats.js";
@@ -183,6 +185,8 @@ export function Equipe({ projetId }: { projetId: string }) {
         ouverte={ajoutOuvert}
         surFermeture={() => setAjoutOuvert(false)}
         dejaMembres={new Set(agents.map((a) => a.userId))}
+        dejaTiers={new Set(tiers.map((x) => x.id))}
+        clientsRattaches={clients.map((c) => c.id)}
       />
     </CadreProjet>
   );
@@ -453,20 +457,48 @@ function LigneAgent({
  * saisissent pas pareil : seul l'agent a un rôle et une allocation. Présenter
  * un formulaire unique avec des champs qui s'éteignent laisserait croire qu'un
  * tiers pourrait en avoir une.
+ *
+ * **Deux des trois onglets ne faisaient rien.** « Tiers » et « Client »
+ * n'affichaient qu'un paragraphe explicatif, aucune liste, et le bouton
+ * d'ajout y était désactivé : il n'existait aucun moyen, dans tout le produit,
+ * de rattacher un intervenant extérieur ou un bénéficiaire à un projet.
+ * `rattacherTiersAuProjet` et `definirClientsDuProjet` étaient écrites côté
+ * client et **appelées par personne** — deux capacités sans client, de la
+ * famille la plus coûteuse : une fonctionnalité absente ne fait échouer aucun
+ * contrôle.
+ *
+ * La conséquence débordait cette vue : `RG-TRS-04` borne les tiers assignables
+ * à une tâche à ceux qui sont rattachés au projet parent. Un rattachement
+ * impossible rendait donc **toute assignation de tiers impossible**, et la
+ * fiche tâche affichait une liste de candidats qui ne pouvait jamais qu'être
+ * vide.
+ *
+ * Trois différences de forme entre les trois natures, chacune imposée par le
+ * serveur :
+ *
+ * - L'agent porte un rôle et une allocation ; les deux autres non.
+ * - Le tiers se rattache à l'unité (`POST /tiers/projets/:id/rattacher`).
+ * - Les clients se **remplacent en bloc** (`RG-PRJ-10`) : ajouter, c'est
+ *   renvoyer la liste courante augmentée d'un, jamais un ajout incrémental.
  */
 function FenetreAjout({
   projetId,
   ouverte,
   surFermeture,
   dejaMembres,
+  dejaTiers,
+  clientsRattaches,
 }: {
   projetId: string;
   ouverte: boolean;
   surFermeture: () => void;
   dejaMembres: ReadonlySet<string>;
+  dejaTiers: ReadonlySet<string>;
+  clientsRattaches: string[];
 }) {
   const { t } = useTranslation("projets");
   const { t: tErreurs } = useTranslation("erreurs");
+  const peut = usePeut();
   const annoncer = useMessages();
   const client = useQueryClient();
 
@@ -484,22 +516,75 @@ function FenetreAjout({
     enabled: ouverte && nature === "agent",
   });
 
+  /* `archive` vaut `false` par défaut au serveur : la liste est celle des
+     tiers ACTIFS. Un tiers archivé serait refusé au rattachement. */
+  const tiersDisponibles = useQuery({
+    queryKey: ["tiers", "candidats"],
+    queryFn: () => apiReferentiels.listerTiers({}),
+    enabled: ouverte && nature === "tiers",
+  });
+
+  const clientsDisponibles = useQuery({
+    queryKey: ["clients", "candidats"],
+    queryFn: () => apiReferentiels.listerClients({ actif: true }),
+    enabled: ouverte && nature === "client",
+  });
+
+  const rattachables = (tiersDisponibles.data ?? []).filter((x) => !dejaTiers.has(x.id));
+  const dejaClients = new Set(clientsRattaches);
+  const clientsRattachables = (clientsDisponibles.data ?? []).filter((c) => !dejaClients.has(c.id));
+
+  const apresAjout = (message: string) => {
+    annoncer("ok", message);
+    setQui("");
+    surFermeture();
+    void client.invalidateQueries({ queryKey: ["projet", projetId] });
+  };
+
   const ajout = useMutation({
     mutationFn: () =>
       api.ajouterMembre(projetId, { userId: qui, roleProjet: role, tauxAllocation: allocation }),
-    onSuccess: () => {
-      annoncer("ok", t("equipe.ajoute"));
-      setQui("");
-      surFermeture();
-      void client.invalidateQueries({ queryKey: ["projet", projetId] });
-    },
+    onSuccess: () => apresAjout(t("equipe.ajoute")),
     onError: (e) => setErreur(messageErreur(e, tErreurs, t("fiche.echecAction"))),
   });
+
+  const rattachementTiers = useMutation({
+    mutationFn: () => apiReferentiels.rattacherTiersAuProjet(projetId, qui),
+    onSuccess: () => apresAjout(t("equipe.tiersRattache")),
+    onError: (e) => setErreur(messageErreur(e, tErreurs, t("fiche.echecAction"))),
+  });
+
+  const rattachementClient = useMutation({
+    // `RG-PRJ-10` — remplacement EN BLOC : la liste courante, plus celui-ci.
+    mutationFn: () =>
+      apiReferentiels.definirClientsDuProjet(projetId, [...clientsRattaches, qui]),
+    onSuccess: () => apresAjout(t("equipe.clientRattache")),
+    onError: (e) => setErreur(messageErreur(e, tErreurs, t("fiche.echecAction"))),
+  });
+
+  const enCours =
+    ajout.isPending || rattachementTiers.isPending || rattachementClient.isPending;
 
   const valider = () => {
     setErreur(null);
     if (!qui) {
-      setErreur(t("equipe.choisirUtilisateur"));
+      setErreur(
+        t(
+          nature === "agent"
+            ? "equipe.choisirUtilisateur"
+            : nature === "tiers"
+              ? "equipe.choisirTiers"
+              : "equipe.choisirClient",
+        ),
+      );
+      return;
+    }
+    if (nature === "tiers") {
+      rattachementTiers.mutate();
+      return;
+    }
+    if (nature === "client") {
+      rattachementClient.mutate();
       return;
     }
     // RG-PRJ-06 — le doublon est refusé au serveur ; l'annoncer ici évite un
@@ -511,11 +596,27 @@ function FenetreAjout({
     ajout.mutate();
   };
 
-  const natures = [
-    { cle: "agent", glyphe: "◍", classe: "mav" },
-    { cle: "tiers", glyphe: "◇", classe: "mav is-ext" },
-    { cle: "client", glyphe: "▣", classe: "mav is-client" },
-  ] as const;
+  /*
+   * `RG-GEN-06` — une nature qu'on n'a pas le droit de rattacher n'est pas
+   * proposée. Le déclencheur de la fenêtre exige déjà `projects:manage_members`,
+   * donc l'agent est toujours là ; les deux autres ont leur propre permission,
+   * et elles ne sont pas les mêmes — rattacher un prestataire et désigner un
+   * commanditaire ne relèvent pas du même métier.
+   */
+  const natures = (
+    [
+      { cle: "agent", glyphe: "◍", classe: "mav", permise: true },
+      { cle: "tiers", glyphe: "◇", classe: "mav is-ext", permise: peut("third_parties:assign") },
+      { cle: "client", glyphe: "▣", classe: "mav is-client", permise: peut("clients:update") },
+    ] as const
+  ).filter((n) => n.permise);
+
+  const changerNature = (cle: "agent" | "tiers" | "client") => {
+    setNature(cle);
+    // Un identifiant d'agent n'a rien à faire dans une requête de tiers.
+    setQui("");
+    setErreur(null);
+  };
 
   return (
     <Fenetre
@@ -529,12 +630,7 @@ function FenetreAjout({
           <Button className="btn btn-secondary" onPress={surFermeture}>
             {t("annuler")}
           </Button>
-          <Button
-            className="btn btn-primary"
-            isDisabled={nature !== "agent"}
-            isPending={ajout.isPending}
-            onPress={valider}
-          >
+          <Button className="btn btn-primary" isPending={enCours} onPress={valider}>
             {t("equipe.ajouterAction")}
           </Button>
         </>
@@ -546,7 +642,7 @@ function FenetreAjout({
             key={n.cle}
             className="kind-opt"
             aria-pressed={nature === n.cle}
-            onPress={() => setNature(n.cle)}
+            onPress={() => changerNature(n.cle)}
           >
             <span className={n.classe} aria-hidden="true">
               {n.glyphe}
@@ -628,8 +724,92 @@ function FenetreAjout({
           </div>
         </>
       ) : (
-        <p className="field-hint">{t(`equipe.aide_${nature}`)}</p>
+        <>
+          {/* L'explication de la nature reste : elle dit ce qu'un tiers ou un
+              bénéficiaire N'A PAS — allocation, charge —, ce qu'aucune liste
+              ne dirait. Elle précède le choix, elle ne le remplace plus. */}
+          <p className="field-hint">{t(`equipe.aide_${nature}`)}</p>
+
+          <div className="field-block">
+            <label className="field-label" htmlFor="eq-externe">
+              {t(nature === "tiers" ? "equipe.champTiers" : "equipe.champClient")}{" "}
+              <span className="req">*</span>
+            </label>
+            <select
+              className="field"
+              id="eq-externe"
+              value={qui}
+              onChange={(e) => setQui(e.target.value)}
+            >
+              <option value="">{t("selectionner")}</option>
+              {nature === "tiers"
+                ? rattachables.map((x) => (
+                    <option key={x.id} value={x.id}>
+                      {x.organisation ?? x.contactNom ?? "—"}
+                    </option>
+                  ))
+                : clientsRattachables.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.nom}
+                    </option>
+                  ))}
+            </select>
+            {/*
+             * `RG-GEN-04` — une liste vide s'explique ET propose la sortie, et
+             * les deux raisons de l'être ne se disent pas pareil : « le
+             * répertoire est vide » mène à le remplir, « tous sont déjà là »
+             * n'appelle aucune action. Les confondre enverrait créer un
+             * doublon.
+             */}
+            <ListeVideRattachement
+              nature={nature}
+              chargee={
+                nature === "tiers"
+                  ? tiersDisponibles.data !== undefined
+                  : clientsDisponibles.data !== undefined
+              }
+              repertoireVide={
+                nature === "tiers"
+                  ? (tiersDisponibles.data ?? []).length === 0
+                  : (clientsDisponibles.data ?? []).length === 0
+              }
+              restants={nature === "tiers" ? rattachables.length : clientsRattachables.length}
+            />
+          </div>
+        </>
       )}
     </Fenetre>
+  );
+}
+
+/** L'état vide de la liste à rattacher, et sa sortie. */
+function ListeVideRattachement({
+  nature,
+  chargee,
+  repertoireVide,
+  restants,
+}: {
+  nature: "tiers" | "client";
+  chargee: boolean;
+  repertoireVide: boolean;
+  restants: number;
+}) {
+  const { t } = useTranslation("projets");
+  if (!chargee || restants > 0) return null;
+
+  if (repertoireVide) {
+    return (
+      <p className="field-hint">
+        {t(nature === "tiers" ? "equipe.repertoireTiersVide" : "equipe.repertoireClientsVide")}{" "}
+        <Link className="link link-sm" to={nature === "tiers" ? "/tiers" : "/clients"}>
+          {t(nature === "tiers" ? "equipe.ouvrirRepertoireTiers" : "equipe.ouvrirRepertoireClients")}
+        </Link>
+      </p>
+    );
+  }
+  return (
+    <p className="field-hint">
+      {t(nature === "tiers" ? "equipe.tousTiersRattaches" : "equipe.tousClientsRattaches")}
+    </p>
   );
 }

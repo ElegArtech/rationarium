@@ -70,6 +70,21 @@ export const SESSION_RAPPORTS = {
   permissions: [...SESSION.permissions, "reports:read"],
 };
 
+/**
+ * `EX-TRS-02`, `RG-PRJ-10` — la session qui peut RATTACHER un tiers et
+ * désigner un bénéficiaire.
+ *
+ * Les deux permissions restent hors de `SESSION` à dessein : elles servent
+ * aussi à vérifier que, sans elles, les natures correspondantes ne sont pas
+ * proposées — `RG-GEN-06`. Rattacher un prestataire et désigner un
+ * commanditaire ne relèvent d'ailleurs pas du même métier, et le catalogue
+ * leur donne deux permissions distinctes.
+ */
+export const SESSION_EXTERNES = {
+  ...SESSION,
+  permissions: [...SESSION.permissions, "third_parties:assign", "clients:update"],
+};
+
 /** Une session en lecture seule : aucun bouton d'action ne doit apparaître. */
 export const SESSION_LECTURE = {
   ...SESSION,
@@ -253,6 +268,40 @@ export const EQUIPE = {
   clients: [{ id: "cl1", nom: "Direction de la relation citoyen", contactNom: null }],
   allocationCumulee: 60,
 };
+
+/**
+ * Le répertoire des tiers, tel que `GET /tiers` le rend.
+ *
+ * `x1` est DÉJÀ rattaché au projet dans `EQUIPE` : sans lui, la liste des
+ * candidats et le répertoire seraient le même ensemble, et rien ne dirait que
+ * les rattachés en sont retirés.
+ */
+export const REPERTOIRE_TIERS = [
+  {
+    id: "x1", type: "organisation", organisation: "Presta SA",
+    contactNom: null, contactEmail: null, contactTelephone: null,
+    adresse: null, notes: null, actif: true, _count: { projets: 1, taches: 0 },
+  },
+  {
+    id: "x2", type: "prestataire", organisation: "Cabinet Vermeil",
+    contactNom: "Nadia Belkacem", contactEmail: null, contactTelephone: null,
+    adresse: null, notes: null, actif: true, _count: { projets: 0, taches: 0 },
+  },
+];
+
+/** Le répertoire des clients. `cl1` est déjà rattaché dans `EQUIPE`. */
+export const REPERTOIRE_CLIENTS = [
+  {
+    id: "cl1", nom: "Direction de la relation citoyen", contactNom: null,
+    contactEmail: null, contactTelephone: null, adresse: null, notes: null,
+    actif: true, _count: { projets: 1 },
+  },
+  {
+    id: "cl2", nom: "Direction des solidarités", contactNom: "Inès Rocher",
+    contactEmail: null, contactTelephone: null, adresse: null, notes: null,
+    actif: true, _count: { projets: 0 },
+  },
+];
 
 type Reponses = Record<string, { statut?: number; corps: unknown }>;
 

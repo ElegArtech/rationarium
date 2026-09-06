@@ -7,6 +7,9 @@ import {
   LIGNE_PROJET,
   ROUTE,
   EQUIPE,
+  SESSION_EXTERNES,
+  REPERTOIRE_TIERS,
+  REPERTOIRE_CLIENTS,
   EPOPEES,
   INSTANTANES,
   SESSION_RAPPORTS,
@@ -894,6 +897,133 @@ test.describe("Vue 14 — équipe", () => {
     await page.getByRole("button", { name: "Ajouter", exact: true }).click();
 
     await expect(page.getByText("Cet utilisateur est déjà membre du projet.")).toBeVisible();
+  });
+
+  /*
+   * `EX-TRS-02` — un tiers SE RATTACHE au projet.
+   *
+   * Les onglets « Tiers » et « Client » de la fenêtre d'ajout n'affichaient
+   * qu'un paragraphe, sans liste, le bouton désactivé :
+   * `rattacherTiersAuProjet` et `definirClientsDuProjet` existaient côté
+   * client et n'étaient appelées par personne. Il n'y avait donc aucun moyen,
+   * dans tout le produit, de rattacher un intervenant extérieur — et comme
+   * `RG-TRS-04` borne les tiers assignables à une tâche à ceux du projet
+   * parent, aucune assignation de tiers n'était possible non plus.
+   *
+   * Le contrôle porte sur la REQUÊTE : c'est elle qui dit si le geste existe.
+   */
+  const avecRepertoires = {
+    ...reponses,
+    "/api/tiers": { corps: REPERTOIRE_TIERS },
+    "/api/clients": { corps: REPERTOIRE_CLIENTS },
+  };
+
+  test("EX-TRS-02 — un tiers se rattache au projet, et les rattachés ne sont plus proposés", async ({
+    page,
+  }) => {
+    let recu: unknown = null;
+    await serveur(page, { session: SESSION_EXTERNES, reponses: avecRepertoires });
+    await page.route(
+      (url) => url.pathname === `/api/tiers/projets/${PROJET.id}/rattacher`,
+      (route) => {
+        recu = route.request().postDataJSON();
+        return route.fulfill({ status: 201, contentType: "application/json", body: "{}" });
+      },
+    );
+
+    await page.goto(`${CHEMIN_PROJET}/equipe`);
+    await page.getByRole("button", { name: "+ Ajouter un membre" }).click();
+    await page.getByRole("button", { name: /Tiers/ }).click();
+
+    const choix = page.getByLabel(/^Intervenant extérieur/);
+    // « Presta SA » est déjà rattaché : le proposer inviterait au doublon.
+    await expect(choix.getByRole("option", { name: "Presta SA" })).toHaveCount(0);
+    await choix.selectOption({ label: "Cabinet Vermeil" });
+    await page.getByRole("button", { name: "Ajouter", exact: true }).click();
+
+    await expect.poll(() => recu).not.toBeNull();
+    expect(recu).toEqual({ thirdPartyId: "x2" });
+  });
+
+  /*
+   * `RG-PRJ-10` — les clients d'un projet sont remplacés EN BLOC.
+   *
+   * Ajouter un bénéficiaire, c'est donc renvoyer la liste courante augmentée
+   * d'un. Le contrôle affirme que l'existant PART AVEC : une écriture qui
+   * n'enverrait que le nouveau détacherait l'ancien sans le dire, et
+   * l'affichage suivant aurait l'air juste.
+   */
+  test("RG-PRJ-10 — un bénéficiaire s'ajoute sans détacher les précédents", async ({ page }) => {
+    let recu: unknown = null;
+    await serveur(page, { session: SESSION_EXTERNES, reponses: avecRepertoires });
+    await page.route(
+      (url) => url.pathname === `/api/clients/projets/${PROJET.id}`,
+      (route) => {
+        recu = route.request().postDataJSON();
+        return route.fulfill({
+          status: 201,
+          contentType: "application/json",
+          body: JSON.stringify({ rattaches: 1, dejaRattaches: 1 }),
+        });
+      },
+    );
+
+    await page.goto(`${CHEMIN_PROJET}/equipe`);
+    await page.getByRole("button", { name: "+ Ajouter un membre" }).click();
+    await page.getByRole("button", { name: /Client/ }).click();
+    await page.getByLabel(/^Bénéficiaire/).selectOption({ label: "Direction des solidarités" });
+    await page.getByRole("button", { name: "Ajouter", exact: true }).click();
+
+    await expect.poll(() => recu).not.toBeNull();
+    expect(recu).toEqual({ clientIds: ["cl1", "cl2"] });
+  });
+
+  /*
+   * `RG-GEN-04` — une liste vide s'explique, et les deux raisons de l'être ne
+   * se disent pas pareil. « Tous déjà rattachés » n'appelle aucune action ;
+   * « le répertoire est vide » mène à le remplir. Les confondre enverrait
+   * créer un doublon.
+   */
+  test("RG-GEN-04 — la liste vide dit LAQUELLE des deux raisons", async ({ page }) => {
+    await serveur(page, {
+      session: SESSION_EXTERNES,
+      reponses: { ...avecRepertoires, "/api/tiers": { corps: [] } },
+    });
+    await page.goto(`${CHEMIN_PROJET}/equipe`);
+    await page.getByRole("button", { name: "+ Ajouter un membre" }).click();
+    await page.getByRole("button", { name: /Tiers/ }).click();
+
+    await expect(
+      page.getByText("Le répertoire ne contient aucun intervenant extérieur actif."),
+    ).toBeVisible();
+    await expect(page.getByRole("link", { name: /Ouvrir le répertoire des tiers/ })).toBeVisible();
+
+    await serveur(page, {
+      session: SESSION_EXTERNES,
+      reponses: { ...avecRepertoires, "/api/tiers": { corps: [REPERTOIRE_TIERS[0]] } },
+    });
+    await page.goto(`${CHEMIN_PROJET}/equipe`);
+    await page.getByRole("button", { name: "+ Ajouter un membre" }).click();
+    await page.getByRole("button", { name: /Tiers/ }).click();
+
+    await expect(
+      page.getByText("Tous les intervenants extérieurs actifs sont déjà rattachés à ce projet."),
+    ).toBeVisible();
+  });
+
+  /* `RG-GEN-06` — sans la permission, la nature n'est pas proposée. Les deux
+     sont distinctes : rattacher un prestataire n'est pas désigner un
+     commanditaire. */
+  test("RG-GEN-06 — sans third_parties:assign ni clients:update, seul l'agent est proposé", async ({
+    page,
+  }) => {
+    await serveur(page, { reponses: avecRepertoires });
+    await page.goto(`${CHEMIN_PROJET}/equipe`);
+    await page.getByRole("button", { name: "+ Ajouter un membre" }).click();
+
+    await expect(page.getByRole("button", { name: /Agent/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Tiers/ })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /Client/ })).toHaveCount(0);
   });
 
   test("le retrait dit ce qu'il ne supprime pas", async ({ page }) => {
