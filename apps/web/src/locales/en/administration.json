@@ -60,6 +60,8 @@
     "loginDefinitif": "The login username cannot be changed afterwards.",
     "cree": "Account created.",
     "echecCreation": "The account could not be created.",
+    "champsACorriger": "Fields to correct: {champs}.",
+    "motDePasseFaible": "The password does not meet the policy shown under the field.",
     "departement": "Department",
     "service": "Team",
     "tousDepartements": "All departments",

@@ -123,6 +123,97 @@ test.describe("Vue 27 — utilisateurs", () => {
     expect(recu).toMatchObject({ prenom: "Camille-Rose", version: expect.any(Number) });
   });
 
+  /*
+   * `RG-AUTH-06` — la politique de mot de passe est MONTRÉE à qui crée le
+   * compte, et vérifiée avant l'aller-retour.
+   *
+   * La fenêtre de création n'avait aucun contrôle : un mot de passe trop court
+   * partait au serveur, revenait en 400, et l'interface affichait « Certaines
+   * informations sont incomplètes ou mal formées » sans dire lequel des
+   * critères manquait. Le contrôle affirme les DEUX moitiés — la politique est
+   * lisible, et la requête ne part pas — parce qu'un message d'erreur juste
+   * sur une requête inutile ne serait qu'à moitié corrigé.
+   */
+  test("RG-AUTH-06 — un mot de passe faible est refusé AVANT l'aller-retour, avec sa raison", async ({
+    page,
+  }) => {
+    let appels = 0;
+    await serveur(page, { session: SESSION_ADMIN, reponses });
+    await page.route(
+      (url) => url.pathname === "/api/utilisateurs",
+      (route) => {
+        if (route.request().method() !== "POST") return route.fallback();
+        appels += 1;
+        return route.fulfill({ status: 201, contentType: "application/json", body: "{}" });
+      },
+    );
+
+    await page.goto("/utilisateurs");
+    await page.getByRole("button", { name: "Créer un utilisateur" }).click();
+
+    // Les quatre critères sont là, et ils suivent la frappe.
+    await expect(page.getByText("8 caractères minimum")).toBeVisible();
+    await expect(page.getByText("Un caractère spécial")).toBeVisible();
+
+    await page.getByLabel("Prénom *", { exact: true }).fill("Nadia");
+    await page.getByLabel("Nom *", { exact: true }).fill("Belkacem");
+    await page.getByLabel("Email *", { exact: true }).fill("nadia.belkacem@exemple.fr");
+    await page.getByLabel("Login *", { exact: true }).fill("nbelkacem");
+    await page.getByLabel("Mot de passe *", { exact: true }).fill("secret");
+    await page.getByRole("button", { name: "Créer le compte" }).click();
+
+    await expect(
+      page.getByText("Le mot de passe ne respecte pas la politique rappelée sous le champ."),
+    ).toBeVisible();
+    expect(appels).toBe(0);
+
+    // Et une fois la politique tenue, la requête part.
+    await page.getByLabel("Mot de passe *", { exact: true }).fill("Secret123!");
+    await page.getByRole("button", { name: "Créer le compte" }).click();
+    await expect.poll(() => appels).toBe(1);
+  });
+
+  /*
+   * Un refus du serveur NOMME le champ en cause.
+   *
+   * `valider()` renvoie un `details` champ par champ ; `ErreurApi` le
+   * transportait jusqu'au client et personne ne le lisait. Le contrôle porte
+   * sur le nom du champ affiché — le message générique, lui, s'affichait déjà
+   * avant le correctif et ne prouverait rien.
+   */
+  test("un refus du serveur nomme le champ refusé, pas seulement « données invalides »", async ({
+    page,
+  }) => {
+    await serveur(page, { session: SESSION_ADMIN, reponses });
+    await page.route(
+      (url) => url.pathname === "/api/utilisateurs",
+      (route) => {
+        if (route.request().method() !== "POST") return route.fallback();
+        return route.fulfill({
+          status: 400,
+          contentType: "application/json",
+          body: JSON.stringify({
+            cle: "erreurs:donneesInvalides",
+            message: "Certaines informations sont incomplètes ou mal formées.",
+            details: [{ champ: "login", message: "Trop court" }],
+          }),
+        });
+      },
+    );
+
+    await page.goto("/utilisateurs");
+    await page.getByRole("button", { name: "Créer un utilisateur" }).click();
+    await page.getByLabel("Prénom *", { exact: true }).fill("Nadia");
+    await page.getByLabel("Nom *", { exact: true }).fill("Belkacem");
+    await page.getByLabel("Email *", { exact: true }).fill("nadia.belkacem@exemple.fr");
+    await page.getByLabel("Login *", { exact: true }).fill("nb");
+    await page.getByLabel("Mot de passe *", { exact: true }).fill("Secret123!");
+    await page.getByRole("button", { name: "Créer le compte" }).click();
+
+    await expect(page.locator(".alert-error")).toContainText("Champs à corriger : Login.");
+    await expect(page.getByLabel("Login *", { exact: true })).toHaveAttribute("aria-invalid", "true");
+  });
+
   test("les deux suppressions sont distinctes : parcours, libellé, séparateur", async ({
     page,
   }) => {

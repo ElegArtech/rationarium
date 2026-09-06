@@ -60,6 +60,8 @@
     "loginDefinitif": "L'identifiant de connexion ne pourra plus être modifié ensuite.",
     "cree": "Compte créé.",
     "echecCreation": "Le compte n'a pas pu être créé.",
+    "champsACorriger": "Champs à corriger : {champs}.",
+    "motDePasseFaible": "Le mot de passe ne respecte pas la politique rappelée sous le champ.",
     "departement": "Département",
     "service": "Service",
     "tousDepartements": "Tous les départements",

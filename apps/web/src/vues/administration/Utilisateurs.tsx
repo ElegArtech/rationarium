@@ -6,6 +6,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Menu, MenuItem, MenuTrigger, Popover } from "react-aria-components";
 import * as api from "../../api/administration.js";
 import { messageErreur } from "../../api/erreurs.js";
+import { ErreurApi } from "../../api/client.js";
+import { PolitiqueMotDePasse, politiqueTenue } from "../../composants/champs.js";
 import { usePeut, useSession } from "../../session/session.js";
 import { Chargement, ErreurDeChargement } from "../../composants/etats.js";
 import { Fenetre } from "../../composants/fenetre.js";
@@ -694,17 +696,72 @@ function FenetreCreation({
     motDePasse: "",
   });
   const [erreur, setErreur] = useState<string | null>(null);
+  /*
+   * Les champs que le SERVEUR a refusés.
+   *
+   * `valider()` renvoie un `details` — champ par champ, avec sa raison — que
+   * `ErreurApi` transportait jusqu'ici et que PERSONNE ne lisait : un compte
+   * refusé pour un mot de passe trop court affichait « Certaines informations
+   * sont incomplètes ou mal formées » et rien d'autre. Le serveur savait
+   * exactement quoi dire ; l'interface le jetait.
+   *
+   * Ce sont les NOMS des champs qui sont repris, traduits par le catalogue du
+   * client. La raison, elle, arrive en français depuis le serveur : la
+   * remonter telle quelle contredirait `RG-GEN-08`. Pour le mot de passe, qui
+   * est le seul champ dont la règle ne se devine pas, la politique est
+   * affichée en toutes lettres sous le champ — comme aux vues 02, 04 et 05.
+   */
+  const [refuses, setRefuses] = useState<readonly string[]>([]);
+
+  /** Les libellés du formulaire, par nom de champ du serveur. */
+  const libelles: Record<string, string> = {
+    prenom: t("utilisateurs.prenom"),
+    nom: t("utilisateurs.nom"),
+    email: t("utilisateurs.email"),
+    login: t("utilisateurs.login"),
+    motDePasse: t("utilisateurs.motDePasse"),
+  };
 
   const creation = useMutation({
     mutationFn: () => api.creerUtilisateur(valeurs),
     onSuccess: () => {
       annoncer("ok", t("utilisateurs.cree"));
       setValeurs({ prenom: "", nom: "", email: "", login: "", motDePasse: "" });
+      setRefuses([]);
       surFermeture();
       void client.invalidateQueries({ queryKey: ["utilisateurs"] });
     },
-    onError: (e) => setErreur(messageErreur(e, tErreurs, t("utilisateurs.echecCreation"))),
+    onError: (e) => {
+      const champs = e instanceof ErreurApi ? (e.details ?? []).map((d) => d.champ) : [];
+      const message = messageErreur(e, tErreurs, t("utilisateurs.echecCreation"));
+      setErreur(
+        champs.length > 0
+          ? `${message} ${t("utilisateurs.champsACorriger", {
+              champs: champs.map((c) => libelles[c] ?? c).join(", "),
+            })}`
+          : message,
+      );
+      setRefuses(champs);
+    },
   });
+
+  /*
+   * `RG-AUTH-06` se vérifie AVANT l'aller-retour.
+   *
+   * Le bouton n'est pas désactivé : un `<button disabled>` ne reçoit ni survol
+   * ni focus, donc n'explique rien — et c'est le motif que le produit a déjà
+   * payé une fois. Il reste joignable, et il dit ce qui manque.
+   */
+  const soumettre = () => {
+    if (!politiqueTenue(valeurs.motDePasse)) {
+      setErreur(t("utilisateurs.motDePasseFaible"));
+      setRefuses(["motDePasse"]);
+      return;
+    }
+    setErreur(null);
+    setRefuses([]);
+    creation.mutate();
+  };
 
   const champ = (cle: keyof typeof valeurs) => ({
     value: valeurs[cle],
@@ -728,7 +785,7 @@ function FenetreCreation({
           <Button
             className="btn btn-primary"
             isPending={creation.isPending}
-            onPress={() => creation.mutate()}
+            onPress={soumettre}
           >
             {t("utilisateurs.creerLeCompte")}
           </Button>
@@ -749,25 +806,49 @@ function FenetreCreation({
           <label className="field-label" htmlFor="us-prenom">
             {t("utilisateurs.prenom")} <span className="req">*</span>
           </label>
-          <input className="field" id="us-prenom" type="text" {...champ("prenom")} />
+          <input
+            className="field"
+            id="us-prenom"
+            type="text"
+            aria-invalid={refuses.includes("prenom") || undefined}
+            {...champ("prenom")}
+          />
         </div>
         <div className="field-block">
           <label className="field-label" htmlFor="us-nom">
             {t("utilisateurs.nom")} <span className="req">*</span>
           </label>
-          <input className="field" id="us-nom" type="text" {...champ("nom")} />
+          <input
+            className="field"
+            id="us-nom"
+            type="text"
+            aria-invalid={refuses.includes("nom") || undefined}
+            {...champ("nom")}
+          />
         </div>
         <div className="field-block">
           <label className="field-label" htmlFor="us-email">
             {t("utilisateurs.email")} <span className="req">*</span>
           </label>
-          <input className="field" id="us-email" type="email" {...champ("email")} />
+          <input
+            className="field"
+            id="us-email"
+            type="email"
+            aria-invalid={refuses.includes("email") || undefined}
+            {...champ("email")}
+          />
         </div>
         <div className="field-block">
           <label className="field-label" htmlFor="us-login">
             {t("utilisateurs.login")} <span className="req">*</span>
           </label>
-          <input className="field" id="us-login" type="text" {...champ("login")} />
+          <input
+            className="field"
+            id="us-login"
+            type="text"
+            aria-invalid={refuses.includes("login") || undefined}
+            {...champ("login")}
+          />
           {/* `RG-AUTH-08` — l'identifiant n'est jamais modifiable après
               création. Le dire à la création évite de le découvrir ensuite. */}
           <p className="field-hint">{t("utilisateurs.loginDefinitif")}</p>
@@ -776,7 +857,21 @@ function FenetreCreation({
           <label className="field-label" htmlFor="us-mdp">
             {t("utilisateurs.motDePasse")} <span className="req">*</span>
           </label>
-          <input className="field" id="us-mdp" type="password" {...champ("motDePasse")} />
+          <input
+            className="field"
+            id="us-mdp"
+            type="password"
+            aria-describedby="us-mdp-politique"
+            aria-invalid={refuses.includes("motDePasse") || undefined}
+            {...champ("motDePasse")}
+          />
+          {/* `RG-AUTH-06` — les quatre critères, validés au fil de la frappe.
+              Le même bloc qu'aux vues 02, 04 et 05 : l'administrateur qui crée
+              un compte pour quelqu'un d'autre n'a aucune raison de connaître
+              une politique que le produit ne montre qu'à l'intéressé. Sans
+              lui, un mot de passe trop court partait au serveur et revenait en
+              400 sans dire lequel des quatre critères manquait. */}
+          <PolitiqueMotDePasse id="us-mdp-politique" valeur={valeurs.motDePasse} />
         </div>
       </div>
     </Fenetre>
