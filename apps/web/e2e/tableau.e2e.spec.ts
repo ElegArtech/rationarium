@@ -6,6 +6,8 @@ import {
   SESSION_TABLEAU_SANS_ANNUAIRE,
   SESSION_INSTANTANE,
   TABLEAU,
+  TABLEAU_JOURNEE_CHARGEE,
+  SEMAINE_SUIVANTE_PERSONNELLE,
   TABLEAU_VIDE,
   TABLEAU_LIMITE,
   PRESENCE,
@@ -318,6 +320,76 @@ test.describe("Vue 06 — tableau de bord", () => {
 
     await expect(page.locator(".week-col")).toHaveCount(7);
     await expect(page.getByText("Astreinte de week-end")).toBeVisible();
+  });
+
+  /*
+   * Une journée chargée ne déborde pas — même plafond qu'à la vue 07.
+   *
+   * L'assertion porte sur les JETONS de la colonne du lundi et non sur la
+   * grille : « Point d'équipe » n'apparaît qu'une fois, mais compter les
+   * jetons de `.week` entière compterait aussi ceux des autres jours, et le
+   * contrôle passerait avec comme sans le plafond. Le second temps vérifie
+   * l'EFFET du bouton, pas sa présence : un « + 2 autres » qui n'ouvre rien
+   * est exactement le défaut qu'il faut attraper.
+   */
+  test("l'extrait plafonne une journée chargée et ouvre le reste au bouton", async ({ page }) => {
+    await horlogeFixe(page);
+    await serveur(page, {
+      session: SESSION_TABLEAU,
+      reponses: { "/api/tableau-de-bord": { corps: TABLEAU_JOURNEE_CHARGEE } },
+    });
+    await page.goto("/");
+
+    const lundi = page.locator(".week-col").first();
+    await expect(lundi.locator(".tchip")).toHaveCount(3);
+    await expect(page.getByText("Point d'équipe", { exact: true })).toHaveCount(0);
+
+    await lundi.getByRole("button", { name: "+ 2 autres" }).click();
+
+    await expect(lundi.locator(".tchip")).toHaveCount(5);
+    await expect(page.getByText("Point d'équipe", { exact: true })).toBeVisible();
+
+    // Et le bouton REFERME : sans quoi la tuile ne reviendrait jamais à sa
+    // hauteur, et le plafond n'aurait tenu qu'une fois.
+    await lundi.getByRole("button", { name: "Replier" }).click();
+    await expect(lundi.locator(".tchip")).toHaveCount(3);
+  });
+
+  /*
+   * `EX-DSH-03` — la semaine se choisit.
+   *
+   * La navigation se prouve par un contenu qui n'existe QUE dans la semaine
+   * demandée : compter des colonnes passerait sans que rien ne bouge. La
+   * réponse est stubée sur `/api/planning` — la MÊME route que le serveur
+   * appelle pour composer l'extrait, et non une seconde lecture inventée pour
+   * le tableau de bord.
+   */
+  test("EX-DSH-03 — l'extrait navigue d'une semaine à l'autre, et revient", async ({ page }) => {
+    await horlogeFixe(page);
+    await serveur(page, {
+      session: SESSION_TABLEAU,
+      reponses: {
+        ...reponses,
+        "/api/planning?debut=2026-08-17&fin=2026-08-23&ressourceId=u-moi": {
+          corps: SEMAINE_SUIVANTE_PERSONNELLE,
+        },
+      },
+    });
+    await page.goto("/");
+
+    await expect(page.getByText("Semaine du 10/08/2026 au 16/08/2026")).toBeVisible();
+    await expect(page.getByText("Rédiger la note de cadrage").first()).toBeVisible();
+
+    await page.getByRole("button", { name: "Semaine suivante" }).click();
+
+    await expect(page.getByText("Semaine du 17/08/2026 au 23/08/2026")).toBeVisible();
+    await expect(page.getByText("Atelier de cadrage budgétaire")).toBeVisible();
+
+    // `Aujourd'hui` n'apparaît qu'une fois la semaine courante quittée : un
+    // bouton qui ne peut rien faire n'a rien à dire.
+    await page.getByRole("button", { name: "Aujourd'hui" }).click();
+    await expect(page.getByText("Semaine du 10/08/2026 au 16/08/2026")).toBeVisible();
+    await expect(page.getByText("Atelier de cadrage budgétaire")).toHaveCount(0);
   });
 
   test("RG-DSH-03 — les to-do complétées sont regroupées à part, AVEC leur compte", async ({

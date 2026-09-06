@@ -7,6 +7,7 @@ import { Link } from "@tanstack/react-router";
 import { STATUTS_PROJET, STATUTS_TACHE } from "@rationarium/contracts";
 import * as api from "../../api/tableau.js";
 import * as apiTaches from "../../api/taches.js";
+import * as apiPlanning from "../../api/planning.js";
 import { saisirTemps, validerSansDeclaration } from "../../api/occupations.js";
 import { messageErreur } from "../../api/erreurs.js";
 import { useSession, usePeut } from "../../session/session.js";
@@ -16,11 +17,15 @@ import { AvatarAgent, useLibelle } from "../../composants/pastilles.js";
 import { formaterDate, formaterDateAvecJour } from "../../formats.js";
 import {
   CELLULE_VIDE,
+  decaler,
   indexer,
+  iso,
   joursAffiches,
+  periodeDe,
   COUCHES_PAR_DEFAUT,
   type Occupation,
 } from "../planning/grille.js";
+import "../../composants/partages.css";
 import "./tableau.css";
 
 /**
@@ -89,7 +94,7 @@ export function TableauDeBord() {
           demi-page tronquaient les intitulés au premier mot. Le reste se lit
           en deux colonnes — la gauche large pour ce qui demande un geste
           (tâches, projets), la droite pour ce qui se consulte. */}
-      <MonPlanning planning={planning} />
+      <MonPlanning extrait={planning} />
 
       <div className="dash-grid">
         <MesTaches aVenir={taches.aVenir} nonDeclarees={taches.nonDeclarees} />
@@ -154,16 +159,165 @@ function Pastille({ icone, titre }: { icone: string | null; titre: string }) {
 }
 
 /**
- * `EX-DSH-03` — l'extrait de planning personnel de la semaine.
+ * `EX-DSH-03` — l'extrait de planning personnel, semaine par semaine.
  *
  * Autant de colonnes que le paramétrage en montre : la semaine ouvrée par
  * défaut, le week-end compris si l'instance l'affiche. C'est le même réglage
  * que la vue 07 (`RG-PLN-03`) — deux extraits de la même semaine qui ne
  * montrent pas les mêmes jours, c'est l'un des deux qui a tort.
+ *
+ * **La semaine se choisit.** L'extrait ne montrait que la semaine en cours, et
+ * il n'y avait aucun moyen de regarder celle d'avant ou celle d'après : le
+ * vendredi après-midi, la question la plus courante — « qu'est-ce qui
+ * m'attend lundi ? » — n'avait de réponse qu'en ouvrant la vue 07. Les flèches
+ * sont celles de la vue 07, au mot et à la classe près.
+ *
+ * **La donnée vient d'une seule source.** La semaine que `/tableau-de-bord`
+ * porte déjà n'est jamais redemandée : c'est elle qui s'affiche, et c'est elle
+ * que le cache rafraîchit après chaque écriture. Toute autre semaine se demande
+ * à `/planning`, filtré sur la personne connectée — exactement l'appel que le
+ * serveur fait pour composer l'extrait, et non une seconde lecture inventée
+ * pour le tableau de bord.
  */
-function MonPlanning({ planning }: { planning: api.TableauDeBord["planning"] }) {
+function MonPlanning({ extrait }: { extrait: api.TableauDeBord["planning"] }) {
   const { t } = useTranslation("tableau");
-  const aujourdhui = new Date().toISOString().slice(0, 10);
+  const { t: tPlanning } = useTranslation("planning");
+  const { session } = useSession();
+
+  const [ancre, setAncre] = useState(() => iso(new Date()));
+  /*
+   * Les jours dépliés, par date. La clé est la date elle-même : changer de
+   * semaine n'a donc pas à remettre l'état à zéro, et revenir sur ses pas
+   * retrouve la cellule telle qu'on l'avait laissée.
+   */
+  const [deployes, setDeployes] = useState<ReadonlySet<string>>(new Set());
+
+  const semaine = periodeDe("semaine", ancre);
+  const semaineCourante = periodeDe("semaine", iso(new Date()));
+  const surLaSemaineCourante = semaine.debut === semaineCourante.debut;
+
+  /*
+   * La semaine que le serveur a déjà composée n'est pas redemandée — elle
+   * arrive dans la charge de `/tableau-de-bord`, et c'est cette charge-là que
+   * le cache tient à jour après chaque écriture. La redemander à `/planning`
+   * ferait vivre la même semaine à deux endroits, avec deux fraîcheurs.
+   *
+   * La comparaison porte sur la PÉRIODE et non sur un décalage de semaines :
+   * le premier jour de semaine est paramétrable côté client
+   * (`display.firstDayOfWeek`) alors que le serveur ancre son extrait au
+   * lundi. Quand les deux ne tombent pas d'accord, c'est le réglage qui gagne
+   * et la semaine se demande comme une autre.
+   */
+  const dejaServie =
+    semaine.debut === extrait.periode.debut && semaine.fin === extrait.periode.fin;
+
+  const requete = useQuery({
+    queryKey: ["planning", "extrait", semaine.debut, semaine.fin, session.id],
+    queryFn: () =>
+      apiPlanning.planning({
+        debut: semaine.debut,
+        fin: semaine.fin,
+        ressourceId: session.id,
+      }),
+    enabled: !dejaServie,
+  });
+
+  const donnees = dejaServie ? extrait : requete.data;
+
+  const basculer = (jour: string) =>
+    setDeployes((precedents) => {
+      const suivants = new Set(precedents);
+      if (!suivants.delete(jour)) suivants.add(jour);
+      return suivants;
+    });
+
+  return (
+    <section className="panel">
+      <div className="panel-head">
+        <span className="panel-title">{t("planning.titre")}</span>
+
+        {/* Les flèches, la période et le retour au jour forment UN groupe : la
+            tête de tuile répartit ses enfants par les espaces, et quatre
+            enfants y laissaient les flèches flotter loin de la période
+            qu'elles déplacent. La vue 07 les tient déjà ensemble dans sa barre
+            d'outils, pour la même raison. */}
+        <div className="pl-nav">
+          <span className="pl-period">
+            {tPlanning("navigation.libelle_semaine", {
+              debut: formaterDate(semaine.debut),
+              fin: formaterDate(semaine.fin),
+            })}
+          </span>
+          <Button
+            className="nav-sq"
+            aria-label={tPlanning("navigation.precedent_semaine")}
+            onPress={() => setAncre((a) => decaler("semaine", a, -1))}
+          >
+            <span aria-hidden="true">‹</span>
+          </Button>
+          <Button
+            className="nav-sq"
+            aria-label={tPlanning("navigation.suivant_semaine")}
+            onPress={() => setAncre((a) => decaler("semaine", a, 1))}
+          >
+            <span aria-hidden="true">›</span>
+          </Button>
+          {/* Le retour à la semaine courante n'a de sens que lorsqu'on l'a
+              quittée. Un bouton en permanence inerte dans une tête de tuile
+              étroite serait du bruit — et il n'aurait rien à dire. */}
+          {surLaSemaineCourante ? null : (
+            <Button className="chip-btn" onPress={() => setAncre(iso(new Date()))}>
+              {tPlanning("navigation.aujourdhui")}
+            </Button>
+          )}
+        </div>
+
+        {/* Un `Link` du routeur, jamais une ancre nue : une `<a href>` dans une
+            application à routeur RECHARGE le document entier — le lot, la
+            session, les réglages, le compteur de notifications — sans que rien
+            ne le signale. */}
+        <Link className="link link-sm" to="/planning">
+          {t("planning.ouvrir")}
+        </Link>
+      </div>
+      <div className="panel-body is-flush">
+        {!dejaServie && requete.isError ? (
+          <ErreurDeChargement erreur={requete.error} surReessai={() => void requete.refetch()} />
+        ) : donnees === undefined ? (
+          <Chargement quoi={t("planning.laSemaine")} />
+        ) : (
+          <SemaineExtrait planning={donnees} deployes={deployes} surBasculer={basculer} />
+        )}
+      </div>
+    </section>
+  );
+}
+
+/** Le nombre d'occupations qu'une cellule montre avant de proposer le reste. */
+const MAX_OCCUPATIONS_VISIBLES = 3;
+
+/**
+ * La grille de la semaine — même plafond de cellule que la vue 07.
+ *
+ * Une journée chargée empilait ses huit occupations dans une colonne de
+ * 74 px de haut : la tuile poussait le reste du tableau de bord hors de
+ * l'écran, ce que `cadrage/02` interdit précisément pour cette vue. Les trois
+ * premières suffisent à dire ce qu'est la journée ; le reste s'ouvre d'un
+ * bouton, et les jetons ouverts sont les mêmes que les autres — donc
+ * cliquables jusqu'à la fiche de la tâche.
+ */
+function SemaineExtrait({
+  planning,
+  deployes,
+  surBasculer,
+}: {
+  planning: api.TableauDeBord["planning"];
+  deployes: ReadonlySet<string>;
+  surBasculer: (jour: string) => void;
+}) {
+  const { t } = useTranslation("tableau");
+  const { t: tPlanning } = useTranslation("planning");
+  const aujourdhui = iso(new Date());
 
   const index = indexer(planning, COUCHES_PAR_DEFAUT, {
     statuts: new Set(STATUTS_TACHE.map((s) => s.code)),
@@ -190,59 +344,65 @@ function MonPlanning({ planning }: { planning: api.TableauDeBord["planning"] }) 
 
   // `RG-GEN-04` — la semaine entièrement vide ne se dit pas par cinq tirets :
   // elle s'explique, et elle annonce ce qui viendra la remplir.
-  const vide = cellules.every(
-    (c) => !c.conge && !c.lieu && c.occupations.length === 0,
-  );
+  const vide = cellules.every((c) => !c.conge && !c.lieu && c.occupations.length === 0);
+
+  if (vide) {
+    return (
+      <div className="empty">
+        <p>{t("planning.vide")}</p>
+        <small>{t("planning.videAide")}</small>
+      </div>
+    );
+  }
 
   return (
-    <section className="panel">
-      <div className="panel-head">
-        <span className="panel-title">{t("planning.titre")}</span>
-        <a className="link link-sm" href="/planning">
-          {t("planning.ouvrir")}
-        </a>
-      </div>
-      <div className="panel-body is-flush">
-        {vide ? (
-          <div className="empty">
-            <p>{t("planning.vide")}</p>
-            <small>{t("planning.videAide")}</small>
+    <div className="week" style={{ "--jours": jours.length } as CSSProperties}>
+      {jours.map((jour, i) => {
+        const cellule = cellules[i] ?? CELLULE_VIDE;
+        const d = new Date(`${jour}T00:00:00.000Z`);
+        const deploye = deployes.has(jour);
+        const reste = cellule.occupations.length - MAX_OCCUPATIONS_VISIBLES;
+        const visibles = deploye
+          ? cellule.occupations
+          : cellule.occupations.slice(0, MAX_OCCUPATIONS_VISIBLES);
+        return (
+          <div className={`week-col${jour === aujourdhui ? " is-today" : ""}`} key={jour}>
+            <p className="week-day">
+              {t(`jours.court.${d.getUTCDay()}`)} {jour.slice(8)}
+            </p>
+            <div className="week-cell">
+              {cellule.conge ? (
+                <span className="tchip tchip-flat" style={couleurDe("leave")}>
+                  <span>{cellule.conge.type.nom}</span>
+                </span>
+              ) : null}
+              {cellule.lieu?.etat === "telework" ? (
+                <span className="tchip tchip-flat" style={couleurDe("telework")}>
+                  <span>{t("planning.teletravail")}</span>
+                </span>
+              ) : null}
+              {visibles.map((o) => (
+                <JetonOccupation key={o.cle} occupation={o} />
+              ))}
+              {reste > 0 ? (
+                <Button
+                  className="occ-more"
+                  aria-expanded={deploye}
+                  onPress={() => surBasculer(jour)}
+                >
+                  {deploye
+                    ? tPlanning("occupationsReplier")
+                    : tPlanning("occupationsSupplementaires", { n: reste })}
+                </Button>
+              ) : null}
+              {!cellule.conge && !cellule.lieu && cellule.occupations.length === 0 ? (
+                <span className="week-none">{t("planning.rien")}</span>
+              ) : null}
+            </div>
           </div>
-        ) : (
-          <div className="week" style={{ "--jours": jours.length } as CSSProperties}>
-            {jours.map((jour, i) => {
-              const cellule = cellules[i] ?? CELLULE_VIDE;
-              const d = new Date(`${jour}T00:00:00.000Z`);
-              return (
-                <div className={`week-col${jour === aujourdhui ? " is-today" : ""}`} key={jour}>
-                  <p className="week-day">
-                    {t(`jours.court.${d.getUTCDay()}`)} {jour.slice(8)}
-                  </p>
-                  <div className="week-cell">
-                    {cellule.conge ? (
-                      <span className="tchip tchip-flat" style={couleurDe("leave")}>
-                        <span>{cellule.conge.type.nom}</span>
-                      </span>
-                    ) : null}
-                    {cellule.lieu?.etat === "telework" ? (
-                      <span className="tchip tchip-flat" style={couleurDe("telework")}>
-                        <span>{t("planning.teletravail")}</span>
-                      </span>
-                    ) : null}
-                    {cellule.occupations.map((o) => (
-                      <JetonOccupation key={o.cle} occupation={o} />
-                    ))}
-                    {!cellule.conge && !cellule.lieu && cellule.occupations.length === 0 ? (
-                      <span className="week-none">{t("planning.rien")}</span>
-                    ) : null}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-    </section>
+        );
+      })}
+    </div>
   );
 }
 

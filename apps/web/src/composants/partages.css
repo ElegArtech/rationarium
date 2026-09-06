@@ -23,6 +23,66 @@
 
 /* ── Barre d'outils et filtres ─────────────────────────────────────────── */
 
+/*
+ * Navigation de période et plafond d'occupations — portés d'abord par la
+ * vue 07, employés aussi par l'extrait de semaine de la vue 06. Même raison
+ * que pour `.filters` ci-dessous : ils apparaissent d'abord dans le planning
+ * parce que c'est la première vue qui en avait besoin, pas parce qu'ils lui
+ * appartiennent. Deux définitions divergeraient au premier ajustement.
+ */
+
+.pl-period {
+  font-size: 13.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.pl-nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* La vue 06 met la période DANS le groupe de navigation — sa tête de tuile
+   répartit ses enfants par les espaces, et les flèches y flottaient loin de ce
+   qu'elles déplacent. Un libellé collé à 4 px d'un bouton bordé se lit mal :
+   il prend ici la respiration que la barre d'outils de la vue 07 lui donne
+   par son propre écart. */
+.pl-nav .pl-period {
+  margin-right: 4px;
+}
+
+.nav-sq {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r);
+  color: var(--muted);
+  background: var(--surface);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.nav-sq:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+/* Le bouton qui ouvre les occupations qu'une cellule n'a pas eu la place de
+   montrer. `text-align: left` parce qu'il s'aligne sur les jetons qu'il
+   prolonge, et non sur le centre de la cellule. */
+.occ-more {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--muted);
+  padding: 1px 4px;
+  text-align: left;
+}
+
+
 .pl-toolbar {
   display: flex;
   align-items: center;

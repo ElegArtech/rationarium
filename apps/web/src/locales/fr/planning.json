@@ -11,6 +11,7 @@
   "interventionExterieure": "EXT",
   "teletravailLectureSeule": "Lecture seule — permission requise",
   "occupationsSupplementaires": "{n, plural, one {+ # autre} other {+ # autres}}",
+  "occupationsReplier": "Replier",
   "modes": {
     "groupe": "Mode d'affichage",
     "semaine": "Semaine",

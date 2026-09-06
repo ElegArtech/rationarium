@@ -13,36 +13,10 @@
  * (voir `docs/design/DESIGN.md § 4`).
  */
 
-.pl-period {
-  font-size: 13.5px;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.pl-nav {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.nav-sq {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border: 1px solid var(--line-strong);
-  border-radius: var(--r);
-  color: var(--muted);
-  background: var(--surface);
-  font-family: var(--font-mono);
-  font-size: 12px;
-}
-
-.nav-sq:hover {
-  color: var(--accent);
-  border-color: var(--accent);
-}
+/* `.pl-period`, `.pl-nav` et `.nav-sq` sont remontés dans
+   `composants/partages.css` : la vue 06 navigue de semaine en semaine avec la
+   même paire de flèches, et deux définitions du même objet divergeraient au
+   premier ajustement. Même geste que pour `.filters` au L-32. */
 
 /* `.layers`, `.layer` et `.layer.is-on` sont remontés dans
    `composants/partages.css` : la vue 15 les emploie aussi, et la maquette les
@@ -456,13 +430,9 @@
   flex: none;
 }
 
-.occ-more {
-  font-family: var(--font-mono);
-  font-size: 9px;
-  color: var(--muted);
-  padding: 1px 4px;
-  text-align: left;
-}
+/* `.occ-more` est remonté dans `composants/partages.css` : l'extrait de
+   semaine de la vue 06 plafonne ses cellules au même nombre d'occupations et
+   ouvre le reste par le même bouton. */
 
 /* ── Ligne de synthèse ──────────────────────────────────────────────────── */
 

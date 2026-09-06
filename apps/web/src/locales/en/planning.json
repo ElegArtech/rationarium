@@ -11,6 +11,7 @@
   "interventionExterieure": "EXT",
   "teletravailLectureSeule": "Read-only — permission required",
   "occupationsSupplementaires": "{n, plural, one {+ # more} other {+ # more}}",
+  "occupationsReplier": "Show less",
   "modes": {
     "groupe": "Display mode",
     "semaine": "Week",

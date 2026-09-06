@@ -16,6 +16,7 @@
   },
   "planning": {
     "titre": "My schedule",
+    "laSemaine": "the week",
     "ouvrir": "Open the schedule →",
     "teletravail": "Remote work",
     "rien": "—",

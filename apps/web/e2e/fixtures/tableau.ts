@@ -215,3 +215,66 @@ export const TABLEAU_LIMITE = {
     limiteAtteinte: true,
   },
 };
+
+/**
+ * Une JOURNÉE CHARGÉE — cinq occupations le lundi 10 août 2026.
+ *
+ * L'extrait de semaine empilait tout ce que la journée portait dans une
+ * colonne de 74 px : une semaine ordinaire tenait, une semaine de réunions
+ * poussait le reste du tableau de bord hors de l'écran. Le plafond de trois
+ * occupations et le bouton qui ouvre le reste n'ont rien à mesurer sans une
+ * journée qui les dépasse — quatre suffiraient, cinq laissent voir que le
+ * compte du bouton est un reste et non un total.
+ */
+export const TABLEAU_JOURNEE_CHARGEE = {
+  ...TABLEAU,
+  planning: {
+    ...PLANNING_PERSONNEL,
+    occupations: {
+      ...PLANNING_PERSONNEL.occupations,
+      taches: [
+        ...["Rédiger la note de cadrage", "Comité de pilotage", "Recette fonctionnelle",
+            "Reprise des libellés", "Point d'équipe"].map((titre, i) => ({
+          id: `t-charge-${i}`, titre, statut: "doing",
+          priorite: "normal", avancement: 10,
+          dateDebut: "2026-08-10", dateFin: "2026-08-10",
+          heureDebut: null, heureFin: null, interventionExterieure: false,
+          project: null, assignes: ["u-moi"], horsProjet: true, multiAssignee: false,
+        })),
+      ],
+    },
+  },
+};
+
+/**
+ * La semaine SUIVANTE, telle que `/api/planning` la rend.
+ *
+ * L'extrait du tableau de bord ne montrait que la semaine en cours. La
+ * navigation ne se prouve pas en comptant des colonnes — elles sont les mêmes
+ * d'une semaine à l'autre — mais par un contenu qui n'existe QUE là : la
+ * réunion du 18 août n'apparaît dans aucune autre semaine.
+ */
+export const SEMAINE_SUIVANTE_PERSONNELLE = {
+  ...PLANNING_PERSONNEL,
+  periode: {
+    debut: "2026-08-17",
+    fin: "2026-08-23",
+    jours: ["2026-08-17", "2026-08-18", "2026-08-19", "2026-08-20", "2026-08-21",
+            "2026-08-22", "2026-08-23"],
+  },
+  occupations: {
+    taches: [
+      {
+        id: "t-semaine-suivante", titre: "Atelier de cadrage budgétaire", statut: "todo",
+        priorite: "normal", avancement: 0,
+        dateDebut: "2026-08-18", dateFin: "2026-08-18",
+        heureDebut: null, heureFin: null, interventionExterieure: false,
+        project: null, assignes: ["u-moi"], horsProjet: true, multiAssignee: false,
+      },
+    ],
+    conges: [],
+    teletravail: [],
+    evenements: [],
+    permanences: [],
+  },
+};
