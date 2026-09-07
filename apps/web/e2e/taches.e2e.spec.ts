@@ -1,4 +1,4 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type Locator, type Page } from "@playwright/test";
 import { serveur, SESSION, SESSION_LECTURE, PROJET } from "./fixtures/projets.js";
 import {
   LISTE,
@@ -31,6 +31,25 @@ test.beforeEach(async ({ page }) => {
   await page.clock.setFixedTime(MOMENT_FIGE);
 });
 
+/**
+ * Un survol que `react-aria` reconnaît — le même que `parametrage.e2e.spec.ts`.
+ *
+ * `locator.hover()` fait apparaître le pointeur sur la cible d'un seul coup ;
+ * `useHover` ignore ce premier événement et l'infobulle ne s'ouvre pas. On
+ * arrive donc de l'extérieur, puis on bouge d'un pixel sur place — ce que fait
+ * une vraie main. Sans cette précaution, un contrôle d'infobulle échoue sur le
+ * geste, pas sur le produit.
+ */
+async function survoler(page: Page, cible: Locator) {
+  const boite = await cible.boundingBox();
+  if (!boite) throw new Error("la cible du survol n'a pas de boîte");
+  const x = boite.x + boite.width / 2;
+  const y = boite.y + boite.height / 2;
+  await page.mouse.move(x - 40, y - 40);
+  await page.mouse.move(x, y);
+  await page.mouse.move(x + 1, y);
+}
+
 
 /**
  * L-33 — vues 12, 16 et 17.
@@ -42,10 +61,28 @@ test.beforeEach(async ({ page }) => {
  * atteignable sans défilement ».
  */
 
+/*
+ * `RG-TSK-14` — **`tasks:delete` garde le GESTE, `tasks:manage_any` dit sur
+ * quoi il porte.**
+ *
+ * La session portait `tasks:delete` seule, et les contrôles de suppression
+ * cliquaient sur une tâche assignée à `a1`/`a2` : ils consacraient le défaut
+ * relevé en recette — la commande était active sur la tâche d'un autre, la
+ * confirmation s'ouvrait, le geste partait, et le refus tombait après coup en
+ * `403`. La session de référence porte donc la permission élargie, ce qui la
+ * remet sur son sujet — les dépendances qui bloquent une suppression ; et
+ * `SESSION_TACHES_SIENNES` exerce la règle d'appartenance pour elle-même.
+ */
 const SESSION_TACHES = {
   ...SESSION,
   permissions: [...SESSION.permissions, "tasks:create", "tasks:update", "tasks:delete",
-    "tasks:manage_dependencies", "tasks:manage_raci", "comments:create"],
+    "tasks:manage_any", "tasks:manage_dependencies", "tasks:manage_raci", "comments:create"],
+};
+
+/** `RG-TSK-14` — le geste, sans la portée élargie : ses tâches, et elles seules. */
+const SESSION_TACHES_SIENNES = {
+  ...SESSION_TACHES,
+  permissions: SESSION_TACHES.permissions.filter((p) => p !== "tasks:manage_any"),
 };
 
 const reponsesListe = { "/api/taches": { corps: LISTE }, "/api/projets": { corps: { projets: [], affiches: 0, total: 0 } } };
@@ -402,6 +439,54 @@ test.describe("Vue 17 — fiche tâche", () => {
     await page.goto(`/taches/${FICHE_VIDE.id}`);
     await page.getByRole("button", { name: "Supprimer", exact: true }).click();
 
+    await expect(page.getByRole("button", { name: "Supprimer la tâche" })).toBeVisible();
+  });
+
+  /*
+   * `RG-TSK-14`, `RG-GEN-06` — **la permission garde le geste, pas l'objet.**
+   *
+   * Le refus se dit AVANT le clic, pas après le `403` : la commande reste
+   * visible — la masquer ferait croire que supprimer n'existe pas pour ce
+   * profil — mais elle est inerte et porte son motif. Et c'est
+   * `aria-disabled`, pas `disabled` : un bouton natif désactivé ne reçoit ni
+   * survol ni focus, donc son infobulle ne s'ouvrirait jamais et l'explication
+   * promise n'existerait pas.
+   */
+  test("RG-TSK-14 — sans portée élargie, la suppression d'une tâche d'AUTRUI est inerte et dit pourquoi", async ({
+    page,
+  }) => {
+    await serveur(page, { session: SESSION_TACHES_SIENNES, reponses });
+    await page.goto(`/taches/${FICHE.id}`);
+
+    const supprimer = page.getByRole("button", { name: "Supprimer", exact: true });
+    await expect(supprimer).toHaveAttribute("aria-disabled", "true");
+    await survoler(page, supprimer);
+    await expect(
+      page.getByText(/vous ne pouvez supprimer que les tâches qui vous sont assignées/),
+    ).toBeVisible();
+    // Rien ne s'ouvre : le geste n'est pas seulement grisé, il n'agit pas.
+    await expect(page.getByRole("button", { name: "Supprimer la tâche" })).toHaveCount(0);
+  });
+
+  test("RG-TSK-14 — assigné à la tâche, le même profil la supprime", async ({ page }) => {
+    await serveur(page, {
+      session: SESSION_TACHES_SIENNES,
+      reponses: {
+        [`/api/taches/${FICHE.id}`]: {
+          corps: {
+            ...FICHE,
+            // La seule différence : elle lui est assignée.
+            assignes: [{ userId: SESSION.id, porteur: true, user: { prenom: "Camille", nom: "Roussel" } }],
+            dependances: { dependDe: [], bloque: [] },
+          },
+        },
+      },
+    });
+    await page.goto(`/taches/${FICHE.id}`);
+
+    const supprimer = page.getByRole("button", { name: "Supprimer", exact: true });
+    await expect(supprimer).not.toHaveAttribute("aria-disabled", "true");
+    await supprimer.click();
     await expect(page.getByRole("button", { name: "Supprimer la tâche" })).toBeVisible();
   });
 

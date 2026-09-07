@@ -1,10 +1,11 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "react-aria-components";
+import { useNavigate } from "@tanstack/react-router";
 import { ChampMotDePasse, politiqueTenue } from "../composants/champs.js";
-import { reinitialiser } from "../api/session.js";
+import { reinitialiser, verifierJeton } from "../api/session.js";
 import { ErreurApi } from "../api/client.js";
-import { GabaritAcces } from "./gabarit-acces.js";
+import { GabaritAcces, LienAcces, type VersAcces } from "./gabarit-acces.js";
 
 /**
  * Vue 04 — Réinitialisation du mot de passe.
@@ -40,28 +41,71 @@ export function Reinitialisation({
   /**
    * Le compte que le lien désigne.
    *
-   * La maquette l'affiche — « Compte concerné » — et **le serveur ne l'expose
-   * nulle part** : il n'existe aucun point d'entrée de vérification de jeton,
-   * et le lien n'est aujourd'hui construit par personne. Voir le compte rendu.
+   * La maquette l'affiche — « Compte concerné ». Il vient désormais de
+   * `POST /auth/verify-reset-token`, qui rend l'adresse du compte visé ; la
+   * propriété ne sert plus que de valeur initiale, le temps de la vérification.
+   * Le courriel n'a donc plus à porter l'adresse dans l'URL du lien.
    */
   compte?: string;
 }) {
   const { t } = useTranslation("auth");
   const { t: tAcces } = useTranslation("acces");
+  const navigate = useNavigate();
   const [motDePasse, setMotDePasse] = useState("");
   const [confirmation, setConfirmation] = useState("");
   const [erreur, setErreur] = useState<string | undefined>(undefined);
   const [echec, setEchec] = useState<Echec | null>(null);
   const [succes, setSucces] = useState(false);
   const [enCours, setEnCours] = useState(false);
+  const [verifie, setVerifie] = useState(false);
+  const [compteConcerne, setCompteConcerne] = useState(compte);
 
+  /**
+   * `RG-AUTH-04` — **le lien est jugé avant que l'on saisisse quoi que ce
+   * soit.**
+   *
+   * La vue ouvrait son formulaire complet sur un jeton expiré, déjà consommé
+   * ou inconnu, et l'échec n'arrivait qu'après le choix ET la confirmation
+   * d'un mot de passe — exactement le geste que la règle existe pour épargner.
+   * Les trois panneaux ci-dessous étaient justes ; ils arrivaient trop tard.
+   */
+  useEffect(() => {
+    let vivant = true;
+    if (!jeton) {
+      setEchec("invalide");
+      setVerifie(true);
+      return;
+    }
+    verifierJeton(jeton)
+      .then((r) => {
+        if (!vivant) return;
+        setCompteConcerne(r.email);
+        setVerifie(true);
+      })
+      .catch((e: unknown) => {
+        if (!vivant) return;
+        const cle = e instanceof ErreurApi ? e.cle : undefined;
+        setEchec((cle && ECHECS[cle as keyof typeof ECHECS]) || "invalide");
+        setVerifie(true);
+      });
+    return () => {
+      vivant = false;
+    };
+  }, [jeton]);
+
+  /*
+   * La redirection passe par le ROUTEUR. `window.location.assign` relançait
+   * l'application entière — même défaut que l'ancre brute, et sur la seule
+   * page où l'on vient de changer son mot de passe : le lot, les catalogues et
+   * le thème étaient tous refaits pour aller à la vue voisine.
+   */
   useEffect(() => {
     if (!succes) return;
     const minuteur = setTimeout(() => {
-      window.location.assign("/connexion");
+      void navigate({ to: "/connexion", search: {} });
     }, 1_100);
     return () => clearTimeout(minuteur);
-  }, [succes]);
+  }, [succes, navigate]);
 
   async function soumettre(e: FormEvent) {
     e.preventDefault();
@@ -95,30 +139,35 @@ export function Reinitialisation({
 
   // ─── Les trois échecs de lien : trois messages, trois sorties ───
   if (echec) {
+    const nouveauLien = {
+      vers: "/mot-de-passe-oublie" as VersAcces,
+      libelle: t("reinitialisation.nouveauLien"),
+    };
+    const retourConnexion = { vers: "/connexion" as VersAcces, libelle: t("oubli.retour") };
     const panneaux = {
       expire: {
         classe: "alert-warn",
         icone: "⏱",
         message: t("reinitialisation.expire"),
         explication: t("reinitialisation.expireExplication"),
-        principal: { href: "/mot-de-passe-oublie", libelle: t("reinitialisation.nouveauLien") },
-        second: { href: "/connexion", libelle: t("oubli.retour") },
+        principal: nouveauLien,
+        second: retourConnexion,
       },
       utilise: {
         classe: "alert-warn",
         icone: "✓",
         message: t("reinitialisation.utilise"),
         explication: t("reinitialisation.utiliseExplication"),
-        principal: { href: "/connexion", libelle: t("inscription.seConnecter") },
-        second: { href: "/mot-de-passe-oublie", libelle: t("reinitialisation.nouveauLien") },
+        principal: { vers: "/connexion" as VersAcces, libelle: t("inscription.seConnecter") },
+        second: nouveauLien,
       },
       invalide: {
         classe: "alert-error",
         icone: "!",
         message: t("reinitialisation.invalide"),
         explication: t("reinitialisation.invalideExplication"),
-        principal: { href: "/mot-de-passe-oublie", libelle: t("reinitialisation.nouveauLien") },
-        second: { href: "/connexion", libelle: t("oubli.retour") },
+        principal: nouveauLien,
+        second: retourConnexion,
       },
     }[echec];
 
@@ -134,13 +183,25 @@ export function Reinitialisation({
           {panneaux.explication}
         </p>
         <div className="btn-stack">
-          <a href={panneaux.principal.href} className="btn btn-primary btn-block">
+          <LienAcces vers={panneaux.principal.vers} className="btn btn-primary btn-block">
             {panneaux.principal.libelle}
-          </a>
-          <a href={panneaux.second.href} className="btn btn-secondary btn-block">
+          </LienAcces>
+          <LienAcces vers={panneaux.second.vers} className="btn btn-secondary btn-block">
             {panneaux.second.libelle}
-          </a>
+          </LienAcces>
         </div>
+      </GabaritAcces>
+    );
+  }
+
+  // ─── Le lien est en cours de vérification ───
+  if (!verifie) {
+    return (
+      <GabaritAcces chapeau={chapeau} titre={t("reinitialisation.titre")}>
+        <p className="redirect" role="status">
+          <span className="spinner spinner-ink" aria-hidden="true" />
+          <span>{t("reinitialisation.verification")}</span>
+        </p>
       </GabaritAcces>
     );
   }
@@ -171,7 +232,7 @@ export function Reinitialisation({
       <form onSubmit={soumettre} noValidate autoComplete="on">
         <p className="sent-addr">
           <span className="eyebrow">{t("reinitialisation.compteConcerne")}</span>
-          <span className="sent-mail">{compte}</span>
+          <span className="sent-mail">{compteConcerne}</span>
         </p>
 
         <ChampMotDePasse
@@ -207,9 +268,9 @@ export function Reinitialisation({
         </div>
 
         <div className="signup-row" style={{ textAlign: "center" }}>
-          <a href="/connexion" className="link">
+          <LienAcces vers="/connexion" className="link">
             {t("oubli.retourFleche")}
-          </a>
+          </LienAcces>
         </div>
       </form>
     </GabaritAcces>

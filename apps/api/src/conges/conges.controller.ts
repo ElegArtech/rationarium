@@ -1,9 +1,15 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query } from "@nestjs/common";
 import { z } from "zod";
-import { enumDe, DEMI_JOURNEES, STATUTS_CONGE } from "@rationarium/contracts";
+import { enumDe, STATUTS_CONGE, typeCongeSchema } from "@rationarium/contracts";
 import { CongesService } from "./conges.service.js";
 import { Demande, RequiertPermission, type ContexteDemande } from "../commun/permissions.garde.js";
 import { valider, dateSchema } from "../commun/http.js";
+import {
+  depotSchema,
+  modificationSchema,
+  modificationTypeSchema,
+  modificationTypeSystemeSchema,
+} from "./conges.schemas.js";
 
 /** M10 — congés : cycle de vie, validation, délégations, soldes. Vue 19. */
 
@@ -15,14 +21,13 @@ import { valider, dateSchema } from "../commun/http.js";
  */
 const versionLue = z.number().int().min(1);
 
-const demi = enumDe(DEMI_JOURNEES).nullish();
-const plageDemandee = z.object({
-  dateDebut: dateSchema,
-  dateFin: dateSchema,
-  demiJourneeDebut: demi,
-  demiJourneeFin: demi,
-  motif: z.string().max(2000).optional(),
-});
+/*
+ * Les schémas de dépôt et de correction vivent dans `conges.schemas.ts`.
+ *
+ * Écrits ici en ligne, ils avaient perdu les deux `refine` du contrat :
+ * `RG-CNG-28` et `RG-CNG-18` ne s'exerçaient plus, et une période incohérente
+ * allait mourir sur la contrainte de base en rendant 500.
+ */
 
 @Controller("conges")
 export class CongesController {
@@ -40,7 +45,7 @@ export class CongesController {
       }),
       requete,
     );
-    return this.conges.lister(d.perimetre, filtres, d.userId);
+    return this.conges.lister(d.perimetre, filtres, d.userId, d.permissions);
   }
 
   /** `EX-CNG-16` — le catalogue des types de congé, avec leur usage. */
@@ -140,10 +145,7 @@ export class CongesController {
   @Post()
   @RequiertPermission("leaves:create")
   async deposer(@Body() corps: unknown, @Demande() d: ContexteDemande) {
-    const donnees = valider(
-      plageDemandee.extend({ typeId: z.uuid(), userId: z.uuid().optional() }),
-      corps,
-    );
+    const donnees = valider(depotSchema, corps);
     const pour = donnees.userId ?? d.userId;
 
     // `EX-CNG-11` — déclarer pour un collaborateur est une permission à part,
@@ -166,7 +168,7 @@ export class CongesController {
   modifier(@Param("id") id: string, @Body() corps: unknown, @Demande() d: ContexteDemande) {
     return this.conges.modifier(
       id,
-      valider(plageDemandee.extend({ version: versionLue }), corps),
+      valider(modificationSchema, corps),
       d.userId,
     );
   }
@@ -253,6 +255,47 @@ export class CongesController {
   @RequiertPermission("leaves:manage_delegations")
   desactiverDelegation(@Param("id") id: string, @Demande() d: ContexteDemande) {
     return this.conges.desactiverDelegation(id, d.userId, d.permissions);
+  }
+
+  /**
+   * `EX-CNG-13` — **créer** un type de congé.
+   *
+   * Le référentiel n'exposait que `GET` et `DELETE` : il se lisait et se
+   * supprimait, il ne se créait pas. L'état vide de la vue 19 invitait
+   * pourtant à « en créer un dans l'onglet Types de congés » — une sortie
+   * rédigée vers une porte qui n'existait pas.
+   *
+   * Le corps est `typeCongeSchema`, le contrat lui-même : un schéma recopié en
+   * ligne perd ses règles en silence, et ce contrôleur vient d'en payer une
+   * (voir `conges.schemas.ts`).
+   */
+  @Post("types")
+  @RequiertPermission("leaves:manage_types")
+  creerType(@Body() corps: unknown, @Demande() d: ContexteDemande) {
+    return this.conges.creerType(valider(typeCongeSchema, corps), d.userId);
+  }
+
+  /**
+   * `EX-CNG-13` — **modifier** un type de congé.
+   *
+   * `RG-CNG-30` — un type système ne laisse ouverts que cinq champs. Le type
+   * est donc lu AVANT de choisir le schéma d'entrée : c'est ce qui permet de
+   * refuser **champ par champ**, sous le champ fautif, plutôt que de rendre un
+   * « certains champs sont invalides » qui oblige à chercher lequel.
+   *
+   * La règle est aussi tenue dans le service — une règle du domaine qui ne vit
+   * qu'ici tombe au premier autre appelant.
+   */
+  @Patch("types/:id")
+  @RequiertPermission("leaves:manage_types")
+  async modifierType(
+    @Param("id") id: string,
+    @Body() corps: unknown,
+    @Demande() d: ContexteDemande,
+  ) {
+    const type = await this.conges.typeDeConge(id);
+    const schema = type.systeme ? modificationTypeSystemeSchema : modificationTypeSchema;
+    return this.conges.modifierType(id, valider(schema, corps), d.userId);
   }
 
   @Delete("types/:id")

@@ -1,11 +1,13 @@
 import { useMemo, useState, type CSSProperties } from "react";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { Button, Menu, MenuItem, MenuTrigger, Popover } from "react-aria-components";
 import { STATUTS_TACHE } from "@rationarium/contracts";
 import * as api from "../../api/planning.js";
+import { ErreurApi } from "../../api/client.js";
 import { messageErreur } from "../../api/erreurs.js";
-import { usePeut } from "../../session/session.js";
+import { usePeut, useSession } from "../../session/session.js";
 import { Chargement, ErreurDeChargement, AccesRefuse } from "../../composants/etats.js";
 import { useMessages } from "../../composants/messages.js";
 import { formaterDate, formaterMois } from "../../formats.js";
@@ -19,6 +21,8 @@ import {
   type Couches,
   type Filtres,
 } from "./grille.js";
+import { teletravailModifiablePar } from "./droits.js";
+import { adressePlanning, lirePlanning } from "./adresse.js";
 import { GrilleSemaine } from "./Semaine.js";
 import { GrilleMois } from "./Mois.js";
 import { PanneauDetail, type Selection } from "./Detail.js";
@@ -65,15 +69,71 @@ export function Planning({ mode }: { mode: Mode }) {
   const { t } = useTranslation("planning");
   const { t: tErreurs } = useTranslation("erreurs");
   const peut = usePeut();
+  const { session } = useSession();
   const annoncer = useMessages();
   const client = useQueryClient();
 
-  const [ancre, setAncre] = useState(AUJOURDHUI);
-  const [services, setServices] = useState<ReadonlySet<string>>(new Set());
-  const [departementId, setDepartementId] = useState("");
-  const [recherche, setRecherche] = useState("");
-  const [monPerimetre, setMonPerimetre] = useState(false);
-  const [couches, setCouches] = useState<Couches>(COUCHES_PAR_DEFAUT);
+  /*
+   * `EX-PLN-01` — **la période et les filtres vivent dans l'adresse.**
+   *
+   * « Semaine / Mois / Activité » est un mode d'affichage d'une même vue, avec
+   * une seule barre de filtres : tout garder en `useState` local faisait
+   * repartir de zéro à chaque changement de mode. Voir `adresse.ts`.
+   */
+  const navigate = useNavigate();
+  const brut = useRouterState({ select: (e) => e.location.search }) as Record<string, unknown>;
+  const aujourdhui = AUJOURDHUI();
+  /*
+   * `useMemo` : `couches` alimente la dépendance de `indexer`, qui reconstruit
+   * quatre cent quarante cellules. Un objet neuf à chaque rendu referait ce
+   * travail pour rien, à chaque frappe dans la barre de recherche.
+   */
+  const etat = useMemo(() => lirePlanning(brut, aujourdhui), [brut, aujourdhui]);
+  const { ancre, departementId, monPerimetre, couches } = etat;
+  const services: ReadonlySet<string> = useMemo(() => new Set(etat.services), [etat.services]);
+
+  /*
+   * La recherche tient sa valeur EN LOCAL pendant la frappe.
+   *
+   * Le champ est à valeurs rapprochées : lu depuis l'adresse, chaque caractère
+   * attendrait un aller-retour du routeur pour s'afficher, et une frappe
+   * rapide en perdrait. C'est la même règle que le curseur d'avancement de la
+   * vue 17 — la valeur est locale pendant le geste, l'adresse suit.
+   */
+  const [recherche, setRechercheLocale] = useState(etat.recherche);
+
+  /*
+   * `replace` : régler un filtre n'est pas une navigation qu'on veut défaire
+   * pas à pas. Changer de PÉRIODE en est une — c'est le geste que le retour
+   * arrière doit annuler —, d'où le paramètre.
+   */
+  const majEtat = (partiel: Partial<typeof etat>, empiler = false) => {
+    void navigate({
+      to: ".",
+      search: adressePlanning({ ...etat, ...partiel }, aujourdhui),
+      replace: !empiler,
+    });
+  };
+  const setAncre = (a: string) => majEtat({ ancre: a }, true);
+  const setServices = (v: ReadonlySet<string>) => majEtat({ services: [...v] });
+  const setDepartementId = (v: string) => majEtat({ departementId: v });
+  const setRecherche = (v: string) => {
+    setRechercheLocale(v);
+    majEtat({ recherche: v });
+  };
+  const setMonPerimetre = (v: boolean) => majEtat({ monPerimetre: v });
+  const setCouches = (c: Couches) => majEtat({ couches: c });
+
+  /*
+   * `RG-GEN-06` — **deux droits, pas un.** Créer une tâche DANS un projet et
+   * créer une tâche hors projet sont deux permissions distinctes
+   * (`TachesService.creer` : `tasks:create` ou `tasks:create_standalone`
+   * selon le rattachement), et `SOCLE` porte la seconde sans la première. Le
+   * « + » d'une cellule crée une tâche hors projet : le masquer sur la seule
+   * `tasks:create` le retirait à ceux-là mêmes à qui il est destiné.
+   */
+  const peutCreerUneTache = peut("tasks:create") || peut("tasks:create_standalone");
+
   const [filtres, setFiltres] = useState<Filtres>(FILTRES_COMPLETS);
   const [replies, setReplies] = useState<ReadonlySet<string>>(new Set());
   const [selection, setSelection] = useState<Selection | null>(null);
@@ -90,7 +150,6 @@ export function Planning({ mode }: { mode: Mode }) {
         ...(departementId ? { departementId } : {}),
         ...(monPerimetre ? { monPerimetre: true } : {}),
       }),
-    enabled: peut("planning:read"),
   });
 
   /**
@@ -163,7 +222,28 @@ export function Planning({ mode }: { mode: Mode }) {
       .filter((g) => g.personnes.length > 0);
   }, [donnees, recherche]);
 
-  if (!peut("planning:read")) return <AccesRefuse />;
+  /*
+   * `RG-ADM-03` — **l'accès refusé est tracé, et c'est le SERVEUR qui le
+   * trace.**
+   *
+   * La vue portait `enabled: peut("planning:read")` et rendait ce refus
+   * **avant tout appel** : aucune requête n'atteignait le serveur, donc
+   * `permissions.garde.ts` — le seul endroit du produit qui trace un refus —
+   * n'avait rien à refuser et rien à tracer. La règle vivait au serveur, juste
+   * et prouvée, et le client la rendait inatteignable. Neuf vues ont été
+   * corrigées d'un même geste ; celle-ci et `Activite.tsx` étaient restées.
+   *
+   * La requête part donc toujours, et c'est le `403` reçu qui prononce le
+   * refus. Le masque de courtoisie de `RG-GEN-06` porte sur les COMMANDES —
+   * on ne propose pas une écriture qui sera refusée ; il ne porte pas sur la
+   * lecture d'une vue entière, qui est précisément l'accès dont `RG-ADM-03`
+   * veut la trace.
+   *
+   * Aucune boucle de reprise à craindre : `main.tsx` ne réessaie pas une
+   * réponse en dessous de 500.
+   */
+  if (requete.error instanceof ErreurApi && requete.error.statut === 403)
+    return <AccesRefuse />;
 
   const servicesConnus = donnees
     ? [
@@ -187,11 +267,14 @@ export function Planning({ mode }: { mode: Mode }) {
     : [];
 
   const reinitialiser = () => {
-    setServices(new Set());
-    setDepartementId("");
-    setRecherche("");
-    setMonPerimetre(false);
-    setCouches(COUCHES_PAR_DEFAUT);
+    majEtat({
+      services: [],
+      departementId: "",
+      recherche: "",
+      monPerimetre: false,
+      couches: COUCHES_PAR_DEFAUT,
+    });
+    setRechercheLocale("");
     setFiltres(FILTRES_COMPLETS);
   };
 
@@ -228,6 +311,7 @@ export function Planning({ mode }: { mode: Mode }) {
           ...(services.size ? { services: [...services] } : {}),
           ...(monPerimetre ? { monPerimetre: true } : {}),
         }}
+        recherche={adressePlanning(etat, aujourdhui)}
       />
 
       <div className="filters">
@@ -272,7 +356,7 @@ export function Planning({ mode }: { mode: Mode }) {
         <Button
           className="chip-btn"
           aria-pressed={monPerimetre}
-          onPress={() => setMonPerimetre((v) => !v)}
+          onPress={() => setMonPerimetre(!monPerimetre)}
         >
           {t("filtres.monPerimetre")}
         </Button>
@@ -302,7 +386,7 @@ export function Planning({ mode }: { mode: Mode }) {
               <input
                 type="checkbox"
                 checked={couches[cle]}
-                onChange={(e) => setCouches((c) => ({ ...c, [cle]: e.target.checked }))}
+                onChange={(e) => setCouches({ ...couches, [cle]: e.target.checked })}
               />
               <span>{libelle}</span>
             </label>
@@ -361,9 +445,11 @@ export function Planning({ mode }: { mode: Mode }) {
               })
             }
             personnes={personnes}
-            teletravailModifiable={peut("telework:create")}
+            teletravailModifiable={(userId) =>
+              teletravailModifiablePar(peut, session.id, userId)
+            }
             deplacementPossible={peut("tasks:update")}
-            creationPossible={peut("tasks:create")}
+            creationPossible={peutCreerUneTache}
             surSelection={setSelection}
             surDeplacer={(donnees) => deplacement.mutate(donnees)}
             surBasculerTeletravail={(userId, date, etat) =>
@@ -412,6 +498,62 @@ export function Planning({ mode }: { mode: Mode }) {
 
 export const cleGroupe = (g: { service: { id: string } | null }): string => g.service?.id ?? "";
 
+const CHEMIN_MODE = {
+  semaine: "/planning",
+  mois: "/planning/mois",
+  activite: "/planning/activite",
+} as const;
+
+/**
+ * `EX-PLN-01` — le sélecteur de mode, **partagé par les vues 07, 08 et 09**.
+ *
+ * Deux défauts tenaient à ce qu'il était recopié dans deux fichiers :
+ *
+ *  - il posait une **ancre nue**, donc chaque changement de mode rechargeait
+ *    le document entier — le lot, la session, les réglages, le compteur de
+ *    notifications ;
+ *  - il ne transmettait rien, donc la période et les filtres repartaient de
+ *    zéro. Le mode se change désormais **avec l'adresse courante**.
+ *
+ * Un lien n'est pas un bouton bascule : `aria-pressed` y est interdit, et
+ * `axe` le refuse en « critique ». L'état courant d'une navigation se dit par
+ * `aria-current`, et par lui seul.
+ */
+export function SelecteurMode({
+  mode,
+  recherche,
+}: {
+  mode: Mode | "activite";
+  recherche: Record<string, string>;
+}) {
+  const { t } = useTranslation("planning");
+  return (
+    <div className="seg" role="group" aria-label={t("modes.groupe")}>
+      {(["semaine", "mois", "activite"] as const).map((m) => (
+        <Link
+          key={m}
+          to={CHEMIN_MODE[m]}
+          search={recherche}
+          /*
+           * **`exact`, sinon deux segments sur trois s'affichent courants.**
+           *
+           * `Link` pose son propre `aria-current` dès qu'il se juge actif, et
+           * son appariement est un PRÉFIXE par défaut : `/planning` est un
+           * préfixe de `/planning/mois` et de `/planning/activite`. Sur la vue
+           * Mois, « Semaine » et « Mois » portaient tous deux
+           * `aria-current="page"` — et comme le socle peint ce sélecteur sur
+           * cet attribut, l'état visuel était faux autant que l'annonce.
+           */
+          activeOptions={{ exact: true }}
+          aria-current={m === mode ? "page" : undefined}
+        >
+          {t(`modes.${m}`)}
+        </Link>
+      ))}
+    </div>
+  );
+}
+
 /** La barre d'outils : mode, navigation, période, export, création. */
 function BarreOutils({
   mode,
@@ -419,34 +561,27 @@ function BarreOutils({
   ancre,
   surAncre,
   filtresExport,
+  recherche,
 }: {
   mode: Mode;
   periode: { debut: string; fin: string };
   ancre: string;
   surAncre: (a: string) => void;
   filtresExport: api.FiltresPlanning;
+  /** L'adresse courante, que le changement de mode emporte avec lui. */
+  recherche: Record<string, string>;
 }) {
   const { t } = useTranslation("planning");
   const peut = usePeut();
+  const navigate = useNavigate();
+  /* Deux droits, pas un — voir le commentaire de `Planning`. */
+  const peutCreerUneTache = peut("tasks:create") || peut("tasks:create_standalone");
 
   return (
     <div className="pl-toolbar">
       <h1 className="h1 titre-vue">{t("titre")}</h1>
 
-      <div className="seg" role="group" aria-label={t("modes.groupe")}>
-        {(["semaine", "mois", "activite"] as const).map((m) => (
-          <a
-            key={m}
-            href={m === "semaine" ? "/planning" : `/planning/${m}`}
-            // Un lien N'EST PAS un bouton bascule : `aria-pressed` y est
-            // interdit, et `axe` le refuse en « critique ». L'état courant
-            // d'une navigation se dit par `aria-current`, et par lui seul.
-            aria-current={m === mode ? "page" : undefined}
-          >
-            {t(`modes.${m}`)}
-          </a>
-        ))}
-      </div>
+      <SelecteurMode mode={mode} recherche={recherche} />
 
       <div className="pl-nav">
         <Button
@@ -491,18 +626,32 @@ function BarreOutils({
             {t("actions.exporterIcs")}
           </a>
         ) : null}
-        {peut("tasks:create") || peut("events:create") ? (
+        {peutCreerUneTache || peut("events:create") ? (
           <MenuTrigger>
             <Button className="btn btn-primary">{t("actions.creer")}</Button>
             <Popover>
               <Menu className="pop pop-sm">
-                {peut("tasks:create") ? (
-                  <MenuItem className="pop-action" id="tache" href="/taches">
+                {/*
+                  **`onAction`, et non `href`.** Un `MenuItem` porteur d'un
+                  `href` rend une ancre, et sans le `RouterProvider` de
+                  react-aria cette ancre est brute : créer depuis la barre
+                  d'outils RECHARGEAIT l'application entière.
+                */}
+                {peutCreerUneTache ? (
+                  <MenuItem
+                    className="pop-action"
+                    id="tache"
+                    onAction={() => void navigate({ to: "/taches", search: { creer: "1" } })}
+                  >
                     {t("actions.creerTache")}
                   </MenuItem>
                 ) : null}
                 {peut("events:create") ? (
-                  <MenuItem className="pop-action" id="evenement" href="/evenements">
+                  <MenuItem
+                    className="pop-action"
+                    id="evenement"
+                    onAction={() => void navigate({ to: "/evenements" })}
+                  >
                     {t("actions.creerEvenement")}
                   </MenuItem>
                 ) : null}

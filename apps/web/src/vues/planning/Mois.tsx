@@ -2,7 +2,7 @@ import { type CSSProperties } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "react-aria-components";
 import type { Planning, PersonnePlanning } from "../../api/planning.js";
-import { CELLULE_VIDE, initiales, joursAffiches, type Cellule } from "./grille.js";
+import { CELLULE_VIDE, initiales, joursAffiches, strates, type Cellule } from "./grille.js";
 import { cleGroupe } from "./Planning.js";
 import type { Selection } from "./Detail.js";
 
@@ -235,12 +235,14 @@ function MicroCellule({
   const weekend = jourSemaine === 0 || jourSemaine === 6;
 
   /*
-   * Un congé de DEMI-JOURNÉE ne vide pas la cellule : la maquette 08 dessine
-   * l'aplat sur la moitié concernée **et** les barres de l'autre moitié
-   * (`if(!leave || leave.half)`). Traiter la demi-journée comme une journée
-   * entière faisait disparaître le travail réellement prévu ce matin-là.
+   * `EX-PLN-03` — le congé ne vide pas la cellule, pas même une journée
+   * entière. La demi-journée était déjà traitée (`!conge || demiJournee`) ;
+   * la journée pleine ne l'était pas, et une tâche courant sur trois jours
+   * disparaissait du deuxième. Les barres se dessinent par-dessus l'aplat,
+   * qui reste au fond : le partage de la place est le même que celui de la
+   * vue 07, calculé une seule fois par `strates()`.
    */
-  const occupationsVisibles = !cellule.conge || cellule.demiJournee !== null;
+  const strate = strates(cellule, MAX_BARRES);
 
   /**
    * Le libellé d'assistance porte **tout** ce que la texture ne dit pas.
@@ -253,6 +255,9 @@ function MicroCellule({
         date: jour,
         type: cellule.conge.type.nom,
         statut: t(cellule.conge.statut === "approved" ? "legende.congeValide" : "legende.congeAttente"),
+        // Le congé ne masque plus les occupations à l'écran : il n'a pas à
+        // les masquer à la synthèse vocale non plus (`EX-PLN-03`).
+        n: cellule.occupations.length,
       })
     : t("mois.resume", {
         nom: `${personne.prenom} ${personne.nom}`,
@@ -282,40 +287,36 @@ function MicroCellule({
         />
       ) : null}
 
-      {occupationsVisibles
-        ? cellule.occupations
-            .slice(0, MAX_BARRES)
-            .map((o) => (
-              <span
-                key={o.cle}
-                className={`mbar${o.genre === "tache" && o.tache.horsProjet ? " is-indep" : ""}`}
-                title={libelleOccupation(o)}
-                style={{
-                  color:
-                    o.genre === "tache"
-                      ? `var(--st-${o.tache.statut})`
-                      : o.genre === "evenement"
-                        ? "var(--event)"
-                        : "var(--activity)",
-                }}
-                aria-hidden="true"
-              />
-            ))
-        : null}
+      {strate.occupations.map((o) => (
+        <span
+          key={o.cle}
+          className={`mbar${o.genre === "tache" && o.tache.horsProjet ? " is-indep" : ""}`}
+          title={libelleOccupation(o)}
+          style={{
+            color:
+              o.genre === "tache"
+                ? `var(--st-${o.tache.statut})`
+                : o.genre === "evenement"
+                  ? "var(--event)"
+                  : "var(--activity)",
+          }}
+          aria-hidden="true"
+        />
+      ))}
 
-      {occupationsVisibles && cellule.occupations.length > MAX_BARRES ? (
+      {strate.supplementaires > 0 ? (
         <span className="mcount" aria-hidden="true">
           {cellule.occupations.length}
         </span>
       ) : null}
 
-      {occupationsVisibles && cellule.lieu ? (
+      {strate.lieu && cellule.lieu ? (
         <span
           className={`mplace${cellule.lieu.etat === "office" ? " is-office" : ""}${
             // Le filet de lieu court d'un bord à l'autre ; le compteur vit
             // désormais dans le même coin. Il s'arrête donc avant lui plutôt
             // que de passer dessous.
-            cellule.occupations.length > MAX_BARRES ? " is-short" : ""
+            strate.supplementaires > 0 ? " is-short" : ""
           }`}
           aria-hidden="true"
         />

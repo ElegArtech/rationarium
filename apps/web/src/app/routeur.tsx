@@ -331,6 +331,19 @@ function CoquilleDeSession({ surDeconnexion }: { surDeconnexion: () => void }) {
      * défauts corrects. Échouer vite vaut mieux qu'attendre en vain.
      */
     retry: false,
+    /*
+     * **Et aucun rappel au remontage.** Une requête en échec est relancée au
+     * montage de tout nouvel observateur : la vue 31 lit la même clé, et la
+     * coquille démonte l'`Outlet` tant que la requête est « en attente » —
+     * ce qu'elle est pendant chaque relance, faute de données. Le cycle se
+     * refermait sur lui-même : coquille rendue → vue montée → relance →
+     * coquille en attente → vue démontée → coquille rendue. Mesuré à la
+     * recette : **sept cent quarante-sept appels en deux secondes et demie**,
+     * et une application qui n'achève jamais son chargement pour qui n'a pas
+     * `settings:read` — un rôle composé sur mesure sans lui ne pouvait plus
+     * ouvrir le produit du tout.
+     */
+    retryOnMount: false,
   });
 
   if (reglages.data) appliquerReglages(reglages.data);

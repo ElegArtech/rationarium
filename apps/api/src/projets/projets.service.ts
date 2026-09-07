@@ -107,6 +107,7 @@ export class ProjetsService {
     } = {},
   ) {
     const visibilite = this.perimetres.filtreProjet(perimetre, permissions);
+    const tachesVisibles = this.perimetres.filtreTache(perimetre, permissions);
     const clauses: Record<string, unknown>[] = [visibilite];
 
     if (filtres.recherche) {
@@ -134,14 +135,16 @@ export class ProjetsService {
         orderBy: [{ priorite: "desc" }, { dateFin: "asc" }],
         include: {
           chef: { select: { id: true, prenom: true, nom: true } },
-          _count: { select: { taches: true, membres: true } },
+          // `RG-SCOPE-04` — un compteur de tâches compte ce que le lecteur peut
+          // ouvrir. Voir `fiche` pour le raisonnement complet.
+          _count: { select: { taches: { where: tachesVisibles }, membres: true } },
         },
       }),
       this.prisma.project.count({ where: { AND: [visibilite, { archive: filtres.archive ?? false }] } }),
     ]);
 
     const avecProgression = await Promise.all(
-      projets.map(async (p) => ({ ...p, progression: await this.progression(p.id) })),
+      projets.map(async (p) => ({ ...p, progression: await this.progression(p.id, tachesVisibles) })),
     );
 
     return { projets: avecProgression, affiches: projets.length, total };
@@ -203,6 +206,20 @@ export class ProjetsService {
   ) {
     await this.exigerVisible(projectId, perimetre, permissions);
 
+    /*
+     * `RG-SCOPE-04` — **un compteur compte ce que la liste montre.**
+     *
+     * Les trois agrégats de tâches de cette fiche — le total, la répartition
+     * par statut et la progression — ignoraient le prédicat de lecture. Une
+     * tâche confidentielle disparaissait donc des listes et restait dans les
+     * chiffres : l'onglet annonçait « Tâches 10 » au-dessus d'un kanban qui en
+     * montrait 9, et la feuille de route disait « 10 · toutes rattachées »
+     * au-dessus d'un bloc « sans jalon 2 ». Ce n'est pas seulement une
+     * incohérence d'affichage : l'écart RÉVÈLE l'existence de ce que la règle
+     * cache, et il suffit de savoir compter pour le lire.
+     */
+    const tachesVisibles = this.perimetres.filtreTache(perimetre, permissions);
+
     const projet = await this.prisma.project.findUnique({
       where: { id: projectId },
       include: {
@@ -211,18 +228,21 @@ export class ProjetsService {
         createur: { select: { id: true, prenom: true, nom: true } },
         clients: { include: { client: { select: { id: true, nom: true } } } },
         _count: {
-          select: { taches: true, jalons: true, epopees: true, membres: true, tiers: true },
+          select: {
+            taches: { where: tachesVisibles },
+            jalons: true, epopees: true, membres: true, tiers: true,
+          },
         },
       },
     });
     if (!projet) throw new ErreurProjet("introuvable");
 
     const [progression, budget, parStatut, dernier] = await Promise.all([
-      this.progression(projectId),
+      this.progression(projectId, tachesVisibles),
       this.calculerBudget(projectId),
       this.prisma.task.groupBy({
         by: ["statut"],
-        where: { projectId },
+        where: { AND: [{ projectId }, tachesVisibles] },
         _count: true,
       }),
       this.prisma.projectSnapshot.findFirst({
@@ -260,10 +280,19 @@ export class ProjetsService {
    * Moyenne des avancements, et non ratio de tâches terminées : une tâche à
    * 90 % compte pour ce qu'elle vaut. Un projet sans tâche est à 0 — pas à
    * 100, ce que donnerait une division vide mal gardée.
+   *
+   * `visibilite` porte le prédicat de lecture de l'appelant : une progression
+   * AFFICHÉE moyenne ce que son lecteur peut ouvrir, sinon elle trahit par son
+   * écart l'existence d'une tâche confidentielle. Sans argument, la
+   * progression est celle du projet entier — c'est ce que l'instantané
+   * enregistre, et un fait consigné ne dépend de personne.
    */
-  async progression(projectId: string): Promise<number> {
+  async progression(
+    projectId: string,
+    visibilite: Record<string, unknown> = {},
+  ): Promise<number> {
     const agregat = await this.prisma.task.aggregate({
-      where: { projectId },
+      where: { AND: [{ projectId }, visibilite] },
       _avg: { avancement: true },
       _count: true,
     });
@@ -612,6 +641,29 @@ export class ProjetsService {
        * projet. La vue doit l'ANNONCER avant de le faire, donc le compte
        * voyage avec l'équipe plutôt que par une route d'impact par membre :
        * l'écran qui pose la question est déjà celui qui lit cette réponse.
+       *
+       * ────────────────────────────────────────────────────────────────────
+       * **Ce compte porte AUSSI les tâches confidentielles, délibérément.**
+       * Réexaminé le 2026-09-07 contre `RG-SCOPE-04`, et la décision est de ne
+       * pas filtrer.
+       *
+       * Ce n'est pas une lecture de tâche : c'est le nombre d'attachements que
+       * la confirmation s'engage à défaire. Le filtrer ferait annoncer « 2
+       * affectations retirées » là où le retrait en défera 5 — un chiffre faux
+       * sur une action irréversible, et faux dans le sens qui rassure. Le
+       * principe déjà tenu par l'aperçu de cascade s'applique ici mot pour
+       * mot : annoncer moins que l'ampleur réelle est une action destructrice
+       * silencieuse.
+       *
+       * Ce qui est rendu est un **nombre**, jamais un titre ni un identifiant :
+       * rien n'y désigne une tâche, donc rien n'y est « lisible » au sens de
+       * `RG-SCOPE-04`, dont le verbe porte sur la tâche elle-même. Et le
+       * lecteur est déjà passé par `exigerVisible` sur le projet, donc il
+       * dispose de `projects:manage_members` sur un projet qui est le sien.
+       *
+       * Si le cadrage veut trancher autrement, il faudra qu'il dise ce que la
+       * confirmation affiche à la place — pas seulement ce qu'elle cache.
+       * ────────────────────────────────────────────────────────────────────
        */
       this.prisma.taskAssignee.groupBy({
         by: ["userId"],
@@ -702,11 +754,16 @@ export class ProjetsService {
         where: { id: projectId },
         select: { nom: true },
       });
+      /*
+       * `RG-GEN-08` — le corps voyage en **paramètres**, pas en phrase
+       * française : il se compose à la lecture, dans la langue du lecteur
+       * (`notifications/libelles.ts`). Le titre, lui, se déduit du type depuis
+       * la vague 1 — « Ajout à un projet », `cadrage/01 § M18`.
+       */
       await this.notifications.notifier({
         userId: donnees.userId,
         type: "ajout_projet",
-        titre: `Ajout au projet ${projet?.nom ?? ""}`.trim(),
-        contenu: `Vous avez été ajouté au projet « ${projet?.nom ?? ""} ».`,
+        params: { projet: projet?.nom ?? "" },
         lien: `/projets/${projectId}`,
       });
     }
@@ -860,6 +917,13 @@ export class ProjetsService {
    *
    * Recalculé à la lecture plutôt que stocké : un statut stocké se désynchronise
    * au premier changement de tâche qui oublierait de le rafraîchir.
+   *
+   * **Il n'est PAS filtré par le périmètre du lecteur**, et c'est délibéré : le
+   * statut d'un jalon est un fait du projet, pas une lecture de qui l'ouvre.
+   * Le filtrer rendrait « Terminé » un jalon dont la seule tâche restante est
+   * confidentielle — un mensonge sur l'échéance, là où l'écart de compteur
+   * n'était qu'une indiscrétion. La feuille de route ne montre donc pas la
+   * tâche cachée, et n'en déclare pas moins le jalon en cours.
    */
   async statutJalon(milestoneId: string): Promise<"pending" | "doing" | "done"> {
     const taches = await this.prisma.task.findMany({
@@ -955,11 +1019,26 @@ export class ProjetsService {
   ) {
     await this.exigerVisible(projectId, perimetre, permissions);
 
+    /*
+     * `RG-SCOPE-04`, `RG-TSK-13` — **le périmètre du projet ne vaut pas
+     * périmètre de ses tâches.**
+     *
+     * Seul `exigerVisible` gardait cette lecture, au niveau du PROJET : ni les
+     * tâches des jalons, ni celles du bloc « sans jalon » ne passaient par
+     * `filtreTache`. Une tâche confidentielle traversait donc la feuille de
+     * route en entier — titre, assignés, estimation — avec son sélecteur de
+     * statut actif. Le trou n'est visible dans aucune des deux moitiés : la
+     * garde de projet fait exactement ce qu'on lui demande, et la requête de
+     * tâches n'a jamais prétendu filtrer.
+     */
+    const tachesVisibles = this.perimetres.filtreTache(perimetre, permissions);
+
     const jalons = await this.prisma.milestone.findMany({
       where: { projectId },
       orderBy: { dateEcheance: "asc" },
       include: {
         taches: {
+          where: tachesVisibles,
           select: SELECTION_TACHE_JALON,
           orderBy: { dateFin: "asc" },
         },
@@ -980,7 +1059,7 @@ export class ProjetsService {
      * qu'elle est écrite.
      */
     const sansJalon = await this.prisma.task.findMany({
-      where: { projectId, milestoneId: null },
+      where: { AND: [{ projectId, milestoneId: null }, tachesVisibles] },
       select: SELECTION_TACHE_JALON,
       orderBy: [{ dateFin: "asc" }, { titre: "asc" }],
     });

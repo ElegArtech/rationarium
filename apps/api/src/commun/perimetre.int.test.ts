@@ -155,14 +155,39 @@ describe("RG-SCOPE-03 — la gestion globale court-circuite le périmètre", () 
   it("un détenteur de users:manage_any voit tout", async () => {
     const p = await perimetre.resoudre(decor.camille, avec("users:manage_any"));
     expect(p.global).toBe(true);
-    // Périmètre global : les ensembles sont vides parce qu'ils ne filtrent rien.
+    // Les prédicats ne filtrent rien : c'est cela, « voir tout ».
     expect(perimetre.filtreUtilisateur(p)).toEqual({});
     expect(perimetre.filtreParAgent(p)).toEqual({});
+  });
+
+  it("mais son périmètre organisationnel reste NOMMABLE", async () => {
+    /*
+     * `EX-PLN-05` — « Mon périmètre » resserre volontairement quelqu'un qui a
+     * le droit de voir plus large, en intersectant avec ces ensembles. Rendus
+     * vides, ils vidaient la grille du planning au lieu de la restreindre.
+     */
+    const p = await perimetre.resoudre(decor.camille, avec("users:manage_any"));
+    expect(p.departements.has(decor.deptA)).toBe(true);
+    expect(p.utilisateurs.has(decor.camille)).toBe(true);
+    expect(p.utilisateurs.has(decor.fatou)).toBe(true);
+    expect(p.utilisateurs.has(decor.hugo)).toBe(false);
   });
 
   it("une permission ordinaire ne suffit pas", async () => {
     const p = await perimetre.resoudre(decor.camille, avec("users:read", "projects:read"));
     expect(p.global).toBe(false);
+  });
+
+  it("un manage_any de domaine métier NON PLUS — RG-CNG-15", async () => {
+    /*
+     * `leaves:manage_any` dit « je modifie les congés d'autrui », pas « de
+     * toute l'instance ». Lu comme global, il laissait un manager déposer un
+     * congé pour un agent d'un autre département : P-79, 201 au lieu d'un
+     * refus.
+     */
+    const p = await perimetre.resoudre(decor.fatou, avec("leaves:manage_any", "telework:manage_any"));
+    expect(p.global).toBe(false);
+    expect(p.utilisateurs.has(decor.hugo)).toBe(false);
   });
 });
 

@@ -252,11 +252,10 @@ a.eyebrow:hover{ color:var(--ink); }
   transition:background-color .12s ease, border-color .12s ease, color .12s ease;
 }
 .btn-primary{ background:var(--accent); color:var(--on-accent); }
-.btn-primary:hover:not(:disabled){ background:var(--accent-strong); }
+.btn-primary:hover:not(:disabled):not([aria-disabled="true"]){ background:var(--accent-strong); }
 .btn-secondary{ background:var(--surface); color:var(--ink); border-color:var(--line-strong); }
-.btn-secondary:hover:not(:disabled){ border-color:var(--accent); color:var(--accent); }
+.btn-secondary:hover:not(:disabled):not([aria-disabled="true"]){ border-color:var(--accent); color:var(--accent); }
 .btn-block{ width:100%; }
-.btn:disabled{ opacity:.6; cursor:not-allowed; }
 .link{ color:var(--accent); text-decoration:none; border-bottom:1px solid transparent; }
 .link:hover{ border-bottom-color:currentColor; }
 .link-sm{ font-size:12.5px; }
@@ -296,7 +295,7 @@ a.eyebrow:hover{ color:var(--ink); }
   padding:5px 9px; border:1px solid var(--line); border-radius:var(--r);
   background:var(--surface); color:var(--muted);
 }
-.chip-btn:hover{ color:var(--ink); border-color:var(--line-strong); }
+.chip-btn:hover:not(:disabled):not([aria-disabled="true"]){ color:var(--ink); border-color:var(--line-strong); }
 /*
  * Une commande portée par un lien ne se souligne pas.
  *
@@ -307,6 +306,63 @@ a.eyebrow:hover{ color:var(--ink); }
  * Même dispositif que `.eyebrow` et `.seg a`, qui l'ont déjà.
  */
 a.chip-btn,a.ms-toggle{ text-decoration:none; }
+
+/* ── Commande désactivée — `RG-GEN-06`, une fois pour tout le produit ──────
+ *
+ * > *Une action interdite est masquée ou désactivée avec explication.*
+ *
+ * **Désactivée dit deux choses, et le produit n'en tenait plus qu'une.**
+ * `composants/action-protegee.tsx` — par lequel passe TOUTE action refusée
+ * pour cause de droits — a troqué l'attribut natif contre `aria-disabled`,
+ * sans quoi un `<button disabled>` ne reçoit ni survol ni focus et son
+ * infobulle de motif n'est jamais déclenchée. Le correctif tenait la moitié
+ * « avec explication » et perdait la moitié « désactivée » : `aria-disabled`
+ * est un état ANNONCÉ, pas un style, et aucune feuille du produit ne le
+ * peignait. Dans tout le produit, un bouton refusé avait l'air cliquable.
+ * `axe` ne réclamait rien — l'état est correctement annoncé —, le typage ne
+ * regarde pas la mise en page, aucun parcours ne juge une couleur.
+ *
+ * La règle est donc ici, dans le socle, et non dans les vues : deux d'entre
+ * elles avaient déjà peint la leur dans leur coin — `vues/taches/fiche.css`
+ * pour la suppression d'une tâche qui n'est pas la sienne, et
+ * `vues/administration/roles.css` pour un rôle système —, et elles étaient
+ * arrivées séparément au même dessin. C'est ce dessin-là qui remonte, plutôt
+ * que la troisième variante d'un même objet.
+ *
+ * Le dessin est l'idiome du socle pour un champ désactivé (`.field:disabled`,
+ * section 4), que les maquettes emploient partout pour « inerte » : **fond de
+ * second plan, bordure atténuée, curseur d'interdiction, aucun retour de
+ * survol**. Pas d'opacité : `docs/design/DESIGN.md § 4` — elle ferait tomber
+ * le contraste du texte sous le seuil AA, quatre fois constaté. C'est le FOND
+ * qui porte la distinction. `--muted` sur `--surface-2` tient 5,9:1 en clair
+ * et 6,2:1 en sombre.
+ *
+ * La commande reste focalisable et son outline de focus intact : c'est ce qui
+ * rend son motif lisible au clavier autant qu'à la souris.
+ */
+.btn:disabled,
+.btn[aria-disabled="true"]{
+  background:var(--surface-2); color:var(--muted); border-color:var(--line);
+  cursor:not-allowed;
+}
+/* Le témoin d'attente vit À L'INTÉRIEUR du bouton qu'il désactive : les cinq
+   vues d'accès posent un `.spinner` dans un `<Button isDisabled>` pendant
+   l'envoi. Son tourniquet est blanc, calé sur l'aplat d'accent ; sur le fond de
+   second plan il disparaîtrait purement et simplement, et l'attente n'aurait
+   plus de témoin. Il prend donc la variante d'encre, celle de `.spinner-ink`. */
+.btn:disabled .spinner,
+.btn[aria-disabled="true"] .spinner{
+  border-color:var(--line); border-top-color:var(--accent);
+}
+/* La puce, elle, garde sa surface : elle n'a pas d'aplat d'accent à défaire, et
+   la poser sur `--surface-2` ferait tomber `--placeholder` à 4,44:1 — sous le
+   seuil AA — là où il tient 4,63:1 sur `--surface`, valeur pour laquelle le
+   jeton a été calé. La distinction se lit sur l'encre, sur la bordure rendue au
+   filet ordinaire, et sur l'absence de retour au survol. */
+.chip-btn:disabled,
+.chip-btn[aria-disabled="true"]{
+  color:var(--placeholder); border-color:var(--line); cursor:not-allowed;
+}
 
 /* ── 6. ALERTES ──────────────────────────────────────────────────────── */
 .alert{

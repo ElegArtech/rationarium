@@ -1,4 +1,5 @@
-import { SESSION } from "./projets.js";
+import { expect, type Page } from "@playwright/test";
+import { SESSION, SESSION_LECTURE, serveur } from "./projets.js";
 
 /** Jeux de données des vues 27, 28 et 29. */
 
@@ -368,3 +369,67 @@ export const RAPPORT_TYPE = [
   { cle: "development", codeActivite: "development", heures: 30, entrees: 8 },
   { cle: "meeting", codeActivite: "meeting", heures: 20, entrees: 6 },
 ];
+
+/*
+ * ═══════════════════════════════════════════════════════════════════════════
+ * `RG-ADM-03` — **un accès refusé est un accès qui a été TENTÉ.**
+ *
+ * Onze vues portaient `if (!peut(…)) return <AccesRefuse />` et coupaient
+ * l'appel : le refus s'affichait, il était juste à l'écran, et le serveur n'en
+ * savait rien. Or `permissions.garde.ts` est le seul endroit du produit qui
+ * trace une tentative refusée — la trace que `RG-ADM-03` réclame n'existait
+ * donc pour aucune de ces onze vues. L'ironie est consignée : un contrôle de
+ * la vue 33 affirmait dans son nom que « ce refus est lui-même tracé », ce qui
+ * était faux, et rien ne pouvait le voir.
+ *
+ * Les vues envoient désormais la requête et prononcent le refus **sur le `403`
+ * reçu**. Un contrôle qui ne rend jamais `403` mesure donc l'ancien produit :
+ * le harnais servirait ses données à qui n'y a pas droit, et la vue les
+ * afficherait — ce qui est la bonne réponse à ce qu'on lui a répondu.
+ *
+ * Ce helper tient les deux moitiés, et la première est celle qui manquait :
+ *
+ *   1. la requête PART, alors même que la session n'a pas la permission ;
+ *   2. c'est le refus du serveur qui s'affiche, avec sa sortie.
+ *
+ * Inverser l'une ou l'autre le fait tomber : sans le `403`, la vue rend ses
+ * données ; sans le départ de la requête, l'attente expire.
+ * ═══════════════════════════════════════════════════════════════════════════
+ */
+export async function refusTrace(
+  page: Page,
+  options: {
+    /** Le chemin de la lecture PAR LAQUELLE LA VUE SE GARDE, sans requête. */
+    route: string;
+    /** L'adresse de la vue. */
+    adresse: string;
+    /** Le reste du jeu de réponses, servi tel quel. */
+    reponses?: Record<string, { statut?: number; corps: unknown }>;
+    /** La session dépourvue du droit ; `SESSION_LECTURE` par défaut. */
+    session?: unknown;
+  },
+) {
+  const { route, adresse, reponses = {}, session = SESSION_LECTURE } = options;
+
+  await serveur(page, {
+    session,
+    reponses: {
+      ...reponses,
+      /* Le corps est celui de `commun/http.ts` : le client construit son
+         `ErreurApi` dessus, et c'est `statut === 403` que la vue lit. */
+      [route]: { statut: 403, corps: { cle: "erreurs:permissionRefusee", message: "forbidden" } },
+    },
+  });
+
+  const appel = page.waitForRequest((r) => new URL(r.url()).pathname === route);
+  await page.goto(adresse);
+  /* Le serveur a bien été saisi de la tentative : sans cet appel, il n'a rien
+     à refuser, donc rien à tracer. C'est la moitié que l'ancien contrôle ne
+     regardait pas, et c'est celle où vivait le défaut. */
+  await appel;
+
+  await expect(page.getByText("Permission requise")).toBeVisible();
+  await expect(page.getByText("Vous n'avez pas la permission d'ouvrir cette page.")).toBeVisible();
+  /* `RG-GEN-05` — un mur se quitte : l'état de refus porte sa sortie. */
+  await expect(page.getByRole("link", { name: "Retour à l'accueil" })).toBeVisible();
+}

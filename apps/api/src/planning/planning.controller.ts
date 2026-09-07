@@ -74,7 +74,7 @@ export class PlanningController {
    */
   @Patch("taches/deplacer")
   @RequiertPermission("tasks:update")
-  deplacer(@Body() corps: unknown, @Demande() d: ContexteDemande) {
+  async deplacer(@Body() corps: unknown, @Demande() d: ContexteDemande) {
     const donnees = valider(
       z.object({
         taskId: z.uuid(),
@@ -85,6 +85,22 @@ export class PlanningController {
       corps,
     );
     const { taskId, ...cible } = donnees;
+    /*
+     * `RG-SCOPE-04` — **la permission garde la ROUTE, pas la LIGNE.**
+     *
+     * `tasks:update` dit qu'on a le droit de modifier une tâche ; elle ne dit
+     * pas laquelle. Sans cette borne, tout porteur de la permission déplaçait
+     * n'importe quelle tâche de l'instance — une tâche confidentielle d'une
+     * autre direction comprise — en devinant son identifiant, depuis une route
+     * que personne n'associe à une lecture. La route jumelle
+     * `POST /taches/:id/deplacer` la pose depuis la vague 2 ; celle-ci était
+     * restée ouverte, et c'est la même méthode de service au bout.
+     *
+     * La borne est posée ici, à l'entrée HTTP, et non dans le service : le
+     * service est aussi appelé de l'intérieur par des chemins déjà bornés, et
+     * la doubler y coûterait une requête pour rien.
+     */
+    await this.taches.exigerLisible(taskId, d.userId, d.permissions);
     return this.taches.deplacerDepuisPlanning(taskId, cible, d.userId);
   }
 

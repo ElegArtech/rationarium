@@ -63,7 +63,7 @@ beforeAll(async () => {
   const activite = new ActiviteService(prisma as never, audit, perimetres);
   const planning = new PlanningService(prisma as never, calendrier, audit, activite);
   const temps = new TempsService(prisma as never, audit, perimetres);
-  tableau = new TableauService(prisma as never, planning, temps);
+  tableau = new TableauService(prisma as never, planning, temps, perimetres);
 
   moi = await agent();
   autre = await agent();
@@ -455,5 +455,150 @@ describe("EX-DSH-04 — gérer une liste de to-do personnelles (RG-DSH-01 à RG-
     });
     // « Refusé » doit vouloir dire « rien n'a bougé ».
     expect(await prisma.todo.findUnique({ where: { id: sienne.id } })).not.toBeNull();
+  });
+});
+
+/**
+ * `RG-SCOPE-02` — « mes projets » veut dire la même chose partout.
+ *
+ * DÉFAUT TROUVÉ EN RECETTE. Le tableau de bord décrivait « mes projets » par
+ * (chef | membre) là où `filtreMesProjets` — la définition unique du produit —
+ * dit (créateur | chef | sponsor | membre). Le portefeuille annonçait « 2
+ * projets », l'accueil « 1 sur 1 ». Chaque lecture avait ses tests, tous verts,
+ * et elles se contredisaient : quand deux fonctions lisent la même table, le
+ * contrôle qui compte est celui qui les compare.
+ */
+describe("RG-SCOPE-02 — le tableau de bord compte les projets comme le portefeuille", () => {
+  beforeEach(async () => {
+    await prisma.taskAssignee.deleteMany();
+    await prisma.task.deleteMany();
+    await prisma.project.deleteMany();
+  });
+
+  it("un projet dont je suis SPONSOR est un de mes projets", async () => {
+    await prisma.project.create({
+      data: {
+        nom: `Sponsorisé ${uuid().slice(0, 6)}`, statut: "active",
+        dateDebut: utc("2026-01-01"), dateFin: utc("2026-12-31"), sponsorId: moi,
+      },
+    });
+
+    const r = await accueil();
+    expect(r.indicateurs.projets).toEqual({ actifs: 1, total: 1 });
+    expect(r.projets).toHaveLength(1);
+  });
+
+  it("un projet que j'ai CRÉÉ sans en être chef en est un aussi", async () => {
+    await prisma.project.create({
+      data: {
+        nom: `Créé ${uuid().slice(0, 6)}`, statut: "active",
+        dateDebut: utc("2026-01-01"), dateFin: utc("2026-12-31"), createurId: moi,
+      },
+    });
+
+    const r = await accueil();
+    expect(r.indicateurs.projets.total).toBe(1);
+    expect(r.projets).toHaveLength(1);
+  });
+
+  it("le compte de l'accueil est EXACTEMENT celui du prédicat partagé", async () => {
+    // Le contrôle qui compare les deux lectures, plutôt que d'en décrire une.
+    await prisma.project.create({
+      data: {
+        nom: `A ${uuid().slice(0, 6)}`, statut: "active",
+        dateDebut: utc("2026-01-01"), dateFin: utc("2026-12-31"), chefId: moi,
+      },
+    });
+    await prisma.project.create({
+      data: {
+        nom: `B ${uuid().slice(0, 6)}`, statut: "active",
+        dateDebut: utc("2026-01-01"), dateFin: utc("2026-12-31"), sponsorId: moi,
+      },
+    });
+    await prisma.project.create({
+      data: {
+        nom: `C ${uuid().slice(0, 6)}`, statut: "active",
+        dateDebut: utc("2026-01-01"), dateFin: utc("2026-12-31"), chefId: autre,
+      },
+    });
+
+    const attendu = await prisma.project.count({ where: perimetres.filtreMesProjets(moi) });
+    const r = await accueil();
+    expect(attendu).toBe(2);
+    expect(r.indicateurs.projets.total).toBe(attendu);
+  });
+});
+
+/**
+ * `RG-TMP-07`, `EX-TMP-06` — « aucune heure déclarée » est une AFFIRMATION.
+ *
+ * DÉFAUT TROUVÉ EN RECETTE (P-35) : la charge utile ne transportait aucun
+ * nombre d'heures, et le client rendait la mention sans condition. Trois heures
+ * déclarées par un autre contributeur, et la ligne affirmait quand même le
+ * contraire — en poussant à ressaisir ce qui était déjà saisi.
+ */
+describe("RG-TMP-07 — la tâche non déclarée dit ce qui a DÉJÀ été déclaré", () => {
+  beforeEach(async () => {
+    await prisma.timeEntry.deleteMany();
+    await prisma.taskAssignee.deleteMany();
+    await prisma.task.deleteMany();
+  });
+
+  it("porte les heures des AUTRES contributeurs, pas seulement les miennes", async () => {
+    const tache = await prisma.task.create({
+      data: {
+        titre: "Rédiger le marché", statut: "done", dateFin: utc("2026-08-05"),
+        assignes: { create: [{ userId: moi }] },
+      },
+    });
+    await prisma.timeEntry.create({
+      data: { userId: autre, taskId: tache.id, date: utc("2026-08-04"), heures: 3 },
+    });
+
+    const r = await accueil();
+    const ligne = r.taches.nonDeclarees.find((t) => t.id === tache.id);
+    // Elle reste « non déclarée » — je n'ai rien saisi, moi — mais elle ne
+    // peut plus prétendre que personne ne l'a fait.
+    expect(ligne).toBeDefined();
+    expect(ligne?.heuresDeclarees).toBe(3);
+  });
+
+  it("zéro veut dire zéro, et le dit", async () => {
+    const tache = await prisma.task.create({
+      data: {
+        titre: "Classer les offres", statut: "done", dateFin: utc("2026-08-05"),
+        assignes: { create: [{ userId: moi }] },
+      },
+    });
+
+    const r = await accueil();
+    expect(r.taches.nonDeclarees.find((t) => t.id === tache.id)?.heuresDeclarees).toBe(0);
+  });
+
+  it("l'onglet voisin « À venir » et celui-ci comptent la même chose", async () => {
+    // Deux moitiés de la même règle : elles divergeaient, et c'est la
+    // comparaison qui le voit — aucune des deux prise seule.
+    const encours = await prisma.task.create({
+      data: {
+        titre: "Instruire", statut: "doing", dateFin: utc("2026-08-20"),
+        assignes: { create: [{ userId: moi }] },
+      },
+    });
+    await prisma.timeEntry.create({
+      data: { userId: autre, taskId: encours.id, date: utc("2026-08-04"), heures: 2.5 },
+    });
+    const finie = await prisma.task.create({
+      data: {
+        titre: "Instruire (fin)", statut: "done", dateFin: utc("2026-08-05"),
+        assignes: { create: [{ userId: moi }] },
+      },
+    });
+    await prisma.timeEntry.create({
+      data: { userId: autre, taskId: finie.id, date: utc("2026-08-04"), heures: 2.5 },
+    });
+
+    const r = await accueil();
+    expect(r.taches.aVenir.find((t) => t.id === encours.id)?.heuresDeclarees).toBe(2.5);
+    expect(r.taches.nonDeclarees.find((t) => t.id === finie.id)?.heuresDeclarees).toBe(2.5);
   });
 });

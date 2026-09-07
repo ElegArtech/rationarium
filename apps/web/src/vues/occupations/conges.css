@@ -34,6 +34,11 @@
   gap:13px; align-items:center; padding:12px 14px; border-bottom:1px solid var(--line); }
 .lv-row.is-todo{ grid-template-columns:216px minmax(0,1fr) 78px 238px; }
 .lv-row.is-all{ grid-template-columns:216px minmax(0,1fr) 78px 148px; }
+/* « Toutes les demandes » porte ses commandes de décision (`EX-CNG-05`) : la
+   colonne est celle de l'onglet « À valider », 238 px, calée sur les deux
+   libellés d'annulation. Elle n'existe que pour qui peut décider — réservée à
+   tous, elle serait 238 px de vide sur chaque ligne d'un lecteur. */
+.lv-row.is-all.is-decidable{ grid-template-columns:216px minmax(0,1fr) 78px 148px 238px; }
 .lv-row:last-child{ border-bottom:none; }
 .lv-row:hover{ background:var(--surface-2); }
 .lv-type{ display:flex; align-items:center; gap:8px; min-width:0; }
@@ -41,6 +46,11 @@
 .lv-when{ font-family:var(--font-mono); font-size:11px; }
 .lv-motif{ display:block; font-size:11.5px; color:var(--muted); margin-top:4px;
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+/* `RG-GEN-02` — le motif du refus est la réponse à « pourquoi ? ». Il ne se
+   coupe pas à l'ellipse comme la mention qui le précède : un motif tronqué
+   n'explique qu'à moitié, et c'est la moitié coupée qu'on cherchait. */
+.lv-motif.is-refus{ white-space:normal; overflow:visible; text-overflow:clip;
+  color:var(--st-blocked); }
 .lv-days{ display:block; font-family:var(--font-mono); font-size:12px; text-align:right; }
 .lv-split{ display:block; font-family:var(--font-mono); font-size:9px; color:var(--muted);
   margin-top:3px; text-align:right; }
@@ -51,7 +61,7 @@
    Une demande d'ANNULATION y porte deux libellés plus longs — « Accepter
    l'annulation » / « Refuser l'annulation » — qui débordaient sur le nombre de
    jours. Elles s'empilent plutôt que de recouvrir une donnée. */
-.lv-row.is-todo .lv-acts{ flex-wrap:wrap; }
+.lv-row.is-todo .lv-acts, .lv-row.is-all .lv-acts{ flex-wrap:wrap; }
 .lv-who{ display:flex; align-items:center; gap:8px; min-width:0; }
 .lv-wn{ font-size:12.5px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .lv-ws{ display:block; font-family:var(--font-mono); font-size:9px; color:var(--muted); margin-top:2px; }
@@ -74,7 +84,13 @@
 .btn-refus{ color:var(--st-blocked); border-color:var(--st-blocked); }
 
 /* Types de congés */
-.ty-grid{ display:grid; grid-template-columns:64px minmax(0,1fr) 118px 128px 104px 96px 110px;
+/*
+ * La première colonne porte la PASTILLE DE COULEUR du type et son code, comme
+ * la maquette les y met : 64 px suffisaient à la pastille seule, pas aux deux.
+ * La dernière porte la pastille de statut ET trois commandes — « Modifier »,
+ * « Réactiver », « Désactiver » —, qui s'empilent plutôt que de déborder.
+ */
+.ty-grid{ display:grid; grid-template-columns:96px minmax(0,1fr) 118px 128px 104px 96px 176px;
   gap:12px; align-items:center; }
 .ty-head{ padding:9px 14px; background:var(--surface-2); border-bottom:1px solid var(--line-strong); }
 .ty-head span{ font-family:var(--font-mono); font-size:8.5px; font-weight:500; letter-spacing:.12em;
@@ -95,6 +111,28 @@
 .ty-d{ display:block; font-size:11px; color:var(--muted); margin-top:3px;
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .ty-use{ font-family:var(--font-mono); font-size:10.5px; color:var(--muted); }
+.ty-row .lv-acts{ flex-wrap:wrap; }
+/* L'état vide du référentiel porte deux sorties : créer, ou révéler les
+   inactifs. Centrées par `.empty`, elles se touchaient. */
+.ty-vide .btn + .btn{ margin-left:8px; }
+/* La commande de création est en tête de panneau, poussée à droite. */
+.ty-nouveau{ margin-left:auto; padding:6px 12px; }
+/* Le choix de couleur : le sélecteur natif, sa valeur en clair, sa remise à
+   zéro. `RG-GEN-03` — « aucune couleur » est un état, il se lit et se pose. */
+.ty-couleur{ display:flex; align-items:center; gap:9px; }
+.ty-couleur input[type="color"]{ width:46px; height:33px; padding:2px; flex:none;
+  border:1px solid var(--line); border-radius:var(--r); background:var(--surface); }
+.ty-couleur input[type="color"]:focus{ outline:none; border-color:var(--accent);
+  box-shadow:0 0 0 3px var(--accent-soft); }
+/*
+ * `RG-CNG-30`, `RG-GEN-06` — un champ figé se voit figé.
+ *
+ * `aria-disabled` et non `disabled` : un champ désactivé ne reçoit ni survol ni
+ * focus, donc l'explication qui l'accompagne ne s'atteint jamais — ni à la
+ * souris, ni au clavier. Le champ reste joignable ; c'est le geste qui est
+ * neutralisé. Même motif que les commandes refusées par les droits.
+ */
+.field[aria-disabled="true"]{ background:var(--surface-2); color:var(--muted); cursor:not-allowed; }
 
 /* Délégations */
 .dg-row{ display:grid; grid-template-columns:minmax(0,1fr) 200px 110px auto;
@@ -119,7 +157,8 @@
   .lv-row{ grid-template-columns:160px minmax(0,1fr) 78px 148px 206px; }
   .lv-row.is-todo{ grid-template-columns:190px minmax(0,1fr) 78px 238px; }
   .lv-row.is-all{ grid-template-columns:190px minmax(0,1fr) 78px 148px; }
+  .lv-row.is-all.is-decidable{ grid-template-columns:190px minmax(0,1fr) 78px 148px 238px; }
   .c-val{ display:none; }
-  .ty-grid{ grid-template-columns:60px minmax(0,1fr) 118px 128px 110px; }
+  .ty-grid{ grid-template-columns:92px minmax(0,1fr) 118px 128px 176px; }
   .c-lim, .c-use{ display:none; }
 }

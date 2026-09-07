@@ -1,8 +1,10 @@
 import { useState, type CSSProperties } from "react";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { Button } from "react-aria-components";
 import * as api from "../../api/planning.js";
+import { ErreurApi } from "../../api/client.js";
 import { messageErreur } from "../../api/erreurs.js";
 import { usePeut } from "../../session/session.js";
 import { Chargement, ErreurDeChargement, AccesRefuse } from "../../composants/etats.js";
@@ -10,6 +12,8 @@ import { useMessages } from "../../composants/messages.js";
 import { Fenetre } from "../../composants/fenetre.js";
 import { formaterDate, formaterDateLongue, formaterHeure } from "../../formats.js";
 import { ajouterJours, decaler, initiales, iso, lundiDe, periodeDe } from "./grille.js";
+import { adressePlanning, lirePlanning } from "./adresse.js";
+import { SelecteurMode } from "./Planning.js";
 import "../../composants/partages.css";
 import "./semaine.css";
 import "./activite.css";
@@ -40,16 +44,34 @@ const MAX_AGENTS = 3;
 export function Activite() {
   const { t } = useTranslation("planning");
   const peut = usePeut();
-  const [ancre, setAncre] = useState(() => iso(new Date()));
   /*
-   * Maquette 09 — le sélecteur de service de la barre d'outils. Il resserre la
+   * `EX-PLN-01` — période et filtres vivent dans l'adresse, comme aux vues 07
+   * et 08 : « Semaine / Mois / Activité » est un mode d'affichage d'une même
+   * vue, et passer de l'un à l'autre ne doit rien faire perdre. Voir
+   * `adresse.ts`.
+   *
+   * Maquette 09 — le sélecteur de service de la barre d'outils resserre la
    * LECTURE de la grille, il ne change rien à ce qui est assigné : la grille
    * reste celle de la semaine, seuls les agents d'un autre service cessent
-   * d'être listés. Le filtrage est local parce que la grille est déjà entière
-   * en mémoire — la borner au serveur ferait un aller-retour par changement de
-   * service pour un résultat identique.
+   * d'être listés. Le filtrage reste local parce que la grille est déjà
+   * entière en mémoire — le porter au serveur ferait un aller-retour par
+   * changement de service pour un résultat identique. Seule sa VALEUR voyage.
    */
-  const [service, setService] = useState("");
+  const navigate = useNavigate();
+  const brut = useRouterState({ select: (e) => e.location.search }) as Record<string, unknown>;
+  const aujourdhuiParDefaut = iso(new Date());
+  const etat = lirePlanning(brut, aujourdhuiParDefaut);
+  const ancre = etat.ancre;
+  const service = etat.services[0] ?? "";
+  const majEtat = (partiel: Partial<typeof etat>, empiler = false) => {
+    void navigate({
+      to: ".",
+      search: adressePlanning({ ...etat, ...partiel }, aujourdhuiParDefaut),
+      replace: !empiler,
+    });
+  };
+  const setAncre = (a: string) => majEtat({ ancre: a }, true);
+  const setService = (v: string) => majEtat({ services: v ? [v] : [] });
   const [ajout, setAjout] = useState<{ tache: api.GrilleActivite["colonnes"][number]; date: string } | null>(null);
 
   const periode = periodeDe("activite", ancre);
@@ -57,10 +79,21 @@ export function Activite() {
   const requete = useQuery({
     queryKey: ["planning", "activite", periode.debut, periode.fin],
     queryFn: () => api.grilleActivite(periode.debut, periode.fin),
-    enabled: peut("predefined_tasks:read"),
   });
 
-  if (!peut("predefined_tasks:read")) return <AccesRefuse />;
+  /*
+   * `RG-ADM-03` — **l'accès refusé est tracé, et c'est le SERVEUR qui le
+   * trace.** Même défaut que `Planning.tsx`, même correctif : la requête
+   * portait `enabled: peut("predefined_tasks:read")` et le refus se prononçait
+   * **avant tout appel**, si bien que `permissions.garde.ts` — le seul endroit
+   * du produit qui trace un refus — n'avait rien à refuser. Le refus se lit
+   * désormais sur le `403` reçu.
+   *
+   * L'ordre compte : le `403` se teste AVANT `isPending`, sinon la vue reste
+   * en chargement pendant que l'erreur est déjà là.
+   */
+  if (requete.error instanceof ErreurApi && requete.error.statut === 403)
+    return <AccesRefuse />;
   if (requete.isPending) return <Chargement quoi={t("lagrille")} />;
   if (requete.isError)
     return <ErreurDeChargement erreur={requete.error} surReessai={() => void requete.refetch()} />;
@@ -103,18 +136,7 @@ export function Activite() {
       <div className="pl-toolbar">
         <h1 className="h1 titre-vue">{t("titre")}</h1>
 
-        <div className="seg" role="group" aria-label={t("modes.groupe")}>
-          {(["semaine", "mois", "activite"] as const).map((m) => (
-            <a
-              key={m}
-              href={m === "semaine" ? "/planning" : `/planning/${m}`}
-              // Un lien n'est pas un bouton bascule — voir la vue 07.
-              aria-current={m === "activite" ? "page" : undefined}
-            >
-              {t(`modes.${m}`)}
-            </a>
-          ))}
-        </div>
+        <SelecteurMode mode="activite" recherche={adressePlanning(etat, aujourdhuiParDefaut)} />
 
         <div className="pl-nav">
           <Button
@@ -184,9 +206,11 @@ export function Activite() {
             <p>{t("activite.videTitre")}</p>
             <small>{t("activite.videExplication")}</small>
             <p className="ligne-actions">
-              <a className="chip-btn" href="/taches-predefinies">
+              {/* Un `Link`, jamais une ancre nue : une `<a href>` dans une
+                  application à routeur recharge le document entier. */}
+              <Link className="chip-btn" to="/taches-predefinies">
                 {t("activite.videAction")}
-              </a>
+              </Link>
             </p>
           </div>
         </div>

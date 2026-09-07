@@ -137,7 +137,11 @@ test.describe("Vue 30 — les rapports imprimés, et le PDF", () => {
     await enImpression(page);
 
     await expect(page.locator(".print-head")).toBeVisible();
-    await expect(page.locator(".print-head")).toContainText("30 jours");
+    // `EX-RPT-01` — la période est CALENDAIRE, et l'en-tête le dit comme les
+    // boutons : « Mois en cours », plus « 30 jours ». Sur papier, l'écart
+    // entre le libellé et le calcul n'est même pas rattrapable — la feuille
+    // ne se re-clique pas pour vérifier de quoi elle parle.
+    await expect(page.locator(".print-head")).toContainText("Mois en cours");
   });
 
   test("la barre de contrôle et les onglets disparaissent", async ({ page }) => {

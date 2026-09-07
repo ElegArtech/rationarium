@@ -409,7 +409,47 @@ test.describe("Vue 11 — fiche projet", () => {
     await expect(annuler).toBeVisible();
     await annuler.click();
 
+    /*
+     * `RG-GEN-01` — **elle s'exécutait AU PREMIER CLIC.** Le contrôle
+     * l'attendait ainsi, et consacrait donc l'absence de confirmation : une
+     * décision de gestion qui fige le projet — plus de modification, plus
+     * d'instantané, plus d'archivage — partait sur un clic sans retour.
+     * La fenêtre nomme l'objet et énonce les conséquences ; c'est ce qui se
+     * vérifie ici, avant le geste, et non seulement que le geste part.
+     */
+    const confirmation = page.getByRole("dialog");
+    await expect(confirmation.getByText("« Refonte du portail citoyen »")).toBeVisible();
+    await expect(confirmation.getByText(/Le projet est figé/)).toBeVisible();
+    await expect(confirmation.getByText(/Ses 34 tâches ne sont pas supprimées/)).toBeVisible();
+    // `RG-GEN-10` — réversible : l'annonce en fait partie, sinon on hésite.
+    await expect(confirmation.getByText(/reste restaurable/).first()).toBeVisible();
+    // Tant qu'on n'a pas confirmé, RIEN n'est parti.
+    expect(appelee).toBe(false);
+
+    await confirmation.getByRole("button", { name: "Annuler ce projet" }).click();
     await expect.poll(() => appelee).toBe(true);
+  });
+
+  /* `RG-GEN-01` — la sortie sans conséquence est aussi une garantie : une
+     confirmation dont on ne peut sortir qu'en confirmant n'en est pas une. */
+  test("RG-GEN-01 — « Ne pas annuler » ferme la fenêtre sans rien envoyer", async ({ page }) => {
+    let appelee = false;
+    await serveur(page, { reponses });
+    await page.route(
+      (url) => url.pathname.endsWith("/annuler"),
+      (route) => {
+        if (route.request().method() !== "POST") return route.fallback();
+        appelee = true;
+        return route.fulfill({ status: 200, contentType: "application/json", body: "{}" });
+      },
+    );
+    await page.goto(CHEMIN_PROJET);
+
+    await page.getByRole("button", { name: "Annuler le projet" }).click();
+    await page.getByRole("button", { name: "Ne pas annuler" }).click();
+
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    expect(appelee).toBe(false);
   });
 
   test("RG-PRJ-02 — un projet DÉJÀ annulé ne se réannule pas", async ({ page }) => {

@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
-import { Button } from "react-aria-components";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
+import { Button, Tooltip, TooltipTrigger } from "react-aria-components";
 import {
   STATUTS_TACHE,
   PRIORITES,
@@ -22,6 +22,8 @@ import { Fenetre } from "../../composants/fenetre.js";
 import { useMessages } from "../../composants/messages.js";
 import { Pastille, AvatarAgent, useLibelle } from "../../composants/pastilles.js";
 import { PastilleRattachement } from "./Liste.js";
+import { assignables, CHEMIN_ANNUAIRE, PERMISSION_ANNUAIRE, type Candidat } from "./assignables.js";
+import { decisionSuppressionTache } from "./droits.js";
 import { formaterDate, formaterDateLongue, formaterNombre, formaterHeure } from "../../formats.js";
 import "../../composants/partages.css";
 /* `.conf-list` et `.conf-k` viennent de la section 19 ; la maquette 17 —
@@ -58,6 +60,7 @@ export function FicheTache({ tacheId }: { tacheId: string }) {
   const { t: tErreurs } = useTranslation("erreurs");
   const libelle = useLibelle();
   const peut = usePeut();
+  const { session } = useSession();
   const annoncer = useMessages();
   const client = useQueryClient();
   const [suppressionOuverte, setSuppressionOuverte] = useState(false);
@@ -85,6 +88,16 @@ export function FicheTache({ tacheId }: { tacheId: string }) {
     },
     [],
   );
+
+  /*
+   * D'où l'on vient, quand on vient de quelque part. Le paramètre est lu sans
+   * schéma de route (`app/routeur.tsx` n'en déclare pas pour `/taches/$id`) :
+   * on le prend tel qu'il arrive et on ne s'en sert que s'il est une chaîne.
+   */
+  const recherche = useRouterState({ select: (e) => e.location.search }) as {
+    projet?: unknown;
+  };
+  const projetOrigine = typeof recherche.projet === "string" ? recherche.projet : null;
 
   const requete = useQuery({ queryKey: ["tache", tacheId], queryFn: () => api.fiche(tacheId) });
   const contexteTemps = useQuery({
@@ -124,6 +137,12 @@ export function FicheTache({ tacheId }: { tacheId: string }) {
    * clair sous lui — un curseur désactivé ne reçoit ni survol ni focus, une
    * infobulle n'y serait jamais déclenchée.
    */
+  const suppression = decisionSuppressionTache(
+    peut,
+    session.id,
+    tache.assignes.map((a) => a.userId),
+  );
+
   const avancementImpose = avancementImposePar(tache.statut as StatutTache);
   const avancementAffiche = avancementSaisi ?? tache.avancement;
 
@@ -148,14 +167,32 @@ export function FicheTache({ tacheId }: { tacheId: string }) {
   return (
     <div className="page">
       {/*
+        `EX-TSK-03` — **le retour ramène d'où l'on vient.**
+
+        Il était câblé en dur sur `/taches` : une tâche ouverte depuis le
+        kanban d'un projet renvoyait à la liste globale, jamais au tableau
+        d'origine. La provenance ne se devine pas — elle voyage dans l'adresse
+        (`?projet=…`), ce qui la rend aussi partageable et remise en signet.
+
         `activeProps` est vidé : le routeur ajoute par défaut une classe
         `active` sur tout lien dont la route est un ANCÊTRE de la route
         courante — ici `/taches`. Une classe que rien ne définit, donc invisible
         et inerte, et qui n'existe pas dans la maquette.
       */}
-      <Link to="/taches" className="back-link" activeProps={{}}>
-        <span aria-hidden="true">←</span> <span>{t("fiche.retour")}</span>
-      </Link>
+      {projetOrigine ? (
+        <Link
+          to="/projets/$id/taches"
+          params={{ id: projetOrigine }}
+          className="back-link"
+          activeProps={{}}
+        >
+          <span aria-hidden="true">←</span> <span>{t("fiche.retourAuProjet")}</span>
+        </Link>
+      ) : (
+        <Link to="/taches" className="back-link" activeProps={{}}>
+          <span aria-hidden="true">←</span> <span>{t("fiche.retour")}</span>
+        </Link>
+      )}
 
       {/*
         `EX-TSK-12` — l'incohérence de dates se dit AVANT d'être découverte, et
@@ -222,10 +259,31 @@ export function FicheTache({ tacheId }: { tacheId: string }) {
               {t("fiche.modifier")}
             </Button>
           ) : null}
-          {peut("tasks:delete") ? (
+          {/*
+            `RG-TSK-14`, `RG-GEN-06` — la permission garde le GESTE, pas
+            l'objet. La commande n'exerçait que `tasks:delete` : sur une tâche
+            qui n'est pas la sienne, elle était active, la confirmation
+            s'ouvrait, le geste partait, et le refus tombait après coup en
+            `403`. Elle reste désormais visible mais inerte, et **dit
+            pourquoi** — un motif qui n'apparaît qu'après le clic n'en est pas
+            un.
+          */}
+          {suppression === "autorisee" ? (
             <Button className="chip-btn chip-danger" onPress={() => setSuppressionOuverte(true)}>
               {t("fiche.supprimer")}
             </Button>
+          ) : suppression === "reserveeAuxAssignes" ? (
+            <TooltipTrigger delay={200}>
+              {/* `aria-disabled`, pas `disabled` : un bouton natif désactivé
+                  ne reçoit ni survol ni focus, donc son infobulle ne s'ouvre
+                  jamais — le piège consigné pour `action-protegee.tsx`. */}
+              <Button className="chip-btn chip-danger" aria-disabled onPress={() => undefined}>
+                {t("fiche.supprimer")}
+              </Button>
+              <Tooltip className="tooltip">
+                {t("fiche.suppressionReserveeAuxAssignes")}
+              </Tooltip>
+            </TooltipTrigger>
           ) : null}
         </div>
       </div>
@@ -453,6 +511,7 @@ export function FicheTache({ tacheId }: { tacheId: string }) {
         tache={tache}
         ouverte={suppressionOuverte}
         surFermeture={() => setSuppressionOuverte(false)}
+        projetOrigine={projetOrigine}
       />
     </div>
   );
@@ -1323,10 +1382,17 @@ function FenetreDocument({
 
   const suppression = useMutation({
     mutationFn: () => api.supprimerDocument(document!.id),
+    /*
+     * Le document n'existe plus : le PÉRIMER le ferait relire, et la fenêtre
+     * encore montée récoltait un `404` à chaque suppression réussie. On le
+     * retire du cache au lieu de l'invalider, et on ferme d'abord.
+     */
     onSuccess: () => {
+      const supprime = document?.id;
       annoncer("ok", t("fiche.documentSupprime"));
-      rafraichir();
       surFermeture();
+      client.removeQueries({ queryKey: ["document", supprime] });
+      void client.invalidateQueries({ queryKey: ["tache", tacheId] });
     },
     onError: (e) =>
       annoncer("err", messageErreur(e, tErreurs, t("fiche.echecSuppressionDocument"))),
@@ -1438,22 +1504,34 @@ function FenetreSuppression({
   tache,
   ouverte,
   surFermeture,
+  projetOrigine,
 }: {
   tache: api.FicheTache;
   ouverte: boolean;
   surFermeture: () => void;
+  projetOrigine: string | null;
 }) {
   const { t } = useTranslation("taches");
   const { t: tErreurs } = useTranslation("erreurs");
   const annoncer = useMessages();
+  const navigate = useNavigate();
 
   const bloquee = tache.dependances.bloque.length > 0;
 
   const suppression = useMutation({
     mutationFn: () => api.supprimer(tache.id),
+    /*
+     * `window.location.assign` RECHARGE le document : l'application repart
+     * de zéro, et « Tâche supprimée. » — annoncée une ligne plus haut —
+     * n'était jamais lisible. On navigue par le routeur, qui garde la session,
+     * le cache et la file de messages. La tâche n'existant plus, on quitte la
+     * fiche vers l'endroit d'où l'on venait.
+     */
     onSuccess: () => {
       annoncer("ok", t("fiche.supprimee"));
-      window.location.assign("/taches");
+      void (projetOrigine
+        ? navigate({ to: "/projets/$id/taches", params: { id: projetOrigine } })
+        : navigate({ to: "/taches" }));
     },
     onError: (e) => annoncer("err", messageErreur(e, tErreurs, t("fiche.echecEnregistrement"))),
   });
@@ -1536,6 +1614,8 @@ function FenetreAssignes({
 }) {
   const { t } = useTranslation("taches");
   const { t: tErreurs } = useTranslation("erreurs");
+  const peut = usePeut();
+  const { session } = useSession();
   const annoncer = useMessages();
   const client = useQueryClient();
 
@@ -1556,12 +1636,20 @@ function FenetreAssignes({
     enabled: ouverte && Boolean(projectId),
   });
 
+  /*
+   * `GET /utilisateurs` rend un TABLEAU — la forme `{ utilisateurs: [...] }`
+   * était une invention du client, et elle rendait ce repli inopérant.
+   *
+   * `RG-GEN-06` — la route est gardée par `users:read` : la demander sans la
+   * permission journalisait un `403` à chaque ouverture pour une liste vide.
+   * `RG-AUTH-05` — elle est demandée ACTIVE : un compte désactivé ne se
+   * propose plus.
+   */
+  const annuaireLisible = peut(PERMISSION_ANNUAIRE);
   const tous = useQuery({
-    queryKey: ["utilisateurs", "tous"],
-    // `GET /utilisateurs` rend un TABLEAU. La forme `{ utilisateurs: [...] }`
-    // était une invention du client, et elle rendait ce repli inopérant.
-    queryFn: () => appeler<{ id: string; prenom: string; nom: string }[]>("/utilisateurs"),
-    enabled: ouverte,
+    queryKey: ["utilisateurs", "assignables"],
+    queryFn: () => appeler<Candidat[]>(CHEMIN_ANNUAIRE),
+    enabled: ouverte && annuaireLisible,
   });
 
   const membres = (equipe.data?.agents ?? []).map((a) => ({
@@ -1569,8 +1657,14 @@ function FenetreAssignes({
     prenom: a.utilisateur.prenom,
     nom: a.utilisateur.nom,
   }));
-  const projetSansMembre = Boolean(projectId) && equipe.isSuccess && membres.length === 0;
-  const candidats = projectId && !projetSansMembre ? membres : (tous.data ?? []);
+  const { candidats, indice, alerte } = assignables({
+    projectId,
+    membres,
+    equipeChargee: equipe.isSuccess,
+    annuaire: tous.data ?? [],
+    annuaireLisible,
+    moi: { id: session.id, prenom: session.prenom, nom: session.nom },
+  });
 
   const enregistrer = useMutation({
     mutationFn: () => api.definirAssignes(tacheId, choisis, version),
@@ -1605,13 +1699,7 @@ function FenetreAssignes({
       }
     >
       <div className="pickbox" role="group" aria-label={t("liste.assignes")}>
-        <p className={`pick-hint${projetSansMembre ? " is-warn" : ""}`}>
-          {projectId
-            ? projetSansMembre
-              ? t("liste.projetSansMembre")
-              : t("liste.membresDuProjet")
-            : t("liste.tousLesUtilisateurs")}
-        </p>
+        <p className={`pick-hint${alerte ? " is-warn" : ""}`}>{t(`liste.${indice}`)}</p>
         {candidats.map((u) => (
           <label className="pick-item" key={u.id}>
             <input

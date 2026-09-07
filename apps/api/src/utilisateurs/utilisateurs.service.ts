@@ -37,6 +37,17 @@ export class ErreurUtilisateur extends Error {
 /** Blocages nommés qui interdisent une suppression définitive — `RG-USR-03`. */
 export type Blocage = { objet: string; nombre: number };
 
+/**
+ * `RG-CNG-20` — les statuts qui font qu'un jour est **consommé**.
+ *
+ * La même définition que `CongesService.solde`, et pour la même raison : deux
+ * façons de compter les jours pris finissent par se contredire, et c'est
+ * l'agent qui arbitre entre deux nombres dont aucun ne dit d'où il vient. Un
+ * congé dont l'annulation est demandée reste pris tant qu'elle n'est pas
+ * accordée.
+ */
+const CONSOMMES: ReadonlySet<string> = new Set(["approved", "cancellation_requested"]);
+
 @Injectable()
 export class UtilisateursService {
   constructor(
@@ -147,7 +158,26 @@ export class UtilisateursService {
 
     const [taches, conges, teletravail, temps, competences] = await Promise.all([
       this.prisma.task.findMany({
-        where: { assignes: { some: { userId } } },
+        /*
+         * `RG-SCOPE-04`, `RG-TSK-13` — **les tâches confidentielles sortent
+         * d'ici aussi.** Trouvé le 2026-09-07 : le suivi listait le TITRE de
+         * toutes les tâches assignées à l'agent, confidentielles comprises, à
+         * qui détient `users:read_individual_tracking` sans
+         * `tasks:read_confidential`. La règle était tenue sur `/taches` et
+         * contournée par la vue 28 — la même dissymétrie que « la liste filtre,
+         * l'adresse directe non », déplacée d'un module à l'autre.
+         *
+         * `filtreTache` en entier ne conviendrait PAS : il borne aussi aux
+         * tâches de l'appelant et de ses projets, ce qui viderait un suivi dont
+         * l'objet est précisément de montrer le travail d'un AUTRE. Seule la
+         * moitié « confidentialité » s'applique, et elle se lit sur
+         * `perimetre.confidentiel`, calculé une seule fois par
+         * `PerimetreService.resoudre`.
+         */
+        where: {
+          assignes: { some: { userId } },
+          ...(perimetre.confidentiel ? {} : { confidentielle: false }),
+        },
         orderBy: [{ dateFin: "asc" }],
         select: {
           id: true, titre: true, statut: true, priorite: true, avancement: true, dateFin: true,
@@ -203,8 +233,25 @@ export class UtilisateursService {
         /** Sur la période demandée. */
         joursTeletravail: teletravail.length,
         heuresSaisies: temps.reduce((n, e) => n + Number(e.heures), 0),
-        /** Sur l'année civile : un solde de congés ne se découpe pas. */
+        /**
+         * « Jours pris cette année » — sur l'année civile : un droit à congés
+         * ne se découpe pas en trimestres.
+         *
+         * **Les refusés et les annulés en faisaient partie.** La somme portait
+         * sur TOUTES les répartitions, quel que soit le statut de la demande :
+         * un agent dont trois demandes avaient été refusées lisait ces jours
+         * comme pris. `RG-CNG-20` dit ce que « consommé » veut dire — les
+         * jours approuvés —, et `CongesService.solde` le calcule déjà ainsi.
+         * Deux lectures d'un même fait qui se contredisent, et aucune des deux
+         * ne pouvait le signaler : c'est le motif consigné de `joursFeries` /
+         * `joursChomes`.
+         *
+         * `cancellation_requested` compte comme consommé, exactement comme
+         * dans le solde : tant que l'annulation n'est pas accordée, le congé
+         * est pris.
+         */
         congesAnnee: conges
+          .filter((c) => CONSOMMES.has(c.statut))
           .flatMap((c) => c.repartitions)
           .reduce((n, r) => n + Number(r.jours), 0),
         projetsActifs: new Set(
@@ -220,6 +267,36 @@ export class UtilisateursService {
    *
    * Une seule sollicitation, comme le planning : trois requêtes indexées, pas
    * une par agent.
+   *
+   * ══════════════════════════════════════════════════════════════════════════
+   * `RG-TLT-02` — **TROIS états de lieu, pas deux.**
+   *
+   * La méthode rendait `"present"` pour tout ce qui n'était ni congé ni
+   * télétravail : les vingt agents qui n'avaient rien déclaré étaient comptés
+   * au bureau. Le même jour, pour les mêmes personnes, la vue 20 affichait
+   * « sur site 9 · non déclaré 20 » — **deux lectures du même fait, et c'est
+   * celle qui affirmait le plus qui était fausse.** Chacune avait ses tests,
+   * tous verts : quand deux fonctions lisent la même table, le contrôle qui
+   * compte est celui qui les compare.
+   *
+   * `RG-TLT-02` pose « télétravail · bureau (déclaré) · non déclaré ». « Bureau
+   * DÉCLARÉ » est le mot qui décide : `present` ne se dit que d'une ligne
+   * `Telework` à l'état `office`. L'absence de déclaration n'est pas une
+   * présence — c'est ce qu'on ne sait pas.
+   *
+   * **Le week-end n'est PAS traité ici, et c'est un manque de spec assumé.**
+   * La fin de `RG-TLT-02` — « le week-end est distingué » — n'est développée
+   * qu'en `cadrage/02 § vue 20` : « cinq apparences à distinguer sur une même
+   * case de calendrier », c'est-à-dire un quatrième état de CASE, non
+   * cliquable et hors décompte (`teletravail.service.ts` le tient déjà par son
+   * drapeau `weekend`). Ni `EX-USR-09`, ni le brief de la vue 06, ni
+   * `design/etats.json` ne disent ce que devient la présence du jour un
+   * samedi : aucun cinquième état, aucune exclusion, rien. L'énumération
+   * rendue ici n'existe d'ailleurs que dans le code. Inventer un état
+   * `week_end` serait une décision de conception prise à l'exécution ; elle
+   * remonte au cadrage, elle ne se tranche pas ici (`CLAUDE.md`, sources de
+   * vérité).
+   * ══════════════════════════════════════════════════════════════════════════
    */
   async presenceDuJour(perimetre: Perimetre, jour: Date) {
     const filtre = this.perimetres.filtreUtilisateur(perimetre);
@@ -255,7 +332,12 @@ export class UtilisateursService {
         ? ("conge" as const)
         : etatTt.get(a.id) === "telework"
           ? ("teletravail" as const)
-          : ("present" as const),
+          : // « Bureau DÉCLARÉ » : une ligne `Telework` à l'état `office`, et
+            // rien d'autre. Un `else` qui dirait « présent » ferait de
+            // l'absence de déclaration une affirmation.
+            etatTt.get(a.id) === "office"
+            ? ("present" as const)
+            : ("non_declare" as const),
       typeConge: enConge.get(a.id) ?? null,
     }));
   }

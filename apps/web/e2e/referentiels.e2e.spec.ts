@@ -141,13 +141,62 @@ test.describe("Vue 22 — compétences", () => {
     await expect(page.getByText("Complète 2/1")).toBeVisible();
   });
 
-  test("RG-GEN-06 — sans droit sur la matrice, les cellules sont inertes", async ({ page }) => {
+  /*
+   * ───────────────────────────────────────────────────────────────────────────
+   * `EX-CMP-01`, `RG-GEN-06` — **la matrice n'est pas proposée sans le droit
+   * de la lire.**
+   *
+   * Ce contrôle affirmait que les cellules étaient « inertes » : rendues,
+   * mais désactivées. Ce que la recette a trouvé derrière est plus grave que
+   * ce qu'il mesurait — les trois onglets tiraient tous leurs données de
+   * `GET /competences/matrice`, gardée par `skills:manage_matrix`, et le corps
+   * entier de la vue ne se rendait que sur le succès de cette seule requête.
+   * Un porteur de `skills:read` — c'est-à-dire le socle de tout compte actif —
+   * recevait « Le chargement a échoué — Permission requise » sur les TROIS
+   * onglets, y compris celui qu'il a le droit de lire. La vue 22 était morte
+   * pour presque tout le monde, et une cellule grisée n'y était pas le sujet.
+   *
+   * `RG-GEN-06` va d'ailleurs plus loin qu'une cellule désactivée : ce qu'on
+   * n'a pas le droit de lire n'est pas proposé, et la requête ne part pas.
+   * ───────────────────────────────────────────────────────────────────────────
+   */
+  test("EX-CMP-01 — sans `skills:manage_matrix`, la matrice n'est ni proposée ni demandée", async ({
+    page,
+  }) => {
     await serveur(page, { session: SESSION_LECTURE, reponses });
+    let matrice = 0;
+    page.on("request", (r) => {
+      if (new URL(r.url()).pathname === "/api/competences/matrice") matrice += 1;
+    });
     await page.goto("/competences");
 
+    // Le référentiel, lui, se rend : c'est exactement ce qui manquait.
+    await expect(page.getByText("Cartographie SIG").first()).toBeVisible();
+    // Ni cellule, ni onglet vers elle, ni bandeau d'écarts qui en dérive.
+    await expect(page.getByRole("button", { name: /Driss Amrani — Cartographie SIG/ })).toHaveCount(
+      0,
+    );
+    await expect(page.getByRole("button", { name: "Matrice" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Par utilisateur" })).toHaveCount(0);
+    await expect(page.getByText(/Compétences à renforcer/)).toHaveCount(0);
+    // `RG-GEN-06` — on ne demande pas ce qu'on sait qui sera refusé.
+    expect(matrice).toBe(0);
+  });
+
+  /*
+   * Le pendant positif : avec le droit, les trois onglets existent et la
+   * requête part. Sans lui, l'assertion d'absence ci-dessus passerait aussi
+   * sur une vue cassée — c'est le couple qui prouve, pas la moitié négative.
+   */
+  test("EX-CMP-01 — avec `skills:manage_matrix`, les trois onglets sont là", async ({ page }) => {
+    await serveur(page, { session: SESSION_REFERENTIELS, reponses });
+    await page.goto("/competences");
+
+    const vues = page.getByRole("group", { name: "Vue" });
+    await expect(vues.getByRole("button")).toHaveCount(3);
     await expect(
       page.getByRole("button", { name: /Driss Amrani — Cartographie SIG/ }),
-    ).toBeDisabled();
+    ).toBeEnabled();
   });
 });
 
@@ -327,11 +376,20 @@ test.describe("Vue 22 — export de la matrice et détenteurs", () => {
     ).toBeVisible();
   });
 
+  /*
+   * Le clic sur « Référentiel » a disparu, et son absence est le sujet du
+   * contrôle voisin : sans `skills:manage_matrix`, le groupe segmenté ne
+   * s'affiche plus — un seul onglet ne se choisit pas — et le référentiel est
+   * la vue par défaut. Cliquer un bouton qui n'existe plus faisait échouer ce
+   * contrôle sur son décor, pas sur ce qu'il affirme.
+   */
   test("RG-GEN-06 — sans skills:read, les détenteurs ne sont pas proposés", async ({ page }) => {
     await serveur(page, { session: SESSION_LECTURE, reponses });
     await page.goto("/competences");
-    await page.getByRole("button", { name: "Référentiel" }).click();
 
+    // On est bien sur le référentiel : sans cela, l'absence du bouton ne
+    // prouverait que l'absence de la liste qui le porte.
+    await expect(page.getByText("Cartographie SIG").first()).toBeVisible();
     await expect(
       page.getByRole("button", { name: "Voir les détenteurs de Cartographie SIG" }),
     ).toHaveCount(0);

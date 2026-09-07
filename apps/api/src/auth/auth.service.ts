@@ -1,6 +1,7 @@
-import { Injectable } from "@nestjs/common";
+import { Inject, Injectable, Logger, Optional } from "@nestjs/common";
 import { PrismaService } from "../prisma.service.js";
 import { AuditService } from "../commun/audit.service.js";
+import { FileService, FILE_COURRIEL } from "../notifications/file.service.js";
 import {
   hacherMotDePasse,
   verifierMotDePasse,
@@ -56,11 +57,37 @@ const PAR_DEFAUT: Reglages = {
   domainesAutorises: [],
 };
 
+/**
+ * L'adresse publique de l'instance, pour le lien du courriel.
+ *
+ * `RATIONARIUM_HOTE` peut porter PLUSIEURS noms séparés par des virgules — le
+ * fichier Compose l'autorise, Caddy les accepte —, et un lien n'en veut qu'un.
+ * On prend le premier plutôt que de fabriquer une adresse illisible.
+ */
+const adressePubliqueInstance = (): string => {
+  const explicite = process.env["RATIONARIUM_URL_PUBLIQUE"]?.trim();
+  if (explicite) return explicite.replace(/\/+$/, "");
+  const hote = process.env["RATIONARIUM_HOTE"]?.split(",")[0]?.trim();
+  return hote ? `https://${hote}` : "http://localhost:4173";
+};
+
 @Injectable()
 export class AuthService {
+  private readonly journal = new Logger(AuthService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    /**
+     * La file de travaux — `RG-NTF-04`, `ADR-0007`.
+     *
+     * `@Optional()` pour que les tests d'intégration qui construisent le
+     * service à la main continuent de le faire ; **le montage réel n'est pas
+     * facultatif pour autant**, et `auth.module.test.ts` l'affirme. Un
+     * fournisseur non monté ne casse rien : il se tait, et c'est exactement
+     * ainsi que le courriel de réinitialisation a disparu sans un message.
+     */
+    @Optional() @Inject(FileService) private readonly file?: FileService,
   ) {}
 
   /** Le seul réglage que la page de connexion a besoin de connaître. */
@@ -248,16 +275,48 @@ export class AuthService {
     };
   }
 
-  /** Révoque toutes les sessions d'un compte — désactivation, suppression, changement de mot de passe. */
-  async revoquerSessions(userId: string): Promise<number> {
-    const { count } = await this.prisma.session.deleteMany({ where: { userId } });
+  /**
+   * Révoque les sessions d'un compte — désactivation, suppression, changement
+   * de mot de passe.
+   *
+   * `sauf` épargne **une** session : celle qui vient de faire le geste. Sans
+   * elle, changer son mot de passe depuis la vue 05 revenait à se déconnecter
+   * soi-même — voir `changerMotDePasse`. Les révocations décidées par un tiers
+   * (désactivation d'un compte) ne la passent pas : elles doivent tout couper.
+   */
+  async revoquerSessions(userId: string, options: { sauf?: string } = {}): Promise<number> {
+    const { count } = await this.prisma.session.deleteMany({
+      where: { userId, ...(options.sauf ? { id: { not: options.sauf } } : {}) },
+    });
     return count;
   }
 
   // ── Mot de passe ─────────────────────────────────────────────────────────
 
-  /** RG-AUTH-07 — le changement par l'intéressé exige le mot de passe actuel. */
-  async changerMotDePasse(userId: string, actuel: string, nouveau: string): Promise<void> {
+  /**
+   * `RG-AUTH-07` — le changement par l'intéressé exige le mot de passe actuel.
+   *
+   * `EX-AUTH-07`, `RG-AUTH-06` — **la session qui fait le changement survit.**
+   * Le service appelait `revoquerSessions(userId)`, qui supprime TOUTES les
+   * sessions du compte, y compris celle qui venait de s'authentifier pour
+   * changer le mot de passe. Séquence relevée en recette :
+   * `POST /auth/change-password` → 200, navigation vers `/`, `GET /auth/me`
+   * → 401, retour sur `/mot-de-passe-impose` avec un formulaire vide et
+   * **aucun message**. L'utilisateur avait bel et bien changé son mot de passe
+   * et restait enfermé sur la vue 05, condamné à recommencer avec un ancien
+   * mot de passe qui n'existait plus.
+   *
+   * Le commentaire d'origine disait « invalide les AUTRES sessions » : il
+   * décrivait l'intention juste et le code faisait autre chose. C'est
+   * `conserverSessionId` qui la rend vraie, et le contrôleur la fournit —
+   * l'appelant est le seul à savoir depuis quelle session on agit.
+   */
+  async changerMotDePasse(
+    userId: string,
+    actuel: string,
+    nouveau: string,
+    options: { conserverSessionId?: string } = {},
+  ): Promise<void> {
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
     if (!(await verifierMotDePasse(user.motDePasseHash, actuel))) {
       throw new ErreurAuth("ancien_mot_de_passe_incorrect");
@@ -267,8 +326,11 @@ export class AuthService {
       data: { motDePasseHash: await hacherMotDePasse(nouveau), motDePasseAChanger: false },
     });
     // Un changement de mot de passe invalide les autres sessions : c'est le
-    // geste qu'on fait quand on soupçonne une compromission.
-    await this.revoquerSessions(userId);
+    // geste qu'on fait quand on soupçonne une compromission. Celle qui l'a
+    // demandé n'en fait pas partie — elle vient de prouver qui elle est.
+    await this.revoquerSessions(userId, {
+      ...(options.conserverSessionId ? { sauf: options.conserverSessionId } : {}),
+    });
     await this.audit.tracer({
       action: "auth.password.changed",
       typeEntite: "User",
@@ -296,7 +358,96 @@ export class AuthService {
         expireLe: new Date(Date.now() + r.dureeJetonReinitialisationHeures * 3_600_000),
       },
     });
+
+    await this.envoyerLienDeReinitialisation(
+      user.email,
+      jeton,
+      r.dureeJetonReinitialisationHeures,
+    );
     return { jeton, userId: user.id };
+  }
+
+  /**
+   * `EX-AUTH-05` — **le lien part.**
+   *
+   * Le point d'entrée appelait `demanderReinitialisation`, recevait le jeton en
+   * clair et le JETAIT : `AuthModule` n'importait aucun service de courriel,
+   * rien n'était mis en file, et la vue 03 affirmait pourtant « un lien de
+   * réinitialisation vient d'être envoyé ». La demande était donc enregistrée
+   * en base, le jeton créé, valable deux heures — et personne ne pouvait
+   * l'obtenir. La fonction entière était absente, ce qui ne fait échouer aucun
+   * contrôle.
+   *
+   * `RG-NTF-04` — l'envoi est **toujours** une mise en file : un relais SMTP
+   * en panne ne doit pas faire échouer la demande, et la vue 03 doit répondre
+   * la même chose que l'adresse existe ou non. `publier` ne lève jamais ; le
+   * `try` est le second filet, comme dans `NotificationsService`.
+   *
+   * Le corps est rédigé en français, comme les autres courriels sortants du
+   * produit : le serveur ne connaît pas la langue du lecteur, et la traduction
+   * des courriels est une décision qui n'a pas été prise (voir compte rendu).
+   */
+  private async envoyerLienDeReinitialisation(
+    destinataire: string,
+    jeton: string,
+    heures: number,
+  ): Promise<void> {
+    const lien = `${adressePubliqueInstance()}/reinitialisation?jeton=${encodeURIComponent(jeton)}`;
+    try {
+      if (!this.file) {
+        this.journal.error(
+          "La file de travaux n'est pas injectée : aucun lien de réinitialisation ne peut partir.",
+        );
+        return;
+      }
+      await this.file.publier(FILE_COURRIEL, {
+        destinataire,
+        sujet: "Réinitialisation de votre mot de passe",
+        corps: [
+          "Une réinitialisation de mot de passe a été demandée pour votre compte Rationarium.",
+          "",
+          "Ouvrez ce lien pour choisir un nouveau mot de passe :",
+          lien,
+          "",
+          `Ce lien est valable ${heures} h et ne peut servir qu'une seule fois.`,
+          "Si vous n'êtes pas à l'origine de cette demande, ignorez ce message :",
+          "votre mot de passe reste inchangé.",
+        ].join("\n"),
+      });
+    } catch {
+      // Silencieux DE PROPOS DÉLIBÉRÉ : la demande a abouti, et la vue 03 doit
+      // répondre la même chose dans tous les cas (RG-AUTH-02 dans l'esprit).
+    }
+  }
+
+  /**
+   * `RG-AUTH-04` — **l'état d'un jeton, AVANT d'ouvrir le formulaire.**
+   *
+   * Il n'existait aucun point d'entrée de vérification : la vue 04 ouvrait son
+   * formulaire complet sur un jeton expiré, déjà consommé ou inconnu, et
+   * l'utilisateur ne découvrait l'échec **qu'après** avoir choisi et confirmé
+   * un mot de passe. Les trois messages distincts existaient et étaient justes ;
+   * ils arrivaient après le geste que la règle existe pour épargner.
+   *
+   * Les trois échecs sont **les mêmes codes** que ceux de la réinitialisation
+   * elle-même : la vue 04 a déjà leurs trois panneaux, avec leurs sorties
+   * distinctes, et ils s'affichent désormais à l'ouverture.
+   *
+   * L'adresse est rendue parce que la vue l'affiche — « Compte concerné ». Elle
+   * ne fuit rien : qui tient le jeton a reçu le courriel.
+   */
+  async verifierJetonReinitialisation(jeton: string): Promise<{ email: string }> {
+    const enregistre = await this.prisma.passwordResetToken.findUnique({
+      where: { jetonHash: hacherJeton(jeton) },
+      include: { user: { select: { email: true, actif: true } } },
+    });
+    if (!enregistre) throw new ErreurAuth("jeton_invalide");
+    if (enregistre.utiliseLe) throw new ErreurAuth("jeton_deja_utilise");
+    if (enregistre.expireLe <= new Date()) throw new ErreurAuth("jeton_expire");
+    // Un compte désactivé entre-temps : le lien ne mène plus nulle part, et
+    // dire « expiré » serait faux. « Invalide » est la seule réponse juste.
+    if (!enregistre.user.actif) throw new ErreurAuth("jeton_invalide");
+    return { email: enregistre.user.email };
   }
 
   /**

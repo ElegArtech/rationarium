@@ -149,6 +149,19 @@
   font-style: normal;
   line-height: 1;
 }
+/*
+ * La pastille qui MÈNE au projet. Elle garde exactement le dessin de la
+ * pastille inerte — c'est le même objet, il conduit quelque part —, et ne
+ * signale sa nature de lien qu'au survol et à la prise de focus.
+ */
+.pchip-lien {
+  color: inherit;
+  text-decoration: none;
+}
+.pchip-lien:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
 .pchip.is-indep {
   border-style: dashed;
   border-color: var(--line-strong);

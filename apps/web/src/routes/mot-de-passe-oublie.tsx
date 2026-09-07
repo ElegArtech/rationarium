@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Button } from "react-aria-components";
 import { Champ } from "../composants/champs.js";
 import { demanderReinitialisation } from "../api/session.js";
-import { GabaritAcces } from "./gabarit-acces.js";
+import { GabaritAcces, LienAcces } from "./gabarit-acces.js";
 
 /**
  * Vue 03 — Mot de passe oublié.
@@ -93,9 +93,9 @@ export function MotDePasseOublie({
 
   const retour = (
     <div className="signup-row" style={{ textAlign: "center" }}>
-      <a href="/connexion" className="link">
+      <LienAcces vers="/connexion" className="link">
         {t("oubli.retourFleche")}
-      </a>
+      </LienAcces>
     </div>
   );
 
@@ -112,9 +112,9 @@ export function MotDePasseOublie({
         <p className="lede" style={{ marginBottom: 24 }}>
           {t("oubli.indisponibleExplication")}
         </p>
-        <a href="/connexion" className="btn btn-primary btn-block">
+        <LienAcces vers="/connexion" className="btn btn-primary btn-block">
           {t("oubli.retour")}
-        </a>
+        </LienAcces>
       </GabaritAcces>
     );
   }

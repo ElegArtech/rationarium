@@ -330,14 +330,89 @@ describe("EX-ORG-03 — créer, modifier un service ; le rattacher à un départ
     expect(svc.managerId).toBe(id);
   });
 
-  it("le service se renomme, et son manager change", async () => {
+  /**
+   * **Le titre promettait le manager, les assertions ne le regardaient pas.**
+   *
+   * Le test d'origine renommait un service et vérifiait son nom ; « et son
+   * manager change » n'était affirmé nulle part. Or la route rendait **500** :
+   * le corps porte `responsableId` pour les trois niveaux — la lecture le
+   * normalise déjà de la même façon —, et `renommer` l'étalait tel quel dans
+   * `prisma.service.update`, qui ne connaît que `managerId`. Erreur de
+   * validation du client Prisma, aucun code métier, donc « Une erreur
+   * inattendue est survenue » sur la moindre modification de service,
+   * renommage compris.
+   */
+  it("EX-ORG-03 — le service se renomme, et son manager se désigne APRÈS la création", async () => {
     const dep = await orga.creerDepartement({ nom: unique("Renommeur") }, acteur);
     const svc = await orga.creerService({ nom: "Acceuil", departementId: dep.id }, acteur);
+    expect(svc.managerId).toBeNull();
 
-    const apres = await orga.renommer("service", svc.id, { nom: "Accueil" }, acteur);
+    const chef = uuid();
+    await prisma.user.create({
+      data: {
+        id: chef, login: `c-${chef.slice(0, 8)}`, email: `${chef.slice(0, 8)}@x.fr`,
+        motDePasseHash: "x", prenom: "Chef", nom: "DeService",
+      },
+    });
+
+    // Le corps de `PATCH /organisation/services/:id`, mot pour mot.
+    const apres = await orga.renommer(
+      "service",
+      svc.id,
+      { nom: "Accueil", description: null, responsableId: chef },
+      acteur,
+    );
 
     expect(apres.id).toBe(svc.id);
     expect(apres.nom).toBe("Accueil");
+    // La relecture, et non la valeur rendue : c'est la COLONNE qui doit porter
+    // la désignation, pas le champ de la requête qui a survécu au passage.
+    const relu = await prisma.service.findUniqueOrThrow({ where: { id: svc.id } });
+    expect(relu.managerId).toBe(chef);
+    expect(relu.nom).toBe("Accueil");
+  });
+
+  it("EX-ORG-03 — le manager se RETIRE, sans qu'on lui invente un successeur", async () => {
+    const dep = await orga.creerDepartement({ nom: unique("Détacheur") }, acteur);
+    const chef = uuid();
+    await prisma.user.create({
+      data: {
+        id: chef, login: `c-${chef.slice(0, 8)}`, email: `${chef.slice(0, 8)}@x.fr`,
+        motDePasseHash: "x", prenom: "Partant", nom: "DeService",
+      },
+    });
+    const svc = await orga.creerService(
+      { nom: unique("Sans chef"), departementId: dep.id, managerId: chef },
+      acteur,
+    );
+
+    await orga.renommer("service", svc.id, { responsableId: null }, acteur);
+
+    expect(
+      (await prisma.service.findUniqueOrThrow({ where: { id: svc.id } })).managerId,
+    ).toBeNull();
+  });
+
+  it("EX-ORG-03 — le responsable d'un département reste `responsableId`, lui", async () => {
+    /*
+     * Le pendant de la traduction : elle ne vaut QUE pour le service. Une
+     * correction qui renommerait la colonne pour les trois niveaux casserait
+     * les deux autres sans qu'aucun test de service ne le voie.
+     */
+    const chef = uuid();
+    await prisma.user.create({
+      data: {
+        id: chef, login: `c-${chef.slice(0, 8)}`, email: `${chef.slice(0, 8)}@x.fr`,
+        motDePasseHash: "x", prenom: "Resp", nom: "DeDept",
+      },
+    });
+    const dep = await orga.creerDepartement({ nom: unique("Dirigé") }, acteur);
+
+    await orga.renommer("departement", dep.id, { responsableId: chef }, acteur);
+
+    expect(
+      (await prisma.departement.findUniqueOrThrow({ where: { id: dep.id } })).responsableId,
+    ).toBe(chef);
   });
 
   /*

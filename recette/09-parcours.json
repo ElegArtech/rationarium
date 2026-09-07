@@ -1,12 +1,12 @@
 {
   "_meta": {
-    "decompte": 143,
+    "decompte": 171,
     "sources": {
       "cahier": "cadrage/01-cahier-des-charges-fonctionnel.md — 984 lignes",
       "carte": "design/carte-de-navigation.md — 278 lignes"
     },
     "date": "2026-09-07",
-    "version": 1,
+    "version": 2,
     "aretes_non_empruntees": {
       "A-43": "Fil d'Ariane de l'en-tête vers « la vue parente ». Le cadrage énonce l'élément mais ne définit la vue parente d'aucune vue : aucun parcours ne peut nommer sa destination, donc aucun verdict mécanique ne peut trancher. Chemin non spécifié, pas chemin mort — il redeviendra empruntable dès que le cadrage dira, vue par vue, vers quoi le fil remonte."
     },
@@ -29,6 +29,11 @@
         "limite": 36,
         "negatif": 23
       }
+    },
+    "version_2": {
+      "date": "2026-09-07",
+      "ajout": "28 parcours issus de la vague d'exploration (P-144 à P-171), dédupliqués : une trouvaille relevée par plusieurs explorateurs ne donne qu'un parcours.",
+      "note": "Ces parcours ne dérivent pas de la carte de navigation : ils ne citent donc aucune arête. Ils sont bloquants comme les autres."
     }
   },
   "P-01": {
@@ -4468,5 +4473,682 @@
       "etat": "bilan d'impact affiché avant confirmation",
       "observable": "La suppression d'un tiers affiche, avant confirmation, le nombre de projets et de tâches concernés ; celle d'un client affiche le nombre de projets rattachés ; l'annulation de la confirmation laisse la ligne en place ; la suppression confirmée ne détruit ni les projets ni les tâches, elle en défait le rattachement."
     }
+  },
+  "P-144": {
+    "persona": "Camille",
+    "type": "nominal",
+    "objectif": "Depuis la recherche globale de l'en-tête, Camille retrouve la tâche dont elle ne connaît que le titre : la fiche de cette tâche est à l'écran, ou un message dit qu'elle n'a pas été trouvée.",
+    "entree": "06",
+    "vues": [
+      "06",
+      "17"
+    ],
+    "aretes": [],
+    "exigences": [
+      "EX-TSK-01"
+    ],
+    "textes": [
+      "Recherche globale"
+    ],
+    "verdict": {
+      "vue": "17",
+      "etat": "tâche atteinte depuis la recherche globale",
+      "observable": "La saisie d'un titre de tâche dans le champ de recherche de l'en-tête, suivie de la validation, produit un résultat : soit la vue de la tâche, soit une liste de résultats, soit un message d'absence de résultat. Le champ ne reste pas sans effet."
+    },
+    "origine": "vague d'exploration — § 7"
+  },
+  "P-145": {
+    "persona": "Camille",
+    "type": "nominal",
+    "objectif": "Camille a récupéré la pièce jointe de sa tâche : le fichier est enregistré sur son poste, et elle est restée dans l'application, sur la fiche de la tâche.",
+    "entree": "17",
+    "vues": [
+      "17"
+    ],
+    "aretes": [],
+    "exigences": [
+      "EX-DOC-02",
+      "RG-DOC-02"
+    ],
+    "textes": [
+      "Documents",
+      "Télécharger"
+    ],
+    "verdict": {
+      "vue": "17",
+      "etat": "pièce jointe remise, application conservée",
+      "observable": "La commande « Télécharger » d'un document déclenche un téléchargement de fichier ; l'application reste affichée, l'adresse ne quitte pas la vue 17, et aucun corps JSON n'est rendu au navigateur."
+    },
+    "origine": "vague d'exploration — § 7"
+  },
+  "P-146": {
+    "persona": "Camille",
+    "type": "nominal",
+    "objectif": "Le rattachement d'une tâche se lit partout comme un nom de projet précédé de son symbole : aucun code d'icône n'apparaît en toutes lettres.",
+    "entree": "16",
+    "vues": [
+      "16",
+      "17"
+    ],
+    "aretes": [],
+    "exigences": [
+      "EX-TSK-01",
+      "EX-TSK-03"
+    ],
+    "textes": [
+      "Rattachement"
+    ],
+    "verdict": {
+      "vue": "16",
+      "etat": "pastille de rattachement rendue en symbole",
+      "observable": "Le texte visible des vues 16 et 17 ne contient aucune chaîne de la forme « p-… » (p-screen, p-stamp, p-database…) ; la pastille qui précède le nom du projet porte un symbole graphique."
+    },
+    "origine": "vague d'exploration — § 7"
+  },
+  "P-147": {
+    "persona": "Camille",
+    "type": "nominal",
+    "objectif": "Camille filtre ses tâches, en ouvre une et revient : la liste affiche à nouveau le résultat filtré, ses filtres sont toujours posés, et l'adresse de la liste filtrée rouverte sert la même liste.",
+    "entree": "16",
+    "vues": [
+      "16",
+      "17",
+      "16"
+    ],
+    "aretes": [],
+    "exigences": [
+      "EX-TSK-01",
+      "RG-GEN-04"
+    ],
+    "textes": [
+      "Rechercher une tâche…",
+      "Tous les projets"
+    ],
+    "verdict": {
+      "vue": "16",
+      "etat": "filtres rémanents et adressables",
+      "observable": "Après avoir posé une recherche et un filtre de projet, ouvert une tâche puis fait retour, le compteur de la vue 16 affiche le même nombre qu'avant l'ouverture et les deux filtres portent encore leur valeur. L'adresse de la liste filtrée, rouverte dans un contexte neuf, sert la même liste."
+    },
+    "origine": "vague d'exploration — § 7"
+  },
+  "P-148": {
+    "persona": "Camille",
+    "type": "nominal",
+    "objectif": "L'interface de Camille en anglais ne porte aucun mot français : le surtitre du tableau de bord, le titre du calendrier de télétravail et les en-têtes de journée de la vue du temps passé sont en anglais, et les décimales emploient le même séparateur d'une vue à l'autre.",
+    "entree": "06",
+    "vues": [
+      "06",
+      "20",
+      "21"
+    ],
+    "aretes": [],
+    "exigences": [
+      "RG-GEN-08",
+      "RG-GEN-09"
+    ],
+    "textes": [],
+    "verdict": {
+      "vue": "06",
+      "etat": "interface anglaise sans reliquat français",
+      "observable": "Sous session anglaise, le surtitre du tableau de bord, le titre du calendrier de la vue 20 et les en-têtes de journée de la vue 21 ne contiennent aucun nom de mois ni de jour français. Les nombres décimaux des vues 19 et 21 emploient le même séparateur."
+    },
+    "origine": "vague d'exploration — § 7"
+  },
+  "P-149": {
+    "persona": "Driss",
+    "type": "negatif",
+    "objectif": "Aucune tâche confidentielle du projet n'apparaît sur sa feuille de route à qui n'a pas le droit de la lire : ni dans un groupe de jalon, ni dans le bloc des tâches sans jalon, et aucune écriture de statut n'y est possible.",
+    "entree": "13",
+    "vues": [
+      "11",
+      "13"
+    ],
+    "aretes": [],
+    "exigences": [
+      "RG-SCOPE-04",
+      "RG-TSK-13",
+      "EX-JAL-05"
+    ],
+    "textes": [
+      "Tâches sans jalon"
+    ],
+    "verdict": {
+      "vue": "13",
+      "etat": "tâche confidentielle absente de la feuille de route",
+      "observable": "Le titre de la tâche marquée confidentielle n'apparaît nulle part dans la vue 13 pour un utilisateur sans permission de lecture des tâches confidentielles, et aucun sélecteur de statut ne lui est offert."
+    },
+    "origine": "vague d'exploration — § 7"
+  },
+  "P-150": {
+    "persona": "Driss",
+    "type": "nominal",
+    "objectif": "Le nombre de tâches annoncé par le projet, sa progression et sa répartition par statut ne comptent que les tâches que l'utilisateur peut effectivement lister.",
+    "entree": "11",
+    "vues": [
+      "11",
+      "12",
+      "13"
+    ],
+    "aretes": [],
+    "exigences": [
+      "RG-SCOPE-04",
+      "RG-PRJ-07",
+      "EX-PRJ-08"
+    ],
+    "textes": [
+      "Progression"
+    ],
+    "verdict": {
+      "vue": "11",
+      "etat": "compteurs et listes concordants",
+      "observable": "Le compteur de l'onglet Tâches, le nombre annoncé par la vue d'ensemble et le nombre de cartes du kanban sont égaux. La feuille de route n'affiche pas « toutes rattachées » au-dessus d'un bloc « Tâches sans jalon » non vide."
+    },
+    "origine": "vague d'exploration — § 7"
+  },
+  "P-151": {
+    "persona": "Driss",
+    "type": "nominal",
+    "objectif": "Le pourcentage d'avancement d'un projet est le même sur sa vue d'ensemble, sur le tableau de santé des rapports et sur le graphe d'avancement ; une grandeur qui n'est pas cet avancement porte un autre nom.",
+    "entree": "11",
+    "vues": [
+      "11",
+      "30"
+    ],
+    "aretes": [],
+    "exigences": [
+      "RG-PRJ-07",
+      "EX-RPT-01",
+      "RG-GEN-02"
+    ],
+    "textes": [
+      "Avancement"
+    ],
+    "verdict": {
+      "vue": "30",
+      "etat": "une seule grandeur sous un seul nom",
+      "observable": "Pour un même projet, la valeur affichée sous l'en-tête « Avancement » du tableau de santé et celle du graphe « Avancement réel et attendu » sont égales, et égales à celle de la vue 11. Si une colonne rend la complétion, son en-tête visible dit « complétion »."
+    },
+    "origine": "vague d'exploration — § 7"
+  },
+  "P-152": {
+    "persona": "Driss",
+    "type": "nominal",
+    "objectif": "Un projet dont Driss est sponsor est compté par les indicateurs du tableau de bord, listé dans « Mes projets », et ses tâches sont servies par la vue 16 quand on filtre dessus.",
+    "entree": "06",
+    "vues": [
+      "06",
+      "10",
+      "16"
+    ],
+    "aretes": [],
+    "exigences": [
+      "RG-SCOPE-02",
+      "EX-DSH-01",
+      "EX-DSH-06"
+    ],
+    "textes": [
+      "Mes projets",
+      "Projets actifs"
+    ],
+    "verdict": {
+      "vue": "06",
+      "etat": "périmètre projet cohérent entre les vues",
+      "observable": "Le nombre de projets annoncé par le tableau de bord est égal à celui du portefeuille, le projet sponsorisé figure dans « Mes projets », et le filtre Projet de la vue 16 réglé sur lui rend au moins une tâche."
+    },
+    "origine": "vague d'exploration — § 7"
+  },
+  "P-153": {
+    "persona": "Driss",
+    "type": "limite",
+    "objectif": "Quand des instantanés existent hors de la fenêtre d'activité, le panneau de tendance dit que la fenêtre les exclut et offre de l'élargir, au lieu d'annoncer un historique insuffisant.",
+    "entree": "30",
+    "vues": [
+      "11",
+      "30"
+    ],
+    "aretes": [],
+    "exigences": [
+      "RG-RPT-03",
+      "RG-GEN-05"
+    ],
+    "textes": [
+      "Historique en cours de construction"
+    ],
+    "verdict": {
+      "vue": "30",
+      "etat": "état vide au motif juste, avec sa sortie",
+      "observable": "Sur un projet portant six instantanés tous antérieurs à la fenêtre choisie, le panneau de tendance n'affirme pas qu'il manque des relevés : il nomme la fenêtre comme cause et offre de l'élargir."
+    },
+    "origine": "vague d'exploration — § 7"
+  },
+  "P-154": {
+    "persona": "Driss",
+    "type": "nominal",
+    "objectif": "Depuis le bandeau d'alerte des rapports, l'utilisateur arrive sur la liste des seules tâches en retard, et leur nombre est celui qu'annonçait le bandeau.",
+    "entree": "30",
+    "vues": [
+      "30",
+      "16"
+    ],
+    "aretes": [],
+    "exigences": [
+      "EX-RPT-12",
+      "RG-GEN-04"
+    ],
+    "textes": [
+      "En retard"
+    ],
+    "verdict": {
+      "vue": "16",
+      "etat": "liste restreinte, nombres concordants",
+      "observable": "Le clic sur la commande du bandeau d'alerte ouvre la vue 16 avec le filtre « En retard » actif, et le compteur de la liste porte le même nombre que le bandeau."
+    },
+    "origine": "vague d'exploration — § 7"
+  },
+  "P-155": {
+    "persona": "Driss",
+    "type": "nominal",
+    "objectif": "La période affichée et les filtres posés dans le planning survivent au passage Semaine → Mois → Activité et au retour.",
+    "entree": "07",
+    "vues": [
+      "07",
+      "08",
+      "09",
+      "07"
+    ],
+    "aretes": [],
+    "exigences": [
+      "EX-PLN-01",
+      "EX-PLN-02",
+      "RG-GEN-04"
+    ],
+    "textes": [
+      "Semaine",
+      "Mois",
+      "Activité"
+    ],
+    "verdict": {
+      "vue": "08",
+      "etat": "état de planning conservé au changement de mode",
+      "observable": "Après avoir avancé de plusieurs semaines et posé un filtre de service en vue 07, le passage en vue 08 affiche la période correspondante et conserve le filtre ; le retour en vue 07 retrouve la semaine d'origine. Un repère posé sur la page survit au changement de mode."
+    },
+    "origine": "vague d'exploration — § 7"
+  },
+  "P-156": {
+    "persona": "Fatou",
+    "type": "nominal",
+    "objectif": "Fatou a créé une tâche pour un agent nommé à une date donnée depuis la cellule vide du planning : la saisie s'ouvre avec l'agent et la date déjà posés, et la tâche apparaît dans la cellule d'où le geste est parti.",
+    "entree": "07",
+    "vues": [
+      "07"
+    ],
+    "aretes": [],
+    "exigences": [
+      "EX-PLN-11",
+      "EX-TSK-02"
+    ],
+    "textes": [
+      "Créer"
+    ],
+    "verdict": {
+      "vue": "07",
+      "etat": "création contextuelle depuis une cellule",
+      "observable": "Le geste de création offert au croisement d'un agent et d'un jour ouvre une saisie où cet agent et ce jour sont déjà renseignés ; après validation, l'occupation apparaît dans cette cellule."
+    },
+    "origine": "vague d'exploration — § 7"
+  },
+  "P-157": {
+    "persona": "Fatou",
+    "type": "nominal",
+    "objectif": "Fatou a restreint le planning à son périmètre : la grille ne porte plus que le service dont elle a la charge, elle-même comprise, et le filtre survit à la bascule Semaine → Mois.",
+    "entree": "07",
+    "vues": [
+      "07",
+      "08"
+    ],
+    "aretes": [],
+    "exigences": [
+      "RG-PLN-02",
+      "RG-SCOPE-01",
+      "EX-PLN-05"
+    ],
+    "textes": [
+      "Mon périmètre"
+    ],
+    "verdict": {
+      "vue": "07",
+      "etat": "périmètre restreint, non vidé",
+      "observable": "Le filtre « Mon périmètre » réduit la grille au service encadré par l'utilisateur, qui y figure lui-même ; la grille n'est pas vide, et le filtre reste posé après passage en vue 08."
+    },
+    "origine": "vague d'exploration — § 7"
+  },
+  "P-158": {
+    "persona": "Fatou",
+    "type": "nominal",
+    "objectif": "La présence du jour dit la même chose sur le tableau de bord et sur la vue équipe du télétravail : un agent qui n'a rien déclaré y est « non déclaré » des deux côtés, et les cumuls des deux vues coïncident.",
+    "entree": "06",
+    "vues": [
+      "06",
+      "20"
+    ],
+    "aretes": [],
+    "exigences": [
+      "EX-USR-09",
+      "RG-TLT-02"
+    ],
+    "textes": [
+      "Au bureau",
+      "En congé",
+      "En télétravail"
+    ],
+    "verdict": {
+      "vue": "20",
+      "etat": "trois états de présence, cumuls concordants",
+      "observable": "Pour une même journée et un même ensemble d'agents, les cumuls de la carte de présence du tableau de bord et ceux de la vue équipe du télétravail sont égaux, et un agent sans déclaration porte le même état dans les deux vues."
+    },
+    "origine": "vague d'exploration — § 7"
+  },
+  "P-159": {
+    "persona": "Fatou",
+    "type": "nominal",
+    "objectif": "Chaque demande de l'onglet À valider nomme le service de son demandeur, et Fatou peut lire, sans quitter l'écran de décision, les absences déjà posées sur les mêmes dates dans ce service.",
+    "entree": "19",
+    "vues": [
+      "19"
+    ],
+    "aretes": [],
+    "exigences": [
+      "EX-CNG-05",
+      "RG-CNG-02"
+    ],
+    "textes": [
+      "À valider",
+      "Demandeur"
+    ],
+    "verdict": {
+      "vue": "19",
+      "etat": "décision éclairée par l'impact sur le service",
+      "observable": "Chaque ligne de l'onglet « À valider » porte le rattachement organisationnel du demandeur, et l'écran de décision permet de constater les absences concomitantes du même service sans quitter la vue."
+    },
+    "origine": "vague d'exploration — § 7"
+  },
+  "P-160": {
+    "persona": "Hugo",
+    "type": "limite",
+    "objectif": "L'allocation propre posée par erreur sur un agent a été retirée : l'agent est revenu au défaut global, et un champ vidé n'a jamais valu zéro jour.",
+    "entree": "19",
+    "vues": [
+      "19"
+    ],
+    "aretes": [],
+    "exigences": [
+      "EX-CNG-10",
+      "RG-CNG-19",
+      "RG-GEN-03"
+    ],
+    "textes": [
+      "Aucune allocation propre"
+    ],
+    "verdict": {
+      "vue": "19",
+      "etat": "allocation retirée, défaut global rétabli",
+      "observable": "Vider le champ d'une allocation et enregistrer n'écrit pas zéro : soit l'enregistrement est refusé avec un message qui le dit, soit l'allocation propre est retirée et la mention d'héritage du défaut global reparaît."
+    },
+    "origine": "vague d'exploration — § 7"
+  },
+  "P-161": {
+    "persona": "Hugo",
+    "type": "nominal",
+    "objectif": "Hugo isole les demandes d'un agent nommé dans « Toutes les demandes » : le compteur et la liste ne portent plus que ses demandes.",
+    "entree": "19",
+    "vues": [
+      "19"
+    ],
+    "aretes": [],
+    "exigences": [
+      "EX-CNG-03",
+      "RG-CNG-13"
+    ],
+    "textes": [
+      "Toutes les demandes"
+    ],
+    "verdict": {
+      "vue": "19",
+      "etat": "liste de contrôle filtrable par agent",
+      "observable": "L'onglet « Toutes les demandes » offre un filtre par utilisateur ; réglé sur un agent, le compteur et les lignes ne portent que ses demandes."
+    },
+    "origine": "vague d'exploration — § 7"
+  },
+  "P-162": {
+    "persona": "Hugo",
+    "type": "nominal",
+    "objectif": "Le référentiel des types et l'onglet Soldes annoncent le même droit annuel pour un type donné, après correction de l'un des deux.",
+    "entree": "19",
+    "vues": [
+      "19"
+    ],
+    "aretes": [],
+    "exigences": [
+      "EX-CNG-13",
+      "RG-CNG-19",
+      "RG-GEN-02"
+    ],
+    "textes": [
+      "Limite/an"
+    ],
+    "verdict": {
+      "vue": "19",
+      "etat": "un seul droit annuel, deux affichages concordants",
+      "observable": "Après avoir porté le droit annuel d'un type de congé à une valeur donnée, la colonne « Limite/an » du référentiel des types affiche cette même valeur."
+    },
+    "origine": "vague d'exploration — § 7"
+  },
+  "P-163": {
+    "persona": "Hugo",
+    "type": "nominal",
+    "objectif": "L'adresse d'un onglet de la vue des congés ouvre cet onglet : l'adresse des soldes affiche l'attribution des soldes, et non « Mes demandes ».",
+    "entree": "19",
+    "vues": [
+      "19"
+    ],
+    "aretes": [],
+    "exigences": [
+      "RG-GEN-04"
+    ],
+    "textes": [
+      "Soldes",
+      "Mes demandes"
+    ],
+    "verdict": {
+      "vue": "19",
+      "etat": "onglet adressable et rémanent",
+      "observable": "L'adresse affichée par un onglet, ouverte directement, sert cet onglet ; et le retour dans la vue par la navigation retrouve l'onglet quitté."
+    },
+    "origine": "vague d'exploration — § 7"
+  },
+  "P-164": {
+    "persona": "Inès",
+    "type": "limite",
+    "objectif": "Inès choisit la fenêtre « 30 jours » et l'analyse porte effectivement sur les trente jours qui précèdent la date d'arrêt.",
+    "entree": "30",
+    "vues": [
+      "30"
+    ],
+    "aretes": [],
+    "exigences": [
+      "EX-RPT-01",
+      "RG-GEN-02"
+    ],
+    "textes": [
+      "30 jours"
+    ],
+    "verdict": {
+      "vue": "30",
+      "etat": "fenêtre glissante conforme à son libellé",
+      "observable": "La période analysée par la fenêtre « 30 jours » a pour début la date d'arrêt moins trente jours et pour fin la date d'arrêt ; la fenêtre « 7 jours » n'analyse jamais zéro jour, quel que soit le jour de la semaine."
+    },
+    "origine": "vague d'exploration — § 7"
+  },
+  "P-165": {
+    "persona": "Inès",
+    "type": "nominal",
+    "objectif": "Inès suit une notification jusqu'à l'objet qu'elle désigne sans que l'application soit rechargée.",
+    "entree": "06",
+    "vues": [
+      "06",
+      "11"
+    ],
+    "aretes": [],
+    "exigences": [
+      "EX-NTF-01"
+    ],
+    "textes": [
+      "Notifications"
+    ],
+    "verdict": {
+      "vue": "11",
+      "etat": "navigation interne, application conservée",
+      "observable": "Un repère posé sur la page avant le clic sur une notification y survit après l'arrivée sur l'objet désigné."
+    },
+    "origine": "vague d'exploration — § 7"
+  },
+  "P-166": {
+    "persona": "Inès",
+    "type": "nominal",
+    "objectif": "Sous l'interface anglaise, chaque notification du panneau porte un libellé de type anglais : aucune des six catégories du cahier des charges n'y apparaît en français.",
+    "entree": "06",
+    "vues": [
+      "06"
+    ],
+    "aretes": [],
+    "exigences": [
+      "RG-GEN-08",
+      "RG-NTF-01",
+      "EX-NTF-01"
+    ],
+    "textes": [],
+    "verdict": {
+      "vue": "06",
+      "etat": "notifications rendues dans la langue du lecteur",
+      "observable": "Sous session anglaise, ni le titre ni le contenu d'une notification ne contiennent de texte français."
+    },
+    "origine": "vague d'exploration — § 7"
+  },
+  "P-167": {
+    "persona": "Inès",
+    "type": "nominal",
+    "objectif": "Inès exporte le rapport sous l'interface anglaise et le fichier reçu est lisible en anglais : son nom, sa ligne d'en-tête et ses valeurs de santé sont ceux que l'écran affiche.",
+    "entree": "30",
+    "vues": [
+      "30"
+    ],
+    "aretes": [],
+    "exigences": [
+      "EX-RPT-03",
+      "RG-GEN-08"
+    ],
+    "textes": [
+      "Exporter"
+    ],
+    "verdict": {
+      "vue": "30",
+      "etat": "export lisible dans la langue de la session",
+      "observable": "Le fichier exporté sous session anglaise porte des en-têtes de colonnes et des valeurs de santé rédigés en anglais, cohérents avec ce que la vue affiche."
+    },
+    "origine": "vague d'exploration — § 7"
+  },
+  "P-168": {
+    "persona": "Karim",
+    "type": "nominal",
+    "objectif": "L'état de chargement de l'annuaire et de la liste des rôles est rédigé en français correct.",
+    "entree": "27",
+    "vues": [
+      "27",
+      "32"
+    ],
+    "aretes": [],
+    "exigences": [
+      "RG-GEN-03",
+      "RG-GEN-08"
+    ],
+    "textes": [
+      "Chargement"
+    ],
+    "verdict": {
+      "vue": "27",
+      "etat": "état d'attente grammatical",
+      "observable": "Le message d'attente des vues 27 et 32 ne contient pas la suite « de le » ni « de les »."
+    },
+    "origine": "vague d'exploration — § 7"
+  },
+  "P-169": {
+    "persona": "Karim",
+    "type": "nominal",
+    "objectif": "Karim filtre l'annuaire sur un rôle et les lignes retenues nomment ce rôle du même libellé que le filtre, jamais par son code interne.",
+    "entree": "27",
+    "vues": [
+      "27"
+    ],
+    "aretes": [],
+    "exigences": [
+      "EX-USR-01",
+      "RG-GEN-02"
+    ],
+    "textes": [
+      "Rôle"
+    ],
+    "verdict": {
+      "vue": "27",
+      "etat": "un seul nom pour un rôle",
+      "observable": "La colonne Rôle des lignes de la vue 27 porte le libellé du rôle, identique à celui qu'offre le filtre ; aucun code en majuscules à souligné n'y apparaît."
+    },
+    "origine": "vague d'exploration — § 7"
+  },
+  "P-170": {
+    "persona": "Karim",
+    "type": "nominal",
+    "objectif": "Karim retrouve dans le journal la modification de compte qu'il vient de faire : la ligne la nomme en toutes lettres dans les deux langues, et le détail dit quel rôle a remplacé quel rôle, par leur nom.",
+    "entree": "27",
+    "vues": [
+      "27",
+      "33"
+    ],
+    "aretes": [],
+    "exigences": [
+      "EX-ADM-03",
+      "RG-ADM-03",
+      "RG-GEN-08"
+    ],
+    "textes": [
+      "Journal d'audit"
+    ],
+    "verdict": {
+      "vue": "33",
+      "etat": "action journalisée nommée et lisible",
+      "observable": "La ligne du journal correspondant à la modification porte un libellé en langue naturelle, différent de son code technique ; le détail nomme les rôles avant et après, et non leurs identifiants."
+    },
+    "origine": "vague d'exploration — § 7"
+  },
+  "P-171": {
+    "persona": "Karim",
+    "type": "nominal",
+    "objectif": "En anglais, Karim ouvre la liste des rôles et le filtre de l'annuaire : les rôles système y portent un nom anglais.",
+    "entree": "32",
+    "vues": [
+      "32",
+      "27"
+    ],
+    "aretes": [],
+    "exigences": [
+      "RG-GEN-08",
+      "RG-ADM-01"
+    ],
+    "textes": [],
+    "verdict": {
+      "vue": "32",
+      "etat": "référentiel de rôles bilingue",
+      "observable": "Sous session anglaise, les noms des rôles système affichés par la vue 32, par le filtre de la vue 27 et par la carte de profil sont en anglais."
+    },
+    "origine": "vague d'exploration — § 7"
   }
 }

@@ -43,6 +43,7 @@ export function Kanban({
   cleRequete,
   surAnnonce,
   surCreation,
+  projetOrigine,
 }: {
   taches: api.LigneTache[];
   surRechargement: () => void;
@@ -56,6 +57,14 @@ export function Kanban({
   surAnnonce?: (message: string) => void;
   /** Le « + » de l'en-tête de colonne : créer une tâche dans ce statut. */
   surCreation?: (statut: string) => void;
+  /**
+   * `EX-TSK-03` — le projet d'où le tableau est ouvert, quand il y en a un.
+   *
+   * Il voyage dans l'adresse de la fiche (`?projet=…`) pour que le « Retour »
+   * y ramène. Câblé en dur sur `/taches`, il renvoyait à la liste globale une
+   * tâche ouverte depuis le kanban d'un projet.
+   */
+  projetOrigine?: string;
 }) {
   const { t } = useTranslation("taches");
   const { t: tErreurs } = useTranslation("erreurs");
@@ -142,6 +151,7 @@ export function Kanban({
                     tache={tache}
                     colonne={libelle(colonne.code, STATUTS_TACHE)}
                     modifiable={modifiable}
+                    {...(projetOrigine ? { projetOrigine } : {})}
                     surDeplacement={(statut) => deplacer.mutate({ tache, statut })}
                     surDecalage={(pas) => {
                       const ordre: string[] = STATUTS_TACHE.map((s) => s.code);
@@ -164,12 +174,14 @@ function Carte({
   tache,
   colonne,
   modifiable,
+  projetOrigine,
   surDeplacement,
   surDecalage,
 }: {
   tache: api.LigneTache;
   colonne: string;
   modifiable: boolean;
+  projetOrigine?: string;
   surDeplacement: (statut: string) => void;
   /** Alt + ← / → : −1 pour la colonne précédente, +1 pour la suivante. */
   surDecalage: (pas: number) => void;
@@ -224,7 +236,12 @@ function Carte({
         {tache.milestone ? <span className="kmile">{tache.milestone.nom}</span> : null}
       </div>
 
-      <Link to="/taches/$id" params={{ id: tache.id }} className="kcard-lien">
+      <Link
+        to="/taches/$id"
+        params={{ id: tache.id }}
+        search={projetOrigine ? { projet: projetOrigine } : {}}
+        className="kcard-lien"
+      >
         <p className="kcard-title">{tache.titre}</p>
       </Link>
 

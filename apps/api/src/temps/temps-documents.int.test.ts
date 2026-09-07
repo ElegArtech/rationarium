@@ -696,11 +696,14 @@ describe("EX-DOC-02 — consulter, télécharger, renommer, supprimer un documen
       acteur,
     );
 
-  it("consulter rend les métadonnées ; télécharger rend EN PLUS le chemin de stockage", async () => {
+  it("consulter rend les métadonnées ; télécharger rend LE FICHIER", async () => {
     /*
-     * La distinction n'est pas cosmétique : le chemin est ce qui sort la
-     * donnée du système. Le rendre à la consultation ferait du téléchargement
-     * une formalité, et de sa permission dédiée une décoration.
+     * DÉFAUT TROUVÉ EN RECETTE (P-53), et ce contrôle affirmait le défaut :
+     * il exigeait que le téléchargement rende le CHEMIN DE STOCKAGE interne.
+     * Le chemin physique n'a rien à faire dans une réponse — il n'apprend rien
+     * au client et renseigne un attaquant —, et une route de téléchargement
+     * doit rendre des octets, pas un objet JSON que le navigateur affiche en
+     * quittant l'application. Voir `documents/documents.test.ts`.
      */
     const doc = await joindre("rapport.txt");
 
@@ -708,7 +711,9 @@ describe("EX-DOC-02 — consulter, télécharger, renommer, supprimer un documen
     expect(vu).not.toHaveProperty("chemin");
 
     const telecharge = await documents.telecharger(doc.id, acteur, await globalP(), TOUTES_LECTURES);
-    expect(telecharge.chemin).toBe(documents.cheminDeStockage(doc.empreinte));
+    expect(telecharge).not.toHaveProperty("chemin");
+    expect(telecharge.nom).toBe("rapport.txt");
+    expect(telecharge.contenu.toString()).toBe("rapport.txt");
   });
 
   it("renommer change le NOM et rien d'autre — le contenu est adressé par empreinte", async () => {

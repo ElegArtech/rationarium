@@ -2,7 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma.service.js";
 import { PlanningService } from "../planning/planning.service.js";
 import { TempsService } from "../temps/temps.service.js";
-import type { Perimetre } from "../commun/perimetre.service.js";
+import { PerimetreService, type Perimetre } from "../commun/perimetre.service.js";
 import { echeanceAujourdhui, echeanceDepassee } from "../commun/dates.js";
 
 /**
@@ -42,7 +42,36 @@ export class TableauService {
     private readonly prisma: PrismaService,
     private readonly planning: PlanningService,
     private readonly temps: TempsService,
+    /*
+     * Injecté par Nest, et doté d'une valeur par défaut pour les constructions
+     * MANUELLES — les suites d'intégration en assemblent trois. Le service ne
+     * porte aucun état : le construire ici ou l'injecter revient au même, et
+     * la valeur par défaut évite de faire dépendre des fichiers étrangers à
+     * cette correction d'un changement d'arité.
+     */
+    private readonly perimetres: PerimetreService = new PerimetreService(prisma),
   ) {}
+
+  /**
+   * « Mes projets », **au sens de tout le reste du produit**.
+   *
+   * ══════════════════════════════════════════════════════════════════════════
+   * DÉFAUT TROUVÉ EN RECETTE. Le tableau de bord décrivait « mes projets » par
+   * (chef | membre) quand `RG-SCOPE-02` — et `filtreMesProjets`, qui l'énonce
+   * une fois pour tout le produit — dit (créateur | chef | sponsor | membre).
+   * Le portefeuille annonçait « 2 projets » et l'accueil « 1 sur 1 » : deux
+   * lectures du même fait, divergentes, et c'est celle de l'accueil que la
+   * direction consulte. Un sponsor ne voyait pas son propre projet sur la
+   * seule page qu'il ouvre.
+   *
+   * Le prédicat n'est pas recopié : il est **appelé**. Deux définitions
+   * divergeraient au premier ajout de rôle — c'est exactement ce qui vient
+   * d'arriver.
+   * ══════════════════════════════════════════════════════════════════════════
+   */
+  private mesProjets(userId: string) {
+    return this.perimetres.filtreMesProjets(userId);
+  }
 
   /**
    * `EX-DSH-01` à `EX-DSH-07` — tout le tableau de bord, en un appel.
@@ -96,15 +125,9 @@ export class TableauService {
    */
   private async indicateurs(userId: string, aujourdhui: Date) {
     const [projetsTotal, projetsActifs, taches] = await Promise.all([
+      this.prisma.project.count({ where: this.mesProjets(userId) }),
       this.prisma.project.count({
-        where: { OR: [{ chefId: userId }, { membres: { some: { userId } } }] },
-      }),
-      this.prisma.project.count({
-        where: {
-          archive: false,
-          statut: "active",
-          OR: [{ chefId: userId }, { membres: { some: { userId } } }],
-        },
+        where: { AND: [{ archive: false, statut: "active" }, this.mesProjets(userId)] },
       }),
       this.prisma.task.findMany({
         where: { assignes: { some: { userId } } },
@@ -184,11 +207,39 @@ export class TableauService {
    */
   private async tachesNonDeclarees(userId: string) {
     const taches = await this.temps.tachesNonDeclarees(userId);
+
+    /*
+     * ══════════════════════════════════════════════════════════════════════
+     * DÉFAUT TROUVÉ EN RECETTE (P-35). La ligne affirmait « aucune heure
+     * déclarée » **sans jamais vérifier** : la charge utile ne transportait
+     * aucun nombre, et la mention se rendait sans condition. Avec trois heures
+     * déjà déclarées par un autre contributeur, l'écran disait le contraire de
+     * la vérité — et poussait à ressaisir ce qui était saisi.
+     *
+     * `RG-TMP-07` demande le « tous contributeurs confondus », et l'onglet
+     * voisin « À venir » le faisait déjà correctement (« 33 h déjà déclarées,
+     * tous contributeurs ») : deux moitiés de la même règle qui divergeaient.
+     * `tachesNonDeclarees` sélectionne les tâches sans saisie **de cette
+     * personne** — ce qui n'exclut nullement celles d'autrui.
+     *
+     * Un `groupBy` pour toute la liste : une agrégation par ligne rejouerait
+     * la même requête douze fois sur la page la plus consultée du produit.
+     * ══════════════════════════════════════════════════════════════════════
+     */
+    const heures = await this.prisma.timeEntry.groupBy({
+      by: ["taskId"],
+      where: { taskId: { in: taches.map((t) => t.id) } },
+      _sum: { heures: true },
+    });
+    const parTache = new Map(heures.map((h) => [h.taskId, Number(h._sum.heures ?? 0)]));
+
     return taches.map((t) => ({
       id: t.id,
       titre: t.titre,
       dateFin: t.dateFin ? jour(t.dateFin) : null,
       projet: t.project?.nom ?? null,
+      /** `RG-TMP-07` — tous contributeurs confondus. Zéro veut dire zéro. */
+      heuresDeclarees: parTache.get(t.id) ?? 0,
     }));
   }
 
@@ -207,10 +258,7 @@ export class TableauService {
    */
   private async projets(userId: string) {
     const projets = await this.prisma.project.findMany({
-      where: {
-        archive: false,
-        OR: [{ chefId: userId }, { membres: { some: { userId } } }],
-      },
+      where: { AND: [{ archive: false }, this.mesProjets(userId)] },
       select: {
         id: true, nom: true, statut: true, icone: true, dateFin: true,
         _count: { select: { taches: true } },

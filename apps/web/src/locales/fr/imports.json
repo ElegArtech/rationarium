@@ -12,7 +12,6 @@
   "fermer": "Fermer",
   "importes": "{n, plural, one {# importé} other {# importés}}",
   "ignores": "{n, plural, one {# ignoré} other {# ignorés}}",
-  "ignoresAide": "Les lignes ignorées correspondent à des entrées déjà présentes : rejouer un fichier ne crée pas de doublon.",
   "enErreur": "{n, plural, one {# en erreur} other {# en erreur}}",
   "importTermine": "{n, plural, =0 {Aucune ligne importée} one {# ligne importée} other {# lignes importées}}.",
   "echecApercu": "Le fichier n'a pas pu être analysé.",
@@ -35,5 +34,38 @@
   "importerCsv": "Importer CSV",
   "titreTaches": "Import CSV des tâches",
   "titreJalons": "Importer des jalons",
-  "titreConges": "Importer des congés"
+  "titreConges": "Importer des congés",
+  "crees": {
+    "utilisateurs": "{n, plural, =0 {Aucun compte créé} one {# compte créé} other {# comptes créés}}",
+    "taches": "{n, plural, =0 {Aucune tâche créée} one {# tâche créée} other {# tâches créées}}",
+    "jalons": "{n, plural, =0 {Aucun jalon créé} one {# jalon créé} other {# jalons créés}}",
+    "projet": "{n, plural, =0 {Aucun élément créé dans le projet} one {# élément créé dans le projet} other {# éléments créés dans le projet}}",
+    "conges": "{n, plural, =0 {Aucun congé créé} one {# congé créé} other {# congés créés}}",
+    "competences": "{n, plural, =0 {Aucune compétence créée} one {# compétence créée} other {# compétences créées}}"
+  },
+  "ignoresTitre": "Lignes ignorées",
+  "motifs": {
+    "colonneVide": "colonne « {colonne} » vide",
+    "nombreHorsBornes": "colonne « {colonne} » : « {valeur} » n'est pas un entier de {min} à {max}",
+    "avancementIncoherent": "colonne « {colonne} » : une tâche « {statut} » est à {attendu}",
+    "valeurInconnue": "colonne « {colonne} » : « {valeur} » inconnu, attendu {attendues}",
+    "emailDejaPris": "un compte porte déjà l'adresse « {email} » : ligne ignorée.",
+    "loginDejaPris": "un compte porte déjà l'identifiant « {login} » : ligne ignorée.",
+    "categorieInconnue": "catégorie « {valeur} » inconnue. Valeurs attendues : {attendues}.",
+    "effectifInvalide": "effectif requis « {valeur} » invalide : un nombre entier positif ou nul est attendu.",
+    "competenceDejaPresente": "la compétence « {nom} » existe déjà : ligne ignorée.",
+    "jalonDejaPresent": "le jalon « {nom} » existe déjà : ligne ignorée.",
+    "compteInconnu": "aucun compte ne porte l'adresse « {email} ».",
+    "compteDesactive": "le compte « {email} » est désactivé : aucun congé ne peut lui être ajouté.",
+    "horsPerimetre": "le compte « {email} » est hors de votre périmètre.",
+    "typeInconnu": "aucun type de congé ne s'appelle « {nom} ».",
+    "dateIllisible": "date illisible : « {debut} » → « {fin} ». Le format attendu est AAAA-MM-JJ.",
+    "datesInversees": "la date de fin ({fin}) précède la date de début ({debut}) : inversez-les.",
+    "demiJourneeInconnue": "demi-journée « {valeur} » inconnue. Valeurs attendues : {attendues}, ou la colonne laissée vide.",
+    "demiJourneeSurPlusieursJours": "une demi-journée ne s'applique qu'à un congé d'une seule journée : laissez la colonne vide, ou ramenez les deux dates au même jour.",
+    "soldeInsuffisant": "solde insuffisant pour {annee} : {demandes} jour(s) demandé(s), {disponibles} disponible(s), {manquants} manquant(s).",
+    "typeDesactive": "le type de congé « {nom} » est désactivé : réactivez-le, ou choisissez un autre type sur cette ligne.",
+    "chevauchement": "cette période chevauche un congé déjà enregistré : ligne ignorée.",
+    "erreurTechnique": "la ligne n'a pas pu être enregistrée : {detail}"
+  }
 }

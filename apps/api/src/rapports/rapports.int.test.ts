@@ -681,3 +681,159 @@ describe("EX-RPT-09 — consulter la répartition des tâches par priorité et p
     expect(repartitions.actives).toBe(0);
   });
 });
+
+// ════════════════════════════════════════════════════════════════════════════
+// Vague de correction — défauts constatés en recette.
+// ════════════════════════════════════════════════════════════════════════════
+
+/**
+ * `EX-RPT-12` — **le bandeau d'alerte compte aussi les tâches HORS PROJET.**
+ *
+ * Le défaut constaté (exploration Inès T-6, Driss T-7) : le bandeau agrégeait
+ * par `projectId in (…)` et laissait donc tomber les tâches sans projet, que
+ * la liste des tâches compte. Dix ici, onze là, et rien pour signaler l'écart.
+ * Une tâche hors projet en retard est exactement ce que ce bandeau existe pour
+ * montrer : elle n'a pas de chef de projet pour la voir.
+ */
+describe("EX-RPT-12 — l'alerte et la liste des tâches comptent la MÊME population", () => {
+  it("une tâche HORS PROJET en retard compte dans le bandeau", async () => {
+    const p = await projet({ nom: "Avec projet", chefId: chef });
+    await prisma.task.create({
+      data: { titre: "Dans le projet", projectId: p.id, statut: "doing", dateFin: utc("2026-08-01") },
+    });
+    const seule = await prisma.task.create({
+      data: { titre: "Hors projet", statut: "doing", dateFin: utc("2026-08-01") },
+    });
+    await prisma.taskAssignee.create({ data: { taskId: seule.id, userId: chef } });
+
+    const vue = await page();
+    // Deux, et pas une : c'est l'assertion qui porte le défaut.
+    expect(vue.alerte.tachesEnRetard).toBe(2);
+  });
+
+  it("`RG-RPT-01` — une tâche hors projet d'AUTRUI ne compte pas", async () => {
+    const seule = await prisma.task.create({
+      data: { titre: "La sienne", statut: "doing", dateFin: utc("2026-08-01") },
+    });
+    await prisma.taskAssignee.create({ data: { taskId: seule.id, userId: etranger } });
+
+    const restreint = await perimetres.resoudre(chef, new Set(["users:read"]));
+    const vue = await rapports.vueEnsemble(
+      { periode: "mois" },
+      restreint,
+      new Set(["reports:read"]),
+      MOMENT,
+    );
+    // Un compteur divulgue autant qu'une liste : la tâche hors projet d'un
+    // autre n'a aucun lien avec le lecteur, elle ne s'additionne nulle part.
+    expect(vue.alerte.tachesEnRetard).toBe(0);
+  });
+
+  it("un filtre par projet EXCLUT les tâches hors projet : elles n'y appartiennent pas", async () => {
+    const garde = await projet({ nom: "Gardé", chefId: chef });
+    await prisma.task.create({
+      data: { titre: "Dedans", projectId: garde.id, statut: "doing", dateFin: utc("2026-08-01") },
+    });
+    const seule = await prisma.task.create({
+      data: { titre: "Hors projet", statut: "doing", dateFin: utc("2026-08-01") },
+    });
+    await prisma.taskAssignee.create({ data: { taskId: seule.id, userId: chef } });
+
+    const vue = await rapports.vueEnsemble(
+      { periode: "mois", projets: [garde.id] },
+      await global(),
+      PERMISSIONS,
+      MOMENT,
+    );
+    // Compter la tâche hors projet contredirait le filtre qu'on vient de poser.
+    expect(vue.alerte.tachesEnRetard).toBe(1);
+  });
+
+  it("une tâche hors projet TERMINÉE ne compte pas davantage qu'une autre", async () => {
+    const seule = await prisma.task.create({
+      data: { titre: "Finie", statut: "done", dateFin: utc("2026-08-01") },
+    });
+    await prisma.taskAssignee.create({ data: { taskId: seule.id, userId: chef } });
+    expect((await page()).alerte.tachesEnRetard).toBe(0);
+  });
+});
+
+/**
+ * `RG-RPT-03`, `RG-GEN-05` — **l'état vide de la tendance donne le VRAI motif.**
+ *
+ * Le défaut constaté (exploration Driss T-6) : le panneau annonçait
+ * « Historique en cours de construction — trois relevés au minimum sont
+ * nécessaires » sur un projet qui porte six instantanés. La tendance est bornée
+ * par la fenêtre d'analyse — trente jours par défaut — et aucun relevé n'y
+ * tombait. Le motif était faux, le seuil annoncé n'était même pas celui du
+ * serveur, et la sortie utile — élargir la fenêtre — n'était pas proposée.
+ */
+describe("RG-RPT-03 — la tendance dit ce que la fenêtre écarte", () => {
+  it("des relevés HORS FENÊTRE sont comptés, pour que l'état vide dise pourquoi", async () => {
+    const p = await projet({ nom: "Ancien", chefId: chef });
+    await prisma.projectSnapshot.createMany({
+      data: [1, 2, 3, 4, 5, 6].map((n) => ({
+        projectId: p.id,
+        // Juin : hors de la fenêtre « mois » du 1er au 11 août.
+        date: utc(`2026-06-0${n}`),
+        progression: 10 * n,
+        tachesTotal: 6,
+        tachesFinies: n,
+        heuresConsommees: 0,
+      })),
+    });
+
+    const vue = await page();
+    expect(vue.tendance.points).toHaveLength(0);
+    expect(vue.tendance.historiqueSuffisant).toBe(false);
+    // Le nombre qui permet d'écrire « six relevés existent hors de cette
+    // période » plutôt que « l'historique est en cours de construction ».
+    expect(vue.tendance.relevesHorsFenetre).toBe(6);
+  });
+
+  it("le seuil annoncé est CELUI DU SERVEUR, pas un nombre recopié dans un catalogue", async () => {
+    // Le texte disait « trois relevés au minimum » ; le serveur en exige
+    // quatre. Un seuil recopié se désynchronise sans que rien ne le dise.
+    const vue = await page();
+    expect(vue.tendance.minimumRequis).toBe(4);
+  });
+
+  it("sans aucun relevé nulle part, rien n'est écarté — le motif reste « historique court »", async () => {
+    await projet({ nom: "Neuf", chefId: chef });
+    const vue = await page();
+    expect(vue.tendance.relevesHorsFenetre).toBe(0);
+  });
+});
+
+/**
+ * `EX-RPT-03`, `RG-GEN-08` — l'export bilingue, bout en bout.
+ *
+ * Le texte du CSV est vérifié sans base dans `export.test.ts` ; ce qui se
+ * vérifie ici est le chemin complet : le nom du fichier suit la langue, et la
+ * trace d'audit dit dans quelle langue la sortie a été produite.
+ */
+describe("EX-RPT-03 — l'export suit la langue demandée", () => {
+  it("le nom du fichier n'est pas le même en français et en anglais", async () => {
+    await projet({ nom: "Exporté", chefId: chef });
+    const fr = await rapports.exporter(
+      "csv", { periode: "mois" }, await global(), PERMISSIONS, MOMENT, chef, "fr",
+    );
+    const en = await rapports.exporter(
+      "csv", { periode: "mois" }, await global(), PERMISSIONS, MOMENT, chef, "en",
+    );
+    expect(fr.nom.startsWith("rapport-")).toBe(true);
+    expect(en.nom.startsWith("report-")).toBe(true);
+    // Le fichier lui-même diffère : c'était le défaut, deux fichiers
+    // rigoureusement identiques sous deux langues d'interface.
+    expect(fr.contenu).not.toBe(en.contenu);
+  });
+
+  it("M20 — la trace d'audit dit la langue de la sortie", async () => {
+    await prisma.auditLog.deleteMany({ where: { action: "export.csv" } });
+    await rapports.exporter(
+      "csv", { periode: "mois" }, await global(), PERMISSIONS, MOMENT, chef, "en",
+    );
+    const trace = await prisma.auditLog.findFirst({ where: { action: "export.csv" } });
+    expect(trace?.detail).toMatchObject({ format: "csv", langue: "en" });
+  });
+});

@@ -7,6 +7,7 @@ import {
   periodeDe,
   ajouterJours,
   indexer,
+  strates,
   COUCHES_PAR_DEFAUT,
   type Filtres,
 } from "./grille.js";
@@ -290,5 +291,82 @@ describe("RG-GEN-09 — le premier jour de la semaine suit le paramétrage", () 
     expect(lundiDe("2026-08-16")).toBe("2026-08-16");
     expect(lundiDe("2026-08-12")).toBe("2026-08-09");
     appliquerReglages({});
+  });
+});
+
+/**
+ * `EX-PLN-03` — « Voir dans une même cellule : tâches projet, tâches hors
+ * projet, congés, télétravail, événements, permanences. »
+ *
+ * Le défaut relevé en recette : dès qu'une journée portait un congé, fût-ce
+ * une demi-journée, la présence, les tâches, les événements et les permanences
+ * de ce jour disparaissaient — quarante cellules relevées, deux avec congé,
+ * **zéro occupation superposée**, alors que l'agent portait la même tâche les
+ * jours voisins. La condition `!cellule.conge` gardait les strates « lieu » et
+ * « occupations » des vues 07 et 08.
+ */
+describe("EX-PLN-03 — le congé ne vide pas la cellule", () => {
+  const occ = (n: number) =>
+    Array.from({ length: n }, (_, i) => ({
+      genre: "tache" as const,
+      cle: `t-${i}`,
+      tache: {} as never,
+    }));
+
+  const conge = { statut: "approved", type: { nom: "CA", couleur: null } } as never;
+  const lieu = { userId: "u", date: "2026-09-10", etat: "telework" } as never;
+
+  it("un congé de journée entière laisse voir les occupations du jour", () => {
+    const s = strates({ conge, demiJournee: null, lieu: null, occupations: occ(2) }, 3);
+    expect(s.occupations).toHaveLength(2);
+    expect(s.supplementaires).toBe(0);
+  });
+
+  it("une demi-journée de congé laisse voir les occupations du jour", () => {
+    const s = strates({ conge, demiJournee: "morning", lieu: null, occupations: occ(2) }, 3);
+    expect(s.occupations).toHaveLength(2);
+  });
+
+  it("le congé prend UNE LIGNE, pas la cellule : le compte masqué le dit", () => {
+    const s = strates({ conge, demiJournee: null, lieu: null, occupations: occ(5) }, 3);
+    expect(s.occupations).toHaveLength(2);
+    expect(s.supplementaires).toBe(3);
+  });
+
+  it("sans congé, la place entière revient aux occupations", () => {
+    const s = strates({ conge: null, demiJournee: null, lieu: null, occupations: occ(5) }, 3);
+    expect(s.occupations).toHaveLength(3);
+    expect(s.supplementaires).toBe(2);
+  });
+
+  it("une seule occupation reste montrée même si le congé prend toute la place", () => {
+    const s = strates({ conge, demiJournee: null, lieu: null, occupations: occ(2) }, 1);
+    expect(s.occupations).toHaveLength(1);
+    expect(s.supplementaires).toBe(1);
+  });
+
+  /*
+   * Le lieu est le seul à s'effacer, et seulement quand il n'y a rien à dire :
+   * proposer « Non déclaré » sur une journée d'absence complète serait offrir
+   * un geste sans objet. Une présence RÉELLEMENT déclarée reste montrée.
+   */
+  it("le lieu s'efface sur une journée d'absence sans présence déclarée", () => {
+    expect(strates({ conge, demiJournee: null, lieu: null, occupations: [] }, 3).lieu).toBe(false);
+  });
+
+  it("le lieu reste montré si une présence est déclarée ce jour-là", () => {
+    expect(strates({ conge, demiJournee: null, lieu, occupations: [] }, 3).lieu).toBe(true);
+  });
+
+  it("le lieu reste modifiable sur une demi-journée de congé", () => {
+    expect(strates({ conge, demiJournee: "afternoon", lieu: null, occupations: [] }, 3).lieu).toBe(
+      true,
+    );
+  });
+
+  it("hors congé, le lieu est toujours offert", () => {
+    expect(strates({ conge: null, demiJournee: null, lieu: null, occupations: [] }, 3).lieu).toBe(
+      true,
+    );
   });
 });

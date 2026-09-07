@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "react-aria-components";
 import * as api from "../../api/administration.js";
 import { messageErreur } from "../../api/erreurs.js";
+import { ErreurApi } from "../../api/client.js";
 import { usePeut } from "../../session/session.js";
 import { Chargement, ErreurDeChargement, AccesRefuse } from "../../composants/etats.js";
 import { Fenetre } from "../../composants/fenetre.js";
@@ -83,7 +84,17 @@ export function Organisation() {
     queryFn: () => api.arborescence({ departementId, recherche }),
   });
 
-  if (!peut("departments:read")) return <AccesRefuse />;
+  /*
+   * `RG-ADM-03`, `RG-GEN-06` — **le refus se prononce au SERVEUR.**
+   *
+   * DÉFAUT ACTIF CORRIGÉ (P-91, même forme que la vue 33). La vue rendait le
+   * refus sur la seule permission lue au client : rien n'atteignait
+   * `permissions.garde.ts`, seul endroit du produit qui TRACE un accès
+   * refusé. Le masque de courtoisie porte sur les commandes d'écriture,
+   * jamais sur la lecture d'une vue entière.
+   */
+  if (requete.error instanceof ErreurApi && requete.error.statut === 403)
+    return <AccesRefuse />;
   if (requete.isPending) return <Chargement quoi={t("organisation.larborescence")} />;
   if (requete.isError)
     return <ErreurDeChargement erreur={requete.error} surReessai={() => void requete.refetch()} />;

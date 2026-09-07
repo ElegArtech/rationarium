@@ -9,6 +9,11 @@ import * as api from "../../api/projets.js";
 import * as apiReferentiels from "../../api/referentiels.js";
 import { messageErreur } from "../../api/erreurs.js";
 import { usePeut } from "../../session/session.js";
+import {
+  CHEMIN_ANNUAIRE,
+  PERMISSION_ANNUAIRE,
+  type Candidat,
+} from "../taches/assignables.js";
 import { Chargement, ErreurDeChargement } from "../../composants/etats.js";
 import { Fenetre } from "../../composants/fenetre.js";
 import { useMessages } from "../../composants/messages.js";
@@ -691,11 +696,19 @@ function FenetreAjout({
   const [allocation, setAllocation] = useState(50);
   const [erreur, setErreur] = useState<string | null>(null);
 
+  /*
+   * `RG-AUTH-05` — l'annuaire est demandé ACTIF : un compte désactivé ne se
+   * propose plus au rattachement. Le filtre est au serveur, qui sait le faire ;
+   * tronquer la liste après coup laisserait le compte traverser toute autre
+   * lecture de la même clé de cache.
+   *
+   * `RG-GEN-06` — la route est gardée par `users:read` : la demander sans la
+   * permission ne rendrait qu'un `403` journalisé et une liste vide.
+   */
   const candidats = useQuery({
-    queryKey: ["utilisateurs", "candidats"],
-    queryFn: () =>
-      appeler<{ id: string; prenom: string; nom: string }[]>("/utilisateurs"),
-    enabled: ouverte && nature === "agent",
+    queryKey: ["utilisateurs", "assignables"],
+    queryFn: () => appeler<Candidat[]>(CHEMIN_ANNUAIRE),
+    enabled: ouverte && nature === "agent" && peut(PERMISSION_ANNUAIRE),
   });
 
   /* `archive` vaut `false` par défaut au serveur : la liste est celle des

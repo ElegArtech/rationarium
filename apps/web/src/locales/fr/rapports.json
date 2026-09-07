@@ -4,10 +4,10 @@
   "lesDonnees": "les données analytiques",
   "periode": {
     "groupe": "Période d'analyse",
-    "semaine": "7 jours",
-    "mois": "30 jours",
-    "trimestre": "90 jours",
-    "annee": "365 jours"
+    "semaine": "Semaine en cours",
+    "mois": "Mois en cours",
+    "trimestre": "Trimestre en cours",
+    "annee": "Année en cours"
   },
   "actions": {
     "actualiser": "Actualiser",
@@ -34,7 +34,6 @@
     "videAide": "Aucun projet ne correspond aux filtres.",
     "colProjet": "Projet",
     "colSante": "Santé",
-    "colAvancement": "Avancement",
     "colJalons": "Jalons",
     "colActives": "Tâches actives",
     "colPourquoi": "Pourquoi",
@@ -48,7 +47,10 @@
     "limite": "Affichage limité aux {n, number} projets les plus critiques — {reste, number} non affiché(s).",
     "toutAfficher": "Tout afficher",
     "revenirA": "Revenir à {n, number}",
-    "budgetHeures": "{n, number} h"
+    "budgetHeures": "{n, number} h",
+    "colCompletion": "Complétion",
+    "completionMarqueur": "Tâches terminées",
+    "completionExplication": "Part des tâches terminées sur le total du projet — à distinguer de l'avancement moyen, qui pondère l'état d'avancement de chaque tâche."
   },
   "progression": {
     "titre": "Avancement réel et attendu",
@@ -74,10 +76,12 @@
     "titre": "Tendance de progression",
     "stagnation": "Stagnation détectée",
     "historiqueCourt": "Historique en cours de construction",
-    "historiqueCourtAide": "Trois relevés au minimum sont nécessaires pour dessiner une tendance.",
+    "historiqueCourtAide": "{n, plural, one {# relevé au minimum est nécessaire} other {# relevés au minimum sont nécessaires}} pour dessiner une tendance.",
     "libelle": "Progression de {debut, number} % à {fin, number} % sur {points, number} relevés",
     "instantanes": "Instantanés",
-    "instantanesExplication": "Instantanés d'avancement relevés en fin de mois."
+    "instantanesExplication": "Instantanés d'avancement relevés en fin de mois.",
+    "horsFenetre": "Aucun relevé dans la fenêtre d'analyse",
+    "horsFenetreAide": "{n, plural, one {# relevé existe} other {# relevés existent}} hors de cette période. Choisissez une fenêtre plus large pour les voir."
   },
   "jalons": {
     "titre": "Complétion des jalons",

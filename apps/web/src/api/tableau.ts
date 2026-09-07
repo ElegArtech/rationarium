@@ -33,6 +33,16 @@ export type TacheNonDeclaree = {
   titre: string;
   dateFin: string | null;
   projet: string | null;
+  /**
+   * `RG-TMP-07` — les heures déjà saisies sur la tâche, **tous contributeurs
+   * confondus**. Zéro veut dire zéro.
+   *
+   * Le champ était rendu par `tableau.service.ts` et absent de cette
+   * signature : la ligne affirmait « aucune heure déclarée » sans jamais
+   * vérifier, et poussait à ressaisir ce qu'un collègue avait déjà saisi.
+   * Une signature de client se calque sur ce que le service rend.
+   */
+  heuresDeclarees: number;
 };
 
 export type Todo = {
@@ -102,8 +112,16 @@ export type PresenceAgent = {
   id: string;
   prenom: string;
   nom: string;
-  /** Trois états exclusifs — le congé l'emporte sur le lieu. */
-  etat: "present" | "conge" | "teletravail";
+  /**
+   * Quatre états exclusifs — le congé l'emporte sur le lieu.
+   *
+   * `RG-TLT-02` en pose trois pour le lieu : télétravail, bureau **déclaré**,
+   * et **non déclaré**. Les deux derniers étaient confondus sous `present` :
+   * la carte annonçait « 28 au bureau » là où la vue 20 comptait « sur site 9
+   * · non déclaré 20 » pour les mêmes trente personnes, le même jour. Un
+   * agent qui n'a rien déclaré n'est pas un agent au bureau.
+   */
+  etat: "present" | "conge" | "teletravail" | "non_declare";
   /** Le nom du type de congé ; non nul seulement quand `etat` vaut `conge`. */
   typeConge: string | null;
 };

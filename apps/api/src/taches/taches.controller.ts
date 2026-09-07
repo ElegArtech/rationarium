@@ -176,7 +176,9 @@ export class TachesController {
       }).strict(),
       corps,
     );
-    return this.taches.definirAssignes(id, donnees.userIds, donnees.version, d.userId);
+    return this.taches.definirAssignes(
+      id, donnees.userIds, donnees.version, d.userId, d.permissions,
+    );
   }
 
   /**
@@ -198,20 +200,27 @@ export class TachesController {
   @RequiertPermission("tasks:update")
   ajouterSousTache(@Param("id") id: string, @Body() corps: unknown, @Demande() d: ContexteDemande) {
     const { libelle } = valider(z.object({ libelle: z.string().min(1).max(300) }), corps);
-    return this.taches.ajouterSousTache(id, libelle, d.userId);
+    return this.taches.ajouterSousTache(id, libelle, d.userId, d.permissions);
   }
 
   @Patch("sous-taches/:sousTacheId")
   @RequiertPermission("tasks:update")
-  basculerSousTache(@Param("sousTacheId") sousTacheId: string, @Body() corps: unknown) {
+  basculerSousTache(
+    @Param("sousTacheId") sousTacheId: string,
+    @Body() corps: unknown,
+    @Demande() d: ContexteDemande,
+  ) {
     const { fait } = valider(z.object({ fait: z.boolean() }), corps);
-    return this.taches.basculerSousTache(sousTacheId, fait);
+    return this.taches.basculerSousTache(sousTacheId, fait, d.userId, d.permissions);
   }
 
   @Delete("sous-taches/:sousTacheId")
   @RequiertPermission("tasks:update")
-  supprimerSousTache(@Param("sousTacheId") sousTacheId: string) {
-    return this.taches.supprimerSousTache(sousTacheId);
+  supprimerSousTache(
+    @Param("sousTacheId") sousTacheId: string,
+    @Demande() d: ContexteDemande,
+  ) {
+    return this.taches.supprimerSousTache(sousTacheId, d.userId, d.permissions);
   }
 
   /**
@@ -222,7 +231,7 @@ export class TachesController {
    */
   @Put(":id/sous-taches/ordre")
   @RequiertPermission("tasks:update")
-  reordonner(@Param("id") id: string, @Body() corps: unknown) {
+  reordonner(@Param("id") id: string, @Body() corps: unknown, @Demande() d: ContexteDemande) {
     const { ids, version } = valider(
       z.object({
         version: z.number().int().min(1),
@@ -230,7 +239,7 @@ export class TachesController {
       }).strict(),
       corps,
     );
-    return this.taches.reordonnerSousTaches(id, ids, version);
+    return this.taches.reordonnerSousTaches(id, ids, version, d.userId, d.permissions);
   }
 
   // ── Dépendances — RG-TSK-04 ──────────────────────────────────────────────
@@ -263,7 +272,14 @@ export class TachesController {
 
   @Get(":id/incoherences")
   @RequiertPermission("tasks:read")
-  incoherences(@Param("id") id: string) {
+  async incoherences(@Param("id") id: string, @Demande() d: ContexteDemande) {
+    /*
+     * `RG-SCOPE-04` — cette lecture-ci NOMME les tâches prérequises : sans
+     * périmètre, elle rendait leur titre et leur échéance à qui n'a pas le
+     * droit de les lire. Le service est appelé de l'intérieur par `fiche`,
+     * déjà bornée ; c'est donc l'entrée HTTP qui pose la borne, une fois.
+     */
+    await this.taches.exigerLisible(id, d.userId, d.permissions);
     return this.taches.incoherences(id);
   }
 
@@ -298,7 +314,7 @@ export class TachesController {
   @RequiertPermission("tasks:manage_dependencies")
   ajouterDependance(@Param("id") id: string, @Body() corps: unknown, @Demande() d: ContexteDemande) {
     const { prerequisId } = valider(z.object({ prerequisId: z.uuid() }), corps);
-    return this.taches.ajouterDependance(id, prerequisId, d.userId);
+    return this.taches.ajouterDependance(id, prerequisId, d.userId, d.permissions);
   }
 
   /**
@@ -310,7 +326,13 @@ export class TachesController {
    */
   @Get(":id/cascade")
   @RequiertPermission("tasks:manage_dependencies")
-  apercuCascade(@Param("id") id: string, @Query("jours") jours: string) {
+  async apercuCascade(
+    @Param("id") id: string,
+    @Query("jours") jours: string,
+    @Demande() d: ContexteDemande,
+  ) {
+    // Même motif que `incoherences` : l'aperçu nomme les tâches dépendantes.
+    await this.taches.exigerLisible(id, d.userId, d.permissions);
     return this.taches.apercuCascade(id, valider(z.coerce.number().int(), jours));
   }
 
@@ -318,7 +340,7 @@ export class TachesController {
   @RequiertPermission("tasks:manage_dependencies")
   decaler(@Param("id") id: string, @Body() corps: unknown, @Demande() d: ContexteDemande) {
     const { jours } = valider(z.object({ jours: z.number().int() }), corps);
-    return this.taches.decalerEnCascade(id, jours, d.userId);
+    return this.taches.decalerEnCascade(id, jours, d.userId, d.permissions);
   }
 
   // ── RACI ─────────────────────────────────────────────────────────────────
@@ -330,7 +352,7 @@ export class TachesController {
     @Param("prerequisId") prerequisId: string,
     @Demande() d: ContexteDemande,
   ) {
-    return this.taches.retirerDependance(id, prerequisId, d.userId);
+    return this.taches.retirerDependance(id, prerequisId, d.userId, d.permissions);
   }
 
   @Post(":id/raci")
@@ -340,7 +362,7 @@ export class TachesController {
       z.object({ userId: z.uuid(), role: enumDe(ROLES_RACI) }),
       corps,
     );
-    return this.taches.attribuerRaci(id, userId, role, d.userId);
+    return this.taches.attribuerRaci(id, userId, role, d.userId, d.permissions);
   }
 
   @Delete(":id/raci/:userId/:role")
@@ -351,7 +373,9 @@ export class TachesController {
     @Param("role") role: string,
     @Demande() d: ContexteDemande,
   ) {
-    return this.taches.retirerRaci(id, userId, valider(enumDe(ROLES_RACI), role), d.userId);
+    return this.taches.retirerRaci(
+      id, userId, valider(enumDe(ROLES_RACI), role), d.userId, d.permissions,
+    );
   }
 
   /**
@@ -363,7 +387,11 @@ export class TachesController {
    */
   @Post(":id/deplacer")
   @RequiertPermission("tasks:update")
-  deplacer(@Param("id") id: string, @Body() corps: unknown, @Demande() d: ContexteDemande) {
+  async deplacer(
+    @Param("id") id: string,
+    @Body() corps: unknown,
+    @Demande() d: ContexteDemande,
+  ) {
     const cible = valider(
       z.object({
         nouvelleDate: dateSchema.optional(),
@@ -372,6 +400,16 @@ export class TachesController {
       }).strict(),
       corps,
     );
+    /*
+     * `RG-SCOPE-04` — la borne est posée ICI et non dans le service parce que
+     * le service est aussi appelé de l'intérieur par des chemins déjà bornés.
+     * `PlanningController.deplacer` appelle la même méthode et porte donc la
+     * même ligne : deux entrées HTTP, une seule règle, écrite deux fois faute
+     * d'un endroit commun où la poser. `deplacement-perimetre.int.test.ts`
+     * compare les deux routes plutôt que de les vérifier séparément — c'est
+     * la divergence qui coûte, pas l'absence.
+     */
+    await this.taches.exigerLisible(id, d.userId, d.permissions);
     return this.taches.deplacerDepuisPlanning(id, cible, d.userId);
   }
 }

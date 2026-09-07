@@ -424,6 +424,22 @@ function servicesDeLApi() {
   return classes;
 }
 
+/**
+ * Les `const` des modules FRÈRES qu'un contrôleur importe par chemin relatif.
+ *
+ * Un schéma extrait dans un fichier voisin reste le schéma de la route ; le
+ * relevé des champs sensibles doit le suivre, sinon il mesure la place où le
+ * code était et non celle où il est.
+ */
+function voisinsImportes(fichier, src, defs) {
+  for (const [, chemin] of src.matchAll(/from\s+"(\.[^"]*)"/g)) {
+    const resolu = path.resolve(path.dirname(fichier), chemin.replace(/\.js$/, ".ts"));
+    if (!fs.existsSync(resolu) || !resolu.startsWith(API)) continue;
+    definitions(sansCommentaires(fs.readFileSync(resolu, "utf8")), defs);
+  }
+  return defs;
+}
+
 const RE_ROUTE = /(?:^|\n)[ \t]*@(Post|Patch|Put)\(\s*(?:(["'])([^"']*)\2)?\s*\)/g;
 const RE_DECORATEUR = /^[ \t]*@[A-Za-z_$][\w$]*\s*\(/;
 
@@ -435,6 +451,13 @@ function balayerRoutes(gouvernes, services) {
   for (const fichier of controleurs) {
     const src = sansCommentaires(fs.readFileSync(fichier, "utf8"));
     const defs = definitions(src, new Map(defsContrats));
+    // Les schémas d'un contrôleur peuvent vivre à côté de lui. Extraire
+    // `depotSchema` de `conges.controller.ts` vers `conges.schemas.ts` a rendu
+    // ce contrôle aveugle à `POST /conges · userId` — un champ sensible
+    // disparu du relevé sans que rien n'ait changé de sa gouvernance, et une
+    // admission déclarée devenue « orpheline » par pur effet de refactoring.
+    // Un contrôle qui cesse de voir doit le dire, jamais s'apaiser.
+    voisinsImportes(fichier, src, defs);
 
     /*
      * Un fichier peut porter DEUX contrôleurs — `tiers.controller.ts` en

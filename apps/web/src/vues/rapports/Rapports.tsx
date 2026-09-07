@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { Button, Menu, MenuItem, MenuTrigger, Popover } from "react-aria-components";
 import * as api from "../../api/rapports.js";
+import { ErreurApi } from "../../api/client.js";
 import { usePeut } from "../../session/session.js";
 import { Chargement, AccesRefuse } from "../../composants/etats.js";
 import { MarqueurCalcule } from "../../composants/pastilles.js";
@@ -35,7 +36,81 @@ const ONGLETS = ["over", "adv", "gantt"] as const;
 type Onglet = (typeof ONGLETS)[number];
 
 /** Le filtre de périmètre de la barre d'activité — repris de la maquette. */
-type Portee = "" | "active" | "risk";
+export type Portee = "" | "active" | "risk";
+
+/**
+ * `EX-RPT-02`, `RG-RPT-06` — **les projets que la portée retient.**
+ *
+ * Les deux filtres de la barre — « Projets » et « Responsable » — étaient
+ * appliqués ICI, aux lignes déjà reçues, et ne restreignaient donc que le
+ * tableau « Santé des projets » et deux des quatre indicateurs. « Avancement
+ * réel et attendu », « Complétion des jalons », « Ce qui est en retard »,
+ * « Répartition de charge », les répartitions par priorité et par statut,
+ * « Activité récente » et le Gantt portefeuille les ignoraient : ils sont
+ * agrégés par le serveur, sur une population que le client ne peut pas
+ * réduire après coup. Sur un périmètre à zéro projet, « Avancement moyen »
+ * restait à 50 % et « Jalons échus tenus » à 13/20.
+ *
+ * Un filtre est une propriété du point d'entrée. La portée se traduit donc en
+ * **liste d'identifiants de projets**, que `GET /rapports` sait déjà prendre —
+ * `EX-RPT-02` demande précisément « filtrer par projet et par responsable ».
+ */
+export function idsDeLaPortee(sante: api.SanteLigne[], portee: Portee): string[] {
+  return sante
+    .filter((l) => (portee === "risk" ? l.sante !== "good" : true))
+    .filter((l) => (portee === "active" ? l.completion < 100 : true))
+    .map((l) => l.id);
+}
+
+/**
+ * `RG-RPT-06`, `RG-GEN-05` — **le portefeuille vide, module par module.**
+ *
+ * Quand la portée ne retient aucun projet, il n'y a rien à demander au
+ * serveur : une liste d'identifiants vide se laisse tomber à la sérialisation
+ * et le portefeuille ENTIER reviendrait — l'exact contraire du filtre qu'on
+ * vient de poser, et la cause de « Avancement moyen : 50 % » sur zéro projet.
+ * On rend donc un jeu à zéro, dont chaque panneau déclenche son propre état
+ * vide rédigé, plutôt qu'une page qui ment.
+ */
+export function vueVide(periode: api.VueEnsemble["periode"]): api.VueEnsemble {
+  return {
+    periode,
+    alerte: { tachesEnRetard: 0 },
+    progression: { projets: [], total: 0 },
+    charge: { agents: [], moyenne: 0, surcharges: 0 },
+    sante: [],
+    tendance: {
+      points: [],
+      historiqueSuffisant: false,
+      moyenne: 0,
+      gain: 0,
+      stagnation: false,
+      /* Aucun relevé écarté : il n'y a aucun projet retenu, donc aucun relevé.
+         Le seuil, lui, est celui du produit — la vue vide ne l'invente pas
+         plus bas que le serveur, sans quoi l'état vide annoncerait un minimum
+         que personne n'applique. */
+      relevesHorsFenetre: 0,
+      minimumRequis: 4,
+    },
+    jalons: {
+      total: 0,
+      aTemps: 0,
+      enRetard: 0,
+      aVenir: 0,
+      echus: 0,
+      retards: [],
+      retardsNonListes: 0,
+    },
+    repartitions: { priorite: [], statut: [], actives: 0 },
+    activite: {
+      terminees: 0,
+      creees: 0,
+      passeesEnRetard: 0,
+      ratio: null,
+      interpretation: null,
+    },
+  };
+}
 
 /** `RG-RPT-02` — la liste de santé est plafonnée, et le plafond est annoncé. */
 const PLAFOND_SANTE = 10;
@@ -47,22 +122,98 @@ const COULEUR_SANTE: Record<string, string> = {
 };
 
 export function Rapports() {
-  const { t } = useTranslation("rapports");
+  const { t, i18n } = useTranslation("rapports");
   const peut = usePeut();
   const [periode, setPeriode] = useState<api.Periode>("mois");
   const [portee, setPortee] = useState<Portee>("");
   const [responsable, setResponsable] = useState("");
   const [onglet, setOnglet] = useState<Onglet>("over");
 
-  const requete = useQuery({
+  /*
+   * **Deux requêtes, et une seule quand rien n'est filtré.**
+   *
+   * `base` est le portefeuille SANS filtre. Il sert à deux choses qu'un jeu
+   * déjà filtré ne pourrait plus dire : la liste des responsables offerts au
+   * choix — filtrée, elle ne proposerait que celui qu'on a déjà choisi — et la
+   * traduction de la portée en identifiants de projets.
+   *
+   * Sans filtre, `filtree` reste **désactivée** : une seule requête part, et la
+   * page se sert de `base`. La seconde n'existe que pour un écran réellement
+   * restreint.
+   */
+  const base = useQuery({
     queryKey: ["rapports", periode],
     queryFn: () => api.vueEnsemble({ periode }),
-    enabled: peut("reports:read"),
   });
 
-  if (!peut("reports:read")) return <AccesRefuse />;
+  const idsRetenus = useMemo(
+    () => idsDeLaPortee(base.data?.sante ?? [], portee),
+    [base.data, portee],
+  );
 
-  const donnees = requete.data;
+  const filtreActif = portee !== "" || responsable !== "";
+  const aucunProjetRetenu = portee !== "" && base.isSuccess && idsRetenus.length === 0;
+  const filtres: api.FiltresRapport = {
+    periode,
+    ...(portee !== "" ? { projets: idsRetenus } : {}),
+    ...(responsable !== "" ? { responsables: [responsable] } : {}),
+    /*
+     * `RG-GEN-08` — **la langue accompagne la demande d'export.** Le serveur
+     * rend le fichier lui-même, sans navigateur pour le traduire et sans
+     * langue de session à lire : il ne peut que la recevoir. Elle vit dans les
+     * filtres et `adresseExport` la pose ; `query()` ne la reprend pas, les
+     * lectures de rapport ne s'en trouvent donc pas modifiées.
+     */
+    langue: i18n.language,
+  };
+
+  const filtree = useQuery({
+    queryKey: ["rapports", periode, portee, responsable, idsRetenus.join(",")],
+    queryFn: () => api.vueEnsemble(filtres),
+    /* `base.isSuccess` suffit : la seconde requête ne part jamais avant que la
+       première ait été servie, donc jamais quand la lecture est refusée. */
+    enabled: filtreActif && !aucunProjetRetenu && base.isSuccess,
+  });
+
+  /*
+   * `RG-ADM-03`, `RG-GEN-06` — **le refus se prononce au SERVEUR.**
+   *
+   * DÉFAUT ACTIF CORRIGÉ (P-91, même forme que la vue 33). La requête portait
+   * `enabled: peut(…)` et la vue rendait le refus avant tout appel : rien
+   * n'atteignait `permissions.garde.ts`, seul endroit du produit qui TRACE un
+   * accès refusé. Le masque de courtoisie porte sur les commandes d'écriture,
+   * jamais sur la lecture d'une vue entière.
+   */
+  if (base.error instanceof ErreurApi && base.error.statut === 403)
+    return <AccesRefuse />;
+
+  const donnees = aucunProjetRetenu
+    ? base.data
+      ? vueVide(base.data.periode)
+      : undefined
+    : filtreActif
+      ? filtree.data
+      : base.data;
+
+  const enChargement =
+    base.isPending || (filtreActif && !aucunProjetRetenu && !filtree.isSuccess && !filtree.isError);
+  const enErreur = base.isError || filtree.isError;
+  const actualiser = () => {
+    void base.refetch();
+    if (filtreActif) void filtree.refetch();
+  };
+
+  /*
+   * `RG-GEN-08` — l'export part avec la langue du lecteur ET les filtres
+   * posés. Il rendait un fichier identique en français et en anglais, sur le
+   * portefeuille entier quel que soit l'écran qu'on venait de composer.
+   *
+   * La langue voyage désormais DANS les filtres, et `adresseExport` la pose :
+   * une concaténation à la main ici doublait la connaissance de la forme de
+   * l'adresse en deux endroits, et c'est ainsi qu'on obtient un jour deux
+   * paramètres `langue` ou aucun.
+   */
+  const adresse = (format: "csv" | "json") => api.adresseExport(filtres, format);
 
   return (
     <div className="page">
@@ -114,9 +265,13 @@ export function Rapports() {
           onChange={(e) => setResponsable(e.target.value)}
         >
           <option value="">{t("filtres.tousLesResponsables")}</option>
+          {/* La liste des responsables se lit sur le portefeuille NON filtré :
+              tirée du jeu filtré, elle ne proposerait plus que celui qu'on
+              vient de choisir, et le filtre deviendrait impossible à défaire
+              autrement qu'en revenant à « Tous ». */}
           {[
             ...new Map(
-              (donnees?.sante ?? [])
+              (base.data?.sante ?? [])
                 .filter((l) => l.chef !== null)
                 .map((l) => [l.chef!.id, `${l.chef!.prenom} ${l.chef!.nom}`] as const),
             ),
@@ -127,7 +282,7 @@ export function Rapports() {
           ))}
         </select>
 
-        <Button className="chip-btn" onPress={() => void requete.refetch()}>
+        <Button className="chip-btn" onPress={actualiser}>
           {t("actions.actualiser")}
         </Button>
 
@@ -146,14 +301,14 @@ export function Rapports() {
                   <MenuItem
                     className="pop-action"
                     id="csv"
-                    href={api.adresseExport({ periode }, "csv")}
+                    href={adresse("csv")}
                   >
                     {t("actions.exportCsv")}
                   </MenuItem>
                   <MenuItem
                     className="pop-action"
                     id="json"
-                    href={api.adresseExport({ periode }, "json")}
+                    href={adresse("json")}
                   >
                     {t("actions.exportJson")}
                   </MenuItem>
@@ -164,30 +319,23 @@ export function Rapports() {
         ) : null}
       </div>
 
-      {requete.isPending ? <Chargement quoi={t("lesDonnees")} /> : null}
+      {enChargement ? <Chargement quoi={t("lesDonnees")} /> : null}
 
       {/* L'erreur est rédigée sur place : elle dit ce qui a échoué **et** ce
           qui reste accessible. Un « une erreur est survenue » fait appeler le
           support pour une panne qui n'empêche rien d'autre. */}
-      {requete.isError ? (
+      {enErreur ? (
         <div className="empty empty-encadre-erreur">
           <p className="texte-erreur">{t("erreur.titre")}</p>
           <small>{t("erreur.aide")}</small>
-          <Button className="chip-btn" onPress={() => void requete.refetch()}>
+          <Button className="chip-btn" onPress={actualiser}>
             {t("erreur.reessayer")}
           </Button>
         </div>
       ) : null}
 
       {donnees ? (
-        <Contenu
-          donnees={donnees}
-          periode={periode}
-          portee={portee}
-          responsable={responsable}
-          onglet={onglet}
-          surOnglet={setOnglet}
-        />
+        <Contenu donnees={donnees} filtres={filtres} onglet={onglet} surOnglet={setOnglet} />
       ) : null}
     </div>
   );
@@ -195,30 +343,20 @@ export function Rapports() {
 
 function Contenu({
   donnees,
-  periode,
-  portee,
-  responsable,
+  filtres,
   onglet,
   surOnglet,
 }: {
   donnees: api.VueEnsemble;
-  periode: api.Periode;
-  portee: Portee;
-  responsable: string;
+  filtres: api.FiltresRapport;
   onglet: Onglet;
   surOnglet: (o: Onglet) => void;
 }) {
   const { t } = useTranslation("rapports");
 
-  /* Les filtres de la barre d'activité s'appliquent au périmètre affiché. */
-  const sante = useMemo(
-    () =>
-      donnees.sante
-        .filter((l) => (portee === "risk" ? l.sante !== "good" : true))
-        .filter((l) => (portee === "active" ? l.completion < 100 : true))
-        .filter((l) => (responsable === "" ? true : l.chef?.id === responsable)),
-    [donnees.sante, portee, responsable],
-  );
+  /* Les filtres sont appliqués par le SERVEUR, sur tous les modules à la fois.
+     Les rejouer ici ne restreindrait que ce panneau — c'était le défaut. */
+  const sante = donnees.sante;
 
   /*
    * `RG-RPT-06` — **chaque graphique porte son propre état vide rédigé.** La
@@ -239,9 +377,30 @@ function Contenu({
           <span className="alert-corps">
             <strong>{t("alerte.titre")}</strong> {t("alerte.texte", { n: donnees.alerte.tachesEnRetard })}
           </span>
-          <a href="/taches" className="chip-btn">
+          {/*
+            **Une ancre brute recharge tout le document.** Elle relançait
+            l'application entière — le lot, la session, les réglages — depuis
+            un bandeau d'alerte. `Link` navigue dans le routeur.
+
+            **Le lien porte le filtre qu'il annonce.** « Ouvrir les tâches »
+            arrivait sur TOUTES les tâches, filtre « En retard » éteint : le
+            bandeau comptait juste et renvoyait à côté, ce qui oblige à
+            reposer à la main le filtre qu'on venait de nommer. Le paramètre
+            suit la convention déjà en place sur cette route — `creer=1`,
+            `date`, `assigne` sont lus sans schéma, tels qu'ils arrivent
+            (`vues/taches/Liste.tsx`).
+
+            **Le raccord est fait des deux côtés.** Ce lien a vécu une vague
+            avec sa moitié manquante : `vues/taches/Liste.tsx` amorce
+            désormais `enRetard` sur `texte("retard") === "1"`, à côté de
+            `creer=1`. Un paramètre qui voyage sans que personne le lise ne
+            fait échouer aucun contrôle — c'est ce que
+            `vues/rapports/rapports.test.ts` compare maintenant, l'écriture du
+            paramètre ici ET sa lecture là-bas.
+          */}
+          <Link to="/taches" search={{ retard: "1" }} className="chip-btn">
             {t("alerte.ouvrirLesTaches")}
-          </a>
+          </Link>
         </div>
       ) : null}
 
@@ -267,7 +426,7 @@ function Contenu({
       ) : onglet === "adv" ? (
         <Avances donnees={donnees} />
       ) : (
-        <GanttPortefeuille periode={periode} />
+        <GanttPortefeuille filtres={filtres} />
       )}
     </>
   );
@@ -386,7 +545,23 @@ function SanteDuPortefeuille({ lignes }: { lignes: api.SanteLigne[] }) {
           <div className="health-grid health-head">
             <span>{t("sante.colProjet")}</span>
             <span>{t("sante.colSante")}</span>
-            <span>{t("sante.colAvancement")}</span>
+            {/*
+              **Deux nombres, deux mots.** La colonne s'intitulait
+              « Avancement » et affichait la COMPLÉTION — la part de tâches
+              terminées —, tandis que trente lignes plus bas « Avancement réel
+              et attendu » affiche la moyenne des avancements, comme la vue 11.
+              Le même projet valait 20 % ici et 46 % là, sous le même mot ; le
+              nom accessible de la cellule disait d'ailleurs « Complétion de … »
+              quand l'en-tête visible disait « Avancement ». Le libellé suit
+              désormais la valeur, et le marqueur dit ce qui les sépare.
+            */}
+            <span className="ligne-icone">
+              {t("sante.colCompletion")}
+              <MarqueurCalcule
+                libelle={t("sante.completionMarqueur")}
+                explication={t("sante.completionExplication")}
+              />
+            </span>
             <span>{t("sante.colJalons")}</span>
             <span>{t("sante.colActives")}</span>
             <span>{t("sante.colPourquoi")}</span>
@@ -795,6 +970,21 @@ function Charge({ charge }: { charge: api.VueEnsemble["charge"] }) {
 /** `EX-RPT-07`, `RG-RPT-03`, `RG-RPT-04` — la tendance, ou son absence. */
 function Tendance({ tendance }: { tendance: api.VueEnsemble["tendance"] }) {
   const { t } = useTranslation("rapports");
+  /* Les deux champs étaient élargis ICI, en attendant que
+     `apps/web/src/api/rapports.ts` les déclare — ce qui est fait. Un contrat
+     recopié dans la vue est un contrat que personne ne peut opposer : le type
+     local et son `as` sont retirés, la signature du service fait foi. */
+  /*
+   * `RG-RPT-03`, `RG-GEN-05` — **l'état vide dit le VRAI motif et offre sa
+   * sortie.** Le panneau annonçait « Historique en cours de construction —
+   * trois relevés au minimum sont nécessaires » sur un projet qui en porte
+   * six : la tendance est bornée par la fenêtre d'analyse, à trente jours par
+   * défaut, et aucun relevé n'y tombait. Le motif était faux, le seuil annoncé
+   * n'était même pas celui du serveur — quatre —, et la sortie utile — élargir
+   * la fenêtre — n'était pas proposée.
+   */
+  const horsFenetre = tendance.relevesHorsFenetre;
+  const minimum = tendance.minimumRequis;
 
   return (
     <section className="panel">
@@ -810,8 +1000,16 @@ function Tendance({ tendance }: { tendance: api.VueEnsemble["tendance"] }) {
             efficace des mensonges : elle a l'air d'une mesure. */}
         {!tendance.historiqueSuffisant ? (
           <div className="empty">
-            <p>{t("tendance.historiqueCourt")}</p>
-            <small>{t("tendance.historiqueCourtAide")}</small>
+            <p>
+              {horsFenetre > 0
+                ? t("tendance.horsFenetre")
+                : t("tendance.historiqueCourt")}
+            </p>
+            <small>
+              {horsFenetre > 0
+                ? t("tendance.horsFenetreAide", { n: horsFenetre })
+                : t("tendance.historiqueCourtAide", { n: minimum })}
+            </small>
           </div>
         ) : (
           <>

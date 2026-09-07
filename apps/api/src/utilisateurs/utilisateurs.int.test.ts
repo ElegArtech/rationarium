@@ -12,6 +12,7 @@ import { CongesService } from "../conges/conges.service.js";
 import { CalendrierService } from "../parametrage/calendrier.service.js";
 import { NotificationsService } from "../notifications/notifications.service.js";
 import { FileService } from "../notifications/file.service.js";
+import { TeletravailService } from "../teletravail/teletravail.service.js";
 
 /**
  * Les droits de l'acteur, désormais transmis au service.
@@ -291,31 +292,136 @@ describe("EX-USR-01, EX-USR-02 — annuaire filtré", () => {
   });
 });
 
-describe("EX-USR-09 — présence du jour", () => {
-  it("distingue présent, en congé et en télétravail", async () => {
-    const present = await users.creer({ ...nouveau(), departementId: deptA }, karim, TOUS_DROITS_UTILISATEUR);
-    const enConge = await users.creer({ ...nouveau(), departementId: deptA }, karim, TOUS_DROITS_UTILISATEUR);
-    const enTt = await users.creer({ ...nouveau(), departementId: deptA }, karim, TOUS_DROITS_UTILISATEUR);
+/**
+ * `EX-USR-09`, `RG-TLT-02` — **la présence du jour connaît TROIS états de
+ * lieu, pas deux.**
+ *
+ * Le défaut : `presenceDuJour` rendait `"present"` pour tout ce qui n'était ni
+ * congé ni télétravail, si bien que les vingt agents n'ayant rien déclaré
+ * étaient comptés au bureau. Le même jour, pour les mêmes personnes, la vue 20
+ * affichait « sur site 9 · non déclaré 20 » : **deux lectures du même fait,
+ * toutes deux testées, toutes deux vertes, et qui se contredisaient.**
+ *
+ * Le test précédent consacrait le défaut — il affirmait `"present"` pour un
+ * agent SANS déclaration, c'est-à-dire le comportement observé et non le
+ * comportement spécifié. `RG-TLT-02` dit « bureau (DÉCLARÉ) ».
+ *
+ * La dernière suite ci-dessous est celle qui compte : elle **compare les deux
+ * lectures** plutôt que de les vérifier séparément. C'est le motif consigné de
+ * `joursFeries` / `joursChomes` — quand deux fonctions lisent la même table,
+ * le contrôle qui vaut est celui qui les confronte.
+ */
+describe("EX-USR-09, RG-TLT-02 — présence du jour : trois états de lieu", () => {
+  /** Une journée de semaine : `RG-TLT-02` ne dit rien du week-end pour ce bloc. */
+  const jour = new Date("2026-04-15");
+  const typeConge = uuid();
 
-    const type = uuid();
-    await prisma.leaveType.create({ data: { id: type, code: `CA${type.slice(0, 4)}`, nom: "Congé annuel" } });
-    const jour = new Date("2026-04-15");
+  async function agentDu(deptId: string) {
+    return users.creer({ ...nouveau(), departementId: deptId }, karim, TOUS_DROITS_UTILISATEUR);
+  }
+
+  it("distingue bureau DÉCLARÉ, congé, télétravail et NON DÉCLARÉ", async () => {
+    const auBureau = await agentDu(deptA);
+    const enConge = await agentDu(deptA);
+    const enTt = await agentDu(deptA);
+    const muet = await agentDu(deptA);
+
+    await prisma.leaveType.create({
+      data: { id: typeConge, code: `CA${typeConge.slice(0, 4)}`, nom: "Congé annuel" },
+    });
     await prisma.leave.create({
       data: {
-        userId: enConge.id, typeId: type,
+        userId: enConge.id, typeId: typeConge,
         dateDebut: jour, dateFin: jour, joursOuvres: 1, statut: "approved",
       },
     });
     await prisma.telework.create({ data: { userId: enTt.id, date: jour, etat: "telework" } });
+    // Celui-ci a DÉCLARÉ qu'il serait au bureau. C'est ce que `present` veut dire.
+    await prisma.telework.create({ data: { userId: auBureau.id, date: jour, etat: "office" } });
+    // `muet` n'a rien déclaré : on ne sait pas où il est, et le dire au bureau
+    // serait affirmer ce qu'on ignore.
 
     const p = await globalP();
-    const presence = await users.presenceDuJour(p, jour);
-    const par = new Map(presence.map((x) => [x.id, x]));
+    const par = new Map((await users.presenceDuJour(p, jour)).map((x) => [x.id, x]));
 
-    expect(par.get(present.id)?.etat).toBe("present");
+    expect(par.get(auBureau.id)?.etat).toBe("present");
     expect(par.get(enConge.id)?.etat).toBe("conge");
     expect(par.get(enConge.id)?.typeConge).toBe("Congé annuel");
     expect(par.get(enTt.id)?.etat).toBe("teletravail");
+    expect(par.get(muet.id)?.etat).toBe("non_declare");
+  });
+
+  it("RG-TLT-02 — SANS DÉCLARATION, personne n'est déclaré au bureau", async () => {
+    /*
+     * Le défaut nu, sans aucune autre donnée pour le masquer : c'est le cas
+     * majoritaire d'une instance réelle, où la plupart des agents ne déclarent
+     * rien. L'assertion inversée — « au moins un présent » — passait avant le
+     * correctif sur exactement les mêmes données.
+     */
+    const p = await globalP();
+    const presence = await users.presenceDuJour(p, new Date("2026-04-16"));
+
+    expect(presence.length).toBeGreaterThan(0);
+    expect(presence.every((x) => x.etat !== "present")).toBe(true);
+    expect(presence.some((x) => x.etat === "non_declare")).toBe(true);
+  });
+
+  it("le congé l'emporte sur le lieu, déclaration de bureau comprise", async () => {
+    // Un agent peut avoir déclaré « bureau » sur un jour où un congé lui a
+    // ensuite été approuvé. Les quatre états sont exclusifs, et l'ordre est
+    // décidé : le congé d'abord.
+    const double = await agentDu(deptA);
+    const j = new Date("2026-04-17");
+    await prisma.telework.create({ data: { userId: double.id, date: j, etat: "office" } });
+    await prisma.leave.create({
+      data: {
+        userId: double.id, typeId: typeConge,
+        dateDebut: j, dateFin: j, joursOuvres: 1, statut: "approved",
+      },
+    });
+
+    const p = await globalP();
+    const par = new Map((await users.presenceDuJour(p, j)).map((x) => [x.id, x]));
+    expect(par.get(double.id)?.etat).toBe("conge");
+  });
+
+  it("RG-TLT-02 — LA VUE 06 ET LA VUE 20 COMPTENT PAREIL, le même jour", async () => {
+    /*
+     * **Le contrôle qui manquait.** Chaque lecture avait ses tests, tous
+     * verts, et elles se contredisaient : la carte annonçait « 28 au bureau »
+     * là où le calendrier comptait « 9 sur site · 20 non déclarés » pour les
+     * mêmes personnes. Aucune des deux ne pouvait le signaler seule.
+     *
+     * On confronte donc `presenceDuJour` (vue 06) au `calendrierDe` du
+     * télétravail (vue 20), agent par agent, sur le même jour.
+     */
+    const teletravail = new TeletravailService(
+      prisma as never,
+      new AuditService(prisma as never),
+      perimetres,
+    );
+    const j = new Date("2026-04-20");
+    const declare = await agentDu(deptA);
+    const muet = await agentDu(deptA);
+    await prisma.telework.create({ data: { userId: declare.id, date: j, etat: "office" } });
+
+    const p = await globalP();
+    const par = new Map((await users.presenceDuJour(p, j)).map((x) => [x.id, x]));
+
+    for (const agent of [declare, muet]) {
+      const { calendrier } = await teletravail.planning(agent.id, j, j);
+      const case20 = calendrier[0];
+      const etat06 = par.get(agent.id)?.etat;
+
+      // La correspondance est la RÈGLE, pas une coïncidence : `office` ↔
+      // `present`, `undeclared` ↔ `non_declare`, `telework` ↔ `teletravail`.
+      const attendu = { office: "present", telework: "teletravail", undeclared: "non_declare" }[
+        case20?.etat ?? "undeclared"
+      ];
+      expect(etat06, `${agent.id} : vue 06 dit « ${etat06} », vue 20 dit « ${case20?.etat} »`).toBe(
+        attendu,
+      );
+    }
   });
 });
 

@@ -1,11 +1,12 @@
 import { useState, type CSSProperties, type DragEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { Button, Menu, MenuItem, MenuTrigger, Popover, SubmenuTrigger } from "react-aria-components";
+import { Link } from "@tanstack/react-router";
 import { IconeProjet } from "../../composants/icones-projet.js";
 import { Fenetre } from "../../composants/fenetre.js";
 import { formaterDateAvecJour } from "../../formats.js";
 import type { Planning, PersonnePlanning } from "../../api/planning.js";
-import { CELLULE_VIDE, initiales, joursAffiches, type Cellule } from "./grille.js";
+import { CELLULE_VIDE, initiales, joursAffiches, strates, type Cellule } from "./grille.js";
 import { cleGroupe } from "./Planning.js";
 import type { Selection } from "./Detail.js";
 
@@ -14,11 +15,16 @@ import type { Selection } from "./Detail.js";
  *
  * **Trois strates, dans cet ordre** :
  *
- * 1. l'**absence** occupe la cellule — quand quelqu'un est en congé, le reste
- *    n'a pas à se disputer la place ;
+ * 1. l'**absence** ouvre la cellule — elle prend la première ligne, jamais la
+ *    cellule entière : `EX-PLN-03` veut les six natures dans une même
+ *    cellule, et une tâche qui court sur trois jours ne s'interrompt pas
+ *    parce que le deuxième porte une demande de congé ;
  * 2. le **lieu** est discret et cliquable (`EX-PLN-09`) ;
  * 3. les **occupations** portent la grammaire du produit : la couleur au
  *    statut, la pastille au projet, le filet interrompu au hors-projet.
+ *
+ * Le partage de la place est calculé par `strates()`, dans `grille.js` : il se
+ * teste sans rendu, et les deux vues qui l'appliquent ne peuvent plus diverger.
  *
  * **`C6`** — chaque occupation est déplaçable à la souris **et** par un menu
  * clavier « Déplacer vers… » / « Réassigner à… ». Les deux chemins mènent à la
@@ -56,7 +62,17 @@ export function GrilleSemaine({
   replies: ReadonlySet<string>;
   surReplier: (cle: string) => void;
   personnes: PersonnePlanning[];
-  teletravailModifiable: boolean;
+  /**
+   * `RG-PLN-04`, `RG-TLT-07`, `RG-GEN-06` — **par personne, pas globalement.**
+   *
+   * Le droit était apprécié par la seule permission `telework:create`, que
+   * tout agent détient : la bascule était offerte, active et cliquable sur la
+   * cellule de **tout le monde**, et le serveur répondait `403` après coup.
+   * Écrire sur le télétravail d'autrui exige en outre `telework:manage_any`
+   * (`apps/api/src/teletravail/teletravail.service.ts`), et c'est ce contrat
+   * complet que la courtoisie du client doit refléter.
+   */
+  teletravailModifiable: (userId: string) => boolean;
   deplacementPossible: boolean;
   /** `RG-GEN-06` — sans le droit de créer, le « + » de cellule n'est pas proposé. */
   creationPossible: boolean;
@@ -268,7 +284,7 @@ function LignePersonne({
   aujourdhui: string;
   cible: string | null;
   personnes: PersonnePlanning[];
-  teletravailModifiable: boolean;
+  teletravailModifiable: (userId: string) => boolean;
   deplacementPossible: boolean;
   creationPossible: boolean;
   surSelection: (s: Selection) => void;
@@ -295,6 +311,7 @@ function LignePersonne({
         const cellule = index.get(`${personne.id}|${jour}`) ?? CELLULE_VIDE;
         const cleCellule = `${personne.id}|${jour}`;
         const info = trame.get(jour);
+        const strate = strates(cellule, MAX_VISIBLES);
 
         return (
           <div
@@ -313,12 +330,12 @@ function LignePersonne({
               surDepot(personne.id, jour);
             }}
           >
-            {/* Strate 1 — l'absence occupe la cellule. */}
+            {/* Strate 1 — l'absence ouvre la cellule, elle ne la prend pas. */}
             {cellule.conge ? (
               <span
                 className={`leave${cellule.conge.statut === "approved" ? "" : " leave-pending"}${
                   cellule.demiJournee ? " is-half" : ""
-                }`}
+                }${strate.lieu || strate.occupations.length > 0 ? " is-compact" : ""}`}
                 style={
                   cellule.conge.type.couleur
                     ? ({ "--leave": cellule.conge.type.couleur } as CSSProperties)
@@ -338,10 +355,10 @@ function LignePersonne({
             ) : null}
 
             {/* Strate 2 — le lieu. */}
-            {!cellule.conge ? (
+            {strate.lieu ? (
               <Lieu
                 etat={cellule.lieu?.etat ?? null}
-                modifiable={teletravailModifiable}
+                modifiable={teletravailModifiable(personne.id)}
                 nom={`${personne.prenom} ${personne.nom}`}
                 date={jour}
                 surBasculer={(etat) => surBasculerTeletravail(personne.id, jour, etat)}
@@ -349,33 +366,29 @@ function LignePersonne({
             ) : null}
 
             {/* Strate 3 — les occupations. */}
-            {!cellule.conge
-              ? cellule.occupations.slice(0, MAX_VISIBLES).map((o) => (
-                  <Occupation
-                    key={o.cle}
-                    occupation={o}
-                    personne={personne}
-                    jour={jour}
-                    jours={jours}
-                    personnes={personnes}
-                    deplacementPossible={deplacementPossible}
-                    surSelection={surSelection}
-                    surDeplacer={surDeplacer}
-                    surGlisse={surGlisse}
-                  />
-                ))
-              : null}
+            {strate.occupations.map((o) => (
+              <Occupation
+                key={o.cle}
+                occupation={o}
+                personne={personne}
+                jour={jour}
+                jours={jours}
+                personnes={personnes}
+                deplacementPossible={deplacementPossible}
+                surSelection={surSelection}
+                surDeplacer={surDeplacer}
+                surGlisse={surGlisse}
+              />
+            ))}
 
-            {!cellule.conge && cellule.occupations.length > MAX_VISIBLES ? (
+            {strate.supplementaires > 0 ? (
               <Button
                 className="occ-more"
                 onPress={() =>
                   surSelection({ genre: "cellule", cellule, personne, jour })
                 }
               >
-                {t("occupationsSupplementaires", {
-                  n: cellule.occupations.length - MAX_VISIBLES,
-                })}
+                {t("occupationsSupplementaires", { n: strate.supplementaires })}
               </Button>
             ) : null}
 
@@ -385,16 +398,30 @@ function LignePersonne({
                 de focus — un « + » permanent sur cinq cents cellules serait
                 du bruit. Masqué sans le droit (`RG-GEN-06`). */}
             {creationPossible ? (
-              <a
+              /*
+                `EX-PLN-11` — **le « + » tient ce que son libellé promet.**
+
+                Il disait « Créer ici — Rémi Chastagner, 2026-09-10 » et son
+                `href` était `/taches`, sans un paramètre : la liste s'ouvrait,
+                aucune fenêtre de création, et la personne comme la date
+                étaient à ressaisir — cent cinquante fois par semaine
+                affichée. Elles voyagent désormais dans l'adresse, que la
+                vue 16 lit pour ouvrir sa fenêtre préremplie.
+
+                Et c'est un `Link`, pas une ancre nue : une `<a href>` dans une
+                application à routeur RECHARGE le document entier.
+              */
+              <Link
                 className="cell-add"
-                href="/taches"
+                to="/taches"
+                search={{ creer: "1", date: jour, assigne: personne.id }}
                 aria-label={t("actions.creerIci", {
                   nom: `${personne.prenom} ${personne.nom}`,
                   date: jour,
                 })}
               >
                 <span aria-hidden="true">+</span>
-              </a>
+              </Link>
             ) : null}
           </div>
         );

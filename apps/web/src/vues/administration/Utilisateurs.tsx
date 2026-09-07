@@ -68,10 +68,30 @@ export function Utilisateurs() {
     queryFn: () => api.utilisateurs(filtres),
   });
 
-  /* Les listes de filtres viennent de l'organisation et du catalogue de rôles :
-     une saisie libre ferait chercher un nom exact. */
-  const orga = useQuery({ queryKey: ["organisation"], queryFn: () => api.arborescence() });
-  const roles = useQuery({ queryKey: ["roles"], queryFn: () => api.roles() });
+  /*
+   * Les listes de filtres viennent de l'organisation et du catalogue de rôles :
+   * une saisie libre ferait chercher un nom exact.
+   *
+   * `RG-GEN-06` — **les deux requêtes partaient sans condition de permission.**
+   * `GET /organisation` exige `directions:read`, `GET /administration/roles`
+   * exige `users:manage_roles` : tout porteur de `users:read` seul récoltait
+   * deux `403` en console à chaque chargement, et se retrouvait devant trois
+   * filtres — Département, Service, Rôle — vides et sans explication. On ne
+   * demande pas ce qu'on n'a pas le droit de lire, et un filtre qui ne peut
+   * rien proposer n'est pas proposé.
+   */
+  const orgaLisible = peut("directions:read");
+  const rolesLisibles = peut("users:manage_roles");
+  const orga = useQuery({
+    queryKey: ["organisation"],
+    queryFn: () => api.arborescence(),
+    enabled: orgaLisible,
+  });
+  const roles = useQuery({
+    queryKey: ["roles"],
+    queryFn: () => api.roles(),
+    enabled: rolesLisibles,
+  });
 
   const departements = [
     ...(orga.data?.directions.flatMap((d) => d.departements) ?? []),
@@ -115,45 +135,51 @@ export function Utilisateurs() {
           placeholder={t("utilisateurs.rechercher")}
           aria-label={t("utilisateurs.rechercher")}
         />
-        <select
-          className="f-input"
-          value={departementId}
-          onChange={(e) => setDepartementId(e.target.value)}
-          aria-label={t("utilisateurs.departement")}
-        >
-          <option value="">{t("utilisateurs.tousDepartements")}</option>
-          {departements.map((d) => (
-            <option key={d.id} value={d.id}>
-              {d.nom}
-            </option>
-          ))}
-        </select>
-        <select
-          className="f-input"
-          value={serviceId}
-          onChange={(e) => setServiceId(e.target.value)}
-          aria-label={t("utilisateurs.service")}
-        >
-          <option value="">{t("utilisateurs.tousServices")}</option>
-          {services.map((sv) => (
-            <option key={sv.id} value={sv.id}>
-              {sv.nom}
-            </option>
-          ))}
-        </select>
-        <select
-          className="f-input"
-          value={roleId}
-          onChange={(e) => setRoleId(e.target.value)}
-          aria-label={t("utilisateurs.colRole")}
-        >
-          <option value="">{t("utilisateurs.tousRoles")}</option>
-          {(roles.data ?? []).map((r) => (
-            <option key={r.id} value={r.id}>
-              {r.nom}
-            </option>
-          ))}
-        </select>
+        {orgaLisible ? (
+          <select
+            className="f-input"
+            value={departementId}
+            onChange={(e) => setDepartementId(e.target.value)}
+            aria-label={t("utilisateurs.departement")}
+          >
+            <option value="">{t("utilisateurs.tousDepartements")}</option>
+            {departements.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.nom}
+              </option>
+            ))}
+          </select>
+        ) : null}
+        {orgaLisible ? (
+          <select
+            className="f-input"
+            value={serviceId}
+            onChange={(e) => setServiceId(e.target.value)}
+            aria-label={t("utilisateurs.service")}
+          >
+            <option value="">{t("utilisateurs.tousServices")}</option>
+            {services.map((sv) => (
+              <option key={sv.id} value={sv.id}>
+                {sv.nom}
+              </option>
+            ))}
+          </select>
+        ) : null}
+        {rolesLisibles ? (
+          <select
+            className="f-input"
+            value={roleId}
+            onChange={(e) => setRoleId(e.target.value)}
+            aria-label={t("utilisateurs.colRole")}
+          >
+            <option value="">{t("utilisateurs.tousRoles")}</option>
+            {(roles.data ?? []).map((r) => (
+              <option key={r.id} value={r.id}>
+                {r.nom}
+              </option>
+            ))}
+          </select>
+        ) : null}
         <select
           className="f-input"
           value={statut}
@@ -307,15 +333,22 @@ function LigneUtilisateur({ utilisateur }: { utilisateur: api.Utilisateur }) {
       </div>
 
       <div>
-        {/* La pastille porte le CODE du rôle, comme la maquette : c'est
-            l'identifiant stable que l'administration manipule, et il est le
-            même dans le journal d'audit et dans les imports. */}
+        {/*
+          **La pastille porte le LIBELLÉ du rôle, pas son code.**
+          Elle rendait `PROJECT_CONTRIBUTOR` quand le filtre « Rôle » de la
+          même barre rend « Contributeur projet », que la fenêtre « Modifier »
+          rend « Contributeur projet » et que la vue 32 rend les deux : quatre
+          rendus d'une même donnée dans un même produit, dont un seul
+          illisible. La table `roles` porte `nom` à côté de `code` ; le code
+          reste au survol, il est l'identifiant que l'audit et les imports
+          manipulent, mais ce n'est pas ce qui se lit dans un annuaire.
+        */}
         <span
           className="pill"
           style={{ color: jetonRole(utilisateur.role?.code) }}
-          title={utilisateur.role?.nom ?? undefined}
+          title={utilisateur.role?.code ?? undefined}
         >
-          {utilisateur.role?.code ?? t("utilisateurs.sansRole")}
+          {utilisateur.role?.nom ?? t("utilisateurs.sansRole")}
         </span>
       </div>
 
@@ -457,12 +490,34 @@ function FenetreSuppression({
     enabled: ouverte,
   });
 
+  /*
+   * `EX-USR-06` — **le compte qu'on efface se nomme.** La fenêtre disait
+   * « Action irréversible / Supprimer définitivement » et « Toutes les données
+   * associées à cet utilisateur… » : ni le nom, ni le login n'y paraissaient,
+   * alors que la fiche affichée dessous porte les deux. Sur un geste sans
+   * retour, « cet utilisateur » demande au lecteur de se rappeler sur quelle
+   * ligne il a cliqué.
+   */
+  const nomComplet = `${utilisateur.prenom} ${utilisateur.nom}`;
+
   const suppression = useMutation({
     mutationFn: () => api.supprimerUtilisateur(utilisateur.id),
     onSuccess: () => {
-      annoncer("ok", t("utilisateurs.supprimeFait"));
+      annoncer("ok", t("utilisateurs.supprimeFaitDe", { nom: nomComplet }));
       surFermeture();
-      void client.invalidateQueries({ queryKey: ["utilisateurs"] });
+      /*
+       * **La fiche d'impact du compte effacé ne se redemande pas.** Un
+       * `invalidateQueries(["utilisateurs"])` nu emportait
+       * `["utilisateurs", id, "impact"]`, dont l'observateur est encore monté
+       * et actif à cet instant — `surFermeture()` n'a pas encore été rendu.
+       * `GET /utilisateurs/:id/impact` répondait donc `404` à CHAQUE
+       * suppression réussie, en console, sans que rien à l'écran ne le dise.
+       * Seule la liste a besoin d'être relue.
+       */
+      void client.invalidateQueries({
+        queryKey: ["utilisateurs"],
+        predicate: (q) => q.queryKey[1] !== utilisateur.id,
+      });
     },
     onError: (e) => annoncer("err", messageErreur(e, tErreurs, t("utilisateurs.echecAction"))),
   });
@@ -501,7 +556,7 @@ function FenetreSuppression({
       ouverte={ouverte}
       surFermeture={surFermeture}
       categorie={t("utilisateurs.actionIrreversible")}
-      titre={t("utilisateurs.supprimerDefinitivement")}
+      titre={t("utilisateurs.supprimerLeCompteDe", { nom: nomComplet })}
       mention={t("utilisateurs.desactiverEstReversible")}
       actions={
         <>
@@ -558,7 +613,14 @@ function FenetreSuppression({
       {impact.data && !bloque ? (
         <div className="danger-box danger-espace">
           <strong>{t("utilisateurs.irreversible")}</strong>{" "}
-          <span>{t("utilisateurs.toutesLesDonnees")}</span>
+          {/* Le nom ET le login : deux comptes peuvent porter le même nom, le
+              login est ce qui les sépare — et c'est lui que porte l'audit. */}
+          <span>
+            {t("utilisateurs.toutesLesDonneesDe", {
+              nom: nomComplet,
+              login: utilisateur.login,
+            })}
+          </span>
         </div>
       ) : null}
     </Fenetre>
@@ -622,15 +684,26 @@ function ChampsRattachement({
 }) {
   const { t } = useTranslation("administration");
   const peut = usePeut();
-  const orga = useQuery({ queryKey: ["organisation"], queryFn: () => api.arborescence() });
-  const roles = useQuery({ queryKey: ["roles"], queryFn: () => api.roles() });
+  /* Même forme, même garde que la barre de filtres ci-dessus : on ne demande
+     pas ce qu'on n'a pas le droit de lire (`RG-GEN-06`). */
+  const orgaLisible = peut("directions:read");
+  const roleModifiable = peut("users:manage_roles");
+  const orga = useQuery({
+    queryKey: ["organisation"],
+    queryFn: () => api.arborescence(),
+    enabled: orgaLisible,
+  });
+  const roles = useQuery({
+    queryKey: ["roles"],
+    queryFn: () => api.roles(),
+    enabled: roleModifiable,
+  });
 
   const departements = [
     ...(orga.data?.directions.flatMap((d) => d.departements) ?? []),
     ...(orga.data?.departementsSansDirection ?? []),
   ];
   const servicesDuDepartement = departements.find((d) => d.id === departementId)?.services ?? [];
-  const roleModifiable = peut("users:manage_roles");
 
   const changerDepartement = (id: string) => {
     const permis = new Set(
@@ -690,7 +763,7 @@ function ChampsRattachement({
           className="field"
           id={`${prefixe}-departement`}
           value={departementId}
-          disabled={orga.isPending}
+          disabled={!orgaLisible || orga.isPending}
           onChange={(e) => changerDepartement(e.target.value)}
         >
           <option value="">{t("utilisateurs.sansDepartement")}</option>
@@ -700,6 +773,11 @@ function ChampsRattachement({
             </option>
           ))}
         </select>
+        {/* `RG-GEN-06` — sans `directions:read`, l'arborescence n'est pas
+            demandée : le champ le dit plutôt que de rester vide sans raison. */}
+        {orgaLisible ? null : (
+          <p className="field-hint">{t("utilisateurs.organisationNonLisible")}</p>
+        )}
       </div>
 
       <div className="field-block span2">

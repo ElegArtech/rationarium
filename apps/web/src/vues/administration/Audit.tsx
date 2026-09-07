@@ -1,10 +1,11 @@
-import { Fragment, useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { Button } from "react-aria-components";
 import * as api from "../../api/administration.js";
-import { usePeut } from "../../session/session.js";
+import { ErreurApi } from "../../api/client.js";
 import { Chargement, ErreurDeChargement, AccesRefuse } from "../../composants/etats.js";
 import { AvatarAgent } from "../../composants/pastilles.js";
 import { formaterDateLongue } from "../../formats.js";
@@ -40,7 +41,6 @@ function couleurDe(action: string): string {
 
 export function Audit() {
   const { t } = useTranslation("administration");
-  const peut = usePeut();
   const [detail, setDetail] = useState<api.EvenementAudit | null>(null);
 
   const [filtres, setFiltres] = useState({
@@ -76,18 +76,38 @@ export function Audit() {
           ? { curseurHorodatage: curseur.horodatage, curseurId: curseur.id }
           : {}),
       }),
-    enabled: peut("audit:read"),
   });
 
   const facettes = useQuery({
     queryKey: ["audit", "facettes"],
     queryFn: api.facettesAudit,
-    enabled: peut("audit:read"),
   });
 
-  // `RG-ADM-03` — l'accès refusé est tracé côté serveur. Ici on dit seulement
-  // ce qui manque, sans détailler ce qu'il y a derrière.
-  if (!peut("audit:read")) return <AccesRefuse />;
+  /*
+   * `RG-ADM-03` — **l'accès refusé est tracé, et c'est le SERVEUR qui le
+   * trace.**
+   *
+   * DÉFAUT ACTIF CORRIGÉ (P-91). Les deux requêtes portaient
+   * `enabled: peut("audit:read")` et la vue rendait ce refus **avant tout
+   * appel** : aucune requête n'atteignait le serveur, donc
+   * `permissions.garde.ts` — le seul endroit du produit qui trace un refus —
+   * n'avait rien à refuser et rien à tracer. La règle vivait au serveur, juste
+   * et prouvée, et le client la rendait inatteignable. Le commentaire qui
+   * tenait cette ligne disait « l'accès refusé est tracé côté serveur »,
+   * douze caractères au-dessus de ce qui garantissait le contraire.
+   *
+   * La requête part donc toujours, et c'est le `403` reçu qui prononce le
+   * refus. Le masque de courtoisie de `RG-GEN-06` porte sur les COMMANDES
+   * — on ne propose pas une écriture qui sera refusée ; il ne porte pas sur
+   * la lecture d'une vue entière, qui est précisément l'accès dont
+   * `RG-ADM-03` veut la trace.
+   *
+   * Aucune boucle de reprise à craindre : `main.tsx` ne réessaie pas une
+   * réponse en dessous de 500 — « réessayer un refus n'a jamais fait changer
+   * d'avis un serveur ».
+   */
+  if (requete.error instanceof ErreurApi && requete.error.statut === 403)
+    return <AccesRefuse />;
 
   const champ = (cle: keyof typeof filtres) => ({
     value: filtres[cle],
@@ -356,6 +376,56 @@ export function Audit() {
 }
 
 /**
+ * `EX-ADM-03` — **la vue qui montre l'entité tracée, quand elle en a une.**
+ *
+ * Le journal ne stocke qu'un type et un identifiant. Trois types ont une vue à
+ * eux dans le produit ; les autres — un réglage, un jour férié, un point
+ * d'entrée refusé — n'en ont pas, et un lien mort vaut moins qu'un texte nu.
+ *
+ * L'identifiant est vérifié avant d'être suivi : `typeEntite` vaut `Endpoint`
+ * pour un refus tracé par la garde, et `entiteId` y porte alors
+ * « GET /api/… », pas un UUID.
+ *
+ * **Ce que cette fonction ne fait toujours pas** : NOMMER l'entité. Le nom
+ * n'est pas dans la trace — le serveur ne joint aucun libellé —, et l'inventer
+ * ici demanderait une requête par ligne. Remonté.
+ */
+export type VueDEntite = "utilisateur" | "projet" | "tache" | null;
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function vueDeLEntite(typeEntite: string, entiteId: string): VueDEntite {
+  if (!UUID.test(entiteId)) return null;
+  if (typeEntite === "User") return "utilisateur";
+  if (typeEntite === "Project") return "projet";
+  if (typeEntite === "Task") return "tache";
+  return null;
+}
+
+function LienEntite({ typeEntite, entiteId }: { typeEntite: string; entiteId: string }) {
+  const cible = vueDeLEntite(typeEntite, entiteId);
+  if (cible === "utilisateur")
+    return (
+      <Link to="/utilisateurs/$id/suivi" params={{ id: entiteId }}>
+        {entiteId}
+      </Link>
+    );
+  if (cible === "projet")
+    return (
+      <Link to="/projets/$id" params={{ id: entiteId }}>
+        {entiteId}
+      </Link>
+    );
+  if (cible === "tache")
+    return (
+      <Link to="/taches/$id" params={{ id: entiteId }}>
+        {entiteId}
+      </Link>
+    );
+  return <>{entiteId}</>;
+}
+
+/**
  * Le détail d'un événement — **consultation seule**.
  *
  * Le tiroir n'offre aucune commande d'écriture, et il l'énonce : l'immuabilité
@@ -389,12 +459,18 @@ function TiroirEvenement({
           ? t("audit.acteurSupprime")
           : `${evenement.acteur.prenom ?? ""} ${evenement.acteur.nom ?? ""}`.trim();
 
-  const lignes: [string, string][] = evenement
+  const lignes: [string, ReactNode][] = evenement
     ? [
         [t("audit.detailHorodatage"), formaterDateLongue(evenement.horodatage)],
         [t("audit.detailAction"), evenement.action],
         [t("audit.detailType"), evenement.typeEntite],
-        [t("audit.detailEntite"), evenement.entiteId],
+        /* `EX-ADM-03` — l'entité visée est ATTEIGNABLE quand elle a une vue.
+           Elle restait un UUID nu : Karim voyait qu'un projet avait changé,
+           sans pouvoir aller voir lequel. */
+        [
+          t("audit.detailEntite"),
+          <LienEntite key="entite" typeEntite={evenement.typeEntite} entiteId={evenement.entiteId} />,
+        ],
         [t("audit.detailActeur"), acteur],
         [t("audit.detailIdentifiant"), evenement.id],
       ]
@@ -440,8 +516,20 @@ function TiroirEvenement({
           ))}
         </dl>
 
+        {/*
+          `EX-ADM-03` — **le contexte se lit avant de se citer.**
+
+          Le tiroir ne rendait que le JSON brut :
+          `{"apres":{…,"roleId":"cdb5aaa8-…"},"avant":{…,"roleId":"539c0a16-…"}}`.
+          Karim y voyait qu'un rôle avait changé, jamais lequel, et devait
+          apparier deux objets à la main pour trouver le champ qui diffère.
+          Les champs modifiés sont donc énumérés en clair, avant → après.
+        */}
+        {evenement ? <ChangementsLisibles detail={evenement.detail} /> : null}
+
         {/* Le contexte brut, tel qu'il a été enregistré. On ne le reformate
-            pas : ce qui est montré doit être ce qui est stocké. */}
+            pas : ce qui est montré doit être ce qui est stocké. Il reste
+            au-dessous de la lecture, il ne la remplace pas. */}
         <div className="au-ctx">
           {evenement?.detail === null || evenement?.detail === undefined
             ? t("audit.aucunContexte")
@@ -451,6 +539,77 @@ function TiroirEvenement({
         <p className="field-hint hint-tiroir">{t("audit.immuable")}</p>
       </div>
     </aside>
+  );
+}
+
+/**
+ * `EX-ADM-03` — **ce qui a changé, champ par champ.**
+ *
+ * Le journal enregistre son contexte sous la forme `{ avant, apres }` : deux
+ * objets entiers, dont un seul champ diffère la plupart du temps. Le tiroir
+ * n'en rendait que le JSON, et retrouver ce champ demandait d'apparier deux
+ * listes de clés à l'œil — sur une écriture de compte, dix champs identiques
+ * encadrant celui qui a bougé.
+ *
+ * Isolé du rendu pour être vérifiable : c'est le calcul qui porte la règle.
+ *
+ * **Ce que cette fonction ne fait pas, et ne peut pas faire ici** : nommer ce
+ * qu'un identifiant désigne. `roleId: "cdb5aaa8-…"` reste un UUID tant que le
+ * serveur ne joint pas le libellé à la trace — remonté.
+ */
+export type Changement = { champ: string; avant: string; apres: string };
+
+const enTexte = (v: unknown): string =>
+  v === undefined || v === null
+    ? "—"
+    : typeof v === "string"
+      ? v
+      : typeof v === "number" || typeof v === "boolean"
+        ? String(v)
+        : JSON.stringify(v);
+
+export function changements(detail: unknown): Changement[] {
+  if (typeof detail !== "object" || detail === null || Array.isArray(detail)) return [];
+  const d = detail as Record<string, unknown>;
+  if (!("avant" in d) && !("apres" in d)) return [];
+
+  const estObjet = (v: unknown) => typeof v === "object" && v !== null && !Array.isArray(v);
+  if (estObjet(d.avant) || estObjet(d.apres)) {
+    const avant = estObjet(d.avant) ? (d.avant as Record<string, unknown>) : {};
+    const apres = estObjet(d.apres) ? (d.apres as Record<string, unknown>) : {};
+    // L'union des deux jeux de clés : un champ AJOUTÉ n'existe que dans
+    // `apres`, un champ retiré que dans `avant` — n'en lire qu'un des deux
+    // ferait disparaître la moitié des écarts.
+    const cles = [...new Set([...Object.keys(avant), ...Object.keys(apres)])].sort();
+    return cles
+      .filter((c) => enTexte(avant[c]) !== enTexte(apres[c]))
+      .map((c) => ({ champ: c, avant: enTexte(avant[c]), apres: enTexte(apres[c]) }));
+  }
+
+  // `direction.update` et ses voisins tracent deux scalaires : le nom d'avant
+  // et celui d'après, sans nom de champ.
+  return enTexte(d.avant) === enTexte(d.apres)
+    ? []
+    : [{ champ: "", avant: enTexte(d.avant), apres: enTexte(d.apres) }];
+}
+
+function ChangementsLisibles({ detail }: { detail: unknown }) {
+  const { t } = useTranslation("administration");
+  const lignes = changements(detail);
+  if (lignes.length === 0) return null;
+
+  return (
+    <>
+      <p className="eyebrow">{t("audit.champsModifies")}</p>
+      <dl className="au-detail">
+        {lignes.map((c) => (
+          <Fragment key={c.champ}>
+            <dt>{c.champ === "" ? t("audit.champValeur") : c.champ}</dt>
+            <dd>{t("audit.avantApres", { avant: c.avant, apres: c.apres })}</dd>
+          </Fragment>
+        ))}
+      </dl>
+    </>
   );
 }
 

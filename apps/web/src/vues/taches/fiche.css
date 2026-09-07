@@ -638,3 +638,22 @@
   gap: 8px;
   margin-top: 6px;
 }
+
+/*
+ * `RG-GEN-06` — **une commande désactivée doit SE VOIR désactivée.**
+ *
+ * La suppression reste offerte sur une tâche qui n'est pas la sienne, inerte
+ * et porteuse de son motif (`RG-TSK-14`). Le motif se lit au survol ; encore
+ * faut-il que l'œil sache qu'il y a quelque chose à survoler. `aria-disabled`
+ * ne peint rien — c'est un état annoncé, pas un style —, et aucune feuille du
+ * produit ne le rendait visible.
+ */
+.proj-acts .chip-btn[aria-disabled] {
+  color: var(--placeholder);
+  border-color: var(--line);
+  cursor: not-allowed;
+}
+.proj-acts .chip-btn[aria-disabled]:hover {
+  color: var(--placeholder);
+  border-color: var(--line);
+}

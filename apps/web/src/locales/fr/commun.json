@@ -4,7 +4,7 @@
     "actionIndisponible": "Cette action ne vous est pas accessible"
   },
   "etats": {
-    "chargement": "Chargement de {quoi}…",
+    "chargement": "Chargement : {quoi}…",
     "laSession": "votre session",
     "erreurTitre": "Le chargement a échoué",
     "erreurRepli": "Les données n'ont pas pu être chargées. Réessayez dans un instant.",

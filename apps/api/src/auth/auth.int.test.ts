@@ -60,7 +60,17 @@ beforeAll(async () => {
     stdio: "pipe",
   });
   prisma = creerClient(pg.getConnectionUri());
-  auth = new AuthService(prisma as never, new AuditService(prisma as never));
+  /*
+   * La file est fournie, muette : sans elle, chaque demande de
+   * réinitialisation journaliserait « la file n'est pas injectée » — un
+   * message juste en production, et du bruit ici. Une erreur qui se répète
+   * sans objet apprend à ne plus lire les journaux.
+   */
+  auth = new AuthService(
+    prisma as never,
+    new AuditService(prisma as never),
+    { publier: async () => "travail" } as never,
+  );
 }, 240_000);
 
 afterAll(async () => {
@@ -255,6 +265,44 @@ describe("EX-AUTH-07, EX-AUTH-08 — mot de passe", () => {
     await expect(auth.resoudreSession(jeton)).resolves.toBeNull();
     await expect(auth.connecter(c.login, "Nouveau12!")).resolves.toBeTruthy();
   });
+
+  /**
+   * `EX-AUTH-07`, `RG-AUTH-06` — **le changement imposé ne révoque pas sa
+   * propre session.**
+   *
+   * Relevé en recette : `POST /auth/change-password` → 200, navigation vers
+   * `/`, `GET /auth/me` → 401, retour sur la vue 05 avec un formulaire vide et
+   * aucun message. L'utilisateur avait changé son mot de passe **et restait
+   * enfermé** — condamné à ressaisir un « mot de passe actuel » qui n'existait
+   * plus. Le commentaire du service disait « invalide les AUTRES sessions » ;
+   * `revoquerSessions(userId)` les invalidait toutes.
+   */
+  it("EX-AUTH-07 — la session qui change le mot de passe survit, les autres non", async () => {
+    const c = await poserUnCompte({ motDePasseAChanger: true });
+    const ailleurs = await auth.connecter(c.login, MDP);
+    const ici = await auth.connecter(c.login, MDP);
+    const session = await auth.resoudreSession(ici.jeton);
+
+    await auth.changerMotDePasse(c.id, MDP, "Nouveau12!", {
+      conserverSessionId: session!.sessionId,
+    });
+
+    // Celle qui a fait le geste continue de valoir : sinon la vue 05 se
+    // referme sur son occupant.
+    const apres = await auth.resoudreSession(ici.jeton);
+    expect(apres).not.toBeNull();
+    expect(apres!.motDePasseAChanger).toBe(false);
+    // Toutes les autres tombent — c'est le geste qu'on fait quand on
+    // soupçonne une compromission.
+    await expect(auth.resoudreSession(ailleurs.jeton)).resolves.toBeNull();
+  });
+
+  it("sans session à conserver, tout tombe — le cas de l'administration", async () => {
+    const c = await poserUnCompte();
+    const { jeton } = await auth.connecter(c.login, MDP);
+    await auth.changerMotDePasse(c.id, MDP, "Nouveau12!");
+    await expect(auth.resoudreSession(jeton)).resolves.toBeNull();
+  });
 });
 
 describe("EX-AUTH-06, RG-AUTH-04 — définir un nouveau mot de passe depuis le lien reçu ; le jeton est à usage unique et il expire", () => {
@@ -262,6 +310,108 @@ describe("EX-AUTH-06, RG-AUTH-04 — définir un nouveau mot de passe depuis le 
     await expect(auth.demanderReinitialisation("inconnu@nulle-part.fr")).resolves.toBeNull();
     const c = await poserUnCompte();
     await expect(auth.demanderReinitialisation(c.email)).resolves.toMatchObject({ userId: c.id });
+  });
+
+  /**
+   * `EX-AUTH-05` — **le lien part.**
+   *
+   * `POST /auth/forgot-password` appelait le service, recevait le jeton en
+   * clair et le jetait : `AuthModule` n'importait aucun service de courriel,
+   * rien n'était mis en file, et la vue 03 affirmait pourtant « un lien de
+   * réinitialisation vient d'être envoyé ». Le jeton existait en base, valable
+   * deux heures, et personne au monde ne pouvait l'obtenir.
+   *
+   * Le contrôle regarde ce qui ENTRE DANS LA FILE, et pas seulement que la
+   * demande aboutit : c'est la moitié qui manquait, et la seule que le service
+   * ne pouvait pas prouver tout seul.
+   */
+  it("EX-AUTH-05 — la demande met un courriel en file, avec le lien et le jeton", async () => {
+    const enFile: { file: string; donnees: Record<string, unknown> }[] = [];
+    const avecFile = new AuthService(
+      prisma as never,
+      new AuditService(prisma as never),
+      {
+        publier: async (file: string, donnees: Record<string, unknown>) => {
+          enFile.push({ file, donnees });
+          return "travail";
+        },
+      } as never,
+    );
+
+    const c = await poserUnCompte();
+    const demande = await avecFile.demanderReinitialisation(c.email);
+
+    expect(enFile).toHaveLength(1);
+    expect(enFile[0]!.file).toBe("courriel");
+    expect(enFile[0]!.donnees["destinataire"]).toBe(c.email);
+    // RG-AUTH-04 — le lien mène à la vue 04 et porte le jeton : sans lui, le
+    // courriel est une politesse sans porte.
+    expect(String(enFile[0]!.donnees["corps"])).toContain(
+      `/reinitialisation?jeton=${demande!.jeton}`,
+    );
+  });
+
+  it("EX-AUTH-05 — une adresse inconnue ne met rien en file", async () => {
+    const enFile: unknown[] = [];
+    const avecFile = new AuthService(
+      prisma as never,
+      new AuditService(prisma as never),
+      { publier: async () => (enFile.push(1), "t") } as never,
+    );
+    await expect(avecFile.demanderReinitialisation("inconnu@nulle-part.fr")).resolves.toBeNull();
+    expect(enFile).toEqual([]);
+  });
+
+  /**
+   * `RG-AUTH-04` — **le jeton est jugé avant qu'on saisisse quoi que ce soit.**
+   *
+   * Il n'existait aucun point d'entrée de vérification : la vue 04 ouvrait son
+   * formulaire complet sur un jeton mort, et l'utilisateur ne l'apprenait
+   * qu'après avoir choisi ET confirmé un mot de passe. Les trois messages
+   * distincts existaient et arrivaient après le geste qu'ils devaient
+   * épargner.
+   */
+  describe("RG-AUTH-04 — l'état d'un lien se lit avant le formulaire", () => {
+    it("un jeton valide nomme le compte concerné", async () => {
+      const c = await poserUnCompte();
+      const d = await auth.demanderReinitialisation(c.email);
+      await expect(auth.verifierJetonReinitialisation(d!.jeton)).resolves.toEqual({
+        email: c.email,
+      });
+    });
+
+    it("un jeton déjà consommé se refuse SANS qu'un mot de passe soit demandé", async () => {
+      const c = await poserUnCompte();
+      const d = await auth.demanderReinitialisation(c.email);
+      await auth.reinitialiserMotDePasse(d!.jeton, "Nouveau12!");
+      await expect(auth.verifierJetonReinitialisation(d!.jeton)).rejects.toMatchObject({
+        code: "jeton_deja_utilise",
+      });
+    });
+
+    it("un jeton expiré se refuse, et le message le distingue d'un jeton inconnu", async () => {
+      const c = await poserUnCompte();
+      const d = await auth.demanderReinitialisation(c.email);
+      await prisma.passwordResetToken.updateMany({
+        where: { userId: c.id },
+        data: { expireLe: new Date(Date.now() - 1000) },
+      });
+      await expect(auth.verifierJetonReinitialisation(d!.jeton)).rejects.toMatchObject({
+        code: "jeton_expire",
+      });
+      await expect(auth.verifierJetonReinitialisation("fabrique")).rejects.toMatchObject({
+        code: "jeton_invalide",
+      });
+    });
+
+    it("un compte désactivé entre-temps rend le lien invalide, pas expiré", async () => {
+      const c = await poserUnCompte();
+      const d = await auth.demanderReinitialisation(c.email);
+      await prisma.user.update({ where: { id: c.id }, data: { actif: false } });
+      await expect(auth.verifierJetonReinitialisation(d!.jeton)).rejects.toMatchObject({
+        code: "jeton_invalide",
+      });
+    });
   });
 
   it("un jeton valide réinitialise et révoque les sessions", async () => {

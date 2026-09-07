@@ -33,6 +33,17 @@ export type FiltresRapport = {
   periode: Periode;
   projets?: string[];
   responsables?: string[];
+  /**
+   * `RG-GEN-08` — **la langue accompagne la demande d'export.**
+   *
+   * Le fichier produit porte des en-têtes et des libellés ; le serveur n'a pas
+   * de session de langue à lire, il ne peut donc que la recevoir. Elle vit ici
+   * plutôt qu'au point d'appel : concaténée à l'adresse déjà construite, elle
+   * dépendait de la vigilance de chaque appelant, et le prochain export en
+   * aurait fait l'économie sans que rien ne le dise. Elle ne part QUE sur
+   * l'export — une lecture d'écran rend des codes, que le client formule.
+   */
+  langue?: string;
 };
 
 export type SanteLigne = {
@@ -85,6 +96,19 @@ export type VueEnsemble = {
     gain: number;
     /** `RG-RPT-04` — calculée, pas laissée à l'œil. */
     stagnation: boolean;
+    /**
+     * `RG-RPT-03`, `RG-GEN-05` — les relevés que la fenêtre d'analyse écarte.
+     *
+     * C'est le VRAI motif d'une tendance vide : le panneau annonçait
+     * « historique en cours de construction » sur un projet qui porte six
+     * relevés, dont aucun ne tombait dans la fenêtre. Le champ existait au
+     * serveur et manquait ici, si bien que la vue élargissait le type dans son
+     * coin — un contrat client qui décrit moins que ce que le serveur promet
+     * est un contrat que personne ne peut opposer.
+     */
+    relevesHorsFenetre: number;
+    /** Le seuil réellement appliqué : il se lit, il ne se recopie pas. */
+    minimumRequis: number;
   };
   jalons: {
     total: number;
@@ -142,4 +166,5 @@ export const gantt = (f: FiltresRapport) =>
 
 /** L'adresse d'export : ouverte par le navigateur, pas lue en mémoire. */
 export const adresseExport = (f: FiltresRapport, format: "csv" | "json") =>
-  `/api/rapports/export${query(f)}&format=${format}`;
+  `/api/rapports/export${query(f)}&format=${format}` +
+  (f.langue ? `&langue=${encodeURIComponent(f.langue)}` : "");

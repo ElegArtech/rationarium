@@ -127,8 +127,15 @@ describe("RG-EVT-03, RG-EVT-04 — arrêter une récurrence", () => {
     );
     expect(occurrences).toBeGreaterThan(10);
 
+    /*
+     * L'horloge est FIGÉE, et pas à minuit. L'arrêt ne descend jamais sous le
+     * jour courant — c'est le correctif de P-66 — donc un contrôle qui ne dit
+     * pas quel jour on est mesurerait le calendrier de la machine : vert
+     * aujourd'hui, rouge dans six mois, sur du code inchangé.
+     */
     const r = await evenements.arreterRecurrence(
       evenement.id, utc("2026-03-16"), acteur, await globalP(), PERMISSIONS_GLOBALES,
+      new Date("2026-01-05T09:30:00.000Z"),
     );
     expect(r.supprimees).toBeGreaterThan(0);
 
@@ -139,7 +146,16 @@ describe("RG-EVT-03, RG-EVT-04 — arrêter une récurrence", () => {
     expect(restantes.length).toBeGreaterThan(0);
   });
 
-  it("seul un PARENT peut voir sa récurrence arrêtée", async () => {
+  /*
+   * DÉCISION, P-66. Le tiroir propose « Arrêter la récurrence » sur TOUTE
+   * occurrence, et le serveur refusait sur une occurrence enfant par un
+   * message — « cet événement n'est pas une série » — qui contredisait le
+   * bandeau « Fait partie d'une série récurrente » affiché deux lignes plus
+   * haut. L'arrêt porte sur la SÉRIE : il se résout par le parent, quelle que
+   * soit l'occurrence par laquelle on le demande. Le refus reste pour ce qu'il
+   * désigne vraiment — un événement isolé, qui n'a aucune série à arrêter.
+   */
+  it("RG-EVT-03 — l'arrêt demandé depuis une OCCURRENCE porte sur la série", async () => {
     const { evenement } = await evenements.creer(
       {
         titre: "Série", date: utc("2026-05-04"), journeeEntiere: true,
@@ -147,12 +163,93 @@ describe("RG-EVT-03, RG-EVT-04 — arrêter une récurrence", () => {
       },
       acteur,
     );
-    const occurrence = await prisma.event.findFirstOrThrow({ where: { parentId: evenement.id } });
+    const occurrence = await prisma.event.findFirstOrThrow({
+      where: { parentId: evenement.id, date: utc("2026-05-18") },
+    });
+
+    const r = await evenements.arreterRecurrence(
+      occurrence.id, utc("2026-05-18"), acteur, await globalP(), PERMISSIONS_GLOBALES,
+      new Date("2026-05-04T14:00:00.000Z"),
+    );
+    expect(r.supprimees).toBe(3); // les 18 et 25 mai, le 1er juin
+
+    // La série est coupée à la date demandée, et le PARENT porte la nouvelle
+    // fin : c'est lui qui décrit la récurrence, l'occurrence n'en sait rien.
+    const parent = await prisma.event.findUniqueOrThrow({ where: { id: evenement.id } });
+    expect(parent.recurrenceFin?.toISOString().slice(0, 10)).toBe("2026-05-18");
+    const restantes = await prisma.event.findMany({ where: { parentId: evenement.id } });
+    expect(restantes.map((e) => e.date.toISOString().slice(0, 10))).toEqual(["2026-05-11"]);
+  });
+
+  it("RG-EVT-03 — un événement ISOLÉ n'a aucune récurrence à arrêter", async () => {
+    const seul = await evenements.creer(
+      { titre: "Réunion unique", date: utc("2026-05-04"), journeeEntiere: true },
+      acteur,
+    );
     await expect(
       evenements.arreterRecurrence(
-        occurrence.id, utc("2026-05-18"), acteur, await globalP(), PERMISSIONS_GLOBALES,
+        seul.evenement.id, utc("2026-05-04"), acteur, await globalP(), PERMISSIONS_GLOBALES,
       ),
     ).rejects.toMatchObject({ code: "pas_un_parent" });
+  });
+
+  /*
+   * DÉFAUT TROUVÉ EN RECETTE (P-66). La confirmation promet mot pour mot que
+   * « celles déjà passées restent intactes » ; la vue envoie la date de
+   * l'événement porteur, c'est-à-dire le DÉBUT de la série, et l'arrêt
+   * supprimait tout depuis là : le mois précédent passait de trois occurrences
+   * à une. Le plancher est au serveur, pas dans ce que le client envoie.
+   */
+  it("RG-EVT-04 — une date d'arrêt DANS LE PASSÉ n'efface pas le passé", async () => {
+    const { evenement } = await evenements.creer(
+      {
+        titre: "Comité de suivi", date: utc("2026-01-05"), journeeEntiere: true,
+        recurrence: { frequenceSemaines: 1, jourSemaine: 1, jusqua: utc("2026-03-02") },
+      },
+      acteur,
+    );
+    const passees = await prisma.event.count({
+      where: { parentId: evenement.id, date: { lt: utc("2026-02-09") } },
+    });
+    expect(passees).toBe(4);
+
+    // On est le 9 février ; la vue envoie la date du porteur — le 5 janvier.
+    const r = await evenements.arreterRecurrence(
+      evenement.id, utc("2026-01-05"), acteur, await globalP(), PERMISSIONS_GLOBALES,
+      new Date("2026-02-09T11:00:00.000Z"),
+    );
+
+    const restantes = await prisma.event.findMany({
+      where: { parentId: evenement.id },
+      orderBy: { date: "asc" },
+    });
+    expect(restantes.map((e) => e.date.toISOString().slice(0, 10))).toEqual([
+      "2026-01-12", "2026-01-19", "2026-01-26", "2026-02-02",
+    ]);
+    expect(r.supprimees).toBe(4); // 02-09, 02-16, 02-23, 03-02
+    const parent = await prisma.event.findUniqueOrThrow({ where: { id: evenement.id } });
+    expect(parent.recurrenceFin?.toISOString().slice(0, 10)).toBe("2026-02-09");
+  });
+
+  it("RG-EVT-04 — une occurrence due AUJOURD'HUI est encore à venir : elle est supprimée", async () => {
+    // Le piège de forme du dépôt : `@db.Date` revient à minuit, et une
+    // comparaison à `new Date()` rangerait la réunion du jour dans le passé
+    // dès la première seconde. Le contrôle porte donc à onze heures.
+    const { evenement } = await evenements.creer(
+      {
+        titre: "Comité du jour", date: utc("2026-01-05"), journeeEntiere: true,
+        recurrence: { frequenceSemaines: 1, jourSemaine: 1, jusqua: utc("2026-02-16") },
+      },
+      acteur,
+    );
+    const r = await evenements.arreterRecurrence(
+      evenement.id, utc("2026-01-05"), acteur, await globalP(), PERMISSIONS_GLOBALES,
+      new Date("2026-02-09T11:00:00.000Z"),
+    );
+    expect(r.supprimees).toBe(2); // les 9 et 16 février
+    expect(
+      await prisma.event.count({ where: { parentId: evenement.id, date: utc("2026-02-09") } }),
+    ).toBe(0);
   });
 });
 

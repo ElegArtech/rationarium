@@ -24,9 +24,51 @@ import { ErreurApi } from "./client.js";
  * premier voit ce que le serveur peut dire, le second ce que le client sait
  * afficher.
  */
+
+/**
+ * Le suffixe de la variante chiffrée d'un message de refus.
+ *
+ * `erreurs:soldeInsuffisant` dit qu'on dépasse ;
+ * `erreurs:soldeInsuffisant_detail` dit **de combien**, en interpolant le
+ * détail que le serveur a calculé. Le suffixe n'est pas un contexte i18next :
+ * la variante est cherchée explicitement, et l'absence de traduction retombe
+ * sur le message nu. Ajouter la variante à un catalogue suffit donc à faire
+ * parler un refus, sans toucher ni au serveur ni à la vue qui l'affiche.
+ */
+const SUFFIXE_DETAIL = "_detail";
+
+/**
+ * Les valeurs interpolables d'un détail.
+ *
+ * Un détail peut porter un objet — `{conflit: {...}}` — que l'interpolation ne
+ * saurait rendre. On ne passe donc que ce qui s'affiche : nombres, chaînes,
+ * booléens. Le reste est écarté silencieusement plutôt que de rendre
+ * « [object Object] » au milieu d'une phrase.
+ */
+const interpolables = (detail: Record<string, unknown>): Record<string, string | number> => {
+  const sortie: Record<string, string | number> = {};
+  for (const [cle, valeur] of Object.entries(detail)) {
+    if (typeof valeur === "number" || typeof valeur === "string") sortie[cle] = valeur;
+  }
+  return sortie;
+};
+
 export const messageErreur = (e: unknown, t: TFunction, repli: string): string => {
   if (!(e instanceof ErreurApi)) return repli;
   if (e.cle) {
+    /*
+     * **Le chiffre d'abord.** `RG-GEN-03` demande un message actionnable :
+     * « votre solde ne couvre pas cette demande » oblige l'agent à aller
+     * recompter ailleurs pour ajuster sa demande, alors que le serveur a
+     * calculé l'écart et l'a transporté jusqu'ici.
+     */
+    if (e.detail) {
+      const chiffre = t(`${e.cle}${SUFFIXE_DETAIL}`, {
+        ...interpolables(e.detail),
+        defaultValue: "",
+      });
+      if (chiffre) return chiffre;
+    }
     const traduit = t(e.cle, { defaultValue: "" });
     if (traduit) return traduit;
   }

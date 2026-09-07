@@ -62,6 +62,15 @@
         "RG-GEN-04",
         "RG-GEN-06"
       ]
+    },
+    {
+      "fichier": "apps/web/src/vues/taches/Fiche.tsx",
+      "repere": "fiche.supprimer",
+      "raison": "RG-TSK-14 — « la suppression d'une tâche est réservée à ses assignés » : la permission `tasks:delete` ne suffit pas, l'appartenance aux assignés est requise en plus. La recette a constaté (P-24) que le bouton était actif pour un contributeur non assigné, la fenêtre de confirmation ouverte, le geste envoyé, et le refus prononcé par le serveur APRÈS coup. Il se rend désormais inerte avec son motif au survol comme au focus — `aria-disabled` et non `disabled`, sans quoi l'infobulle ne s'ouvrirait jamais. Le contrôle reste au serveur : `TachesService.supprimer` applique la même règle.",
+      "regles": [
+        "RG-TSK-14",
+        "RG-GEN-06"
+      ]
     }
   ],
   "champsAdmis": [

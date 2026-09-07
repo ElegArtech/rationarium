@@ -77,6 +77,32 @@ export function FenetreImport({
   const apercu = previsualisation.data;
   const bloquant = mode === "remplacer" && (apercu?.erreurs.length ?? 0) > 0;
 
+  /**
+   * `RG-GEN-08` — **le serveur nomme la situation, le client la formule.**
+   *
+   * Le compte rendu d'import était le seul endroit du produit où le serveur
+   * rédigeait des phrases destinées à l'écran : une session anglaise lisait
+   * « Row 6 — aucun compte ne porte l'adresse « … » ». Le serveur rend
+   * désormais `{ cle, params, message }` ; il reste à les lire.
+   *
+   * **Le repli est indispensable** : sans `defaultValue`, une clé absente du
+   * catalogue s'afficherait telle quelle — `imports:motifs.chevauchement` à la
+   * place d'une phrase. Le message français du serveur est le dernier recours,
+   * pas la vérité affichable.
+   *
+   * i18n-familles: imports:motifs.
+   */
+  const formuler = (e: api.LigneErreur): string =>
+    t(e.cle, { ...e.params, defaultValue: e.message });
+
+  /*
+   * Le contrat déclare `ignorees` requis — le serveur le rend depuis toujours.
+   * Le repli ne parle pas au serveur mais au BANC : un jeu d'essai calqué sur
+   * l'ancienne forme ferait tomber la fenêtre entière sur un `.length` de rien,
+   * et l'écran blanc ne dirait pas d'où il vient.
+   */
+  const ignorees = rendu?.ignorees ?? [];
+
   return (
     <Fenetre
       ouverte
@@ -169,7 +195,12 @@ export function FenetreImport({
 
       {/* `RG-GEN-01` — l'action destructrice est confirmée EN CHIFFRES. */}
       {modeProjet && mode === "remplacer" ? (
-        <div className="alert alert-danger" role="alert">
+        /* `.alert-error`, et non `.alert-danger` : le socle ne connaît pas le
+           second, et une classe sans règle en face est inerte sans que rien ne
+           le dise. L'avertissement de `RG-GEN-01` se rendait donc en boîte nue
+           — ni fond, ni couleur, et une bordure prise à `currentColor` faute de
+           teinte déclarée — sur l'écran même qui annonce une suppression. */
+        <div className="alert alert-error" role="alert">
           <span className="alert-icon" aria-hidden="true">
             !
           </span>
@@ -228,10 +259,10 @@ export function FenetreImport({
               <p className="imp-titre">{t("erreursDetectees", { n: apercu.erreurs.length })}</p>
               <ul>
                 {apercu.erreurs.slice(0, 10).map((e) => (
-                  <li key={`${e.ligne}-${e.message}`}>
+                  <li key={`${e.ligne}-${e.cle}`}>
                     {/* Le numéro de ligne est le seul repère retrouvable dans
                         un tableur : « 3 erreurs » sans lui fait relire tout. */}
-                    {t("ligneN", { n: e.ligne })} — {e.message}
+                    {t("ligneN", { n: e.ligne })} — {formuler(e)}
                   </li>
                 ))}
               </ul>
@@ -251,12 +282,42 @@ export function FenetreImport({
               {t("enErreur", { n: rendu.erreurs.length })}
             </span>
           </div>
-          {rendu.ignores > 0 ? <p className="imp-note">{t("ignoresAide")}</p> : null}
+          {/*
+            * **Le compte rendu ne disait jamais ce qui avait été créé.** Trois
+            * chiffres — importés, ignorés, en erreur — et pas une phrase disant
+            * de QUOI il s'agit : « 4 importés » ne dit pas quatre comptes,
+            * quatre congés ou quatre jalons. Le nombre existait ; il lui
+            * manquait son nom, et le type de l'import le porte.
+            */}
+          <p className="imp-note">{t(`crees.${type}`, { n: rendu.importes })}</p>
+
+          {/*
+            * `RG-IMP-04` — un ignoré porte son MOTIF, au même format qu'une
+            * erreur. La note générique disait « des entrées déjà présentes » :
+            * redondante avec le chiffre, et fausse pour le chevauchement de
+            * congé (`RG-CNG-32`), qui n'est pas un doublon. Deux collisions
+            * distinctes — l'adresse et l'identifiant — produisaient le même
+            * silence, et le lecteur ne savait pas quelle colonne corriger.
+            *
+            * Le gris, pas le rouge : une ligne ignorée n'est pas un échec.
+            */}
+          {ignorees.length > 0 ? (
+            <div className="imp-ignorees">
+              <p className="imp-note">{t("ignoresTitre")}</p>
+              <ul>
+                {ignorees.slice(0, 10).map((e) => (
+                  <li key={`${e.ligne}-${e.cle}`}>
+                    {t("ligneN", { n: e.ligne })} — {formuler(e)}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
           {rendu.erreurs.length > 0 ? (
             <ul className="imp-erreurs">
               {rendu.erreurs.slice(0, 10).map((e) => (
-                <li key={`${e.ligne}-${e.message}`}>
-                  {t("ligneN", { n: e.ligne })} — {e.message}
+                <li key={`${e.ligne}-${e.cle}`}>
+                  {t("ligneN", { n: e.ligne })} — {formuler(e)}
                 </li>
               ))}
             </ul>

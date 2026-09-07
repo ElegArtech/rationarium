@@ -1,8 +1,23 @@
-import { Body, Controller, Get, Header, Param, Post, Query, Res } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  ForbiddenException,
+  Get,
+  Header,
+  Param,
+  Post,
+  Query,
+  Res,
+} from "@nestjs/common";
 import type { FastifyReply } from "fastify";
 import { z } from "zod";
-import { ImportsService, TYPES_IMPORT } from "./imports.service.js";
-import { Demande, RequiertPermission, type ContexteDemande } from "../commun/permissions.garde.js";
+import { ImportsService, TYPES_IMPORT, type TypeImport } from "./imports.service.js";
+import {
+  Demande,
+  RequiertPermission,
+  RequiertUnePermissionParmi,
+  type ContexteDemande,
+} from "../commun/permissions.garde.js";
 import { valider } from "../commun/http.js";
 
 /**
@@ -18,16 +33,83 @@ import { valider } from "../commun/http.js";
 const typeImport = z.enum(TYPES_IMPORT);
 const corpsFichier = z.object({ contenu: z.string().min(1).max(20_000_000) });
 
+/**
+ * `RG-IMP-02`, `RG-IMP-03` — **la permission d'un import suit le TYPE importé.**
+ *
+ * ══════════════════════════════════════════════════════════════════════════
+ * Les deux points d'entrée partagés — le modèle et l'aperçu — exigeaient
+ * `tasks:import`, quel que soit le type demandé. Le responsable RH détient
+ * `leaves:import` et `users:import` et n'a aucune raison de détenir
+ * `tasks:import` : son **écriture** passait, sa **prévisualisation** et son
+ * **modèle** revenaient en 403.
+ *
+ * La conséquence n'est pas un désagrément d'ergonomie, c'est deux règles
+ * vides sur tous les chemins RH : le format n'était documenté par aucun
+ * modèle téléchargeable, et l'import en masse partait **sans que personne ait
+ * pu regarder le fichier**. Sur un fichier de deux cents congés, c'est la
+ * différence entre une correction et une restauration.
+ *
+ * Le motif est celui de `RG-TSK-02` et de `champs-gouvernes.ts` : **la garde
+ * ouvre la route, le point d'entrée requestionne le paramètre.** La garde ne
+ * peut pas trancher seule — la permission dépend d'une donnée de la requête,
+ * qu'une métadonnée statique ne connaît pas. Elle laisse donc entrer qui
+ * détient au moins une permission d'import, et le tri se fait ici, sur le
+ * type réellement demandé.
+ * ══════════════════════════════════════════════════════════════════════════
+ *
+ * `projet` prend `tasks:import` comme `POST /imports/projet/:id` : le modèle
+ * et l'aperçu d'un type doivent exiger exactement ce qu'exige son exécution,
+ * sans quoi on rouvre le défaut par l'autre bout.
+ */
+const PERMISSION_PAR_TYPE: Record<TypeImport, string> = {
+  utilisateurs: "users:import",
+  taches: "tasks:import",
+  jalons: "milestones:import",
+  projet: "tasks:import",
+  conges: "leaves:import",
+  competences: "skills:import",
+};
+
+/**
+ * Les permissions qui ouvrent la porte, dérivées de la table — jamais
+ * réénumérées. Une liste recopiée finirait par oublier le type ajouté au
+ * `TYPES_IMPORT`, et l'oubli se lirait en 403 sur un chemin, pas en erreur.
+ */
+const PERMISSIONS_IMPORT = [...new Set(Object.values(PERMISSION_PAR_TYPE))];
+
 @Controller("imports")
 export class ImportsController {
   constructor(private readonly imports: ImportsService) {}
 
+  /**
+   * La permission du type demandé, contrôlée après celle de la route.
+   *
+   * `cadrage/03 § 5.4` — permission puis périmètre, et ici permission de
+   * route puis permission de type. Il n'y a rien à cloisonner en dessous :
+   * ni le modèle ni l'aperçu ne lisent la base.
+   */
+  private exigerPermissionDuType(type: TypeImport, d: ContexteDemande): void {
+    const requise = PERMISSION_PAR_TYPE[type];
+    if (!d.permissions.has(requise)) {
+      throw new ForbiddenException({
+        cle: "commun:droits.permissionRequise",
+        message: `Importer « ${type} » demande la permission « ${requise} ».`,
+        detail: { permission: requise, type },
+      });
+    }
+  }
+
   /** `RG-IMP-02` — le modèle téléchargeable, avec sa ligne d'exemple. */
   @Get("modele")
-  @RequiertPermission("tasks:import")
+  @RequiertUnePermissionParmi(...PERMISSIONS_IMPORT)
   @Header("Content-Type", "text/csv; charset=utf-8")
-  modele(@Query("type") type: string, @Res() reponse: FastifyReply) {
+  modele(
+    @Query("type") type: string,
+    @Demande() d: ContexteDemande,
+    @Res() reponse: FastifyReply,
+  ) {
     const t = valider(typeImport, type);
+    this.exigerPermissionDuType(t, d);
     return reponse
       .header("Content-Disposition", `attachment; filename="modele-${t}.csv"`)
       .send(this.imports.modele(t));
@@ -35,9 +117,10 @@ export class ImportsController {
 
   /** `RG-IMP-03` — la prévisualisation. **Aucune écriture.** */
   @Post("apercu")
-  @RequiertPermission("tasks:import")
-  apercu(@Query("type") type: string, @Body() corps: unknown) {
+  @RequiertUnePermissionParmi(...PERMISSIONS_IMPORT)
+  apercu(@Query("type") type: string, @Body() corps: unknown, @Demande() d: ContexteDemande) {
     const t = valider(typeImport, type);
+    this.exigerPermissionDuType(t, d);
     const { contenu } = valider(corpsFichier, corps);
     return this.imports.analyser(t, contenu);
   }

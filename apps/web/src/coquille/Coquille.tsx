@@ -1,6 +1,6 @@
 import { useState, useEffect, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { Link, useRouterState } from "@tanstack/react-router";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
   Button,
   Menu,
@@ -97,6 +97,7 @@ export function Coquille({
   };
 
   const chemin = useRouterState({ select: (etat) => etat.location.pathname });
+  const navigate = useNavigate();
 
   /*
    * Le fil d'Ariane est **dérivé de la navigation** quand l'appelant n'en
@@ -335,8 +336,13 @@ export function Coquille({
                     ) : null}
                   </Button>
                   <Popover className="pop">
+                    {/* `close` vient du `Dialog` : suivre une notification
+                        referme le panneau. L'ancre brute le faisait par
+                        accident, en rechargeant le document ; le routeur ne
+                        recharge rien, et la surcouche resterait ouverte
+                        au-dessus de la vue d'arrivée. */}
                     <Dialog aria-label={t("notifications.titre")}>
-                      <PanneauNotifications />
+                      {({ close }) => <PanneauNotifications surOuverture={close} />}
                     </Dialog>
                   </Popover>
                 </DialogTrigger>
@@ -357,7 +363,21 @@ export function Coquille({
                   </Button>
                   <Popover className="pop pop-sm">
                     <Menu>
-                      <MenuItem href="/profil" className="pop-action">
+                      {/*
+                        **`onAction`, et non `href`.** Un `MenuItem` porteur
+                        d'un `href` rend une ancre, et sans le
+                        `RouterProvider` de react-aria monté à la racine cette
+                        ancre est brute : ouvrir son profil depuis le menu
+                        RECHARGEAIT l'application entière — la session, les
+                        réglages, le compteur de notifications. Même défaut que
+                        la barre latérale avant sa correction, à un endroit où
+                        personne ne le cherchait parce qu'aucun `<a>` n'est
+                        écrit ici.
+                      */}
+                      <MenuItem
+                        className="pop-action"
+                        onAction={() => void navigate({ to: "/profil" })}
+                      >
                         {t("entete.monProfil")}
                       </MenuItem>
                       <MenuItem onAction={surDeconnexion} className="pop-action">

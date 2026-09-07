@@ -245,6 +245,36 @@ export const DEMANDES = [
 ];
 
 /**
+ * `EX-CNG-05`, `RG-CNG-02` — une demande **refusée**, avec son motif.
+ *
+ * Le jeu d'essai n'en portait aucune, et c'est ce qui a laissé vivre deux
+ * défauts jumeaux : le motif de refus était présenté comme facultatif à la
+ * saisie, et `motifRefus` — que `GET /conges` rend depuis toujours — n'était
+ * affiché par aucune vue. Sans une ligne « refused » dans le jeu, il n'y avait
+ * rien à quoi la lecture pût se heurter.
+ *
+ * Elle vit HORS de `DEMANDES` : les listes de cette suite comptent leurs
+ * lignes, et une entrée de plus dans le jeu commun déplacerait des assertions
+ * qui ne parlent pas de refus.
+ */
+export const DEMANDE_REFUSEE = {
+  id: "c5",
+  statut: "refused",
+  dateDebut: "2026-08-24",
+  dateFin: "2026-08-28",
+  demiJourneeDebut: null,
+  demiJourneeFin: null,
+  motif: "Congés d'été",
+  motifRefus: "Effectif insuffisant sur la semaine de rentrée",
+  joursOuvres: "5",
+  version: 3,
+  type: { id: "t1", nom: "Congés annuels", couleur: "#6A4BA6", icone: null },
+  user: personne("Camille", "Roussel", "u1"),
+  validateur: personne("Fatou", "Berthier", "u2"),
+  repartitions: [{ annee: 2026, jours: "5" }],
+};
+
+/**
  * `EX-CNG-07` — une demande d'ANNULATION, telle que le serveur la sert au
  * validateur.
  *

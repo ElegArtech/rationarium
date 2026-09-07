@@ -157,8 +157,22 @@ export type TypeConge = {
   remunere: boolean;
   validationRequise: boolean;
   limiteAnnuelle: number | null;
+  ordre: number;
   actif: boolean;
   systeme: boolean;
+  /**
+   * `RG-GEN-07` — la version lue est ce qui rend l'écriture composable.
+   *
+   * `GET /conges/types` la rend depuis toujours (le service étale la ligne
+   * entière) ; le type du client, lui, l'omettait. Une clé absente d'un type
+   * TypeScript n'est pas une donnée absente — mais elle rend la modification
+   * *impossible à écrire*, et c'est exactement le raccord qui a laissé la vue
+   * 35 en lecture seule pendant tout le projet : `profil()` ne rendait pas
+   * `version`, donc aucune requête n'était composable, donc on a conclu que la
+   * route n'existait pas. **La sortie de la lecture compose l'entrée de
+   * l'écriture** : elle se vérifie, elle ne se suppose pas.
+   */
+  version: number;
   utilisations: number;
 };
 
@@ -362,6 +376,67 @@ export const traiterAnnulation = (id: string, accepte: boolean, version: number)
     methode: "POST",
     corps: { accepte, version },
   });
+
+/**
+ * Ce qu'un type porte à l'écriture — le contrat de `typeCongeSchema`.
+ *
+ * Il n'est pas importé de `@rationarium/contracts` parce que le schéma y porte
+ * des valeurs par défaut : `z.input` et `z.output` n'y ont pas la même forme,
+ * et c'est la forme *envoyée* qui compte ici.
+ */
+export type EcritureTypeConge = {
+  code: string;
+  nom: string;
+  description?: string;
+  icone?: string;
+  couleur?: string;
+  remunere: boolean;
+  validationRequise: boolean;
+  limiteAnnuelle?: number | null;
+  ordre: number;
+  actif: boolean;
+};
+
+/** Le type tel que l'écriture le rend : sans le décompte, qui vient du `GET`. */
+export type TypeCongeEcrit = Omit<TypeConge, "utilisations">;
+
+/**
+ * `EX-CNG-13` — **créer** un type de congé.
+ *
+ * `POST /conges/types` existait, gardée par `leaves:manage_types` et testée,
+ * **sans un seul appel client** — pendant que l'état vide de la vue 19
+ * invitait à « en créer un dans l'onglet Types de congés ». Une sortie rédigée
+ * vers une porte qui n'existait pas.
+ *
+ * Refus nommé : `409 codeDejaPris`. Le code est normalisé en majuscules par le
+ * serveur ; l'écran le fait aussi, pour que ce qu'on relit soit ce qui partira.
+ */
+export const creerTypeDeConge = (donnees: EcritureTypeConge) =>
+  appeler<TypeCongeEcrit>("/conges/types", { methode: "POST", corps: donnees });
+
+/**
+ * `EX-CNG-13`, `RG-CNG-30`, `RG-GEN-07` — **modifier** un type de congé.
+ *
+ * Tous les champs sont facultatifs, `version` exceptée : c'est elle qui fait
+ * détecter la concurrence plutôt que de l'écraser. Sur un type `systeme`, le
+ * serveur n'accepte que `nom`, `description`, `icone`, `couleur` et
+ * `validationRequise` — l'écran fige les autres AVANT d'écrire (`RG-GEN-06`),
+ * plutôt que d'attendre le `400`.
+ *
+ * `null` y a un sens que `undefined` n'a pas : il **efface** la description,
+ * l'icône, la couleur ou la limite annuelle. Omettre le champ ne le change
+ * pas ; l'envoyer à `null` le vide. C'est le contrat du serveur (`nullish`),
+ * et c'est le seul moyen de rendre un type « illimité » après l'avoir plafonné.
+ */
+export const modifierTypeDeConge = (
+  id: string,
+  donnees: Partial<Omit<EcritureTypeConge, "description" | "icone" | "couleur">> & {
+    description?: string | null;
+    icone?: string | null;
+    couleur?: string | null;
+    version: number;
+  },
+) => appeler<TypeCongeEcrit>(`/conges/types/${id}`, { methode: "PATCH", corps: donnees });
 
 /**
  * `EX-CNG-13` — retirer un type du référentiel.

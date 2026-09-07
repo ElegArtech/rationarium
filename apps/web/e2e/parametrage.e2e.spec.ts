@@ -1,5 +1,9 @@
 import { test, expect, type Locator, type Page } from "@playwright/test";
 import { serveur, SESSION_LECTURE } from "./fixtures/projets.js";
+/* `RG-ADM-03` — le refus qui PART au serveur. Voir `refusTrace` : le motif est
+   commun aux vues 28, 29, 31, 32, 33 et 34, et écrit six fois il aurait
+   divergé au premier changement de forme. */
+import { refusTrace } from "./fixtures/administration.js";
 import {
   SESSION_ACTIVITE,
   SESSION_CONFIG,
@@ -330,10 +334,62 @@ test.describe("Vue 31 — paramètres", () => {
     await expect(page.getByRole("button", { name: "Ajouter une période" })).toHaveCount(0);
   });
 
-  test("sans settings:read, l'accès est refusé — et le dit", async ({ page }) => {
-    await serveur(page, { session: SESSION_LECTURE, reponses });
+  /*
+   * ═════════════════════════════════════════════════════════════════════════
+   * `RG-ADM-03` — la vue 31 est la seule des six à ne pas pouvoir employer
+   * `refusTrace`, et **c'est un défaut du produit, pas du contrôle**.
+   *
+   * `GET /parametrage` est lu DEUX FOIS : par la coquille — `routeur.tsx`, qui
+   * pousse les formats d'affichage dans `formats.ts` avant de rendre quoi que
+   * ce soit — et par la vue elle-même, sur la même clé `["parametrage"]` mais
+   * avec d'autres options (`retry: false` et `staleTime` de cinq minutes d'un
+   * côté, les défauts de l'autre). Tant que la lecture réussissait, les deux
+   * observateurs s'accordaient ; depuis que la vue laisse partir sa requête au
+   * lieu de l'éteindre par `enabled: peut("settings:read")`, un `403` les fait
+   * se contredire — mesuré ici : **683 appels en trois secondes** et un
+   * « Chargement : votre session… » qui ne se termine jamais.
+   *
+   * Ce n'est pas le refus qui manque, c'est l'application entière qui se bloque
+   * en martelant le serveur. Et la même session sur `/` s'en tire avec UN seul
+   * appel : la coquille sait échouer, c'est le second observateur qui casse.
+   *
+   * Le cas est étroit — `settings:read` appartient au SOCLE, donc à tous les
+   * modèles de rôle — mais l'éditeur de rôles permet de composer un rôle sur
+   * mesure sans lui, et ce rôle-là ne peut plus ouvrir le produit du tout.
+   *
+   * Ce qui suit sépare donc les deux moitiés : ce que le produit tient, et ce
+   * qu'il ne tient pas. La seconde est déclarée en échec attendu — elle
+   * redeviendra rouge le jour où quelqu'un la « corrigera » sans corriger le
+   * produit, et verte à l'écran le jour où le produit le sera.
+   * ═════════════════════════════════════════════════════════════════════════
+   */
+  test("RG-ADM-03 — sans settings:read, la requête PART : le serveur apprend la tentative", async ({
+    page,
+  }) => {
+    await serveur(page, {
+      session: SESSION_LECTURE,
+      reponses: {
+        ...reponses,
+        "/api/parametrage": {
+          statut: 403,
+          corps: { cle: "erreurs:permissionRefusee", message: "forbidden" },
+        },
+      },
+    });
+    const appel = page.waitForRequest((r) => new URL(r.url()).pathname === "/api/parametrage");
     await page.goto("/parametres");
-    await expect(page.getByText("Permission requise")).toBeVisible();
+    await appel;
+  });
+
+  test("RG-GEN-06 — sur un `403` de `/parametrage`, la vue 31 prononce son refus", async ({
+    page,
+  }) => {
+    /* **Corrigé le 2026-09-07** : la lecture de la vue reprend, à la lettre,
+       les options de celle du routeur (`retry: false`, cinq minutes de
+       fraîcheur). Deux observateurs d'une même clé qui divergent sur le
+       réessai se relancent l'un l'autre dès que la lecture échoue — 683
+       appels en trois secondes sur un `403`, relevés à la recette. */
+    await refusTrace(page, { route: "/api/parametrage", adresse: "/parametres", reponses });
   });
 });
 
@@ -608,10 +664,14 @@ test.describe("Vue 32 — rôles et permissions", () => {
     ).toBeVisible();
   });
 
-  test("sans users:manage_roles, l'accès est refusé", async ({ page }) => {
-    await serveur(page, { session: SESSION_LECTURE, reponses });
-    await page.goto("/roles");
-    await expect(page.getByText("Permission requise")).toBeVisible();
+  test("RG-ADM-03 — sans users:manage_roles, la requête PART et c'est le 403 reçu qui refuse", async ({
+    page,
+  }) => {
+    await refusTrace(page, {
+      route: "/api/administration/roles",
+      adresse: "/roles",
+      reponses,
+    });
   });
 });
 
@@ -707,10 +767,22 @@ test.describe("Vue 33 — journal d'audit", () => {
     ).toBeVisible();
   });
 
-  test("sans audit:read, l'accès est refusé — et ce refus est lui-même tracé", async ({ page }) => {
-    await serveur(page, { session: SESSION_LECTURE, reponses });
-    await page.goto("/audit");
-    await expect(page.getByText("Permission requise")).toBeVisible();
+  /*
+   * **Ce contrôle affirmait dans son nom ce que le produit ne faisait pas.**
+   * « ce refus est lui-même tracé » : la vue 33 portait `enabled:
+   * peut("audit:read")` sur sa lecture et rendait `<AccesRefuse />` avant tout
+   * appel. Aucune requête n'atteignait le serveur, donc rien n'était tracé —
+   * et c'est la vue du JOURNAL D'AUDIT qui manquait à `RG-ADM-03`. Le nom du
+   * test était la seule trace de la règle, et il était faux.
+   */
+  test("RG-ADM-03 — sans audit:read, la requête PART : c'est ce qui rend le refus traçable", async ({
+    page,
+  }) => {
+    await refusTrace(page, {
+      route: "/api/administration/audit",
+      adresse: "/audit",
+      reponses,
+    });
   });
 });
 
@@ -806,10 +878,14 @@ test.describe("Vue 34 — tâches prédéfinies", () => {
     await expect(page.getByRole("dialog").getByText(/118/)).toBeVisible();
   });
 
-  test("sans predefined_tasks:read, l'accès est refusé", async ({ page }) => {
-    await serveur(page, { session: SESSION_LECTURE, reponses });
-    await page.goto("/taches-predefinies");
-    await expect(page.getByText("Permission requise")).toBeVisible();
+  test("RG-ADM-03 — sans predefined_tasks:read, la requête PART et c'est le 403 reçu qui refuse", async ({
+    page,
+  }) => {
+    await refusTrace(page, {
+      route: "/api/activite/taches",
+      adresse: "/taches-predefinies",
+      reponses,
+    });
   });
 });
 

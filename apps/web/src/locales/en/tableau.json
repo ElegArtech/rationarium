@@ -89,10 +89,11 @@
   "presence": {
     "titre": "Who is in today",
     "laPresence": "today's attendance",
-    "compte": "{p} in the office · {c} on leave · {tt} working remotely",
+    "compte": "{p} in the office · {c} on leave · {tt} working remotely · {nd, plural, one {# not declared} other {# not declared}}",
     "present": "In the office",
     "conge": "On leave",
     "teletravail": "Remote",
+    "non_declare": "Not declared",
     "vide": "No one in your scope",
     "videAide": "Today's attendance fills in as soon as someone is attached to you."
   }

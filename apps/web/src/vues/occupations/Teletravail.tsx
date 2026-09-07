@@ -49,6 +49,29 @@ const SUIVANT: Record<string, string> = {
   office: "undeclared",
 };
 
+export type VueTeletravail = "moi" | "equipe";
+
+/**
+ * L'affichage à rendre, **recalé sur les droits** — `RG-TLT-07`, `RG-GEN-06`.
+ *
+ * DÉFAUT ACTIF CORRIGÉ. « Vue équipe » était offerte sans garde, à côté d'un
+ * bouton voisin correctement gardé par `peut(…)` : active, cliquable, sans
+ * explication, elle ne menait qu'au panneau « Vue réservée à l'encadrement ».
+ * `EX-TLT-07` réserve cette lecture à `telework:read_team`, et `RG-GEN-06`
+ * interdit de proposer ce qui sera refusé.
+ *
+ * La décision est isolée du rendu, comme `ongletCourant` l'est de la vue 19 —
+ * et pour la même raison : elle porte le cas que le rendu ne sait pas produire.
+ * Retirer la permission **pendant** la session fait disparaître la bascule ; si
+ * l'affichage courant n'était pas recalé, l'écran resterait bloqué sur une vue
+ * interdite sans plus aucun chemin de retour vers son propre planning. Un
+ * parcours de bout en bout qui rechargerait la page pour changer de profil
+ * remonterait le composant, donc repartirait de « moi » : il passerait au vert
+ * avec ET sans le correctif.
+ */
+export const vueCourante = (choisie: VueTeletravail, peutVoirEquipe: boolean): VueTeletravail =>
+  choisie === "equipe" && !peutVoirEquipe ? "moi" : choisie;
+
 export function Teletravail() {
   const { t } = useTranslation("occupations");
   const peut = usePeut();
@@ -56,7 +79,9 @@ export function Teletravail() {
   const annoncer = useMessages();
   const { t: tErreurs } = useTranslation("erreurs");
   const [reglesOuvertes, setReglesOuvertes] = useState(false);
-  const [vue, setVue] = useState<"moi" | "equipe">("moi");
+  const [vueChoisie, setVue] = useState<VueTeletravail>("moi");
+  /* `RG-TLT-07`, `RG-GEN-06` — voir `vueCourante` : l'affichage suit les droits. */
+  const vue = vueCourante(vueChoisie, peut("telework:read_team"));
   const [mois, setMois] = useState(() => {
     const d = new Date();
     return { annee: d.getUTCFullYear(), mois: d.getUTCMonth() };
@@ -123,14 +148,31 @@ export function Teletravail() {
           {t("teletravail.compte", { n: cumul?.teletravail ?? 0 })}
         </span>
         <div className="pl-toolbar-fin">
-          <div className="seg" role="group" aria-label={t("teletravail.affichage")}>
-            <Button aria-pressed={vue === "moi"} onPress={() => setVue("moi")}>
-              {t("teletravail.monPlanning")}
-            </Button>
-            <Button aria-pressed={vue === "equipe"} onPress={() => setVue("equipe")}>
-              {t("teletravail.vueEquipe")}
-            </Button>
-          </div>
+          {/*
+            `EX-TLT-07`, `RG-TLT-07`, `RG-GEN-06` — **on ne propose pas ce qui
+            sera refusé.**
+
+            DÉFAUT ACTIF CORRIGÉ. « Vue équipe » était rendue sans garde, à côté
+            d'un bouton voisin correctement gardé : active, cliquable, sans
+            explication, elle ne menait qu'au panneau « Vue réservée à
+            l'encadrement ». Le cloisonnement serveur tenait — aucun nom d'autre
+            agent n'était rendu — mais la courtoisie, non.
+
+            La bascule disparaît **en entier** plutôt que de se désactiver : un
+            groupe segmenté à un seul choix ne bascule rien, et il n'y a rien à
+            expliquer à qui n'a qu'un planning, le sien. C'est le cas
+            « masquée » de `RG-GEN-06` — l'action n'a aucun sens pour ce profil.
+          */}
+          {peut("telework:read_team") ? (
+            <div className="seg" role="group" aria-label={t("teletravail.affichage")}>
+              <Button aria-pressed={vue === "moi"} onPress={() => setVue("moi")}>
+                {t("teletravail.monPlanning")}
+              </Button>
+              <Button aria-pressed={vue === "equipe"} onPress={() => setVue("equipe")}>
+                {t("teletravail.vueEquipe")}
+              </Button>
+            </div>
+          ) : null}
           {peut("telework:manage_rules") ? (
             <Button className="btn btn-primary" onPress={() => setReglesOuvertes(true)}>
               {t("teletravail.configurerJoursFixes")}

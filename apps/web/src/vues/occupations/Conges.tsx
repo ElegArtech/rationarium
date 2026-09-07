@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "react-aria-components";
+import { Link, useLocation } from "@tanstack/react-router";
 import { DEMI_JOURNEES, STATUTS_CONGE } from "@rationarium/contracts";
 import * as api from "../../api/occupations.js";
 import * as apiImports from "../../api/imports.js";
@@ -61,8 +62,255 @@ export type Onglet =
  * rechargerait la page consacrerait à tort, puisque le remontage suffit à le
  * faire passer.
  */
-export const ongletCourant = (existants: readonly Onglet[], choisi: Onglet): Onglet =>
-  existants.includes(choisi) ? choisi : (existants[0] ?? "mesDemandes");
+export const ongletCourant = (existants: readonly Onglet[], choisi: string): Onglet =>
+  existants.find((o) => o === choisi) ?? existants[0] ?? "mesDemandes";
+
+/**
+ * `EX-CNG-10`, `RG-CNG-24` — **ce qu'on lit dans le champ de jours attribués.**
+ *
+ * DÉFAUT ACTIF CORRIGÉ. La valeur partait en `Number(jours)`, et `Number("")`
+ * vaut zéro : un champ vidé s'enregistrait en **0 jour**, avec un message de
+ * succès. L'agent visé passait à « 0,0 jours disponibles » et `RG-CNG-20` lui
+ * refusait ensuite toute demande — sans un mot d'alerte, puisque le champ se
+ * réaffiche vide, exactement comme l'état « aucune allocation propre ». Le
+ * champ étant un `<input type="number">`, le navigateur rend AUSSI la chaîne
+ * vide sur toute saisie qu'il juge invalide — « 2,5 » comprise : le geste le
+ * plus naturel du monde privait un agent de tous ses congés.
+ *
+ * Cinquième occurrence de la famille consignée dans `CLAUDE.md` — le filtre des
+ * jours de la vue 31, l'amorçage, l'import, la variable Compose vide.
+ * **Le contrat se lit sur la chaîne, jamais sur le nombre** : `Number` ne
+ * distingue pas « rien » de « zéro », et c'est cette distinction-là qui porte
+ * la règle.
+ *
+ * Les bornes sont celles de `PUT /conges/soldes` (`min(0).max(365)`). Les
+ * répéter ici ne les tient pas — le serveur les tient ; c'est `RG-GEN-06` qui
+ * demande de ne pas proposer ce qui sera refusé.
+ */
+export type LectureJours =
+  | { valide: true; jours: number }
+  | { valide: false; raison: "vide" | "invalide" };
+
+export const lireJoursAttribues = (saisie: string): LectureJours => {
+  const brut = saisie.trim();
+  if (brut === "") return { valide: false, raison: "vide" };
+  const jours = Number(brut);
+  if (!Number.isFinite(jours) || jours < 0 || jours > 365) {
+    return { valide: false, raison: "invalide" };
+  }
+  return { valide: true, jours };
+};
+
+/**
+ * `RG-CNG-09`, `RG-GEN-06` — **nul ne décide de sa propre demande.**
+ *
+ * DÉFAUT ACTIF CORRIGÉ. La demande du validateur figurait dans son propre
+ * « À valider » avec « Approuver » et « Refuser » actifs ; le serveur refusait
+ * après coup en `auto_validation_interdite`. Deux commandes offertes qui ne
+ * peuvent pas aboutir, c'est exactement ce que `RG-GEN-06` interdit.
+ *
+ * L'exception est celle du serveur, et une seule : `leaves:self_approve`. Elle
+ * se lit ici plutôt que de se deviner, sinon l'écran retirerait une commande
+ * que le serveur, lui, accepterait.
+ */
+export const decisionOfferte = (
+  demandeurId: string,
+  moi: string,
+  autoValidation: boolean,
+): boolean => demandeurId !== moi || autoValidation;
+
+/**
+ * `EX-CNG-05`, `RG-CNG-02` — **le motif de refus est obligatoire.**
+ *
+ * DÉFAUT ACTIF CORRIGÉ. La fenêtre libellait « Motif du refus (optionnel) » et
+ * un refus vide s'enregistrait : le client substituait « Aucun motif indiqué »
+ * à la chaîne vide, ce qui satisfaisait le `min(1)` du serveur et vidait la
+ * règle des deux côtés. L'agent recevait « refusée. Motif : Aucun motif
+ * indiqué » — une notification qui ne dit rien de plus que son titre.
+ *
+ * Le contrat se lit sur la chaîne, ici encore : `"   "` n'est pas un motif.
+ */
+export const motifDeRefusValide = (saisie: string): boolean => saisie.trim().length > 0;
+
+/**
+ * `RG-CNG-30` — **les cinq champs qu'un type système laisse ouverts.**
+ *
+ * La liste est écrite EN POSITIF, comme au serveur : une liste d'interdits
+ * laisserait tout champ neuf modifiable par défaut, c'est-à-dire le sens
+ * inverse de la règle.
+ *
+ * DETTE ASSUMÉE, ET SIGNALÉE : le serveur porte la même liste dans
+ * `apps/api/src/conges/conges.schemas.ts` (`CHAMPS_MODIFIABLES_TYPE_SYSTEME`).
+ * Deux définitions d'une même règle finiront par diverger — sa place est
+ * `@rationarium/contracts`, d'où les deux la liraient. Le déplacement sort du
+ * périmètre de cette correction ; il est rapporté.
+ */
+export const CHAMPS_OUVERTS_TYPE_SYSTEME = [
+  "nom",
+  "description",
+  "icone",
+  "couleur",
+  "validationRequise",
+] as const;
+
+export type ChampType =
+  | "code"
+  | "nom"
+  | "description"
+  | "icone"
+  | "couleur"
+  | "remunere"
+  | "validationRequise"
+  | "limiteAnnuelle"
+  | "ordre"
+  | "actif";
+
+/**
+ * `RG-GEN-06` — ce champ est-il figé sur ce type ?
+ *
+ * L'écran fige AVANT d'écrire plutôt que d'attendre le `400` : le serveur
+ * refuse champ par champ, et découvrir la règle en la heurtant est un mauvais
+ * apprentissage — c'est le même arbitrage que le compte d'utilisations affiché
+ * avant le retrait.
+ */
+export const champFige = (systeme: boolean, champ: ChampType): boolean =>
+  systeme && !(CHAMPS_OUVERTS_TYPE_SYSTEME as readonly string[]).includes(champ);
+
+/** Ce que le formulaire de type porte, tel qu'il est saisi : **des chaînes**. */
+export type SaisieType = {
+  code: string;
+  nom: string;
+  description: string;
+  icone: string;
+  couleur: string;
+  remunere: boolean;
+  validationRequise: boolean;
+  /** Vide = illimité. `RG-CNG-30` n'impose aucun plafond par défaut. */
+  limiteAnnuelle: string;
+  ordre: string;
+  actif: boolean;
+};
+
+/**
+ * `EX-CNG-13` — **la limite annuelle se lit sur la CHAÎNE, jamais sur le nombre.**
+ *
+ * Sixième occurrence de la famille dans ce dépôt (`Number("")` vaut zéro) :
+ * ici, un champ vidé ne vaut PAS « zéro jour par an » — qui interdirait le
+ * type — mais « aucune limite ». Les deux sont des états légitimes du
+ * référentiel, et `Number` ne les distingue pas. La colonne « Limite/an »
+ * affichait un nombre que rien ne permettait de corriger : c'est ce que
+ * `P-92` a relevé.
+ */
+export type LectureLimite =
+  | { valide: true; limite: number | null }
+  | { valide: false };
+
+export const lireLimiteAnnuelle = (saisie: string): LectureLimite => {
+  const brut = saisie.trim();
+  if (brut === "") return { valide: true, limite: null };
+  const limite = Number(brut);
+  if (!Number.isFinite(limite) || limite < 0 || limite > 366) return { valide: false };
+  return { valide: true, limite };
+};
+
+/** L'ordre d'affichage : un entier positif, vide valant le défaut du serveur. */
+export const lireOrdre = (saisie: string): { valide: true; ordre: number } | { valide: false } => {
+  const brut = saisie.trim();
+  if (brut === "") return { valide: true, ordre: 0 };
+  const ordre = Number(brut);
+  if (!Number.isInteger(ordre) || ordre < 0 || ordre > 9999) return { valide: false };
+  return { valide: true, ordre };
+};
+
+/**
+ * `EX-CNG-13`, `RG-GEN-06` — le code, tel que le serveur l'exige.
+ *
+ * Le contrat est `^[A-Z0-9_]+$`, vingt caractères au plus. L'écran normalise en
+ * majuscules pour que ce qu'on relit soit ce qui partira — le serveur fait le
+ * même `toUpperCase()`, et une casse qui change en chemin est ce qui rend un
+ * `409 codeDejaPris` incompréhensible.
+ */
+export const normaliserCodeType = (saisie: string): string => saisie.trim().toUpperCase();
+
+export const codeTypeValide = (saisie: string): boolean =>
+  /^[A-Z0-9_]{1,20}$/.test(saisie.trim().toUpperCase());
+
+/** La couleur : celle du contrat (`#RRGGBB`), ou aucune. */
+export const couleurTypeValide = (saisie: string): boolean =>
+  saisie === "" || /^#[0-9A-Fa-f]{6}$/.test(saisie);
+
+/**
+ * Les fautes de la saisie, **nommées**, dans l'ordre des champs.
+ *
+ * `RG-GEN-06` — on refuse avant d'écrire, et on dit lequel des dix champs est
+ * en cause. Un « certains champs sont invalides » obligerait à chercher.
+ */
+export const fautesDeSaisieType = (saisie: SaisieType): ChampType[] => {
+  const fautes: ChampType[] = [];
+  if (!codeTypeValide(saisie.code)) fautes.push("code");
+  if (saisie.nom.trim() === "" || saisie.nom.trim().length > 120) fautes.push("nom");
+  if (!couleurTypeValide(saisie.couleur)) fautes.push("couleur");
+  if (!lireLimiteAnnuelle(saisie.limiteAnnuelle).valide) fautes.push("limiteAnnuelle");
+  if (!lireOrdre(saisie.ordre).valide) fautes.push("ordre");
+  return fautes;
+};
+
+/** Le corps de `POST /conges/types`, tel que `typeCongeSchema` l'attend. */
+export const corpsCreationType = (saisie: SaisieType): api.EcritureTypeConge => {
+  const limite = lireLimiteAnnuelle(saisie.limiteAnnuelle);
+  const ordre = lireOrdre(saisie.ordre);
+  return {
+    code: normaliserCodeType(saisie.code),
+    nom: saisie.nom.trim(),
+    ...(saisie.description.trim() ? { description: saisie.description.trim() } : {}),
+    ...(saisie.icone.trim() ? { icone: saisie.icone.trim() } : {}),
+    ...(saisie.couleur ? { couleur: saisie.couleur } : {}),
+    remunere: saisie.remunere,
+    validationRequise: saisie.validationRequise,
+    ...(limite.valide && limite.limite !== null ? { limiteAnnuelle: limite.limite } : {}),
+    ordre: ordre.valide ? ordre.ordre : 0,
+    actif: saisie.actif,
+  };
+};
+
+/**
+ * `RG-CNG-30`, `RG-GEN-07` — le corps de `PATCH /conges/types/:id`.
+ *
+ * **Un type système ne porte QUE ses cinq champs ouverts.** Le serveur refuse
+ * tout autre champ *présent*, fût-il inchangé : renvoyer le formulaire entier
+ * rendrait un `400` sur un type que l'on n'a pourtant pas cherché à altérer.
+ * Le filtre est donc ici, et il est vérifié par un test — c'est la moitié du
+ * raccord que l'écran doit tenir.
+ *
+ * `null` efface, `undefined` ne touche pas : la description, l'icône, la
+ * couleur et la limite vidées partent à `null`, sans quoi « illimité » serait
+ * un état qu'on ne pourrait jamais rétablir.
+ */
+export const corpsModificationType = (
+  saisie: SaisieType,
+  systeme: boolean,
+  version: number,
+): Parameters<typeof api.modifierTypeDeConge>[1] => {
+  const limite = lireLimiteAnnuelle(saisie.limiteAnnuelle);
+  const ordre = lireOrdre(saisie.ordre);
+  const ouverts = {
+    nom: saisie.nom.trim(),
+    description: saisie.description.trim() === "" ? null : saisie.description.trim(),
+    icone: saisie.icone.trim() === "" ? null : saisie.icone.trim(),
+    couleur: saisie.couleur === "" ? null : saisie.couleur,
+    validationRequise: saisie.validationRequise,
+    version,
+  };
+  if (systeme) return ouverts;
+  return {
+    ...ouverts,
+    code: normaliserCodeType(saisie.code),
+    remunere: saisie.remunere,
+    limiteAnnuelle: limite.valide ? limite.limite : null,
+    ordre: ordre.valide ? ordre.ordre : 0,
+    actif: saisie.actif,
+  };
+};
 
 export function Conges() {
   const { t } = useTranslation("occupations");
@@ -108,9 +356,27 @@ export function Conges() {
     return liste;
   }, [peut, t]);
 
-  const [ongletChoisi, setOnglet] = useState<Onglet>("mesDemandes");
-  /* `RG-GEN-06` — voir `ongletCourant` : l'onglet actif suit les droits. */
-  const onglet = ongletCourant(onglets.map((o) => o.cle), ongletChoisi);
+  /*
+   * **L'onglet est un état d'ADRESSE, pas un état local.**
+   *
+   * DÉFAUT ACTIF CORRIGÉ. La barre posait `<a href="#soldes">` puis appelait
+   * `e.preventDefault()` : l'URL ne bougeait jamais de `/conges`. L'ancre
+   * copiée, ouverte dans un nouvel onglet ou envoyée à un collègue ne menait
+   * pas où elle disait — `/conges#soldes` affichait « Mes demandes » —, et le
+   * bouton Précédent ne défaisait pas le changement d'onglet. Une adresse qui
+   * s'affiche sans s'appliquer est le pendant exact du réglage qui s'enregistre
+   * sans agir, consigné trois fois dans `CLAUDE.md`.
+   *
+   * Le fragment porte l'onglet parce qu'il est ce que la maquette écrit, et
+   * parce qu'il ne demande pas de `validateSearch` sur la route — `routeur.tsx`
+   * n'appartient pas à ce lot. `Link` du routeur, jamais une ancre nue : une
+   * ancre nue rechargerait le document, donc le lot, la session et le cache.
+   */
+  const fragment = useLocation({ select: (l) => l.hash });
+  /* `RG-GEN-06` — voir `ongletCourant` : l'onglet actif suit les droits. Un
+     fragment inconnu — recopié à la main, ou désignant un onglet auquel on n'a
+     pas droit — retombe sur le premier onglet existant plutôt que sur du vide. */
+  const onglet = ongletCourant(onglets.map((o) => o.cle), fragment);
   const [demandeOuverte, setDemandeOuverte] = useState(false);
   const [importOuvert, setImportOuvert] = useState(false);
 
@@ -170,21 +436,24 @@ export function Conges() {
 
       <nav className="tabbar" aria-label={t("conges.sections")}>
         {onglets.map((o) => (
-          <a
+          <Link
             key={o.cle}
-            href={`#${o.cle}`}
+            to="/conges"
+            hash={o.cle}
+            /* Aucun élément ne porte l'identifiant du fragment : le routeur
+               chercherait une cible qui n'existe pas, et le ferait à chaque
+               changement d'onglet. */
+            hashScrollIntoView={false}
             className={o.cle === onglet ? "is-active" : ""}
+            /* Un lien navigue, il ne bascule pas : l'état courant se dit par
+               `aria-current`, jamais par `aria-pressed`. */
             aria-current={o.cle === onglet ? "page" : undefined}
-            onClick={(e) => {
-              e.preventDefault();
-              setOnglet(o.cle);
-            }}
           >
             <span>{o.libelle}</span>
             {compteurs[o.cle] === undefined ? null : (
               <span className="n">{formaterNombre(compteurs[o.cle] ?? 0)}</span>
             )}
-          </a>
+          </Link>
         ))}
       </nav>
 
@@ -420,11 +689,23 @@ function LigneDemande({
   avecActions = false,
   avecValidation = false,
   avecDemandeur = false,
+  avecDecision = false,
 }: {
   demande: api.DemandeConge;
   avecActions?: boolean;
   avecValidation?: boolean;
   avecDemandeur?: boolean;
+  /**
+   * Les commandes de décision dans la liste de contrôle — `EX-CNG-05`.
+   *
+   * `avecValidation` les pose dans le gabarit « À valider », qui n'a pas de
+   * colonne de statut. « Toutes les demandes » a la sienne, et rendait ses
+   * lignes SANS aucune action, pour tout profil, administrateur compris : les
+   * annulations demandées qu'un responsable RH est le premier à devoir traiter
+   * y étaient inertes. Les deux gabarits partagent donc les mêmes commandes,
+   * sans partager leurs colonnes.
+   */
+  avecDecision?: boolean;
 }) {
   const { t } = useTranslation("occupations");
   const { t: tErreurs } = useTranslation("erreurs");
@@ -432,6 +713,8 @@ function LigneDemande({
   const libelle = useLibelle();
   const annoncer = useMessages();
   const client = useQueryClient();
+  const peut = usePeut();
+  const { session } = useSession();
   const [refusOuvert, setRefusOuvert] = useState(false);
   const [modificationOuverte, setModificationOuverte] = useState(false);
 
@@ -481,7 +764,70 @@ function LigneDemande({
    */
   const enAnnulation = demande.statut === "cancellation_requested";
 
-  const classe = avecValidation ? "lv-row is-todo" : avecDemandeur ? "lv-row is-all" : "lv-row";
+  /*
+   * `RG-CNG-09`, `RG-GEN-06` — voir `decisionOfferte`.
+   *
+   * DÉFAUT ACTIF CORRIGÉ. La demande du validateur figurait dans son propre
+   * « À valider » avec ses deux commandes actives, et le serveur la refusait
+   * après coup. La liste servie est corrigée côté serveur ; l'écran ne s'y
+   * repose pas : une demande dont le demandeur est l'utilisateur courant ne
+   * porte pas de commande de décision, d'où qu'elle vienne — « À valider »,
+   * « Toutes les demandes », ou une liste future.
+   */
+  const sienne = !decisionOfferte(demande.user.id, session.id, peut("leaves:self_approve"));
+
+  /*
+   * Les commandes de décision, partagées par les deux gabarits qui les portent.
+   * Écrites deux fois, elles auraient divergé au premier changement de règle —
+   * et c'est la seconde copie, celle qu'on oublie, qui reste fausse.
+   */
+  /* `RG-CNG-02` — une demande déjà décidée ne se redécide pas. Dans la liste
+     de contrôle, la plupart des lignes sont dans ce cas, et leur colonne de
+     décision reste vide plutôt que de porter une explication sans objet. */
+  const decidable = enAnnulation || demande.statut === "pending";
+
+  const decisions = !decidable ? null : sienne ? (
+    /* `RG-GEN-06` — la place de la commande dit pourquoi elle n'y est pas.
+       Une case vide laisserait croire à un défaut d'affichage. */
+    <span className="lv-val">{t("conges.saPropreDemande")}</span>
+  ) : enAnnulation ? (
+    <>
+      {/* `EX-CNG-07`, `RG-CNG-06` — accepter écrit « Annulé ». */}
+      <Button className="btn btn-primary" onPress={() => action.mutate("accepterAnnulation")}>
+        {t("conges.accepterAnnulation")}
+      </Button>
+      {/* `RG-CNG-01` — refuser ne laisse pas la demande en l'état : le congé
+          REVIENT à « Approuvé ». Un bouton nommé « Refuser » laisserait croire
+          que le congé tombe, c'est l'inverse. */}
+      <Button
+        className="btn btn-secondary btn-refus"
+        onPress={() => action.mutate("refuserAnnulation")}
+      >
+        {t("conges.refuserAnnulation")}
+      </Button>
+    </>
+  ) : (
+    <>
+      <Button className="btn btn-primary" onPress={() => action.mutate("approuver")}>
+        {t("conges.approuver")}
+      </Button>
+      <Button className="btn btn-secondary btn-refus" onPress={() => setRefusOuvert(true)}>
+        {t("conges.refuser")}
+      </Button>
+    </>
+  );
+
+  const mentions = [
+    avecValidation && enAnnulation ? libelle("cancellation_requested", STATUTS_CONGE) : null,
+    demiJournees(demande),
+    demande.motif,
+  ].filter((m): m is string => Boolean(m));
+
+  const classe = avecValidation
+    ? "lv-row is-todo"
+    : avecDemandeur
+      ? `lv-row is-all${avecDecision ? " is-decidable" : ""}`
+      : "lv-row";
 
   return (
     <div className={classe}>
@@ -525,17 +871,20 @@ function LigneDemande({
         {/* L'onglet « À valider » n'a pas de colonne de statut : sans cette
             mention, rien ne distinguerait à la lecture une demande d'annulation
             d'une demande en attente — il faudrait déchiffrer ses boutons. */}
-        {(avecValidation && enAnnulation) || demiJournees(demande) !== null || demande.motif ? (
-          <span className="lv-motif">
-            {[
-              avecValidation && enAnnulation
-                ? libelle("cancellation_requested", STATUTS_CONGE)
-                : null,
-              demiJournees(demande),
-              demande.motif,
-            ]
-              .filter(Boolean)
-              .join(" · ")}
+        {mentions.length > 0 ? <span className="lv-motif">{mentions.join(" · ")}</span> : null}
+        {/*
+          `RG-GEN-02`, `EX-CNG-05` — **le motif du refus se lit dans la vue.**
+
+          Il n'était rendu par AUCUNE : `motifRefus` traversait le contrat, la
+          route et le type client sans jamais atteindre un écran. L'agent le
+          découvrait dans sa notification — donc une fois, et jamais au moment
+          où il relit sa demande pour comprendre. Il porte sa propre ligne
+          plutôt que la mention commune : celle-ci coupe à l'ellipse, et un
+          motif tronqué ne dit pas la moitié de ce qu'il explique.
+        */}
+        {demande.statut === "refused" && demande.motifRefus ? (
+          <span className="lv-motif is-refus">
+            {t("conges.motifDuRefus", { motif: demande.motifRefus })}
           </span>
         ) : null}
       </span>
@@ -560,40 +909,9 @@ function LigneDemande({
          * annulation sont plus longues et débordaient sur la colonne des
          * jours : elles s'empilent, plutôt que de se faire abréger en
          * « Accepter » / « Refuser », qui voudraient dire dans la même liste
-         * autre chose que sur la ligne d'à côté. Le style est en ligne parce
-         * que la feuille de la vue 19 n'appartient pas à ce lot.
+         * autre chose que sur la ligne d'à côté.
          */
-        <span className="lv-acts">
-          {enAnnulation ? (
-            <>
-              {/* `EX-CNG-07`, `RG-CNG-06` — accepter écrit « Annulé ». */}
-              <Button
-                className="btn btn-primary"
-                onPress={() => action.mutate("accepterAnnulation")}
-              >
-                {t("conges.accepterAnnulation")}
-              </Button>
-              {/* `RG-CNG-01` — refuser ne laisse pas la demande en l'état : le
-                  congé REVIENT à « Approuvé ». Un bouton nommé « Refuser »
-                  laisserait croire que le congé tombe, c'est l'inverse. */}
-              <Button
-                className="btn btn-secondary btn-refus"
-                onPress={() => action.mutate("refuserAnnulation")}
-              >
-                {t("conges.refuserAnnulation")}
-              </Button>
-            </>
-          ) : (
-            <>
-              <Button className="btn btn-primary" onPress={() => action.mutate("approuver")}>
-                {t("conges.approuver")}
-              </Button>
-              <Button className="btn btn-secondary btn-refus" onPress={() => setRefusOuvert(true)}>
-                {t("conges.refuser")}
-              </Button>
-            </>
-          )}
-        </span>
+        <span className="lv-acts">{decisions}</span>
       ) : (
         <>
           <Pastille code={demande.statut} vocabulaire={STATUTS_CONGE} />
@@ -606,6 +924,14 @@ function LigneDemande({
                 : t("conges.sansValidateur")}
             </span>
           )}
+          {/*
+            `EX-CNG-05` — la colonne de décision de « Toutes les demandes ».
+
+            Elle est rendue dès que le gabarit la réserve, même vide : une
+            colonne qui apparaît et disparaît d'une ligne à l'autre décalerait
+            la grille, et les lignes déjà décidées sont la majorité.
+          */}
+          {avecDecision ? <span className="lv-acts">{decisions}</span> : null}
           {avecActions ? (
             <span className="lv-acts">
               {/* `EX-CNG-05` — une demande **en attente** se corrige. Le serveur
@@ -710,14 +1036,48 @@ function AValider() {
   );
 }
 
+/**
+ * `EX-CNG-05` — l'onglet de contrôle : **toutes** les demandes du périmètre.
+ *
+ * `cadrage/02 § Vue 19` l'écrit en toutes lettres : « Filtre "Tous les
+ * utilisateurs", mêmes données, vue de contrôle. » Le produit n'offrait que le
+ * statut, et rendait ses lignes **sans aucune action, pour tout profil** —
+ * administrateur compris. Une vue de contrôle sans filtre par agent oblige à
+ * lire trente-cinq lignes pour en trouver une ; une vue de contrôle sans
+ * commande oblige à changer d'onglet pour agir, et l'onglet d'à côté ne montre
+ * que ce que l'on valide soi-même. Les annulations demandées, que le
+ * responsable RH est le premier à devoir traiter, n'y étaient donc joignables
+ * de nulle part.
+ */
 function ToutesLesDemandes() {
   const { t } = useTranslation("occupations");
   const libelle = useLibelle();
+  const peut = usePeut();
   const [statut, setStatut] = useState("");
-  const requete = useQuery({
-    queryKey: ["conges", { statut }],
-    queryFn: () => api.conges({ statut }),
+  /** L'agent visé ; la chaîne vide vaut « Tous les utilisateurs ». */
+  const [utilisateur, setUtilisateur] = useState("");
+
+  /*
+   * L'annuaire est gardé par `users:read`, que `leaves:readAll` n'implique pas.
+   * Sans lui le filtre par agent n'a pas de valeurs à proposer : il disparaît,
+   * et l'onglet reste utilisable sur le seul statut plutôt que d'exposer un
+   * sélecteur vide. Même arbitrage que l'onglet « Soldes ».
+   */
+  const annuaire = useQuery({
+    queryKey: ["utilisateurs", { actif: true }],
+    queryFn: () => apiAdmin.utilisateurs({ actif: true }),
+    enabled: peut("users:read"),
   });
+
+  const requete = useQuery({
+    queryKey: ["conges", { statut, userId: utilisateur }],
+    queryFn: () => api.conges({ statut, ...(utilisateur ? { userId: utilisateur } : {}) }),
+  });
+
+  /* `RG-GEN-06` — le contrôle reste au serveur : `leaves:approve`, puis le
+     statut de la demande, puis `RG-CNG-09`. Ici, on ne réserve la colonne que
+     pour qui peut décider — sinon elle serait 238 px de vide sur chaque ligne. */
+  const avecDecision = peut("leaves:approve");
 
   if (requete.isPending) return <Chargement quoi={t("conges.lesDemandes")} />;
   if (requete.isError)
@@ -726,6 +1086,21 @@ function ToutesLesDemandes() {
   return (
     <>
       <div className="filters">
+        {peut("users:read") ? (
+          <select
+            className="f-input"
+            value={utilisateur}
+            onChange={(e) => setUtilisateur(e.target.value)}
+            aria-label={t("conges.colDemandeur")}
+          >
+            <option value="">{t("conges.tousUtilisateurs")}</option>
+            {(annuaire.data ?? []).map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.prenom} {u.nom}
+              </option>
+            ))}
+          </select>
+        ) : null}
         <select
           className="f-input"
           value={statut}
@@ -748,18 +1123,26 @@ function ToutesLesDemandes() {
         {requete.data.length === 0 ? (
           <div className="empty">
             <p>{t("conges.videToutes")}</p>
-            <small>{t("conges.videToutesExplication")}</small>
+            <small>
+              {utilisateur || statut
+                ? t("conges.videToutesFiltre")
+                : t("conges.videToutesExplication")}
+            </small>
           </div>
         ) : (
           <>
-            <div className="lv-row is-all lv-head" aria-hidden="true">
+            <div
+              className={`lv-row is-all lv-head${avecDecision ? " is-decidable" : ""}`}
+              aria-hidden="true"
+            >
               <span>{t("conges.colDemandeur")}</span>
               <span>{t("conges.colPeriode")}</span>
               <span className="num">{t("conges.colJours")}</span>
               <span>{t("conges.colStatut")}</span>
+              {avecDecision ? <span className="end">{t("conges.colDecision")}</span> : null}
             </div>
             {requete.data.map((d) => (
-              <LigneDemande key={d.id} demande={d} avecDemandeur />
+              <LigneDemande key={d.id} demande={d} avecDemandeur avecDecision={avecDecision} />
             ))}
           </>
         )}
@@ -861,12 +1244,46 @@ function Delegations() {
  */
 function TypesDeConge() {
   const { t } = useTranslation("occupations");
+  const { t: tErreurs } = useTranslation("erreurs");
+  const annoncer = useMessages();
+  const client = useQueryClient();
   const [inactifs, setInactifs] = useState(false);
   /** Le type dont on a demandé le retrait, et qui attend sa confirmation. */
   const [aRetirer, setARetirer] = useState<api.TypeConge | null>(null);
+  /**
+   * Le type en cours d'édition — `"nouveau"` pour une création.
+   *
+   * `EX-CNG-13` — le référentiel n'avait ni création ni modification : il se
+   * lisait et se désactivait. Son propre état vide invitait pourtant à
+   * « en créer un dans l'onglet Types de congés ».
+   */
+  const [enEdition, setEnEdition] = useState<api.TypeConge | "nouveau" | null>(null);
   const requete = useQuery({
     queryKey: ["conges", "types", inactifs],
     queryFn: () => api.typesDeConge(inactifs),
+  });
+
+  /**
+   * `EX-CNG-13`, `RG-GEN-06` — **réactiver un type désactivé.**
+   *
+   * La rangée n'offrait pas ce geste, et le commentaire qui l'expliquait
+   * disait « aucune route serveur ne réactive un type de congé ». C'était vrai
+   * quand il a été écrit ; `PATCH /conges/types/:id` le rend maintenant, et un
+   * commentaire qui affirme l'absence d'une route est exactement ce que
+   * `CLAUDE.md` recense comme la famille de défauts la plus coûteuse.
+   *
+   * Un type **système** désactivé reste sans retour : `RG-CNG-30` ferme
+   * `actif` sur lui. C'est une limite du serveur, pas de l'écran — elle est
+   * rapportée plutôt que contournée.
+   */
+  const reactivation = useMutation({
+    mutationFn: (type: api.TypeConge) =>
+      api.modifierTypeDeConge(type.id, { actif: true, version: type.version }),
+    onSuccess: (rendu) => {
+      annoncer("ok", t("conges.typeReactive", { nom: rendu.nom }));
+      void client.invalidateQueries({ queryKey: ["conges", "types"] });
+    },
+    onError: (e) => annoncer("err", messageErreur(e, tErreurs, t("conges.echecAction"))),
   });
 
   if (requete.isPending) return <Chargement quoi={t("conges.lesTypes")} />;
@@ -885,6 +1302,14 @@ function TypesDeConge() {
           />
           <span>{t("conges.afficherInactifs")}</span>
         </label>
+        {/* La commande est en tête de panneau, comme la maquette la pose :
+            c'est la seule porte d'entrée du référentiel. */}
+        <Button
+          className="btn btn-primary ty-nouveau"
+          onPress={() => setEnEdition("nouveau")}
+        >
+          {t("conges.nouveauType")}
+        </Button>
       </div>
 
       {/*
@@ -895,9 +1320,14 @@ function TypesDeConge() {
         instance neuve avant import du référentiel aussi.
       */}
       {requete.data.length === 0 ? (
-        <div className="empty">
+        <div className="empty ty-vide">
           <p>{inactifs ? t("conges.videTypes") : t("conges.videTypesActifs")}</p>
           <small>{t("conges.videTypesExplication")}</small>
+          {/* `RG-GEN-04` — la sortie de l'état vide est la création, pas le
+              seul dévoilement des inactifs : c'est ce que le texte promet. */}
+          <Button className="btn btn-primary" onPress={() => setEnEdition("nouveau")}>
+            {t("conges.nouveauType")}
+          </Button>
           {inactifs ? null : (
             <Button className="btn btn-secondary" onPress={() => setInactifs(true)}>
               {t("conges.afficherInactifs")}
@@ -917,7 +1347,25 @@ function TypesDeConge() {
         </div>
         {requete.data.map((type) => (
           <div className={`ty-grid ty-row${type.actif ? "" : " is-off"}`} key={type.id}>
-            <span className="ty-code">{type.code}</span>
+            {/*
+              `P-92` — **la couleur du type ne s'affichait pas au référentiel.**
+              C'est pourtant elle qui identifie le type partout ailleurs : la
+              carte de solde, la ligne de demande, le planning. Le référentiel
+              est le seul écran où on la choisit, et le seul où on ne la voyait
+              pas. La pastille est celle de la maquette — `.bal-ic`, deux
+              lettres du code sur le fond du type ; le code reste écrit à côté,
+              parce qu'une pastille de deux lettres n'est pas un code.
+            */}
+            <span className="lv-type">
+              <span
+                className="bal-ic"
+                style={{ background: type.couleur ?? "var(--muted)" }}
+                aria-hidden="true"
+              >
+                {type.code.slice(0, 2).toUpperCase()}
+              </span>
+              <span className="ty-code">{type.code}</span>
+            </span>
             <span className="bloc-etroit">
               <span className="ty-n">{type.nom}</span>
               {type.description ? <span className="ty-d">{type.description}</span> : null}
@@ -964,12 +1412,37 @@ function TypesDeConge() {
                     : t("conges.inactif")}
               </span>
               {/*
-                `RG-GEN-06` — la commande n'est proposée que là où elle aboutit.
-                Un type DÉJÀ inactif n'a pas de « Réactiver » : aucune route
-                serveur ne réactive un type de congé (voir le rapport L-46). Le
-                proposer serait promettre un geste que le serveur ne rend pas —
-                et sur un type inutilisé, `DELETE` le supprimerait pour de bon.
+                `EX-CNG-13` — la modification, sur tous les types.
+                Un type système la porte aussi : `RG-CNG-30` ne le rend pas
+                immuable, elle ferme cinq de ses dix champs. La fenêtre fige
+                ceux-là et laisse les cinq autres — c'est exactement ce que
+                `P-93` cherchait sans le trouver.
               */}
+              <Button
+                className="ms-toggle"
+                aria-label={t("conges.modifierLeTypeNomme", { nom: type.nom })}
+                onPress={() => setEnEdition(type)}
+              >
+                {t("conges.modifier")}
+              </Button>
+              {/*
+                `RG-GEN-06` — la commande n'est proposée que là où elle aboutit.
+                « Réactiver » n'existait pas parce qu'aucune route ne réactivait
+                un type ; `PATCH /conges/types/:id` le fait désormais. Elle
+                reste absente d'un type SYSTÈME désactivé : `actif` n'est pas
+                l'un des cinq champs que `RG-CNG-30` laisse ouverts, et le
+                serveur refuserait.
+              */}
+              {!type.actif && !type.systeme ? (
+                <Button
+                  className="ms-toggle"
+                  aria-label={t("conges.reactiverLeTypeNomme", { nom: type.nom })}
+                  isPending={reactivation.isPending}
+                  onPress={() => reactivation.mutate(type)}
+                >
+                  {t("conges.reactiver")}
+                </Button>
+              ) : null}
               {type.actif ? (
                 /* Le nom accessible porte le TYPE : dans une liste, sept
                    boutons nommés « Désactiver » ne disent pas lequel on
@@ -992,7 +1465,375 @@ function TypesDeConge() {
       {aRetirer ? (
         <FenetreRetraitType type={aRetirer} surFermeture={() => setARetirer(null)} />
       ) : null}
+
+      {enEdition ? (
+        <FenetreTypeDeConge
+          {...(enEdition === "nouveau" ? {} : { type: enEdition })}
+          surFermeture={() => setEnEdition(null)}
+        />
+      ) : null}
     </section>
+  );
+}
+
+/**
+ * `EX-CNG-13`, `RG-CNG-30` — **créer et modifier un type de congé.**
+ *
+ * C'est le défaut central de `P-92` et `P-93` : le référentiel n'offrait que
+ * « Désactiver ». On pouvait retirer un type, jamais en poser un ; la colonne
+ * « Limite/an » affichait un nombre que rien ne permettait de corriger ; et
+ * l'état vide de l'onglet « Soldes » invitait à « en créer un dans l'onglet
+ * Types de congés », c'est-à-dire à emprunter une porte qui n'existait pas.
+ *
+ * C'est **la même fenêtre** pour les deux gestes, comme la fenêtre de demande
+ * sert le dépôt et la correction : deux formulaires auraient divergé, et
+ * c'est celui qu'on ouvre le moins souvent qui aurait pris du retard.
+ *
+ * Trois décisions :
+ *
+ *   1. **Les champs figés d'un type système sont figés à l'écran**, avec leur
+ *      raison. `RG-GEN-06` — on ne propose pas ce qui sera refusé ; le serveur
+ *      rendrait un `400` champ par champ, et découvrir la règle en la heurtant
+ *      est un mauvais apprentissage. Ils restent **joignables** au clavier et
+ *      à la souris : un champ `disabled` ne reçoit ni survol ni focus, donc
+ *      son explication ne s'ouvre jamais — c'est le piège consigné pour
+ *      `<button disabled>`, et il vaut pour un champ comme pour un bouton.
+ *
+ *   2. **La saisie se lit sur la CHAÎNE.** Une limite annuelle vidée vaut
+ *      « aucun plafond », pas « zéro jour » ; `Number("")` ne distingue pas
+ *      les deux, et c'est cette distinction qui porte la règle.
+ *
+ *   3. **`version` accompagne la modification** (`RG-GEN-07`). Elle vient de
+ *      la lecture — `GET /conges/types` la rend — et le conflit est annoncé,
+ *      jamais écrasé.
+ */
+function FenetreTypeDeConge({
+  type,
+  surFermeture,
+}: {
+  /** Le type à modifier ; absent, la fenêtre crée. */
+  type?: api.TypeConge;
+  surFermeture: () => void;
+}) {
+  const { t } = useTranslation("occupations");
+  const { t: tErreurs } = useTranslation("erreurs");
+  const annoncer = useMessages();
+  const client = useQueryClient();
+
+  const systeme = type?.systeme ?? false;
+
+  const [saisie, setSaisie] = useState<SaisieType>({
+    code: type?.code ?? "",
+    nom: type?.nom ?? "",
+    description: type?.description ?? "",
+    icone: type?.icone ?? "",
+    couleur: type?.couleur ?? "",
+    remunere: type?.remunere ?? true,
+    validationRequise: type?.validationRequise ?? true,
+    limiteAnnuelle: type?.limiteAnnuelle === null || type === undefined
+      ? ""
+      : String(type.limiteAnnuelle),
+    ordre: type === undefined ? "" : String(type.ordre),
+    actif: type?.actif ?? true,
+  });
+  /* On ne rougit pas un formulaire qu'on n'a pas encore soumis. */
+  const [touche, setTouche] = useState(false);
+  const [erreur, setErreur] = useState<string | null>(null);
+
+  const maj = (champs: Partial<SaisieType>) => setSaisie((s) => ({ ...s, ...champs }));
+
+  const fautes = fautesDeSaisieType(saisie);
+  const enFaute = (champ: ChampType) => touche && fautes.includes(champ);
+  const fige = (champ: ChampType) => champFige(systeme, champ);
+
+  /**
+   * `RG-GEN-03` — ce qui décrit un champ : sa faute, sa raison d'être figé, ou
+   * les deux. Un champ figé porte l'explication de `RG-CNG-30` ; elle est
+   * rédigée une fois, en tête de fenêtre, et référencée par chacun.
+   */
+  const decrit = (champ: ChampType): string | undefined => {
+    const ids = [enFaute(champ) ? `tf-${champ}-erreur` : "", fige(champ) ? "tf-fige" : ""]
+      .filter(Boolean)
+      .join(" ");
+    return ids === "" ? undefined : ids;
+  };
+
+  const ecriture = useMutation({
+    mutationFn: () =>
+      type
+        ? api.modifierTypeDeConge(type.id, corpsModificationType(saisie, systeme, type.version))
+        : api.creerTypeDeConge(corpsCreationType(saisie)),
+    onSuccess: (rendu) => {
+      annoncer("ok", t(type ? "conges.typeModifie" : "conges.typeCree", { nom: rendu.nom }));
+      surFermeture();
+      /* Le référentiel, mais aussi les soldes et les demandes : le nom, la
+         couleur et l'exigence de validation d'un type se lisent partout. */
+      void client.invalidateQueries({ queryKey: ["conges"] });
+    },
+    onError: (e) => setErreur(messageErreur(e, tErreurs, t("conges.echecAction"))),
+  });
+
+  const valider = () => {
+    setTouche(true);
+    setErreur(null);
+    if (fautes.length > 0) return;
+    ecriture.mutate();
+  };
+
+  /** Un champ figé ne change pas : le geste est neutralisé, pas escamoté. */
+  const siOuvert = (champ: ChampType, appliquer: () => void) => () => {
+    if (fige(champ)) return;
+    appliquer();
+  };
+
+  const messageDeFaute = (champ: ChampType) =>
+    enFaute(champ) ? (
+      <p className="field-error" id={`tf-${champ}-erreur`}>
+        <span aria-hidden="true">↑</span>
+        <span>{t(`conges.faute_${champ}`)}</span>
+      </p>
+    ) : null;
+
+  return (
+    <Fenetre
+      ouverte
+      surFermeture={surFermeture}
+      categorie={t("conges.referentielDesTypes")}
+      titre={type ? t("conges.titreModifierType") : t("conges.titreNouveauType")}
+      large
+      mention={t("champsObligatoires")}
+      actions={
+        <>
+          <Button className="btn btn-secondary" onPress={surFermeture}>
+            {t("annuler")}
+          </Button>
+          <Button className="btn btn-primary" isPending={ecriture.isPending} onPress={valider}>
+            {type ? t("conges.enregistrer") : t("conges.creerLeType")}
+          </Button>
+        </>
+      }
+    >
+      {erreur ? (
+        <div className="alert alert-error" role="alert">
+          <span className="alert-icon" aria-hidden="true">
+            !
+          </span>
+          <span>{erreur}</span>
+        </div>
+      ) : null}
+
+      {/* `RG-CNG-30` — la règle est rédigée, pas seulement appliquée. Elle est
+          l'explication de chaque champ figé, référencée par `aria-describedby`. */}
+      {systeme ? (
+        <div className="alert alert-neutral" id="tf-fige">
+          <span className="alert-icon" aria-hidden="true">
+            i
+          </span>
+          <span>{t("conges.systemeExplication")}</span>
+        </div>
+      ) : null}
+
+      <div className="form-grid form-grid-espace">
+        <div className="field-block">
+          <label className="field-label" htmlFor="tf-code">
+            {t("conges.champCode")} <span className="req">*</span>
+          </label>
+          <input
+            className="field"
+            id="tf-code"
+            value={saisie.code}
+            maxLength={20}
+            readOnly={fige("code")}
+            aria-disabled={fige("code") || undefined}
+            aria-invalid={enFaute("code")}
+            aria-describedby={decrit("code")}
+            onChange={(e) => maj({ code: e.target.value.toUpperCase() })}
+          />
+          {messageDeFaute("code")}
+          <p className="field-hint">
+            {fige("code") ? t("conges.champFige") : t("conges.codeExplication")}
+          </p>
+        </div>
+
+        <div className="field-block">
+          <label className="field-label" htmlFor="tf-nom">
+            {t("conges.champNom")} <span className="req">*</span>
+          </label>
+          <input
+            className="field"
+            id="tf-nom"
+            value={saisie.nom}
+            maxLength={120}
+            aria-invalid={enFaute("nom")}
+            aria-describedby={decrit("nom")}
+            onChange={(e) => maj({ nom: e.target.value })}
+          />
+          {messageDeFaute("nom")}
+        </div>
+
+        <div className="field-block span2">
+          <label className="field-label" htmlFor="tf-description">
+            {t("conges.champDescription")}
+          </label>
+          <textarea
+            className="field"
+            id="tf-description"
+            rows={2}
+            maxLength={2000}
+            value={saisie.description}
+            onChange={(e) => maj({ description: e.target.value })}
+          />
+        </div>
+
+        <div className="field-block">
+          <label className="field-label" htmlFor="tf-couleur">
+            {t("conges.champCouleur")}
+          </label>
+          {/* `P-92` — la couleur identifie le type dans tout le produit ; c'est
+              ici, et nulle part ailleurs, qu'elle se choisit. */}
+          <div className="ty-couleur">
+            <input
+              type="color"
+              id="tf-couleur"
+              value={saisie.couleur}
+              aria-describedby={decrit("couleur")}
+              onChange={(e) => maj({ couleur: e.target.value })}
+            />
+            <span className="ty-use">{saisie.couleur || t("conges.sansCouleur")}</span>
+            {saisie.couleur ? (
+              <Button className="chip-btn" onPress={() => maj({ couleur: "" })}>
+                {t("conges.retirerLaCouleur")}
+              </Button>
+            ) : null}
+          </div>
+          {messageDeFaute("couleur")}
+          <p className="field-hint">{t("conges.couleurExplication")}</p>
+        </div>
+
+        <div className="field-block">
+          <label className="field-label" htmlFor="tf-icone">
+            {t("conges.champIcone")}
+          </label>
+          <input
+            className="field"
+            id="tf-icone"
+            value={saisie.icone}
+            maxLength={60}
+            onChange={(e) => maj({ icone: e.target.value })}
+          />
+          <p className="field-hint">{t("conges.iconeExplication")}</p>
+        </div>
+
+        <div className="field-block">
+          <label className="field-label" htmlFor="tf-remunere">
+            {t("conges.champRemuneration")}
+          </label>
+          <select
+            className="field"
+            id="tf-remunere"
+            value={saisie.remunere ? "oui" : "non"}
+            aria-disabled={fige("remunere") || undefined}
+            aria-describedby={decrit("remunere")}
+            onChange={(e) =>
+              siOuvert("remunere", () => maj({ remunere: e.target.value === "oui" }))()
+            }
+          >
+            <option value="oui">{t("conges.remunere")}</option>
+            <option value="non">{t("conges.nonRemunere")}</option>
+          </select>
+          {fige("remunere") ? <p className="field-hint">{t("conges.champFige")}</p> : null}
+        </div>
+
+        <div className="field-block">
+          <label className="field-label" htmlFor="tf-validation">
+            {t("conges.champValidation")}
+          </label>
+          <select
+            className="field"
+            id="tf-validation"
+            value={saisie.validationRequise ? "oui" : "non"}
+            onChange={(e) => maj({ validationRequise: e.target.value === "oui" })}
+          >
+            <option value="oui">{t("conges.validationRequise")}</option>
+            <option value="non">{t("conges.validationAuto")}</option>
+          </select>
+          {/* `RG-CNG-13` — un type sans validation est approuvé d'office : la
+              conséquence se dit au moment où on la choisit. */}
+          {saisie.validationRequise ? null : (
+            <p className="field-hint">{t("conges.approuveAutomatiquement")}</p>
+          )}
+        </div>
+
+        <div className="field-block">
+          <label className="field-label" htmlFor="tf-limiteAnnuelle">
+            {t("conges.champLimite")}
+          </label>
+          <input
+            className="field"
+            id="tf-limiteAnnuelle"
+            type="number"
+            min={0}
+            max={366}
+            step={0.5}
+            value={saisie.limiteAnnuelle}
+            readOnly={fige("limiteAnnuelle")}
+            aria-disabled={fige("limiteAnnuelle") || undefined}
+            aria-invalid={enFaute("limiteAnnuelle")}
+            aria-describedby={decrit("limiteAnnuelle")}
+            placeholder={t("conges.illimite")}
+            onChange={(e) => maj({ limiteAnnuelle: e.target.value })}
+          />
+          {messageDeFaute("limiteAnnuelle")}
+          <p className="field-hint">
+            {fige("limiteAnnuelle") ? t("conges.champFige") : t("conges.limiteExplication")}
+          </p>
+        </div>
+
+        <div className="field-block">
+          <label className="field-label" htmlFor="tf-ordre">
+            {t("conges.champOrdre")}
+          </label>
+          <input
+            className="field"
+            id="tf-ordre"
+            type="number"
+            min={0}
+            max={9999}
+            step={1}
+            value={saisie.ordre}
+            readOnly={fige("ordre")}
+            aria-disabled={fige("ordre") || undefined}
+            aria-invalid={enFaute("ordre")}
+            aria-describedby={decrit("ordre")}
+            onChange={(e) => maj({ ordre: e.target.value })}
+          />
+          {messageDeFaute("ordre")}
+          <p className="field-hint">
+            {fige("ordre") ? t("conges.champFige") : t("conges.ordreExplication")}
+          </p>
+        </div>
+
+        <div className="field-block">
+          <label className="field-label" htmlFor="tf-actif">
+            {t("conges.colStatut")}
+          </label>
+          <select
+            className="field"
+            id="tf-actif"
+            value={saisie.actif ? "oui" : "non"}
+            aria-disabled={fige("actif") || undefined}
+            aria-describedby={decrit("actif")}
+            onChange={(e) => siOuvert("actif", () => maj({ actif: e.target.value === "oui" }))()}
+          >
+            <option value="oui">{t("conges.actif")}</option>
+            <option value="non">{t("conges.inactif")}</option>
+          </select>
+          <p className="field-hint">
+            {fige("actif") ? t("conges.champFige") : t("conges.actifExplication")}
+          </p>
+        </div>
+      </div>
+    </Fenetre>
   );
 }
 
@@ -1090,12 +1931,17 @@ function FenetreRefus({
   const annoncer = useMessages();
   const client = useQueryClient();
   const [motif, setMotif] = useState("");
+  /* Le champ n'est jugé qu'après une tentative de refus. */
+  const [touche, setTouche] = useState(false);
+
+  /* `EX-CNG-05`, `RG-CNG-02` — voir `motifDeRefusValide`. */
+  const motifManquant = !motifDeRefusValide(motif);
 
   const refus = useMutation({
     mutationFn: () =>
       api.refuserConge(
         demande.id,
-        motif.trim() || t("conges.refusSansMotif"),
+        motif.trim(),
         // `RG-GEN-07` — la version lue voyage avec le refus.
         demande.version,
       ),
@@ -1106,6 +1952,24 @@ function FenetreRefus({
     },
     onError: (e) => annoncer("err", messageErreur(e, tErreurs, t("conges.echecAction"))),
   });
+
+  /*
+   * `EX-CNG-05` — **le refus n'est pas composable sans motif.**
+   *
+   * Le client substituait « Aucun motif indiqué » à la chaîne vide : le
+   * `min(1)` du serveur était satisfait, la règle vide des deux côtés, et
+   * l'agent recevait une notification qui ne disait rien. Le geste refuse
+   * désormais ici, et il dit ce qui manque — plutôt qu'un bouton grisé, qui
+   * ne reçoit ni survol ni focus et n'explique donc rien.
+   */
+  const confirmer = () => {
+    setTouche(true);
+    if (motifManquant) {
+      annoncer("err", t("conges.motifRefusObligatoire"));
+      return;
+    }
+    refus.mutate();
+  };
 
   return (
     <Fenetre
@@ -1119,7 +1983,7 @@ function FenetreRefus({
           <Button className="btn btn-secondary" onPress={surFermeture}>
             {t("annuler")}
           </Button>
-          <Button className="btn btn-danger" isPending={refus.isPending} onPress={() => refus.mutate()}>
+          <Button className="btn btn-danger" isPending={refus.isPending} onPress={confirmer}>
             {t("conges.confirmerRefus")}
           </Button>
         </>
@@ -1127,16 +1991,25 @@ function FenetreRefus({
     >
       <div className="field-block">
         <label className="field-label" htmlFor="cg-motif">
-          {t("conges.motifRefus")}
+          {t("conges.motifRefus")} <span className="req">*</span>
         </label>
         <textarea
           className="field"
           id="cg-motif"
           rows={3}
           value={motif}
+          aria-invalid={touche && motifManquant}
+          aria-describedby={touche && motifManquant ? "cg-motif-erreur" : undefined}
           onChange={(e) => setMotif(e.target.value)}
           placeholder={t("conges.motifRefusExemple")}
         />
+        <p
+          className={touche && motifManquant ? "field-error" : "field-error is-quiet"}
+          id="cg-motif-erreur"
+        >
+          <span aria-hidden="true">↑</span>
+          <span>{t("conges.motifRefusObligatoire")}</span>
+        </p>
       </div>
     </Fenetre>
   );
@@ -1727,14 +2600,20 @@ function LigneAttribution({
   /** L'allocation visée par l'écriture : la propre, ou le défaut global. */
   const visee = userId ? entree.solde.propre : entree.solde.global;
   const [jours, setJours] = useState(visee === null ? "" : String(visee.jours));
+  /* Le champ n'est jugé qu'après une tentative : on ne rougit pas une ligne
+     qu'on n'a pas encore touchée. */
+  const [touche, setTouche] = useState(false);
+
+  /* `EX-CNG-10` — voir `lireJoursAttribues` : la lecture porte sur la CHAÎNE. */
+  const lecture = lireJoursAttribues(jours);
 
   const attribution = useMutation({
-    mutationFn: () =>
+    mutationFn: (joursAttribues: number) =>
       api.attribuerSolde({
         userId,
         typeId: entree.type.id,
         annee,
-        joursAttribues: Number(jours),
+        joursAttribues,
         /* `RG-CNG-23` — la version lue, et seulement quand l'allocation
            existe : le serveur traite une version absente sur une allocation
            existante comme un conflit, jamais comme une dispense. */
@@ -1756,7 +2635,28 @@ function LigneAttribution({
    */
   const provenance = userId
     ? entree.solde.origine === "propre"
-      ? t("conges.soldePropre")
+      ? /*
+         * **RESTE DE `C-46`, RAPPORTÉ FAUTE DE VERBE — `RG-GEN-03`.**
+         *
+         * Il n'existe aucun chemin pour RETIRER une allocation propre : seule
+         * une valeur ≥ 0 est écrivable, et `DELETE /conges/soldes` n'existe
+         * pas. Un agent à qui on a attribué zéro par erreur y reste, et le
+         * défaut global ne le reprendra jamais. Le champ vidé est désormais
+         * refusé — c'est le correctif —, mais les lignes déjà écrites
+         * demeurent.
+         *
+         * Ce que l'écran peut faire avec les routes existantes, il le fait :
+         * il dit que l'allocation ne se retire pas, et il donne le chiffre du
+         * défaut global, qui est le seul moyen de revenir à l'équivalent du
+         * défaut. Feindre un retrait en écrivant la valeur globale serait
+         * pire : l'agent cesserait de suivre le défaut sans que rien ne le
+         * dise. Le verbe manquant est rapporté, il n'est pas simulé.
+         */
+        entree.solde.global
+        ? t("conges.soldePropreAvecGlobal", {
+            n: formaterNombre(entree.solde.global.jours, 1),
+          })
+        : t("conges.soldePropreSansGlobal")
       : entree.solde.origine === "global"
         ? t("conges.soldeHeriteGlobal", { n: formaterNombre(entree.solde.attribues, 1) })
         : t("conges.soldeAucun")
@@ -1765,11 +2665,30 @@ function LigneAttribution({
       : t("conges.soldeGlobalAbsent");
 
   const champ = `sd-${entree.type.id}`;
+  const messageErreurChamp = `${champ}-erreur`;
+  const enFaute = touche && !lecture.valide;
+
+  /*
+   * `EX-CNG-10` — le geste refuse AVANT d'écrire, et il le dit.
+   *
+   * Le bouton reste joignable : un `<button disabled>` ne reçoit ni survol ni
+   * focus, et une commande grisée sans explication ne dit pas ce qui manque.
+   * C'est le même motif que `ActionProtegee` — la commande répond, et sa
+   * réponse est le message.
+   */
+  const enregistrer = () => {
+    setTouche(true);
+    if (!lecture.valide) {
+      annoncer("err", t(`conges.joursAttribues_${lecture.raison}`));
+      return;
+    }
+    attribution.mutate(lecture.jours);
+  };
 
   return (
     <div className="field-block">
       <label className="field-label" htmlFor={champ}>
-        {entree.type.nom}
+        {entree.type.nom} <span className="req">*</span>
       </label>
       <input
         className="field"
@@ -1779,9 +2698,15 @@ function LigneAttribution({
         max={365}
         step={0.5}
         value={jours}
+        aria-invalid={enFaute}
+        aria-describedby={enFaute ? messageErreurChamp : undefined}
         onChange={(e) => setJours(e.target.value)}
         placeholder={t("conges.joursAAttribuer")}
       />
+      <p className={enFaute ? "field-error" : "field-error is-quiet"} id={messageErreurChamp}>
+        <span aria-hidden="true">↑</span>
+        <span>{t(`conges.joursAttribues_${lecture.valide ? "vide" : lecture.raison}`)}</span>
+      </p>
       <p className="field-hint">{provenance}</p>
       {/*
         `RG-GEN-06` — la commande passe par `ActionProtegee`, qu'aucune vue
@@ -1801,7 +2726,7 @@ function LigneAttribution({
         className="chip-btn"
         aria-label={t("conges.enregistrerLeSoldeDe", { nom: entree.type.nom })}
         isPending={attribution.isPending}
-        onPress={() => attribution.mutate()}
+        onPress={enregistrer}
       >
         {t("conges.enregistrer")}
       </ActionProtegee>

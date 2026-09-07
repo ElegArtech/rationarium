@@ -8,6 +8,8 @@ import { AuditService } from "../commun/audit.service.js";
 import { NotificationsService } from "../notifications/notifications.service.js";
 import { FileService } from "../notifications/file.service.js";
 import { PerimetreService, type Perimetre } from "../commun/perimetre.service.js";
+import { TachesController } from "./taches.controller.js";
+import { PlanningController } from "../planning/planning.controller.js";
 
 /**
  * Les cinq trous de la vague 7-5, plus les deux écritures d'ensemble sans
@@ -491,10 +493,10 @@ describe("RG-GEN-07 — poser une liste ENTIÈRE exige la version lue", () => {
     const t = await taches.creer({ titre: "Équipe", assigneIds: [a] }, a, CREER);
     const lue = await versionDe(t.id);
 
-    await taches.definirAssignes(t.id, [a, b], lue, a);
+    await taches.definirAssignes(t.id, [a, b], lue, a, CREER);
 
     // Une seconde fenêtre, ouverte avant la première et qui enregistre après.
-    await expect(taches.definirAssignes(t.id, [a, c], lue, a)).rejects.toMatchObject({
+    await expect(taches.definirAssignes(t.id, [a, c], lue, a, CREER)).rejects.toMatchObject({
       code: "conflit_de_version",
     });
 
@@ -510,7 +512,7 @@ describe("RG-GEN-07 — poser une liste ENTIÈRE exige la version lue", () => {
     const t = await taches.creer({ titre: "Compteur", assigneIds: [a] }, a, CREER);
     const avant = await versionDe(t.id);
 
-    const r = await taches.definirAssignes(t.id, [a, b], avant, a);
+    const r = await taches.definirAssignes(t.id, [a, b], avant, a, CREER);
 
     expect(r.version).toBe(avant + 1);
     expect(await versionDe(t.id)).toBe(avant + 1);
@@ -519,14 +521,14 @@ describe("RG-GEN-07 — poser une liste ENTIÈRE exige la version lue", () => {
   it("RG-GEN-07 — l'ordre des sous-tâches refuse une version périmée", async () => {
     const a = await agent();
     const t = await taches.creer({ titre: "Ordonnée" }, a, CREER);
-    const un = await taches.ajouterSousTache(t.id, "Un", a);
-    const deux = await taches.ajouterSousTache(t.id, "Deux", a);
+    const un = await taches.ajouterSousTache(t.id, "Un", a, CREER);
+    const deux = await taches.ajouterSousTache(t.id, "Deux", a, CREER);
     const lue = await versionDe(t.id);
 
-    await taches.reordonnerSousTaches(t.id, [deux.id, un.id], lue);
+    await taches.reordonnerSousTaches(t.id, [deux.id, un.id], lue, a, CREER);
 
     await expect(
-      taches.reordonnerSousTaches(t.id, [un.id, deux.id], lue),
+      taches.reordonnerSousTaches(t.id, [un.id, deux.id], lue, a, CREER),
     ).rejects.toMatchObject({ code: "conflit_de_version" });
 
     const restantes = await prisma.subtask.findMany({
@@ -566,5 +568,371 @@ describe("RG-DROITS-03 — `comments:read` garde AUSSI le fil embarqué dans la 
     const fiche = await taches.fiche(t.id, p, droits);
 
     expect(fiche.commentaires?.map((c) => c.contenu)).toEqual(["Visible"]);
+  });
+});
+
+// ── RG-SCOPE-04 — l'ÉCRITURE par identifiant deviné ──────────────────────────
+
+/**
+ * La recette du 2026-09-07 a trouvé `PATCH /taches/:id` sans périmètre. Ce
+ * n'était pas une occurrence mais une FORME : treize points d'entrée adressés
+ * par `:id` étaient dans le même cas, `fiche` et `supprimer` faisant seuls
+ * exception. Les suites ci-dessous éprouvent la forme — chaque point d'entrée
+ * d'écriture, un par un — parce qu'un correctif appliqué à la seule occurrence
+ * trouvée laisse les douze autres, et qu'aucune boucle ne les regarde.
+ *
+ * L'acteur détient ici **exactement** le droit du geste et rien de plus : avec
+ * `tasks:manage_any`, tout passerait, et le test serait vert avec comme sans le
+ * correctif.
+ */
+describe("RG-SCOPE-04, RG-TSK-13 — une tâche hors périmètre ne s'ÉCRIT pas non plus", () => {
+  const MODIFIER = new Set(["tasks:update"]) as ReadonlySet<string>;
+  const DEPENDANCES = new Set(["tasks:manage_dependencies"]) as ReadonlySet<string>;
+  const RACI = new Set(["tasks:manage_raci"]) as ReadonlySet<string>;
+
+  /** Une tâche d'un autre, sans aucun lien avec l'étranger. */
+  async function tacheDAutrui(confidentielle = false) {
+    const proprietaire = await agent();
+    const t = await taches.creer(
+      { titre: "Celle d'un autre", assigneIds: [proprietaire], confidentielle },
+      proprietaire,
+      CREER,
+    );
+    return { proprietaire, t };
+  }
+
+  it("RG-SCOPE-04 — `PATCH /taches/:id` refuse, et n'écrit rien", async () => {
+    const { t } = await tacheDAutrui();
+    const etranger = await agent();
+
+    await expect(
+      taches.modifier(t.id, { version: t.version, titre: "Détournée" }, etranger, MODIFIER),
+    ).rejects.toMatchObject({ code: "hors_perimetre" });
+
+    const apres = await prisma.task.findUniqueOrThrow({ where: { id: t.id } });
+    expect(apres.titre).toBe("Celle d'un autre");
+    expect(apres.version).toBe(t.version);
+  });
+
+  it("RG-TSK-13 — une tâche CONFIDENTIELLE ne se DÉMASQUE pas par requête forgée", async () => {
+    /*
+     * Le cas le plus grave de la famille, et celui que la recette a joué :
+     * `confidentielle` figure parmi les champs modifiables. Sans périmètre, une
+     * requête forgée rendait publique une tâche secrète — et le porteur ci-
+     * dessous détient `tasks:readAll`, donc le refus ne peut venir que de la
+     * confidentialité, jamais du cloisonnement organisationnel.
+     */
+    const { t } = await tacheDAutrui(true);
+    const etranger = await agent();
+    const droits = new Set([...MODIFIER, "tasks:readAll"]) as ReadonlySet<string>;
+
+    await expect(
+      taches.modifier(t.id, { version: t.version, confidentielle: false }, etranger, droits),
+    ).rejects.toMatchObject({ code: "hors_perimetre" });
+
+    expect(
+      (await prisma.task.findUniqueOrThrow({ where: { id: t.id } })).confidentielle,
+    ).toBe(true);
+  });
+
+  it("RG-SCOPE-04 — la liste des assignés ne se pose pas sur la tâche d'un autre", async () => {
+    const { t } = await tacheDAutrui();
+    const etranger = await agent();
+
+    await expect(
+      taches.definirAssignes(t.id, [etranger], t.version, etranger, MODIFIER),
+    ).rejects.toMatchObject({ code: "hors_perimetre" });
+
+    const restants = await prisma.taskAssignee.findMany({ where: { taskId: t.id } });
+    expect(restants.map((a) => a.userId)).not.toContain(etranger);
+  });
+
+  it("RG-SCOPE-04 — les sous-tâches suivent le périmètre de LEUR tâche", async () => {
+    // Une sous-tâche n'a pas de périmètre à elle : elle le tient de sa tâche,
+    // comme un document le tient de la sienne.
+    const { proprietaire, t } = await tacheDAutrui();
+    const etranger = await agent();
+    const sous = await taches.ajouterSousTache(t.id, "La sienne", proprietaire, CREER);
+
+    await expect(
+      taches.ajouterSousTache(t.id, "Intruse", etranger, MODIFIER),
+    ).rejects.toMatchObject({ code: "hors_perimetre" });
+    await expect(
+      taches.basculerSousTache(sous.id, true, etranger, MODIFIER),
+    ).rejects.toMatchObject({ code: "hors_perimetre" });
+    await expect(
+      taches.supprimerSousTache(sous.id, etranger, MODIFIER),
+    ).rejects.toMatchObject({ code: "hors_perimetre" });
+    await expect(
+      taches.reordonnerSousTaches(t.id, [sous.id], t.version, etranger, MODIFIER),
+    ).rejects.toMatchObject({ code: "hors_perimetre" });
+
+    const restantes = await prisma.subtask.findMany({ where: { taskId: t.id } });
+    expect(restantes.map((s) => s.libelle)).toEqual(["La sienne"]);
+    expect(restantes[0]?.fait).toBe(false);
+  });
+
+  it("RG-SCOPE-04 — une dépendance ne se pose pas sur une tâche qu'on ne peut pas nommer", async () => {
+    /*
+     * Les DEUX tâches sont contrôlées, pas seulement celle de l'URL : lier sa
+     * propre tâche à celle d'un autre la ferait ensuite paraître dans
+     * `dependances` et dans l'aperçu de cascade, titre compris.
+     */
+    const { t: autrui } = await tacheDAutrui();
+    const etranger = await agent();
+    const sienne = await taches.creer({ titre: "La mienne" }, etranger, CREER);
+    const droits = new Set([...DEPENDANCES, "tasks:read"]) as ReadonlySet<string>;
+
+    await expect(
+      taches.ajouterDependance(sienne.id, autrui.id, etranger, droits),
+    ).rejects.toMatchObject({ code: "hors_perimetre" });
+    await expect(
+      taches.ajouterDependance(autrui.id, sienne.id, etranger, droits),
+    ).rejects.toMatchObject({ code: "hors_perimetre" });
+    await expect(
+      taches.retirerDependance(autrui.id, sienne.id, etranger, droits),
+    ).rejects.toMatchObject({ code: "hors_perimetre" });
+    await expect(
+      taches.decalerEnCascade(autrui.id, 7, etranger, droits),
+    ).rejects.toMatchObject({ code: "hors_perimetre" });
+
+    expect(await prisma.taskDependency.count()).toBe(0);
+  });
+
+  it("RG-SCOPE-04 — un rôle RACI ne s'attribue pas sur la tâche d'un autre", async () => {
+    const { t } = await tacheDAutrui();
+    const etranger = await agent();
+
+    await expect(
+      taches.attribuerRaci(t.id, etranger, "responsible", etranger, RACI),
+    ).rejects.toMatchObject({ code: "hors_perimetre" });
+    await expect(
+      taches.retirerRaci(t.id, etranger, "responsible", etranger, RACI),
+    ).rejects.toMatchObject({ code: "hors_perimetre" });
+
+    expect(await prisma.taskRaci.count({ where: { taskId: t.id } })).toBe(0);
+  });
+
+  it("RG-SCOPE-04 — l'assigné, lui, écrit sans réserve : le refus vient du périmètre", async () => {
+    /*
+     * Le contre-témoin. Sans lui, les six tests ci-dessus passeraient aussi
+     * avec un `exigerLisible` qui refuserait TOUT LE MONDE — et l'on aurait
+     * remplacé un trou par une porte murée.
+     */
+    const { proprietaire, t } = await tacheDAutrui();
+
+    const misAJour = await taches.modifier(
+      t.id, { version: t.version, titre: "Renommée par son assigné" }, proprietaire, MODIFIER,
+    );
+    expect(misAJour.titre).toBe("Renommée par son assigné");
+  });
+});
+
+// ── RG-TSK-01 — la tâche hors projet a toujours quelqu'un ────────────────────
+
+/**
+ * **P-17.** Camille crée une tâche hors projet sans assigné, lit « Tâche
+ * créée. », et la tâche n'existe nulle part pour elle.
+ *
+ * La cause est au schéma : `Task` ne porte pas de colonne de créateur, si bien
+ * qu'une tâche sans projet et sans assigné n'a **aucune arête vers un compte**
+ * — aucun prédicat de `filtreTache` ne peut la rattraper. Ajouter
+ * `Task.createurId` est la correction de fond et relève d'une tâche de schéma
+ * dédiée ; celle qui est écrite ici rattache la tâche à son auteur par le seul
+ * lien que le schéma offre, l'assignation.
+ */
+describe("RG-TSK-01 — une tâche hors projet naît rattachée à quelqu'un", () => {
+  const LIRE = new Set(["tasks:read"]) as ReadonlySet<string>;
+
+  it("EX-TSK-03, RG-TSK-01 — sans assigné, son créateur la RETROUVE", async () => {
+    const a = await agent();
+    const t = await taches.creer({ titre: "Sollicitation du jour" }, a, CREER);
+
+    const p = await perimetreDe(a, LIRE);
+    const liste = await taches.lister(p, LIRE, { horsProjet: true });
+
+    expect(liste.map((x) => x.id)).toContain(t.id);
+    expect(
+      (await prisma.taskAssignee.findMany({ where: { taskId: t.id } })).map((x) => x.userId),
+    ).toEqual([a]);
+  });
+
+  it("EX-TSK-04 — l'exception est BORNÉE : un assigné nommé n'ajoute pas l'auteur", async () => {
+    // Sinon l'exception défait la règle : déléguer une tâche à quelqu'un
+    // d'autre y inscrirait aussi son auteur, qui deviendrait porteur.
+    const a = await agent();
+    const b = await agent();
+    const t = await taches.creer({ titre: "Confiée", assigneIds: [b] }, a, CREER);
+
+    const assignes = await prisma.taskAssignee.findMany({ where: { taskId: t.id } });
+    expect(assignes.map((x) => x.userId)).toEqual([b]);
+  });
+
+  it("RG-TSK-03 — et elle ne touche pas les tâches DE PROJET, qui ont déjà leur lien", async () => {
+    const a = await agent();
+    const p = await projet([a]);
+    const t = await taches.creer({ titre: "Lot sans assigné", projectId: p }, a, CREER);
+
+    expect(await prisma.taskAssignee.count({ where: { taskId: t.id } })).toBe(0);
+
+    // Le lien passe par le projet — `filtreTache` lit `filtreMesProjets`.
+    const perimetre = await perimetreDe(a, LIRE);
+    expect((await taches.lister(perimetre, LIRE, { projectId: p })).map((x) => x.id)).toContain(t.id);
+  });
+});
+
+// ── RG-GEN-08 — la notification ne fige plus une phrase française ────────────
+
+describe("RG-GEN-08 — le corps d'une notification voyage en paramètres", () => {
+  it("RG-GEN-08 — l'assignation stocke une clé et ses paramètres, pas du français", async () => {
+    /*
+     * Une phrase figée en base au moment de l'émission ne se rattrape jamais au
+     * changement de langue : en session anglaise, le panneau rendait un cadre
+     * traduit et un contenu français. Le contrôle porte donc sur ce qui est
+     * ÉCRIT — la marque et les paramètres —, pas sur ce qui est rendu, qui
+     * dépend du catalogue de `notifications/libelles.ts`.
+     */
+    const a = await agent();
+    const b = await agent();
+    await taches.creer({ titre: "À traduire", assigneIds: [b] }, a, CREER);
+
+    const n = await prisma.notification.findFirstOrThrow({
+      where: { userId: b, type: "tache_assignee" },
+    });
+    expect(n.contenu.startsWith("i18n:")).toBe(true);
+    expect(JSON.parse(n.contenu.slice("i18n:".length))).toMatchObject({
+      cle: "tache_assignee",
+      params: { tache: "À traduire" },
+    });
+    expect(n.contenu).not.toContain("vous a été assignée");
+  });
+});
+
+// ── RG-SCOPE-04 — les DEUX routes de déplacement, jamais une seule ───────────
+
+/**
+ * **Une même méthode de service, deux entrées HTTP, et une seule bornée.**
+ *
+ * `TachesService.deplacerDepuisPlanning` est appelée par
+ * `POST /taches/:id/deplacer` et par `PATCH /planning/taches/deplacer`. La
+ * première a reçu `exigerLisible` en vague 2 ; la seconde est restée ouverte
+ * une vague de plus — et c'est celle que la vue 07 appelle réellement, donc
+ * celle par laquelle le trou était atteignable. `tasks:update` dit qu'on a le
+ * droit de modifier une tâche ; elle ne dit pas laquelle.
+ *
+ * **Le contrôle porte sur les DEUX routes et sur le même cas**, parce que la
+ * divergence coûte plus que l'absence : une règle écrite deux fois faute d'un
+ * endroit commun se corrige un jour d'un seul côté, et rien ne le dit.
+ *
+ * **Contre-témoin obligatoire.** Un `exigerLisible` qui refuserait tout le
+ * monde ferait passer les refus ci-dessous : on aurait remplacé un trou par
+ * une porte murée, et la vue 07 ne déplacerait plus rien. Le cas passant est
+ * donc éprouvé sur les deux routes, avec le MÊME acteur et la MÊME permission.
+ */
+describe("RG-SCOPE-04 — déplacer une tâche depuis le planning respecte le périmètre", () => {
+  const MODIFIER = new Set(["tasks:update"]) as ReadonlySet<string>;
+
+  /** Le contrôleur du planning, réduit à ce que la route de déplacement touche. */
+  const controleurPlanning = () => new PlanningController(null as never, taches, null as never);
+  const controleurTaches = () => new TachesController(taches);
+
+  const contexte = async (userId: string, permissions: ReadonlySet<string>) =>
+    ({ userId, permissions, perimetre: await perimetreDe(userId, permissions) }) as never;
+
+  /** Une tâche assignée à son propriétaire, sans aucun lien avec un étranger. */
+  async function tacheDAutrui() {
+    const proprietaire = await agent();
+    const t = await taches.creer(
+      { titre: "Celle d'un autre", assigneIds: [proprietaire], dateFin: utc("2026-07-01") },
+      proprietaire,
+      CREER,
+    );
+    return { proprietaire, t };
+  }
+
+  it("RG-SCOPE-04 — `PATCH /planning/taches/deplacer` refuse une tâche hors périmètre", async () => {
+    const { t } = await tacheDAutrui();
+    const etranger = await agent();
+
+    await expect(
+      controleurPlanning().deplacer(
+        { taskId: t.id, nouvelleDate: "2026-08-20" },
+        await contexte(etranger, MODIFIER),
+      ),
+    ).rejects.toBeInstanceOf(ErreurTache);
+
+    // Et RIEN n'a été écrit : un refus qui laisse une trace en base n'en est pas un.
+    const apres = await prisma.task.findUniqueOrThrow({ where: { id: t.id } });
+    expect(apres.dateFin?.toISOString().slice(0, 10)).toBe("2026-07-01");
+    expect(apres.version).toBe(t.version);
+  });
+
+  it("RG-SCOPE-04 — sa route jumelle `POST /taches/:id/deplacer` refuse pareil", async () => {
+    // Les deux entrées portent la même règle : c'est leur DIVERGENCE qu'on
+    // surveille, pas leur existence.
+    const { t } = await tacheDAutrui();
+    const etranger = await agent();
+
+    await expect(
+      controleurTaches().deplacer(
+        t.id,
+        { nouvelleDate: "2026-08-20" },
+        await contexte(etranger, MODIFIER),
+      ),
+    ).rejects.toBeInstanceOf(ErreurTache);
+  });
+
+  it("CONTRE-TÉMOIN — le propriétaire, lui, déplace bien par les DEUX routes", async () => {
+    /*
+     * Sans ceci, un `exigerLisible` qui refuserait tout le monde rendrait les
+     * deux tests ci-dessus verts, et la vue 07 ne déplacerait plus rien : on
+     * aurait remplacé un trou par une porte murée. Même acteur, même
+     * permission, même tâche — seule l'appartenance change.
+     */
+    const { proprietaire, t } = await tacheDAutrui();
+    const d = await contexte(proprietaire, MODIFIER);
+
+    await controleurPlanning().deplacer({ taskId: t.id, nouvelleDate: "2026-08-20" }, d);
+    expect(
+      (await prisma.task.findUniqueOrThrow({ where: { id: t.id } })).dateFin
+        ?.toISOString()
+        .slice(0, 10),
+    ).toBe("2026-08-20");
+
+    await controleurTaches().deplacer(t.id, { nouvelleDate: "2026-09-03" }, d);
+    expect(
+      (await prisma.task.findUniqueOrThrow({ where: { id: t.id } })).dateFin
+        ?.toISOString()
+        .slice(0, 10),
+    ).toBe("2026-09-03");
+  });
+
+  it("RG-TSK-13 — une tâche CONFIDENTIELLE ne se déplace pas depuis le planning", async () => {
+    /*
+     * Le cas le plus grave de la famille : le porteur détient `tasks:readAll`,
+     * donc le refus ne peut venir que de la confidentialité, jamais du
+     * cloisonnement organisationnel.
+     */
+    const proprietaire = await agent();
+    const t = await taches.creer(
+      { titre: "Secrète", assigneIds: [proprietaire], confidentielle: true, dateFin: utc("2026-07-01") },
+      proprietaire,
+      CREER,
+    );
+    const etranger = await agent();
+    const droits = new Set([...MODIFIER, "tasks:readAll"]) as ReadonlySet<string>;
+
+    await expect(
+      controleurPlanning().deplacer(
+        { taskId: t.id, nouvelleDate: "2026-08-20" },
+        await contexte(etranger, droits),
+      ),
+    ).rejects.toMatchObject({ code: "hors_perimetre" });
+
+    expect(
+      (await prisma.task.findUniqueOrThrow({ where: { id: t.id } })).dateFin
+        ?.toISOString()
+        .slice(0, 10),
+    ).toBe("2026-07-01");
   });
 });

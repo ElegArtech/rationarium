@@ -5,7 +5,7 @@ import { Champ, ChampMotDePasse, politiqueTenue } from "../composants/champs.js"
 import { inscription } from "../api/session.js";
 import { messageErreur } from "../api/erreurs.js";
 import { ErreurApi } from "../api/client.js";
-import { GabaritAcces } from "./gabarit-acces.js";
+import { GabaritAcces, LienAcces } from "./gabarit-acces.js";
 
 /**
  * Vue 02 — Inscription.
@@ -144,9 +144,9 @@ export function Inscription({
         <p className="lede" style={{ marginBottom: 20 }}>
           {t("inscription.desactiveeExplication")}
         </p>
-        <a href="/connexion" className="btn btn-primary btn-block">
+        <LienAcces vers="/connexion" className="btn btn-primary btn-block">
           {t("oubli.retour")}
-        </a>
+        </LienAcces>
       </GabaritAcces>
     );
   }
@@ -246,9 +246,9 @@ export function Inscription({
 
         <div className="signup-row">
           <span>{t("inscription.dejaUnCompte")}</span>
-          <a href="/connexion" className="link">
+          <LienAcces vers="/connexion" className="link">
             {t("inscription.seConnecter")}
-          </a>
+          </LienAcces>
         </div>
       </form>
     </GabaritAcces>

@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
+import { Link } from "@tanstack/react-router";
 import { Button } from "react-aria-components";
 import i18next from "i18next";
 import { useState } from "react";
@@ -130,6 +131,50 @@ const LIGNES = [
 ] as const;
 
 const SYNTHESE = ["1/5 · 20 %", "1/5 · 20 %", "2/5 · 40 %", null, "1/5 · 20 %"];
+
+/**
+ * Les cinq vues d'accès naviguent entre elles — **par le routeur**.
+ *
+ * Une ancre brute sort du routeur : le navigateur RECHARGE le document entier.
+ * Sur les vues d'accès, cela n'a pas l'air grave — il n'y a pas encore de
+ * session à perdre —, mais c'est le même défaut que celui mesuré sur la barre
+ * latérale : le lot est réévalué, les catalogues rechargés, le thème
+ * réappliqué après le premier peint, et la langue choisie repart de zéro à
+ * chaque « ← Retour à la connexion ». Le passage se voit à l'œil, et il coûte
+ * une seconde de page blanche.
+ *
+ * Le composant existe pour que la forme se corrige **en un seul endroit** : la
+ * vue 01 en pose deux, la 02 deux, la 03 deux, la 04 trois, et rien n'aurait
+ * signalé la neuvième restée en ancre.
+ *
+ * `/connexion` valide sa recherche (`suite`) : le routeur EXIGE donc un objet
+ * de recherche, là où les deux autres routes n'en ont pas. C'est la seule
+ * raison de la distinction ci-dessous.
+ */
+export type VersAcces = "/connexion" | "/inscription" | "/mot-de-passe-oublie";
+
+export function LienAcces({
+  vers,
+  className,
+  children,
+}: {
+  vers: VersAcces;
+  className: string;
+  children: ReactNode;
+}) {
+  if (vers === "/connexion") {
+    return (
+      <Link to="/connexion" search={{}} className={className}>
+        {children}
+      </Link>
+    );
+  }
+  return (
+    <Link to={vers} className={className}>
+      {children}
+    </Link>
+  );
+}
 
 export function GabaritAcces({
   titre,

@@ -5,6 +5,7 @@ import { Button, Tooltip, TooltipTrigger } from "react-aria-components";
 import { MODELES_ROLES, NOMBRE_PERMISSIONS } from "@rationarium/contracts";
 import * as api from "../../api/administration.js";
 import { messageErreur } from "../../api/erreurs.js";
+import { ErreurApi } from "../../api/client.js";
 import { usePeut } from "../../session/session.js";
 import { Chargement, ErreurDeChargement, AccesRefuse } from "../../composants/etats.js";
 import { useMessages } from "../../composants/messages.js";
@@ -65,10 +66,19 @@ export function Roles() {
   const liste = useQuery({
     queryKey: ["roles"],
     queryFn: api.roles,
-    enabled: peut("users:manage_roles"),
   });
 
-  if (!peut("users:manage_roles")) return <AccesRefuse />;
+  /*
+   * `RG-ADM-03`, `RG-GEN-06` — **le refus se prononce au SERVEUR.**
+   *
+   * DÉFAUT ACTIF CORRIGÉ (P-91, même forme que la vue 33). La requête portait
+   * `enabled: peut(…)` et la vue rendait le refus avant tout appel : rien
+   * n'atteignait `permissions.garde.ts`, seul endroit du produit qui TRACE un
+   * accès refusé. Le masque de courtoisie porte sur les commandes d'écriture,
+   * jamais sur la lecture d'une vue entière.
+   */
+  if (liste.error instanceof ErreurApi && liste.error.statut === 403)
+    return <AccesRefuse />;
   if (liste.isPending) return <Chargement quoi={t("roles.lesRoles")} />;
   if (liste.isError)
     return <ErreurDeChargement erreur={liste.error} surReessai={() => void liste.refetch()} />;

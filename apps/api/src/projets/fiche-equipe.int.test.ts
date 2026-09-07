@@ -27,9 +27,17 @@ let acteur: string;
  * Ces suites éprouvent le CONTENU des lectures, pas leur cloisonnement : elles
  * passent donc un périmètre de gestion globale. Le cloisonnement de `fiche`,
  * `budget`, `equipe` et `feuilleDeRoute` a sa propre suite.
+ *
+ * `tasks:manage_any` accompagne désormais `projects:manage_any`, et il n'est
+ * pas décoratif : depuis que les compteurs de tâches d'un projet respectent
+ * `filtreTache` (`RG-SCOPE-04`), ouvrir un projet ne suffit plus à en compter
+ * les tâches. La suite annonçait « un périmètre de gestion globale » en n'en
+ * passant qu'une moitié — celle du domaine projet —, et les projets de ce
+ * décor sont créés en base sans créateur : leur fiche rendait donc zéro tâche.
  */
-const global = () => perimetres.resoudre(acteur, new Set(["projects:manage_any"]));
-const toutes: ReadonlySet<string> = new Set(["projects:manage_any"]);
+const global = () =>
+  perimetres.resoudre(acteur, new Set(["projects:manage_any", "tasks:manage_any"]));
+const toutes: ReadonlySet<string> = new Set(["projects:manage_any", "tasks:manage_any"]);
 
 async function agent(prenom = "A", nom = "T") {
   const id = crypto.randomUUID();

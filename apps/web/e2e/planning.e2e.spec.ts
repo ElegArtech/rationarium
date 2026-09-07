@@ -2,6 +2,8 @@ import { test, expect, type Page } from "@playwright/test";
 import { serveur, SESSION_LECTURE } from "./fixtures/projets.js";
 import {
   SESSION_PLANNING,
+  SESSION_TELETRAVAIL_AUTRUI,
+  SESSION_ANA,
   SESSION_SANS_TELETRAVAIL,
   SEMAINE,
   SEMAINE_SANS_PERMANENCES,
@@ -69,9 +71,46 @@ test.describe("Vue 07 — planning, semaine", () => {
 
     await expect(page.getByText("Rédiger la note de cadrage").first()).toBeVisible();
     await expect(page.getByText("Veille technique")).toBeVisible();
-    await expect(page.getByText("Comité de pilotage")).toBeVisible();
     await expect(page.getByText("Permanence accueil")).toBeVisible();
     await expect(page.getByText("Congés annuels").first()).toBeVisible();
+    // Le comité réunit Ana et Bruno, et Bruno figure dans deux services :
+    // trois cellules le portent. Compter, plutôt que `.first()`, est ce qui
+    // fait de ce contrôle un témoin de la règle et non un simple « c'est
+    // affiché quelque part ».
+    await expect(page.getByText("Comité de pilotage")).toHaveCount(3);
+  });
+
+  /*
+   * `EX-PLN-03` — **le congé ne vide pas la cellule, il y prend une ligne.**
+   *
+   * Le contrôle précédent se contentait de « chaque nature est visible quelque
+   * part dans la grille », et il passait AVANT comme APRÈS la correction : les
+   * cinq natures étaient bien présentes, simplement jamais deux dans la même
+   * cellule dès qu'un congé s'y trouvait. Ce qu'`EX-PLN-03` demande — « voir
+   * tâches projet, tâches hors projet, congés, télétravail, événements et
+   * permanences dans une même cellule » — se vérifie donc DANS une cellule.
+   *
+   * Bruno le mardi 11 août est le cas : congé validé du 10 au 11, et le comité
+   * de pilotage ce jour-là. Avant la correction, le comité disparaissait.
+   */
+  test("EX-PLN-03 — DANS UNE MÊME CELLULE : le congé et l'occupation du jour", async ({
+    page,
+  }) => {
+    await horlogeFixe(page);
+    await serveur(page, { session: SESSION_PLANNING, reponses });
+    await page.goto("/planning");
+
+    // Le « + » de création porte le seul libellé qui nomme à la fois la
+    // personne et le jour : c'est l'ancre d'une cellule. Bruno relève de deux
+    // services, sa ligne existe donc deux fois — les deux disent la même
+    // chose.
+    const cellule = page
+      .locator(".cell")
+      .filter({ has: page.getByRole("link", { name: "Créer ici — Bruno Costa, 2026-08-11" }) })
+      .first();
+
+    await expect(cellule.getByText("Congés annuels")).toBeVisible();
+    await expect(cellule.getByText("Comité de pilotage")).toBeVisible();
   });
 
   test("EX-PLN-13 — le congé en attente porte sa MENTION, pas seulement sa trame", async ({
@@ -176,7 +215,7 @@ test.describe("Vue 07 — planning, semaine", () => {
   }) => {
     await horlogeFixe(page);
     await serveur(page, {
-      session: SESSION_PLANNING,
+      session: SESSION_TELETRAVAIL_AUTRUI,
       reponses: { ...reponses, "/api/planning/teletravail": { corps: { id: "w1", etat: "office" } } },
     });
     await page.goto("/planning");
@@ -187,6 +226,41 @@ test.describe("Vue 07 — planning, semaine", () => {
     await expect(page.getByText("Télétravail mis à jour.")).toBeVisible();
   });
 
+  /*
+   * `RG-TLT-07`, `RG-GEN-06` — **la bascule s'apprécie par LIGNE, pas par vue.**
+   *
+   * Le contrôle qui précède exerçait `telework:create` seule et cliquait sur
+   * la cellule d'Ana : il consacrait exactement le défaut relevé en recette —
+   * une commande offerte que le serveur refusait après coup. Les deux
+   * contrôles ci-dessous séparent les deux moitiés de la règle, et chacun
+   * tombe si l'autre condition est seule regardée.
+   */
+  test("RG-TLT-07 — avec `telework:create` seule, on ne bascule QUE SA PROPRE cellule", async ({
+    page,
+  }) => {
+    await horlogeFixe(page);
+    await serveur(page, {
+      session: SESSION_ANA,
+      reponses: { ...reponses, "/api/planning/teletravail": { corps: { id: "w1", etat: "office" } } },
+    });
+    await page.goto("/planning");
+
+    // La sienne : la commande est là, et elle aboutit.
+    const sienne = page.getByRole("button", { name: /Ana Berger, 2026-08-13/ });
+    await expect(sienne).toBeVisible();
+    await sienne.click();
+    await expect(page.getByText("Télétravail mis à jour.")).toBeVisible();
+
+    // Celle de Bruno : rien à cliquer, et pourtant le lieu se lit — c'est la
+    // moitié de `RG-GEN-06` qu'on oublie, masquer au lieu de désactiver.
+    await expect(page.getByRole("button", { name: /Bruno Costa, 2026-08-12/ })).toHaveCount(0);
+    const celluleBruno = page
+      .locator(".cell")
+      .filter({ has: page.getByRole("link", { name: "Créer ici — Bruno Costa, 2026-08-12" }) })
+      .first();
+    await expect(celluleBruno.locator(".pres.is-locked")).toHaveText("Bureau");
+  });
+
   test("RG-PLN-04 — sans le droit, la cellule reste LISIBLE mais inerte", async ({ page }) => {
     await horlogeFixe(page);
     await serveur(page, { session: SESSION_SANS_TELETRAVAIL, reponses });
@@ -194,6 +268,8 @@ test.describe("Vue 07 — planning, semaine", () => {
 
     // Masquer l'information ferait croire qu'elle n'existe pas.
     await expect(page.getByText("Télétravail").first()).toBeVisible();
+    // La session porte `telework:manage_any` SANS `telework:create` : sans
+    // cette dissymétrie, l'assertion passerait avec comme sans la règle.
     await expect(page.getByRole("button", { name: /Ana Berger, 2026-08-13/ })).toHaveCount(0);
   });
 
@@ -340,11 +416,40 @@ test.describe("Vue 07 — planning, semaine", () => {
     await expect(page.getByText("40 %")).toBeVisible();
   });
 
-  test("sans planning:read, l'accès est refusé", async ({ page }) => {
+  /*
+   * `RG-ADM-03` — **le refus PART AU SERVEUR, qui seul sait le tracer.**
+   *
+   * Le contrôle simulait une session sans `planning:read` et laissait
+   * `/api/planning` répondre `200` : il vérifiait que le CLIENT se refusait
+   * l'accès tout seul, c'est-à-dire exactement le défaut. La garde
+   * (`commun/permissions.garde.ts`) est le seul endroit du produit qui écrive
+   * une ligne d'audit sur un accès refusé ; une vue qui s'arrête avant l'appel
+   * la rend inatteignable.
+   *
+   * Le jeu d'essai se calque donc sur ce que le serveur rend vraiment :
+   * `403` et `{ cle: "commun:droits.permissionRequise" }`. Et le contrôle
+   * affirme que la requête a bien été ÉMISE — sans quoi il repasserait au vert
+   * le jour où quelqu'un remettrait un `if (!peut(…))` en tête de vue.
+   */
+  test("RG-ADM-03 — sans planning:read, la requête PART et le 403 prononce le refus", async ({
+    page,
+  }) => {
     await horlogeFixe(page);
-    await serveur(page, { session: SESSION_LECTURE, reponses });
+    let demandes = 0;
+    page.on("request", (r) => {
+      if (new URL(r.url()).pathname === "/api/planning") demandes += 1;
+    });
+    await serveur(page, {
+      session: SESSION_LECTURE,
+      reponses: {
+        ...reponses,
+        "/api/planning": { statut: 403, corps: { cle: "commun:droits.permissionRequise" } },
+      },
+    });
     await page.goto("/planning");
+
     await expect(page.getByText("Permission requise")).toBeVisible();
+    expect(demandes).toBeGreaterThan(0);
   });
 });
 
@@ -404,21 +509,69 @@ test.describe("Vue 08 — planning, mois", () => {
     await expect(page.getByText("Rien de prévu ce jour-là.")).toBeVisible();
   });
 
-  test("la bascule de mode change de vue sans perdre le fil", async ({ page }) => {
+  /*
+   * `EX-PLN-01` — **« sans perdre le fil » est le sujet, et il n'était pas
+   * testé.**
+   *
+   * Le contrôle ne regardait que `aria-current` : il aurait passé sur la
+   * version fautive, où chaque mode repartait du mois courant et du filtre
+   * vide parce que tout l'état vivait en `useState` local. Le fil, c'est la
+   * période posée et le filtre posé — et il se vérifie en NAVIGUANT par les
+   * liens : `page.goto` reconstruirait la page depuis l'adresse et rendrait
+   * le contrôle vert quoi qu'il arrive.
+   */
+  test("EX-PLN-01 — la bascule de mode change de vue SANS PERDRE le fil", async ({ page }) => {
+    await horlogeFixe(page);
+    await serveur(page, { session: SESSION_PLANNING, reponses: reponsesMois });
+    await page.goto("/planning");
+
+    // Trois semaines en avant : on quitte août pour septembre. Un décalage
+    // qui resterait dans le mois courant ne prouverait rien de la période.
+    const suivante = page.getByRole("button", { name: "Semaine suivante" });
+    await suivante.click();
+    await suivante.click();
+    await suivante.click();
+    await page.getByLabel("Ressource", { exact: true }).fill("Ana");
+    await expect(page).toHaveURL(/ancre=2026-09-02/);
+
+    await page.getByRole("link", { name: "Mois" }).click();
+
+    await expect(page).toHaveURL(/\/planning\/mois/);
+    // La période a suivi : septembre, et non le mois d'« aujourd'hui ».
+    await expect(page.locator(".pl-period")).toHaveText("Septembre 2026");
+    // Le filtre aussi, et pas seulement dans l'adresse : le champ le porte.
+    await expect(page.getByLabel("Ressource", { exact: true })).toHaveValue("Ana");
+    await expect(page.getByText("Bruno Costa")).toHaveCount(0);
+  });
+
+  /*
+   * DÉFAUT DE PRODUIT, PAS DE TEST — signalé, pas contourné.
+   *
+   * Le sélecteur de mode est devenu un `Link` du routeur (correction du
+   * 2026-09-07). Il pose `aria-current={m === mode ? "page" : undefined}`,
+   * mais TanStack Router ajoute le sien dès que le lien est « actif », et son
+   * appariement n'est PAS exact par défaut : `/planning` est un préfixe de
+   * `/planning/mois` et de `/planning/activite`. Sur la vue Mois, « Semaine »
+   * et « Mois » portent donc TOUS DEUX `aria-current="page"` — et comme
+   * `socle.css` écrit `.seg a[aria-current="page"]{ background:var(--accent) }`,
+   * deux segments sur trois s'affichent sélectionnés. Ce n'est pas seulement
+   * une annonce fausse, c'est un état visuel faux.
+   *
+   * **Corrigé le 2026-09-07** : `activeOptions={{ exact: true }}` sur le
+   * `Link` de `SelecteurMode` (`apps/web/src/vues/planning/Planning.tsx`).
+   * Le contrôle reste, et il tombera au premier retour en arrière.
+   */
+  test("UN SEUL segment est courant — le mode n'a pas deux réponses", async ({ page }) => {
     await horlogeFixe(page);
     await serveur(page, { session: SESSION_PLANNING, reponses: reponsesMois });
     await page.goto("/planning/mois");
 
-    // Un lien n'est pas un bouton bascule : l'état courant se dit par
-    // `aria-current`, que les technologies d'assistance annoncent.
-    await expect(page.getByRole("link", { name: "Mois" })).toHaveAttribute(
+    const segments = page.getByRole("group", { name: "Mode d'affichage" });
+    await expect(segments.getByRole("link", { name: "Mois" })).toHaveAttribute(
       "aria-current",
       "page",
     );
-    await expect(page.getByRole("link", { name: "Semaine" })).not.toHaveAttribute(
-      "aria-current",
-      "page",
-    );
+    await expect(segments.locator('a[aria-current="page"]')).toHaveCount(1);
   });
 });
 
@@ -761,7 +914,11 @@ test.describe("RG-PLN-05 — le rafraîchissement qui échoue après une écritu
           return route.fulfill({
             status: 200,
             contentType: "application/json",
-            body: JSON.stringify(SESSION_PLANNING),
+            // `RG-TLT-07` — la bascule vise la cellule d'Ana : elle exige
+            // `telework:manage_any` en plus de l'écriture. Sans cette
+            // session-là, la commande n'existe pas et le contrôle ne peut
+            // même pas atteindre ce qu'il mesure.
+            body: JSON.stringify(SESSION_TELETRAVAIL_AUTRUI),
           });
         }
         if (chemin === "/api/planning/teletravail") {

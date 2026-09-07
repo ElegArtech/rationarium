@@ -1,7 +1,7 @@
 import { Controller, Get, Header, Query, Res } from "@nestjs/common";
 import type { FastifyReply } from "fastify";
 import { z } from "zod";
-import { RapportsService, type Periode } from "./rapports.service.js";
+import { RapportsService, langueDe, type Periode } from "./rapports.service.js";
 import { Demande, RequiertPermission, type ContexteDemande } from "../commun/permissions.garde.js";
 import { valider } from "../commun/http.js";
 
@@ -62,7 +62,19 @@ export class RapportsController {
     @Query() requete: unknown,
     @Res() reponse: FastifyReply,
   ) {
-    const q = valider(filtres.extend({ format: z.enum(["json", "csv"]).default("csv") }), requete);
+    /*
+     * `RG-GEN-08` — **la langue accompagne la demande d'export.** Le fichier
+     * était identique en français et en anglais ; le serveur ne peut pas la
+     * deviner, et il n'a pas de session de langue à lire. Elle est donc un
+     * paramètre, avec le français pour défaut — le même défaut que le client.
+     */
+    const q = valider(
+      filtres.extend({
+        format: z.enum(["json", "csv"]).default("csv"),
+        langue: z.string().max(10).optional(),
+      }),
+      requete,
+    );
     const fichier = await this.rapports.exporter(
       q.format,
       lire(q),
@@ -70,6 +82,7 @@ export class RapportsController {
       d.permissions,
       new Date(),
       d.userId,
+      langueDe(q.langue),
     );
     return reponse
       .header("Content-Type", fichier.type)

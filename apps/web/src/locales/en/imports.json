@@ -12,7 +12,6 @@
   "fermer": "Close",
   "importes": "{n, plural, one {# imported} other {# imported}}",
   "ignores": "{n, plural, one {# skipped} other {# skipped}}",
-  "ignoresAide": "Skipped rows match entries that already exist: replaying a file does not create duplicates.",
   "enErreur": "{n, plural, one {# in error} other {# in error}}",
   "importTermine": "{n, plural, =0 {No row imported} one {# row imported} other {# rows imported}}.",
   "echecApercu": "The file could not be analysed.",
@@ -35,5 +34,38 @@
   "importerCsv": "Import CSV",
   "titreTaches": "Tasks CSV import",
   "titreJalons": "Import milestones",
-  "titreConges": "Import leave"
+  "titreConges": "Import leave",
+  "crees": {
+    "utilisateurs": "{n, plural, =0 {No account created} one {# account created} other {# accounts created}}",
+    "taches": "{n, plural, =0 {No task created} one {# task created} other {# tasks created}}",
+    "jalons": "{n, plural, =0 {No milestone created} one {# milestone created} other {# milestones created}}",
+    "projet": "{n, plural, =0 {No item created in the project} one {# item created in the project} other {# items created in the project}}",
+    "conges": "{n, plural, =0 {No leave entry created} one {# leave entry created} other {# leave entries created}}",
+    "competences": "{n, plural, =0 {No skill created} one {# skill created} other {# skills created}}"
+  },
+  "ignoresTitre": "Skipped rows",
+  "motifs": {
+    "colonneVide": "column “{colonne}” is empty",
+    "nombreHorsBornes": "column “{colonne}”: “{valeur}” is not a whole number between {min} and {max}",
+    "avancementIncoherent": "column “{colonne}”: a “{statut}” task is at {attendu}",
+    "valeurInconnue": "column “{colonne}”: “{valeur}” is unknown, expected {attendues}",
+    "emailDejaPris": "an account already uses the address “{email}”: row skipped.",
+    "loginDejaPris": "an account already uses the login “{login}”: row skipped.",
+    "categorieInconnue": "unknown category “{valeur}”. Expected values: {attendues}.",
+    "effectifInvalide": "invalid required headcount “{valeur}”: a whole number, zero or above, is expected.",
+    "competenceDejaPresente": "the skill “{nom}” already exists: row skipped.",
+    "jalonDejaPresent": "the milestone “{nom}” already exists: row skipped.",
+    "compteInconnu": "no account uses the address “{email}”.",
+    "compteDesactive": "the account “{email}” is deactivated: no leave can be added to it.",
+    "horsPerimetre": "the account “{email}” is outside your scope.",
+    "typeInconnu": "no leave type is called “{nom}”.",
+    "dateIllisible": "unreadable date: “{debut}” → “{fin}”. The expected format is YYYY-MM-DD.",
+    "datesInversees": "the end date ({fin}) comes before the start date ({debut}): swap them.",
+    "demiJourneeInconnue": "unknown half-day “{valeur}”. Expected values: {attendues}, or leave the column empty.",
+    "demiJourneeSurPlusieursJours": "a half-day only applies to a single-day leave: leave the column empty, or bring both dates to the same day.",
+    "soldeInsuffisant": "not enough balance for {annee}: {demandes} day(s) requested, {disponibles} available, {manquants} missing.",
+    "typeDesactive": "the leave type “{nom}” is deactivated: reactivate it, or choose another type on this row.",
+    "chevauchement": "this period overlaps a leave already recorded: row skipped.",
+    "erreurTechnique": "the row could not be saved: {detail}"
+  }
 }

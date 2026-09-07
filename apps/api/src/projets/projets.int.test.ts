@@ -1613,3 +1613,141 @@ describe("RG-SCOPE-02 — lire UN projet par son identifiant est borné au péri
     });
   });
 });
+
+describe("RG-SCOPE-04, RG-TSK-13 — la confidentialité tient sur la FICHE et la FEUILLE DE ROUTE", () => {
+  /*
+   * Deux défauts jumeaux, constatés sur le même écran (exploration Driss).
+   *
+   *   La feuille de route ne contrôlait le périmètre qu'au niveau du PROJET :
+   *   une tâche confidentielle y paraissait en entier, sélecteur de statut
+   *   compris.
+   *
+   *   Les compteurs, eux, comptaient ce que les listes cachaient : « Tâches 10 »
+   *   au-dessus d'un kanban qui en montrait 9, « toutes rattachées » au-dessus
+   *   d'un bloc « sans jalon 2 ». L'écart ne fait pas que gêner la lecture : il
+   *   RÉVÈLE l'existence de ce que la règle cache.
+   *
+   * Le lecteur ci-dessous est le chef du projet — il l'ouvre de plein droit
+   * (`RG-SCOPE-02`) — et n'a pas `tasks:read_confidential`.
+   */
+  const CHEF_SANS_CONFIDENTIEL: ReadonlySet<string> = new Set([
+    "projects:read",
+    "milestones:read",
+    "tasks:read",
+  ]);
+  const AVEC_CONFIDENTIEL: ReadonlySet<string> = new Set([
+    ...CHEF_SANS_CONFIDENTIEL,
+    "tasks:read_confidential",
+  ]);
+
+  const decorConfidentiel = async () => {
+    const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
+    const j = await projets.creerJalon(
+      { nom: "Jalon", dateEcheance: utc("2026-06-30"), projectId: p.id },
+      chef,
+    );
+    await prisma.task.createMany({
+      data: [
+        { titre: "Ordinaire rattachée", projectId: p.id, milestoneId: j.id, avancement: 40 },
+        { titre: "Note de sécurité", projectId: p.id, milestoneId: j.id, avancement: 100, confidentielle: true },
+        { titre: "Ordinaire sans jalon", projectId: p.id, avancement: 0 },
+        { titre: "Secrète sans jalon", projectId: p.id, avancement: 100, confidentielle: true },
+      ],
+    });
+    return p;
+  };
+
+  it("la tâche confidentielle NE TRAVERSE PAS la feuille de route", async () => {
+    const p = await decorConfidentiel();
+    const vu = await perimetres.resoudre(chef, CHEF_SANS_CONFIDENTIEL);
+    const route = await projets.feuilleDeRoute(p.id, vu, CHEF_SANS_CONFIDENTIEL);
+
+    const titres = [
+      ...route.jalons.flatMap((j) => j.taches.map((t) => t.titre)),
+      ...route.sansJalon.map((t) => t.titre),
+    ];
+    expect(titres).toEqual(["Ordinaire rattachée", "Ordinaire sans jalon"]);
+  });
+
+  it("et ses indicateurs comptent ce que ses listes montrent", async () => {
+    const p = await decorConfidentiel();
+    const vu = await perimetres.resoudre(chef, CHEF_SANS_CONFIDENTIEL);
+    const { indicateurs } = await projets.feuilleDeRoute(p.id, vu, CHEF_SANS_CONFIDENTIEL);
+
+    expect(indicateurs.taches).toBe(2);
+    expect(indicateurs.sansJalon).toBe(1);
+  });
+
+  it("la FICHE compte et moyenne les mêmes tâches que le kanban", async () => {
+    const p = await decorConfidentiel();
+    const vu = await perimetres.resoudre(chef, CHEF_SANS_CONFIDENTIEL);
+    const fiche = await projets.fiche(p.id, vu, CHEF_SANS_CONFIDENTIEL);
+
+    // 2 visibles sur 4, et la moyenne de 40 et 0 — pas celle des quatre (60).
+    expect(fiche.taches.total).toBe(2);
+    expect(fiche.progression).toBe(20);
+  });
+
+  it("la permission explicite rend les quatre — la règle n'est pas un masque définitif", async () => {
+    const p = await decorConfidentiel();
+    const vu = await perimetres.resoudre(chef, AVEC_CONFIDENTIEL);
+
+    const route = await projets.feuilleDeRoute(p.id, vu, AVEC_CONFIDENTIEL);
+    expect(route.indicateurs.taches).toBe(4);
+
+    const fiche = await projets.fiche(p.id, vu, AVEC_CONFIDENTIEL);
+    expect(fiche.taches.total).toBe(4);
+    expect(fiche.progression).toBe(60);
+  });
+
+  it("l'instantané, lui, reste le fait du PROJET : il moyenne les quatre", async () => {
+    /*
+     * `RG-PRJ-09` — un instantané est une trace consignée, pas une lecture. Le
+     * filtrer par le périmètre de celui qui déclenche l'écriture ferait
+     * dépendre l'historique du projet de qui passait par là.
+     */
+    const p = await decorConfidentiel();
+    expect(await projets.progression(p.id)).toBe(60);
+  });
+});
+
+describe("RG-SCOPE-02, RG-TSK-01 — le chef et le sponsor voient les tâches de LEUR projet", () => {
+  /*
+   * Trois prédicats concurrents décrivaient « mes projets ». `filtreTache` ne
+   * connaissait que « assigné » et « membre de l'équipe » : le portefeuille
+   * annonçait deux projets, et la vue des tâches filtrée sur celui dont on est
+   * SPONSOR rendait « aucune tâche ».
+   */
+  const LECTURE: ReadonlySet<string> = new Set(["projects:read", "tasks:read", "milestones:read"]);
+
+  it("le chef, sans être inscrit à sa propre équipe", async () => {
+    const patron = await agent("Chefferie");
+    const p = await projets.creer(
+      nouveauProjet({ chefId: patron }),
+      chef,
+      new Set([...TOUS_DROITS_PROJET]),
+    );
+    await prisma.task.create({ data: { titre: "Travail du projet", projectId: p.id } });
+
+    const vu = await perimetres.resoudre(patron, LECTURE);
+    const fiche = await projets.fiche(p.id, vu, LECTURE);
+    expect(fiche.taches.total).toBe(1);
+  });
+
+  it("le sponsor aussi", async () => {
+    const mecene = await agent("Sponsor");
+    const p = await projets.creer(
+      nouveauProjet({ sponsorId: mecene }),
+      chef,
+      new Set([...TOUS_DROITS_PROJET]),
+    );
+    await prisma.task.create({ data: { titre: "Travail du projet", projectId: p.id } });
+
+    const vu = await perimetres.resoudre(mecene, LECTURE);
+    const vues = await prisma.task.findMany({
+      where: { AND: [{ projectId: p.id }, perimetres.filtreTache(vu, LECTURE)] },
+      select: { titre: true },
+    });
+    expect(vues.map((t) => t.titre)).toEqual(["Travail du projet"]);
+  });
+});

@@ -173,6 +173,46 @@ export class TachesService {
   }
 
   /**
+   * `RG-SCOPE-04`, `RG-TSK-13` — **la porte de toute adresse directe par
+   * identifiant, en écriture comme en lecture.**
+   *
+   * ──────────────────────────────────────────────────────────────────────────
+   * Trouvé en recette le 2026-09-07, et c'est une FORME, pas une occurrence.
+   *
+   * `fiche` et `supprimer` bornaient déjà leur périmètre ; treize autres
+   * points d'entrée adressés par `:id` ne le faisaient pas. `PATCH
+   * /taches/:id` modifiait donc n'importe quelle tâche de l'instance —
+   * confidentielle comprise — à qui devinait son identifiant, et la
+   * confidentialité elle-même figure parmi les champs modifiables : une
+   * requête forgée pouvait DÉMASQUER une tâche secrète. Autour, les
+   * sous-tâches, les dépendances, le RACI, la cascade et la liste des assignés
+   * offraient la même prise. C'est la famille déjà consignée dans `CLAUDE.md`
+   * — « la LISTE filtre, l'adresse directe non » —, cette fois du côté des
+   * écritures.
+   *
+   * **Le périmètre se résout ici**, depuis l'acteur et ses permissions, plutôt
+   * que de traverser treize signatures. Ce n'est pas une seconde définition :
+   * c'est le même `PerimetreService.resoudre` que la garde appelle, redemandé
+   * — et `filtreTache` reste le seul endroit où le prédicat s'écrit. Le coût
+   * est d'une requête sur un chemin d'écriture ; le prix d'une signature qui
+   * s'allonge de deux arguments à chaque règle est un appelant qui finit par
+   * fabriquer un périmètre à la main, c'est-à-dire exactement le défaut qu'on
+   * corrige.
+   *
+   * « Hors périmètre » et non « introuvable » : le refus ne renseigne pas sur
+   * l'existence de la ligne.
+   * ──────────────────────────────────────────────────────────────────────────
+   */
+  async exigerLisible(taskId: string, acteurId: string, permissions: ReadonlySet<string>) {
+    const perimetre = await this.perimetres.resoudre(acteurId, permissions);
+    const lisible = await this.prisma.task.findFirst({
+      where: { AND: [{ id: taskId }, this.perimetres.filtreTache(perimetre, permissions)] },
+      select: { id: true },
+    });
+    if (!lisible) throw new ErreurTache("hors_perimetre");
+  }
+
+  /**
    * `RG-JAL-06` — rattacher une tâche à un jalon EFFACE la marque posée à la
    * main sur lui.
    *
@@ -309,6 +349,41 @@ export class TachesService {
     ];
 
     /*
+     * `RG-TSK-01` — **une tâche hors projet sans assigné n'a aucun lien avec
+     * personne, et devient donc invisible à celui-là même qui vient de la
+     * créer.**
+     *
+     * Trouvé en recette (P-17) : « Tâche créée. » s'affichait, puis la tâche
+     * n'existait nulle part. La cause tient au schéma — `Task` ne porte pas de
+     * colonne de créateur —, si bien qu'aucun prédicat de `filtreTache` ne
+     * peut la rattraper : ni assignée, ni rattachée à un projet, elle n'a
+     * aucune arête vers un compte. Ce n'est pas une tâche mal filtrée, c'est
+     * une tâche sans attache.
+     *
+     * Deux corrections possibles. Ajouter `Task.createurId` est la bonne, et
+     * elle relève d'une **tâche de schéma dédiée** (`cadrage/04 § 5.3`) : elle
+     * n'est pas écrite ici. Celle qui l'est : quand la tâche naît **hors
+     * projet** et **sans aucun assigné**, l'acteur en devient l'assigné — donc
+     * le porteur, puisqu'il est premier de la liste.
+     *
+     * Pourquoi c'est la bonne lecture de la règle et non un pis-aller :
+     * `RG-TSK-01` dit qu'une tâche hors projet est un cas NOMINAL, qu'elle
+     * « apparaît dans le planning au même titre que les autres ». Une ligne de
+     * planning est une ligne d'agent : une tâche hors projet sans agent
+     * n'apparaît sur aucune. Créer une réunion ou une sollicitation pour
+     * soi-même sans se l'assigner n'a pas de sens métier — et si l'auteur
+     * voulait la confier à quelqu'un d'autre, il l'a nommé, et cette branche
+     * ne s'applique pas.
+     *
+     * Le cas est **strictement borné à ce qui le motive** : une tâche de
+     * projet garde son lien par le projet (`filtreTache` lit
+     * `filtreMesProjets`), et une tâche déjà assignée n'est pas touchée. Sinon
+     * l'exception défait la règle — `EX-TSK-19`, les tâches orphelines, reste
+     * atteignable par le retrait des assignés et par l'import.
+     */
+    if (!donnees.projectId && assignes.length === 0) assignes.push(acteurId);
+
+    /*
      * `RG-TSK-17` — créer une tâche DÉJÀ terminée l'écrit à cent pour cent.
      * L'import de reprise crée exactement cela, et un fichier qui porte
      * `status=done` sans colonne d'avancement produisait sinon un projet clos
@@ -349,14 +424,20 @@ export class TachesService {
       detail: { horsProjet: !donnees.projectId, assignes: assignes.length },
     });
 
-    // `cadrage/01 § M18` — « Nouvelle tâche assignée ». On ne se notifie pas
-    // soi-même : celui qui crée la tâche vient de la voir.
+    /*
+     * `cadrage/01 § M18` — « Nouvelle tâche assignée ». On ne se notifie pas
+     * soi-même : celui qui crée la tâche vient de la voir.
+     *
+     * `RG-GEN-08` — le corps voyage en **paramètres**, pas en phrase. Une
+     * phrase figée en base au moment de l'émission ne se rattrape jamais au
+     * changement de langue ; c'est `libelles.ts` qui la compose à la LECTURE,
+     * dans la langue du lecteur.
+     */
     await this.notifications.notifierPlusieurs(
       assignes.filter((id) => id !== acteurId),
       {
         type: "tache_assignee",
-        titre: `Nouvelle tâche : ${tache.titre}`,
-        contenu: `La tâche « ${tache.titre} » vous a été assignée.`,
+        params: { tache: tache.titre },
         lien: `/taches/${tache.id}`,
       },
     );
@@ -508,6 +589,15 @@ export class TachesService {
     acteurId: string,
     permissions: ReadonlySet<string>,
   ) {
+    /*
+     * `RG-SCOPE-04`, `RG-TSK-13` — **périmètre AVANT tout le reste.** La route
+     * n'exigeait que `tasks:update` : une tâche confidentielle se modifiait
+     * par identifiant deviné, et `confidentielle` étant elle-même modifiable,
+     * on pouvait la démasquer. La feuille de route ne l'offre plus depuis la
+     * vague 1 ; la requête forgée, elle, passait toujours.
+     */
+    await this.exigerLisible(taskId, acteurId, permissions);
+
     const { version, ...champs } = donnees;
     const avant = await this.prisma.task.findUnique({
       where: { id: taskId },
@@ -626,7 +716,14 @@ export class TachesService {
    * création : la vue 17 les réordonne au glisser-déposer, et un ordre implicite
    * ne survivrait pas au premier déplacement.
    */
-  async ajouterSousTache(taskId: string, libelle: string, acteurId: string) {
+  async ajouterSousTache(
+    taskId: string,
+    libelle: string,
+    acteurId: string,
+    permissions: ReadonlySet<string>,
+  ) {
+    // `RG-SCOPE-04` — on n'ajoute pas de sous-tâche à ce qu'on ne peut pas lire.
+    await this.exigerLisible(taskId, acteurId, permissions);
     const dernier = await this.prisma.subtask.aggregate({
       where: { taskId },
       _max: { ordre: true },
@@ -640,12 +737,38 @@ export class TachesService {
     return sousTache;
   }
 
-  async basculerSousTache(id: string, fait: boolean) {
+  /**
+   * `RG-SCOPE-04` — **une sous-tâche n'a pas de périmètre à elle.** Elle le
+   * tient de sa tâche, exactement comme un document le tient de la sienne. La
+   * route est adressée par l'identifiant de la SOUS-tâche : sans cette
+   * remontée, le cloisonnement de la tâche portante ne s'applique à rien.
+   */
+  async basculerSousTache(
+    id: string,
+    fait: boolean,
+    acteurId: string,
+    permissions: ReadonlySet<string>,
+  ) {
+    await this.exigerLisibleParSousTache(id, acteurId, permissions);
     return this.prisma.subtask.update({ where: { id }, data: { fait } });
   }
 
-  async supprimerSousTache(id: string) {
+  async supprimerSousTache(id: string, acteurId: string, permissions: ReadonlySet<string>) {
+    await this.exigerLisibleParSousTache(id, acteurId, permissions);
     await this.prisma.subtask.delete({ where: { id } });
+  }
+
+  private async exigerLisibleParSousTache(
+    id: string,
+    acteurId: string,
+    permissions: ReadonlySet<string>,
+  ) {
+    const sousTache = await this.prisma.subtask.findUnique({
+      where: { id },
+      select: { taskId: true },
+    });
+    if (!sousTache) throw new ErreurTache("introuvable");
+    await this.exigerLisible(sousTache.taskId, acteurId, permissions);
   }
 
   /**
@@ -660,7 +783,14 @@ export class TachesService {
    * sinon un ordre que ni l'une ni l'autre n'a voulu. La version lue est donc
    * exigée, et confrontée en base.
    */
-  async reordonnerSousTaches(taskId: string, idsOrdonnes: string[], version: number) {
+  async reordonnerSousTaches(
+    taskId: string,
+    idsOrdonnes: string[],
+    version: number,
+    acteurId: string,
+    permissions: ReadonlySet<string>,
+  ) {
+    await this.exigerLisible(taskId, acteurId, permissions);
     const tache = await this.prisma.task.findUnique({
       where: { id: taskId },
       select: { version: true },
@@ -693,7 +823,13 @@ export class TachesService {
   }
 
   /** `EX-TSK-11` — retirer une dépendance. */
-  async retirerDependance(taskId: string, prerequisId: string, acteurId: string) {
+  async retirerDependance(
+    taskId: string,
+    prerequisId: string,
+    acteurId: string,
+    permissions: ReadonlySet<string>,
+  ) {
+    await this.exigerLisible(taskId, acteurId, permissions);
     await this.prisma.taskDependency.delete({
       where: { taskId_prerequisId: { taskId, prerequisId } },
     });
@@ -704,7 +840,14 @@ export class TachesService {
   }
 
   /** `EX-TSK-14` — retirer un rôle RACI. */
-  async retirerRaci(taskId: string, userId: string, role: RoleRaci, acteurId: string) {
+  async retirerRaci(
+    taskId: string,
+    userId: string,
+    role: RoleRaci,
+    acteurId: string,
+    permissions: ReadonlySet<string>,
+  ) {
+    await this.exigerLisible(taskId, acteurId, permissions);
     await this.prisma.taskRaci.delete({
       where: { taskId_userId_role: { taskId, userId, role } },
     });
@@ -1041,8 +1184,23 @@ export class TachesService {
     return { version: version + 1, ajoutees: aAjouter, retirees: aRetirer };
   }
 
-  async ajouterDependance(taskId: string, prerequisId: string, acteurId: string) {
+  async ajouterDependance(
+    taskId: string,
+    prerequisId: string,
+    acteurId: string,
+    permissions: ReadonlySet<string>,
+  ) {
     if (taskId === prerequisId) throw new ErreurTache("dependance_sur_soi");
+
+    /*
+     * `RG-SCOPE-04` — **les DEUX tâches, pas seulement celle de l'URL.** Poser
+     * un lien sur une tâche qu'on ne peut pas nommer la fait ensuite paraître
+     * dans `dependances` et dans la cascade ; `candidatsDependance` ne
+     * proposait déjà que des tâches du périmètre, et cette route-ci acceptait
+     * n'importe quel identifiant deviné.
+     */
+    await this.exigerLisible(taskId, acteurId, permissions);
+    await this.exigerLisible(prerequisId, acteurId, permissions);
 
     const [tache, prerequis] = await Promise.all([
       this.prisma.task.findUnique({ where: { id: taskId }, select: { projectId: true } }),
@@ -1188,7 +1346,13 @@ export class TachesService {
     return jours === 0 ? [] : touchees;
   }
 
-  async decalerEnCascade(taskId: string, jours: number, acteurId: string) {
+  async decalerEnCascade(
+    taskId: string,
+    jours: number,
+    acteurId: string,
+    permissions: ReadonlySet<string>,
+  ) {
+    await this.exigerLisible(taskId, acteurId, permissions);
     const touchees = await this.apercuCascade(taskId, jours);
     const ids = [taskId, ...touchees.map((t) => t.id)];
 
@@ -1276,7 +1440,14 @@ export class TachesService {
   // ── RACI — EX-TSK-14 ─────────────────────────────────────────────────────
 
   /** `RG-TSK-10` — un même utilisateur ne porte pas deux fois le même rôle RACI. */
-  async attribuerRaci(taskId: string, userId: string, role: RoleRaci, acteurId: string) {
+  async attribuerRaci(
+    taskId: string,
+    userId: string,
+    role: RoleRaci,
+    acteurId: string,
+    permissions: ReadonlySet<string>,
+  ) {
+    await this.exigerLisible(taskId, acteurId, permissions);
     const existe = await this.prisma.taskRaci.findUnique({
       where: { taskId_userId_role: { taskId, userId, role } },
     });
@@ -1322,7 +1493,9 @@ export class TachesService {
     userIds: string[],
     version: number,
     acteurId: string,
+    permissions: ReadonlySet<string>,
   ): Promise<{ assignes: string[]; version: number }> {
+    await this.exigerLisible(taskId, acteurId, permissions);
     const tache = await this.prisma.task.findUnique({
       where: { id: taskId },
       select: { id: true, titre: true, version: true },
@@ -1391,11 +1564,12 @@ export class TachesService {
     const anciens = new Set(avant.map((a) => a.userId));
     for (const userId of uniques) {
       if (anciens.has(userId) || userId === acteurId) continue;
+      // `RG-GEN-08` — mêmes paramètres que la création : un seul modèle pour
+      // un seul type, sinon la même notification se dirait de deux façons.
       await this.notifications.notifier({
         userId,
         type: "tache_assignee",
-        titre: `Nouvelle tâche assignée — ${tache.titre}`,
-        contenu: `La tâche « ${tache.titre} » vous a été assignée.`,
+        params: { tache: tache.titre },
         lien: `/taches/${taskId}`,
       });
     }

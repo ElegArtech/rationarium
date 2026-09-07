@@ -31,9 +31,15 @@ import type { DemiJournee } from "@rationarium/contracts";
  * (`RG-CNG-23`) ; les deux ne se confondent pas, parce qu'ils ne disent pas
  * quoi recharger : l'un renvoie au solde attribué, l'autre à la demande.
  *
+ * `code_deja_pris` — `EX-CNG-13`, sur le code d'un type de congé, qui est
+ * unique. Le refus le NOMME plutôt que de laisser la contrainte parler : la
+ * traduction générique de `P2002` dit qu'une entrée identique existe, sans
+ * dire lequel des dix champs corriger.
+ *
  * Le commentaire est AU-DESSUS de l'union, pas dedans : `messages-metier.test.ts`
  * lit ces unions à l'expression rationnelle, et un commentaire intercalé lui
  * fait perdre la déclaration entière — les onze codes passent alors pour morts.
+ * Vérifié une seconde fois le 2026-09-07, en le payant.
  */
 export type EchecConge =
   | "type_inactif"
@@ -47,6 +53,7 @@ export type EchecConge =
   | "delegue_inactif"
   | "allocation_modifiee"
   | "conflit_de_version"
+  | "code_deja_pris"
   | "introuvable";
 
 export class ErreurConge extends Error {
@@ -526,12 +533,23 @@ export class CongesService {
      * `notifier` écrit en base puis met le courriel en file (`RG-NTF-04`).
      */
     if (!approuveDirectement && validateur) {
+      /*
+       * `RG-GEN-08` — le corps voyage en **paramètres**, pas en phrase
+       * française. Il se compose à la LECTURE, dans la langue du lecteur
+       * (`notifications/libelles.ts`) : une phrase figée à l'émission ne se
+       * rattrape jamais au changement de langue.
+       *
+       * `EX-CNG-01`, `RG-NTF-01` — **et le lien ouvre l'onglet où la demande
+       * attend.** Il pointait `/conges`, donc « Mes demandes », où le
+       * validateur ne trouvait rien : la notification annonçait une décision à
+       * prendre et menait à un écran qui ne la montre pas. L'onglet est un
+       * état d'adresse, porté par le fragment (vue 19).
+       */
       await this.notifications.notifier({
         userId: validateur,
         type: "conge_a_valider",
-        titre: "Demande de congé à valider",
-        contenu: `Une demande de congé de ${joursOuvres} jour(s) attend votre décision.`,
-        lien: "/conges",
+        params: { jours: String(joursOuvres) },
+        lien: "/conges#aValider",
       });
     }
 
@@ -542,6 +560,24 @@ export class CongesService {
    * `RG-CNG-15` — déclarer pour autrui exige la permission dédiée **et** que
    * le collaborateur relève de ses services. Un collaborateur inactif ou hors
    * périmètre est refusé.
+   *
+   * ──────────────────────────────────────────────────────────────────────────
+   * **La règle dit « ses services » ; le contrôle lisait « son département ».**
+   *
+   * `perimetre.utilisateurs` est bâti sur les DÉPARTEMENTS du périmètre
+   * (`RG-SCOPE-01`) : c'est la bonne granularité pour lire une liste, ce n'est
+   * pas celle que `RG-CNG-15` demande pour écrire au nom de quelqu'un. Un
+   * manager de service pouvait donc déposer un congé — directement approuvé
+   * par `RG-CNG-14`, donc consommant le solde d'autrui — pour n'importe quel
+   * agent d'un autre service du même département. Mesuré : une requête forgée
+   * sur un agent hors des services de la manager rendait `201`.
+   *
+   * Les deux contrôles cohabitent, et c'est délibéré : le périmètre reste la
+   * borne extérieure, l'appartenance au service est la borne intérieure que la
+   * règle nomme. Le second ne rend pas le premier inutile — il le resserre.
+   *
+   * `RG-SCOPE-03` — une gestion globale court-circuite l'un comme l'autre.
+   * ──────────────────────────────────────────────────────────────────────────
    */
   async verifierDeclarationPourAutrui(
     collaborateurId: string,
@@ -551,8 +587,33 @@ export class CongesService {
     if (!permissions.has("leaves:declare_for_other")) {
       throw new ErreurConge("hors_perimetre");
     }
-    if (!perimetre.global && !perimetre.utilisateurs.has(collaborateurId)) {
-      throw new ErreurConge("hors_perimetre");
+    if (!perimetre.global) {
+      if (!perimetre.utilisateurs.has(collaborateurId)) {
+        throw new ErreurConge("hors_perimetre");
+      }
+      /*
+       * « Ses services » : ceux dont il est le manager, et ceux dont il est
+       * membre. Les deux comptent — un référent qui déclare pour un collègue
+       * de son propre service relève bien de la règle, et la limiter à
+       * l'encadrement en ferait une autre.
+       */
+      const dansSesServices = await this.prisma.user.findFirst({
+        where: {
+          id: collaborateurId,
+          services: {
+            some: {
+              service: {
+                OR: [
+                  { managerId: perimetre.userId },
+                  { membres: { some: { userId: perimetre.userId } } },
+                ],
+              },
+            },
+          },
+        },
+        select: { id: true },
+      });
+      if (!dansSesServices) throw new ErreurConge("hors_perimetre");
     }
     const collaborateur = await this.prisma.user.findUnique({
       where: { id: collaborateurId },
@@ -696,12 +757,19 @@ export class CongesService {
 
     // `RG-NTF-03`, seconde face : s'auto-approuver ne s'annonce pas à soi-même.
     if (!sienne) {
+      /*
+       * `RG-GEN-08` — paramètres, pas phrase. `decision` distingue les deux
+       * faces du même type : `cadrage/01 § M18` n'en énonce qu'un, « Décision
+       * sur votre demande de congé », et le corps porte laquelle.
+       *
+       * `RG-NTF-01` — le destinataire est le DEMANDEUR : son congé est dans
+       * « Mes demandes », pas dans « À valider ».
+       */
       await this.notifications.notifier({
         userId: conge.userId,
         type: "conge_decide",
-        titre: "Votre demande de congé est approuvée",
-        contenu: "Votre demande de congé a été approuvée.",
-        lien: "/conges",
+        params: { decision: "approuve" },
+        lien: "/conges#mesDemandes",
       });
     }
   }
@@ -726,14 +794,19 @@ export class CongesService {
       detail: { agent: conge.userId },
     });
 
-    // Le motif voyage avec la notification : « refusée » sans raison oblige à
-    // aller la chercher, et c'est la première question qu'on se pose.
+    /*
+     * Le motif voyage avec la notification : « refusée » sans raison oblige à
+     * aller la chercher, et c'est la première question qu'on se pose. Il voyage
+     * désormais en **paramètre** (`RG-GEN-08`) — le motif reste dans la langue
+     * où son auteur l'a écrit, ce qui est juste : c'est une citation, pas une
+     * chaîne du produit ; la phrase qui l'entoure, elle, se rend dans la langue
+     * du lecteur.
+     */
     await this.notifications.notifier({
       userId: conge.userId,
       type: "conge_decide",
-      titre: "Votre demande de congé est refusée",
-      contenu: `Votre demande de congé a été refusée. Motif : ${motifRefus}`,
-      lien: "/conges",
+      params: { decision: "refuse", motif: motifRefus },
+      lien: "/conges#mesDemandes",
     });
   }
 
@@ -890,6 +963,153 @@ export class CongesService {
   // ── Référentiel des types — EX-CNG-13 ────────────────────────────────────
 
   /**
+   * Un type, par son identifiant.
+   *
+   * Sert au contrôleur à savoir s'il a affaire à un type **système** avant de
+   * choisir le schéma d'entrée que `RG-CNG-30` impose. C'est une lecture de
+   * plus, sur une table de référentiel de quelques lignes ; l'alternative
+   * — deviner le schéma puis refuser après coup — rendrait le message
+   * d'erreur générique là où la règle nomme cinq champs.
+   */
+  async typeDeConge(typeId: string) {
+    const type = await this.prisma.leaveType.findUnique({ where: { id: typeId } });
+    if (!type) throw new ErreurConge("introuvable");
+    return type;
+  }
+
+  /**
+   * `EX-CNG-13` — **créer** un type de congé.
+   *
+   * Le référentiel se lisait et se supprimait ; il ne se créait ni ne se
+   * modifiait. L'état vide de la vue 19 invitait pourtant à « en créer un dans
+   * l'onglet Types de congés » — une sortie que rien ne permettait
+   * d'emprunter. Cinquième occurrence dans ce dépôt de la famille « le verbe
+   * manque », après `EX-ORG-02`, `EX-ORG-03`, `EX-CLI-02` et `EX-PRJ-05`.
+   *
+   * `systeme` n'est **pas** un champ d'entrée : il marque ce que le produit
+   * fournit, et un type créé à la main n'en est pas. L'ouvrir permettrait de
+   * fabriquer un type que `RG-CNG-30` rendrait ensuite immodifiable.
+   */
+  async creerType(
+    donnees: {
+      code: string; nom: string;
+      description?: string; icone?: string; couleur?: string;
+      remunere: boolean; validationRequise: boolean;
+      limiteAnnuelle?: number | null;
+      ordre: number; actif: boolean;
+    },
+    acteurId: string,
+  ) {
+    const code = donnees.code.toUpperCase();
+    const pris = await this.prisma.leaveType.findUnique({
+      where: { code },
+      select: { id: true },
+    });
+    // Le refus est NOMMÉ ici plutôt que laissé à la contrainte d'unicité : la
+    // traduction de `P2002` dit « une entrée identique existe déjà », ce qui
+    // ne dit pas quel champ corriger.
+    if (pris) throw new ErreurConge("code_deja_pris", { code });
+
+    const type = await this.prisma.leaveType.create({
+      data: {
+        code,
+        nom: donnees.nom,
+        description: donnees.description ?? null,
+        icone: donnees.icone ?? null,
+        couleur: donnees.couleur ?? null,
+        remunere: donnees.remunere,
+        validationRequise: donnees.validationRequise,
+        limiteAnnuelle: donnees.limiteAnnuelle ?? null,
+        ordre: donnees.ordre,
+        actif: donnees.actif,
+      },
+    });
+    await this.audit.tracer({
+      action: "leave_type.create", typeEntite: "LeaveType", entiteId: type.id, acteurId,
+      detail: { code: type.code, nom: type.nom },
+    });
+    return { ...type, limiteAnnuelle: type.limiteAnnuelle === null ? null : Number(type.limiteAnnuelle) };
+  }
+
+  /**
+   * `EX-CNG-13` — **modifier** un type de congé.
+   *
+   * `RG-CNG-30` — sur un type système, seuls nom, description, icône, couleur
+   * et exigence de validation sont modifiables. La règle est refusée **au
+   * contrôleur**, champ par champ, parce que c'est là qu'un message peut se
+   * poser sous le champ fautif ; elle est **tenue ici**, parce qu'une règle du
+   * domaine qui ne vit qu'à la frontière HTTP tombe au premier autre
+   * appelant. Le second contrôle n'est pas un doublon : c'est le seul qui
+   * survive à l'import, à l'amorçage ou à un futur point d'entrée.
+   *
+   * `RG-GEN-07` — la version lue accompagne l'écriture, et le conflit est
+   * détecté dans le `where` de la mise à jour : lire puis écrire laisserait
+   * une fenêtre entre les deux.
+   */
+  async modifierType(
+    typeId: string,
+    donnees: {
+      code?: string; nom?: string;
+      description?: string | null; icone?: string | null; couleur?: string | null;
+      remunere?: boolean; validationRequise?: boolean;
+      limiteAnnuelle?: number | null;
+      ordre?: number; actif?: boolean;
+      version: number;
+    },
+    acteurId: string,
+  ) {
+    const avant = await this.typeDeConge(typeId);
+
+    const data: Record<string, unknown> = { version: { increment: 1 } };
+    const poser = (champ: string, valeur: unknown) => {
+      if (valeur !== undefined) data[champ] = valeur;
+    };
+    poser("nom", donnees.nom);
+    poser("description", donnees.description);
+    poser("icone", donnees.icone);
+    poser("couleur", donnees.couleur);
+    poser("validationRequise", donnees.validationRequise);
+
+    if (!avant.systeme) {
+      poser("remunere", donnees.remunere);
+      poser("limiteAnnuelle", donnees.limiteAnnuelle);
+      poser("ordre", donnees.ordre);
+      poser("actif", donnees.actif);
+
+      if (donnees.code !== undefined) {
+        const code = donnees.code.toUpperCase();
+        if (code !== avant.code) {
+          const pris = await this.prisma.leaveType.findUnique({
+            where: { code },
+            select: { id: true },
+          });
+          if (pris) throw new ErreurConge("code_deja_pris", { code });
+        }
+        data["code"] = code;
+      }
+    }
+
+    const { count } = await this.prisma.leaveType.updateMany({
+      where: { id: typeId, version: donnees.version },
+      data,
+    });
+    if (count === 0) {
+      throw new ErreurConge("conflit_de_version", {
+        attendue: avant.version,
+        recue: donnees.version,
+      });
+    }
+
+    await this.audit.tracer({
+      action: "leave_type.update", typeEntite: "LeaveType", entiteId: typeId, acteurId,
+      detail: { champs: Object.keys(data).filter((c) => c !== "version"), systeme: avant.systeme },
+    });
+
+    const apres = await this.prisma.leaveType.findUniqueOrThrow({ where: { id: typeId } });
+    return { ...apres, limiteAnnuelle: apres.limiteAnnuelle === null ? null : Number(apres.limiteAnnuelle) };
+  }
+
+  /**
    * `RG-CNG-30` — un type système n'est pas supprimable ; seuls son nom, sa
    * description, son icône, sa couleur et son exigence de validation sont
    * modifiables.
@@ -1020,10 +1240,31 @@ export class CongesService {
 
   // ── Consultation — EX-CNG-01 ─────────────────────────────────────────────
 
+  /**
+   * `EX-CNG-01` — la liste des congés, bornée au périmètre.
+   *
+   * **`RG-CNG-09` — « À valider » ne contient pas ses propres demandes.** Un
+   * validateur dont le validateur désigné est lui-même — le cas normal du
+   * responsable de service, que `determinerValidateur` remonte à son
+   * supérieur seulement s'il en trouve un — voyait sa propre demande dans son
+   * onglet, « Approuver » et « Refuser » actifs. Le serveur refusait ensuite,
+   * en `auto_validation_interdite` : la commande était offerte pour être
+   * refusée, ce que `RG-GEN-06` interdit précisément.
+   *
+   * L'exclusion est **conditionnelle**, comme la règle : qui détient
+   * `leaves:self_approve` peut légitimement s'auto-valider, et sa demande doit
+   * donc rester dans sa liste. Une exclusion inconditionnelle rendrait cette
+   * permission inutilisable par l'écran qui l'exerce.
+   *
+   * Elle porte sur `aValider` **seulement**. La liste ordinaire montre bien
+   * ses propres congés : c'est la même route, et c'est le filtre qui change de
+   * question.
+   */
   async lister(
     perimetre: Perimetre,
     filtres: { userId?: string; aValider?: boolean; statut?: string; annee?: number } = {},
     acteurId?: string,
+    permissions: ReadonlySet<string> = new Set(),
   ) {
     const clauses: Record<string, unknown>[] = [this.perimetres.filtreParAgent(perimetre)];
 
@@ -1031,6 +1272,9 @@ export class CongesService {
     if (filtres.statut) clauses.push({ statut: filtres.statut });
     if (filtres.aValider && acteurId) {
       clauses.push({ validateurId: acteurId, statut: { in: ["pending", "cancellation_requested"] } });
+      if (!permissions.has("leaves:self_approve")) {
+        clauses.push({ NOT: { userId: acteurId } });
+      }
     }
     if (filtres.annee) clauses.push({ repartitions: { some: { annee: filtres.annee } } });
 

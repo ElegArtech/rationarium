@@ -29,9 +29,15 @@ export type Perimetre = {
   readonly userId: string;
   /** `true` quand une permission de gestion globale court-circuite tout (`RG-SCOPE-03`). */
   readonly global: boolean;
-  /** Départements visibles. Vide si `global`. */
+  /**
+   * Départements du périmètre organisationnel.
+   *
+   * **Toujours renseignés, `global` ou non.** Voir `resoudre` : « je vois
+   * tout » et « mon périmètre est vide » étaient représentés par la même
+   * valeur, et le second l'emportait partout où l'on intersecte.
+   */
   readonly departements: ReadonlySet<string>;
-  /** Utilisateurs visibles. Vide si `global`. */
+  /** Agents du périmètre organisationnel. Toujours renseignés, `global` ou non. */
   readonly utilisateurs: ReadonlySet<string>;
   /** L'utilisateur peut-il lire les tâches confidentielles (`RG-SCOPE-04`) ? */
   readonly confidentiel: boolean;
@@ -49,20 +55,26 @@ export class PerimetreService {
    *
    * `RG-SCOPE-03` — les détenteurs d'une permission de gestion globale
    * conservent la vue complète de l'instance.
+   *
+   * ──────────────────────────────────────────────────────────────────────────
+   * **Un périmètre global reste NOMMABLE.** Corrigé le 2026-09-07.
+   *
+   * La résolution sortait en court-circuit dès `global`, avec deux ensembles
+   * vides. « Je vois tout » et « mon périmètre est vide » étaient donc la même
+   * valeur — et partout où l'on intersecte plutôt que d'ignorer, c'est le
+   * second sens qui l'emportait : le bouton « Mon périmètre » du planning
+   * (`EX-PLN-05`, `planning.service.ts`) resserre sur
+   * `perimetre.utilisateurs`, et vidait la grille entière au lieu de la
+   * restreindre. La manager n'y figurait même pas elle-même.
+   *
+   * Les ensembles sont donc calculés dans tous les cas ; c'est `global` seul,
+   * lu par les prédicats plus bas, qui dit qu'on ne filtre pas. Les deux faits
+   * sont distincts et se lisent séparément.
+   * ──────────────────────────────────────────────────────────────────────────
    */
   async resoudre(userId: string, permissions: ReadonlySet<string>): Promise<Perimetre> {
     const global = PERMISSIONS_GESTION_GLOBALE.some((p) => permissions.has(p));
-    const confidentiel = permissions.has("tasks:read_confidential");
-
-    if (global) {
-      return {
-        userId,
-        global: true,
-        departements: new Set(),
-        utilisateurs: new Set(),
-        confidentiel: true,
-      };
-    }
+    const confidentiel = global || permissions.has("tasks:read_confidential");
 
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -77,7 +89,7 @@ export class PerimetreService {
 
     const departements = new Set<string>();
     if (!user) {
-      return { userId, global: false, departements, utilisateurs: new Set(), confidentiel };
+      return { userId, global, departements, utilisateurs: new Set(), confidentiel };
     }
 
     // Son département de rattachement.
@@ -102,7 +114,7 @@ export class PerimetreService {
 
     const utilisateurs = await this.utilisateursDesDepartements(departements, userId);
 
-    return { userId, global: false, departements, utilisateurs, confidentiel };
+    return { userId, global, departements, utilisateurs, confidentiel };
   }
 
   /**
@@ -197,6 +209,25 @@ export class PerimetreService {
    *
    * C'est la règle la plus facile à rater : l'intuition dit qu'un assigné voit
    * sa tâche. Ici, non.
+   *
+   * ──────────────────────────────────────────────────────────────────────────
+   * **Le rattachement au projet se lit par `filtreMesProjets`.** Corrigé le
+   * 2026-09-07.
+   *
+   * Le prédicat ne connaissait que « assigné » et « membre du projet ». Trois
+   * définitions concurrentes de « mes projets » cohabitaient donc, et elles se
+   * contredisaient à l'écran : le portefeuille annonçait deux projets, la vue
+   * des tâches filtrée sur le projet dont on est SPONSOR rendait « aucune
+   * tâche », et le chef d'un projet ne voyait aucune de ses tâches tant qu'il
+   * n'était pas inscrit à sa propre équipe. `RG-SCOPE-02` énonce l'ensemble une
+   * fois — créateur, chef, sponsor, membres — et il n'y a pas de raison qu'une
+   * tâche s'en écarte : ce qui donne le droit d'ouvrir un projet donne celui
+   * d'en lire les tâches. La confidentialité, elle, reste par-dessus.
+   *
+   * Ce que ce prédicat ne peut PAS rattraper : une tâche hors projet sans
+   * assigné n'a aucun lien avec personne — `Task` ne porte pas de `createurId`.
+   * Voir le compte rendu de C-06.
+   * ──────────────────────────────────────────────────────────────────────────
    */
   filtreTache(p: Perimetre, permissions: ReadonlySet<string>): Record<string, unknown> {
     const clauses: Record<string, unknown>[] = [];
@@ -205,7 +236,7 @@ export class PerimetreService {
       clauses.push({
         OR: [
           { assignes: { some: { userId: p.userId } } },
-          { project: { membres: { some: { userId: p.userId } } } },
+          { project: this.filtreMesProjets(p.userId) },
         ],
       });
     }

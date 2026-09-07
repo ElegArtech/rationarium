@@ -4,6 +4,7 @@ import { execFileSync } from "node:child_process";
 import path from "node:path";
 import { creerClient, type PrismaClient } from "@rationarium/db";
 import { NotificationsService, ErreurNotification } from "./notifications.service.js";
+import { rendreCorps } from "./libelles.js";
 import { FileService, FILE_COURRIEL } from "./file.service.js";
 import { CongesService } from "../conges/conges.service.js";
 import { TachesService } from "../taches/taches.service.js";
@@ -225,7 +226,28 @@ describe("cadrage/01 § M18 — les six déclencheurs", () => {
 
     const recues = await notifsDe(agent);
     expect(recues.map((n) => n.type)).toEqual(["conge_decide"]);
-    expect(recues[0]?.titre).toContain("approuvée");
+    // `cadrage/01 § M18` — le vocabulaire des titres est FERMÉ : « Décision
+    // sur votre demande de congé ». Ce que la décision fut se lit au corps.
+    expect(recues[0]?.titre).toBe("Décision sur votre demande de congé");
+
+    /*
+     * `RG-GEN-08` — le corps n'est PLUS une phrase française en base : il y est
+     * encodé en clé et paramètres, et se rend dans la langue du lecteur. Une
+     * assertion portée sur la phrase stockée mesurait donc l'état d'avant, et
+     * elle serait redevenue verte au premier retour en arrière. On vise ce que
+     * le produit fait maintenant : la charge écrite, PUIS son rendu.
+     */
+    const contenu = recues[0]?.contenu ?? "";
+    expect(contenu.startsWith("i18n:")).toBe(true);
+    expect(JSON.parse(contenu.slice("i18n:".length))).toMatchObject({
+      cle: "conge_decide",
+      params: { decision: "approuve" },
+    });
+    expect(rendreCorps(contenu, "fr").texte).toContain("approuvée");
+    expect(rendreCorps(contenu, "en").texte).toContain("approved");
+    // Et le corps rendu n'est jamais vide : c'est le défaut qu'on a payé —
+    // quatre types sur six émettaient des paramètres que rien ne savait rendre.
+    expect(rendreCorps(contenu, "fr").texte).not.toBe("");
   });
 
   it("LE REFUS PORTE SON MOTIF — c'est la première question qu'on se pose", async () => {
@@ -241,7 +263,18 @@ describe("cadrage/01 § M18 — les six déclencheurs", () => {
     await conges.refuser(conge.id, "Effectif insuffisant sur la période", validateur, conge.version);
 
     const recues = await notifsDe(agent);
-    expect(recues[0]?.contenu).toContain("Effectif insuffisant sur la période");
+    const contenu = recues[0]?.contenu ?? "";
+    // Le motif est une CITATION : il voyage en paramètre, tel que son auteur
+    // l'a écrit, et la phrase qui l'entoure se rend dans la langue du lecteur.
+    expect(JSON.parse(contenu.slice("i18n:".length))).toMatchObject({
+      cle: "conge_decide",
+      params: { decision: "refuse", motif: "Effectif insuffisant sur la période" },
+    });
+    expect(rendreCorps(contenu, "fr").texte).toBe(
+      "Votre demande de congé a été refusée. Motif : Effectif insuffisant sur la période",
+    );
+    expect(rendreCorps(contenu, "en").texte).toContain("Effectif insuffisant sur la période");
+    expect(rendreCorps(contenu, "en").texte).toContain("declined");
   });
 
   it("RG-NTF-03, seconde face — s'auto-approuver ne s'annonce pas à soi-même", async () => {
@@ -356,17 +389,19 @@ describe("EX-NTF-01 à EX-NTF-03 — la lecture et le marquage", () => {
   });
 
   it("le filtre « non lues seulement » ne rend que celles-là", async () => {
+    // Le titre ne distingue plus rien : il vient du TYPE, et les six intitulés
+    // sont fermés. C'est le corps qui identifie l'entrée.
     await notifications.notifier({
-      userId: agent, type: "tache_assignee", titre: "Lue", contenu: "…",
+      userId: agent, type: "tache_assignee", contenu: "Lue",
     });
     const seule = (await notifsDe(agent))[0]!;
     await notifications.marquerLue(agent, seule.id);
     await notifications.notifier({
-      userId: agent, type: "tache_assignee", titre: "Fraîche", contenu: "…",
+      userId: agent, type: "tache_assignee", contenu: "Fraîche",
     });
 
     const filtrees = await notifications.lister(agent, { nonLuesSeulement: true });
-    expect(filtrees.entrees.map((n) => n.titre)).toEqual(["Fraîche"]);
+    expect(filtrees.entrees.map((n) => n.contenu)).toEqual(["Fraîche"]);
   });
 
   it("LA NOTIFICATION D'AUTRUI EST INTOUCHABLE, même en devinant l'identifiant", async () => {
@@ -428,15 +463,18 @@ describe("EX-NTF-04 — le courriel, pour les notifications critiques seulement"
     envois.mockRestore();
   });
 
-  it("le courriel porte le titre et le contenu de la notification", async () => {
+  it("le courriel porte le titre du TYPE et le contenu de la notification", async () => {
     const envois = vi.spyOn(file, "publier");
     await notifications.notifier({
-      userId: agent, type: "conge_decide", titre: "Congé approuvé", contenu: "Du 1 au 5.",
+      userId: agent, type: "conge_decide", contenu: "Du 1 au 5.",
     });
 
     expect(envois).toHaveBeenCalledWith(
       FILE_COURRIEL,
-      expect.objectContaining({ sujet: "Congé approuvé", corps: "Du 1 au 5." }),
+      expect.objectContaining({
+        sujet: "Décision sur votre demande de congé",
+        corps: "Du 1 au 5.",
+      }),
     );
     envois.mockRestore();
   });
@@ -514,5 +552,86 @@ describe("RG-NTF-02 — le traitement planifié est protégé contre les exécut
     expect(a.planifications[0]!.options["singletonKey"]).toBe(
       b.planifications[0]!.options["singletonKey"],
     );
+  });
+});
+
+/**
+ * `RG-GEN-08`, `cadrage/01 § M18` — la notification se lit dans la langue de
+ * SON LECTEUR.
+ *
+ * DÉFAUT TROUVÉ EN RECETTE (P-18, P-19, P-20) : les phrases étaient écrites en
+ * français, en dur, **à l'émission**. En session anglaise, le panneau rendait
+ * un cadre traduit et un contenu français ; et le figement en base rendait le
+ * défaut irréparable après coup — une phrase écrite une fois ne se rattrape
+ * jamais au changement de langue.
+ */
+describe("RG-GEN-08 — une notification émise en français se lit en anglais", () => {
+  it("l'alerte d'échéance se rend dans la langue de chaque lecteur", async () => {
+    const anglophone = await creerAgent("Ann");
+    await prisma.user.update({ where: { id: anglophone }, data: { langue: "en" } });
+    await prisma.task.create({
+      data: {
+        titre: "Rédiger la note", statut: "doing", dateFin: utc("2026-08-01"),
+        assignes: { create: [{ userId: anglophone }] },
+      },
+    });
+
+    await notifications.alertesEcheance(utc("2026-08-11"));
+
+    const { entrees } = await notifications.lister(anglophone);
+    expect(entrees).toHaveLength(1);
+    // Le titre suit le vocabulaire fermé de M18, dans la langue du lecteur.
+    expect(entrees[0]?.titre).toBe("Overdue task");
+    expect(entrees[0]?.contenu).toBe(
+      "Task “Rédiger la note” is past its due date of 2026-08-01.",
+    );
+    // Et la clé accompagne le texte, pour le client qui composerait lui-même.
+    expect(entrees[0]?.cle).toBe("tache_en_retard");
+    expect(entrees[0]?.params).toMatchObject({ tache: "Rédiger la note" });
+
+    // La MÊME ligne en base, lue par un francophone : rien n'est figé.
+    await prisma.user.update({ where: { id: anglophone }, data: { langue: "fr" } });
+    const enFrancais = await notifications.lister(anglophone);
+    expect(enFrancais.entrees[0]?.titre).toBe("Tâche en retard");
+    expect(enFrancais.entrees[0]?.contenu).toBe(
+      "La tâche « Rédiger la note » a dépassé son échéance du 2026-08-01.",
+    );
+  });
+
+  it("cadrage/01 § M18 — le titre stocké ne porte plus la formulation écartée", async () => {
+    const porteur = await creerAgent("Théo");
+    await prisma.task.create({
+      data: {
+        titre: "Relire le marché", statut: "doing", dateFin: utc("2026-08-13"),
+        assignes: { create: [{ userId: porteur }] },
+      },
+    });
+    await notifications.alertesEcheance(utc("2026-08-11"));
+
+    // « Échéance proche : Relire le marché » était ce que le produit écrivait.
+    const brute = await prisma.notification.findFirstOrThrow({ where: { userId: porteur } });
+    expect(brute.titre).toBe("Tâche à échéance proche");
+    expect(brute.titre).not.toContain("Relire le marché");
+  });
+
+  it("EX-NTF-04 — le courriel part dans la langue du DESTINATAIRE", async () => {
+    const anglophone = await creerAgent("Ada");
+    await prisma.user.update({ where: { id: anglophone }, data: { langue: "en" } });
+    const envois = vi.spyOn(file, "publier");
+
+    await notifications.notifier({
+      userId: anglophone,
+      type: "tache_en_retard",
+      params: { tache: "Clore le lot", date: "2026-08-01" },
+    });
+
+    expect(envois).toHaveBeenCalledWith(
+      FILE_COURRIEL,
+      expect.objectContaining({
+        sujet: "Overdue task",
+        corps: "Task “Clore le lot” is past its due date of 2026-08-01.",
+      }),
+    );
+    envois.mockRestore();
   });
 });

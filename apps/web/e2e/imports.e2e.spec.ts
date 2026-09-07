@@ -45,13 +45,76 @@ const APERCU_OK = {
   erreurs: [],
 };
 
+/**
+ * Un motif ligne à ligne, **calqué sur la signature du service** —
+ * `apps/api/src/imports/motifs.ts`.
+ *
+ * Le serveur nomme la situation, le client la formule (`RG-GEN-08`) : il rend
+ * `{ ligne, cle, params, message }`, et la clé porte déjà son espace de noms.
+ * Le jeu d'essai de cette suite ne portait que `{ ligne, message }` — la forme
+ * que le client *croyait* recevoir avant la correction. Il validait donc une
+ * fiction : `t(undefined)` ne rend rien, et le compte rendu s'affichait
+ * amputé de ses motifs sans qu'aucune assertion ne s'en émeuve.
+ */
+type Motif = {
+  ligne: number;
+  cle: string;
+  params: Record<string, string | number>;
+  message: string;
+};
+
+const motif = (
+  ligne: number,
+  nom: string,
+  params: Record<string, string | number>,
+  message: string,
+): Motif => ({ ligne, cle: `imports:motifs.${nom}`, params, message });
+
 const APERCU_AVEC_ERREURS = {
   lignes: APERCU_OK.lignes,
   total: 2,
-  erreurs: [{ ligne: 3, message: "colonne « email » vide" }],
+  erreurs: [
+    motif(3, "colonneVide", { colonne: "email" }, "colonne « email » vide"),
+    /*
+     * **Une clé que le catalogue ignore.** Elle n'a rien d'hypothétique : le
+     * serveur et le client se déploient ensemble mais ne se relisent pas, et
+     * un motif ajouté d'un côté sans l'autre afficherait sa clé nue — un
+     * « imports:motifs.… » à la place d'une phrase, sur l'écran qui sert à
+     * corriger un fichier. C'est ce que le repli sur `message` existe pour
+     * empêcher, et rien d'autre ne le vérifiait.
+     */
+    motif(7, "motifQueLeCatalogueIgnore", {}, "motif que le catalogue ne connaît pas encore"),
+  ],
 };
 
-const RENDU = { importes: 1, ignores: 1, erreurs: [] as { ligne: number; message: string }[] };
+/**
+ * `RG-IMP-04` — un compte rendu où **les trois familles sont peuplées**.
+ *
+ * L'ancien jeu portait `erreurs: []` et pas de champ `ignorees` : « 0 en
+ * erreur » se lisait sur une famille vide, et les lignes ignorées n'avaient
+ * aucun motif — exactement le silence que la correction ferme. Les deux
+ * collisions d'un import d'utilisateurs sont ici distinctes, parce qu'elles
+ * ne se corrigent pas dans la même colonne.
+ */
+const RENDU = {
+  importes: 1,
+  ignores: 2,
+  ignorees: [
+    motif(
+      3,
+      "emailDejaPris",
+      { email: "ana@exemple.fr" },
+      "un compte porte déjà l'adresse « ana@exemple.fr » : ligne ignorée.",
+    ),
+    motif(
+      4,
+      "loginDejaPris",
+      { login: "bob" },
+      "un compte porte déjà l'identifiant « bob » : ligne ignorée.",
+    ),
+  ],
+  erreurs: [motif(5, "colonneVide", { colonne: "login" }, "colonne « login » vide")],
+};
 
 const FICHIER =
   "email;login;password;firstName;lastName\n" +
@@ -115,9 +178,36 @@ test.describe("Vue 27 — import d'utilisateurs", () => {
 
     // Fondre les doublons dans les erreurs ferait paniquer sur un rejeu.
     await expect(page.getByText("1 importé")).toBeVisible();
-    await expect(page.getByText("1 ignoré")).toBeVisible();
-    await expect(page.getByText("0 en erreur")).toBeVisible();
-    await expect(page.getByText(/rejouer un fichier ne crée pas de doublon/)).toBeVisible();
+    await expect(page.getByText("2 ignorés")).toBeVisible();
+    await expect(page.getByText("1 en erreur")).toBeVisible();
+
+    /*
+     * **Le compte rendu ne disait jamais ce qui avait été créé.** Trois
+     * chiffres, et pas une phrase disant de QUOI il s'agit : « 1 importé » ne
+     * dit pas un compte, un congé ou un jalon. Le nombre existait, il lui
+     * manquait son nom — et c'est le type de l'import qui le porte.
+     */
+    await expect(page.getByText("1 compte créé")).toBeVisible();
+
+    /*
+     * `RG-IMP-04` — **un ignoré porte son MOTIF, au même format qu'une
+     * erreur.** La note générique que ce contrôle exigeait — « rejouer un
+     * fichier ne crée pas de doublon » — était redondante avec le chiffre et
+     * fausse pour le chevauchement de congé (`RG-CNG-32`), qui n'est pas un
+     * doublon. Surtout, elle fondait DEUX collisions en un seul silence : le
+     * lecteur ne savait pas laquelle des deux colonnes corriger. Les viser
+     * séparément est la seule façon de mesurer la distinction.
+     */
+    await expect(page.getByText("Lignes ignorées")).toBeVisible();
+    await expect(
+      page.getByText("Ligne 3 — un compte porte déjà l'adresse « ana@exemple.fr » : ligne ignorée."),
+    ).toBeVisible();
+    await expect(
+      page.getByText("Ligne 4 — un compte porte déjà l'identifiant « bob » : ligne ignorée."),
+    ).toBeVisible();
+
+    // La troisième famille reste distincte des deux autres, avec son numéro.
+    await expect(page.getByText("Ligne 5 — colonne « login » vide")).toBeVisible();
   });
 
   test("une erreur porte SON NUMÉRO DE LIGNE — sinon il faut tout relire", async ({ page }) => {
@@ -132,9 +222,21 @@ test.describe("Vue 27 — import d'utilisateurs", () => {
     await page.getByRole("button", { name: "Importer CSV" }).click();
     await choisirFichier(page);
 
-    await expect(page.getByText("1 erreur détectée")).toBeVisible();
-    // Le numéro est le seul repère retrouvable dans un tableur.
-    await expect(page.getByText(/Ligne 3 — colonne « email » vide/)).toBeVisible();
+    await expect(page.getByText("2 erreurs détectées")).toBeVisible();
+    /*
+     * Le numéro est le seul repère retrouvable dans un tableur — et la phrase
+     * vient désormais du CATALOGUE, pas du serveur : `t("imports:motifs.…",
+     * params)`. Le français des deux est identique par construction, ce qui
+     * rend ce contrôle aveugle à la langue ; ce qu'il tient est le raccord
+     * clé → paramètres → phrase, qui ne rendait rien du tout tant que le jeu
+     * d'essai portait la forme inventée.
+     */
+    await expect(page.getByText("Ligne 3 — colonne « email » vide")).toBeVisible();
+    // Et le repli : une clé inconnue affiche la phrase du serveur, jamais la clé.
+    await expect(
+      page.getByText("Ligne 7 — motif que le catalogue ne connaît pas encore"),
+    ).toBeVisible();
+    await expect(page.getByText("imports:motifs")).toHaveCount(0);
   });
 
   test("sans users:import, le bouton n'est pas proposé", async ({ page }) => {

@@ -796,13 +796,25 @@ function FenetreCreation({
 
 
 /**
- * Détacher un projet du client.
+ * Détacher un projet du client — `EX-PRJ-10`, `RG-PRJ-12`.
  *
- * Le point d'entrée remplace la liste entière : on relit donc les
- * bénéficiaires du projet et on renvoie celle-ci privée du client courant.
- * **Détacher n'est pas supprimer** — le projet reste, il perd un
- * bénéficiaire.
+ * **Détacher n'est pas supprimer** — le projet reste, il perd un bénéficiaire.
+ *
+ * Ce crochet appelait `definirClientsDuProjet` avec la liste privée du client
+ * courant. Or ce point d'entrée n'AJOUTE que — son commentaire dans
+ * `api/referentiels.ts` le dit en toutes lettres : renvoyer une liste
+ * raccourcie ne détache personne. Le geste échouait donc **en silence**,
+ * `POST /clients/projets/:id` rendant 201 sur une liste vide : le projet
+ * restait rattaché, aucun message d'erreur n'apparaissait, et le journal
+ * d'audit enregistrait `client.attach_project` — la trace disait l'inverse du
+ * geste demandé. `detacherClientDuProjet` existe et fait ce qu'on lui demande.
+ *
+ * Le geste est isolé dans `detacherProjetDuClient` — c'est le CHOIX du point
+ * d'entrée qui portait le défaut, et un choix se vérifie sans monter de DOM.
  */
+export const detacherProjetDuClient = (projetId: string, clientId: string) =>
+  api.detacherClientDuProjet(projetId, clientId);
+
 function useDetachement(clientId: string) {
   const { t } = useTranslation("referentiels");
   const { t: tErreurs } = useTranslation("erreurs");
@@ -810,11 +822,7 @@ function useDetachement(clientId: string) {
   const client = useQueryClient();
 
   return useMutation({
-    mutationFn: async (projetId: string) => {
-      const projet = await apiProjets.fiche(projetId);
-      const restants = projet.clients.map((c) => c.id).filter((id) => id !== clientId);
-      return api.definirClientsDuProjet(projetId, restants);
-    },
+    mutationFn: (projetId: string) => detacherProjetDuClient(projetId, clientId),
     onSuccess: () => {
       annoncer("ok", t("clients.detache"));
       void client.invalidateQueries({ queryKey: ["clients"] });

@@ -8,8 +8,9 @@ import { Button } from "react-aria-components";
 import { CATEGORIES_COMPETENCE, NIVEAUX_COMPETENCE } from "@rationarium/contracts";
 import * as api from "../../api/referentiels.js";
 import { messageErreur } from "../../api/erreurs.js";
+import { ErreurApi } from "../../api/client.js";
 import { usePeut } from "../../session/session.js";
-import { Chargement, ErreurDeChargement } from "../../composants/etats.js";
+import { AccesRefuse, Chargement, ErreurDeChargement } from "../../composants/etats.js";
 import { Fenetre } from "../../composants/fenetre.js";
 import { useMessages } from "../../composants/messages.js";
 import { AvatarAgent, MarqueurCalcule, jetonDe, useLibelle } from "../../composants/pastilles.js";
@@ -47,7 +48,34 @@ import "./competences.css";
  * distinguent pas d'un coup d'œil, trois lettres si.
  */
 
-type Vue = "parUtilisateur" | "referentiel" | "matrice";
+export type Vue = "parUtilisateur" | "referentiel" | "matrice";
+
+/**
+ * `EX-CMP-01` — **le référentiel se lit avec `skills:read` ; la matrice exige
+ * `skills:manage_matrix`.**
+ *
+ * Les trois onglets tiraient tous leurs données de `GET /competences/matrice`,
+ * et le corps entier de la vue ne se rendait que sur le succès de cette seule
+ * requête. Un porteur de `skills:read` sans `manage_matrix` — c'est-à-dire le
+ * socle de tout compte actif — recevait donc « Le chargement a échoué —
+ * Permission requise » sur les **trois** onglets, y compris celui qu'il a le
+ * droit de lire. La vue 22 était morte pour presque tout le monde.
+ *
+ * `RG-GEN-06` : ce qu'on n'a pas le droit de lire n'est pas proposé. Les deux
+ * onglets qui vivent de la matrice disparaissent, et la requête ne part pas.
+ */
+export function vuesCompetences(matriceAccessible: boolean): Vue[] {
+  return matriceAccessible ? ["parUtilisateur", "referentiel", "matrice"] : ["referentiel"];
+}
+
+/**
+ * L'onglet actif recalé sur ce qui reste accessible — même règle que la vue 19
+ * (`ongletCourant`). Sans elle, l'onglet par défaut « matrice » désigne une
+ * section absente et la vue perd tous ses panneaux, sans erreur ni message.
+ */
+export function vueCourante(disponibles: Vue[], demandee: Vue): Vue {
+  return disponibles.includes(demandee) ? demandee : disponibles[0]!;
+}
 
 /**
  * `EX-CMP-07` — **deux vocabulaires de tri, un par objet trié.**
@@ -82,7 +110,16 @@ export function Competences() {
   const client = useQueryClient();
 
   const [importOuvert, setImportOuvert] = useState(false);
-  const [vue, setVue] = useState<Vue>("matrice");
+
+  /*
+   * `EX-CMP-01` — la matrice est un privilège, le référentiel un droit commun.
+   * L'onglet demandé est conservé en état, mais c'est `vue` — recalé sur les
+   * onglets réellement accessibles — qui commande le rendu.
+   */
+  const matriceAccessible = peut("skills:manage_matrix");
+  const disponibles = vuesCompetences(matriceAccessible);
+  const [vueDemandee, setVue] = useState<Vue>("matrice");
+  const vue = vueCourante(disponibles, vueDemandee);
   const [categorie, setCategorie] = useState("");
   const [recherche, setRecherche] = useState("");
   const [niveau, setNiveau] = useState("");
@@ -113,6 +150,9 @@ export function Competences() {
         tri,
         ...(tri === "competence" && competenceTri ? { competenceId: competenceTri } : {}),
       }),
+    // `RG-GEN-06` — on ne demande pas ce qu'on n'a pas le droit de lire. Sans
+    // cette garde, tout chargement de la vue rendait un 403 en console.
+    enabled: matriceAccessible,
   });
 
   const colonnes = requete.data?.colonnes ?? [];
@@ -136,21 +176,25 @@ export function Competences() {
           <h1 className="h1">{t("competences.titre")}</h1>
         </div>
         <div className="pl-toolbar-fin">
-          <div className="seg" role="group" aria-label={t("competences.vue")}>
-            <Button
-              aria-pressed={vue === "parUtilisateur"}
-              onPress={() => setVue("parUtilisateur")}
-            >
-              {t("competences.vueParUtilisateur")}
-            </Button>
-            <Button aria-pressed={vue === "referentiel"} onPress={() => setVue("referentiel")}>
-              {t("competences.vueReferentiel")}
-            </Button>
-            <Button aria-pressed={vue === "matrice"} onPress={() => setVue("matrice")}>
-              {t("competences.vueMatrice")}
-            </Button>
-          </div>
-          {peut("skills:create") ? (
+          {disponibles.length > 1 ? (
+            <div className="seg" role="group" aria-label={t("competences.vue")}>
+              {disponibles.map((v) => (
+                <Button key={v} aria-pressed={vue === v} onPress={() => setVue(v)}>
+                  {v === "parUtilisateur"
+                    ? t("competences.vueParUtilisateur")
+                    : v === "referentiel"
+                      ? t("competences.vueReferentiel")
+                      : t("competences.vueMatrice")}
+                </Button>
+              ))}
+            </div>
+          ) : null}
+          {/* `RG-GEN-06` — **la garde du client est celle de la route.**
+              `POST /imports/competences` exige `skills:import`, pas
+              `skills:create` : importer et créer à l'unité sont deux droits,
+              et les confondre cache la commande à qui l'a comme elle l'offre
+              à qui ne l'a pas. */}
+          {peut("skills:import") ? (
             <Button className="chip-btn" onPress={() => setImportOuvert(true)}>
               {t("competences.importerCsv")}
             </Button>
@@ -163,12 +207,20 @@ export function Competences() {
         </div>
       </div>
 
-      {requete.isPending ? <Chargement quoi={t("competences.laMatrice")} /> : null}
-      {requete.isError ? (
+      {matriceAccessible && requete.isPending ? (
+        <Chargement quoi={t("competences.laMatrice")} />
+      ) : null}
+      {matriceAccessible && requete.isError ? (
         <ErreurDeChargement erreur={requete.error} surReessai={() => void requete.refetch()} />
       ) : null}
 
-      {requete.isSuccess ? (
+      {/*
+        Le bandeau d'écarts et les indicateurs vivent de la matrice ; ils ne se
+        rendent donc que là où elle est lisible. Tout le reste — filtres,
+        référentiel — se rend indépendamment : c'était le défaut, un `isSuccess`
+        de la matrice au-dessus de la vue entière.
+      */}
+      {matriceAccessible && requete.isSuccess ? (
         <>
           {/* Écarts de couverture : l'information qu'on vient chercher. */}
           {ecarts.length > 0 ? (
@@ -227,271 +279,272 @@ export function Competences() {
               <span className="kpi-sub">{t("competences.niveaux34")}</span>
             </div>
           </div>
+        </>
+      ) : null}
 
-          {/*
-            `EX-CMP-07` — **la barre de filtres sert aussi le référentiel.**
+      {/*
+        `EX-CMP-07` — **la barre de filtres sert aussi le référentiel.**
 
-            Elle était enfermée dans la branche « matrice » et le composant
-            `Referentiel` recevait pourtant `categorie` et `recherche` : sur
-            l'onglet Référentiel, les filtres gardaient donc la dernière valeur
-            posée ailleurs, sans un seul contrôle pour les changer. L'exigence
-            demande de rechercher et filtrer — sur les trois vues du module.
-          */}
-          {vue !== "parUtilisateur" ? (
+        Elle était enfermée dans la branche « matrice » et le composant
+        `Referentiel` recevait pourtant `categorie` et `recherche` : sur
+        l'onglet Référentiel, les filtres gardaient donc la dernière valeur
+        posée ailleurs, sans un seul contrôle pour les changer. L'exigence
+        demande de rechercher et filtrer — sur les trois vues du module.
+      */}
+      {vue !== "parUtilisateur" ? (
+        <>
+          <div className="filters">
+            {/*
+              La recherche ne cherche pas la même chose selon la vue : la
+              matrice range des agents, le référentiel range des
+              compétences. Un placeholder unique en désignerait un pour
+              l'autre — « Rechercher un collaborateur… » au-dessus d'une
+              liste de compétences.
+            */}
+            <input
+              className="f-input"
+              type="search"
+              style={{ width: "210px" }}
+              value={recherche}
+              onChange={(e) => setRecherche(e.target.value)}
+              placeholder={
+                vue === "matrice"
+                  ? t("competences.rechercher")
+                  : t("competences.rechercherCompetence")
+              }
+              aria-label={
+                vue === "matrice"
+                  ? t("competences.rechercher")
+                  : t("competences.rechercherCompetence")
+              }
+            />
+            <select
+              className="f-input"
+              value={categorie}
+              onChange={(e) => setCategorie(e.target.value)}
+              aria-label={t("competences.categorie")}
+            >
+              <option value="">{t("competences.toutesCategories")}</option>
+              {CATEGORIES_COMPETENCE.map((c) => (
+                <option key={c.code} value={c.code}>
+                  {libelle(c.code, CATEGORIES_COMPETENCE)}
+                </option>
+              ))}
+            </select>
+            <select
+              className="f-input"
+              value={niveau}
+              onChange={(e) => setNiveau(e.target.value)}
+              aria-label={t("competences.niveau")}
+            >
+              <option value="">{t("competences.tousNiveaux")}</option>
+              {NIVEAUX_COMPETENCE.map((n) => (
+                <option key={n.code} value={n.code}>
+                  {libelle(n.code, NIVEAUX_COMPETENCE)}
+                </option>
+              ))}
+            </select>
+            {/*
+              Deux vocabulaires de tri, un par objet trié. Le référentiel
+              range des compétences — nom, couverture ; la matrice range
+              des agents — nom, nombre de compétences, niveau sur l'une
+              d'elles. Un sélecteur unique aux six entrées demanderait au
+              lecteur de deviner lesquelles s'appliquent à ce qu'il regarde.
+            */}
+            {vue === "matrice" ? (
+              <select
+                className="f-input"
+                value={tri}
+                onChange={(e) => setTri(e.target.value as TriMatrice)}
+                aria-label={t("competences.tri")}
+              >
+                <option value="nom">{t("competences.triNom")}</option>
+                <option value="nombre">{t("competences.triNombre")}</option>
+                <option value="competence">{t("competences.triCompetence")}</option>
+              </select>
+            ) : (
+              <select
+                className="f-input"
+                value={triReferentiel}
+                onChange={(e) => setTriReferentiel(e.target.value as TriReferentiel)}
+                aria-label={t("competences.tri")}
+              >
+                <option value="nom">{t("competences.triNom")}</option>
+                {/* `RG-CMP-03` — le ratio détenteurs/requis. Le tri qui
+                    manquait, et celui qui répond à la question du module :
+                    « sommes-nous couverts ? ». Le moins couvert en tête. */}
+                <option value="couverture">{t("competences.triCouverture")}</option>
+              </select>
+            )}
+            {/* Le sélecteur de compétence n'apparaît que lorsqu'il sert. */}
+            <select
+              className="f-input"
+              hidden={vue !== "matrice" || tri !== "competence"}
+              value={competenceTri}
+              onChange={(e) => setCompetenceTri(e.target.value)}
+              aria-label={t("competences.competenceDeTri")}
+            >
+              {colonnes.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.nom}
+                </option>
+              ))}
+            </select>
+            {/*
+              `EX-CMP-08` — « Exporter la **matrice** en CSV ».
+
+              Ce bouton téléchargeait le RÉFÉRENTIEL : la liste des
+              compétences, sans un seul agent. Le libellé de la maquette
+              (« Export CSV »), sa place — la barre de filtres de la
+              matrice — et l'exigence disent tous les trois la matrice.
+              Les deux exports existent et sont distincts, ils portent
+              donc désormais deux noms distincts.
+            */}
+            {peut("skills:export") && vue === "matrice" ? <ExportMatrice /> : null}
+            {peut("skills:export") ? (
+              <a className="chip-btn" href={adresseExportCompetences()} download>
+                {t("competences.exportReferentiel")}
+              </a>
+            ) : null}
+            {vue === "matrice" ? (
+              <span className="field-hint" style={{ margin: "0 0 0 auto" }}>
+                {t("competences.indiceCellule")}
+              </span>
+            ) : null}
+          </div>
+
+          {vue !== "matrice" || !requete.isSuccess ? null : colonnes.length === 0 ||
+            lignes.length === 0 ? (
+            <div className="empty empty-encadre">
+              <p>{t("competences.videTitre")}</p>
+              <small>{t("competences.videExplication")}</small>
+            </div>
+          ) : (
             <>
-              <div className="filters">
-                {/*
-                  La recherche ne cherche pas la même chose selon la vue : la
-                  matrice range des agents, le référentiel range des
-                  compétences. Un placeholder unique en désignerait un pour
-                  l'autre — « Rechercher un collaborateur… » au-dessus d'une
-                  liste de compétences.
-                */}
-                <input
-                  className="f-input"
-                  type="search"
-                  style={{ width: "210px" }}
-                  value={recherche}
-                  onChange={(e) => setRecherche(e.target.value)}
-                  placeholder={
-                    vue === "matrice"
-                      ? t("competences.rechercher")
-                      : t("competences.rechercherCompetence")
+              {/* Zone défilante : atteignable au clavier, et nommée. */}
+              <div
+                className="mx-wrap"
+                role="region"
+                tabIndex={0}
+                aria-label={t("competences.matriceZone")}
+              >
+                <div
+                  className="mx"
+                  style={
+                    {
+                      "--cols": `218px repeat(${colonnes.length}, minmax(44px,1fr))`,
+                    } as CSSProperties
                   }
-                  aria-label={
-                    vue === "matrice"
-                      ? t("competences.rechercher")
-                      : t("competences.rechercherCompetence")
-                  }
-                />
-                <select
-                  className="f-input"
-                  value={categorie}
-                  onChange={(e) => setCategorie(e.target.value)}
-                  aria-label={t("competences.categorie")}
                 >
-                  <option value="">{t("competences.toutesCategories")}</option>
-                  {CATEGORIES_COMPETENCE.map((c) => (
-                    <option key={c.code} value={c.code}>
-                      {libelle(c.code, CATEGORIES_COMPETENCE)}
-                    </option>
-                  ))}
-                </select>
-                <select
-                  className="f-input"
-                  value={niveau}
-                  onChange={(e) => setNiveau(e.target.value)}
-                  aria-label={t("competences.niveau")}
-                >
-                  <option value="">{t("competences.tousNiveaux")}</option>
-                  {NIVEAUX_COMPETENCE.map((n) => (
-                    <option key={n.code} value={n.code}>
-                      {libelle(n.code, NIVEAUX_COMPETENCE)}
-                    </option>
-                  ))}
-                </select>
-                {/*
-                  Deux vocabulaires de tri, un par objet trié. Le référentiel
-                  range des compétences — nom, couverture ; la matrice range
-                  des agents — nom, nombre de compétences, niveau sur l'une
-                  d'elles. Un sélecteur unique aux six entrées demanderait au
-                  lecteur de deviner lesquelles s'appliquent à ce qu'il regarde.
-                */}
-                {vue === "matrice" ? (
-                  <select
-                    className="f-input"
-                    value={tri}
-                    onChange={(e) => setTri(e.target.value as TriMatrice)}
-                    aria-label={t("competences.tri")}
-                  >
-                    <option value="nom">{t("competences.triNom")}</option>
-                    <option value="nombre">{t("competences.triNombre")}</option>
-                    <option value="competence">{t("competences.triCompetence")}</option>
-                  </select>
-                ) : (
-                  <select
-                    className="f-input"
-                    value={triReferentiel}
-                    onChange={(e) => setTriReferentiel(e.target.value as TriReferentiel)}
-                    aria-label={t("competences.tri")}
-                  >
-                    <option value="nom">{t("competences.triNom")}</option>
-                    {/* `RG-CMP-03` — le ratio détenteurs/requis. Le tri qui
-                        manquait, et celui qui répond à la question du module :
-                        « sommes-nous couverts ? ». Le moins couvert en tête. */}
-                    <option value="couverture">{t("competences.triCouverture")}</option>
-                  </select>
-                )}
-                {/* Le sélecteur de compétence n'apparaît que lorsqu'il sert. */}
-                <select
-                  className="f-input"
-                  hidden={vue !== "matrice" || tri !== "competence"}
-                  value={competenceTri}
-                  onChange={(e) => setCompetenceTri(e.target.value)}
-                  aria-label={t("competences.competenceDeTri")}
-                >
+                  <div className="mx-corner">
+                    <span className="eyebrow">{t("competences.collaborateur")}</span>
+                  </div>
                   {colonnes.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.nom}
-                    </option>
-                  ))}
-                </select>
-                {/*
-                  `EX-CMP-08` — « Exporter la **matrice** en CSV ».
-
-                  Ce bouton téléchargeait le RÉFÉRENTIEL : la liste des
-                  compétences, sans un seul agent. Le libellé de la maquette
-                  (« Export CSV »), sa place — la barre de filtres de la
-                  matrice — et l'exigence disent tous les trois la matrice.
-                  Les deux exports existent et sont distincts, ils portent
-                  donc désormais deux noms distincts.
-                */}
-                {peut("skills:export") && vue === "matrice" ? <ExportMatrice /> : null}
-                {peut("skills:export") ? (
-                  <a className="chip-btn" href={adresseExportCompetences()} download>
-                    {t("competences.exportReferentiel")}
-                  </a>
-                ) : null}
-                {vue === "matrice" ? (
-                  <span className="field-hint" style={{ margin: "0 0 0 auto" }}>
-                    {t("competences.indiceCellule")}
-                  </span>
-                ) : null}
-              </div>
-
-              {vue !== "matrice" ? null : colonnes.length === 0 || lignes.length === 0 ? (
-                <div className="empty empty-encadre">
-                  <p>{t("competences.videTitre")}</p>
-                  <small>{t("competences.videExplication")}</small>
-                </div>
-              ) : (
-                <>
-                  {/* Zone défilante : atteignable au clavier, et nommée. */}
-                  <div
-                    className="mx-wrap"
-                    role="region"
-                    tabIndex={0}
-                    aria-label={t("competences.matriceZone")}
-                  >
                     <div
-                      className="mx"
-                      style={
-                        {
-                          "--cols": `218px repeat(${colonnes.length}, minmax(44px,1fr))`,
-                        } as CSSProperties
+                      className={`mx-head${c.ecart ? " is-gap" : ""}`}
+                      key={c.id}
+                      style={{ color: jetonDe(c.categorie) }}
+                      title={`${c.nom} · ${libelle(c.categorie, CATEGORIES_COMPETENCE)} · ${c.ratio}`}
+                    >
+                      <span>{c.nom}</span>
+                    </div>
+                  ))}
+
+                  <div className="mx-covlab">
+                    <span className="eyebrow">{t("competences.couverture")}</span>
+                  </div>
+                  {colonnes.map((c) => (
+                    <div
+                      className={`mx-cov ${classeCouverture(c)}`}
+                      key={c.id}
+                      // Le ratio est lu en toutes lettres : la couleur ne dit
+                      // rien à qui ne la voit pas, et le manque est
+                      // l'information centrale.
+                      aria-label={
+                        c.ecart
+                          ? t("competences.ecartDe", {
+                              nom: c.nom,
+                              n: c.manque,
+                              ratio: c.ratio,
+                            })
+                          : t("competences.couvertureComplete", { nom: c.nom, ratio: c.ratio })
                       }
                     >
-                      <div className="mx-corner">
-                        <span className="eyebrow">{t("competences.collaborateur")}</span>
-                      </div>
-                      {colonnes.map((c) => (
-                        <div
-                          className={`mx-head${c.ecart ? " is-gap" : ""}`}
-                          key={c.id}
-                          style={{ color: jetonDe(c.categorie) }}
-                          title={`${c.nom} · ${libelle(c.categorie, CATEGORIES_COMPETENCE)} · ${c.ratio}`}
-                        >
-                          <span>{c.nom}</span>
-                        </div>
-                      ))}
-
-                      <div className="mx-covlab">
-                        <span className="eyebrow">{t("competences.couverture")}</span>
-                      </div>
-                      {colonnes.map((c) => (
-                        <div
-                          className={`mx-cov ${classeCouverture(c)}`}
-                          key={c.id}
-                          // Le ratio est lu en toutes lettres : la couleur ne dit
-                          // rien à qui ne la voit pas, et le manque est
-                          // l'information centrale.
-                          aria-label={
-                            c.ecart
-                              ? t("competences.ecartDe", {
-                                  nom: c.nom,
-                                  n: c.manque,
-                                  ratio: c.ratio,
-                                })
-                              : t("competences.couvertureComplete", { nom: c.nom, ratio: c.ratio })
-                          }
-                        >
-                          <span className="mx-cov-n">{c.ratio}</span>
-                          <div className="mx-cov-bar" aria-hidden="true">
-                            <i
-                              style={{
-                                width: `${Math.min(100, (c.detenteurs / Math.max(1, c.effectifRequis)) * 100)}%`,
-                                background: c.ecart
-                                  ? c.detenteurs > 0
-                                    ? "var(--st-review)"
-                                    : "var(--st-blocked)"
-                                  : "var(--st-done)",
-                              }}
-                            />
-                          </div>
-                        </div>
-                      ))}
-
-                      {lignes.map((ligne) => (
-                        <Ligne key={ligne.agent.id} ligne={ligne} colonnes={colonnes} />
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="mx-foot">
-                    {t("competences.pied", { agents: lignes.length, n: colonnes.length })}
-                  </div>
-
-                  <div className="panel" style={{ marginTop: "12px" }}>
-                    <div
-                      className="panel-body"
-                      style={{
-                        display: "flex",
-                        gap: "24px",
-                        flexWrap: "wrap",
-                        alignItems: "center",
-                      }}
-                    >
-                      <div className="cat-legend">
-                        {CATEGORIES_COMPETENCE.map((c) => (
-                          <span className="cat-l" key={c.code}>
-                            <span
-                              className="cat-sw"
-                              style={{ background: jetonDe(c.code) }}
-                              aria-hidden="true"
-                            />
-                            <span>{libelle(c.code, CATEGORIES_COMPETENCE)}</span>
-                          </span>
-                        ))}
-                      </div>
-                      <div className="split-legend" style={{ margin: 0 }}>
-                        {NIVEAUX_COMPETENCE.map((n) => (
-                          <span className="sl" key={n.code}>
-                            <span className={`lvl lvl-${RANG[n.code] ?? 1}`} aria-hidden="true">
-                              {abreger(libelle(n.code, NIVEAUX_COMPETENCE))}
-                            </span>
-                            <span>{libelle(n.code, NIVEAUX_COMPETENCE)}</span>
-                          </span>
-                        ))}
+                      <span className="mx-cov-n">{c.ratio}</span>
+                      <div className="mx-cov-bar" aria-hidden="true">
+                        <i
+                          style={{
+                            width: `${Math.min(100, (c.detenteurs / Math.max(1, c.effectifRequis)) * 100)}%`,
+                            background: c.ecart
+                              ? c.detenteurs > 0
+                                ? "var(--st-review)"
+                                : "var(--st-blocked)"
+                              : "var(--st-done)",
+                          }}
+                        />
                       </div>
                     </div>
+                  ))}
+
+                  {lignes.map((ligne) => (
+                    <Ligne key={ligne.agent.id} ligne={ligne} colonnes={colonnes} />
+                  ))}
+                </div>
+              </div>
+
+              <div className="mx-foot">
+                {t("competences.pied", { agents: lignes.length, n: colonnes.length })}
+              </div>
+
+              <div className="panel" style={{ marginTop: "12px" }}>
+                <div
+                  className="panel-body"
+                  style={{
+                    display: "flex",
+                    gap: "24px",
+                    flexWrap: "wrap",
+                    alignItems: "center",
+                  }}
+                >
+                  <div className="cat-legend">
+                    {CATEGORIES_COMPETENCE.map((c) => (
+                      <span className="cat-l" key={c.code}>
+                        <span
+                          className="cat-sw"
+                          style={{ background: jetonDe(c.code) }}
+                          aria-hidden="true"
+                        />
+                        <span>{libelle(c.code, CATEGORIES_COMPETENCE)}</span>
+                      </span>
+                    ))}
                   </div>
-                </>
-              )}
+                  <div className="split-legend" style={{ margin: 0 }}>
+                    {NIVEAUX_COMPETENCE.map((n) => (
+                      <span className="sl" key={n.code}>
+                        <span className={`lvl lvl-${RANG[n.code] ?? 1}`} aria-hidden="true">
+                          {abreger(libelle(n.code, NIVEAUX_COMPETENCE))}
+                        </span>
+                        <span>{libelle(n.code, NIVEAUX_COMPETENCE)}</span>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
             </>
-          ) : null}
-
-          {vue === "parUtilisateur" ? (
-            <ParUtilisateur lignes={lignes} colonnes={colonnes} />
-          ) : null}
-          {vue === "referentiel" ? (
-            <Referentiel
-              categorie={categorie}
-              recherche={recherche}
-              niveau={niveau}
-              tri={triReferentiel}
-            />
-          ) : null}
+          )}
         </>
+      ) : null}
+
+      {vue === "parUtilisateur" && requete.isSuccess ? (
+        <ParUtilisateur lignes={lignes} colonnes={colonnes} />
+      ) : null}
+      {vue === "referentiel" ? (
+        <Referentiel
+          categorie={categorie}
+          recherche={recherche}
+          niveau={niveau}
+          tri={triReferentiel}
+        />
       ) : null}
 
       <FenetreCreation ouverte={creationOuverte} surFermeture={() => setCreationOuverte(false)} />
@@ -809,6 +862,16 @@ function Referentiel({
   });
 
   if (requete.isPending) return <Chargement quoi={t("competences.leReferentiel")} />;
+  /*
+   * `RG-ADM-03`, `RG-GEN-05` — **un refus de droits se prononce comme un
+   * refus**, pas comme une panne de chargement. La requête part quoi qu'il
+   * arrive, pour que le serveur puisse tracer la tentative ; c'est le `403`
+   * qu'il rend qui fait le refus, et il a sa propre rédaction et sa sortie.
+   * La vue 22 échappait à ce traitement parce qu'elle n'écrivait nulle part
+   * `AccesRefuse` — donc le contrôle de forme qui tient les onze autres vues
+   * ne la regardait même pas.
+   */
+  if (requete.error instanceof ErreurApi && requete.error.statut === 403) return <AccesRefuse />;
   if (requete.isError)
     return <ErreurDeChargement erreur={requete.error} surReessai={() => void requete.refetch()} />;
 

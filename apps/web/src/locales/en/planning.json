@@ -132,7 +132,7 @@
   },
   "mois": {
     "resume": "{nom}, {date} — {n, plural, =0 {nothing scheduled} one {# item} other {# items}}, {lieu}",
-    "resumeConge": "{nom}, {date} — {type}, {statut}",
+    "resumeConge": "{nom}, {date} — {type}, {statut}, {n, plural, =0 {nothing scheduled} one {# item} other {# items}}",
     "indication": "Hover a day — or move through the grid with the keyboard — to read its details."
   },
   "detail": {

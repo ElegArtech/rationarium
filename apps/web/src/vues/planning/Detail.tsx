@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next";
+import { Link } from "@tanstack/react-router";
 import { Button } from "react-aria-components";
 import type { TachePlanning, EvenementPlanning, PersonnePlanning } from "../../api/planning.js";
 import type { Cellule } from "./grille.js";
@@ -146,9 +147,12 @@ function Corps({ selection }: { selection: Selection | null }) {
         <dd>{t("detail.nAssignes", { n: tache.assignes.length })}</dd>
         <dt>{t("detail.ouvrir")}</dt>
         <dd>
-          <a className="lien-route" href={`/taches/${tache.id}`}>
+          {/* Un `Link`, jamais une ancre nue : une `<a href>` dans une
+              application à routeur recharge le document entier — le lot, la
+              session, les réglages, le compteur de notifications. */}
+          <Link className="lien-route" to="/taches/$id" params={{ id: tache.id }}>
             {t("detail.ficheTache")}
-          </a>
+          </Link>
         </dd>
       </dl>
     );

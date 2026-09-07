@@ -3,6 +3,7 @@ import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testconta
 import { execFileSync } from "node:child_process";
 import path from "node:path";
 import { creerClient, type PrismaClient } from "@rationarium/db";
+import type { StatutConge } from "@rationarium/contracts";
 import { UtilisateursService } from "./utilisateurs.service.js";
 import { AuditService } from "../commun/audit.service.js";
 import { PerimetreService } from "../commun/perimetre.service.js";
@@ -127,6 +128,84 @@ describe("EX-USR-10 — la fiche de suivi individuel : chaque chiffre porte son 
     expect(suivi.periode.annee).toBe(2026);
   });
 
+  /**
+   * **`RG-CNG-20` — « Jours pris » ne compte que les jours consommés.**
+   *
+   * La somme portait sur TOUTES les répartitions de l'année, sans regarder le
+   * statut : un refus et une annulation gonflaient le compteur de jours que
+   * l'agent n'a jamais posés. `CongesService.solde` compte, lui, les seuls
+   * `approved` et `cancellation_requested` — deux lectures d'un même fait qui
+   * se contredisaient, et chacune avec ses tests au vert.
+   *
+   * Le contrôle affirme le NOMBRE, pas seulement l'écart : « moins qu'avant »
+   * passerait aussi si l'approuvé avait disparu avec les autres.
+   */
+  it("RG-CNG-20 — les congés REFUSÉS et ANNULÉS ne comptent pas comme jours pris", async () => {
+    const type = await prisma.leaveType.create({
+      data: { code: "CA_STATUTS", nom: "Congés — statuts" },
+    });
+    const poser = async (
+      statut: StatutConge, debut: string, fin: string, jours: number,
+    ) => {
+      const c = await prisma.leave.create({
+        data: {
+          userId: agent, typeId: type.id,
+          dateDebut: utc(debut), dateFin: utc(fin),
+          statut, joursOuvres: jours,
+        },
+      });
+      await prisma.leaveYearAllocation.create({
+        data: { leaveId: c.id, annee: 2026, jours },
+      });
+    };
+
+    const avant = (await utilisateurs.suiviIndividuel(agent, AOUT, await global()))
+      .statistiques.congesAnnee;
+
+    await poser("refused", "2026-03-02", "2026-03-06", 5);
+    await poser("cancelled", "2026-03-09", "2026-03-13", 5);
+    await poser("approved", "2026-03-16", "2026-03-17", 2);
+
+    const suivi = await utilisateurs.suiviIndividuel(agent, AOUT, await global());
+    // Les dix jours refusés et annulés n'entrent pas ; les deux approuvés, si.
+    expect(suivi.statistiques.congesAnnee).toBe(avant + 2);
+
+    // Le refus et l'annulation restent LISIBLES dans l'historique : c'est le
+    // compteur qui les écarte, pas la fiche.
+    const statuts = suivi.conges.map((c) => c.statut);
+    expect(statuts).toContain("refused");
+    expect(statuts).toContain("cancelled");
+  });
+
+  it("RG-CNG-20 — une annulation DEMANDÉE reste un jour pris", async () => {
+    /*
+     * Tant qu'elle n'est pas accordée, le congé est posé. C'est la définition
+     * de `CongesService.solde`, et les deux doivent la partager : un compteur
+     * qui l'exclurait afficherait moins de jours pris que le solde n'en
+     * décompte.
+     */
+    const type = await prisma.leaveType.create({
+      data: { code: "CA_ANNUL", nom: "Congés — annulation demandée" },
+    });
+    const avant = (await utilisateurs.suiviIndividuel(agent, AOUT, await global()))
+      .statistiques.congesAnnee;
+    const c = await prisma.leave.create({
+      data: {
+        userId: agent, typeId: type.id,
+        dateDebut: utc("2026-04-06"), dateFin: utc("2026-04-08"),
+        statut: "cancellation_requested", joursOuvres: 3,
+      },
+    });
+    await prisma.leaveYearAllocation.create({
+      data: { leaveId: c.id, annee: 2026, jours: 3 },
+    });
+
+    expect(
+      (await utilisateurs.suiviIndividuel(agent, AOUT, await global()))
+        .statistiques.congesAnnee,
+    ).toBe(avant + 3);
+  });
+
   it("les tâches actives valent à L'INSTANT, quelle que soit la période", async () => {
     await prisma.task.create({
       data: {
@@ -246,5 +325,94 @@ describe("RG-SCOPE-01 — le suivi individuel est borné au périmètre", () => 
     await expect(
       utilisateurs.suiviIndividuel(dehors.id, AOUT, await global()),
     ).resolves.toBeDefined();
+  });
+});
+
+// ── RG-SCOPE-04 — la confidentialité vaut aussi par cette porte-ci ───────────
+
+/**
+ * Trouvé le 2026-09-07, à côté du défaut de recette sur `PATCH /taches/:id`.
+ *
+ * Le suivi listait le TITRE de toutes les tâches assignées à l'agent, les
+ * confidentielles comprises : tout porteur de `users:read_individual_tracking`
+ * lisait donc par la vue 28 ce que `RG-SCOPE-04` interdit sur `/taches`. C'est
+ * la dissymétrie déjà consignée — la liste des tâches filtre, l'agrégat d'un
+ * autre module non —, et elle survit à toutes les boucles vertes parce que les
+ * deux moitiés sont justes séparément.
+ */
+describe("RG-SCOPE-04, RG-TSK-13 — le suivi individuel n'expose pas les tâches confidentielles", () => {
+  /*
+   * Le lecteur n'a PAS de permission de gestion globale : `users:manage_any` et
+   * `tasks:manage_any` court-circuitent le cloisonnement par `RG-SCOPE-03`, et
+   * un test qui les emploierait passerait avec comme sans le correctif. Il
+   * détient exactement `users:read_individual_tracking`, et voit le porteur
+   * parce qu'ils partagent un département.
+   */
+  const SUIVI = new Set(["users:read_individual_tracking"]) as ReadonlySet<string>;
+  const INITIE = new Set([
+    "users:read_individual_tracking",
+    "tasks:read_confidential",
+  ]) as ReadonlySet<string>;
+
+  let porteur: string;
+  let lecteurId: string;
+  const lecteur = () => perimetres.resoudre(lecteurId, SUIVI);
+  const initie = () => perimetres.resoudre(lecteurId, INITIE);
+
+  beforeAll(async () => {
+    const dept = await prisma.departement.create({
+      data: { nom: `Dept confid ${crypto.randomUUID().slice(0, 8)}` },
+    });
+    const l = await prisma.user.create({
+      data: {
+        login: `lect-${crypto.randomUUID().slice(0, 8)}`,
+        email: `lect-${crypto.randomUUID().slice(0, 8)}@x.fr`,
+        motDePasseHash: "x", prenom: "Lect", nom: "Rice", departementId: dept.id,
+      },
+    });
+    lecteurId = l.id;
+    const u = await prisma.user.create({
+      data: {
+        login: `confid-${crypto.randomUUID().slice(0, 8)}`,
+        email: `confid-${crypto.randomUUID().slice(0, 8)}@x.fr`,
+        motDePasseHash: "x", prenom: "Porte", nom: "Secret", departementId: dept.id,
+      },
+    });
+    porteur = u.id;
+    await prisma.task.create({
+      data: {
+        titre: "Dossier disciplinaire", confidentielle: true, projectId: projet,
+        assignes: { create: { userId: porteur, porteur: true } },
+      },
+    });
+    await prisma.task.create({
+      data: {
+        titre: "Réunion d'équipe", projectId: projet,
+        assignes: { create: { userId: porteur, porteur: true } },
+      },
+    });
+  });
+
+  it("RG-SCOPE-04 — sans `tasks:read_confidential`, le titre secret n'est PAS rendu", async () => {
+    const suivi = await utilisateurs.suiviIndividuel(porteur, AOUT, await lecteur());
+    const titres = suivi.taches.map((t) => t.titre);
+
+    expect(titres).toContain("Réunion d'équipe");
+    expect(titres).not.toContain("Dossier disciplinaire");
+  });
+
+  it("RG-SCOPE-04 — et le COMPTE d'activité ne la trahit pas non plus", async () => {
+    // Un chiffre qui inclut ce que la liste cache dit la même chose, en plus
+    // discret : deux tâches actives annoncées pour une seule nommée.
+    const suivi = await utilisateurs.suiviIndividuel(porteur, AOUT, await lecteur());
+    expect(suivi.statistiques.tachesActives).toBe(1);
+  });
+
+  it("RG-SCOPE-04 — avec la permission explicite, elle est rendue", async () => {
+    // Le contre-témoin : sans lui, un filtre qui masquerait TOUT passerait
+    // aussi, et l'on aurait remplacé une fuite par une amputation.
+    const suivi = await utilisateurs.suiviIndividuel(porteur, AOUT, await initie());
+    expect(suivi.taches.map((t) => t.titre)).toContain("Dossier disciplinaire");
+    expect(suivi.statistiques.tachesActives).toBe(2);
   });
 });

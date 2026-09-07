@@ -516,11 +516,21 @@ const SOUS_TACHES = [
  * l'approuve automatiquement, et c'est un chemin distinct de tous les autres.
  */
 const TYPES_CONGE = [
-  { cle: "rtt", code: "RTT", nom: "Réduction du temps de travail", couleur: "#2F6F4E", ordre: 1, limite: 18, validation: true },
-  { cle: "cet", code: "CET", nom: "Compte épargne-temps", couleur: "#8A5A2B", ordre: 2, limite: 10, validation: true },
-  { cle: "sante", code: "SAN", nom: "Absence pour raison de santé", couleur: "#9B3B3B", ordre: 3, limite: null, validation: false },
-  { cle: "famille", code: "FAM", nom: "Événement familial", couleur: "#3F5C9A", ordre: 4, limite: 5, validation: true },
-  { cle: "formation", code: "FOR", nom: "Formation professionnelle", couleur: "#6B4E9B", ordre: 5, limite: 6, validation: true },
+  /*
+   * Deux types **système**. `RG-CNG-30` — « les types système ne sont pas
+   * modifiables dans leur structure » — ne s'observait sur aucun type : les
+   * cinq étaient ordinaires, et la restriction que la vue 19 applique
+   * désormais champ par champ n'avait rien à quoi s'appliquer. Une règle
+   * qu'aucune donnée n'expose est une règle qu'aucun parcours ne peut juger.
+   *
+   * Et chacun porte une description : la ligne du référentiel la rend, et
+   * cinq lignes vides se lisent comme une colonne cassée, pas comme un choix.
+   */
+  { cle: "rtt", code: "RTT", nom: "Réduction du temps de travail", couleur: "#2F6F4E", ordre: 1, limite: 18, validation: true, systeme: true, description: "Jours acquis au titre de la réduction du temps de travail. Solde arrêté au 31 décembre." },
+  { cle: "cet", code: "CET", nom: "Compte épargne-temps", couleur: "#8A5A2B", ordre: 2, limite: 10, validation: true, description: "Jours épargnés les années précédentes, mobilisables sur accord du responsable." },
+  { cle: "sante", code: "SAN", nom: "Absence pour raison de santé", couleur: "#9B3B3B", ordre: 3, limite: null, validation: false, systeme: true, description: "Arrêt de travail. Approuvé d'office ; le justificatif se dépose au service du personnel." },
+  { cle: "famille", code: "FAM", nom: "Événement familial", couleur: "#3F5C9A", ordre: 4, limite: 5, validation: true, description: "Naissance, mariage, décès d'un proche — barème fixé par le règlement intérieur." },
+  { cle: "formation", code: "FOR", nom: "Formation professionnelle", couleur: "#6B4E9B", ordre: 5, limite: 6, validation: true, description: "Jours consacrés à une formation inscrite au plan annuel." },
 ];
 
 /** Les défauts globaux (`userId` nul) — `RG-CNG-24`, premier chemin. */
@@ -828,41 +838,58 @@ const TODOS = [
 ];
 
 /**
- * Les notifications — les six types de `cadrage/01 § M18`, liste FERMÉE.
+ * Les notifications — les six types de `cadrage/01 § M18`, liste FERMÉE :
+ * `tache_assignee`, `tache_echeance_proche`, `tache_en_retard`,
+ * `conge_a_valider`, `conge_decide`, `ajout_projet`. Ce sont exactement les
+ * six que `apps/api/src` émet ; aucun autre n'est écrivable ici.
  *
  * Plusieurs personas en ont des NON LUES : la pastille du compteur n'a pas
  * d'autre source, et une recette qui n'en voit jamais ne peut pas juger de
  * l'accusé de lecture.
+ *
+ * **Chacune porte de quoi construire son lien.** Le produit ÉCRIT `lien` —
+ * `/taches/{id}` pour les trois types de tâche, `/projets/{id}` pour l'ajout à
+ * un projet, `/conges` pour les deux types de congé. Une notification sans lien
+ * est une ligne inerte : le panneau de la cloche s'ouvre, rien n'est cliquable,
+ * et aucun parcours qui part d'une notification n'est jouable. La cible se
+ * désigne donc par sa CLÉ (`tache` ou `projet`), jamais par un chemin écrit à
+ * la main : `lienNotification()` refuse toute notification qu'elle ne sait pas
+ * relier, plutôt que d'en poser une muette.
  */
 const NOTIFICATIONS = [
-  { agent: "lea", type: "tache_assignee", titre: "Nouvelle tâche assignée", contenu: "Recette fonctionnelle — Refonte de l'intranet agents", lue: false },
-  { agent: "lea", type: "tache_echeance_proche", titre: "Échéance proche", contenu: "Maquette de la page d'accueil — dans trois jours", lue: false },
-  { agent: "lea", type: "ajout_projet", titre: "Ajout à un projet", contenu: "Guichet unique d'urbanisme", lue: true },
+  { agent: "lea", type: "tache_assignee", tache: "intra-recette", titre: "Nouvelle tâche assignée", contenu: "Recette fonctionnelle — Refonte de l'intranet agents", lue: false },
+  { agent: "lea", type: "tache_echeance_proche", tache: "intra-maquette", titre: "Échéance proche", contenu: "Maquette de la page d'accueil — dans trois jours", lue: false },
+  { agent: "lea", type: "ajout_projet", projet: "guichet", titre: "Ajout à un projet", contenu: "Guichet unique d'urbanisme", lue: true },
   { agent: "lea", type: "conge_decide", titre: "Décision sur votre demande de congé", contenu: "Réduction du temps de travail — une demi-journée", lue: true },
   { agent: "malik", type: "conge_a_valider", titre: "Demande de congé à valider", contenu: "Léa Vasseur — trois jours de compte épargne-temps", lue: false },
-  { agent: "malik", type: "tache_en_retard", titre: "Tâche en retard", contenu: "Rédaction du cahier des charges", lue: false },
-  { agent: "malik", type: "tache_assignee", titre: "Nouvelle tâche assignée", contenu: "Comité de suivi hebdomadaire", lue: true },
+  { agent: "malik", type: "tache_en_retard", tache: "intra-cdc", titre: "Tâche en retard", contenu: "Rédaction du cahier des charges", lue: false },
+  { agent: "malik", type: "tache_assignee", tache: "intra-comite", titre: "Nouvelle tâche assignée", contenu: "Comité de suivi hebdomadaire", lue: true },
   { agent: "solene", type: "conge_a_valider", titre: "Demande de congé à valider", contenu: "Rémi Chastagner — deux jours", lue: false },
   { agent: "solene", type: "conge_a_valider", titre: "Demande de congé à valider", contenu: "Sabrina Lemoal — quatre jours", lue: false },
   { agent: "solene", type: "conge_decide", titre: "Décision sur votre demande de congé", contenu: "Votre semaine du mois prochain est validée", lue: true },
-  { agent: "solene", type: "tache_echeance_proche", titre: "Échéance proche", contenu: "Double paie de contrôle", lue: false },
+  { agent: "solene", type: "tache_echeance_proche", tache: "pai-double", titre: "Échéance proche", contenu: "Double paie de contrôle", lue: false },
   { agent: "thibaut", type: "conge_decide", titre: "Congé en attente de décision", contenu: "Deux jours — la délégation est active", lue: false },
-  { agent: "thibaut", type: "tache_assignee", titre: "Nouvelle tâche assignée", contenu: "Rédaction du livret d'accueil", lue: false },
-  { agent: "aurelie", type: "tache_en_retard", titre: "Tâche en retard", contenu: "Remplacement des menuiseries — Rénovation thermique des écoles", lue: false },
-  { agent: "aurelie", type: "ajout_projet", titre: "Ajout à un projet", contenu: "Observatoire de la donnée locale", lue: false },
-  { agent: "nathan", type: "tache_assignee", titre: "Nouvelle tâche assignée", contenu: "Revue annuelle des habilitations", lue: false },
-  { agent: "nathan", type: "tache_en_retard", titre: "Tâche en retard", contenu: "Revue annuelle des habilitations", lue: false },
-  { agent: "corbin", type: "ajout_projet", titre: "Ajout à un projet", contenu: "Refonte de l'intranet agents", lue: true },
+  { agent: "thibaut", type: "tache_assignee", tache: "acc-livret", titre: "Nouvelle tâche assignée", contenu: "Rédaction du livret d'accueil", lue: false },
+  { agent: "aurelie", type: "tache_en_retard", tache: "eco-menuiseries", titre: "Tâche en retard", contenu: "Remplacement des menuiseries — Rénovation thermique des écoles", lue: false },
+  { agent: "aurelie", type: "ajout_projet", projet: "observatoire", titre: "Ajout à un projet", contenu: "Observatoire de la donnée locale", lue: false },
+  { agent: "nathan", type: "tache_assignee", tache: "hp-habilitations", titre: "Nouvelle tâche assignée", contenu: "Revue annuelle des habilitations", lue: false },
+  { agent: "nathan", type: "tache_en_retard", tache: "hp-habilitations", titre: "Tâche en retard", contenu: "Revue annuelle des habilitations", lue: false },
+  { agent: "corbin", type: "ajout_projet", projet: "intranet", titre: "Ajout à un projet", contenu: "Refonte de l'intranet agents", lue: true },
   { agent: "chastagner", type: "conge_decide", titre: "Demande enregistrée", contenu: "En attente de la décision de votre responsable", lue: false },
 ];
 
 /**
- * Les jours fériés, sur l'année courante ET la suivante.
+ * Les jours fériés.
  *
  * Deux lectures de la même table se contredisent quand une seule année est
  * peuplée : `joursFeries(annee)` liste les lignes stockées, `joursChomes`
- * projette les récurrents sur toutes. Le calendrier de recette porte donc les
- * deux années, explicitement.
+ * projette les récurrents sur toutes. Les fériés RÉCURRENTS sont donc semés
+ * sur l'année courante ET la suivante, explicitement.
+ *
+ * `recurrent: false` — « Cette année seulement » à l'écran — n'est semé que sur
+ * l'année courante : le semer deux fois ferait dire au jeu le contraire de sa
+ * propre colonne, et donnerait à la vue 31 un jour non récurrent qui reparaît
+ * l'année d'après.
  *
  * `ouvre` marque le jour férié TRAVAILLÉ de `RG-PRM-01` : il compte comme jour
  * ouvré, et le décompte des congés doit le montrer.
@@ -901,9 +928,15 @@ const REGLAGES = {
 /**
  * Le journal d'audit — vue 33.
  *
- * Les actions viennent du catalogue FERMÉ de `cadrage/01 § M20` : aucune n'est
- * inventée ici. Deux sont des actions SYSTÈME (`RG-ADM-09`), et ce sont les
- * plus récentes : une seule ligne enfouie ne prouverait rien.
+ * Les codes d'action sont ceux que `apps/api/src` ÉCRIT — pas ceux qu'on
+ * croirait qu'il écrit. Un code voisin (`auth.login_success` pour
+ * `auth.login.success`) n'échoue nulle part : il ajoute une seconde entrée au
+ * filtre « Action » de la vue 33, et fait accuser le produit d'un doublon qui
+ * vient du jeu. La liste se croise avec
+ * `grep -rho 'action: "[a-z_.]*"' apps/api/src`.
+ *
+ * Deux sont des actions SYSTÈME (`RG-ADM-09`), et ce sont les plus récentes :
+ * une seule ligne enfouie ne prouverait rien.
  */
 const AUDIT = [
   { action: "telework.generate", systeme: true },
@@ -918,8 +951,8 @@ const AUDIT = [
   { action: "settings.update", agent: "nathan" },
   { action: "user.create", agent: "nathan" },
   { action: "role.set_permissions", agent: "nathan" },
-  { action: "auth.login_success", agent: "aurelie" },
-  { action: "access_denied", agent: "brossard" },
+  { action: "auth.login.success", agent: "aurelie" },
+  { action: "access.denied", agent: "brossard" },
 ];
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -930,6 +963,48 @@ const lundiDe = (reference) => {
   const d = new Date(Date.UTC(reference.getUTCFullYear(), reference.getUTCMonth(), reference.getUTCDate()));
   d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7));
   return d;
+};
+
+/**
+ * La répartition par année d'un congé — `RG-CNG-19`, table `leave_year_allocations`.
+ *
+ * **Elle n'est pas décorative : c'est d'ELLE que le solde se lit.**
+ * `conges.service.ts › solde()` compte les jours consommés et engagés en
+ * interrogeant `leaveYearAllocation`, jamais `leave.joursOuvres`. Un congé posé
+ * sans sa répartition existe, s'affiche dans la liste, se valide — et ne
+ * décompte rien. Toutes les cartes de solde de l'instance restent alors à
+ * « Utilisés 0,0 · En attente 0,0 » à côté des demandes qui les contredisent,
+ * et c'est le PRODUIT qu'on accuse. Un jeu de données se calque sur ce que le
+ * service écrit, pas sur ce qu'on croit qu'il écrit.
+ *
+ * Le service la construit par `repartitionParAnnee()` du calendrier ; ce module
+ * écrit en base sans passer par lui, donc il la pose. L'invariant que le produit
+ * garantit et que celle-ci tient : **la somme des parts vaut `joursOuvres`.**
+ * Les week-ends servent de clé de partage quand la demande enjambe le
+ * 31 décembre ; le reste va à la dernière année pour qu'aucun demi-jour ne se
+ * perde à l'arrondi.
+ */
+const repartirParAnnee = (debut, fin, jours) => {
+  const parAnnee = new Map();
+  for (const d = new Date(debut); d <= fin; d.setUTCDate(d.getUTCDate() + 1)) {
+    const semaine = d.getUTCDay();
+    if (semaine === 0 || semaine === 6) continue;
+    const a = d.getUTCFullYear();
+    parAnnee.set(a, (parAnnee.get(a) ?? 0) + 1);
+  }
+  const annees = [...parAnnee.keys()].sort((x, y) => x - y);
+  if (annees.length <= 1) return [{ annee: annees[0] ?? debut.getUTCFullYear(), jours }];
+
+  const total = annees.reduce((n, a) => n + parAnnee.get(a), 0);
+  const parts = [];
+  let reste = jours;
+  for (const [k, a] of annees.entries()) {
+    // La dernière année emporte le reste : la somme vaut `jours`, à coup sûr.
+    const part = k === annees.length - 1 ? reste : Math.round(((jours * parAnnee.get(a)) / total) * 2) / 2;
+    parts.push({ annee: a, jours: part });
+    reste -= part;
+  }
+  return parts.filter((part) => part.jours > 0);
 };
 
 /**
@@ -1253,8 +1328,35 @@ export async function peuplerJeu2(prisma, aujourdhui = new Date()) {
   }
   compte.todos = TODOS.length;
 
+  /*
+   * Le lien de chaque notification, celui que le PRODUIT poserait pour ce type
+   * (`notifications.service.ts`, `taches.service.ts`, `projets.service.ts`,
+   * `conges.service.ts`). Une notification dont la cible n'est pas déclarée
+   * fait échouer le jeu : elle serait posée muette, et le panneau de la cloche
+   * ne se plaindrait de rien.
+   */
+  const lienNotification = (n) => {
+    if (n.type.startsWith("conge_")) return "/conges";
+    if (n.type.startsWith("tache_")) {
+      if (!taches.has(n.tache)) throw new Error(`Notification « ${n.titre} » : tâche « ${n.tache} » inconnue.`);
+      return `/taches/${taches.get(n.tache).id}`;
+    }
+    if (n.type === "ajout_projet") {
+      if (!projets.has(n.projet)) throw new Error(`Notification « ${n.titre} » : projet « ${n.projet} » inconnu.`);
+      return `/projets/${projets.get(n.projet).id}`;
+    }
+    throw new Error(`Type de notification hors du catalogue fermé de \`cadrage/01 § M18\` : « ${n.type} ».`);
+  };
+
   for (const [i, n] of NOTIFICATIONS.entries()) {
-    const donnees = { userId: id(n.agent), type: n.type, titre: n.titre, contenu: n.contenu, lue: n.lue };
+    const donnees = {
+      userId: id(n.agent),
+      type: n.type,
+      titre: n.titre,
+      contenu: n.contenu,
+      lien: lienNotification(n),
+      lue: n.lue,
+    };
     await prisma.notification.upsert({
       where: { id: idStable("N", i) },
       create: { id: idStable("N", i), ...donnees },
@@ -1456,10 +1558,15 @@ export async function peuplerJeu2(prisma, aujourdhui = new Date()) {
   for (const [i, t] of TYPES_CONGE.entries()) {
     const donnees = {
       nom: t.nom,
+      description: t.description ?? null,
       couleur: t.couleur,
       ordre: t.ordre,
       limiteAnnuelle: t.limite,
       validationRequise: t.validation,
+      // `update` reflète `create`, valeur nulle comprise : un champ absent de
+      // l'`update` est un champ qui ne change jamais, et les identifiants
+      // stables rendent l'oubli invisible.
+      systeme: t.systeme === true,
       actif: true,
     };
     typesConge.set(
@@ -1515,7 +1622,11 @@ export async function peuplerJeu2(prisma, aujourdhui = new Date()) {
   const idsConges = CONGES.map((_, i) => idStable("c", i));
   const idCheval = idStable("c", 900);
   await prisma.leave.deleteMany({ where: { id: { in: [...idsConges, idCheval] } } });
+  let repartitions = 0;
   for (const [i, c] of CONGES.entries()) {
+    // La répartition par année accompagne CHAQUE congé, pas seulement celui qui
+    // enjambe le 31 décembre : c'est elle que `solde()` compte.
+    const parts = repartirParAnnee(jour(c.debut), jour(c.fin), c.jours);
     await prisma.leave.create({
       data: {
         id: idStable("c", i),
@@ -1531,8 +1642,10 @@ export async function peuplerJeu2(prisma, aujourdhui = new Date()) {
         validateurId: c.validateur ? id(c.validateur) : null,
         autoValide: c.autoValide === true,
         decideLe: ["approved", "refused"].includes(c.statut) ? jour(c.debut - 7) : null,
+        repartitions: { create: parts },
       },
     });
+    repartitions += parts.length;
   }
   /*
    * Le congé à cheval sur le 31 décembre — `RG-CNG-19`. Sa date est ABSOLUE :
@@ -1561,6 +1674,7 @@ export async function peuplerJeu2(prisma, aujourdhui = new Date()) {
   });
   compte.conges = CONGES.length + 1;
   compte.congesEnAttente = CONGES.filter((c) => c.statut === "pending").length;
+  compte.repartitionsConge = repartitions + 2;
 
   for (const [i, d] of DELEGATIONS.entries()) {
     const donnees = {
@@ -1741,8 +1855,10 @@ export async function peuplerJeu2(prisma, aujourdhui = new Date()) {
 
   // ── Le calendrier ───────────────────────────────────────────────────────
   let rangFerie = 0;
-  for (const decalage of [0, 1]) {
-    for (const f of FERIES) {
+  // La récurrence déclarée commande le semis : un férié « Cette année
+  // seulement » ne se pose que sur l'année courante.
+  for (const f of FERIES) {
+    for (const decalage of f.recurrent ? [0, 1] : [0]) {
       const date = new Date(Date.UTC(annee + decalage, f.mois - 1, f.jour));
       const donnees = {
         date,

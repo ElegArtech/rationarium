@@ -394,3 +394,109 @@ describe("EX-ACT-04 — modifier et supprimer une règle de récurrence", () => 
     ).rejects.toMatchObject({ code: "introuvable" });
   });
 });
+
+/**
+ * Deux défauts trouvés en recette sur la même vue 09, et de la même famille :
+ * une lecture qui filtre trop. L'une fait disparaître le passé, l'autre ne
+ * voit pas ce qui existe déjà.
+ */
+describe("RG-ACT-05 — désactiver une tâche prédéfinie ne l'efface pas de la grille", () => {
+  /*
+   * P-89, P-135 : la colonne de la tâche désactivée disparaissait AVEC les
+   * assignations déjà posées — trois agents du lundi précédent, toujours en
+   * base, invisibles à l'écran. « Les assignations passées sont conservées »
+   * ne veut rien dire si rien ne les montre.
+   */
+  it("la colonne d'une tâche désactivée reste, avec ses assignations passées", async () => {
+    const acteur = await agent();
+    const porteur = await agent();
+    const t = await activite.creerTache({ nom: nom("Guichet") }, acteur);
+    const perimetre = { global: true, userId: acteur, utilisateurs: new Set<string>() } as never;
+
+    await activite.assigner(t.id, [porteur], utc("2026-06-01"), "full_day", acteur, perimetre);
+    await activite.modifierTache(t.id, { actif: false }, acteur);
+
+    const grille = await activite.grille(utc("2026-06-01"), utc("2026-06-07"), perimetre);
+    const colonne = grille.colonnes.find((c) => c.id === t.id);
+    expect(colonne, "la colonne de la tâche désactivée a disparu").toBeDefined();
+    expect(colonne?.actif).toBe(false);
+
+    const cellule = grille.lignes
+      .find((l) => l.date === "2026-06-01")
+      ?.cellules.find((c) => c.tacheId === t.id);
+    expect(cellule?.agents.map((a) => a["id"])).toEqual([porteur]);
+  });
+
+  it("une tâche désactivée SANS assignation sur la période ne fabrique pas de colonne vide", async () => {
+    // La contrepartie : le catalogue arrêté d'une collectivité ne doit pas
+    // meubler la grille de colonnes mortes. Seul le passé RÉEL revient.
+    const acteur = await agent();
+    const t = await activite.creerTache({ nom: nom("Abandonnée") }, acteur);
+    await activite.modifierTache(t.id, { actif: false }, acteur);
+
+    const perimetre = { global: true, userId: acteur, utilisateurs: new Set<string>() } as never;
+    const grille = await activite.grille(utc("2026-07-01"), utc("2026-07-07"), perimetre);
+    expect(grille.colonnes.map((c) => c.id)).not.toContain(t.id);
+  });
+
+  it("la tâche désactivée reste INASSIGNABLE : la règle n'est pas défaite", async () => {
+    const acteur = await agent();
+    const porteur = await agent();
+    const t = await activite.creerTache({ nom: nom("Fermée") }, acteur);
+    await activite.modifierTache(t.id, { actif: false }, acteur);
+
+    const perimetre = { global: true, userId: acteur, utilisateurs: new Set<string>() } as never;
+    await expect(
+      activite.assigner(t.id, [porteur], utc("2026-06-08"), "full_day", acteur, perimetre),
+    ).rejects.toMatchObject({ code: "tache_inactive" });
+  });
+});
+
+describe("RG-PLN-08 / RG-PLN-06 — « déjà assigné » se voit d'une période à l'autre", () => {
+  /*
+   * P-89 : l'éligibilité comparait la période par ÉGALITÉ. Demandée sur
+   * `full_day` — ce que fait la fenêtre d'ajout de la vue 09 —, elle ne voyait
+   * pas les agents assignés le matin, et les reproposait cochables et sans
+   * motif.
+   */
+  it("un agent assigné le MATIN est déjà assigné pour la journée entière", async () => {
+    const acteur = await agent();
+    const porteur = await agent();
+    const t = await activite.creerTache({ nom: nom("Standard") }, acteur);
+    const perimetre = { global: true, userId: acteur, utilisateurs: new Set<string>() } as never;
+
+    await activite.assigner(t.id, [porteur], utc("2026-06-02"), "morning", acteur, perimetre);
+
+    const liste = await activite.eligibilite(t.id, utc("2026-06-02"), "full_day", perimetre);
+    expect(liste.find((e) => e.userId === porteur)?.motif).toBe("deja_assigne");
+  });
+
+  it("un agent assigné la JOURNÉE ENTIÈRE ne se réassigne pas l'après-midi", async () => {
+    const acteur = await agent();
+    const porteur = await agent();
+    const t = await activite.creerTache({ nom: nom("Régie") }, acteur);
+    const perimetre = { global: true, userId: acteur, utilisateurs: new Set<string>() } as never;
+
+    await activite.assigner(t.id, [porteur], utc("2026-06-03"), "full_day", acteur, perimetre);
+
+    const liste = await activite.eligibilite(t.id, utc("2026-06-03"), "afternoon", perimetre);
+    expect(liste.find((e) => e.userId === porteur)?.motif).toBe("deja_assigne");
+    // RG-PLN-06 — et le refus d'assignation en découle, avec son motif nommé.
+    await expect(
+      activite.assigner(t.id, [porteur], utc("2026-06-03"), "afternoon", acteur, perimetre),
+    ).rejects.toMatchObject({ code: "agent_indisponible" });
+  });
+
+  it("les deux DEMI-JOURNÉES restent compatibles entre elles", async () => {
+    // Le recouvrement se dit dans les deux sens ou il ne dit rien : interdire
+    // l'après-midi à qui tient le matin serait une règle inventée.
+    const acteur = await agent();
+    const porteur = await agent();
+    const t = await activite.creerTache({ nom: nom("Accueil bis") }, acteur);
+    const perimetre = { global: true, userId: acteur, utilisateurs: new Set<string>() } as never;
+
+    await activite.assigner(t.id, [porteur], utc("2026-06-04"), "morning", acteur, perimetre);
+    const liste = await activite.eligibilite(t.id, utc("2026-06-04"), "afternoon", perimetre);
+    expect(liste.find((e) => e.userId === porteur)?.motif).toBeNull();
+  });
+});

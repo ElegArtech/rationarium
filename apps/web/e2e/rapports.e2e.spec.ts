@@ -291,20 +291,45 @@ test.describe("Vue 30 — rapports et analytics", () => {
     await expect(page.getByText("Aucune tâche active à afficher").first()).toBeVisible();
   });
 
-  test("EX-RPT-01 — la période se choisit, et la requête suit", async ({ page }) => {
+  /*
+   * `EX-RPT-01` — **le libellé mentait, pas le calcul.**
+   *
+   * Les quatre boutons annonçaient « 7 jours », « 30 jours », « 90 jours »,
+   * « 1 an » ; le serveur, lui, rend une période **calendaire** — la semaine
+   * en cours, le mois en cours — et c'est ce que l'exigence demande. Un
+   * bouton « 30 jours » cliqué le 11 août produisait un arrêté au 1er août :
+   * la promesse et le résultat ne coïncidaient qu'un jour par mois. Ils
+   * disent désormais ce qu'ils font.
+   *
+   * Le contrôle porte sur les deux moitiés : le libellé annoncé ET le
+   * paramètre effectivement transmis. Vérifier l'un sans l'autre laisse
+   * revenir précisément la divergence qu'on vient de fermer.
+   */
+  test("EX-RPT-01 — la période se choisit en TERMES CALENDAIRES, et la requête suit", async ({
+    page,
+  }) => {
     await horlogeFixe(page);
     await serveur(page, { session: SESSION_RAPPORTS, reponses });
     await page.goto("/rapports");
+
+    const groupe = page.getByRole("group", { name: "Période d'analyse" });
+    await expect(groupe.getByRole("button", { name: "Semaine en cours" })).toBeVisible();
+    await expect(groupe.getByRole("button", { name: "Mois en cours" })).toBeVisible();
+    await expect(groupe.getByRole("button", { name: "Année en cours" })).toBeVisible();
 
     const demandes: string[] = [];
     page.on("request", (r) => {
       if (r.url().includes("/api/rapports")) demandes.push(r.url());
     });
 
-    await page.getByRole("button", { name: "90 jours" }).click();
+    await groupe.getByRole("button", { name: "Trimestre en cours" }).click();
     await expect
       .poll(() => demandes.some((u) => u.includes("periode=trimestre")))
       .toBe(true);
+    await expect(groupe.getByRole("button", { name: "Trimestre en cours" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
   });
 
   test("EX-RPT-03 — les trois formats d'export sont proposés, et nommés honnêtement", async ({
@@ -331,11 +356,36 @@ test.describe("Vue 30 — rapports et analytics", () => {
     await expect(page.getByRole("button", { name: "Actualiser" })).toBeVisible();
   });
 
-  test("sans reports:read, l'accès est refusé", async ({ page }) => {
+  /*
+   * `RG-ADM-03` — **le refus PART AU SERVEUR, qui seul sait le tracer.**
+   *
+   * Le contrôle simulait une session sans `reports:read` et laissait
+   * `/api/rapports` répondre `200` : il consacrait le
+   * `if (!peut(…)) return <AccesRefuse />` de la vue, c'est-à-dire le défaut.
+   * `RapportsController.vueEnsemble` est gardé par
+   * `@RequiertPermission("reports:read")`, et c'est la garde — seul endroit du
+   * produit qui écrive une ligne d'audit sur un accès refusé — qui doit avoir
+   * l'occasion de refuser.
+   */
+  test("RG-ADM-03 — sans reports:read, la requête PART et le 403 prononce le refus", async ({
+    page,
+  }) => {
     await horlogeFixe(page);
-    await serveur(page, { session: SESSION_LECTURE, reponses });
+    let demandes = 0;
+    page.on("request", (r) => {
+      if (new URL(r.url()).pathname === "/api/rapports") demandes += 1;
+    });
+    await serveur(page, {
+      session: SESSION_LECTURE,
+      reponses: {
+        ...reponses,
+        "/api/rapports": { statut: 403, corps: { cle: "commun:droits.permissionRequise" } },
+      },
+    });
     await page.goto("/rapports");
+
     await expect(page.getByText("Permission requise")).toBeVisible();
+    expect(demandes).toBeGreaterThan(0);
   });
 });
 

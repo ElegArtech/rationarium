@@ -105,10 +105,10 @@ describe("EX-TSK-13 — la fiche rassemble les objets liés", () => {
     const prerequis = await tache("Ce qui précède", { dateFin: utc("2026-05-01") });
     const suivante = await tache("Ce qui suit", { dateDebut: utc("2026-06-01") });
 
-    await taches.ajouterDependance(t.id, prerequis.id, acteur);
-    await taches.ajouterDependance(suivante.id, t.id, acteur);
-    await taches.attribuerRaci(t.id, a, "responsible", acteur);
-    await taches.ajouterSousTache(t.id, "Première étape", acteur);
+    await taches.ajouterDependance(t.id, prerequis.id, acteur, PERMISSIONS_TOTALES);
+    await taches.ajouterDependance(suivante.id, t.id, acteur, PERMISSIONS_TOTALES);
+    await taches.attribuerRaci(t.id, a, "responsible", acteur, PERMISSIONS_TOTALES);
+    await taches.ajouterSousTache(t.id, "Première étape", acteur, PERMISSIONS_TOTALES);
     await prisma.comment.create({ data: { contenu: "Un mot", taskId: t.id, auteurId: a } });
 
     const fiche = await taches.fiche(t.id, PERIMETRE_TOTAL, PERMISSIONS_TOTALES);
@@ -188,9 +188,9 @@ describe("RG-GEN-07 — la concurrence est détectée, jamais écrasée", () => 
 describe("EX-TSK-09 — les sous-tâches portent un ordre explicite", () => {
   it("elles s'ajoutent à la suite, jamais en tête", async () => {
     const t = await tache("Liste ordonnée");
-    await taches.ajouterSousTache(t.id, "Un", acteur);
-    await taches.ajouterSousTache(t.id, "Deux", acteur);
-    await taches.ajouterSousTache(t.id, "Trois", acteur);
+    await taches.ajouterSousTache(t.id, "Un", acteur, PERMISSIONS_TOTALES);
+    await taches.ajouterSousTache(t.id, "Deux", acteur, PERMISSIONS_TOTALES);
+    await taches.ajouterSousTache(t.id, "Trois", acteur, PERMISSIONS_TOTALES);
 
     const fiche = await taches.fiche(t.id, PERIMETRE_TOTAL, PERMISSIONS_TOTALES);
     expect(fiche.sousTaches.map((s) => s.libelle)).toEqual(["Un", "Deux", "Trois"]);
@@ -199,36 +199,36 @@ describe("EX-TSK-09 — les sous-tâches portent un ordre explicite", () => {
 
   it("le réordonnancement ne viole pas l'unicité (taskId, ordre)", async () => {
     const t = await tache("Réordonnée");
-    const a = await taches.ajouterSousTache(t.id, "A", acteur);
-    const b = await taches.ajouterSousTache(t.id, "B", acteur);
-    const c = await taches.ajouterSousTache(t.id, "C", acteur);
+    const a = await taches.ajouterSousTache(t.id, "A", acteur, PERMISSIONS_TOTALES);
+    const b = await taches.ajouterSousTache(t.id, "B", acteur, PERMISSIONS_TOTALES);
+    const c = await taches.ajouterSousTache(t.id, "C", acteur, PERMISSIONS_TOTALES);
 
     // Échanger deux rangs en écriture directe violerait la contrainte : c'est
     // pourquoi le service décale hors plage avant de réécrire.
-    const apres = await taches.reordonnerSousTaches(t.id, [c.id, a.id, b.id], t.version);
+    const apres = await taches.reordonnerSousTaches(t.id, [c.id, a.id, b.id], t.version, acteur, PERMISSIONS_TOTALES);
     expect(apres.map((s) => s.libelle)).toEqual(["C", "A", "B"]);
     expect(apres.map((s) => s.ordre)).toEqual([0, 1, 2]);
   });
 
   it("cocher une sous-tâche ne touche pas les autres", async () => {
     const t = await tache("Cases");
-    const a = await taches.ajouterSousTache(t.id, "À faire", acteur);
-    await taches.ajouterSousTache(t.id, "Intacte", acteur);
+    const a = await taches.ajouterSousTache(t.id, "À faire", acteur, PERMISSIONS_TOTALES);
+    await taches.ajouterSousTache(t.id, "Intacte", acteur, PERMISSIONS_TOTALES);
 
-    await taches.basculerSousTache(a.id, true);
+    await taches.basculerSousTache(a.id, true, acteur, PERMISSIONS_TOTALES);
     const fiche = await taches.fiche(t.id, PERIMETRE_TOTAL, PERMISSIONS_TOTALES);
     expect(fiche.sousTaches.map((s) => s.fait)).toEqual([true, false]);
   });
 
   it("supprimer une sous-tâche laisse les rangs utilisables", async () => {
     const t = await tache("Suppression");
-    const a = await taches.ajouterSousTache(t.id, "A", acteur);
-    await taches.ajouterSousTache(t.id, "B", acteur);
-    await taches.supprimerSousTache(a.id);
+    const a = await taches.ajouterSousTache(t.id, "A", acteur, PERMISSIONS_TOTALES);
+    await taches.ajouterSousTache(t.id, "B", acteur, PERMISSIONS_TOTALES);
+    await taches.supprimerSousTache(a.id, acteur, PERMISSIONS_TOTALES);
 
     // Le rang 0 est libre : une nouvelle sous-tâche prend le rang suivant du
     // maximum, pas le premier trou — l'ordre reste celui de l'ajout.
-    const c = await taches.ajouterSousTache(t.id, "C", acteur);
+    const c = await taches.ajouterSousTache(t.id, "C", acteur, PERMISSIONS_TOTALES);
     expect(c.ordre).toBe(2);
   });
 });
@@ -237,23 +237,23 @@ describe("EX-TSK-11, EX-TSK-14 — retirer un lien", () => {
   it("retirer une dépendance libère la suppression", async () => {
     const t = await tache("Prérequise");
     const dependante = await tache("Dépendante");
-    await taches.ajouterDependance(dependante.id, t.id, acteur);
+    await taches.ajouterDependance(dependante.id, t.id, acteur, PERMISSIONS_TOTALES);
 
     await expect(taches.supprimer(t.id, acteur, PERIMETRE_TOTAL, DROITS_SUPPRESSION)).rejects.toMatchObject({
       code: "supprimee_avec_dependantes",
     });
 
-    await taches.retirerDependance(dependante.id, t.id, acteur);
+    await taches.retirerDependance(dependante.id, t.id, acteur, PERMISSIONS_TOTALES);
     await expect(taches.supprimer(t.id, acteur, PERIMETRE_TOTAL, DROITS_SUPPRESSION)).resolves.toBeUndefined();
   });
 
   it("retirer un rôle RACI n'enlève pas les autres rôles de la personne", async () => {
     const t = await tache("RACI multiple");
     const a = await agent("Poly", "Valente");
-    await taches.attribuerRaci(t.id, a, "responsible", acteur);
-    await taches.attribuerRaci(t.id, a, "consulted", acteur);
+    await taches.attribuerRaci(t.id, a, "responsible", acteur, PERMISSIONS_TOTALES);
+    await taches.attribuerRaci(t.id, a, "consulted", acteur, PERMISSIONS_TOTALES);
 
-    await taches.retirerRaci(t.id, a, "responsible", acteur);
+    await taches.retirerRaci(t.id, a, "responsible", acteur, PERMISSIONS_TOTALES);
     const fiche = await taches.fiche(t.id, PERIMETRE_TOTAL, PERMISSIONS_TOTALES);
     expect(fiche.raci.map((r) => r.role)).toEqual(["consulted"]);
   });
@@ -261,8 +261,8 @@ describe("EX-TSK-11, EX-TSK-14 — retirer un lien", () => {
   it("le retrait de dépendance est tracé", async () => {
     const t = await tache("Trace");
     const p = await tache("Son prérequis");
-    await taches.ajouterDependance(t.id, p.id, acteur);
-    await taches.retirerDependance(t.id, p.id, acteur);
+    await taches.ajouterDependance(t.id, p.id, acteur, PERMISSIONS_TOTALES);
+    await taches.retirerDependance(t.id, p.id, acteur, PERMISSIONS_TOTALES);
 
     const trace = await prisma.auditLog.findFirst({
       where: { action: "task.dependency_remove", entiteId: t.id },

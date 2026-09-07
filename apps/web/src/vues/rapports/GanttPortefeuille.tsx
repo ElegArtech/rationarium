@@ -81,14 +81,30 @@ const COULEUR_RAG: Record<string, string> = {
   done: "var(--st-doing)",
 };
 
-export function GanttPortefeuille({ periode }: { periode: api.Periode }) {
+/**
+ * `EX-RPT-02` — **le Gantt suit les filtres de la page.**
+ *
+ * Il ne recevait que la période et redemandait le portefeuille ENTIER : sur un
+ * périmètre restreint à un responsable ou aux projets à risque, la frise
+ * continuait d'afficher tout le monde, à côté d'un tableau de santé qui, lui,
+ * était filtré. Deux lectures contradictoires du même portefeuille, sur le
+ * même écran.
+ */
+export function GanttPortefeuille({ filtres }: { filtres: api.FiltresRapport }) {
+  const periode = filtres.periode;
   const { t } = useTranslation("rapports");
   const [tri, setTri] = useState<Tri>("fin");
   const [echelle, setEchelle] = useState<Echelle>("mois");
 
   const requete = useQuery({
-    queryKey: ["rapports", "gantt", periode],
-    queryFn: () => api.gantt({ periode }),
+    queryKey: [
+      "rapports",
+      "gantt",
+      periode,
+      (filtres.projets ?? []).join(","),
+      (filtres.responsables ?? []).join(","),
+    ],
+    queryFn: () => api.gantt(filtres),
   });
 
   const lignes = useMemo(() => trier(requete.data?.lignes ?? [], tri), [requete.data, tri]);

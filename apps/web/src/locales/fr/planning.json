@@ -132,7 +132,7 @@
   },
   "mois": {
     "resume": "{nom}, {date} — {n, plural, =0 {aucune occupation} one {# occupation} other {# occupations}}, {lieu}",
-    "resumeConge": "{nom}, {date} — {type}, {statut}",
+    "resumeConge": "{nom}, {date} — {type}, {statut}, {n, plural, =0 {aucune occupation} one {# occupation} other {# occupations}}",
     "indication": "Survolez une journée — ou parcourez la grille au clavier — pour en lire le détail."
   },
   "detail": {

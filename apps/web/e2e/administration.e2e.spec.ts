@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { serveur, SESSION_LECTURE } from "./fixtures/projets.js";
+import { serveur } from "./fixtures/projets.js";
 import {
   SESSION_ADMIN,
   SESSION_ADMIN_ROLES,
@@ -17,6 +17,7 @@ import {
   TEMPS_VIDE,
   RAPPORT_AGENT,
   RAPPORT_TYPE,
+  refusTrace,
 } from "./fixtures/administration.js";
 import { ROLES } from "./fixtures/parametrage.js";
 
@@ -542,11 +543,17 @@ test.describe("Vue 28 — suivi individuel", () => {
     }
   });
 
-  test("sans le droit dédié, l'accès est refusé — et le dit", async ({ page }) => {
-    await serveur(page, { session: SESSION_LECTURE, reponses });
-    await page.goto("/utilisateurs/u-autre/suivi");
-
-    await expect(page.getByText("Permission requise")).toBeVisible();
+  test("RG-ADM-03 — sans le droit dédié, la requête PART et c'est le 403 reçu qui refuse", async ({
+    page,
+  }) => {
+    /* Le chemin est écrit en entier, pas en suffixe : le harnais teste ses
+       motifs du plus long au plus court, et c'est SUR CE CHEMIN-LÀ que
+       `waitForRequest` doit se poser pour dire que la tentative est partie. */
+    await refusTrace(page, {
+      route: "/api/utilisateurs/u-autre/suivi",
+      adresse: "/utilisateurs/u-autre/suivi",
+      reponses,
+    });
   });
 });
 
@@ -670,10 +677,14 @@ test.describe("Vue 29 — départements et services", () => {
     ).toBeVisible();
   });
 
-  test("sans le droit de lecture, l'accès est refusé", async ({ page }) => {
-    await serveur(page, { session: SESSION_LECTURE, reponses });
-    await page.goto("/departements");
-    await expect(page.getByText("Permission requise")).toBeVisible();
+  test("RG-ADM-03 — sans le droit de lecture, la requête PART et c'est le 403 reçu qui refuse", async ({
+    page,
+  }) => {
+    await refusTrace(page, {
+      route: "/api/organisation",
+      adresse: "/departements",
+      reponses,
+    });
   });
 
   /**

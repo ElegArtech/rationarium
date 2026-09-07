@@ -54,3 +54,12 @@
 .imp-chiffre.is-ok{ color:var(--st-done); border-color:var(--st-done); }
 .imp-chiffre.is-err{ color:var(--st-blocked); border-color:var(--st-blocked); }
 .imp-note{ font-size:11.5px; color:var(--muted); margin:0 0 8px; }
+
+/* Les lignes ignorées se lisent au MÊME format que les erreurs — « Ligne N —
+   motif » — et surtout pas dans la même couleur : `RG-IMP-04` distingue trois
+   familles justement pour qu'un fichier rejoué ne ressemble pas à un échec.
+   Le rouge de `.imp-erreurs` dirait le contraire du chiffre placé au-dessus. */
+.imp-ignorees{ margin:0 0 8px; }
+.imp-ignorees .imp-note{ margin:0; }
+.imp-ignorees ul{ margin:6px 0 0; padding-left:18px; }
+.imp-ignorees li{ font-size:11.5px; color:var(--muted); line-height:1.6; }

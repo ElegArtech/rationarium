@@ -17,7 +17,28 @@ export type TypeImport =
   | "conges"
   | "competences";
 
-export type LigneErreur = { ligne: number; message: string };
+/**
+ * Un motif ligne à ligne, tel que le serveur le rend — `apps/api/src/imports/motifs.ts`.
+ *
+ * **Le serveur nomme la situation, le client la formule** (`RG-GEN-08`). Le
+ * compte rendu d'import était le seul endroit du produit où le serveur rédigeait
+ * des phrases destinées à l'écran : une session anglaise lisait « Row 6 — aucun
+ * compte ne porte l'adresse « … » ». Trois champs, et les trois comptent :
+ *
+ *   - `cle` — la clé du catalogue, **déjà préfixée de son espace de noms**
+ *     (`imports:motifs.…`), donc résoluble par `t(cle, params)` telle quelle ;
+ *   - `params` — les valeurs à interpoler, nommées comme dans le catalogue.
+ *     C'est la traduction qui décide de leur PLACE : l'ordre des compléments
+ *     n'est pas le même d'une langue à l'autre ;
+ *   - `message` — la phrase française, **en repli**. Sans elle, une clé absente
+ *     du catalogue afficherait la clé à l'écran.
+ */
+export type LigneErreur = {
+  ligne: number;
+  cle: string;
+  params: Record<string, string | number>;
+  message: string;
+};
 
 export type Apercu = {
   lignes: Record<string, string>[];
@@ -25,10 +46,18 @@ export type Apercu = {
   erreurs: LigneErreur[];
 };
 
-/** `RG-IMP-04` — trois familles, jamais deux. */
+/**
+ * `RG-IMP-04` — trois familles, jamais deux.
+ *
+ * **`ignorees` porte le MOTIF de chaque ignoré, et `ignores` s'en déduit.** Le
+ * compteur seul disait « 3 ignorés » sans dire lesquels ni pourquoi : une
+ * collision d'adresse et une collision d'identifiant produisaient le même
+ * silence, et le lecteur ne savait pas laquelle des deux colonnes corriger.
+ */
 export type CompteRendu = {
   importes: number;
   ignores: number;
+  ignorees: LigneErreur[];
   erreurs: LigneErreur[];
 };
 

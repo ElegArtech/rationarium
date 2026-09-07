@@ -309,7 +309,17 @@
   margin-left: auto;
 }
 
-.leave.is-half {
+/*
+ * Le congé ne s'étire que s'il est SEUL dans la cellule.
+ *
+ * `flex: 1` lui faisait prendre toute la hauteur, ce qui n'a de sens que
+ * lorsqu'il n'y a rien d'autre à montrer. `EX-PLN-03` veut les six natures
+ * dans une même cellule : dès qu'une présence, une tâche, un événement ou une
+ * permanence l'accompagne, il reprend sa hauteur propre et leur laisse la
+ * place. C'est déjà ce que la demi-journée faisait.
+ */
+.leave.is-half,
+.leave.is-compact {
   flex: 0 0 auto;
 }
 

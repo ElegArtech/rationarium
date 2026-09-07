@@ -1,10 +1,11 @@
 import { Fragment, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useBlocker } from "@tanstack/react-router";
+import { Link, useBlocker, useLocation } from "@tanstack/react-router";
 import { Button } from "react-aria-components";
 import * as api from "../../api/administration.js";
 import { messageErreur } from "../../api/erreurs.js";
+import { ErreurApi } from "../../api/client.js";
 import { usePeut } from "../../session/session.js";
 import { Chargement, ErreurDeChargement, AccesRefuse } from "../../composants/etats.js";
 import { useMessages } from "../../composants/messages.js";
@@ -29,7 +30,25 @@ import "./parametres.css";
  * plusieurs minutes, et une alerte fugace n'y survit pas.
  */
 
-type Onglet = "affichage" | "planning" | "feries" | "vacances";
+/**
+ * Les quatre sections de la vue 31, **dans l'ordre où la barre les pose**.
+ *
+ * Énumérées en valeurs et non en type seul : c'est cette liste qui recale un
+ * fragment inconnu sur la première section, comme la vue 19 le fait de ses
+ * onglets. Un type ne recale rien.
+ */
+const ONGLETS = ["affichage", "planning", "feries", "vacances"] as const;
+type Onglet = (typeof ONGLETS)[number];
+
+/**
+ * L'onglet à rendre, **recalé sur ce qui existe** — même forme que
+ * `ongletCourant` de la vue 19.
+ *
+ * Un fragment recopié à la main, ou celui d'une section disparue, retombe sur
+ * la première plutôt que de ne rien rendre du tout.
+ */
+export const ongletParametres = (fragment: string): Onglet =>
+  ONGLETS.find((o) => o === fragment) ?? ONGLETS[0];
 
 const FORMATS_DATE = [
   { cle: "JJ/MM/AAAA", exemple: "31/12/2025" },
@@ -75,19 +94,68 @@ const DEFAUTS: Record<string, string> = {
   "planning.visibleDays": "1,2,3,4,5",
 };
 
+/**
+ * `RG-GEN-06` — **les commandes d'écriture de la vue 31, déclarées une fois.**
+ *
+ * « Enregistrer » vivait à DEUX endroits : la barre d'outils, masquée par
+ * `settings:update`, et la barre « modifications non enregistrées », offerte
+ * sans condition. Un porteur de `settings:read` seul ne voyait rien dans la
+ * barre d'outils, puis voyait « Enregistrer » apparaître dès sa première
+ * saisie — et le clic rendait `403 PUT /api/parametrage`. Deux endroits, une
+ * seule règle appliquée : c'est exactement ce que `RG-GEN-06` interdit, une
+ * action proposée puis refusée.
+ *
+ * La règle se déclare donc ici, en un seul point, pour tous les endroits qui
+ * proposent d'écrire — « Réinitialiser » compris, qui prépare une écriture.
+ */
+export function commandesEcriture(peutModifier: boolean): {
+  enregistrer: boolean;
+  reinitialiser: boolean;
+} {
+  return { enregistrer: peutModifier, reinitialiser: peutModifier };
+}
+
 export function Parametres() {
   const { t } = useTranslation("administration");
   const { t: tErreurs } = useTranslation("erreurs");
   const peut = usePeut();
   const annoncer = useMessages();
   const client = useQueryClient();
-  const [onglet, setOnglet] = useState<Onglet>("affichage");
+  /*
+   * **L'onglet est un état d'ADRESSE, pas un état local.**
+   *
+   * DÉFAUT ACTIF CORRIGÉ. La barre posait `<a href="#feries">` puis appelait
+   * `e.preventDefault()` : l'adresse affichée au survol ne menait nulle part,
+   * l'URL ne bougeait jamais de `/parametres`, le bouton Précédent ne défaisait
+   * pas le changement de section, et revenir dans la vue perdait l'onglet.
+   * Même forme, même remède que la vue 19 : le fragment porte la section, et
+   * c'est un `Link` du routeur qui l'écrit — jamais une ancre nue, qui
+   * rechargerait le document entier.
+   */
+  const fragment = useLocation({ select: (l) => l.hash });
+  const onglet = ongletParametres(fragment);
   const [brouillon, setBrouillon] = useState<Record<string, string>>({});
+  /** `EX-PRM-02` — la remise aux valeurs par défaut se confirme. */
+  const [reinitialisationOuverte, setReinitialisationOuverte] = useState(false);
 
+  /*
+   * **Les mêmes options que la lecture du routeur, à la lettre.**
+   *
+   * `routeur.tsx` lit déjà cette clé, avec `retry: false` et cinq minutes de
+   * fraîcheur, pour pousser les formats avant tout rendu. Deux observateurs de
+   * la même clé qui divergent sur le réessai s'accordent tant que la lecture
+   * réussit, et se mettent à se relancer l'un l'autre dès qu'elle échoue :
+   * relevé à la recette, **683 appels en trois secondes** sur un `403`, et une
+   * application qui ne finit jamais de charger. Le cas est étroit —
+   * `settings:read` est dans le socle — mais un rôle composé sur mesure sans
+   * lui ne pouvait plus ouvrir le produit du tout.
+   */
   const requete = useQuery({
     queryKey: ["parametrage"],
     queryFn: api.reglages,
-    enabled: peut("settings:read"),
+    staleTime: 5 * 60_000,
+    retry: false,
+    retryOnMount: false,
   });
 
   // Le brouillon part des valeurs enregistrées, et se resynchronise quand
@@ -126,17 +194,41 @@ export function Parametres() {
   const enregistreOuVide = requete.data ?? {};
   const modifie = Object.keys(brouillon).some((c) => brouillon[c] !== enregistreOuVide[c]);
   const sortie = useBlocker({
-    shouldBlockFn: () => modifie,
+    /*
+     * `RG-PRM-05` porte sur la SORTIE de la page, pas sur le passage d'une
+     * section à l'autre : les quatre onglets sont un seul écran, et le
+     * brouillon leur est commun. Bloquer un changement de fragment
+     * demanderait de confirmer l'abandon de ce qu'on n'abandonne pas.
+     */
+    shouldBlockFn: ({ current, next }) => modifie && next.pathname !== current.pathname,
     enableBeforeUnload: () => modifie,
     withResolver: true,
   });
 
-  if (!peut("settings:read")) return <AccesRefuse />;
+  /*
+   * `RG-ADM-03`, `RG-GEN-06` — **le refus se prononce au SERVEUR.**
+   *
+   * DÉFAUT ACTIF CORRIGÉ (P-91, même forme que la vue 33). La requête portait
+   * `enabled: peut(…)` et la vue rendait le refus avant tout appel : rien
+   * n'atteignait `permissions.garde.ts`, seul endroit du produit qui TRACE un
+   * accès refusé. Le masque de courtoisie porte sur les commandes d'écriture,
+   * jamais sur la lecture d'une vue entière.
+   */
+  if (requete.error instanceof ErreurApi && requete.error.statut === 403)
+    return <AccesRefuse />;
   if (requete.isPending) return <Chargement quoi={t("parametres.lesReglages")} />;
   if (requete.isError)
     return <ErreurDeChargement erreur={requete.error} surReessai={() => void requete.refetch()} />;
 
   const enregistre = requete.data;
+  const commandes = commandesEcriture(peut("settings:update"));
+  /* `EX-PRM-02` — ce que la remise aux valeurs par défaut changerait vraiment.
+     Un point est un séparateur de niveau chez i18next : la clé métier
+     `display.dateFormat` s'aplatit avant de servir de clé de catalogue. */
+  const aRemettre = reglagesQueLaRemiseChange(brouillon);
+  const nomsARemettre = aRemettre
+    .map((cle) => t(`parametres.cle_${cle.replaceAll(".", "_")}`))
+    .join(", ");
   const lire = (cle: string, defaut: string) => brouillon[cle] ?? defaut;
   const ecrire = (cle: string, valeur: string) =>
     setBrouillon((b) => ({ ...b, [cle]: valeur }));
@@ -156,22 +248,36 @@ export function Parametres() {
           <h1 className="h1 titre-vue">{t("parametres.titre")}</h1>
           <p className="lede lede-vue">{t("parametres.lede")}</p>
         </div>
-        {peut("settings:update") ? (
+        {commandes.reinitialiser || commandes.enregistrer ? (
           <div className="ligne-actions-fin">
-            {/* « Réinitialiser » ramène le brouillon aux valeurs par défaut du
-                produit ; c'est l'enregistrement qui les applique. Rien n'est
-                écrit en base tant que la personne n'a pas confirmé. */}
-            <Button className="chip-btn" onPress={() => setBrouillon({ ...brouillon, ...DEFAUTS })}>
-              {t("parametres.reinitialiser")}
-            </Button>
-            <Button
-              className="btn btn-primary"
-              isDisabled={!modifie}
-              isPending={enregistrement.isPending}
-              onPress={() => enregistrement.mutate()}
-            >
-              {t("parametres.enregistrer")}
-            </Button>
+            {/*
+              « Réinitialiser » ramène le brouillon aux valeurs par défaut du
+              produit ; c'est l'enregistrement qui les applique. Rien n'est
+              écrit en base tant que la personne n'a pas confirmé.
+
+              `EX-PRM-02` — **mais le geste se confirme quand même.** Un seul
+              clic ramenait TOUS les réglages d'affichage et de planning à leur
+              valeur d'usine, sans un mot : le format de date, l'heure, la
+              région, le premier jour de la semaine, les jours affichés. Rien
+              ne permettait de savoir ce qu'on venait de perdre, et le bouton
+              voisin — « Enregistrer » — rend la perte définitive au clic
+              suivant.
+            */}
+            {commandes.reinitialiser ? (
+              <Button className="chip-btn" onPress={() => setReinitialisationOuverte(true)}>
+                {t("parametres.reinitialiser")}
+              </Button>
+            ) : null}
+            {commandes.enregistrer ? (
+              <Button
+                className="btn btn-primary"
+                isDisabled={!modifie}
+                isPending={enregistrement.isPending}
+                onPress={() => enregistrement.mutate()}
+              >
+                {t("parametres.enregistrer")}
+              </Button>
+            ) : null}
           </div>
         ) : null}
       </div>
@@ -190,30 +296,44 @@ export function Parametres() {
           <Button className="chip-btn" onPress={() => setBrouillon(enregistre)}>
             {t("parametres.annulerModifications")}
           </Button>
-          <Button
-            className="btn btn-primary"
-            isPending={enregistrement.isPending}
-            onPress={() => enregistrement.mutate()}
-          >
-            {t("parametres.enregistrer")}
-          </Button>
+          {/*
+            `RG-GEN-06` — **la même commande, la même garde.** « Enregistrer »
+            était masqué dans la barre d'outils par `settings:update` et offert
+            ici sans condition : un porteur de `settings:read` seul le voyait
+            apparaître dès sa première saisie, et le clic rendait
+            `403 PUT /api/parametrage`. Deux endroits, une seule règle
+            appliquée — une action interdite n'est jamais proposée puis
+            refusée.
+          */}
+          {commandes.enregistrer ? (
+            <Button
+              className="btn btn-primary"
+              isPending={enregistrement.isPending}
+              onPress={() => enregistrement.mutate()}
+            >
+              {t("parametres.enregistrer")}
+            </Button>
+          ) : null}
         </div>
       ) : null}
 
       <nav className="tabbar" aria-label={t("parametres.sections")}>
         {onglets.map((o) => (
-          <a
+          <Link
             key={o.cle}
-            href={`#${o.cle}`}
+            to="/parametres"
+            hash={o.cle}
+            /* Aucun élément ne porte l'identifiant du fragment : le routeur
+               chercherait une cible qui n'existe pas, et le ferait à chaque
+               changement d'onglet. */
+            hashScrollIntoView={false}
             className={o.cle === onglet ? "is-active" : ""}
+            /* Un lien navigue, il ne bascule pas : l'état courant se dit par
+               `aria-current`, jamais par `aria-pressed`. */
             aria-current={o.cle === onglet ? "page" : undefined}
-            onClick={(e) => {
-              e.preventDefault();
-              setOnglet(o.cle);
-            }}
           >
             {o.libelle}
-          </a>
+          </Link>
         ))}
       </nav>
 
@@ -246,8 +366,62 @@ export function Parametres() {
       >
         <p className="phrase-confirmation">{t("parametres.quitterTexte")}</p>
       </Fenetre>
+
+      {/*
+        `EX-PRM-02` — la confirmation de la remise aux valeurs par défaut.
+
+        Elle NOMME ce qui va changer plutôt que d'annoncer « les réglages » :
+        devant une liste, on décide ; devant un mot générique, on clique. Les
+        réglages déjà à leur valeur d'usine n'y figurent pas — les afficher
+        ferait craindre une perte qui n'aura pas lieu.
+      */}
+      <Fenetre
+        ouverte={reinitialisationOuverte}
+        surFermeture={() => setReinitialisationOuverte(false)}
+        categorie={t("confirmation")}
+        titre={t("parametres.reinitialiserTitre")}
+        mention={t("parametres.reinitialiserMention")}
+        actions={
+          <>
+            <Button
+              className="btn btn-secondary"
+              onPress={() => setReinitialisationOuverte(false)}
+            >
+              {t("annuler")}
+            </Button>
+            <Button
+              className="btn btn-danger"
+              onPress={() => {
+                setBrouillon({ ...brouillon, ...DEFAUTS });
+                setReinitialisationOuverte(false);
+              }}
+            >
+              {t("parametres.reinitialiser")}
+            </Button>
+          </>
+        }
+      >
+        <p className="phrase-confirmation">{t("parametres.reinitialiserTexte")}</p>
+        <p className="field-hint">
+          {aRemettre.length === 0
+            ? t("parametres.reinitialiserRienAChanger")
+            : t("parametres.reinitialiserListe", { reglages: nomsARemettre })}
+        </p>
+      </Fenetre>
     </div>
   );
+}
+
+/**
+ * `EX-PRM-02` — les réglages que la remise aux valeurs par défaut changerait
+ * RÉELLEMENT, dans l'ordre de `DEFAUTS`.
+ *
+ * Isolé du composant pour être vérifiable : c'est ce que la confirmation
+ * énumère, et une confirmation qui se trompe de liste est pire que pas de
+ * confirmation du tout.
+ */
+export function reglagesQueLaRemiseChange(brouillon: Record<string, string>): string[] {
+  return Object.keys(DEFAUTS).filter((cle) => (brouillon[cle] ?? DEFAUTS[cle]) !== DEFAUTS[cle]);
 }
 
 type Acces = {

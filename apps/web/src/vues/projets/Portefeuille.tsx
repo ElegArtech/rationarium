@@ -2,7 +2,7 @@ import { useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { IconeProjet, SelecteurIconeProjet } from "../../composants/icones-projet.js";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { Button } from "react-aria-components";
 import { STATUTS_PROJET, PRIORITES } from "@rationarium/contracts";
 import * as api from "../../api/projets.js";
@@ -33,6 +33,13 @@ import "./portefeuille.css";
 const CHAMPS_OBLIGATOIRES = ["nom", "dateDebut", "dateFin"] as const;
 type ChampObligatoire = (typeof CHAMPS_OBLIGATOIRES)[number];
 
+import {
+  adressePortefeuille,
+  lirePortefeuille,
+  PORTEFEUILLE_VIDE,
+  type EtatPortefeuille,
+} from "./adresse.js";
+
 export function Portefeuille() {
   const { t } = useTranslation("projets");
   const { t: tErreurs } = useTranslation("erreurs");
@@ -41,16 +48,48 @@ export function Portefeuille() {
   const annoncer = useMessages();
   const client = useQueryClient();
 
-  const [recherche, setRecherche] = useState("");
-  const [statut, setStatut] = useState("");
-  const [priorite, setPriorite] = useState("");
   /*
+   * `EX-PRJ-02`, `RG-GEN-04` — **les filtres vivent dans l'adresse.**
+   *
+   * Posés en `useState`, ils se défaisaient au premier aller-retour : un
+   * filtre sur « Actif », un projet ouvert, « ← Retour aux projets », et la
+   * liste revenait à « Tous les statuts » sans un mot. Voir `adresse.ts`.
+   *
    * Maquette 10 — « Mes projets ». Le brief en fait une VARIANTE : sans droit
    * de gestion globale, on ne voit déjà que ses projets et le bouton ne change
    * rien ; avec ce droit, il resserre la lecture sur les siens. Le filtrage
    * reste au serveur — le client ne trie pas une liste qu'il a déjà reçue.
    */
-  const [mesProjets, setMesProjets] = useState(false);
+  const navigate = useNavigate();
+  const brut = useRouterState({ select: (e) => e.location.search }) as Record<string, unknown>;
+  const etat = lirePortefeuille(brut);
+  const { statut, priorite, mesProjets } = etat;
+
+  /*
+   * La recherche tient sa valeur EN LOCAL pendant la frappe : lue depuis
+   * l'adresse, chaque caractère attendrait un aller-retour du routeur, et une
+   * frappe rapide en perdrait. Même règle que le curseur d'avancement de la
+   * vue 17 — la valeur est locale pendant le geste, l'adresse suit.
+   */
+  const [recherche, setRechercheLocale] = useState(etat.recherche);
+
+  const majEtat = (partiel: Partial<EtatPortefeuille>) => {
+    // `replace` : régler un filtre n'est pas une navigation qu'on veut défaire
+    // pas à pas — sinon le retour arrière rejouerait chaque frappe.
+    void navigate({
+      to: ".",
+      search: adressePortefeuille({ ...etat, ...partiel }),
+      replace: true,
+    });
+  };
+  const setRecherche = (v: string) => {
+    setRechercheLocale(v);
+    majEtat({ recherche: v });
+  };
+  const setStatut = (v: string) => majEtat({ statut: v });
+  const setPriorite = (v: string) => majEtat({ priorite: v });
+  const setMesProjets = (v: boolean) => majEtat({ mesProjets: v });
+
   const [creationOuverte, setCreationOuverte] = useState(false);
 
   const filtres = { recherche, statut, priorite, ...(mesProjets ? { mesProjets } : {}) };
@@ -62,10 +101,8 @@ export function Portefeuille() {
   });
 
   const reinitialiser = () => {
-    setRecherche("");
-    setStatut("");
-    setPriorite("");
-    setMesProjets(false);
+    setRechercheLocale("");
+    majEtat(PORTEFEUILLE_VIDE);
   };
 
   return (
@@ -138,7 +175,7 @@ export function Portefeuille() {
         <Button
           className="chip-btn"
           aria-pressed={mesProjets}
-          onPress={() => setMesProjets((v) => !v)}
+          onPress={() => setMesProjets(!mesProjets)}
         >
           {t("portefeuille.mesProjets")}
         </Button>
@@ -152,8 +189,10 @@ export function Portefeuille() {
       {requete.data ? (
         requete.data.projets.length > 0 ? (
           <div className="plist">
+            {/* La carte emporte l'adresse du portefeuille : c'est elle que le
+                « ← Retour aux projets » de la fiche rendra intacte. */}
             {requete.data.projets.map((p) => (
-              <LigneProjet key={p.id} projet={p} />
+              <LigneProjet key={p.id} projet={p} retour={adressePortefeuille(etat)} />
             ))}
           </div>
         ) : filtre ? (
@@ -192,7 +231,14 @@ export function Portefeuille() {
 }
 
 /** Une ligne du portefeuille. Les colonnes s'alignent, donc se comparent. */
-function LigneProjet({ projet }: { projet: api.LigneProjet }) {
+function LigneProjet({
+  projet,
+  retour,
+}: {
+  projet: api.LigneProjet;
+  /** L'adresse du portefeuille filtré, que la fiche rendra au retour. */
+  retour: Record<string, string>;
+}) {
   const { t } = useTranslation("projets");
 
   /*
@@ -212,6 +258,7 @@ function LigneProjet({ projet }: { projet: api.LigneProjet }) {
     <Link
       to="/projets/$id"
       params={{ id: projet.id }}
+      search={retour}
       className={`prow-card${projet.statut === "cancelled" ? " is-cancelled" : ""}${
         acheve ? " is-complete" : ""
       }`}

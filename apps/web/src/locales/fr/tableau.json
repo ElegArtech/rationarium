@@ -89,10 +89,11 @@
   "presence": {
     "titre": "Qui est là aujourd'hui",
     "laPresence": "la présence du jour",
-    "compte": "{p} au bureau · {c} en congé · {tt} en télétravail",
+    "compte": "{p} au bureau · {c} en congé · {tt} en télétravail · {nd, plural, one {# non déclaré} other {# non déclarés}}",
     "present": "Au bureau",
     "conge": "En congé",
     "teletravail": "Télétravail",
+    "non_declare": "Non déclaré",
     "vide": "Aucun agent dans votre périmètre",
     "videAide": "La présence du jour se remplit dès qu'un agent vous est rattaché."
   }

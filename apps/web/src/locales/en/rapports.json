@@ -4,10 +4,10 @@
   "lesDonnees": "the analytics data",
   "periode": {
     "groupe": "Analysis period",
-    "semaine": "7 days",
-    "mois": "30 days",
-    "trimestre": "90 days",
-    "annee": "365 days"
+    "semaine": "Current week",
+    "mois": "Current month",
+    "trimestre": "Current quarter",
+    "annee": "Current year"
   },
   "actions": {
     "actualiser": "Refresh",
@@ -34,7 +34,6 @@
     "videAide": "No project matches the filters.",
     "colProjet": "Project",
     "colSante": "Health",
-    "colAvancement": "Progress",
     "colJalons": "Milestones",
     "colActives": "Active tasks",
     "colPourquoi": "Why",
@@ -48,7 +47,10 @@
     "limite": "Limited to the {n, number} most critical — {reste, number} not shown.",
     "toutAfficher": "Show all",
     "revenirA": "Back to {n, number}",
-    "budgetHeures": "{n, number} h"
+    "budgetHeures": "{n, number} h",
+    "colCompletion": "Completion",
+    "completionMarqueur": "Completed tasks",
+    "completionExplication": "Share of completed tasks out of the project total — distinct from average progress, which weighs how far each task has come."
   },
   "progression": {
     "titre": "Actual vs expected progress",
@@ -74,10 +76,12 @@
     "titre": "Progress trend",
     "stagnation": "Stagnation detected",
     "historiqueCourt": "History still being built",
-    "historiqueCourtAide": "At least three snapshots are needed to draw a trend.",
+    "historiqueCourtAide": "{n, plural, one {# snapshot is required} other {# snapshots are required}} to draw a trend.",
     "libelle": "Progress from {debut, number}% to {fin, number}% over {points, number} readings",
     "instantanes": "Snapshots",
-    "instantanesExplication": "Progress snapshots taken at month end."
+    "instantanesExplication": "Progress snapshots taken at month end.",
+    "horsFenetre": "No snapshot within the analysis window",
+    "horsFenetreAide": "{n, plural, one {# snapshot exists} other {# snapshots exist}} outside this period. Pick a wider window to see them."
   },
   "jalons": {
     "titre": "Milestone completion",

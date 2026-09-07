@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma.service.js";
 import { AuditService } from "../commun/audit.service.js";
 import { PerimetreService, type Perimetre } from "../commun/perimetre.service.js";
+import { debutDuJour } from "../commun/dates.js";
 
 /**
  * Événements — M9, vue 18.
@@ -509,10 +510,39 @@ export class EvenementsService {
   /**
    * `EX-EVT-07`, `RG-EVT-03`, `RG-EVT-04` — arrêter une récurrence.
    *
-   * Seul un événement **parent** peut voir sa récurrence arrêtée, et l'arrêt
-   * **supprime les occurrences futures en conservant les passées**. Effacer
-   * tout serait détruire de l'historique ; ne rien effacer laisserait des
-   * réunions fantômes au calendrier.
+   * L'arrêt **supprime les occurrences futures en conservant les passées**.
+   * Effacer tout serait détruire de l'historique ; ne rien effacer laisserait
+   * des réunions fantômes au calendrier.
+   *
+   * ════════════════════════════════════════════════════════════════════════
+   * DÉFAUT TROUVÉ EN RECETTE (P-66), et il portait sur la promesse elle-même.
+   * La confirmation affiche mot pour mot « Les occurrences futures sont
+   * supprimées. **Celles déjà passées restent intactes.** » ; la vue envoie
+   * pourtant la date de l'événement porteur, c'est-à-dire le DÉBUT de la
+   * série, et la suppression partait de là : le mois précédent passait de
+   * trois occurrences à une. La date reçue dit *à partir d'où couper* ; elle
+   * ne peut pas ouvrir le passé, quel que soit l'appelant. Le plancher est
+   * donc posé ici, au serveur, et non dans ce que le client veut bien
+   * envoyer — un client qui se trompe de date ne doit pas pouvoir réécrire
+   * l'histoire de ceux qui étaient à la réunion.
+   *
+   * DÉCISION, second volet du même parcours. Le tiroir propose « Arrêter la
+   * récurrence » sur **toute** occurrence, et le serveur refusait sur une
+   * occurrence enfant par un message — « cet événement n'est pas une série »
+   * — qui contredit le bandeau « Fait partie d'une série récurrente » affiché
+   * deux lignes plus haut. L'arrêt est désormais **accepté depuis n'importe
+   * quelle occurrence** : il porte sur la série, la résout par son parent, et
+   * coupe à la date de l'occurrence par laquelle on l'a demandé. `RG-EVT-03`
+   * reste tenue au fond — ce qui s'arrête est bien la récurrence du parent,
+   * il n'y en a pas d'autre —, et la lettre de la règle (« seul un événement
+   * parent peut voir sa récurrence arrêtée ») décrit une contrainte
+   * d'implémentation plutôt qu'une règle métier : elle demande une reprise en
+   * `cadrage/01 § M9`, signalée au compte rendu. Le refus subsiste pour ce
+   * qu'il désigne vraiment : un événement isolé, qui n'a aucune série à
+   * arrêter. Le geste reste par ailleurs disponible sous l'autre verbe —
+   * `supprimer` avec la portée `serie` fait exactement cela depuis une
+   * occurrence quelconque.
+   * ════════════════════════════════════════════════════════════════════════
    */
   async arreterRecurrence(
     eventId: string,
@@ -520,27 +550,43 @@ export class EvenementsService {
     acteurId: string,
     perimetre: Perimetre,
     permissions: ReadonlySet<string>,
+    maintenant: Date = new Date(),
   ) {
     // Le périmètre manquait ici : la route exigeait `events:update` et n'a
     // jamais confronté l'événement au périmètre de l'appelant. Écrire sur ce
     // qu'on n'a pas le droit de lire est un défaut de cloisonnement, pas une
     // omission — corrigé en L-42, avec le même prédicat que la lecture.
     const evenement = await this.chargerVisible(eventId, perimetre, permissions);
-    if (evenement.parentId !== null || evenement.recurrenceFrequence === null) {
+    if (evenement.parentId === null && evenement.recurrenceFrequence === null) {
       throw new ErreurEvenement("pas_un_parent");
     }
+    const parentId = evenement.parentId ?? evenement.id;
+
+    /*
+     * Le plancher. `date` est une colonne `@db.Date` : elle revient à minuit
+     * UTC, et `debutDuJour` place la référence à la même échelle — sans quoi
+     * la comparaison serait fausse toute la journée, et vraie seulement à
+     * minuit. La coupure ne descend jamais sous aujourd'hui : une occurrence
+     * du jour est encore à venir tant que la journée n'est pas finie.
+     */
+    const plancher = debutDuJour(maintenant);
+    const coupe = aPartirDe > plancher ? aPartirDe : plancher;
 
     const { count } = await this.prisma.event.deleteMany({
-      where: { parentId: eventId, date: { gte: aPartirDe } },
+      where: { parentId, date: { gte: coupe } },
     });
     await this.prisma.event.update({
-      where: { id: eventId },
-      data: { recurrenceFin: aPartirDe, version: { increment: 1 } },
+      where: { id: parentId },
+      data: { recurrenceFin: coupe, version: { increment: 1 } },
     });
 
     await this.audit.tracer({
-      action: "event.recurrence_stop", typeEntite: "Event", entiteId: eventId, acteurId,
-      detail: { occurrencesSupprimees: count },
+      action: "event.recurrence_stop", typeEntite: "Event", entiteId: parentId, acteurId,
+      detail: {
+        occurrencesSupprimees: count,
+        demandeDepuis: eventId,
+        coupureLe: coupe.toISOString().slice(0, 10),
+      },
     });
     return { supprimees: count };
   }

@@ -7,9 +7,11 @@ import * as api from "../../api/taches.js";
 import * as apiProjets from "../../api/projets.js";
 import { appeler } from "../../api/client.js";
 import { messageErreur } from "../../api/erreurs.js";
+import { usePeut, useSession } from "../../session/session.js";
 import { Fenetre } from "../../composants/fenetre.js";
 import { useMessages } from "../../composants/messages.js";
 import { useLibelle } from "../../composants/pastilles.js";
+import { assignables, CHEMIN_ANNUAIRE, PERMISSION_ANNUAIRE, type Candidat } from "./assignables.js";
 import "../../composants/partages.css";
 import "./liste.css";
 
@@ -21,25 +23,52 @@ import "./liste.css";
  * projet n'est choisi, et le dit : « Sélectionnez d'abord un projet ».
  *
  * La liste d'assignés suit le projet : membres du projet s'il en a, sinon tous
- * les utilisateurs, avec un avertissement qui explique pourquoi.
+ * les utilisateurs, avec un avertissement qui explique pourquoi. La règle
+ * (`RG-TSK-15`) et ses deux cas limites — annuaire illisible, compte
+ * désactivé — vivent dans `assignables.ts`, partagés avec la vue 17.
  */
 export function FenetreCreationTache({
   ouverte,
   surFermeture,
   projets,
   projetImpose,
+  dateInitiale,
+  assignesInitiaux,
 }: {
   ouverte: boolean;
   surFermeture: () => void;
-  projets: apiProjets.LigneProjet[];
+  /**
+   * Les projets proposés au rattachement.
+   *
+   * Structurellement minimal, et c'est délibéré : l'onglet d'un projet
+   * (vue 12) n'a pas de portefeuille sous la main, seulement le projet
+   * courant. Il passait `[]` avec `projetImpose`, ce qui donnait une valeur
+   * de `<select>` sans option correspondante — le champ affichait « Aucun
+   * projet (tâche indépendante) » pendant que la tâche se créait bel et bien
+   * dans le projet.
+   */
+  projets: { id: string; nom: string }[];
   /** Depuis l'onglet d'un projet, le rattachement est connu et non modifiable. */
   projetImpose?: string;
+  /**
+   * `EX-PLN-11` — le « + » d'une cellule de planning promet de créer **ici**.
+   *
+   * Il annonçait « Créer ici — Rémi Chastagner, 2026-09-10 » et menait à
+   * `/taches` sans un paramètre : la liste s'ouvrait, aucune fenêtre, et tout
+   * était à ressaisir. La personne et la date voyagent donc dans l'adresse et
+   * arrivent ici comme valeurs de départ — modifiables, ce ne sont pas des
+   * impositions.
+   */
+  dateInitiale?: string;
+  assignesInitiaux?: string[];
 }) {
   const { t } = useTranslation("taches");
   const { t: tErreurs } = useTranslation("erreurs");
   const libelle = useLibelle();
   const annoncer = useMessages();
   const client = useQueryClient();
+  const peut = usePeut();
+  const { session } = useSession();
 
   const [titre, setTitre] = useState("");
   const [description, setDescription] = useState("");
@@ -47,8 +76,8 @@ export function FenetreCreationTache({
   const [milestoneId, setMilestoneId] = useState("");
   const [statut, setStatut] = useState("todo");
   const [priorite, setPriorite] = useState("normal");
-  const [dateDebut, setDateDebut] = useState("");
-  const [dateFin, setDateFin] = useState("");
+  const [dateDebut, setDateDebut] = useState(dateInitiale ?? "");
+  const [dateFin, setDateFin] = useState(dateInitiale ?? "");
   /*
    * `EX-TSK-04` — les horaires font partie des onze champs de l'exigence, et
    * ils manquaient partout : au formulaire, au schéma de la route, à
@@ -58,7 +87,7 @@ export function FenetreCreationTache({
   const [heureDebut, setHeureDebut] = useState("");
   const [heureFin, setHeureFin] = useState("");
   const [estimation, setEstimation] = useState("");
-  const [assignes, setAssignes] = useState<string[]>([]);
+  const [assignes, setAssignes] = useState<string[]>(assignesInitiaux ?? []);
   const [titreManquant, setTitreManquant] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
 
@@ -71,11 +100,18 @@ export function FenetreCreationTache({
     enabled: ouverte && Boolean(projectId),
   });
 
+  /*
+   * `RG-GEN-06` — on ne demande pas ce qui sera refusé. `GET /utilisateurs`
+   * est gardé par `users:read` : ouverte par un contributeur, cette fenêtre
+   * journalisait un `403` à chaque fois et n'en tirait qu'une liste vide.
+   * `RG-AUTH-05` — l'annuaire est demandé ACTIF : un compte désactivé ne se
+   * propose plus à l'assignation.
+   */
+  const annuaireLisible = peut(PERMISSION_ANNUAIRE);
   const tous = useQuery({
-    queryKey: ["utilisateurs", "tous"],
-    queryFn: () =>
-      appeler<{ id: string; prenom: string; nom: string }[]>("/utilisateurs"),
-    enabled: ouverte,
+    queryKey: ["utilisateurs", "assignables"],
+    queryFn: () => appeler<Candidat[]>(CHEMIN_ANNUAIRE),
+    enabled: ouverte && annuaireLisible,
   });
 
   const route = useQuery({
@@ -89,8 +125,14 @@ export function FenetreCreationTache({
     prenom: a.utilisateur.prenom,
     nom: a.utilisateur.nom,
   }));
-  const projetSansMembre = Boolean(projectId) && equipe.isSuccess && membresDuProjet.length === 0;
-  const candidats = projectId && !projetSansMembre ? membresDuProjet : (tous.data ?? []);
+  const { candidats, indice, alerte } = assignables({
+    projectId: projectId || null,
+    membres: membresDuProjet,
+    equipeChargee: equipe.isSuccess,
+    annuaire: tous.data ?? [],
+    annuaireLisible,
+    moi: { id: session.id, prenom: session.prenom, nom: session.nom },
+  });
 
   const creation = useMutation({
     mutationFn: () =>
@@ -365,13 +407,7 @@ export function FenetreCreationTache({
               {t("liste.assignes")}
             </span>
             <div className="pickbox" role="group" aria-labelledby="tk-assignes-lab">
-              <p className={`pick-hint${projetSansMembre ? " is-warn" : ""}`}>
-                {projectId
-                  ? projetSansMembre
-                    ? t("liste.projetSansMembre")
-                    : t("liste.membresDuProjet")
-                  : t("liste.tousLesUtilisateurs")}
-              </p>
+              <p className={`pick-hint${alerte ? " is-warn" : ""}`}>{t(`liste.${indice}`)}</p>
               {candidats.map((u) => (
                 <label className="pick-item" key={u.id}>
                   <input

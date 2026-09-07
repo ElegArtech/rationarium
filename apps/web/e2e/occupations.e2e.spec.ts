@@ -14,6 +14,7 @@ import {
   VALIDATEUR,
   SANS_VALIDATEUR,
   DEMANDES,
+  DEMANDE_REFUSEE,
   DEMANDE_ANNULATION,
   DEMANDE_TYPE_DESACTIVE,
   JOURS_OUVRES_A_CHEVAL,
@@ -223,6 +224,19 @@ test.describe("Vue 19 — congés : trois publics, un écran", () => {
    */
   const reponsesSoldes = { ...reponses, "/api/utilisateurs": { corps: UTILISATEURS } };
 
+  /**
+   * Le champ d'attribution d'un type, **visé par son rôle**.
+   *
+   * `getByLabel("Congés annuels")` en attrape deux : la jauge de la carte de
+   * tête porte `role="img"` et un `aria-label` qui commence par le nom du
+   * type — « Congés annuels : 12 jours utilisés, 3 en attente… ». Le libellé
+   * du champ, lui, porte l'astérisque des champs obligatoires, si bien que ni
+   * `{ exact: true }` ni le nom nu ne visent ce qu'on croit viser. Le rôle
+   * `spinbutton` tranche : il n'y a qu'un `<input type="number">` par type.
+   */
+  const champSolde = (page: Page, type: string) =>
+    page.getByRole("spinbutton", { name: new RegExp(`^${type}`) });
+
   /** Un onglet se vise toujours DANS sa barre de sections, jamais nu. */
   const ouvrirSoldes = async (page: Page) => {
     await page
@@ -303,14 +317,109 @@ test.describe("Vue 19 — congés : trois publics, un écran", () => {
     await expect(page.getByRole("button", { name: "Refuser" }).first()).toBeVisible();
   });
 
-  test("le refus demande un motif, présenté comme facultatif", async ({ page }) => {
+  /*
+   * ───────────────────────────────────────────────────────────────────────────
+   * `EX-CNG-05`, `RG-CNG-02` — **le motif de refus est obligatoire.**
+   *
+   * Ce contrôle affirmait le contraire, jusque dans son nom : « présenté comme
+   * facultatif ». Il consacrait le défaut, et le défaut vidait la règle des
+   * deux côtés — la fenêtre libellait « Motif du refus (optionnel) » et le
+   * client substituait « Aucun motif indiqué » à la chaîne vide, ce qui
+   * satisfaisait le `min(1)` du serveur. L'agent recevait « refusée. Motif :
+   * Aucun motif indiqué », une notification qui ne dit rien de plus que son
+   * titre.
+   *
+   * Ce qui se vérifie ici est donc l'inverse de ce qui s'y vérifiait : le
+   * champ est annoncé obligatoire, et **rien ne part** sans lui.
+   * ───────────────────────────────────────────────────────────────────────────
+   */
+  test("RG-CNG-02 — le refus EXIGE un motif : sans lui, aucune requête ne part", async ({
+    page,
+  }) => {
     await serveur(page, { session: FATOU, reponses });
+    /* Un compteur, pas un `waitForRequest` : ce qu'on prouve est une ABSENCE,
+       et une attente qui expire ne se distingue pas d'une attente trop courte. */
+    let refus = 0;
+    page.on("request", (r) => {
+      if (new URL(r.url()).pathname.endsWith("/refuser")) refus += 1;
+    });
+
     await page.goto("/conges");
     await page.getByRole("link", { name: "À valider" }).click();
     await page.getByRole("button", { name: "Refuser" }).first().click();
 
-    await expect(page.getByLabel("Motif du refus (optionnel)")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Confirmer le refus" })).toBeVisible();
+    const fenetre = page.getByRole("dialog");
+    // Le libellé porte l'astérisque des champs obligatoires ; « optionnel » a
+    // disparu de la fenêtre, et c'est la moitié visible de la règle.
+    await expect(page.getByLabel(/^Motif du refus/)).toBeVisible();
+    await expect(fenetre.getByText("*", { exact: true })).toBeVisible();
+    await expect(fenetre.getByText(/optionnel|facultatif/)).toHaveCount(0);
+
+    // L'explication est en place mais muette tant qu'on n'a rien tenté :
+    // `.field-error.is-quiet` réserve sa hauteur sans rien affirmer.
+    const explication = fenetre.getByText(
+      "Le motif du refus est obligatoire : il est transmis au demandeur, et c'est la seule explication qu'il recevra.",
+    );
+    await expect(explication).toBeHidden();
+
+    await page.getByRole("button", { name: "Confirmer le refus" }).click();
+
+    // Le geste refuse AVANT d'écrire, et il dit ce qui manque.
+    await expect(explication).toBeVisible();
+    expect(refus).toBe(0);
+  });
+
+  test("RG-CNG-02 — le motif saisi part au serveur, et se relit sur la demande refusée", async ({
+    page,
+  }) => {
+    await serveur(page, {
+      session: FATOU,
+      reponses: { ...reponses, [`/api/conges/${DEMANDES[0].id}/refuser`]: { corps: {} } },
+    });
+    const envoi = page.waitForRequest(
+      (r) => new URL(r.url()).pathname === `/api/conges/${DEMANDES[0].id}/refuser`,
+    );
+    await page.goto("/conges");
+    await page.getByRole("link", { name: "À valider" }).click();
+    await page.getByRole("button", { name: "Refuser" }).first().click();
+    /* `"   "` n'est pas un motif : le contrat se lit sur la CHAÎNE, pas sur sa
+       longueur brute. Sans le `trim`, trois espaces satisferaient le `min(1)`
+       du serveur exactement comme « Aucun motif indiqué » le faisait. */
+    await page.getByLabel(/^Motif du refus/).fill("   ");
+    await page.getByRole("button", { name: "Confirmer le refus" }).click();
+    await expect(
+      page
+        .getByRole("dialog")
+        .getByText(
+          "Le motif du refus est obligatoire : il est transmis au demandeur, et c'est la seule explication qu'il recevra.",
+        ),
+    ).toBeVisible();
+
+    await page.getByLabel(/^Motif du refus/).fill("Effectif insuffisant sur la semaine");
+    await page.getByRole("button", { name: "Confirmer le refus" }).click();
+
+    expect((await envoi).postDataJSON()).toEqual({
+      motifRefus: "Effectif insuffisant sur la semaine",
+      version: DEMANDES[0].version,
+    });
+  });
+
+  /*
+   * `EX-CNG-05` — **le motif est AFFICHÉ sur la demande refusée.**
+   *
+   * `motifRefus` traversait le contrat depuis toujours et n'était rendu par
+   * aucune vue : le demandeur ne pouvait relire nulle part la seule
+   * explication qu'il ait reçue. `DEMANDES[3]` porte une demande refusée avec
+   * son motif ; c'est la lecture qui ferme la boucle du contrôle précédent.
+   */
+  test("EX-CNG-05 — une demande refusée porte son motif à l'écran", async ({ page }) => {
+    await serveur(page, {
+      session: CAMILLE,
+      reponses: { ...reponses, "/api/conges": { corps: [...DEMANDES, DEMANDE_REFUSEE] } },
+    });
+    await page.goto("/conges");
+
+    await expect(page.getByText(`Motif du refus : ${DEMANDE_REFUSEE.motifRefus}`)).toBeVisible();
   });
 
   test("les délégations sont expliquées avant d'être listées", async ({ page }) => {
@@ -890,7 +999,7 @@ test.describe("Vue 19 — congés : trois publics, un écran", () => {
     // Un agent, donc l'allocation PROPRE — et sa version, telle que la lecture
     // la rend : `SOLDES[0].solde.propre.version` vaut 4.
     await page.getByLabel("Bénéficiaire").selectOption("u-autre");
-    await page.getByLabel("Congés annuels", { exact: true }).fill("27");
+    await champSolde(page, "Congés annuels").fill("27");
     await page.getByRole("button", { name: "Enregistrer le solde de Congés annuels" }).click();
 
     expect((await envoi).postDataJSON()).toEqual({
@@ -914,7 +1023,7 @@ test.describe("Vue 19 — congés : trois publics, un écran", () => {
     await ouvrirSoldes(page);
     // Le bénéficiaire par défaut est « Défaut global » : rien à choisir.
     await expect(page.getByLabel("Bénéficiaire")).toHaveValue("");
-    await page.getByLabel("Congés annuels", { exact: true }).fill("22");
+    await champSolde(page, "Congés annuels").fill("22");
     await page.getByRole("button", { name: "Enregistrer le solde de Congés annuels" }).click();
 
     // `userId: null`, et la version du DÉFAUT GLOBAL — 2 —, pas celle de
@@ -936,13 +1045,65 @@ test.describe("Vue 19 — congés : trois publics, un écran", () => {
     await ouvrirSoldes(page);
     await page.getByLabel("Bénéficiaire").selectOption("u-autre");
 
-    // `SOLDES[0]` porte une allocation propre, `SOLDES[1]` n'en a pas.
-    await expect(page.getByText("Allocation propre à cet agent.")).toBeVisible();
+    /*
+     * `SOLDES[0]` porte une allocation propre ET un défaut global de 20 jours,
+     * `SOLDES[1]` n'a que le défaut. La phrase de provenance dit désormais
+     * trois choses, et les trois comptent : d'où vient le chiffre, ce que vaut
+     * l'autre — celui qu'on corrigerait en vain —, et que l'allocation propre
+     * ne se RETIRE pas. Ce dernier point est une dette assumée du produit :
+     * aucun verbe ne défait une allocation propre, et l'écran le dit plutôt
+     * que de laisser croire qu'un champ vidé y suffirait.
+     */
+    await expect(
+      page.getByText(
+        "Allocation propre à cet agent : elle l'emporte sur le défaut global, qui vaut 20,0 j. Elle ne peut pas être retirée — seulement corrigée.",
+      ),
+    ).toBeVisible();
     await expect(
       page.getByText(
         "Aucune allocation propre : cet agent hérite du défaut global, soit 12,0 j. Enregistrer ici lui en crée une.",
       ),
     ).toBeVisible();
+  });
+
+  /*
+   * ───────────────────────────────────────────────────────────────────────────
+   * `EX-CNG-10` — **un champ de solde VIDÉ n'est pas zéro.**
+   *
+   * `Number("")` vaut zéro : le champ vidé s'enregistrait en 0 jour, avec un
+   * message de succès, et `RG-CNG-20` refusait ensuite toute demande à l'agent
+   * visé — sans un mot d'alerte, puisqu'un champ vide est aussi l'apparence de
+   * « aucune allocation propre ». Le champ étant un `<input type="number">`,
+   * le navigateur rend la chaîne vide sur toute saisie qu'il juge invalide,
+   * « 2,5 » comprise : le geste le plus naturel du monde privait un agent de
+   * tous ses congés.
+   *
+   * Ce contrôle n'existait pas — la suite ne couvrait que le cas nominal, et
+   * c'est le cas limite qui portait le défaut.
+   * ───────────────────────────────────────────────────────────────────────────
+   */
+  test("EX-CNG-10 — un champ de solde vidé est refusé AVANT d'écrire, jamais enregistré à zéro", async ({
+    page,
+  }) => {
+    await serveur(page, { session: HUGO, reponses: reponsesSoldes });
+    let ecritures = 0;
+    page.on("request", (r) => {
+      if (new URL(r.url()).pathname === "/api/conges/soldes" && r.method() === "PUT") {
+        ecritures += 1;
+      }
+    });
+
+    await page.goto("/conges");
+    await ouvrirSoldes(page);
+    await champSolde(page, "Congés annuels").fill("");
+    await page.getByRole("button", { name: "Enregistrer le solde de Congés annuels" }).click();
+
+    await expect(
+      page.getByText(
+        "Indiquez un nombre de jours. Un champ vide n'est pas zéro : laissé tel quel, il priverait cet agent de tout congé.",
+      ).first(),
+    ).toBeVisible();
+    expect(ecritures).toBe(0);
   });
 
   test("RG-CNG-23 — une allocation modifiée entre-temps se rend en message rédigé", async ({
@@ -971,7 +1132,7 @@ test.describe("Vue 19 — congés : trois publics, un écran", () => {
     );
     await page.goto("/conges");
     await ouvrirSoldes(page);
-    await page.getByLabel("Congés annuels", { exact: true }).fill("30");
+    await champSolde(page, "Congés annuels").fill("30");
     await page.getByRole("button", { name: "Enregistrer le solde de Congés annuels" }).click();
 
     // Le message est rédigé et actionnable, pas un code technique (`RG-GEN-03`).

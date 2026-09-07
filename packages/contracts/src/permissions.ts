@@ -160,14 +160,46 @@ export const permissionsDuDomaine = (d: Domaine): readonly string[] =>
 
 /**
  * Permissions de gestion globale — elles court-circuitent le prédicat de
- * périmètre (`RG-SCOPE-03`). Liste fermée et volontairement courte : chaque
- * ajout élargit la vue complète de l'instance à un rôle de plus.
+ * **périmètre organisationnel** (`RG-SCOPE-03`). Liste fermée et
+ * volontairement courte : chaque ajout élargit la vue complète de l'instance à
+ * un rôle de plus.
+ *
+ * ────────────────────────────────────────────────────────────────────────────
+ * CORRIGÉ LE 2026-09-07 — la liste portait six entrées, dont quatre à tort.
+ *
+ * Elle avait été composée en prenant tous les `domaine:manage_any` du
+ * catalogue. Or ces deux familles ne disent pas la même chose, et le tableau en
+ * tête de ce fichier les distingue depuis toujours :
+ *
+ *   `manage_any`  modification d'objets **dont on n'est pas propriétaire**
+ *   `readAll`     lecture **au-delà de son périmètre**
+ *
+ * Seule la seconde parle de périmètre. `leaves:manage_any` dit « je modifie les
+ * congés d'autrui » — c'est exactement le geste d'un manager sur SON équipe ;
+ * il ne dit rien de l'étendue de cette équipe. Le lire comme « toute
+ * l'instance » donnait à `MANAGER`, qui porte `leaves:manage_any` et
+ * `telework:manage_any`, un périmètre global : `POST /conges` acceptait un
+ * agent d'un autre département (`RG-CNG-15`), le suivi individuel de n'importe
+ * quel agent lui était servi, et les agrégats de la vue 30 portaient toute
+ * l'instance. Constaté à l'écran — P-79, P-83, P-84.
+ *
+ * Ce qui reste, et pourquoi :
+ *   - `users:readAll` — « je lis les comptes au-delà de mon périmètre ». Le
+ *     périmètre organisationnel EST un ensemble de départements et d'agents :
+ *     c'est la permission qui le nomme directement.
+ *   - `users:manage_any` — le `users:manage` que `RG-SCOPE-03` cite en toutes
+ *     lettres ; le catalogue ne porte pas ce nom-là, celle-ci en est l'exacte
+ *     contrepartie.
+ *   - `tasks:manage_any` — l'autre exemple nommé par `RG-SCOPE-03`.
+ *
+ * Ce qui en sort n'est pas perdu pour autant : `projects:manage_any` reste lu
+ * par `filtreProjet` et `events:manage_any` par `EvenementsService`, chacun
+ * **dans son domaine**, ce qui est le sens de la permission. Ce qu'ils ne font
+ * plus, c'est élargir la vue des personnes.
+ * ────────────────────────────────────────────────────────────────────────────
  */
 export const PERMISSIONS_GESTION_GLOBALE: readonly string[] = [
+  "users:readAll",
   "users:manage_any",
   "tasks:manage_any",
-  "projects:manage_any",
-  "leaves:manage_any",
-  "telework:manage_any",
-  "events:manage_any",
 ] as const;

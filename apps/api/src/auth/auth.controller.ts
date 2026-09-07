@@ -143,6 +143,30 @@ export class AuthController {
     };
   }
 
+  /**
+   * `RG-AUTH-04` — **l'état du lien, avant le formulaire.**
+   *
+   * Il n'existait aucun point d'entrée de vérification : la vue 04 ouvrait son
+   * formulaire complet sur un jeton expiré, consommé ou inconnu, et
+   * l'utilisateur ne l'apprenait qu'après avoir choisi ET confirmé un mot de
+   * passe. La règle veut épargner ce geste ; elle ne le pouvait pas.
+   *
+   * `POST` et non `GET` : un jeton dans un chemin d'URL finit dans les journaux
+   * du serveur frontal et dans l'historique du navigateur. Le corps de requête
+   * n'y finit pas.
+   */
+  @Public()
+  @Post("verify-reset-token")
+  @HttpCode(200)
+  async verifierJeton(@Body() corps: unknown) {
+    const d = valider(z.object({ jeton: z.string().min(1) }), corps);
+    try {
+      return await this.auth.verifierJetonReinitialisation(d.jeton);
+    } catch (e) {
+      return traduire(e);
+    }
+  }
+
   /** EX-AUTH-06 — définir un nouveau mot de passe depuis un lien reçu. */
   @Public()
   @Post("reset-password")
@@ -171,7 +195,15 @@ export class AuthController {
 
     const d = valider(changementMotDePasseSchema, corps);
     try {
-      await this.auth.changerMotDePasse(session.userId, d.actuel, d.nouveau);
+      /*
+       * La session courante est ÉPARGNÉE : sans cela, le changement de mot de
+       * passe imposé révoquait la session qui venait de le faire, et
+       * l'utilisateur revenait sur la vue 05 avec un formulaire vide et aucun
+       * message (`EX-AUTH-07`, `RG-AUTH-06`).
+       */
+      await this.auth.changerMotDePasse(session.userId, d.actuel, d.nouveau, {
+        conserverSessionId: session.sessionId,
+      });
       return { cle: "auth.motDePasseChange", message: "Mot de passe modifié" };
     } catch (e) {
       return traduire(e);

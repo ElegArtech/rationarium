@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
+import { Link } from "@tanstack/react-router";
 import * as apiImports from "../../api/imports.js";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "react-aria-components";
@@ -105,10 +106,13 @@ function Charge({ tache }: { tache: api.TacheDeJalon }) {
 function LigneTache({
   tache,
   modifiable,
+  projetOrigine,
   surStatut,
 }: {
   tache: api.TacheDeJalon;
   modifiable: boolean;
+  /** `EX-TSK-03` — le projet d'où l'on vient, pour que le retour y ramène. */
+  projetOrigine: string;
   surStatut: (statut: string) => void;
 }) {
   const { t } = useTranslation("projets");
@@ -126,7 +130,23 @@ function LigneTache({
   return (
     <div className="tk">
       <div className="bloc-etroit">
-        <span className="tk-name">{tache.titre}</span>
+        {/*
+          `EX-JAL-05` — **la tâche d'un jalon mène à sa fiche.**
+
+          Dépliée sous son jalon, elle ne portait ni lien, ni bouton, ni rôle
+          cliquable : seul son sélecteur de statut était interactif, et la
+          feuille de route était un cul-de-sac. La ligne entière ne peut pas
+          être le lien — elle porte ce sélecteur. Le projet voyage dans
+          l'adresse pour que le « Retour » de la fiche ramène ici.
+        */}
+        <Link
+          className="tk-name tk-lien"
+          to="/taches/$id"
+          params={{ id: tache.id }}
+          search={projetOrigine ? { projet: projetOrigine } : {}}
+        >
+          {tache.titre}
+        </Link>
         <span className={`tk-sub${enRetard ? " is-late" : ""}`}>
           {t("jalons.avancementPourcent", { pct: tache.avancement })}
           {enRetard ? t("jalons.etEnRetard") : ""}
@@ -282,8 +302,18 @@ export function Jalons({ projetId }: { projetId: string }) {
             </a>
           ) : null}
           {/* `cadrage/02`, vue 13 — « Importer CSV » ferme la boucle de
-              l'export ci-dessus : mêmes colonnes, même fichier. */}
-          {peut("tasks:import") ? (
+              l'export ci-dessus : mêmes colonnes, même fichier.
+
+              `RG-GEN-06` — **la garde du client est celle de la route.**
+              `POST /imports/projet/:id/jalons` exige `milestones:import` ;
+              la commande était masquée par `tasks:import`. Un porteur de
+              `milestones:import` seul ne voyait jamais le bouton, et un
+              porteur de `tasks:import` seul le voyait puis prenait un 403 —
+              les deux moitiés du même défaut, une action offerte à qui n'y a
+              pas droit et cachée à qui l'a. La fenêtre elle-même part sur
+              `type="jalons"`, dont `PERMISSION_PAR_TYPE` dit déjà
+              `milestones:import`. */}
+          {peut("milestones:import") ? (
             <Button className="chip-btn" onPress={() => setImportOuvert(true)}>
               {tImports("importerCsv")}
             </Button>
@@ -401,6 +431,7 @@ export function Jalons({ projetId }: { projetId: string }) {
                   key={tache.id}
                   tache={tache}
                   modifiable={peut("tasks:update")}
+                  projetOrigine={projetId}
                   surStatut={(statut) => changerStatut.mutate({ tache, statut })}
                 />
               ))}
@@ -419,10 +450,14 @@ export function Jalons({ projetId }: { projetId: string }) {
       */}
       <Epopees projetId={projetId} />
 
+      {/* Le projet courant est passé COMME OPTION : avec une liste vide, la
+          valeur du `<select>` n'avait aucune option correspondante et le
+          champ affichait « Aucun projet (tâche indépendante) » pendant que la
+          tâche se créait bel et bien dans le projet. */}
       <FenetreCreationTache
         ouverte={tacheOuverte}
         surFermeture={() => setTacheOuverte(false)}
-        projets={[]}
+        projets={[{ id: projetId, nom: projet.data.nom }]}
         projetImpose={projetId}
       />
 
@@ -600,6 +635,7 @@ function LigneJalon({
                   key={tache.id}
                   tache={tache}
                   modifiable={peut("tasks:update")}
+                  projetOrigine={projetId}
                   surStatut={(statut) => surStatut(tache, statut)}
                 />
               ))

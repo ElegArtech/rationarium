@@ -24,6 +24,13 @@ apps/web/playwright-report/
 apps/web/test-results/
 apps/web/.playwright/
 
+# Contenus des pièces jointes — le magasin local de `EX-DOC-01`/`EX-DOC-02`.
+# Racine par défaut quand `RATIONARIUM_DOCUMENTS` n'est pas renseignée ; les
+# suites qui joignent un document y écrivent leurs octets. Ce sont des données
+# d'exploitation, jamais du dépôt.
+apps/api/var/
+var/documents/
+
 # Environnement
 .env
 .env.local

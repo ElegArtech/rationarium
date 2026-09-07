@@ -166,11 +166,20 @@
   z-index: 2;
 }
 
+/*
+ * `EX-PLN-03` — les barres se dessinent PAR-DESSUS l'aplat de congé.
+ *
+ * `.mleave` est positionné et vient en premier dans le document : sans
+ * `position`, les barres restent dans la couche non positionnée, donc EN
+ * DESSOUS, et une journée de congé masquerait le travail qu'elle porte —
+ * exactement le défaut que le partage des strates vient de corriger.
+ */
 .mbar {
   height: 4px;
   border-radius: 1px;
   background: currentColor;
   flex: none;
+  position: relative;
 }
 
 .mbar.is-indep {

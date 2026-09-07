@@ -1,11 +1,12 @@
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { IconeProjet } from "../../composants/icones-projet.js";
-import { Link } from "@tanstack/react-router";
+import { Link, useRouterState } from "@tanstack/react-router";
 import { STATUTS_PROJET, PRIORITES } from "@rationarium/contracts";
 import type { FicheProjet } from "../../api/projets.js";
 import { Pastille } from "../../composants/pastilles.js";
 import "../../composants/partages.css";
+import { retourAuPortefeuille } from "./adresse.js";
 import "./fiche.css";
 
 /**
@@ -38,6 +39,18 @@ export function CadreProjet({
 }) {
   const { t } = useTranslation("projets");
 
+  /*
+   * `EX-PRJ-02`, `RG-GEN-04` — **le retour rend le portefeuille tel qu'on l'a
+   * laissé.**
+   *
+   * Le lien pointait `/projets` nu : un filtre posé sur « Actif » avant
+   * d'ouvrir un projet revenait à « Tous les statuts », sans un mot. Les
+   * paramètres du portefeuille traversent la fiche et ses onglets, et lui sont
+   * rendus au retour.
+   */
+  const brut = useRouterState({ select: (e) => e.location.search }) as Record<string, unknown>;
+  const retour = retourAuPortefeuille(brut);
+
   /** Les cinq onglets d'un projet. Le Gantt a rejoint les autres au L-22. */
   const onglets: { cle: Onglet; libelle: string; nombre?: number; chemin?: string }[] = [
     { cle: "ensemble", libelle: t("onglets.ensemble"), chemin: "/projets/$id" },
@@ -68,7 +81,7 @@ export function CadreProjet({
           aucune maquette et aucune règle ne la définit : elle serait inerte.
           Le marquage de l'onglet courant se dit par `is-active`, celui des
           maquettes, et par `aria-current`. */}
-      <Link to="/projets" className="back-link" activeProps={{ className: "" }}>
+      <Link to="/projets" search={retour} className="back-link" activeProps={{ className: "" }}>
         <span aria-hidden="true">←</span> <span>{t("retourAuxProjets")}</span>
       </Link>
 
@@ -105,6 +118,7 @@ export function CadreProjet({
               key={o.cle}
               to={o.chemin}
               params={{ id: projet.id }}
+              search={retour}
               className={o.cle === onglet ? "is-active" : ""}
               /*
                * `activeProps` neutralise la CLASSE que le routeur ajoute, pas

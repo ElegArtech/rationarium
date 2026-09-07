@@ -1,6 +1,13 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma.service.js";
 import { FileService, FILE_COURRIEL } from "./file.service.js";
+import {
+  encoderCorps,
+  langueDe,
+  rendreCorps,
+  titreNotification,
+  type Langue,
+} from "./libelles.js";
 
 /**
  * M18 — les notifications.
@@ -67,16 +74,39 @@ export class NotificationsService {
   async notifier(entree: {
     userId: string;
     type: TypeNotification;
-    titre: string;
-    contenu: string;
+    /**
+     * Une phrase déjà rédigée. **Repli** : les émetteurs qui ne composent pas
+     * encore leur corps la passent, et elle est rendue telle quelle, dans la
+     * langue où elle a été écrite. Voir `libelles.ts`.
+     */
+    contenu?: string;
+    /**
+     * Les paramètres du corps, quand il est composable. Le texte se rend alors
+     * **à la lecture**, dans la langue du lecteur — c'est le correctif de
+     * `RG-GEN-08` sur les notifications : une phrase écrite en français à
+     * l'émission ne se rattrape jamais au changement de langue.
+     */
+    params?: Record<string, string>;
+    /**
+     * Ignoré. Le titre se déduit du TYPE (`cadrage/01 § M18`) : la liste des
+     * six déclencheurs est fermée, leurs intitulés aussi. Le paramètre reste
+     * accepté pour ne pas casser les appelants ; il ne décide plus de rien.
+     */
+    titre?: string;
     lien?: string | null;
   }) {
+    const corps = entree.params
+      ? encoderCorps(entree.type, entree.params)
+      : (entree.contenu ?? "");
+
     const notification = await this.prisma.notification.create({
       data: {
         userId: entree.userId,
         type: entree.type,
-        titre: entree.titre,
-        contenu: entree.contenu,
+        // Stocké en français par commodité de lecture directe en base ; c'est
+        // le TYPE qui fait foi, et la lecture le rend dans la langue voulue.
+        titre: titreNotification(entree.type, "fr") ?? entree.type,
+        contenu: corps,
         lien: entree.lien ?? null,
       },
     });
@@ -91,15 +121,19 @@ export class NotificationsService {
       if (CRITIQUES.has(entree.type)) {
         const destinataire = await this.prisma.user.findUnique({
           where: { id: entree.userId },
-          select: { email: true, actif: true },
+          select: { email: true, actif: true, langue: true },
         });
         // Un compte désactivé ne reçoit plus de courriel : son adresse peut
         // avoir été réattribuée, et sa boîte n'est plus relevée.
         if (destinataire?.actif) {
+          // `EX-NTF-04` — le courriel part du serveur, sans navigateur pour le
+          // traduire : il se rend ici, dans la langue du DESTINATAIRE, jamais
+          // dans celle de qui a déclenché l'action.
+          const langue = langueDe(destinataire.langue);
           await this.file.publier(FILE_COURRIEL, {
             destinataire: destinataire.email,
-            sujet: entree.titre,
-            corps: entree.contenu,
+            sujet: titreNotification(entree.type, langue) ?? entree.type,
+            corps: rendreCorps(corps, langue).texte,
           });
         }
       }
@@ -115,24 +149,57 @@ export class NotificationsService {
   /** Émet la même notification à plusieurs personnes, sans doublon. */
   async notifierPlusieurs(
     userIds: string[],
-    entree: { type: TypeNotification; titre: string; contenu: string; lien?: string | null },
+    entree: {
+      type: TypeNotification;
+      titre?: string;
+      contenu?: string;
+      params?: Record<string, string>;
+      lien?: string | null;
+    },
   ) {
     const uniques = [...new Set(userIds)];
     for (const userId of uniques) await this.notifier({ userId, ...entree });
     return { emises: uniques.length };
   }
 
-  /** `EX-NTF-01` — ses notifications, et le compte des non-lues. */
+  /**
+   * `EX-NTF-01` — ses notifications, et le compte des non-lues.
+   *
+   * **Le texte se compose ici**, dans la langue du lecteur — pas à l'émission.
+   * Chaque entrée porte en plus `cle` et `params` : le panneau rend `titre` et
+   * `contenu` tels quels aujourd'hui, et pourra demain composer lui-même sans
+   * que le serveur change. C'est le contrat de `messages-metier.ts`, une clé
+   * accompagnée de sa phrase de repli.
+   */
   async lister(userId: string, options: { nonLuesSeulement?: boolean; limite?: number } = {}) {
-    const [entrees, nonLues] = await Promise.all([
+    const [entrees, nonLues, lecteur] = await Promise.all([
       this.prisma.notification.findMany({
         where: { userId, ...(options.nonLuesSeulement ? { lue: false } : {}) },
         orderBy: { creeLe: "desc" },
         take: options.limite ?? 50,
       }),
       this.prisma.notification.count({ where: { userId, lue: false } }),
+      this.prisma.user.findUnique({ where: { id: userId }, select: { langue: true } }),
     ]);
-    return { entrees, nonLues };
+
+    const langue: Langue = langueDe(lecteur?.langue);
+    return { entrees: entrees.map((n) => this.rendre(n, langue)), nonLues };
+  }
+
+  /** Une notification telle que le lecteur la reçoit. */
+  private rendre(
+    notification: { type: string; titre: string; contenu: string },
+    langue: Langue,
+  ) {
+    const corps = rendreCorps(notification.contenu, langue);
+    return {
+      ...notification,
+      titre: titreNotification(notification.type, langue) ?? notification.titre,
+      contenu: corps.texte,
+      /** Pour un client qui composerait lui-même. `null` quand le corps est une phrase déjà rédigée. */
+      cle: corps.cle,
+      params: corps.params,
+    };
   }
 
   /**
@@ -217,14 +284,19 @@ export class NotificationsService {
             ignorees += 1;
             continue;
           }
+          /*
+           * Ni titre ni phrase : le type porte l'intitulé (`M18`), et les
+           * paramètres portent le corps. Ce qui s'écrivait ici en français,
+           * en dur, ne pouvait plus être relu autrement — c'est le défaut
+           * P-18/P-19/P-20, et il se corrige en n'écrivant PAS la phrase.
+           */
           await this.notifier({
             userId,
             type,
-            titre: type === "tache_en_retard" ? `En retard : ${tache.titre}` : `Échéance proche : ${tache.titre}`,
-            contenu:
-              type === "tache_en_retard"
-                ? `La tâche « ${tache.titre} » a dépassé son échéance du ${tache.dateFin?.toISOString().slice(0, 10)}.`
-                : `La tâche « ${tache.titre} » arrive à échéance le ${tache.dateFin?.toISOString().slice(0, 10)}.`,
+            params: {
+              tache: tache.titre,
+              date: tache.dateFin?.toISOString().slice(0, 10) ?? "",
+            },
             lien: `/taches/${tache.id}`,
           });
           emises += 1;

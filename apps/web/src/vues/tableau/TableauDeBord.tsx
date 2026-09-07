@@ -10,6 +10,7 @@ import * as apiTaches from "../../api/taches.js";
 import * as apiPlanning from "../../api/planning.js";
 import { saisirTemps, validerSansDeclaration } from "../../api/occupations.js";
 import { messageErreur } from "../../api/erreurs.js";
+import { ErreurApi } from "../../api/client.js";
 import { useSession, usePeut } from "../../session/session.js";
 import { Chargement, ErreurDeChargement, AccesRefuse } from "../../composants/etats.js";
 import { useMessages } from "../../composants/messages.js";
@@ -57,16 +58,24 @@ export const couleurDe = (jeton: string): CSSProperties => ({ color: `var(--${je
 
 export function TableauDeBord() {
   const { t } = useTranslation("tableau");
-  const peut = usePeut();
   const { session } = useSession();
 
   const requete = useQuery({
     queryKey: ["tableau-de-bord"],
     queryFn: api.tableauDeBord,
-    enabled: peut("planning:read"),
   });
 
-  if (!peut("planning:read")) return <AccesRefuse />;
+  /*
+   * `RG-ADM-03`, `RG-GEN-06` — **le refus se prononce au SERVEUR.**
+   *
+   * DÉFAUT ACTIF CORRIGÉ (P-91, même forme que la vue 33). La requête portait
+   * `enabled: peut(…)` et la vue rendait le refus avant tout appel : rien
+   * n'atteignait `permissions.garde.ts`, seul endroit du produit qui TRACE un
+   * accès refusé. Le masque de courtoisie porte sur les commandes d'écriture,
+   * jamais sur la lecture d'une vue entière.
+   */
+  if (requete.error instanceof ErreurApi && requete.error.statut === 403)
+    return <AccesRefuse />;
   if (requete.isPending) return <Chargement quoi={t("letableau")} />;
   if (requete.isError)
     return <ErreurDeChargement erreur={requete.error} surReessai={() => void requete.refetch()} />;
@@ -622,7 +631,18 @@ function LigneTache({ tache }: { tache: api.TacheAVenir }) {
       <div>
         <p className="trow-title">
           {tache.project ? <Pastille icone={tache.project.icone} titre={tache.project.nom} /> : null}
-          <span>{tache.titre}</span>
+          {/*
+            `EX-DSH-05` — **le titre mène à la fiche.**
+
+            « Mes projets », dans la même vue, conduit au projet ; « Mes
+            tâches » n'était qu'un `<p>`, et il fallait passer par la liste
+            globale pour ouvrir une tâche qu'on avait sous les yeux. La ligne
+            entière ne peut pas être le lien : elle porte un sélecteur de
+            statut et un champ d'heures.
+          */}
+          <Link className="trow-lien" to="/taches/$id" params={{ id: tache.id }}>
+            {tache.titre}
+          </Link>
           {/* `RG-DSH-04` — le marqueur est textuel autant que coloré. Et le
               retard n'est le retard qu'une fois l'échéance DÉPASSÉE : une
               tâche due aujourd'hui porte sa propre marque, en ambre, parce
@@ -708,16 +728,34 @@ function LigneNonDeclaree({ tache }: { tache: api.TacheNonDeclaree }) {
     onError: (e) => annoncer("err", messageErreur(e, tErreurs, t("taches.echecTemps"))),
   });
 
+  const heures =
+    tache.heuresDeclarees > 0
+      ? t("taches.dejaDeclare", { n: tache.heuresDeclarees })
+      : t("taches.aucuneHeure");
+
   return (
     <div className="trow">
       <div>
         <p className="trow-title">
-          <span>{tache.titre}</span>
+          <Link className="trow-lien" to="/taches/$id" params={{ id: tache.id }}>
+            {tache.titre}
+          </Link>
         </p>
+        {/*
+          `RG-TMP-07` — **on ne l'affirme plus, on le vérifie.**
+
+          DÉFAUT ACTIF CORRIGÉ (P-35). « aucune heure déclarée » se rendait
+          SANS CONDITION : avec trois heures déjà saisies par un autre
+          contributeur, l'écran disait le contraire de la vérité et poussait à
+          ressaisir. L'onglet voisin « À venir » le faisait déjà correctement
+          — deux moitiés de la même règle qui divergeaient. Elles disent
+          désormais la même phrase, `taches.dejaDeclare`, avec le même
+          « tous contributeurs ».
+        */}
         <span className="trow-meta">
           {tache.dateFin
-            ? `${t("taches.termineeLe", { date: formaterDate(tache.dateFin) })} · ${t("taches.aucuneHeure")}`
-            : t("taches.aucuneHeure")}
+            ? `${t("taches.termineeLe", { date: formaterDate(tache.dateFin) })} · ${heures}`
+            : heures}
         </span>
       </div>
 
@@ -955,10 +993,18 @@ function PresenceDuJour() {
         <span className="panel-title">{t("presence.titre")}</span>
         {requete.isSuccess ? (
           <span className="eyebrow">
+            {/*
+              `RG-TLT-02` — **trois états de lieu, pas deux.** Le compteur
+              annonçait « 28 au bureau » là où la vue 20 comptait « sur site 9
+              · non déclaré 20 » pour les mêmes trente personnes, le même jour :
+              le non-déclaré était additionné au bureau déclaré. Deux lectures
+              du même fait, et c'est celle qui affirme le plus qui était fausse.
+            */}
             {t("presence.compte", {
               p: compte("present"),
               c: compte("conge"),
               tt: compte("teletravail"),
+              nd: compte("non_declare"),
             })}
           </span>
         ) : null}
@@ -983,10 +1029,10 @@ function PresenceDuJour() {
               {agent.prenom} {agent.nom}
             </p>
             {/*
-              Le mot AVANT la couleur. Trois jetons distinguent les trois
-              états, mais « en congé » et « en télétravail » ne se devinent pas
-              d'une nuance — et le type de congé, quand il est connu, dit
-              davantage que « en congé ».
+              Le mot AVANT la couleur. Un jeton distingue chaque état, mais
+              « en congé », « en télétravail » et « non déclaré » ne se
+              devinent pas d'une nuance — et le type de congé, quand il est
+              connu, dit davantage que « en congé ».
             */}
             <span className="tchip tchip-flat" style={couleurDe(JETON_PRESENCE[agent.etat])}>
               <span>
@@ -1002,11 +1048,19 @@ function PresenceDuJour() {
   );
 }
 
-/** Les trois jetons de `socle.css` — section « Présence & absences ». */
+/**
+ * Les jetons de `socle.css` — section « Présence & absences ».
+ *
+ * `non_declare` n'a pas de jeton à lui : `--placeholder` est celui de ce qui
+ * n'est pas renseigné, et c'est exactement ce que dit l'état. Le mot reste
+ * porté en clair devant la couleur — c'est lui qui distingue, la nuance ne
+ * fait que rappeler.
+ */
 const JETON_PRESENCE: Record<api.PresenceAgent["etat"], string> = {
   present: "office",
   conge: "leave",
   teletravail: "telework",
+  non_declare: "placeholder",
 };
 
 /** `EX-DSH-07` — mes projets, retrouvés d'un clic. */
@@ -1018,9 +1072,13 @@ function MesProjets({ projets }: { projets: api.ProjetTableau[] }) {
     <section className="panel">
       <div className="panel-head">
         <span className="panel-title">{t("projets.titre")}</span>
-        <a className="link link-sm" href="/projets">
+        {/* Un `Link` du routeur, jamais une ancre nue : une `<a href>` dans
+            une application à routeur RECHARGE le document entier — le lot, la
+            session, les réglages, le compteur de notifications. Le panneau
+            voisin le disait déjà ; celui-ci ne le faisait pas. */}
+        <Link className="link link-sm" to="/projets">
           {t("projets.tous")}
-        </a>
+        </Link>
       </div>
       <div className="panel-body is-flush">
         {projets.length === 0 ? (
@@ -1030,7 +1088,7 @@ function MesProjets({ projets }: { projets: api.ProjetTableau[] }) {
           </div>
         ) : (
           projets.slice(0, MAX_PROJETS_VISIBLES).map((projet) => (
-            <a className="prow" href={`/projets/${projet.id}`} key={projet.id}>
+            <Link className="prow" to="/projets/$id" params={{ id: projet.id }} key={projet.id}>
               <Pastille icone={projet.icone} titre={projet.nom} />
               <div>
                 <p className="prow-name">{projet.nom}</p>
@@ -1048,7 +1106,7 @@ function MesProjets({ projets }: { projets: api.ProjetTableau[] }) {
                 </div>
               </div>
               <span className="prow-pct">{t("projets.pourcent", { n: projet.progression })}</span>
-            </a>
+            </Link>
           ))
         )}
       </div>

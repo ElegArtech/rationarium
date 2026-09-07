@@ -199,6 +199,16 @@ export class OrganisationService {
    * `RG-ORG-04` — le nom reste unique à son niveau, à la modification comme à
    * la création. Sans ce contrôle ici, il suffisait de créer puis de renommer
    * pour fabriquer deux directions homonymes.
+   *
+   * **`EX-ORG-03` — la personne en charge d'un service s'appelle `managerId`
+   * en base.** Le corps de la requête porte `responsableId` pour les trois
+   * niveaux, parce qu'il n'y a qu'une fenêtre et qu'une route ; la lecture
+   * fait déjà la même normalisation (l'arborescence rend `manager` pour un
+   * service). La traduction se fait donc ici, à la frontière du modèle. Elle
+   * y manquait : `data: { ...donnees }` passait `responsableId` à
+   * `prisma.service.update`, qui ne connaît pas cette colonne — erreur de
+   * validation du client, aucun code métier, donc **500** sur la moindre
+   * modification de service, renommage compris.
    */
   async renommer(
     niveau: "direction" | "departement" | "service",
@@ -225,12 +235,21 @@ export class OrganisationService {
       await this.refuserNomEnDouble(niveau, donnees.nom);
     }
 
+    /*
+     * Les champs écrits sont NOMMÉS, jamais étalés depuis le corps reçu : un
+     * `...donnees` fait de la forme de la requête celle de la table, et c'est
+     * exactement ce qui a produit le 500 ci-dessus.
+     */
+    const data: Record<string, unknown> = { version: { increment: 1 } };
+    if (donnees.nom !== undefined) data["nom"] = donnees.nom;
+    if (donnees.description !== undefined) data["description"] = donnees.description;
+    if (donnees.responsableId !== undefined) {
+      data[niveau === "service" ? "managerId" : "responsableId"] = donnees.responsableId;
+    }
+
     const modifie = await (
       table as { update: (a: unknown) => Promise<{ id: string; nom: string }> }
-    ).update({
-      where: { id },
-      data: { ...donnees, version: { increment: 1 } },
-    });
+    ).update({ where: { id }, data });
 
     await this.audit.tracer({
       action: `${niveau}.update`,

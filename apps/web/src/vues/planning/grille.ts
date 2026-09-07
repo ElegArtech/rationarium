@@ -104,7 +104,15 @@ export type Occupation =
   | { genre: "permanence"; cle: string; permanence: PermanencePlanning };
 
 export type Cellule = {
-  /** `RG-PLN-13` — le congé occupe la cellule ; il n'y a rien d'autre à voir. */
+  /**
+   * Le congé de la journée, s'il y en a un.
+   *
+   * Il **ne vide pas** la cellule : `EX-PLN-03` demande de voir tâches projet,
+   * tâches hors projet, congés, télétravail, événements et permanences **dans
+   * une même cellule**, et c'est le principe directeur du produit — une seule
+   * grille temporelle réconcilie tout ce qui occupe une personne. Voir
+   * `strates()`.
+   */
   conge: CongePlanning | null;
   /** La demi-journée concernée, quand le congé n'occupe qu'une moitié. */
   demiJournee: "morning" | "afternoon" | null;
@@ -196,9 +204,8 @@ export function indexer(
     }
   }
 
-  // Le congé est posé après les occupations : il les recouvre à l'affichage,
-  // mais il ne les efface pas de l'index — la carte de survol du mois les
-  // montre encore, et c'est voulu.
+  // Le congé est posé après les occupations, et il ne les efface pas : ni de
+  // l'index, ni de l'affichage. `EX-PLN-03` les veut dans la même cellule.
   for (const c of donnees.occupations.conges) {
     const categorie = c.statut === "approved" ? "valide" : "attente";
     if (!filtres.absences.has(categorie)) continue;
@@ -221,6 +228,47 @@ export function indexer(
   }
 
   return index;
+}
+
+/**
+ * Un congé qui couvre la journée entière — par opposition à la demi-journée,
+ * qui laisse une moitié travaillée.
+ */
+export const congeCouvreLaJournee = (cellule: Cellule): boolean =>
+  cellule.conge !== null && cellule.demiJournee === null;
+
+/**
+ * `EX-PLN-03`, `RG-PLN-01` — **ce que la cellule montre, strate par strate.**
+ *
+ * Les strates du planning étaient conditionnées par `!cellule.conge` : dès
+ * qu'une journée portait un congé, fût-ce une demi-journée, la présence, les
+ * tâches, les événements et les permanences de ce jour **disparaissaient**.
+ * L'exigence dit le contraire, en toutes lettres et pour les six natures à la
+ * fois. Une tâche qui se poursuit sur trois jours ne s'interrompt pas parce
+ * que le deuxième porte une demande de congé en attente.
+ *
+ * Ce que le congé prend, c'est **une ligne**, pas la cellule : la place
+ * offerte aux occupations décroît d'une unité, et le compte des occupations
+ * masquées le dit — c'est le rôle du bouton « + n autres ».
+ *
+ * Le lieu est le seul à s'effacer, et seulement quand le congé couvre la
+ * journée entière **et** qu'aucune présence n'a été déclarée : proposer
+ * « Non déclaré » sur une journée d'absence serait offrir un geste sans objet.
+ * Une présence réellement enregistrée reste montrée — la contradiction se lit,
+ * elle ne se cache pas.
+ */
+export function strates(
+  cellule: Cellule,
+  maxOccupations: number,
+): { lieu: boolean; occupations: Occupation[]; supplementaires: number } {
+  const lieu = !congeCouvreLaJournee(cellule) || cellule.lieu !== null;
+  const place = cellule.conge ? Math.max(1, maxOccupations - 1) : maxOccupations;
+  const occupations = cellule.occupations.slice(0, place);
+  return {
+    lieu,
+    occupations,
+    supplementaires: cellule.occupations.length - occupations.length,
+  };
 }
 
 export const CELLULE_VIDE: Cellule = {

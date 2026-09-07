@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { Button } from "react-aria-components";
 import * as api from "../../api/projets.js";
 import { messageErreur } from "../../api/erreurs.js";
@@ -33,6 +33,7 @@ export function VueEnsemble({ projetId }: { projetId: string }) {
   const annoncer = useMessages();
   const client = useQueryClient();
   const [suppressionOuverte, setSuppressionOuverte] = useState(false);
+  const [annulationOuverte, setAnnulationOuverte] = useState(false);
   const [editionOuverte, setEditionOuverte] = useState(false);
 
   const requete = useQuery({
@@ -190,7 +191,7 @@ export function VueEnsemble({ projetId }: { projetId: string }) {
             depuis L-32, sans que rien ne puisse la produire.
           */}
           {peut("projects:update") && projet.statut !== "cancelled" ? (
-            <Button className="chip-btn" onPress={() => cycleDeVie.mutate("annuler")}>
+            <Button className="chip-btn" onPress={() => setAnnulationOuverte(true)}>
               {t("fiche.annulerProjet")}
             </Button>
           ) : null}
@@ -489,6 +490,27 @@ export function VueEnsemble({ projetId }: { projetId: string }) {
         traduireErreur={(e) => messageErreur(e, tErreurs, t("fiche.echecAction"))}
       />
 
+      {/*
+        `RG-GEN-01` — « Toute action destructrice est confirmée, en nommant
+        l'objet et en énonçant les conséquences. »
+
+        L'annulation s'exécutait AU PREMIER CLIC. Elle est le premier des trois
+        temps de `RG-GEN-10` — donc réversible, ce que la fenêtre dit —, mais
+        elle fige le projet : plus de modification, plus d'instantané, plus
+        d'archivage. Ce n'est pas un réglage, c'est une décision de gestion, et
+        elle porte sur un objet qu'il faut nommer.
+      */}
+      <FenetreAnnulation
+        projet={projet}
+        ouverte={annulationOuverte}
+        surFermeture={() => setAnnulationOuverte(false)}
+        enCours={cycleDeVie.isPending}
+        surConfirmation={() => {
+          cycleDeVie.mutate("annuler");
+          setAnnulationOuverte(false);
+        }}
+      />
+
       <FenetreSuppression
         projet={projet}
         ouverte={suppressionOuverte}
@@ -562,6 +584,63 @@ function ApercuJalon({ jalon }: { jalon: api.Jalon }) {
 }
 
 /**
+ * `RG-PRJ-02`, `RG-GEN-01`, `RG-GEN-10` — **l'annulation se confirme.**
+ *
+ * Elle s'exécutait au premier clic, sans nommer le projet ni énoncer ce
+ * qu'elle entraîne. Elle n'est pas irréversible — c'est justement le propos de
+ * `RG-GEN-10`, et la fenêtre le dit, sortie comprise —, mais elle fige le
+ * projet : les commandes de modification, d'instantané et d'archivage
+ * disparaissent toutes de l'en-tête à la seconde où elle passe.
+ */
+function FenetreAnnulation({
+  projet,
+  ouverte,
+  surFermeture,
+  enCours,
+  surConfirmation,
+}: {
+  projet: api.FicheProjet;
+  ouverte: boolean;
+  surFermeture: () => void;
+  enCours: boolean;
+  surConfirmation: () => void;
+}) {
+  const { t } = useTranslation("projets");
+
+  return (
+    <Fenetre
+      ouverte={ouverte}
+      surFermeture={surFermeture}
+      categorie={t("confirmation")}
+      titre={t("fiche.annulerProjet")}
+      mention={t("fiche.annulationReversible")}
+      actions={
+        <>
+          <Button className="btn btn-secondary" onPress={surFermeture}>
+            {t("fiche.annulationRenoncer")}
+          </Button>
+          <Button className="btn btn-danger" isPending={enCours} onPress={surConfirmation}>
+            {t("fiche.annulationConfirmer")}
+          </Button>
+        </>
+      }
+    >
+      <p className="phrase-confirmation">
+        {t("fiche.confirmationAnnulation")} <span className="quoted">« {projet.nom} »</span> ?
+      </p>
+      <div className="danger-box">
+        <strong>{t("fiche.annulationConsequencesTitre")}</strong>
+        <ul>
+          <li>{t("fiche.annulationEffetFige")}</li>
+          <li>{t("fiche.annulationEffetTaches", { n: projet.taches.total })}</li>
+          <li>{t("fiche.annulationEffetRestaurable")}</li>
+        </ul>
+      </div>
+    </Fenetre>
+  );
+}
+
+/**
  * `RG-PRJ-08` — la suppression définitive est refusée quand des données
  * historiques sont rattachées.
  *
@@ -584,6 +663,7 @@ function FenetreSuppression({
   const { t: tErreurs } = useTranslation("erreurs");
   const annoncer = useMessages();
   const client = useQueryClient();
+  const navigate = useNavigate();
 
   const impact = useQuery({
     queryKey: ["projet", projet.id, "impact"],
@@ -593,10 +673,16 @@ function FenetreSuppression({
 
   const suppression = useMutation({
     mutationFn: () => api.supprimerProjet(projet.id),
+    /*
+     * `window.location.assign` RECHARGE le document : l'application repart de
+     * zéro, et « Projet supprimé. » — annoncé la ligne d'avant — n'était
+     * jamais lisible. On navigue par le routeur, qui garde la session, le
+     * cache et la file de messages.
+     */
     onSuccess: () => {
       annoncer("ok", t("fiche.supprimeFait"));
       void client.invalidateQueries({ queryKey: ["projets"] });
-      window.location.assign("/projets");
+      void navigate({ to: "/projets" });
     },
     onError: (e) => annoncer("err", messageErreur(e, tErreurs, t("fiche.echecAction"))),
   });

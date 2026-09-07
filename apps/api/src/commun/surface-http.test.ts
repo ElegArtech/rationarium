@@ -76,6 +76,10 @@ const PUBLIQUES_ATTENDUES = new Set([
   "AuthController.signup",
   "AuthController.forgotPassword",
   "AuthController.resetPassword",
+  // RG-AUTH-04 — l'état d'un lien de réinitialisation se lit AVANT la session,
+  // par définition : c'est le seul moyen de ne pas faire saisir un mot de passe
+  // pour rien sur un jeton mort.
+  "AuthController.verifierJeton",
   "AuthController.changePassword",
   "AuthController.me",
   // Ce que la page de connexion doit savoir avant toute session (vue 01).
@@ -314,6 +318,12 @@ function litteralDeChemin(args: string): string | null {
   return sortie;
 }
 
+/** Le chemin d'un appel dont le premier argument est une constante de module. */
+function cheminParConstante(args: string, constantes: Map<string, string>): string | null {
+  const nom = /^\s*([A-Z][A-Z0-9_]*)\s*(?:[,)]|$)/.exec(args)?.[1];
+  return nom ? (constantes.get(nom) ?? null) : null;
+}
+
 /**
  * Les segments d'un chemin client, ou `null` si sa forme n'est pas lisible.
  *
@@ -374,8 +384,31 @@ function adressesNavigateur(source: string, fichier: string): Appel[] {
 }
 
 /** Tout appel à `appeler(…)` dans `apps/web/src`, `api/*.ts` comme `**\/*.tsx`. */
+/**
+ * Les constantes de chemin déclarées au niveau module par le client.
+ *
+ * `appeler<T>(CHEMIN_ANNUAIRE)` est une forme légitime — mieux qu'un littéral
+ * recopié dans trois vues, qui divergerait à la première correction. Ce qui ne
+ * l'est pas, c'est qu'un contrôle cesse de la lire : trois appels étaient
+ * comptés « illisibles » le jour où le littéral a été extrait, sans que rien de
+ * leur gouvernance n'ait changé. On suit donc l'identifiant.
+ */
+function constantesDeChemin(): Map<string, string> {
+  const table = new Map<string, string>();
+  for (const fichier of sourcesClient(WEB)) {
+    const source = readFileSync(fichier, "utf8");
+    for (const [, nom, valeur] of source.matchAll(
+      /(?:^|\n)(?:export\s+)?const\s+([A-Z][A-Z0-9_]*)\s*=\s*"([^"]*)"\s*;/g,
+    )) {
+      table.set(nom!, valeur!);
+    }
+  }
+  return table;
+}
+
 function appelsClient(): Appel[] {
   const trouves: Appel[] = [];
+  const constantes = constantesDeChemin();
   for (const fichier of sourcesClient(WEB)) {
     const source = readFileSync(fichier, "utf8");
     trouves.push(...adressesNavigateur(source, path.relative(WEB, fichier)));
@@ -401,7 +434,7 @@ function appelsClient(): Appel[] {
       }
       const args = source.slice(i + 1, j - 1);
       const relatif = path.relative(WEB, fichier);
-      const brut = litteralDeChemin(args);
+      const brut = litteralDeChemin(args) ?? cheminParConstante(args, constantes);
       if (brut === null) {
         trouves.push({ verbe: "?", brut: args.slice(0, 60), segments: null, fichier: relatif });
         continue;

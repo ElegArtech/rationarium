@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "react-aria-components";
+import { Link } from "@tanstack/react-router";
 import { messageErreur } from "../api/erreurs.js";
 import { ErreurApi } from "../api/client.js";
 import "./etats.css";
@@ -100,9 +101,17 @@ export function AccesRefuse({ erreur }: { erreur?: unknown }) {
     <div className="etat-refus" role="alert">
       <p className="etat-titre">{t("droits.permissionRequise")}</p>
       <p>{horsPerimetre ? t("etats.refusPerimetre") : t("etats.refusPermission")}</p>
-      <a className="btn" href="/">
+      {/*
+       * **Une ancre brute dans une application à routeur RECHARGE tout le
+       * document** — le lot, la session, les réglages, le compteur de
+       * notifications. Le piège est consigné et corrigé ailleurs ; ces deux
+       * sorties-là avaient survécu, et ce sont précisément les sorties que
+       * `RG-GEN-05` exige d'un état vide : les seules portes offertes à
+       * quelqu'un qui vient de se heurter à un mur.
+       */}
+      <Link className="btn" to="/">
         {t("etats.retourAccueil")}
-      </a>
+      </Link>
     </div>
   );
 }
@@ -119,9 +128,9 @@ export function RouteIntrouvable() {
       titre={t("etats.introuvableTitre")}
       explication={t("etats.introuvableExplication")}
       sortie={
-        <a className="btn" href="/">
+        <Link className="btn" to="/">
           {t("etats.retourAccueil")}
-        </a>
+        </Link>
       }
     />
   );

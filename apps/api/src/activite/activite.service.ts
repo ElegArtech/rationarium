@@ -34,6 +34,30 @@ export class ErreurActivite extends Error {
   }
 }
 
+/**
+ * Les périodes qui **empêchent** une assignation sur la période demandée.
+ *
+ * ════════════════════════════════════════════════════════════════════════════
+ * DÉFAUT TROUVÉ EN RECETTE (P-89). L'éligibilité comparait la période par
+ * ÉGALITÉ : demandée sur `full_day`, elle ne voyait pas les agents assignés le
+ * matin, et la fenêtre d'ajout reproposait, cochables et sans motif, les cinq
+ * personnes déjà dans la cellule. Congé et télétravail étaient bien nommés ;
+ * « déjà assigné » manquait — donc `RG-PLN-08` était tenue à deux tiers, et
+ * `RG-PLN-06` ne se déclenchait qu'au hasard des périodes qui coïncidaient.
+ *
+ * L'unicité de `RG-ACT-01` porte sur le quadruplet agent × tâche × date ×
+ * période : elle laisse coexister `full_day` et `morning`, ce qui n'a aucun
+ * sens pour la personne concernée. Le recouvrement se dit donc ici, une fois.
+ * ════════════════════════════════════════════════════════════════════════════
+ */
+export function periodesEnConflit(periode: PeriodeJournee): PeriodeJournee[] {
+  // Une journée entière recouvre tout ; une demi-journée recouvre elle-même
+  // et la journée entière, jamais l'autre moitié.
+  return periode === "full_day"
+    ? ["full_day", "morning", "afternoon"]
+    : [periode, "full_day"];
+}
+
 /** Motif d'inéligibilité d'un agent — vue 09, fenêtre d'ajout. */
 export type Inelegibilite = {
   userId: string;
@@ -342,7 +366,7 @@ export class ActiviteService {
 
     const [dejaAssignes, enConge, enTeletravail] = await Promise.all([
       this.prisma.predefinedTaskAssignment.findMany({
-        where: { predefinedTaskId, date, periode, userId: { in: ids } },
+        where: { predefinedTaskId, date, periode: { in: periodesEnConflit(periode) }, userId: { in: ids } },
         select: { userId: true },
       }),
       this.prisma.leave.findMany({
@@ -555,13 +579,24 @@ export class ActiviteService {
   /**
    * `EX-ACT-07` — la grille d'activité de la vue 09 : **jours en lignes,
    * tâches en colonnes**. L'inversion des axes est délibérée.
+   *
+   * ════════════════════════════════════════════════════════════════════════
+   * `RG-ACT-05` — « une tâche prédéfinie inactive n'est plus assignable, mais
+   * **les assignations passées sont conservées** ». Conservées en base ne veut
+   * rien dire si la grille ne les montre plus : la colonne était filtrée sur
+   * `actif: true`, et désactiver une permanence faisait disparaître, avec
+   * elle, les cinq agents qui l'avaient tenue le lundi précédent (P-89,
+   * P-135). Les lignes étaient là ; personne ne pouvait les voir.
+   *
+   * Une tâche inactive n'entre donc dans la grille **que si elle porte une
+   * assignation sur la période affichée** — pas de colonne vide pour un
+   * catalogue arrêté, pas de passé effacé pour un catalogue vivant. Et les
+   * assignations sont lues d'abord, pour que le périmètre décide aussi de
+   * l'apparition de la colonne : une permanence dont les seules assignations
+   * sont hors périmètre n'a pas à se deviner par sa colonne.
+   * ════════════════════════════════════════════════════════════════════════
    */
   async grille(debut: Date, fin: Date, perimetre: Perimetre) {
-    const taches = await this.prisma.predefinedTask.findMany({
-      where: { actif: true },
-      orderBy: { nom: "asc" },
-    });
-
     const assignations = await this.prisma.predefinedTaskAssignment.findMany({
       where: {
         date: { gte: debut, lte: fin },
@@ -584,6 +619,14 @@ export class ActiviteService {
         },
       },
       orderBy: { user: { nom: "asc" } },
+    });
+
+    const portantUnPasse = [...new Set(assignations.map((a) => a.predefinedTaskId))];
+    const taches = await this.prisma.predefinedTask.findMany({
+      where: { OR: [{ actif: true }, { id: { in: portantUnPasse } }] },
+      // Les inactives en fin de grille, comme au catalogue : elles racontent
+      // ce qui a eu lieu, elles n'appellent plus d'action.
+      orderBy: [{ actif: "desc" }, { nom: "asc" }],
     });
 
     const parCle = new Map<string, typeof assignations>();

@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { Button } from "react-aria-components";
 import { STATUTS_TACHE, PRIORITES } from "@rationarium/contracts";
 import * as api from "../../api/taches.js";
@@ -42,9 +42,48 @@ export function ListeTaches() {
   const [projectId, setProjectId] = useState("");
   const [priorite, setPriorite] = useState("");
   const [horsProjet, setHorsProjet] = useState(false);
-  const [enRetard, setEnRetard] = useState(false);
   const [vue, setVue] = useState<"liste" | "kanban">("liste");
-  const [creationOuverte, setCreationOuverte] = useState(false);
+
+  /*
+   * `EX-PLN-11` — **le « + » d'une cellule de planning arrive ici.**
+   *
+   * Il annonçait « Créer ici — {nom}, {date} » et pointait `/taches` sans un
+   * paramètre : la liste s'ouvrait, aucune fenêtre de création, et tout était
+   * à ressaisir. La promesse du libellé se tient donc dans l'adresse — et,
+   * l'adresse étant partageable, « créer une tâche pour Rémi le 10 » devient
+   * un lien.
+   *
+   * Les paramètres sont lus sans schéma de route (`app/routeur.tsx` n'en
+   * déclare pas pour `/taches`) : on les prend tels qu'ils arrivent, et on ne
+   * retient que ce qui est une chaîne.
+   */
+  const navigate = useNavigate();
+  const adresse = useRouterState({ select: (e) => e.location.search }) as Record<string, unknown>;
+  const texte = (cle: string) => (typeof adresse[cle] === "string" ? (adresse[cle] as string) : "");
+  const dateVoulue = texte("date");
+  const assigneVoulu = texte("assigne");
+  const [creationOuverte, setCreationOuverte] = useState(texte("creer") === "1");
+
+  /*
+   * `EX-RPT-12` — **le bandeau d'alerte des rapports arrive ici avec son
+   * filtre.** « Ouvrir les tâches » y compte les tâches en retard, puis
+   * pointait `/taches` sans rien : on arrivait sur les cinquante-cinq, filtre
+   * éteint, et il fallait reposer à la main celui qu'on venait de nommer.
+   * `Rapports.tsx` pose désormais `search={{ retard: "1" }}` ; c'est cette
+   * ligne-ci qui le lit, exactement comme `creer=1` juste au-dessus. Les deux
+   * moitiés étaient justes séparément : c'est le raccord qui manquait.
+   */
+  const [enRetard, setEnRetard] = useState(texte("retard") === "1");
+
+  /*
+   * `RG-GEN-06` — **deux droits, pas un.** Créer une tâche DANS un projet et
+   * créer une tâche hors projet sont deux permissions distinctes
+   * (`TachesService.creer`), et `SOCLE` porte la seconde sans la première :
+   * masquer la commande sur la seule `tasks:create` la retirait à ceux à qui
+   * la tâche indépendante est justement destinée. Le rattachement se choisit
+   * dans la fenêtre, et c'est le serveur qui tranche.
+   */
+  const peutCreerUneTache = peut("tasks:create") || peut("tasks:create_standalone");
 
   const filtres = { projectId, priorite, horsProjet, enRetard };
   const cle = ["taches", filtres] as const;
@@ -106,7 +145,7 @@ export function ListeTaches() {
               {t("liste.affichageKanban")}
             </Button>
           </div>
-          {peut("tasks:create") ? (
+          {peutCreerUneTache ? (
             <Button className="btn btn-primary" onPress={() => setCreationOuverte(true)}>
               {t("liste.creer")}
             </Button>
@@ -192,7 +231,7 @@ export function ListeTaches() {
               <Button className="chip-btn" onPress={reinitialiser}>
                 {t("liste.reinitialiserFiltres")}
               </Button>
-            ) : peut("tasks:create") ? (
+            ) : peutCreerUneTache ? (
               <Button className="btn btn-primary" onPress={() => setCreationOuverte(true)}>
                 {t("liste.creer")}
               </Button>
@@ -235,18 +274,34 @@ export function ListeTaches() {
 
       <FenetreCreationTache
         ouverte={creationOuverte}
-        surFermeture={() => setCreationOuverte(false)}
+        surFermeture={() => {
+          setCreationOuverte(false);
+          /* La demande est honorée : l'adresse ne la reporte plus. Sans ce
+             nettoyage, un rechargement rouvrirait la fenêtre sur une tâche
+             déjà créée. */
+          if (texte("creer")) void navigate({ to: "/taches", search: {}, replace: true });
+        }}
         projets={projets.data?.projets ?? []}
+        {...(dateVoulue ? { dateInitiale: dateVoulue } : {})}
+        {...(assigneVoulu ? { assignesInitiaux: [assigneVoulu] } : {})}
       />
     </div>
   );
 }
 
-/** La pastille de rattachement : projet identifié, ou hors projet assumé. */
+/**
+ * La pastille de rattachement : projet identifié, ou hors projet assumé.
+ *
+ * **Elle mène au projet.** Nommer un projet sans y conduire oblige à repasser
+ * par le portefeuille et à le retrouver : `EX-TSK-03` demande d'atteindre le
+ * projet d'une tâche, et une pastille inerte n'y mène pas. Le lien n'existe
+ * que si l'appelant fournit un identifiant — la fenêtre de création, elle,
+ * n'en a pas à donner.
+ */
 export function PastilleRattachement({
   projet,
 }: {
-  projet: { nom: string; icone?: string | null } | null;
+  projet: { id?: string; nom: string; icone?: string | null } | null;
 }) {
   const { t } = useTranslation("taches");
   if (!projet) {
@@ -257,13 +312,57 @@ export function PastilleRattachement({
       </span>
     );
   }
+  if (projet.id) {
+    return (
+      <Link
+        to="/projets/$id"
+        params={{ id: projet.id }}
+        className="pchip pchip-lien"
+        aria-label={t("liste.ouvrirLeProjet", { nom: projet.nom })}
+      >
+        <IconePastille icone={projet.icone ?? null} />
+        <span>{projet.nom}</span>
+      </Link>
+    );
+  }
+  /*
+   * `icone` porte le NOM d'un symbole du référentiel — « p-screen »,
+   * « p-stamp » —, pas un caractère. Rendu en texte brut dans une boîte de
+   * 13 px, il s'affichait rogné : on lisait « cre », « tai ». Les six autres
+   * vues posent le `<use href="#…">` ; celle-ci l'écrivait à la main, et le
+   * défaut n'existait que pour l'œil — la boîte est `aria-hidden`, donc `axe`
+   * ne voyait rien et aucune assertion de texte ne portait dessus.
+   */
   return (
     <span className="pchip">
-      <span className="picon" aria-hidden="true">
-        {projet.icone ?? "◇"}
-      </span>
+      <IconePastille icone={projet.icone ?? null} />
       <span>{projet.nom}</span>
     </span>
+  );
+}
+
+/**
+ * Le symbole du projet dans la pastille.
+ *
+ * `icone` porte le NOM d'un symbole du référentiel — « p-screen », « p-stamp »
+ * —, pas un caractère. Rendu en texte brut dans une boîte de 13 px, il
+ * s'affichait rogné : on lisait « cre », « tai ». Les six autres vues posent
+ * le `<use href="#…">` ; celle-ci l'écrivait à la main, et le défaut n'existait
+ * que pour l'œil — la boîte est `aria-hidden`, donc `axe` ne voyait rien et
+ * aucune assertion de texte ne portait dessus.
+ */
+function IconePastille({ icone }: { icone: string | null }) {
+  if (!icone) {
+    return (
+      <span className="picon" aria-hidden="true">
+        ◇
+      </span>
+    );
+  }
+  return (
+    <svg className="picon" aria-hidden="true">
+      <use href={`#${icone}`} />
+    </svg>
   );
 }
 

@@ -1,6 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { serveur, SESSION, PROJET, LIGNE_PROJET } from "./fixtures/projets.js";
-import { SESSION_PLANNING, SEMAINE } from "./fixtures/planning.js";
+import { SESSION_PLANNING, SESSION_TELETRAVAIL_AUTRUI, SEMAINE } from "./fixtures/planning.js";
 import { SESSION_ADMIN, UTILISATEURS } from "./fixtures/administration.js";
 
 /**
@@ -203,8 +203,17 @@ test.describe("C6 — les grilles denses se traversent et s'actionnent au clavie
 
   test("la bascule de télétravail s'atteint au clavier, et se nomme", async ({ page }) => {
     await page.clock.setFixedTime(MOMENT);
+    /*
+     * `RG-TLT-07`, `RG-PLN-04` — **la bascule du lieu d'AUTRUI exige
+     * `telework:manage_any`**, en plus de l'écriture. La recette a relevé
+     * l'inverse : trente-trois bascules sur trente-huit visaient quelqu'un
+     * d'autre, actives et cliquables, et le clic repartait en `403`. Ce
+     * contrôle-ci porte sur le CLAVIER, pas sur les droits : il lui faut donc
+     * la session qui a réellement le geste, sinon il mesure une commande
+     * inerte et conclut que la grille n'est pas atteignable.
+     */
     await serveur(page, {
-      session: SESSION_PLANNING,
+      session: SESSION_TELETRAVAIL_AUTRUI,
       reponses: {
         "/api/planning": { corps: SEMAINE },
         "/api/planning/teletravail": { corps: { id: "w1", etat: "office" } },

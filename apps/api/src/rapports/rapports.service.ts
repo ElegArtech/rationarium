@@ -49,6 +49,47 @@ const PLAFOND_RETARDS = 10;
 const jour = (d: Date): string => d.toISOString().slice(0, 10);
 
 /**
+ * `EX-RPT-03`, `RG-GEN-08` — **l'export est bilingue, comme le reste.**
+ *
+ * Le fichier était identique en français et en anglais : nom technique,
+ * en-têtes `projet,completion,taches_restantes,…` et une colonne `sante`
+ * portant les codes bruts. Un tableur dont la première ligne dit
+ * `taches_en_retard` n'est pas un compte rendu — c'est un vidage de base.
+ *
+ * Le vocabulaire vit ici, en clair, comme celui des notifications
+ * (`notifications/libelles.ts`) : le serveur n'a pas de catalogue i18next, et
+ * une chaîne d'export composée par le client obligerait à lui faire confiance
+ * sur ce qu'il envoie. Les libellés sont **ceux de la vue** — « Critique »,
+ * « Attention », « Bon » —, sinon l'export contredit l'écran qui l'a produit.
+ */
+export type Langue = "fr" | "en";
+
+/** La langue du lecteur, ramenée à ce que ce module sait rendre. */
+export const langueDe = (declaree: string | null | undefined): Langue =>
+  declaree?.toLowerCase().startsWith("en") ? "en" : "fr";
+
+const NOM_FICHIER: Record<Langue, string> = { fr: "rapport", en: "report" };
+
+const ENTETES_EXPORT: Record<Langue, string>[] = [
+  { fr: "Projet", en: "Project" },
+  { fr: "Complétion", en: "Completion" },
+  { fr: "Tâches restantes", en: "Remaining tasks" },
+  { fr: "Tâches en retard", en: "Overdue tasks" },
+  { fr: "Jalons", en: "Milestones" },
+  { fr: "Jalons à venir", en: "Upcoming milestones" },
+  { fr: "Date de fin", en: "End date" },
+  { fr: "Chef de projet", en: "Project lead" },
+  { fr: "Service", en: "Service" },
+  { fr: "Santé", en: "Health" },
+];
+
+const SANTE_EXPORT: Record<SanteProjet, Record<Langue, string>> = {
+  good: { fr: "Bon", en: "Good" },
+  warning: { fr: "Attention", en: "Warning" },
+  critical: { fr: "Critique", en: "Critical" },
+};
+
+/**
  * `EX-RPT-04` — l'avancement **attendu** d'un projet à une date donnée.
  *
  * Au prorata de la durée écoulée, borné aux deux extrémités : avant le début un
@@ -117,7 +158,13 @@ export class RapportsService {
       repartitions,
       activite,
     ] = await Promise.all([
-      this.tachesEnRetard(ids, reference),
+      this.tachesEnRetard(
+        ids,
+        reference,
+        perimetre,
+        permissions,
+        !filtres.projets?.length && !filtres.responsables?.length,
+      ),
       this.progressionProjets(projets, reference),
       this.chargeParCollaborateur(ids),
       this.santeProjets(projets, reference, services),
@@ -189,16 +236,47 @@ export class RapportsService {
     return new Map(lignes.map((d) => [d.id, d.nom]));
   }
 
-  /** `EX-RPT-12` — le bandeau d'alerte : ce qui demande une action, en tête. */
-  private async tachesEnRetard(projetIds: string[], reference: Date) {
+  /**
+   * `EX-RPT-12` — le bandeau d'alerte : ce qui demande une action, en tête.
+   *
+   * **Il comptait par projet, et laissait tomber les tâches hors projet.** Le
+   * bandeau annonçait dix tâches en retard là où la liste des tâches en
+   * comptait onze — deux lectures du même fait, l'une agrégée par
+   * `projectId in (…)`, l'autre par le périmètre de tâche, et rien pour
+   * signaler l'écart. Une tâche hors projet en retard est exactement ce que ce
+   * bandeau existe pour montrer : elle n'a pas de chef de projet pour la voir.
+   *
+   * `RG-RPT-01` — le périmètre reste appliqué, et il l'est ici par
+   * `filtreTache`, le même prédicat que la liste des tâches : une tâche hors
+   * projet n'est visible que de ses assignés. La règle n'est pas relâchée, elle
+   * est étendue à une population que le filtre par projet ne pouvait pas
+   * atteindre.
+   *
+   * Quand le portefeuille est **restreint** par un filtre — un projet, un
+   * responsable —, les tâches hors projet sortent du compte : elles
+   * n'appartiennent à aucun des projets retenus, et les compter contredirait
+   * le filtre que l'utilisateur vient de poser.
+   */
+  private async tachesEnRetard(
+    projetIds: string[],
+    reference: Date,
+    perimetre: Perimetre,
+    permissions: ReadonlySet<string>,
+    portefeuilleEntier: boolean,
+  ) {
     const enRetard = await this.prisma.task.count({
       where: {
-        projectId: { in: projetIds },
-        statut: { not: "done" },
-        // Le DÉBUT du jour, pas l'instant : `dateFin` est une colonne `Date`,
-        // donc à minuit, et comparée à l'heure courante toute échéance du
-        // jour comptait comme dépassée. Voir `commun/dates.ts`.
-        dateFin: { lt: debutDuJour(reference) },
+        AND: [
+          this.perimetres.filtreTache(perimetre, permissions),
+          { statut: { not: "done" } },
+          // Le DÉBUT du jour, pas l'instant : `dateFin` est une colonne `Date`,
+          // donc à minuit, et comparée à l'heure courante toute échéance du
+          // jour comptait comme dépassée. Voir `commun/dates.ts`.
+          { dateFin: { lt: debutDuJour(reference) } },
+          portefeuilleEntier
+            ? { OR: [{ projectId: { in: projetIds } }, { projectId: null }] }
+            : { projectId: { in: projetIds } },
+        ],
       },
     });
     return { tachesEnRetard: enRetard };
@@ -366,11 +444,27 @@ export class RapportsService {
    * mensonges : elle a l'air d'une mesure.
    */
   private async tendance(projetIds: string[], debut: Date) {
-    const instantanes = await this.prisma.projectSnapshot.findMany({
-      where: { projectId: { in: projetIds }, date: { gte: debut } },
-      orderBy: { date: "asc" },
-      select: { date: true, progression: true, projectId: true },
-    });
+    const [instantanes, horsFenetre] = await Promise.all([
+      this.prisma.projectSnapshot.findMany({
+        where: { projectId: { in: projetIds }, date: { gte: debut } },
+        orderBy: { date: "asc" },
+        select: { date: true, progression: true, projectId: true },
+      }),
+      /*
+       * `RG-RPT-03`, `RG-GEN-05` — **l'état vide doit dire le VRAI motif, et
+       * offrir sa sortie.**
+       *
+       * Le panneau annonçait « Historique en cours de construction » sur un
+       * projet qui porte six instantanés : la tendance est bornée par la
+       * fenêtre d'analyse — trente jours par défaut —, et aucun relevé n'y
+       * tombait. Le motif affiché était faux, et il n'y avait rien à faire
+       * pour en sortir puisque le geste utile — élargir la fenêtre — n'était
+       * même pas suggéré. Ce compte-là est ce qui permet de le dire.
+       */
+      this.prisma.projectSnapshot.count({
+        where: { projectId: { in: projetIds }, date: { lt: debut } },
+      }),
+    ]);
 
     const parDate = new Map<string, number[]>();
     for (const i of instantanes) {
@@ -401,6 +495,10 @@ export class RapportsService {
       // `RG-RPT-04` — la stagnation ne se déduit pas d'un graphique plat qu'on
       // regarde : elle est calculée et nommée.
       stagnation: suffisant && Math.abs(gain) < SEUIL_STAGNATION,
+      /** Les relevés que la fenêtre d'analyse écarte — le vrai motif du vide. */
+      relevesHorsFenetre: horsFenetre,
+      /** Le seuil que l'état vide annonce : il se lit ici, il ne se recopie pas. */
+      minimumRequis: HISTORIQUE_MINIMAL,
     };
   }
 
@@ -615,58 +713,80 @@ export class RapportsService {
     permissions: ReadonlySet<string>,
     reference: Date,
     acteurId: string,
+    langue: Langue = "fr",
   ): Promise<{ contenu: string; type: string; nom: string }> {
     const donnees = await this.vueEnsemble(filtres, perimetre, permissions, reference);
 
     await this.audit.tracer({
       action: "export.csv", typeEntite: "Report", entiteId: filtres.periode, acteurId,
-      detail: { format, projets: donnees.sante.length },
+      detail: { format, projets: donnees.sante.length, langue },
     });
 
     if (format === "json") {
       return {
         contenu: JSON.stringify(donnees, null, 2),
         type: "application/json; charset=utf-8",
-        nom: `rapport-${donnees.periode.debut}.json`,
+        nom: `${NOM_FICHIER[langue]}-${donnees.periode.debut}.json`,
       };
     }
 
     return {
-      contenu: this.csvSante(donnees.sante),
+      contenu: csvSante(donnees.sante, langue),
       type: "text/csv; charset=utf-8",
-      nom: `rapport-${donnees.periode.debut}.csv`,
+      nom: `${NOM_FICHIER[langue]}-${donnees.periode.debut}.csv`,
     };
   }
 
-  /**
-   * Le tableau de santé, en CSV.
-   *
-   * Les valeurs sont échappées : un nom de projet contenant une virgule — il y
-   * en a — décalerait toutes les colonnes suivantes, et le fichier paraîtrait
-   * valide.
-   */
-  private csvSante(lignes: ReturnType<RapportsService["santeProjets"]>): string {
-    const echapper = (v: unknown): string => {
-      const texte = String(v ?? "");
-      return /[",;\n]/.test(texte) ? `"${texte.replaceAll('"', '""')}"` : texte;
-    };
+}
 
-    const entetes = [
-      "projet", "completion", "taches_restantes", "taches_en_retard",
-      "jalons", "jalons_a_venir", "date_fin", "chef", "service", "sante",
-    ];
 
-    const corps = lignes.map((l) =>
-      [
-        l.nom, l.completion, l.restantes, l.enRetard, l.jalons, l.jalonsAVenir,
-        l.dateFin, l.chef ? `${l.chef.prenom} ${l.chef.nom}` : "", l.service ?? "", l.sante,
-      ]
-        .map(echapper)
-        .join(","),
-    );
+/** Une ligne du tableau de santé, telle que l'export la lit. */
+export type LigneSanteExport = {
+  nom: string;
+  completion: number;
+  restantes: number;
+  enRetard: number;
+  jalons: number;
+  jalonsAVenir: number;
+  dateFin: string;
+  chef: { prenom: string; nom: string } | null;
+  service: string | null;
+  sante: SanteProjet;
+};
 
-    // Le BOM UTF-8 : sans lui, Excel lit le fichier en ANSI et « Complétion »
-    // devient « ComplÃ©tion ». C'est le détail qui fait juger l'export cassé.
-    return `\uFEFF${[entetes.join(","), ...corps].join("\r\n")}\r\n`;
-  }
+/**
+ * `EX-RPT-03` — le tableau de santé, en CSV, **dans la langue du lecteur**.
+ *
+ * Les valeurs sont échappées : un nom de projet contenant une virgule — il y en
+ * a — décalerait toutes les colonnes suivantes, et le fichier paraîtrait valide.
+ *
+ * Hors de la classe, et exporté : c'est du texte pur, qui se vérifie sans base
+ * ni conteneur. Il était privé, et la seule façon de contrôler l'export passait
+ * par une suite d'intégration — ce qui revenait à ne pas le contrôler.
+ */
+export function csvSante(lignes: readonly LigneSanteExport[], langue: Langue = "fr"): string {
+  const echapper = (v: unknown): string => {
+    const texte = String(v ?? "");
+    return /[",;\n]/.test(texte) ? `"${texte.replaceAll('"', '""')}"` : texte;
+  };
+
+  const entetes = ENTETES_EXPORT.map((e) => e[langue]);
+
+  const corps = lignes.map((l) =>
+    [
+      l.nom, l.completion, l.restantes, l.enRetard, l.jalons, l.jalonsAVenir,
+      l.dateFin, l.chef ? `${l.chef.prenom} ${l.chef.nom}` : "", l.service ?? "",
+      // `EX-RPT-03` — **la colonne « santé » portait le CODE**, `critical`,
+      // `warning`, `good`, là où la vue écrit « Critique », « Attention »,
+      // « Bon ». Un compte rendu se lit ; un code d'énumération se programme.
+      // Le libellé est celui de la vue, dans la langue demandée.
+      SANTE_EXPORT[l.sante][langue],
+    ]
+      .map(echapper)
+      .join(","),
+  );
+
+  // Le BOM UTF-8 : sans lui, Excel lit le fichier en ANSI et « Complétion »
+  // devient « ComplÃ©tion ». C'est le détail qui fait juger l'export cassé.
+  return `\uFEFF${[entetes.join(","), ...corps].join("\r\n")}\r\n`;
 }

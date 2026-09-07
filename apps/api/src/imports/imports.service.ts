@@ -14,6 +14,8 @@ import { PrismaService } from "../prisma.service.js";
 import { AuditService } from "../commun/audit.service.js";
 import { CongesService, ErreurConge } from "../conges/conges.service.js";
 import type { Perimetre } from "../commun/perimetre.service.js";
+import { hacherMotDePasse } from "../auth/mots-de-passe.js";
+import { MOTIFS, type LigneRendu, type Motif } from "./motifs.js";
 
 /**
  * M21 — imports et exports.
@@ -49,18 +51,77 @@ export class ErreurImport extends Error {
  */
 type TxPrisma = Parameters<Parameters<PrismaService["$transaction"]>[0]>[0];
 
+/**
+ * Le compte rendu de `RG-IMP-04` — trois familles, jamais deux.
+ *
+ * **`ignorees` porte le MOTIF de chaque ignoré, et `ignores` s'en déduit.**
+ * Le compteur nu disait « 2 ignorés » sur deux lignes refusées pour deux
+ * causes opposées — une adresse déjà prise, un identifiant déjà pris — sans un
+ * mot pour distinguer laquelle corriger. Un ignoré est normal, il n'est pas
+ * pour autant muet : `RG-IMP-04` demande le détail, et le détail n'a de sens
+ * que rattaché à sa ligne.
+ *
+ * Les deux champs ne peuvent pas se contredire : `ignores` n'est pas un
+ * compteur tenu à la main mais la longueur de `ignorees`, calculée une seule
+ * fois, à la clôture (`Rendu.clore`).
+ */
 export type CompteRendu = {
   importes: number;
   ignores: number;
-  erreurs: { ligne: number; message: string }[];
+  ignorees: LigneRendu[];
+  erreurs: LigneRendu[];
 };
 
 export type Apercu<T> = {
   lignes: T[];
   total: number;
   /** Les erreurs détectées **sans rien écrire** — c'est tout l'intérêt. */
-  erreurs: { ligne: number; message: string }[];
+  erreurs: LigneRendu[];
 };
+
+/** Une ligne du fichier et **son numéro** — en-tête comprise, base 1. */
+type LigneCsv = { numero: number; brut: Record<string, string> };
+
+/**
+ * L'accumulateur d'un compte rendu, partagé par les six imports.
+ *
+ * Il existe pour une raison précise : `ignores` était un compteur incrémenté
+ * en cinq endroits, dont deux dans des méthodes partagées qui ne connaissaient
+ * pas le numéro de la ligne qu'elles ignoraient. Passer par un objet impose de
+ * fournir la ligne ET le motif, et rend le compteur indérivable — donc
+ * incapable de mentir.
+ */
+class Rendu {
+  importes = 0;
+  readonly ignorees: LigneRendu[] = [];
+  readonly erreurs: LigneRendu[] = [];
+
+  constructor(erreursDAnalyse: readonly LigneRendu[] = []) {
+    this.erreurs.push(...erreursDAnalyse);
+  }
+
+  ignorer(ligne: number, motif: Motif): void {
+    this.ignorees.push({ ligne, ...motif });
+  }
+
+  refuser(ligne: number, motif: Motif): void {
+    this.erreurs.push({ ligne, ...motif });
+  }
+
+  clore(): CompteRendu {
+    return {
+      importes: this.importes,
+      ignores: this.ignorees.length,
+      ignorees: this.ignorees,
+      erreurs: this.erreurs,
+    };
+  }
+
+  /** Ce qui part au journal d'audit : des nombres, jamais les tableaux. */
+  bilan(): Record<string, number> {
+    return { importes: this.importes, ignores: this.ignorees.length, erreurs: this.erreurs.length };
+  }
+}
 
 /** Les six types d'import de `cadrage/01 § M21`. La liste est fermée. */
 export const TYPES_IMPORT = [
@@ -375,13 +436,13 @@ export class ImportsService {
       throw new ErreurImport("colonnes_manquantes", { colonnes: manquantes });
     }
 
-    const erreurs: { ligne: number; message: string }[] = [];
+    const erreurs: LigneRendu[] = [];
     lignes.forEach((ligne, i) => {
       for (const colonne of COLONNES[type]) {
         if (colonne.obligatoire && !NON_VIDE(ligne[colonne.nom])) {
           // Le numéro de ligne est celui du FICHIER : en-tête comprise, base 1.
           // C'est le seul repère que l'utilisateur puisse retrouver.
-          erreurs.push({ ligne: i + 2, message: `colonne « ${colonne.nom} » vide` });
+          erreurs.push({ ligne: i + 2, ...MOTIFS.colonneVide(colonne.nom) });
         }
       }
       /*
@@ -416,7 +477,7 @@ export class ImportsService {
         if (!Number.isInteger(n) || n < min || n > max) {
           erreurs.push({
             ligne: i + 2,
-            message: `colonne « ${colonne} » : « ${brut.trim()} » n'est pas un entier de ${min} à ${max}`,
+            ...MOTIFS.nombreHorsBornes(colonne, brut.trim(), min, max),
           });
         }
       }
@@ -435,10 +496,7 @@ export class ImportsService {
         NON_VIDE(ligne["progress"]) &&
         Number(ligne["progress"].trim()) !== AVANCEMENT_TERMINE
       ) {
-        erreurs.push({
-          ligne: i + 2,
-          message: `colonne « progress » : une tâche « done » est à ${AVANCEMENT_TERMINE}`,
-        });
+        erreurs.push({ ligne: i + 2, ...MOTIFS.avancementIncoherent(AVANCEMENT_TERMINE) });
       }
       for (const { colonne, valeurs } of ENUMERATIONS[type] ?? []) {
         const brut = ligne[colonne];
@@ -446,7 +504,7 @@ export class ImportsService {
         if (!valeurs.includes(brut.trim())) {
           erreurs.push({
             ligne: i + 2,
-            message: `colonne « ${colonne} » : « ${brut.trim()} » inconnu, attendu ${valeurs.join(", ")}`,
+            ...MOTIFS.valeurInconnue(colonne, brut.trim(), valeurs.join(", ")),
           });
         }
       }
@@ -455,32 +513,60 @@ export class ImportsService {
     return { lignes, total: lignes.length, erreurs };
   }
 
+  /**
+   * Les lignes que l'écriture doit prendre : celles qu'AUCUNE erreur d'analyse
+   * ne vise, numérotées.
+   *
+   * **Le filtre était écrit quatre fois et manquait à la cinquième.**
+   * `importerProjet` ne l'appliquait qu'au mode Remplacer : en mode Ajouter,
+   * une ligne portant un libellé traduit dans sa colonne `status` — celle que
+   * l'analyse venait de signaler — partait tout de même en base, PostgreSQL la
+   * refusait sur son type énuméré, et la transaction entière tombait. L'import
+   * rendait un 500 sans compte rendu, et la ligne saine du même fichier était
+   * perdue avec les autres (`RG-IMP-04`, `RG-GEN-03`).
+   *
+   * Écrit une fois ici, il ne peut plus manquer à un chemin.
+   */
+  private lignesSaines(apercu: Apercu<Record<string, string>>): LigneCsv[] {
+    const enErreur = new Set(apercu.erreurs.map((e) => e.ligne));
+    return apercu.lignes
+      .map((brut, i) => ({ numero: i + 2, brut }))
+      .filter((l) => !enErreur.has(l.numero));
+  }
+
   // ── Utilisateurs ─────────────────────────────────────────────────────────
 
   /**
    * `RG-IMP-04` — importe, en distinguant les trois familles.
    *
    * Un compte déjà présent est **ignoré**, pas mis en erreur : rejouer un
-   * fichier est un usage normal, pas un incident.
+   * fichier est un usage normal, pas un incident. `RG-USR-01` pose deux
+   * unicités, l'adresse et l'identifiant : elles se cherchent donc **l'une
+   * après l'autre**, et non par un `OR` qui rend une ligne sans dire laquelle
+   * des deux a mordu. Deux causes opposées, deux corrections opposées.
    */
   async importerUtilisateurs(contenu: string, acteurId: string): Promise<CompteRendu> {
     const apercu = this.analyser("utilisateurs", contenu);
-    const rendu: CompteRendu = { importes: 0, ignores: 0, erreurs: [...apercu.erreurs] };
-    const enErreur = new Set(apercu.erreurs.map((e) => e.ligne));
+    const rendu = new Rendu(apercu.erreurs);
 
-    for (const [i, ligne] of apercu.lignes.entries()) {
-      const numero = i + 2;
-      if (enErreur.has(numero)) continue;
-
+    for (const { numero, brut: ligne } of this.lignesSaines(apercu)) {
       const email = ligne["email"]!.trim().toLowerCase();
       const login = ligne["login"]!.trim();
 
-      const existant = await this.prisma.user.findFirst({
-        where: { OR: [{ email }, { login }] },
+      const parEmail = await this.prisma.user.findUnique({
+        where: { email },
         select: { id: true },
       });
-      if (existant) {
-        rendu.ignores += 1;
+      if (parEmail) {
+        rendu.ignorer(numero, MOTIFS.emailDejaPris(email));
+        continue;
+      }
+      const parLogin = await this.prisma.user.findUnique({
+        where: { login },
+        select: { id: true },
+      });
+      if (parLogin) {
+        rendu.ignorer(numero, MOTIFS.loginDejaPris(login));
         continue;
       }
 
@@ -509,9 +595,19 @@ export class ImportsService {
           data: {
             email,
             login,
-            // Le mot de passe du fichier est un mot de passe **provisoire** :
-            // le compte est créé avec l'obligation de le changer.
-            motDePasseHash: ligne["password"]!,
+            /*
+             * `EX-USR-08`, `ADR-0008` — le mot de passe du fichier est un mot
+             * de passe **provisoire**, et il est HACHÉ comme tous les autres.
+             *
+             * Il partait en clair dans la colonne `motDePasseHash`. Deux
+             * défauts pour une seule ligne : le fichier d'import, qui circule
+             * par courriel et dort dans un dossier partagé, devenait la table
+             * des secrets de l'instance ; et aucun des comptes créés ne
+             * pouvait se connecter, puisque la vérification compare un haché
+             * argon2 à ce qu'elle trouve. Un import en masse « réussi » ne
+             * produisait que des comptes inutilisables.
+             */
+            motDePasseHash: await hacherMotDePasse(ligne["password"]!),
             motDePasseAChanger: true,
             prenom: ligne["firstName"]!.trim(),
             nom: ligne["lastName"]!.trim(),
@@ -524,15 +620,15 @@ export class ImportsService {
         });
         rendu.importes += 1;
       } catch (e) {
-        rendu.erreurs.push({ ligne: numero, message: String(e).slice(0, 200) });
+        rendu.refuser(numero, MOTIFS.erreurTechnique(String(e).slice(0, 200)));
       }
     }
 
     await this.audit.tracer({
       action: "user.create", typeEntite: "User", entiteId: "import-csv", acteurId,
-      detail: { source: "csv", ...rendu, erreurs: rendu.erreurs.length },
+      detail: { source: "csv", ...rendu.bilan() },
     });
-    return rendu;
+    return rendu.clore();
   }
 
   // ── Projet complet — `RG-IMP-05`, `RG-IMP-06` ────────────────────────────
@@ -561,17 +657,29 @@ export class ImportsService {
     // `RG-IMP-06` — le contrôle est fait AVANT toute écriture. Découvrir
     // l'erreur après la suppression serait exactement ce que la règle interdit.
     if (mode === "remplacer" && apercu.erreurs.length > 0) {
-      return { importes: 0, ignores: 0, erreurs: apercu.erreurs };
+      return new Rendu(apercu.erreurs).clore();
     }
 
-    const jalonsDuFichier = apercu.lignes.filter(
-      (l) => (l["rowType"] ?? "").trim().toUpperCase() === "MILESTONE",
-    );
-    const tachesDuFichier = apercu.lignes.filter(
-      (l) => (l["rowType"] ?? "").trim().toUpperCase() === "TASK",
-    );
+    /*
+     * **Le mode Ajouter filtre les lignes en erreur, lui aussi.**
+     *
+     * Il ne le faisait pas : seul le mode Remplacer regardait
+     * `apercu.erreurs`, et l'analyse signalait une ligne que l'écriture
+     * insérait quand même. Le fichier de recette `P-60` en porte la trace —
+     * un `status` au libellé traduit, PostgreSQL qui refuse sur son type
+     * énuméré, la transaction entière annulée, un HTTP 500 sans compte rendu,
+     * et la ligne saine du même fichier perdue avec les fautives.
+     *
+     * L'analyse et l'écriture doivent lire le même fichier de la même façon.
+     * Elles n'en avaient aucune obligation tant que le filtre était recopié à
+     * la main dans chaque import ; `lignesSaines` la leur donne.
+     */
+    const saines = this.lignesSaines(apercu);
+    const rowType = (l: LigneCsv) => (l.brut["rowType"] ?? "").trim().toUpperCase();
+    const jalonsDuFichier = saines.filter((l) => rowType(l) === "MILESTONE");
+    const tachesDuFichier = saines.filter((l) => rowType(l) === "TASK");
 
-    const rendu: CompteRendu = { importes: 0, ignores: 0, erreurs: [...apercu.erreurs] };
+    const rendu = new Rendu(apercu.erreurs);
 
     /*
      * `RG-PRJ-11` — « le mode Remplacer est **bloqué si des données rattachées
@@ -625,9 +733,9 @@ export class ImportsService {
 
     await this.audit.tracer({
       action: "task.create", typeEntite: "Project", entiteId: projectId, acteurId,
-      detail: { source: "csv", mode, ...rendu, erreurs: rendu.erreurs.length },
+      detail: { source: "csv", mode, ...rendu.bilan() },
     });
-    return rendu;
+    return rendu.clore();
   }
 
   /** Les jalons déjà en base, indexés par nom — la clé de rattachement du CSV. */
@@ -653,15 +761,18 @@ export class ImportsService {
   private async insererJalons(
     tx: TxPrisma,
     projectId: string,
-    lignes: Record<string, string>[],
+    lignes: LigneCsv[],
     parNom: Map<string, string>,
-    rendu: CompteRendu,
+    rendu: Rendu,
   ) {
-      for (const ligne of lignes) {
+      for (const { numero, brut: ligne } of lignes) {
         const nom = (ligne["name"] ?? "").trim();
         if (!nom) continue;
         if (parNom.has(nom)) {
-          rendu.ignores += 1;
+          // `RG-IMP-04` — un ignoré n'est pas un incident, mais il n'est pas
+          // muet non plus : sans son motif, « 1 ignoré » ne dit pas quel jalon
+          // du fichier a été laissé de côté, ni pourquoi.
+          rendu.ignorer(numero, MOTIFS.jalonDejaPresent(nom));
           continue;
         }
         const jalon = await tx.milestone.create({
@@ -681,11 +792,11 @@ export class ImportsService {
   private async insererTaches(
     tx: TxPrisma,
     projectId: string,
-    lignes: Record<string, string>[],
+    lignes: LigneCsv[],
     parNom: Map<string, string>,
-    rendu: CompteRendu,
+    rendu: Rendu,
   ) {
-      for (const ligne of lignes) {
+      for (const { brut: ligne } of lignes) {
         const titre = (ligne["title"] ?? "").trim();
         if (!titre) continue;
 
@@ -774,9 +885,8 @@ export class ImportsService {
     acteurId: string,
   ): Promise<CompteRendu> {
     const apercu = this.analyser("taches", contenu);
-    const rendu: CompteRendu = { importes: 0, ignores: 0, erreurs: [...apercu.erreurs] };
-    const enErreur = new Set(apercu.erreurs.map((e) => e.ligne));
-    const lignes = apercu.lignes.filter((_, i) => !enErreur.has(i + 2));
+    const rendu = new Rendu(apercu.erreurs);
+    const lignes = this.lignesSaines(apercu);
 
     await this.prisma.$transaction(async (tx) => {
       const parNom = await this.jalonsExistants(tx, projectId);
@@ -785,9 +895,9 @@ export class ImportsService {
 
     await this.audit.tracer({
       action: "task.create", typeEntite: "Project", entiteId: projectId, acteurId,
-      detail: { source: "csv", objet: "taches", ...rendu, erreurs: rendu.erreurs.length },
+      detail: { source: "csv", objet: "taches", ...rendu.bilan() },
     });
-    return rendu;
+    return rendu.clore();
   }
 
   /**
@@ -802,9 +912,8 @@ export class ImportsService {
     acteurId: string,
   ): Promise<CompteRendu> {
     const apercu = this.analyser("jalons", contenu);
-    const rendu: CompteRendu = { importes: 0, ignores: 0, erreurs: [...apercu.erreurs] };
-    const enErreur = new Set(apercu.erreurs.map((e) => e.ligne));
-    const lignes = apercu.lignes.filter((_, i) => !enErreur.has(i + 2));
+    const rendu = new Rendu(apercu.erreurs);
+    const lignes = this.lignesSaines(apercu);
 
     await this.prisma.$transaction(async (tx) => {
       const parNom = await this.jalonsExistants(tx, projectId);
@@ -813,9 +922,9 @@ export class ImportsService {
 
     await this.audit.tracer({
       action: "milestone.create", typeEntite: "Project", entiteId: projectId, acteurId,
-      detail: { source: "csv", objet: "jalons", ...rendu, erreurs: rendu.erreurs.length },
+      detail: { source: "csv", objet: "jalons", ...rendu.bilan() },
     });
-    return rendu;
+    return rendu.clore();
   }
 
   /**
@@ -930,23 +1039,18 @@ export class ImportsService {
    */
   async importerCompetences(contenu: string, acteurId: string): Promise<CompteRendu> {
     const apercu = this.analyser("competences", contenu);
-    const rendu: CompteRendu = { importes: 0, ignores: 0, erreurs: [...apercu.erreurs] };
-    const enErreur = new Set(apercu.erreurs.map((e) => e.ligne));
+    const rendu = new Rendu(apercu.erreurs);
 
-    for (const [i, ligne] of apercu.lignes.entries()) {
-      // Le numéro est celui du FICHIER, en-tête comprise : le seul repère que
-      // l'utilisateur puisse retrouver dans son tableur.
-      const numero = i + 2;
-      if (enErreur.has(numero)) continue;
-      const enPanne = (message: string) => rendu.erreurs.push({ ligne: numero, message });
-
+    // Le numéro est celui du FICHIER, en-tête comprise : le seul repère que
+    // l'utilisateur puisse retrouver dans son tableur.
+    for (const { numero, brut: ligne } of this.lignesSaines(apercu)) {
       const nom = ligne["name"]!.trim();
 
       const categorie = categorieDe(ligne["category"]!);
       if (categorie === null) {
-        enPanne(
-          `catégorie « ${ligne["category"]!.trim()} » inconnue. ` +
-            `Valeurs attendues : ${CODES_CATEGORIE}.`,
+        rendu.refuser(
+          numero,
+          MOTIFS.categorieInconnue(ligne["category"]!.trim(), CODES_CATEGORIE),
         );
         continue;
       }
@@ -961,10 +1065,7 @@ export class ImportsService {
       if (NON_VIDE(ligne["requiredCount"])) {
         const n = Number(ligne["requiredCount"].trim());
         if (!Number.isInteger(n) || n < 0) {
-          enPanne(
-            `effectif requis « ${ligne["requiredCount"].trim()} » invalide : ` +
-              `un nombre entier positif ou nul est attendu.`,
-          );
+          rendu.refuser(numero, MOTIFS.effectifInvalide(ligne["requiredCount"].trim()));
           continue;
         }
         effectifRequis = n;
@@ -976,7 +1077,7 @@ export class ImportsService {
         select: { id: true },
       });
       if (existante) {
-        rendu.ignores += 1;
+        rendu.ignorer(numero, MOTIFS.competenceDejaPresente(nom));
         continue;
       }
 
@@ -995,18 +1096,18 @@ export class ImportsService {
         // concurrents, ou deux graphies du même nom. C'est un doublon, donc
         // un ignoré, pas une erreur.
         if (/P2002|Unique constraint/i.test(String(e))) {
-          rendu.ignores += 1;
+          rendu.ignorer(numero, MOTIFS.competenceDejaPresente(nom));
           continue;
         }
-        enPanne(String(e).slice(0, 200));
+        rendu.refuser(numero, MOTIFS.erreurTechnique(String(e).slice(0, 200)));
       }
     }
 
     await this.audit.tracer({
       action: "skill.create", typeEntite: "Skill", entiteId: "import-csv", acteurId,
-      detail: { source: "csv", ...rendu, erreurs: rendu.erreurs.length },
+      detail: { source: "csv", ...rendu.bilan() },
     });
-    return rendu;
+    return rendu.clore();
   }
 
   // ── Congés — EX-CNG-14, RG-CNG-32 ────────────────────────────────────────
@@ -1067,8 +1168,7 @@ export class ImportsService {
     perimetre: Perimetre,
   ): Promise<CompteRendu> {
     const apercu = this.analyser("conges", contenu);
-    const rendu: CompteRendu = { importes: 0, ignores: 0, erreurs: [...apercu.erreurs] };
-    const enErreur = new Set(apercu.erreurs.map((e) => e.ligne));
+    const rendu = new Rendu(apercu.erreurs);
 
     /*
      * Le référentiel des types est chargé UNE FOIS. La colonne s'appelle
@@ -1082,10 +1182,8 @@ export class ImportsService {
     const parNom = new Map(types.map((t) => [t.nom.trim().toLowerCase(), t]));
     const parCode = new Map(types.map((t) => [t.code.trim().toLowerCase(), t]));
 
-    for (const [i, ligne] of apercu.lignes.entries()) {
-      const numero = i + 2;
-      if (enErreur.has(numero)) continue;
-      const enPanne = (message: string) => rendu.erreurs.push({ ligne: numero, message });
+    for (const { numero, brut: ligne } of this.lignesSaines(apercu)) {
+      const enPanne = (motif: Motif) => rendu.refuser(numero, motif);
 
       const email = ligne["userEmail"]!.trim().toLowerCase();
       const agent = await this.prisma.user.findUnique({
@@ -1093,42 +1191,36 @@ export class ImportsService {
         select: { id: true, actif: true },
       });
       if (!agent) {
-        enPanne(`aucun compte ne porte l'adresse « ${email} ».`);
+        enPanne(MOTIFS.compteInconnu(email));
         continue;
       }
       // `RG-CNG-15` — un collaborateur inactif est refusé, ici comme au dépôt.
       if (!agent.actif) {
-        enPanne(`le compte « ${email} » est désactivé : aucun congé ne peut lui être ajouté.`);
+        enPanne(MOTIFS.compteDesactive(email));
         continue;
       }
       // Le périmètre, APRÈS la permission — `cadrage/03 § 5.4`.
       if (!perimetre.global && !perimetre.utilisateurs.has(agent.id)) {
-        enPanne(`le compte « ${email} » est hors de votre périmètre.`);
+        enPanne(MOTIFS.horsPerimetre(email));
         continue;
       }
 
       const nomType = ligne["leaveTypeName"]!.trim();
       const type = parNom.get(nomType.toLowerCase()) ?? parCode.get(nomType.toLowerCase());
       if (!type) {
-        enPanne(`aucun type de congé ne s'appelle « ${nomType} ».`);
+        enPanne(MOTIFS.typeInconnu(nomType));
         continue;
       }
 
       const debut = dateDe(ligne["startDate"]);
       const fin = dateDe(ligne["endDate"]);
       if (!debut || !fin) {
-        enPanne(
-          `date illisible : « ${ligne["startDate"] ?? ""} » → « ${ligne["endDate"] ?? ""} ». ` +
-            `Le format attendu est AAAA-MM-JJ.`,
-        );
+        enPanne(MOTIFS.dateIllisible(ligne["startDate"] ?? "", ligne["endDate"] ?? ""));
         continue;
       }
       // `RG-CNG-28` — la date de fin est postérieure ou égale à la date de début.
       if (fin < debut) {
-        enPanne(
-          `la date de fin (${ligne["endDate"]}) précède la date de début ` +
-            `(${ligne["startDate"]}) : inversez-les.`,
-        );
+        enPanne(MOTIFS.datesInversees(ligne["startDate"] ?? "", ligne["endDate"] ?? ""));
         continue;
       }
 
@@ -1136,18 +1228,12 @@ export class ImportsService {
       if (NON_VIDE(ligne["halfDay"])) {
         demi = demiJourneeDe(ligne["halfDay"]);
         if (demi === null) {
-          enPanne(
-            `demi-journée « ${ligne["halfDay"].trim()} » inconnue. ` +
-              `Valeurs attendues : ${CODES_DEMI_JOURNEE}, ou la colonne laissée vide.`,
-          );
+          enPanne(MOTIFS.demiJourneeInconnue(ligne["halfDay"].trim(), CODES_DEMI_JOURNEE));
           continue;
         }
         // `RG-CNG-18` — la demi-journée simple ne vaut que sur un seul jour.
         if (debut.getTime() !== fin.getTime()) {
-          enPanne(
-            "une demi-journée ne s'applique qu'à un congé d'une seule journée : " +
-              "laissez la colonne vide, ou ramenez les deux dates au même jour.",
-          );
+          enPanne(MOTIFS.demiJourneeSurPlusieursJours());
           continue;
         }
       }
@@ -1173,7 +1259,9 @@ export class ImportsService {
          * le même refus, applicatif ou en base, et par le même compteur.
          */
         if (estUnChevauchement(e)) {
-          rendu.ignores += 1;
+          // `RG-CNG-32` — ignoré, mais nommé : sans motif, l'agent RH ne sait
+          // pas si sa ligne a été refusée pour un doublon ou pour autre chose.
+          rendu.ignorer(numero, MOTIFS.chevauchement());
           continue;
         }
         if (e instanceof ErreurConge && e.code === "solde_insuffisant") {
@@ -1181,28 +1269,28 @@ export class ImportsService {
           // court oblige à aller chercher ailleurs de quoi corriger la ligne.
           const d = e.detail ?? {};
           enPanne(
-            `solde insuffisant pour ${String(d["annee"])} : ${String(d["demandes"])} jour(s) ` +
-              `demandé(s), ${String(d["disponibles"])} disponible(s), ` +
-              `${String(d["manquants"])} manquant(s).`,
+            MOTIFS.soldeInsuffisant(
+              String(d["annee"]),
+              String(d["demandes"]),
+              String(d["disponibles"]),
+              String(d["manquants"]),
+            ),
           );
           continue;
         }
         if (e instanceof ErreurConge && e.code === "type_inactif") {
           // `RG-CNG-29` — un type désactivé n'est plus sélectionnable.
-          enPanne(
-            `le type de congé « ${type.nom} » est désactivé : réactivez-le, ` +
-              `ou choisissez un autre type sur cette ligne.`,
-          );
+          enPanne(MOTIFS.typeDesactive(type.nom));
           continue;
         }
-        enPanne(String(e).slice(0, 200));
+        enPanne(MOTIFS.erreurTechnique(String(e).slice(0, 200)));
       }
     }
 
     await this.audit.tracer({
       action: "leave.create", typeEntite: "Leave", entiteId: "import-csv", acteurId,
-      detail: { source: "csv", ...rendu, erreurs: rendu.erreurs.length },
+      detail: { source: "csv", ...rendu.bilan() },
     });
-    return rendu;
+    return rendu.clore();
   }
 }

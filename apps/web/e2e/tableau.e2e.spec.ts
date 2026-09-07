@@ -462,11 +462,37 @@ test.describe("Vue 06 — tableau de bord", () => {
     await expect(page.getByText(/24 tâches/)).toBeVisible();
   });
 
-  test("sans planning:read, l'accès est refusé", async ({ page }) => {
+  /*
+   * `RG-ADM-03` — **le refus PART AU SERVEUR, qui seul sait le tracer.**
+   *
+   * Le contrôle simulait une session sans `planning:read` et laissait
+   * `/api/tableau-de-bord` répondre `200` : il consacrait le
+   * `if (!peut(…)) return <AccesRefuse />` de la vue, c'est-à-dire le défaut.
+   * Aucune requête n'atteignait `commun/permissions.garde.ts`, le seul endroit
+   * du produit qui écrive une ligne d'audit sur un accès refusé.
+   *
+   * Le jeu d'essai se calque sur ce que le serveur rend :
+   * `TableauController.accueil` est gardé par `@RequiertPermission("planning:read")`,
+   * et la garde lève `403 { cle: "commun:droits.permissionRequise" }`.
+   */
+  test("RG-ADM-03 — sans planning:read, la requête PART et le 403 prononce le refus", async ({
+    page,
+  }) => {
     await horlogeFixe(page);
-    await serveur(page, { session: SESSION_LECTURE, reponses });
+    let demandes = 0;
+    page.on("request", (r) => {
+      if (new URL(r.url()).pathname === "/api/tableau-de-bord") demandes += 1;
+    });
+    await serveur(page, {
+      session: SESSION_LECTURE,
+      reponses: {
+        "/api/tableau-de-bord": { statut: 403, corps: { cle: "commun:droits.permissionRequise" } },
+      },
+    });
     await page.goto("/");
+
     await expect(page.getByText("Permission requise")).toBeVisible();
+    expect(demandes).toBeGreaterThan(0);
   });
 });
 

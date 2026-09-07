@@ -21,6 +21,22 @@ export const inscription = (donnees: {
 export const demanderReinitialisation = (email: string) =>
   appeler<{ message: string }>("/auth/forgot-password", { methode: "POST", corps: { email } });
 
+/**
+ * `RG-AUTH-04` — l'état du lien, **avant** d'ouvrir le formulaire.
+ *
+ * Sans elle, la vue 04 laissait choisir et confirmer un mot de passe sur un
+ * jeton expiré, déjà consommé ou inconnu, puis refusait. Les trois messages
+ * existaient et arrivaient après le geste qu'ils devaient épargner.
+ *
+ * Rend l'adresse du compte concerné — la vue l'affiche sous « Compte
+ * concerné », et rien ne le lui donnait jusqu'ici.
+ */
+export const verifierJeton = (jeton: string) =>
+  appeler<{ email: string }>("/auth/verify-reset-token", {
+    methode: "POST",
+    corps: { jeton },
+  });
+
 export const reinitialiser = (jeton: string, motDePasse: string) =>
   appeler<{ message: string }>("/auth/reset-password", {
     methode: "POST",

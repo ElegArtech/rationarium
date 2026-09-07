@@ -1,9 +1,11 @@
 import { describe, it, expect, afterEach } from "vitest";
+import i18next from "i18next";
 import {
   appliquerReglages,
   formaterDate,
   formaterHeure,
   formaterMois,
+  formaterNombre,
   premierJourSemaine,
   joursVisibles,
   numeroDeSemaine,
@@ -176,5 +178,94 @@ describe("Le numéro de semaine ISO", () => {
       expect(semaine(jour)).toBe(lundi);
     }
     expect(semaine("2026-06-08")).toBe(lundi + 1);
+  });
+});
+
+/**
+ * **Sous interface anglaise, les nombres restaient français.**
+ *
+ * `RG-GEN-09` fait suivre aux dates et aux heures le paramétrage global. Elle
+ * **ne parle pas des nombres**, qui subissaient pourtant le même réglage — et
+ * le produit possède DEUX formateurs de nombres : `formaterNombre`, réglable, et
+ * celui d'ICU, qui formate sur la langue de la session et ne sait pas faire
+ * autrement. Une session anglaise sur une instance réglée `fr-FR` lisait donc
+ * « 20,0 days available » à côté de « 35.5 h total », dans la même page.
+ *
+ * Le contrôle porte sur l'ACCORD des deux, pas sur une chaîne attendue : c'est
+ * l'accord qui est l'invariant, et une valeur en dur ne dirait pas pourquoi.
+ */
+describe("RG-GEN-09 — le séparateur décimal ne change pas d'une ligne à l'autre", () => {
+  const enLangue = (langue: string, faire: () => void) => {
+    const avant = i18next.language;
+    i18next.language = langue;
+    try {
+      faire();
+    } finally {
+      i18next.language = avant;
+    }
+  };
+
+  it("le contrôle a quelque chose à mesurer", () => {
+    // Les deux locales rendent bien des séparateurs DIFFÉRENTS : sans cela, le
+    // contrôle serait vrai par accident.
+    expect(new Intl.NumberFormat("fr-FR").format(1234.5)).not.toBe(
+      new Intl.NumberFormat("en-GB").format(1234.5),
+    );
+  });
+
+  it("en session anglaise, le nombre est anglais MÊME si l'instance est réglée fr-FR", () => {
+    appliquerReglages({ "display.locale": "fr-FR" });
+    enLangue("en", () => {
+      expect(formaterNombre(1234.5, 1)).toBe("1,234.5");
+    });
+  });
+
+  it("en session française, il reste français", () => {
+    appliquerReglages({ "display.locale": "fr-FR" });
+    enLangue("fr", () => {
+      // L'espace de groupement d'`Intl` est insécable étroit : on compare au
+      // moteur, pas à une chaîne recopiée à la main.
+      expect(formaterNombre(1234.5, 1)).toBe(
+        new Intl.NumberFormat("fr-FR", {
+          minimumFractionDigits: 1,
+          maximumFractionDigits: 1,
+        }).format(1234.5),
+      );
+    });
+  });
+
+  it("s'accorde avec le formateur d'ICU, quelle que soit la région réglée", () => {
+    // C'est l'invariant : deux nombres de la même page ne peuvent pas porter
+    // deux séparateurs décimaux. ICU formate sur `i18next.language` et ne sait
+    // pas faire autrement ; c'est donc `formaterNombre` qui s'aligne.
+    for (const region of ["fr-FR", "en-US", ""]) {
+      appliquerReglages({ "display.locale": region });
+      for (const langue of ["fr", "en"]) {
+        enLangue(langue, () => {
+          expect(formaterNombre(1234.5, 1)).toBe(
+            new Intl.NumberFormat(langue, {
+              minimumFractionDigits: 1,
+              maximumFractionDigits: 1,
+            }).format(1234.5),
+          );
+        });
+      }
+    }
+  });
+
+  /**
+   * Les DATES, elles, ne sont **pas** tranchées ici.
+   *
+   * Le réglage l'emporte aujourd'hui sur la langue de la session — lecture (a)
+   * de l'arbitrage écrit dans `formats.ts`. Ce contrôle fige ce comportement
+   * pour qu'un basculement vers la lecture (b) soit une DÉCISION, prise au
+   * cadrage et visible dans un diff, plutôt qu'un effet de bord. Il n'affirme
+   * pas que c'est juste : il affirme que c'est ce que le produit fait.
+   */
+  it("la DATE, elle, suit toujours le réglage d'instance — décision au cadrage", () => {
+    appliquerReglages({ "display.locale": "fr-FR" });
+    enLangue("en", () => {
+      expect(formaterMois("2026-09-01")).toBe("Septembre 2026");
+    });
   });
 });

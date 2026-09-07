@@ -198,6 +198,7 @@ export function OngletTaches({ projetId }: { projetId: string }) {
         cleRequete={cle}
         surRechargement={() => void taches.refetch()}
         surAnnonce={setAnnonce}
+        projetOrigine={projetId}
         {...(peut("tasks:create") ? { surCreation: () => setCreationOuverte(true) } : {})}
       />
 
@@ -208,10 +209,18 @@ export function OngletTaches({ projetId }: { projetId: string }) {
 
       {/* La même fenêtre que la vue 16, avec le projet imposé : deux
           formulaires de création divergeraient à la première correction. */}
+      {/*
+        Le projet courant est passé COMME OPTION, pas comme liste vide : avec
+        `projets={[]}`, la valeur du `<select>` n'avait aucune option
+        correspondante, et le champ affichait « Aucun projet (tâche
+        indépendante) » pendant que la tâche se créait bel et bien dans le
+        projet. Un champ qui dit le contraire de ce qui se passe est pire
+        qu'un champ absent.
+      */}
       <FenetreCreationTache
         ouverte={creationOuverte}
         surFermeture={() => setCreationOuverte(false)}
-        projets={[]}
+        projets={[{ id: projetId, nom: projet.data.nom }]}
         projetImpose={projetId}
       />
 

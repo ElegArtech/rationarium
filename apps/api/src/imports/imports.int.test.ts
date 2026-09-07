@@ -181,7 +181,9 @@ describe("RG-IMP-02, RG-IMP-03 — le modèle et la prévisualisation", () => {
 
     // Le numéro est celui du FICHIER, en-tête comprise : c'est le seul repère
     // que l'utilisateur puisse retrouver dans son tableur.
-    expect(apercu.erreurs).toEqual([{ ligne: 3, message: 'colonne « name » vide' }]);
+    expect(apercu.erreurs).toMatchObject([
+      { ligne: 3, cle: "imports:motifs.colonneVide", params: { colonne: "name" } },
+    ]);
   });
 });
 
@@ -830,8 +832,8 @@ describe("EX-CNG-14, RG-CNG-32 — importer des congés en masse", () => {
     // Fondre une incohérence de dates dans « ignoré » la rendrait invisible :
     // l'agent croirait à un doublon et ne corrigerait jamais sa ligne.
     expect(rendu.ignores).toBe(0);
-    expect(rendu.erreurs).toEqual([
-      { ligne: 2, message: expect.stringContaining("précède la date de début") },
+    expect(rendu.erreurs).toMatchObject([
+      { ligne: 2, cle: "imports:motifs.datesInversees" },
     ]);
     expect(await prisma.leave.count()).toBe(0);
   });
@@ -976,7 +978,9 @@ describe("EX-CNG-14, RG-CNG-32 — importer des congés en masse", () => {
     );
 
     expect(rendu.importes).toBe(2);
-    expect(rendu.erreurs).toEqual([{ ligne: 3, message: "colonne « userEmail » vide" }]);
+    expect(rendu.erreurs).toMatchObject([
+      { ligne: 3, cle: "imports:motifs.colonneVide", params: { colonne: "userEmail" } },
+    ]);
   });
 
   it("RG-IMP-03 — l'aperçu des congés N'ÉCRIT RIEN", async () => {
@@ -1233,5 +1237,323 @@ describe("EX-TSK-08 — l'import porte l'avancement, et l'export le rend", () =>
     expect(csv.split("\n")[0]).toContain("progress");
     const ligne = csv.split("\n").find((l) => l.startsWith("À exporter"));
     expect(ligne).toContain(";42");
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+
+/**
+ * `EX-USR-08` — **le mot de passe d'un import est haché comme tous les autres.**
+ *
+ * Le mot de passe lu du CSV partait tel quel dans la colonne
+ * `motDePasseHash`. Deux défauts pour une seule ligne, et le second masquait
+ * le premier : le fichier d'import — qui circule par courriel et dort dans un
+ * dossier partagé — devenait la table des secrets de l'instance, et aucun des
+ * comptes créés ne pouvait se connecter, la vérification comparant un haché
+ * argon2 à ce qu'elle trouvait. Un import en masse « réussi » ne produisait
+ * que des comptes inutilisables.
+ *
+ * Le contrôle porte sur l'EFFET — la connexion — et pas seulement sur la forme
+ * du haché : « ce n'est pas le mot de passe en clair » serait vrai d'une
+ * chaîne vide comme d'un sel mal posé.
+ */
+describe("EX-USR-08 — le mot de passe importé est haché, jamais stocké en clair", () => {
+  const MDP = "Provisoire-2026!";
+  const fichierAvec = (email: string, login: string) =>
+    `email;login;password;firstName;lastName\n${email};${login};${MDP};Noé;Arbogast\n`;
+
+  it("EX-USR-08 — le mot de passe du fichier n'est nulle part en base", async () => {
+    await imports.importerUtilisateurs(fichierAvec("clair@exemple.fr", "clair"), acteur);
+    const cree = await prisma.user.findUniqueOrThrow({ where: { email: "clair@exemple.fr" } });
+
+    expect(cree.motDePasseHash).not.toBe(MDP);
+    expect(cree.motDePasseHash).not.toContain(MDP);
+    // Argon2id, `ADR-0008` — la même empreinte que tous les autres chemins de
+    // création de compte, pas une variante propre à l'import.
+    expect(cree.motDePasseHash).toMatch(/^\$argon2id\$/);
+  });
+
+  it("EX-USR-08 — LE COMPTE IMPORTÉ PEUT SE CONNECTER : c'est le critère", async () => {
+    const { verifierMotDePasse } = await import("../auth/mots-de-passe.js");
+    await imports.importerUtilisateurs(fichierAvec("entrant@exemple.fr", "entrant"), acteur);
+    const cree = await prisma.user.findUniqueOrThrow({ where: { email: "entrant@exemple.fr" } });
+
+    expect(await verifierMotDePasse(cree.motDePasseHash, MDP)).toBe(true);
+    expect(await verifierMotDePasse(cree.motDePasseHash, "autre chose")).toBe(false);
+    // `RG-AUTH-07` — provisoire, donc à changer à la première connexion.
+    expect(cree.motDePasseAChanger).toBe(true);
+  });
+
+  it("EX-USR-08 — deux comptes au MÊME mot de passe ne portent pas la même empreinte", async () => {
+    // Un haché salé diffère à chaque appel. Deux empreintes identiques
+    // diraient que le sel n'est pas posé — le mot de passe en clair, lui,
+    // aurait donné exactement ce symptôme.
+    await imports.importerUtilisateurs(
+      `email;login;password;firstName;lastName\n` +
+        `un@exemple.fr;un;${MDP};A;Un\n` +
+        `deux@exemple.fr;deux;${MDP};B;Deux\n`,
+      acteur,
+    );
+    const un = await prisma.user.findUniqueOrThrow({ where: { email: "un@exemple.fr" } });
+    const deux = await prisma.user.findUniqueOrThrow({ where: { email: "deux@exemple.fr" } });
+    expect(un.motDePasseHash).not.toBe(deux.motDePasseHash);
+  });
+});
+
+/**
+ * `RG-USR-01`, `RG-IMP-04` — **deux collisions, deux messages.**
+ *
+ * Une seule requête `findFirst({ OR: [{ email }, { login }] })` incrémentait
+ * « ignorés » sans un mot : deux lignes refusées pour deux causes opposées —
+ * l'adresse d'un côté, l'identifiant de l'autre — et rien pour dire laquelle
+ * corriger. Le compte rendu annonçait « 2 ignorés » sur un fichier dont une
+ * seule ligne était réellement un rejeu (parcours P-99).
+ */
+describe("RG-USR-01, RG-IMP-04 — collision d'adresse et collision d'identifiant se distinguent", () => {
+  beforeEach(async () => {
+    await prisma.user.create({
+      data: {
+        id: uuid(), email: "l.vasseur@exemple.fr", login: "l.vasseur",
+        motDePasseHash: "x", prenom: "Léa", nom: "Vasseur",
+      },
+    });
+  });
+
+  const COLLISIONS =
+    "email;login;password;firstName;lastName\n" +
+    "l.vasseur@exemple.fr;nouveau.login;Provisoire-2026!;Homonyme;Email\n" +
+    "nouveau.email@exemple.fr;l.vasseur;Provisoire-2026!;Homonyme;Login\n";
+
+  it("RG-USR-01 — LES DEUX MOTIFS SONT DISTINCTS, et chacun porte sa ligne", async () => {
+    const rendu = await imports.importerUtilisateurs(COLLISIONS, acteur);
+
+    expect(rendu).toMatchObject({ importes: 0, ignores: 2, erreurs: [] });
+    expect(rendu.ignorees.map((i) => i.ligne)).toEqual([2, 3]);
+    expect(rendu.ignorees[0]?.cle).toBe("imports:motifs.emailDejaPris");
+    expect(rendu.ignorees[1]?.cle).toBe("imports:motifs.loginDejaPris");
+    // Le contrôle que la recette mène à l'écran : deux phrases différentes.
+    expect(rendu.ignorees[0]?.message).not.toBe(rendu.ignorees[1]?.message);
+  });
+
+  it("RG-USR-01 — chaque motif NOMME la valeur en cause, pas seulement sa nature", async () => {
+    const rendu = await imports.importerUtilisateurs(COLLISIONS, acteur);
+    expect(rendu.ignorees[0]?.params).toMatchObject({ email: "l.vasseur@exemple.fr" });
+    expect(rendu.ignorees[1]?.params).toMatchObject({ login: "l.vasseur" });
+  });
+
+  it("RG-IMP-04 — rien n'est créé : un ignoré n'est pas un import silencieux", async () => {
+    const avant = await prisma.user.count();
+    await imports.importerUtilisateurs(COLLISIONS, acteur);
+    expect(await prisma.user.count()).toBe(avant);
+  });
+});
+
+/**
+ * `RG-IMP-04`, `RG-GEN-03` — **le mode Ajouter n'insère pas ce que l'analyse
+ * vient de refuser.**
+ *
+ * Seul le mode Remplacer regardait `apercu.erreurs`. En mode Ajouter, une
+ * ligne portant « En cours » plutôt que `doing` partait en base, PostgreSQL la
+ * refusait sur son type énuméré, et la transaction entière tombait : HTTP 500,
+ * rien d'importé, aucun compte rendu, et **la ligne saine du même fichier
+ * perdue avec les fautives** (parcours P-60).
+ *
+ * L'analyse et l'écriture doivent lire le même fichier de la même façon.
+ */
+describe("RG-IMP-04, RG-GEN-03 — le mode Ajouter écarte les lignes en erreur", () => {
+  const ENTETE_PROJET =
+    "rowType;name;dueDate;title;description;status;priority;assigneeEmail;" +
+    "milestoneName;estimatedHours;startDate;endDate;progress;subtasks\n";
+
+  /** Le fichier de Driss : un libellé traduit, une progression hors bornes, une ligne saine. */
+  const FICHIER_P60 =
+    ENTETE_PROJET +
+    "TASK;;;Libellé traduit;;En cours;normal;;;;;;;\n" +
+    "TASK;;;Progression hors bornes;;doing;normal;;;;;;500;\n" +
+    "TASK;;;Ligne saine;;doing;normal;;;;;;40;\n";
+
+  it("RG-GEN-03 — L'IMPORT N'EXPLOSE PLUS : il rend un compte rendu, pas une panne", async () => {
+    // Le contrôle porte sur l'absence d'exception autant que sur le contenu :
+    // c'est un 500 sans compte rendu qui était rendu à l'utilisateur.
+    const rendu = await imports.importerProjet(projet, FICHIER_P60, "ajouter", acteur);
+    expect(rendu.erreurs.map((e) => e.ligne)).toEqual([2, 3]);
+  });
+
+  it("RG-IMP-04 — LA LIGNE SAINE ENTRE SEULE, les deux fautives restent dehors", async () => {
+    const rendu = await imports.importerProjet(projet, FICHIER_P60, "ajouter", acteur);
+
+    expect(rendu.importes).toBe(1);
+    const taches = await prisma.task.findMany({ where: { projectId: projet } });
+    expect(taches.map((t) => t.titre)).toEqual(["Ligne saine"]);
+  });
+
+  it("RG-IMP-04 — chaque erreur porte sa CAUSE, pas un message technique de base", async () => {
+    const rendu = await imports.importerProjet(projet, FICHIER_P60, "ajouter", acteur);
+    expect(rendu.erreurs[0]?.cle).toBe("imports:motifs.valeurInconnue");
+    expect(rendu.erreurs[0]?.params).toMatchObject({ colonne: "status", valeur: "En cours" });
+    expect(rendu.erreurs[1]?.cle).toBe("imports:motifs.nombreHorsBornes");
+    expect(rendu.erreurs[1]?.params).toMatchObject({ colonne: "progress", valeur: "500" });
+    for (const e of rendu.erreurs) {
+      // Le symptôme d'origine : « invalid input value for enum … » remonté tel quel.
+      expect(e.message).not.toMatch(/enum|Prisma|invalid input/i);
+    }
+  });
+
+  it("RG-IMP-04 — UN JALON SIGNALÉ N'EST PAS CRÉÉ NON PLUS : le filtre porte sur les deux types", async () => {
+    /*
+     * La ligne de jalon est parfaitement insérable — nom, échéance — mais son
+     * `status` porte un libellé traduit, que l'analyse refuse. Sans le filtre
+     * elle entrait sans un bruit : pas d'erreur PostgreSQL pour la trahir,
+     * puisqu'un jalon n'a pas de colonne `status` en base. C'est le cas le
+     * plus discret de la famille — une ligne signalée à l'écran, écrite quand
+     * même, et rien pour le dire.
+     */
+    const fichier =
+      ENTETE_PROJET +
+      "MILESTONE;Jalon signalé;2026-09-30;;;En cours;;;;;;;;\n" +
+      "TASK;;;Tâche du fichier;;doing;normal;;;;;;10;\n";
+    const rendu = await imports.importerProjet(projet, fichier, "ajouter", acteur);
+
+    expect(rendu.erreurs.map((e) => e.ligne)).toEqual([2]);
+    expect(rendu.importes).toBe(1);
+    expect(await prisma.milestone.count({ where: { projectId: projet } })).toBe(0);
+    expect(await prisma.task.count({ where: { projectId: projet } })).toBe(1);
+  });
+});
+
+/**
+ * `RG-IMP-04` — **un ignoré n'est pas muet.**
+ *
+ * « Trois familles, jamais deux » vaut aussi pour le détail : la règle demande
+ * « le détail des erreurs », et un ignoré sans motif oblige à comparer le
+ * fichier à la base ligne par ligne pour savoir ce qui a été laissé de côté.
+ */
+describe("RG-IMP-04 — le compte rendu ne peut pas se contredire", () => {
+  it("RG-IMP-04 — `ignores` est la LONGUEUR de `ignorees`, sur tous les chemins", async () => {
+    const rendus = [
+      await imports.importerUtilisateurs(
+        "email;login;password;firstName;lastName\n" +
+          "z@exemple.fr;z;Provisoire-2026!;Z;Z\nz@exemple.fr;z2;Provisoire-2026!;Z;Z\n",
+        acteur,
+      ),
+      await imports.importerJalonsProjet(
+        projet,
+        "name;description;dueDate\nLancement;;2026-09-30\nLancement;;2026-09-30\n",
+        acteur,
+      ),
+      await imports.importerCompetences(
+        "name;category;description;requiredCount\nPostgreSQL;technical;;2\nPostgreSQL;technical;;2\n",
+        acteur,
+      ),
+    ];
+    for (const rendu of rendus) {
+      expect(rendu.ignores).toBe(rendu.ignorees.length);
+      expect(rendu.ignores).toBeGreaterThan(0);
+    }
+  });
+
+  it("RG-IMP-04 — un jalon déjà présent est ignoré AVEC son nom et sa ligne", async () => {
+    const fichier = "name;description;dueDate\nLancement;;2026-09-30\n";
+    await imports.importerJalonsProjet(projet, fichier, acteur);
+    const second = await imports.importerJalonsProjet(projet, fichier, acteur);
+
+    expect(second.ignorees).toEqual([
+      {
+        ligne: 2,
+        cle: "imports:motifs.jalonDejaPresent",
+        params: { nom: "Lancement" },
+        message: expect.stringContaining("Lancement"),
+      },
+    ]);
+  });
+
+  it("RG-CMP-05 — une compétence déjà présente est ignorée AVEC son nom", async () => {
+    const fichier = "name;category;description;requiredCount\nPostgreSQL;technical;;2\n";
+    await imports.importerCompetences(fichier, acteur);
+    const second = await imports.importerCompetences(fichier, acteur);
+
+    expect(second.ignorees[0]).toMatchObject({
+      ligne: 2,
+      cle: "imports:motifs.competenceDejaPresente",
+      params: { nom: "PostgreSQL" },
+    });
+  });
+});
+
+/**
+ * `RG-GEN-08` — **aucune chaîne visible en dur, le compte rendu compris.**
+ *
+ * En session anglaise, la fenêtre d'import affichait « Row 6 — aucun compte ne
+ * porte l'adresse « … » » : le numéro de ligne traduit, le message non
+ * (parcours P-97 en, P-98 en). Chaque ligne du compte rendu porte désormais sa
+ * clé et ses paramètres ; la phrase française n'est plus qu'un repli.
+ *
+ * Le contrôle est mené sur un fichier RÉEL et non sur la table des motifs :
+ * c'est le chemin d'exécution qui doit les employer, et il aurait pu en
+ * oublier un.
+ */
+describe("RG-GEN-08 — chaque ligne du compte rendu est traduisible", () => {
+  it("RG-GEN-08 — sur un fichier d'utilisateurs mêlant les trois familles", async () => {
+    await prisma.user.create({
+      data: {
+        id: uuid(), email: "deja@exemple.fr", login: "deja",
+        motDePasseHash: "x", prenom: "D", nom: "J",
+      },
+    });
+    const rendu = await imports.importerUtilisateurs(
+      "email;login;password;firstName;lastName\n" +
+        "neuf@exemple.fr;neuf;Provisoire-2026!;N;F\n" +
+        "deja@exemple.fr;autre;Provisoire-2026!;D;J\n" +
+        ";sansmail;Provisoire-2026!;S;M\n",
+      acteur,
+    );
+
+    expect(rendu).toMatchObject({ importes: 1, ignores: 1 });
+    for (const ligne of [...rendu.ignorees, ...rendu.erreurs]) {
+      expect(ligne.cle, ligne.message).toMatch(/^imports:motifs\.[a-zA-Z]+$/);
+      expect(ligne.ligne).toBeGreaterThan(1);
+      // Le repli reste là : le journal du serveur et un client sans catalogue
+      // en vivent. Il n'est simplement plus la seule chose transmise.
+      expect(ligne.message.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("RG-GEN-08 — sur un fichier de congés, y compris le refus chiffré de RG-CNG-21", async () => {
+    const type = await prisma.leaveType.create({
+      data: { code: "CA", nom: "Congés annuels", validationRequise: true },
+    });
+    const agent = await prisma.user.create({
+      data: {
+        id: uuid(), email: "agent@exemple.fr", login: `a-${uuid().slice(0, 8)}`,
+        motDePasseHash: "x", prenom: "A", nom: "G",
+      },
+    });
+    // Un solde volontairement étroit : la dernière ligne doit le dépasser.
+    await prisma.leaveBalance.create({
+      data: { userId: agent.id, typeId: type.id, annee: 2026, joursAttribues: 1 },
+    });
+
+    const rendu = await imports.importerConges(
+      "userEmail;leaveTypeName;startDate;endDate;halfDay;comment\n" +
+        "inconnu@exemple.fr;Congés annuels;2026-10-05;2026-10-06;;\n" +
+        "agent@exemple.fr;Type qui n'existe pas;2026-10-05;2026-10-06;;\n" +
+        "agent@exemple.fr;Congés annuels;2026-10-09;2026-10-05;;\n" +
+        "agent@exemple.fr;Congés annuels;2026-11-02;2026-11-20;;\n",
+      acteur,
+      perimetreGlobal(),
+    );
+
+    expect(rendu.erreurs.map((e) => e.cle)).toEqual([
+      "imports:motifs.compteInconnu",
+      "imports:motifs.typeInconnu",
+      "imports:motifs.datesInversees",
+      "imports:motifs.soldeInsuffisant",
+    ]);
+    // `RG-CNG-21` — les chiffres du refus voyagent en PARAMÈTRES : une phrase
+    // traduite qui les perdrait obligerait à recompter à la main.
+    expect(rendu.erreurs[3]?.params).toMatchObject({ annee: "2026" });
+    expect(Object.keys(rendu.erreurs[3]?.params ?? {})).toEqual(
+      expect.arrayContaining(["annee", "demandes", "disponibles", "manquants"]),
+    );
   });
 });

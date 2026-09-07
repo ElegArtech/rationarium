@@ -6,6 +6,7 @@ import { Button, Menu, MenuItem, MenuTrigger, Popover } from "react-aria-compone
 import * as apiTaches from "../../api/taches.js";
 import * as apiProjets from "../../api/projets.js";
 import { messageErreur } from "../../api/erreurs.js";
+import { ErreurApi } from "../../api/client.js";
 import { usePeut } from "../../session/session.js";
 import { Chargement, ErreurDeChargement, AccesRefuse } from "../../composants/etats.js";
 import { Fenetre } from "../../composants/fenetre.js";
@@ -95,7 +96,6 @@ export function GanttProjet({ projetId }: { projetId: string }) {
   const taches = useQuery({
     queryKey: ["taches", { projectId: projetId }],
     queryFn: () => apiTaches.lister({ projectId: projetId }),
-    enabled: peut("tasks:read"),
   });
 
   const route = useQuery({
@@ -125,7 +125,6 @@ export function GanttProjet({ projetId }: { projetId: string }) {
     queries: aPrerequis.map((x) => ({
       queryKey: ["taches", x.id, "dependances"],
       queryFn: () => apiTaches.dependances(x.id),
-      enabled: peut("tasks:read"),
     })),
   });
 
@@ -207,7 +206,17 @@ export function GanttProjet({ projetId }: { projetId: string }) {
     onError: (e) => annoncer("err", messageErreur(e, tErreurs, t("ganttProjet.echecDecalage"))),
   });
 
-  if (!peut("tasks:read")) return <AccesRefuse />;
+  /*
+   * `RG-ADM-03`, `RG-GEN-06` — **le refus se prononce au SERVEUR.**
+   *
+   * DÉFAUT ACTIF CORRIGÉ (P-91, même forme que la vue 33). La vue rendait le
+   * refus sur la seule permission lue au client : rien n'atteignait
+   * `permissions.garde.ts`, seul endroit du produit qui TRACE un accès
+   * refusé. Le masque de courtoisie porte sur les commandes d'écriture,
+   * jamais sur la lecture d'une vue entière.
+   */
+  if (taches.error instanceof ErreurApi && taches.error.statut === 403)
+    return <AccesRefuse />;
   if (projet.isPending) return <Chargement quoi={t("ganttProjet.leProjet")} />;
   if (projet.isError)
     return <ErreurDeChargement erreur={projet.error} surReessai={() => void projet.refetch()} />;

@@ -1,12 +1,11 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
+import { Link, useLocation } from "@tanstack/react-router";
 import { Button, Dialog, DialogTrigger, Popover } from "react-aria-components";
 import { STATUTS_TACHE, PRIORITES, STATUTS_CONGE, NIVEAUX_COMPETENCE, TYPES_ACTIVITE, CATEGORIES_COMPETENCE } from "@rationarium/contracts";
 import * as api from "../../api/administration.js";
 import { ErreurApi } from "../../api/client.js";
-import { usePeut } from "../../session/session.js";
 import { Chargement, ErreurDeChargement, AccesRefuse } from "../../composants/etats.js";
 import { Pastille, AvatarAgent, Barre, useLibelle } from "../../composants/pastilles.js";
 import { formaterDate, formaterNombre } from "../../formats.js";
@@ -33,7 +32,19 @@ import "./suivi.css";
  * faux ensemble.
  */
 
-type Onglet = "ensemble" | "taches" | "conges" | "teletravail" | "temps" | "competences";
+/**
+ * Les six sections, **dans l'ordre où la barre les pose**.
+ *
+ * Énumérées en valeurs et non en type seul : c'est cette liste qui recale un
+ * fragment inconnu sur la première section, comme la vue 19 le fait de ses
+ * onglets. Un type ne recale rien.
+ */
+const ONGLETS = ["ensemble", "taches", "conges", "teletravail", "temps", "competences"] as const;
+type Onglet = (typeof ONGLETS)[number];
+
+/** L'onglet à rendre, recalé sur ce qui existe — même forme que la vue 19. */
+export const ongletSuivi = (fragment: string): Onglet =>
+  ONGLETS.find((o) => o === fragment) ?? ONGLETS[0];
 
 type Etendue = "periode" | "annee" | "maintenant";
 
@@ -72,21 +83,35 @@ function bornes(periode: Periode): { debut: string; fin: string } {
 
 export function SuiviIndividuel({ userId }: { userId: string }) {
   const { t } = useTranslation("administration");
-  const peut = usePeut();
   const [periode, setPeriode] = useState<Periode>("mois");
-  const [onglet, setOnglet] = useState<Onglet>("ensemble");
+  /*
+   * **L'onglet est un état d'ADRESSE, pas un état local.** Même défaut, même
+   * remède que la vue 31 et que la vue 19 : la barre posait `<a href="#temps">`
+   * puis `e.preventDefault()`, si bien que l'adresse affichée au survol ne
+   * menait nulle part et que revenir dans la vue perdait la section. Un entretien
+   * annuel s'ouvre à plusieurs, et « regarde son temps » doit être un lien.
+   */
+  const fragment = useLocation({ select: (l) => l.hash });
+  const onglet = ongletSuivi(fragment);
 
   const fenetre = useMemo(() => bornes(periode), [periode]);
 
   const requete = useQuery({
     queryKey: ["suivi", userId, fenetre],
     queryFn: () => api.suivi(userId, fenetre.debut, fenetre.fin),
-    enabled: peut("users:read_individual_tracking"),
   });
 
-  // `RG-GEN-06` traite l'action ; ici c'est la page entière. L'état de refus
-  // dit ce qui manque sans détailler ce qu'il y a derrière.
-  if (!peut("users:read_individual_tracking")) return <AccesRefuse />;
+  /*
+   * `RG-ADM-03`, `RG-GEN-06` — **le refus se prononce au SERVEUR.**
+   *
+   * DÉFAUT ACTIF CORRIGÉ (P-91, même forme que la vue 33). La requête portait
+   * `enabled: peut(…)` et la vue rendait le refus avant tout appel : rien
+   * n'atteignait `permissions.garde.ts`, seul endroit du produit qui TRACE un
+   * accès refusé. Le masque de courtoisie porte sur les commandes d'écriture,
+   * jamais sur la lecture d'une vue entière.
+   */
+  if (requete.error instanceof ErreurApi && requete.error.statut === 403)
+    return <AccesRefuse />;
 
   if (requete.isPending) return <Chargement quoi={t("suivi.leSuivi")} />;
   if (requete.isError) {
@@ -115,7 +140,9 @@ export function SuiviIndividuel({ userId }: { userId: string }) {
     { cle: "competences", libelle: t("suivi.ongletCompetences") },
   ];
 
-  const sousTitre = [donnees.agent.departement?.nom, donnees.agent.role?.code]
+  // Le LIBELLÉ du rôle, pas son code : « Contributeur projet » et non
+  // `PROJECT_CONTRIBUTOR`. Même forme que la pastille de la vue 27.
+  const sousTitre = [donnees.agent.departement?.nom, donnees.agent.role?.nom]
     .filter(Boolean)
     .join(" · ");
 
@@ -151,18 +178,21 @@ export function SuiviIndividuel({ userId }: { userId: string }) {
 
       <nav className="tabbar" aria-label={t("suivi.sections")}>
         {onglets.map((o) => (
-          <a
+          <Link
             key={o.cle}
-            href={`#${o.cle}`}
+            to="/utilisateurs/$id/suivi"
+            params={{ id: userId }}
+            hash={o.cle}
+            /* Aucun élément ne porte l'identifiant du fragment : le routeur
+               chercherait une cible qui n'existe pas. */
+            hashScrollIntoView={false}
             className={o.cle === onglet ? "is-active" : ""}
+            /* Un lien navigue, il ne bascule pas : `aria-current`, jamais
+               `aria-pressed`. */
             aria-current={o.cle === onglet ? "page" : undefined}
-            onClick={(e) => {
-              e.preventDefault();
-              setOnglet(o.cle);
-            }}
           >
             {o.libelle}
-          </a>
+          </Link>
         ))}
       </nav>
 

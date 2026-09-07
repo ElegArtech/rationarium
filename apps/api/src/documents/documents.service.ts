@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { PrismaService } from "../prisma.service.js";
 import { AuditService } from "../commun/audit.service.js";
 import { PerimetreService, type Perimetre } from "../commun/perimetre.service.js";
+import { cheminDeStockage, ecrireContenu, lireContenu } from "./stockage.js";
 
 /**
  * Documents et commentaires — M15.
@@ -50,9 +51,13 @@ export class DocumentsService {
    * `ab/cd/abcdef…` — deux niveaux de répartition pour qu'aucun répertoire ne
    * porte des centaines de milliers d'entrées. Le nom d'origine ne participe
    * jamais au chemin : il est une métadonnée d'affichage, pas une adresse.
+   *
+   * **Interne au serveur.** Il ne sort dans aucune réponse : le chemin
+   * physique d'un fichier n'apprend rien à un client et renseigne un
+   * attaquant. Voir `stockage.ts`, où il vit désormais.
    */
   cheminDeStockage(empreinte: string): string {
-    return `${empreinte.slice(0, 2)}/${empreinte.slice(2, 4)}/${empreinte}`;
+    return cheminDeStockage(empreinte);
   }
 
   empreinteDe(contenu: Buffer): string {
@@ -70,6 +75,13 @@ export class DocumentsService {
     if (!donnees.projectId && !donnees.taskId) throw new ErreurDocument("rattachement_requis");
 
     const empreinte = this.empreinteDe(donnees.contenu);
+    /*
+     * Le contenu est écrit AVANT la ligne : une ligne sans son fichier est un
+     * document qui ne se télécharge pas — le défaut trouvé en recette. Un
+     * fichier sans sa ligne n'est qu'un octet orphelin, invisible et
+     * ramassable.
+     */
+    await ecrireContenu(empreinte, donnees.contenu);
     const document = await this.prisma.document.create({
       data: {
         nom: donnees.nom,
@@ -86,7 +98,7 @@ export class DocumentsService {
       action: "document.create", typeEntite: "Document", entiteId: document.id, acteurId,
       detail: { nom: donnees.nom, octets: donnees.contenu.byteLength },
     });
-    return { ...document, chemin: this.cheminDeStockage(empreinte) };
+    return document;
   }
 
   /**
@@ -151,16 +163,32 @@ export class DocumentsService {
     return document;
   }
 
-  /** `EX-DOC-02` — télécharger. Tracé distinctement de la consultation. */
+  /**
+   * `EX-DOC-02` — télécharger. Tracé distinctement de la consultation.
+   *
+   * Rend **le fichier**, pas la ligne qui le décrit : son nom, son type et son
+   * contenu, de quoi composer une réponse en pièce jointe. Ni l'empreinte, ni
+   * le chemin, ni les identifiants internes ne sortent — la réponse rendait
+   * jusqu'ici l'objet Prisma augmenté de son chemin de stockage, et le
+   * navigateur quittait l'application pour l'afficher (P-53).
+   *
+   * Un contenu absent est un `introuvable` : la ligne peut exister sans son
+   * fichier — documents antérieurs au magasin, jeux de données écrits
+   * directement en base. Rendre une réponse vide avec le bon nom livrerait un
+   * fichier corrompu, ce qui est pire qu'un refus lisible.
+   */
   async telecharger(
     id: string,
     acteurId: string,
     perimetre: Perimetre,
     permissions: ReadonlySet<string>,
-  ) {
+  ): Promise<{ nom: string; typeMime: string; contenu: Buffer }> {
     const document = await this.prisma.document.findUnique({ where: { id } });
     if (!document) throw new ErreurDocument("introuvable");
     await this.exigerVisible(document, perimetre, permissions);
+
+    const contenu = await lireContenu(document.empreinte);
+    if (!contenu) throw new ErreurDocument("introuvable");
 
     // Consulter et télécharger ne sont pas le même geste : le second sort la
     // donnée du système. Les tracer sous la même action les rendrait
@@ -168,7 +196,7 @@ export class DocumentsService {
     await this.audit.tracer({
       action: "document.download", typeEntite: "Document", entiteId: id, acteurId,
     });
-    return { ...document, chemin: this.cheminDeStockage(document.empreinte) };
+    return { nom: document.nom, typeMime: document.typeMime, contenu };
   }
 
   /** `EX-DOC-02` — renommer. Le nom est une métadonnée : le contenu ne bouge pas. */

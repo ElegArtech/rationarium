@@ -4,7 +4,8 @@ import { Button } from "react-aria-components";
 import { Champ, ChampMotDePasse } from "../composants/champs.js";
 import { connexion } from "../api/session.js";
 import { messageErreur } from "../api/erreurs.js";
-import { GabaritAcces } from "./gabarit-acces.js";
+import { CLE_SESSION_EXPIREE } from "../api/client.js";
+import { GabaritAcces, LienAcces } from "./gabarit-acces.js";
 
 /**
  * Vue 01 — Connexion.
@@ -36,6 +37,26 @@ export function Connexion({
   const [reussi, setReussi] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
   const [erreurChamp, setErreurChamp] = useState<{ identifiant?: string; motDePasse?: string }>({});
+
+  /**
+   * `EX-AUTH-02`, `RG-GEN-03` — **pourquoi** on est revenu ici.
+   *
+   * Une session expirée renvoyait l'utilisateur nulle part : la vue restait à
+   * l'écran avec ses données périmées, sous un « Le chargement a échoué ·
+   * Session requise » qui parle d'un chargement, pas d'une session. Le client
+   * HTTP ramène désormais à la vue 01 et pose ce drapeau ; il est lu **une
+   * fois**, puis effacé — revenir à la connexion de son plein gré ne doit pas
+   * réafficher une expiration passée.
+   */
+  const [expiree] = useState(() => {
+    try {
+      const pose = window.sessionStorage.getItem(CLE_SESSION_EXPIREE) === "1";
+      if (pose) window.sessionStorage.removeItem(CLE_SESSION_EXPIREE);
+      return pose;
+    } catch {
+      return false;
+    }
+  });
 
   async function soumettre(e: FormEvent) {
     e.preventDefault();
@@ -90,6 +111,15 @@ export function Connexion({
       intro={t("connexion.intro")}
     >
       <form onSubmit={soumettre} noValidate autoComplete="on">
+        {expiree && !erreur ? (
+          <div className="alert alert-warn" role="status">
+            <span className="alert-icon" aria-hidden="true">
+              !
+            </span>
+            <span>{t("connexion.sessionExpiree")}</span>
+          </div>
+        ) : null}
+
         {erreur ? (
           <div className="alert alert-error" role="alert">
             <span className="alert-icon" aria-hidden="true">
@@ -117,9 +147,9 @@ export function Connexion({
           autoComplete="current-password"
           erreur={erreurChamp.motDePasse}
           action={
-            <a href="/mot-de-passe-oublie" className="link link-sm">
+            <LienAcces vers="/mot-de-passe-oublie" className="link link-sm">
               {t("connexion.motDePasseOublie")}
-            </a>
+            </LienAcces>
           }
         />
 
@@ -135,9 +165,9 @@ export function Connexion({
         {inscriptionOuverte ? (
           <div className="signup-row">
             <span>{t("connexion.pasDeCompte")}</span>
-            <a href="/inscription" className="link">
+            <LienAcces vers="/inscription" className="link">
               {t("connexion.sInscrire")}
-            </a>
+            </LienAcces>
           </div>
         ) : null}
       </form>

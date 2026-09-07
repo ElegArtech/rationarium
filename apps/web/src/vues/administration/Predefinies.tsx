@@ -6,6 +6,7 @@ import { DUREES_TACHE_PREDEFINIE, TYPES_RECURRENCE } from "@rationarium/contract
 import * as api from "../../api/administration.js";
 import * as apiPlanning from "../../api/planning.js";
 import { messageErreur } from "../../api/erreurs.js";
+import { ErreurApi } from "../../api/client.js";
 import { usePeut } from "../../session/session.js";
 import { Chargement, ErreurDeChargement, AccesRefuse } from "../../composants/etats.js";
 import { useLibelle } from "../../composants/pastilles.js";
@@ -88,10 +89,19 @@ export function Predefinies() {
   const requete = useQuery({
     queryKey: ["predefinies", inactives],
     queryFn: () => api.cataloguePredefini(inactives),
-    enabled: peut("predefined_tasks:read"),
   });
 
-  if (!peut("predefined_tasks:read")) return <AccesRefuse />;
+  /*
+   * `RG-ADM-03`, `RG-GEN-06` — **le refus se prononce au SERVEUR.**
+   *
+   * DÉFAUT ACTIF CORRIGÉ (P-91, même forme que la vue 33). La requête portait
+   * `enabled: peut(…)` et la vue rendait le refus avant tout appel : rien
+   * n'atteignait `permissions.garde.ts`, seul endroit du produit qui TRACE un
+   * accès refusé. Le masque de courtoisie porte sur les commandes d'écriture,
+   * jamais sur la lecture d'une vue entière.
+   */
+  if (requete.error instanceof ErreurApi && requete.error.statut === 403)
+    return <AccesRefuse />;
   if (requete.isPending) return <Chargement quoi={t("predefinies.leCatalogue")} />;
   if (requete.isError)
     return <ErreurDeChargement erreur={requete.error} surReessai={() => void requete.refetch()} />;

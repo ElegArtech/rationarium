@@ -45,6 +45,29 @@ async function departement() {
   return id;
 }
 
+/**
+ * Un service d'un département, avec son manager et ses membres.
+ *
+ * `RG-CNG-15` parle des SERVICES du déclarant, pas de son département : sans
+ * cette maille, un test « pour autrui » ne peut pas distinguer les deux, et
+ * c'est exactement cette confusion qui a laissé passer la déclaration pour un
+ * agent d'un autre service.
+ */
+async function service(
+  departementId: string,
+  { manager, membres = [] }: { manager?: string; membres?: string[] } = {},
+) {
+  const id = uuid();
+  await prisma.service.create({
+    data: {
+      id, nom: `S-${id.slice(0, 8)}`, departementId,
+      ...(manager ? { managerId: manager } : {}),
+      membres: { create: [...(manager ? [manager] : []), ...membres].map((userId) => ({ userId })) },
+    },
+  });
+  return id;
+}
+
 /** Un type de congé actif, avec un code unique. */
 async function creerType() {
   const id = uuid();
@@ -589,6 +612,141 @@ describe("RG-CNG-29 à 31 — référentiel des types", () => {
     expect(r.desactive).toBe(false);
     expect(await prisma.leaveType.findUnique({ where: { id: type } })).toBeNull();
   });
+
+  /**
+   * **`EX-CNG-13` — le référentiel n'avait ni création ni modification.**
+   *
+   * `/conges/types` n'exposait que `GET` et `DELETE`. Deux conséquences
+   * mesurées en recette : l'état vide du produit invitait à « en créer un dans
+   * l'onglet Types de congés », vers une porte qui n'existait pas ; et la
+   * ligne du référentiel affichait des colonnes qu'aucun geste ne pouvait
+   * corriger. Cinquième occurrence de « le verbe manque » dans ce dépôt.
+   */
+  const typeNeuf = (suffixe: string) => ({
+    code: `N${suffixe}`,
+    nom: "Congé exceptionnel",
+    description: "Événement familial",
+    icone: "star",
+    couleur: "#3366CC",
+    remunere: true,
+    validationRequise: true,
+    limiteAnnuelle: 3,
+    ordre: 7,
+    actif: true,
+  });
+
+  it("EX-CNG-13 — un type de congé SE CRÉE, et il est immédiatement au catalogue", async () => {
+    const acteur = await agent();
+    const cree = await conges.creerType(typeNeuf(uuid().slice(0, 6).toUpperCase()), acteur);
+
+    expect(cree.nom).toBe("Congé exceptionnel");
+    expect(cree.limiteAnnuelle).toBe(3);
+    // `systeme` n'est pas un champ d'entrée : un type créé à la main n'en est pas.
+    expect(cree.systeme).toBe(false);
+
+    const catalogue = await conges.typesDeConge();
+    expect(catalogue.map((t) => t.id)).toContain(cree.id);
+
+    const trace = await prisma.auditLog.findFirst({
+      where: { action: "leave_type.create", entiteId: cree.id },
+    });
+    expect(trace?.acteurId).toBe(acteur);
+  });
+
+  it("EX-CNG-13 — un code déjà pris est refusé par un message qui NOMME le champ", async () => {
+    const acteur = await agent();
+    const donnees = typeNeuf(uuid().slice(0, 6).toUpperCase());
+    await conges.creerType(donnees, acteur);
+    await expect(conges.creerType(donnees, acteur)).rejects.toMatchObject({
+      code: "code_deja_pris",
+    });
+  });
+
+  it("EX-CNG-13 — un type SE MODIFIE, et la modification est relue en base", async () => {
+    const acteur = await agent();
+    const cree = await conges.creerType(typeNeuf(uuid().slice(0, 6).toUpperCase()), acteur);
+
+    const apres = await conges.modifierType(
+      cree.id,
+      { nom: "Congé familial", couleur: "#AA1122", limiteAnnuelle: 5, version: cree.version },
+      acteur,
+    );
+
+    expect(apres.nom).toBe("Congé familial");
+    const relu = await prisma.leaveType.findUniqueOrThrow({ where: { id: cree.id } });
+    expect(relu.nom).toBe("Congé familial");
+    expect(relu.couleur).toBe("#AA1122");
+    expect(Number(relu.limiteAnnuelle)).toBe(5);
+    // `RG-GEN-07` — la version avance, sinon la seconde écriture passerait aussi.
+    expect(relu.version).toBe(cree.version + 1);
+  });
+
+  it("RG-GEN-07 — une modification de type sur une version périmée est refusée", async () => {
+    const acteur = await agent();
+    const cree = await conges.creerType(typeNeuf(uuid().slice(0, 6).toUpperCase()), acteur);
+    await conges.modifierType(cree.id, { nom: "Premier", version: cree.version }, acteur);
+
+    await expect(
+      conges.modifierType(cree.id, { nom: "Second", version: cree.version }, acteur),
+    ).rejects.toMatchObject({ code: "conflit_de_version" });
+    // Et rien n'a été écrit : le refus n'est pas un demi-passage.
+    expect((await prisma.leaveType.findUniqueOrThrow({ where: { id: cree.id } })).nom).toBe(
+      "Premier",
+    );
+  });
+
+  /**
+   * `RG-CNG-30` — sur un type système, seuls nom, description, icône, couleur
+   * et exigence de validation sont modifiables.
+   *
+   * Le refus rédigé est posé au contrôleur, champ par champ
+   * (`conges.schemas.test.ts`). Ce contrôle-ci tient l'autre moitié : même
+   * appelé directement, le service n'écrit aucun des champs figés. Une règle
+   * du domaine qui ne vivrait qu'à la frontière HTTP tomberait au premier
+   * autre appelant — l'import, l'amorçage, un point d'entrée futur.
+   */
+  it("RG-CNG-30 — sur un type SYSTÈME, le service n'écrit que les cinq champs ouverts", async () => {
+    const id = uuid();
+    await prisma.leaveType.create({
+      data: {
+        id, code: `SYS${id.slice(0, 4).toUpperCase()}`, nom: "Congé annuel",
+        systeme: true, remunere: true, ordre: 1, actif: true, limiteAnnuelle: 25,
+      },
+    });
+    const acteur = await agent();
+
+    await conges.modifierType(
+      id,
+      {
+        // Les cinq ouverts.
+        nom: "Congés payés", description: "Le droit annuel", icone: "sun",
+        couleur: "#112233", validationRequise: false,
+        // Les cinq figés — chacun doit rester ce qu'il était.
+        code: "AUTRE", remunere: false, limiteAnnuelle: 99, ordre: 42, actif: false,
+        version: 1,
+      },
+      acteur,
+    );
+
+    const relu = await prisma.leaveType.findUniqueOrThrow({ where: { id } });
+    expect(relu.nom).toBe("Congés payés");
+    expect(relu.description).toBe("Le droit annuel");
+    expect(relu.icone).toBe("sun");
+    expect(relu.couleur).toBe("#112233");
+    expect(relu.validationRequise).toBe(false);
+
+    expect(relu.code).toBe(`SYS${id.slice(0, 4).toUpperCase()}`);
+    expect(relu.remunere).toBe(true);
+    expect(Number(relu.limiteAnnuelle)).toBe(25);
+    expect(relu.ordre).toBe(1);
+    expect(relu.actif).toBe(true);
+  });
+
+  it("EX-CNG-13 — modifier un type inconnu est refusé, pas créé en douce", async () => {
+    await expect(
+      conges.modifierType(uuid(), { nom: "X", version: 1 }, await agent()),
+    ).rejects.toMatchObject({ code: "introuvable" });
+  });
 });
 
 describe("EX-CNG-01 — consultation filtrée", () => {
@@ -611,6 +769,85 @@ describe("EX-CNG-01 — consultation filtrée", () => {
     const aValider = await conges.lister(p, { aValider: true }, manager);
     expect(aValider.length).toBeGreaterThan(0);
     expect(aValider.every((c) => c.validateurId === manager)).toBe(true);
+  });
+
+  /**
+   * **`RG-CNG-09` — sa propre demande n'est pas « à valider ».**
+   *
+   * Le responsable d'un service est son propre validateur tant qu'aucun
+   * supérieur n'est désigné au-dessus de lui. Sa demande arrivait donc dans
+   * son onglet « À valider », avec « Approuver » et « Refuser » actifs, et le
+   * serveur la refusait **après coup** en `auto_validation_interdite` :
+   * `RG-GEN-06` interdit exactement cela — une commande offerte pour être
+   * refusée.
+   *
+   * L'assertion porte sur la LIGNE, pas sur le compte : « la liste est plus
+   * courte » passerait aussi si la demande d'un tiers avait disparu.
+   */
+  it("RG-CNG-09 — sa propre demande ne figure pas dans son « à valider »", async () => {
+    const dept = await departement();
+    const manager = await agent(dept);
+    const autre = await agent(dept);
+    await prisma.departement.update({ where: { id: dept }, data: { responsableId: manager } });
+    await attribuer(manager, typeAvecValidation, 2026, 25);
+    await attribuer(autre, typeAvecValidation, 2026, 25);
+
+    // Le manager dépose POUR LUI : faute de supérieur, il est son validateur.
+    const sienne = await conges.deposer(
+      {
+        userId: manager, typeId: typeAvecValidation,
+        dateDebut: utc("2026-11-02"), dateFin: utc("2026-11-06"),
+      },
+      manager,
+    );
+    expect(sienne.validateurId).toBe(manager);
+
+    const celleDeLAutre = await conges.deposer(
+      {
+        userId: autre, typeId: typeAvecValidation,
+        dateDebut: utc("2026-11-09"), dateFin: utc("2026-11-13"),
+      },
+      autre,
+    );
+
+    const p = await perimetres.resoudre(manager, new Set(["leaves:manage_any"]));
+    const aValider = await conges.lister(p, { aValider: true }, manager, new Set(["leaves:approve"]));
+
+    const ids = aValider.map((c) => c.id);
+    expect(ids).toContain(celleDeLAutre.id);
+    expect(ids).not.toContain(sienne.id);
+
+    // La liste ORDINAIRE, elle, la montre toujours : c'est le filtre qui
+    // change de question, pas le périmètre.
+    const toutes = await conges.lister(p, {}, manager, new Set(["leaves:approve"]));
+    expect(toutes.map((c) => c.id)).toContain(sienne.id);
+  });
+
+  it("RG-CNG-09 — mais qui détient `leaves:self_approve` la voit, elle est validable", async () => {
+    /*
+     * L'exclusion suit la règle, y compris son exception. Une exclusion
+     * inconditionnelle rendrait `leaves:self_approve` inexerçable depuis
+     * l'écran qui l'exerce : la demande n'y serait plus.
+     */
+    const dept = await departement();
+    const manager = await agent(dept);
+    await prisma.departement.update({ where: { id: dept }, data: { responsableId: manager } });
+    await attribuer(manager, typeAvecValidation, 2026, 25);
+
+    const sienne = await conges.deposer(
+      {
+        userId: manager, typeId: typeAvecValidation,
+        dateDebut: utc("2026-11-16"), dateFin: utc("2026-11-20"),
+      },
+      manager,
+    );
+
+    const p = await perimetres.resoudre(manager, new Set(["leaves:manage_any"]));
+    const aValider = await conges.lister(
+      p, { aValider: true }, manager,
+      new Set(["leaves:approve", "leaves:self_approve"]),
+    );
+    expect(aValider.map((c) => c.id)).toContain(sienne.id);
   });
 });
 
@@ -1133,6 +1370,10 @@ describe("EX-CNG-08 — déclarer un congé pour un collaborateur", () => {
     const manager = await agent(dept);
     const collaborateur = await agent(dept);
     await prisma.departement.update({ where: { id: dept }, data: { responsableId: manager } });
+    // `RG-CNG-15` — le collaborateur relève d'un SERVICE du manager. Le
+    // département commun ne suffit pas, et ne suffisait plus depuis que la
+    // règle se lit telle qu'elle est écrite.
+    await service(dept, { manager, membres: [collaborateur] });
     await attribuer(collaborateur, typeAvecValidation, 2027, 25);
 
     const conge = await declarerPour(
@@ -1190,6 +1431,9 @@ describe("EX-CNG-08 — déclarer un congé pour un collaborateur", () => {
     const manager = await agent(dept);
     const parti = await agent(dept);
     await prisma.departement.update({ where: { id: dept }, data: { responsableId: manager } });
+    // Il est bien de son service : c'est l'inactivité seule qui doit refuser,
+    // et non l'appartenance, sinon le test ne prouverait pas ce qu'il annonce.
+    await service(dept, { manager, membres: [parti] });
 
     const permissions = new Set(["leaves:declare_for_other"]);
     const perimetre = await perimetres.resoudre(manager, permissions);
@@ -1199,6 +1443,79 @@ describe("EX-CNG-08 — déclarer un congé pour un collaborateur", () => {
     await expect(
       conges.verifierDeclarationPourAutrui(parti, perimetre, permissions),
     ).rejects.toMatchObject({ code: "collaborateur_inactif" });
+  });
+
+  /**
+   * **`RG-CNG-15` dit « ses services », le contrôle lisait « son département ».**
+   *
+   * `perimetre.utilisateurs` est bâti sur les départements (`RG-SCOPE-01`) :
+   * un manager de service pouvait déposer — et par `RG-CNG-14` faire approuver
+   * d'office, donc consommer le solde — pour un agent d'un AUTRE service du
+   * même département. Mesuré en recette : requête forgée, `201`.
+   *
+   * Le contrôle tient les deux moitiés ensemble : l'agent de l'autre service
+   * est bien DANS le périmètre — c'est l'assertion qui le prouve — et il est
+   * pourtant refusé. Sans elle, le test passerait aussi si le périmètre
+   * l'excluait, et ne dirait rien de la règle.
+   */
+  it("RG-CNG-15 — un agent d'un AUTRE SERVICE du même département est refusé", async () => {
+    const dept = await departement();
+    const manager = await agent(dept);
+    const voisin = await agent(dept);
+    const autreManager = await agent(dept);
+    await prisma.departement.update({ where: { id: dept }, data: { responsableId: manager } });
+    await service(dept, { manager });
+    await service(dept, { manager: autreManager, membres: [voisin] });
+
+    const permissions = new Set(["leaves:declare_for_other"]);
+    const perimetre = await perimetres.resoudre(manager, permissions);
+
+    // Il est dans le périmètre — c'est bien la RÈGLE qui refuse, pas le filtre.
+    expect(perimetre.utilisateurs.has(voisin)).toBe(true);
+    await expect(
+      conges.verifierDeclarationPourAutrui(voisin, perimetre, permissions),
+    ).rejects.toMatchObject({ code: "hors_perimetre" });
+  });
+
+  it("RG-CNG-15 — un membre de son service est accepté, même sans qu'il en soit le manager", async () => {
+    /*
+     * « Ses services » ne se réduit pas à ceux qu'il dirige : un référent
+     * fonctionnel qui déclare pour un collègue du même service relève de la
+     * même règle. Le contrôle exerce donc les deux liens, appartenance et
+     * management, sans quoi la moitié la moins évidente resterait supposée.
+     */
+    const dept = await departement();
+    const referent = await agent(dept);
+    const collegue = await agent(dept);
+    await service(dept, { membres: [referent, collegue] });
+
+    const permissions = new Set(["leaves:declare_for_other"]);
+    const perimetre = await perimetres.resoudre(referent, permissions);
+
+    await expect(
+      conges.verifierDeclarationPourAutrui(collegue, perimetre, permissions),
+    ).resolves.toBeUndefined();
+  });
+
+  it("RG-SCOPE-03 — une gestion globale traverse la règle des services", async () => {
+    /*
+     * L'exception est celle du cadrage, pas une échappatoire : sans elle, un
+     * administrateur ne pourrait plus déclarer pour personne, la maille
+     * « service » n'existant pas pour lui.
+     */
+    const deptA = await departement();
+    const deptB = await departement();
+    const admin = await agent(deptA);
+    const lointain = await agent(deptB);
+    await service(deptB, { membres: [lointain] });
+
+    const permissions = new Set(["leaves:declare_for_other", "users:manage_any"]);
+    const perimetre = await perimetres.resoudre(admin, permissions);
+    expect(perimetre.global).toBe(true);
+
+    await expect(
+      conges.verifierDeclarationPourAutrui(lointain, perimetre, permissions),
+    ).resolves.toBeUndefined();
   });
 });
 
@@ -2016,5 +2333,102 @@ describe("RG-GEN-07 — la version lue accompagne chaque écriture d'une demande
     expect((await prisma.leave.findUniqueOrThrow({ where: { id: conge.id } })).statut).toBe(
       "cancellation_requested",
     );
+  });
+});
+
+// ── EX-CNG-01, RG-NTF-01, RG-GEN-08 — ce que la notification dit et où elle mène ──
+
+/**
+ * **P-74**, plus la moitié congés de `RG-GEN-08`.
+ *
+ * Deux défauts constatés en recette sur le même objet : le corps était rédigé
+ * en français à l'ÉMISSION — donc jamais rattrapable au changement de langue —,
+ * et le lien menait à `/conges`, c'est-à-dire à l'onglet « Mes demandes », où
+ * le validateur ne trouve rien. La notification annonçait une décision à
+ * prendre et ouvrait un écran qui ne la montre pas.
+ *
+ * Le contrôle porte sur ce qui est ÉCRIT en base : la marque `i18n:`, ses
+ * paramètres, et le fragment du lien. Il ne porte pas sur la phrase rendue, qui
+ * dépend du catalogue de `notifications/libelles.ts`.
+ */
+describe("EX-CNG-01, RG-NTF-01 — la notification de congé mène à l'onglet qui l'attend", () => {
+  const charge = (contenu: string) => JSON.parse(contenu.slice("i18n:".length));
+
+  async function demandeEnAttente() {
+    const dept = await departement();
+    const validateur = await agent(dept);
+    const demandeur = await agent(dept);
+    await prisma.departement.update({ where: { id: dept }, data: { responsableId: validateur } });
+    await attribuer(demandeur, typeAvecValidation, 2031, 25);
+    const conge = await conges.deposer(
+      {
+        userId: demandeur,
+        typeId: typeAvecValidation,
+        dateDebut: utc("2031-03-03"),
+        dateFin: utc("2031-03-05"),
+      },
+      demandeur,
+    );
+    return { conge, demandeur, validateur };
+  }
+
+  it("EX-CNG-01 — « à valider » ouvre l'onglet À VALIDER, pas Mes demandes", async () => {
+    const { validateur } = await demandeEnAttente();
+
+    const n = await prisma.notification.findFirstOrThrow({
+      where: { userId: validateur, type: "conge_a_valider" },
+    });
+    // Le fragment porte l'onglet — la vue 19 le lit dans l'adresse.
+    expect(n.lien).toBe("/conges#aValider");
+  });
+
+  it("RG-GEN-08 — et son corps voyage en paramètres, pas en phrase française", async () => {
+    const { validateur } = await demandeEnAttente();
+
+    const n = await prisma.notification.findFirstOrThrow({
+      where: { userId: validateur, type: "conge_a_valider" },
+    });
+    expect(n.contenu.startsWith("i18n:")).toBe(true);
+    expect(charge(n.contenu)).toMatchObject({
+      cle: "conge_a_valider",
+      params: { jours: "3" },
+    });
+    expect(n.contenu).not.toContain("attend votre décision");
+  });
+
+  it("RG-NTF-01 — la DÉCISION, elle, renvoie le demandeur sur « Mes demandes »", async () => {
+    // Deux destinataires, deux onglets : celui qui décide va là où la demande
+    // attend, celui qui reçoit la décision va là où sa demande vit.
+    const { conge, demandeur, validateur } = await demandeEnAttente();
+    await conges.approuver(conge.id, validateur, new Set(["leaves:approve"]), conge.version);
+
+    const n = await prisma.notification.findFirstOrThrow({
+      where: { userId: demandeur, type: "conge_decide" },
+    });
+    expect(n.lien).toBe("/conges#mesDemandes");
+    expect(charge(n.contenu)).toMatchObject({
+      cle: "conge_decide",
+      params: { decision: "approuve" },
+    });
+  });
+
+  it("RG-GEN-08 — le refus transporte son MOTIF en paramètre, pas dans une phrase", async () => {
+    /*
+     * Le motif reste dans la langue où son auteur l'a écrit — c'est une
+     * citation, pas une chaîne du produit. La phrase qui l'entoure, elle, se
+     * rend dans la langue du lecteur.
+     */
+    const { conge, demandeur, validateur } = await demandeEnAttente();
+    await conges.refuser(conge.id, "Effectif insuffisant sur la période", validateur, conge.version);
+
+    const n = await prisma.notification.findFirstOrThrow({
+      where: { userId: demandeur, type: "conge_decide" },
+    });
+    expect(n.lien).toBe("/conges#mesDemandes");
+    expect(charge(n.contenu)).toMatchObject({
+      cle: "conge_decide",
+      params: { decision: "refuse", motif: "Effectif insuffisant sur la période" },
+    });
+    expect(n.contenu).not.toContain("a été refusée");
   });
 });

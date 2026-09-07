@@ -1,6 +1,17 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  StreamableFile,
+} from "@nestjs/common";
 import { z } from "zod";
 import { DocumentsService } from "./documents.service.js";
+import { dispositionPieceJointe } from "./stockage.js";
 import { Demande, RequiertPermission, type ContexteDemande } from "../commun/permissions.garde.js";
 import { valider } from "../commun/http.js";
 
@@ -51,15 +62,26 @@ export class DocumentsController {
   }
 
   /**
-   * `RG-DOC-02` — le téléchargement est tracé **distinctement**.
+   * `EX-DOC-02` — télécharger. **Une pièce jointe, pas un objet JSON.**
    *
-   * Consulter et télécharger ne sont pas le même geste : le second sort la
-   * donnée du système. D'où deux points d'entrée et deux permissions.
+   * `RG-DOC-02` — le téléchargement est tracé **distinctement**. Consulter et
+   * télécharger ne sont pas le même geste : le second sort la donnée du
+   * système. D'où deux points d'entrée et deux permissions.
+   *
+   * La vue 17 pose une ancre vers cette route. Sans `Content-Disposition`, le
+   * navigateur ne télécharge pas : il **navigue**, quitte l'application et
+   * affiche ce que la route a rendu — c'est le défaut constaté en recette
+   * (P-53), et il se corrige par l'en-tête autant que par le corps.
    */
   @Get(":id/telecharger")
   @RequiertPermission("documents:download")
-  telecharger(@Param("id") id: string, @Demande() d: ContexteDemande) {
-    return this.documents.telecharger(id, d.userId, d.perimetre, d.permissions);
+  async telecharger(@Param("id") id: string, @Demande() d: ContexteDemande) {
+    const fichier = await this.documents.telecharger(id, d.userId, d.perimetre, d.permissions);
+    return new StreamableFile(fichier.contenu, {
+      type: fichier.typeMime,
+      disposition: dispositionPieceJointe(fichier.nom),
+      length: fichier.contenu.byteLength,
+    });
   }
 
   @Patch(":id")

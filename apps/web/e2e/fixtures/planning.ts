@@ -29,10 +29,53 @@ export const SESSION_PLANNING = {
   ],
 };
 
-/** `RG-PLN-04` — sans le droit, la cellule de télétravail est en lecture seule. */
-export const SESSION_SANS_TELETRAVAIL = {
+/**
+ * `RG-PLN-04`, `RG-TLT-07` — **la bascule de lieu s'apprécie LIGNE PAR LIGNE.**
+ *
+ * `SESSION_PLANNING` porte `telework:create` et rien d'autre : elle peut donc
+ * déclarer SON lieu, et celui de personne d'autre. Elle vaut « u-moi », qui
+ * n'est dans aucun groupe de `SEMAINE` — aucune cellule de la grille ne lui
+ * offre donc la bascule, et c'est juste. Le jeu était écrit quand la décision
+ * se prenait à l'échelle de la vue : la cellule d'Ana s'y basculait sur la
+ * seule `telework:create`, et le serveur répondait `403` après coup.
+ *
+ * Trois sessions, une par branche de `teletravailModifiablePar` :
+ *
+ *  - `SESSION_TELETRAVAIL_AUTRUI` — les deux permissions : elle bascule tout ;
+ *  - `SESSION_ANA` — `telework:create` seule, mais elle EST dans la grille :
+ *    sa cellule à elle se bascule, celle de Bruno non ;
+ *  - `SESSION_SANS_TELETRAVAIL` — `telework:manage_any` sans l'écriture :
+ *    rien ne se bascule, et la cellule reste pourtant lisible.
+ *
+ * `SESSION_PLANNING` reste inchangée : quatre autres suites en dépendent, et
+ * une permission de plus dans un jeu d'essai partagé se paie deux fichiers
+ * plus loin.
+ */
+export const SESSION_TELETRAVAIL_AUTRUI = {
   ...SESSION_PLANNING,
-  permissions: SESSION_PLANNING.permissions.filter((p) => p !== "telework:create"),
+  permissions: [...SESSION_PLANNING.permissions, "telework:manage_any"],
+};
+
+/** `RG-TLT-07` — Ana en personne : son lieu à elle, pas celui des autres. */
+export const SESSION_ANA = {
+  ...SESSION_PLANNING,
+  id: "u-ana",
+  prenom: "Ana",
+  nom: "Berger",
+};
+
+/**
+ * `RG-PLN-04` — sans le droit d'ÉCRIRE, la cellule est en lecture seule.
+ *
+ * Elle dérive de `SESSION_TELETRAVAIL_AUTRUI`, pas de `SESSION_PLANNING` :
+ * elle garde donc `telework:manage_any` et perd `telework:create`. C'est la
+ * seule façon que le contrôle mesure quelque chose — dérivée de la session
+ * nue, il passerait avec comme sans la règle, puisque la bascule n'était de
+ * toute façon offerte sur aucune cellule.
+ */
+export const SESSION_SANS_TELETRAVAIL = {
+  ...SESSION_TELETRAVAIL_AUTRUI,
+  permissions: SESSION_TELETRAVAIL_AUTRUI.permissions.filter((p) => p !== "telework:create"),
 };
 
 /** `RG-PLN-07` — sans le droit, les permanences ne sont pas rendues du tout. */

@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { changerLangue, LANGUES } from "../i18n/index.js";
 import { definirTheme, themeCourant, THEMES, type Theme } from "../theme/index.js";
@@ -50,6 +51,8 @@ export function Profil({
   const { t } = useTranslation("coquille");
   const { t: tAuth } = useTranslation("auth");
   const [onglet, setOnglet] = useState<Onglet>("info");
+  const navigate = useNavigate();
+  const client = useQueryClient();
 
   return (
     <div className="page">
@@ -61,8 +64,23 @@ export function Profil({
             {utilisateur.prenom} {utilisateur.nom}
           </h1>
           <div className="pills">
-            <span className="pill" style={{ color: "var(--st-doing)" }}>
-              {utilisateur.roleCode || utilisateur.role}
+            {/*
+              **Le NOM du rôle, le code au survol.** Le bandeau rendait
+              `roleCode || role`, donc `CHEF_DE_PROJET` — l'identifiant que
+              l'audit et les imports manipulent, pas ce qui se lit sur son
+              propre profil. Le code passe au `title` : il reste joignable
+              pour qui doit le citer, et il ne se lit plus à la place du nom.
+              Même geste que la vue 27 (`administration/Utilisateurs.tsx`) et
+              que le suivi individuel. `role` peut être vide — un compte sans
+              rôle existe (`RG-USR-…`) — et le code sert alors de repli plutôt
+              qu'une pastille muette.
+            */}
+            <span
+              className="pill"
+              style={{ color: "var(--st-doing)" }}
+              title={utilisateur.roleCode || undefined}
+            >
+              {utilisateur.role || utilisateur.roleCode}
             </span>
             <span className="pill" style={{ color: "var(--st-done)" }}>
               {t("profil.compteActif")}
@@ -72,9 +90,17 @@ export function Profil({
         <div className="proj-acts">
           <Button
             className="chip-btn"
+            /*
+             * La sortie de session passe par le routeur, comme celle de la
+             * coquille : `window.location.href` relançait l'application
+             * entière pour aller à la vue voisine. Le cache est vidé
+             * explicitement — c'est ce que le rechargement faisait par
+             * accident, et ce qu'il ne faut surtout pas perdre en route.
+             */
             onPress={() => {
-              void deconnexion().then(() => {
-                window.location.href = "/connexion";
+              void deconnexion().then(async () => {
+                client.clear();
+                await navigate({ to: "/connexion", search: {} });
               });
             }}
           >
@@ -189,8 +215,11 @@ function Informations({
       },
       {
         cle: t("profil.champRole"),
-        valeur: utilisateur.roleCode || utilisateur.role,
-        mono: true,
+        // Le nom se lit, le code s'identifie : la fiche rend le premier, le
+        // bandeau porte le second au survol. `mono` était le signe qu'on
+        // rendait un identifiant ; ce n'en est plus un.
+        valeur: utilisateur.role || utilisateur.roleCode,
+        mono: false,
         pourquoi: t("profil.pourquoiRole"),
         par: t("profil.parAdministrateur"),
       },
