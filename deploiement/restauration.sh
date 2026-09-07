@@ -40,12 +40,32 @@ if [ ! -r "$archive" ]; then
   exit 2
 fi
 
-if [ -f .env ]; then
-  set -a
-  # shellcheck disable=SC1091
-  . ./.env
-  set +a
-fi
+# Le `.env` se LIT, il ne se SOURCE pas.
+#
+# Compose n'interprète pas ce fichier par un shell : `RATIONARIUM_HOTE` y porte
+# une liste séparée par des virgules, sans guillemets, ce qui est parfaitement
+# licite pour lui. Un `. ./.env` en fait une commande — « 10.88.0.1: command
+# not found » — et la sauvegarde s'arrêtait là, sur une ligne qui ne la
+# concerne pas. Un script d'exploitation doit lire le fichier de l'exploitation
+# tel qu'il est, pas tel qu'un shell l'aimerait.
+lire_env() {
+  [ -f .env ] || return 0
+  while IFS= read -r ligne || [ -n "$ligne" ]; do
+    case "$ligne" in "" | "#"*) continue ;; esac
+    cle="${ligne%%=*}"
+    [ "$cle" = "$ligne" ] && continue
+    case "$cle" in *[!A-Za-z0-9_]*) continue ;; esac
+    valeur="${ligne#*=}"
+    # Compose retire les guillemets encadrants : on fait de même, sinon une
+    # valeur citée arriverait ici avec ses guillemets et pas là-bas.
+    case "$valeur" in
+      \"*\") valeur="${valeur#\"}"; valeur="${valeur%\"}" ;;
+      "'"*"'") valeur="${valeur#\'}"; valeur="${valeur%\'}" ;;
+    esac
+    export "$cle=$valeur"
+  done < .env
+}
+lire_env
 
 base="${POSTGRES_BASE:-rationarium}"
 utilisateur="${POSTGRES_UTILISATEUR:?POSTGRES_UTILISATEUR manquant}"
