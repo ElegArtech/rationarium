@@ -421,7 +421,19 @@ export function FenetreCreation({
     <Fenetre
       ouverte={ouverte}
       surFermeture={surFermeture}
-      categorie={t("portefeuille.nouveauProjet")}
+      /*
+       * **La fenêtre sert aux DEUX gestes, et elle doit le dire des deux
+       * côtés.** Le surtitre annonçait « Nouveau projet » et la commande
+       * « Créer le projet » alors qu'on venait de cliquer sur « Modifier » :
+       * le titre était le seul des trois à suivre. Une commande qui nomme le
+       * mauvais geste fait douter de ce qu'elle va faire — et la seule sortie
+       * visible était alors « Annuler ».
+       *
+       * Le surtitre porte désormais la FAMILLE d'objet et le titre le geste,
+       * comme le font déjà les fenêtres de tiers, de client, de jalon et
+       * d'épopée. C'est le motif du produit ; celle-ci en était sortie seule.
+       */
+      categorie={t("portefeuille.categorie")}
       titre={existant ? t("portefeuille.modifier") : t("portefeuille.creer")}
       large
       mention={t("champsObligatoires")}
@@ -435,7 +447,7 @@ export function FenetreCreation({
             isPending={creation.isPending}
             onPress={valider}
           >
-            {t("portefeuille.creerLeProjet")}
+            {existant ? t("enregistrer") : t("portefeuille.creerLeProjet")}
           </Button>
         </>
       }

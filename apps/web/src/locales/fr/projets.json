@@ -26,7 +26,7 @@
     "compteFiltre": "{n, number} sur {total, number}",
     "creer": "Créer un projet",
     "creerLeProjet": "Créer le projet",
-    "nouveauProjet": "Nouveau projet",
+    "categorie": "Projet",
     "rechercher": "Rechercher par nom ou description…",
     "statut": "Statut",
     "priorite": "Priorité",

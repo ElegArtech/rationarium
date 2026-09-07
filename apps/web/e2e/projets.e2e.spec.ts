@@ -344,6 +344,29 @@ test.describe("Vue 11 — fiche projet", () => {
     await expect(page.getByText("sur 1 200 h, 456 h restantes")).toBeVisible();
   });
 
+  /*
+   * La fenêtre sert à créer ET à modifier ; elle doit dire lequel des deux.
+   *
+   * Elle annonçait « Nouveau projet » en surtitre et « Créer le projet » en
+   * commande alors qu'on venait de cliquer sur « Modifier » — le titre était le
+   * seul des trois à suivre. Le contrôle porte donc sur les TROIS, sinon il
+   * resterait vert sur les deux qui mentaient.
+   */
+  test("EX-PRJ-05 — ouverte pour MODIFIER, la fenêtre ne parle plus de créer", async ({ page }) => {
+    await serveur(page, { reponses });
+    await page.goto(CHEMIN_PROJET);
+    await page.getByRole("button", { name: "Modifier", exact: true }).click();
+
+    const fenetre = page.getByRole("dialog");
+    await expect(fenetre.getByText("Modifier le projet", { exact: true })).toBeVisible();
+    await expect(fenetre.getByRole("button", { name: "Enregistrer", exact: true })).toBeVisible();
+    await expect(fenetre.getByRole("button", { name: "Créer le projet" })).toHaveCount(0);
+    await expect(fenetre.getByText("Nouveau projet", { exact: true })).toHaveCount(0);
+
+    // Le formulaire est bien prérempli : c'est ce qui rend « Enregistrer » vrai.
+    await expect(fenetre.getByLabel(/^Nom/)).toHaveValue(PROJET.nom);
+  });
+
   test("une valeur absente s'écrit, elle ne se tait pas", async ({ page }) => {
     await serveur(page, {
       reponses: {
