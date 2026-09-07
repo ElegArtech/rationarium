@@ -72,6 +72,34 @@ export const STATUTS_JALON = vocabulaire([
 export type StatutJalon = (typeof STATUTS_JALON)[number]["code"];
 
 /**
+ * `RG-JAL-01` et `RG-JAL-06` — l'avancement d'un jalon, en pourcentage.
+ *
+ * **Un jalon atteint est à cent pour cent, y compris quand il n'a aucune tâche
+ * à moyenner.** C'est le cas que `RG-JAL-06` ouvre à la marque manuelle — un
+ * jalon de comité, de livraison contractuelle, de décision — et il affichait
+ * « Terminé · 0 % » : la pastille disait l'inverse de la barre, sur la même
+ * ligne. Une règle calculée doit dire ce qu'elle fait du cas où il n'y a rien à
+ * calculer ; celle-ci se taisait sur la moitié affichage.
+ *
+ * Le cas nominal n'en est pas moins vrai : `statutJalon` ne rend « Terminé »
+ * que si TOUTES les tâches le sont, et `RG-TSK-17` les met alors à cent. Le
+ * raccourci ne triche donc sur rien — il rattrape seulement ce que la moyenne
+ * d'un ensemble vide ne sait pas dire.
+ *
+ * La fonction vit ici parce que deux vues la calculaient chacune de son côté,
+ * à l'identique : deux lectures d'un même fait finissent par diverger, et rien
+ * ne le signale.
+ */
+export const progressionJalon = (
+  statut: StatutJalon,
+  avancements: readonly number[],
+): number => {
+  if (statut === "done") return AVANCEMENT_TERMINE;
+  if (avancements.length === 0) return 0;
+  return Math.round(avancements.reduce((n, x) => n + x, 0) / avancements.length);
+};
+
+/**
  * Rôles dans l'équipe projet — `cadrage/01 § M4`, dix-sept valeurs énumérées.
  *
  * **Le cadrage les énumère, donc ce n'est pas une chaîne libre.** Le contrat

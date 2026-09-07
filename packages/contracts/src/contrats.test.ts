@@ -1,5 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { VOCABULAIRES, PRIORITES, STATUTS_PROJET, STATUTS_CONGE } from "./vocabulaires.js";
+import {
+  VOCABULAIRES,
+  PRIORITES,
+  STATUTS_PROJET,
+  STATUTS_CONGE,
+  avancementImposePar,
+  progressionJalon,
+} from "./vocabulaires.js";
 import {
   PERMISSIONS,
   DOMAINES,
@@ -263,5 +270,34 @@ describe("modèles de rôles — cadrage/01 § 3.2", () => {
     );
     expect(seulementDansProjet.length, "aucun rôle ne crée SEULEMENT dans un projet").toBeGreaterThan(0);
     expect(seulementHorsProjet.length, "aucun rôle ne crée SEULEMENT hors projet").toBeGreaterThan(0);
+  });
+});
+
+describe("l'achèvement, dit une seule fois — RG-TSK-17, RG-JAL-06", () => {
+  it("RG-TSK-17 — « Terminé » impose cent, et lui seul", () => {
+    expect(avancementImposePar("done")).toBe(100);
+    // À sens unique : « En revue » n'imposerait rien, sinon une tâche achevée
+    // ne pourrait jamais attendre son contrôle.
+    for (const autre of ["todo", "doing", "review", "blocked"] as const) {
+      expect(avancementImposePar(autre), autre).toBeNull();
+    }
+  });
+
+  it("RG-JAL-06 — un jalon SANS TÂCHE marqué atteint est à 100 %, pas à zéro", () => {
+    /*
+     * Le cas que `RG-JAL-06` ouvre à la marque manuelle : un jalon de comité,
+     * de livraison contractuelle, de décision. La moyenne d'un ensemble vide
+     * ne vaut pas zéro pour cent, elle ne vaut rien — et la vue affichait
+     * « Terminé · 0 % », la pastille disant l'inverse de la barre.
+     */
+    expect(progressionJalon("done", [])).toBe(100);
+    expect(progressionJalon("pending", [])).toBe(0);
+  });
+
+  it("RG-JAL-01 — avec des tâches, c'est la MOYENNE de leur avancement", () => {
+    expect(progressionJalon("doing", [0, 50, 100])).toBe(50);
+    expect(progressionJalon("pending", [0, 0])).toBe(0);
+    // Arrondi, pas troncature : deux tiers font 67, jamais 66.
+    expect(progressionJalon("doing", [100, 100, 0])).toBe(67);
   });
 });

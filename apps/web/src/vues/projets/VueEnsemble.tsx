@@ -10,7 +10,7 @@ import { Chargement, ErreurDeChargement } from "../../composants/etats.js";
 import { Fenetre } from "../../composants/fenetre.js";
 import { FenetreCreation } from "./Portefeuille.js";
 import { useMessages } from "../../composants/messages.js";
-import { STATUTS_JALON } from "@rationarium/contracts";
+import { STATUTS_JALON, progressionJalon, type StatutJalon } from "@rationarium/contracts";
 import { Pastille, Barre, MarqueurCalcule } from "../../composants/pastilles.js";
 import { formaterDate, formaterNombre } from "../../formats.js";
 import { CadreProjet } from "./Fiche.js";
@@ -518,10 +518,11 @@ function Info({ libelle, valeur }: { libelle: string; valeur: string | null }) {
 function ApercuJalon({ jalon }: { jalon: api.Jalon }) {
   const { t } = useTranslation("projets");
   const fait = jalon.taches.filter((x) => x.statut === "done").length;
-  const progression =
-    jalon.taches.length === 0
-      ? 0
-      : Math.round(jalon.taches.reduce((n, x) => n + x.avancement, 0) / jalon.taches.length);
+  /* `RG-JAL-06` — même calcul qu'en vue 13, et il n'est écrit qu'une fois. */
+  const progression = progressionJalon(
+    jalon.statut as StatutJalon,
+    jalon.taches.map((x) => x.avancement),
+  );
 
   return (
     <div className="rm">

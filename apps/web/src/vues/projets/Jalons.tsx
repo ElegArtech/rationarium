@@ -3,7 +3,12 @@ import { useTranslation } from "react-i18next";
 import * as apiImports from "../../api/imports.js";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "react-aria-components";
-import { STATUTS_JALON, STATUTS_TACHE } from "@rationarium/contracts";
+import {
+  STATUTS_JALON,
+  STATUTS_TACHE,
+  progressionJalon,
+  type StatutJalon,
+} from "@rationarium/contracts";
 import * as api from "../../api/projets.js";
 import * as apiTaches from "../../api/taches.js";
 import { messageErreur } from "../../api/erreurs.js";
@@ -469,10 +474,15 @@ function LigneJalon({
 
   const retard = jalon.statut === "done" ? 0 : Math.min(0, joursAvant(jalon.dateEcheance) ?? 1);
   const enRetard = retard < 0;
-  const progression =
-    jalon.taches.length === 0
-      ? 0
-      : Math.round(jalon.taches.reduce((n, x) => n + x.avancement, 0) / jalon.taches.length);
+  /* `RG-JAL-06` — un jalon ATTEINT est à cent pour cent, y compris sans tâche à
+     moyenner : la moyenne d'un ensemble vide rendait zéro, et la pastille
+     « Terminé » côtoyait une barre à 0 % sur la même ligne. Le calcul est dans
+     `@rationarium/contracts` : la vue d'ensemble le faisait aussi, à
+     l'identique. */
+  const progression = progressionJalon(
+    jalon.statut as StatutJalon,
+    jalon.taches.map((x) => x.avancement),
+  );
 
   const suppression = useMutation({
     mutationFn: () => api.supprimerJalon(jalon.id),

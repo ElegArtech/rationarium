@@ -1385,6 +1385,28 @@ test.describe("Vue 13 — un jalon sans tâche se marque à la main", () => {
     expect((await envoi).postDataJSON()).toEqual({ atteint: true, version: 1 });
   });
 
+  test("RG-JAL-06 — un jalon marqué atteint affiche 100 %, pas « Terminé · 0 % »", async ({
+    page,
+  }) => {
+    /*
+     * Le défaut vient de la moyenne : sans tâche, elle rendait zéro, et la
+     * pastille « Terminé » côtoyait une barre à 0 % sur la même ligne. La
+     * moyenne d'un ensemble vide ne vaut pas zéro pour cent — elle ne vaut
+     * rien, et c'est le statut qui répond à sa place.
+     */
+    const atteint = {
+      ...ROUTE,
+      jalons: ROUTE.jalons.map((j) => (j.id === "j3" ? { ...j, statut: "done" } : j)),
+    };
+    await serveur(page, { reponses: { ...reponses, "/feuille-de-route": { corps: atteint } } });
+    await page.goto(`${CHEMIN_PROJET}/jalons`);
+
+    await expect(ligneVide(page).getByText("100 %", { exact: true })).toBeVisible();
+    await expect(
+      page.getByRole("progressbar", { name: "Avancement de Reste à planifier" }),
+    ).toHaveAttribute("aria-valuenow", "100");
+  });
+
   test("RG-JAL-06 — le repère « calculé » DIT que le statut est marqué, pas calculé", async ({
     page,
   }) => {
