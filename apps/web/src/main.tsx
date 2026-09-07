@@ -1,3 +1,8 @@
+/* PREMIÈRE LIGNE, et ce n'est pas cosmétique : Zod lit son réglage à la
+   construction de chaque schéma, et `@rationarium/contracts` construit les
+   siens au chargement. Voir `zod.ts`. */
+import "./zod.js";
+
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { MutationCache, QueryClient, QueryClientProvider } from "@tanstack/react-query";
