@@ -195,11 +195,26 @@ export function Portefeuille() {
 function LigneProjet({ projet }: { projet: api.LigneProjet }) {
   const { t } = useTranslation("projets");
 
+  /*
+   * L'ACHÈVEMENT se lit sur la progression, pas sur le statut.
+   *
+   * `RG-PRJ-07` — la progression est calculée depuis l'avancement des tâches et
+   * n'est jamais saisie ; le statut, lui, est une décision de gestion, qui peut
+   * dire « Terminé » alors qu'il reste du travail. C'est la progression qui
+   * répond à « ce projet est-il fini ? », et c'est elle qui teinte la ligne.
+   *
+   * Un projet ABANDONNÉ n'est pas un projet achevé, même à cent pour cent : il
+   * garde son atténuation et rien de plus.
+   */
+  const acheve = projet.progression === 100 && projet.statut !== "cancelled";
+
   return (
     <Link
       to="/projets/$id"
       params={{ id: projet.id }}
-      className={`prow-card${projet.statut === "cancelled" ? " is-cancelled" : ""}`}
+      className={`prow-card${projet.statut === "cancelled" ? " is-cancelled" : ""}${
+        acheve ? " is-complete" : ""
+      }`}
     >
       {/* La pastille porte le SYMBOLE du référentiel, pas un caractère : deux
           projets peuvent commencer par la même lettre, pas porter la même
@@ -253,7 +268,7 @@ function LigneProjet({ projet }: { projet: api.LigneProjet }) {
         <div className="prow-progline">
           <Barre
             valeur={projet.progression}
-            termine={projet.statut === "done"}
+            termine={acheve}
             libelle={t("portefeuille.avancementDe", { nom: projet.nom })}
           />
           <span className="prow-pct">{projet.progression} %</span>

@@ -71,6 +71,11 @@
   /* Retours d'état */
   --danger-soft:#FBECEC;
   --success-soft:#E8F4ED;
+  /* Le survol de `--success-soft`, comme `--surface-2` est celui de
+     `--surface`. Une ligne teintée doit répondre au survol comme les autres :
+     sans cette seconde nuance, elle serait la seule à ne pas bouger, et le
+     retour de survol se lirait comme une ligne non cliquable. */
+  --success-soft-2:#DCEDE3;
   --warn-soft:#FCF2E2;
   /* « C'est pour aujourd'hui » — un signal, pas une alerte. Même ambre que
      `--st-review`, sous un nom qui dit autre chose : l'un qualifie un STATUT
@@ -142,6 +147,7 @@ html.dark{
 
   --danger-soft:#2C1618;
   --success-soft:#12271C;
+  --success-soft-2:#183426;
   --warn-soft:#2A2113;
 
   --trame-ferie:rgba(255,255,255,.05);

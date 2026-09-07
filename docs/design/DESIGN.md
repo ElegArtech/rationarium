@@ -82,6 +82,7 @@ C'est le vocabulaire visuel de la vue centrale. Six natures d'information doiven
 | --- | --- |
 | `--ob-todo`, `--ob-doing`, `--ob-review`, `--ob-done`, `--ob-blocked`, `--ob-leave`, `--ob-telework`, `--ob-activity`, `--ob-event` | Pastilles sur surface de marque : contraste inversé, à employer **uniquement** sur `--brand-panel` |
 | `--danger-soft`, `--success-soft`, `--warn-soft` | Fonds d'alerte |
+| `--success-soft-2` | Le survol de `--success-soft`, comme `--surface-2` est celui de `--surface`. Employé par la ligne d'un projet **achevé** au portefeuille (vue 10) : une ligne teintée doit répondre au survol comme les autres, sinon elle est la seule à ne pas bouger et se lit comme non cliquable. |
 | `--trame-ferie` `rgba(20,22,28,.055)` | Trame de fond des jours fériés — **ne masque jamais le contenu** (`EX-PLN-14`) |
 | `--trame-vacances` `rgba(27,42,155,.05)` | Trame de fond des vacances scolaires |
 

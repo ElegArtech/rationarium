@@ -177,6 +177,25 @@
 .prow-card.is-cancelled {
   opacity: 0.6;
 }
+/*
+ * Un projet ACHEVÉ se voit d'un coup d'œil.
+ *
+ * `RG-PRJ-07` — la progression est calculée depuis l'avancement des tâches,
+ * jamais saisie : c'est donc elle qui dit l'achèvement, pas le statut, qui est
+ * une décision de gestion et peut dire « Terminé » sur un reste à faire.
+ *
+ * La teinte est légère et la bordure la nomme : le fond seul serait
+ * indiscernable au survol, et **la couleur ne porte jamais l'information à elle
+ * seule** — le pourcentage reste écrit en clair à côté de la barre, et la barre
+ * elle-même passe au vert. Trois signaux pour un fait, dont deux non colorés.
+ */
+.prow-card.is-complete {
+  background: var(--success-soft);
+  border-color: var(--st-done);
+}
+.prow-card.is-complete:hover {
+  background: var(--success-soft-2);
+}
 .prow-main {
   min-width: 0;
 }

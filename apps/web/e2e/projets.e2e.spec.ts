@@ -47,6 +47,9 @@ test.beforeEach(async ({ page }) => {
 
 const CHEMIN_PROJET = `/projets/${PROJET.id}`;
 
+/** Un second identifiant valide : `uuid` n'accepte que `[0-9a-f]`. */
+const PROJET_ACHEVE = "0000700b-0000-4000-8000-000000000000";
+
 test.describe("Vue 10 — portefeuille", () => {
   test("nominal : une ligne par projet, avec ses valeurs alignées", async ({ page }) => {
     await serveur(page, {
@@ -99,6 +102,70 @@ test.describe("Vue 10 — portefeuille", () => {
     await expect(page.getByText("Veuillez remplir tous les champs obligatoires.")).toBeVisible();
     await expect(page.getByLabel(/^Nom/)).toHaveAttribute("aria-invalid", "true");
     await expect(page.getByText("La date de début est requise")).toBeVisible();
+  });
+
+  /*
+   * Un projet ACHEVÉ se voit d'un coup d'œil, sans lire les pourcentages.
+   *
+   * Le contrôle porte sur la couleur RENDUE, pas sur la classe posée : une
+   * classe sans règle en face est inerte, et rien ne le dit — le dépôt a déjà
+   * payé ce piège plusieurs fois. On compare donc le fond de la ligne achevée à
+   * celui d'une ligne ordinaire, dans la même page.
+   */
+  test("RG-PRJ-07 — à 100 %, la ligne est teintée et sa barre passe au vert", async ({ page }) => {
+    const acheve = { ...LIGNE_PROJET, id: PROJET_ACHEVE, nom: "Dématérialisation", progression: 100 };
+    await serveur(page, {
+      reponses: {
+        "/api/projets": { corps: { projets: [LIGNE_PROJET, acheve], affiches: 2, total: 2 } },
+      },
+    });
+    await page.goto("/projets");
+
+    const enCours = page.locator(".prow-card", { hasText: "Refonte du portail citoyen" });
+    const fini = page.locator(".prow-card", { hasText: "Dématérialisation" });
+    await expect(fini).toBeVisible();
+
+    const fond = (l: typeof fini) => l.evaluate((e) => getComputedStyle(e).backgroundColor);
+    expect(await fond(fini)).not.toBe(await fond(enCours));
+
+    // La barre du projet fini est verte ; celle du projet en cours ne l'est pas.
+    const remplissage = (l: typeof fini) =>
+      l.locator(".bar i").evaluate((e) => getComputedStyle(e).backgroundColor);
+    expect(await remplissage(fini)).not.toBe(await remplissage(enCours));
+
+    /*
+     * `RG-GEN-02` — la couleur ne porte pas l'information seule : le
+     * pourcentage reste écrit, et la barre reste annoncée.
+     */
+    await expect(fini.getByText("100 %", { exact: true })).toBeVisible();
+    await expect(
+      page.getByRole("progressbar", { name: /Avancement de Dématérialisation/ }),
+    ).toHaveAttribute("aria-valuenow", "100");
+  });
+
+  test("RG-PRJ-07 — un projet ABANDONNÉ à 100 % n'est pas un projet achevé", async ({ page }) => {
+    // L'abandon prime : une teinte de réussite sur un projet arrêté dirait
+    // exactement le contraire de ce qui s'est passé.
+    const abandonne = {
+      ...LIGNE_PROJET,
+      id: PROJET_ACHEVE,
+      nom: "Dématérialisation",
+      progression: 100,
+      statut: "cancelled",
+    };
+    await serveur(page, {
+      reponses: {
+        "/api/projets": { corps: { projets: [LIGNE_PROJET, abandonne], affiches: 2, total: 2 } },
+      },
+    });
+    await page.goto("/projets");
+
+    const enCours = page.locator(".prow-card", { hasText: "Refonte du portail citoyen" });
+    const arrete = page.locator(".prow-card", { hasText: "Dématérialisation" });
+    await expect(arrete).toBeVisible();
+    expect(
+      await arrete.evaluate((e) => getComputedStyle(e).backgroundColor),
+    ).toBe(await enCours.evaluate((e) => getComputedStyle(e).backgroundColor));
   });
 
   test("RG-GEN-06 — sans droit de création, le bouton n'est pas proposé", async ({ page }) => {
