@@ -10,16 +10,12 @@
     "20 fenêtre jours fixes",
     "20 plage de 366 jours"
   ],
-  "constate": "Plage de 367 jours : message « !\nThe date range cannot exceed 366 days. », commande « Generate » désactivée. Plage de 366 jours : commande active, message «  ».",
+  "constate": "Plage de 367 jours : message « ! The date range cannot exceed 366 days. », commande « Generate » désactivée, donnée partielle affichée : non. Plage de 366 jours : commande active, message «  ».",
   "textes_absents": [],
   "incidents": [],
   "fuites_jeu1": [],
   "preuves": [
-    "01-plage-367.png",
-    "02-plage-366.png",
-    "incidents.json",
-    "trace.zip",
-    "video/page@7959501d8946554cb9c80f7193da5946.webm",
-    "video/page@c38e9a0ec36bd61fbed9b9e771507859.webm"
+    "01-01-plage-367.png",
+    "02-02-plage-366.png"
   ]
 }

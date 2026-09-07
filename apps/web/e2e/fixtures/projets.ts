@@ -92,6 +92,29 @@ export const SESSION_LECTURE = {
   permissions: ["projects:read", "milestones:read", "tasks:read", "epics:read"],
 };
 
+/**
+ * ════════════════════════════════════════════════════════════════════════════
+ * `RG-GEN-06`, `RG-SCOPE-02` — **la session d'Inès : le portefeuille sans les
+ * jalons.**
+ *
+ * `PORTFOLIO_MANAGER` vaut `SOCLE` + `ENCADREMENT` et n'emprunte rien à
+ * `CONTRIBUTION_PROJET` : il pilote des projets **sans** `milestones:read`.
+ * `GET /projets/:id/feuille-de-route` lui répond donc `403`, et c'est ce que
+ * les parcours P-116 et P-165 ont rencontré.
+ *
+ * Le jeu d'essai le reproduit exactement : la fiche se lit, la feuille de
+ * route est refusée. Sans cette dissymétrie, aucun contrôle ne peut voir la
+ * moitié de l'écran qui prétendait au vide.
+ * ════════════════════════════════════════════════════════════════════════════
+ */
+export const SESSION_SANS_JALONS = {
+  ...SESSION,
+  role: { code: "PORTFOLIO_MANAGER", nom: "Responsable de portefeuille" },
+  permissions: SESSION.permissions.filter(
+    (p) => !p.startsWith("milestones:") && !p.startsWith("epics:"),
+  ),
+};
+
 export const PROJET = {
   id: "22222222-2222-4222-8222-222222222222",
   nom: "Refonte du portail citoyen",

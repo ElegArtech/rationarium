@@ -5,27 +5,17 @@
   "verdict": "vert",
   "objectif": "Le tiers archivé par Karim n'est plus assignable, et il est ressorti de sa fiche vers la liste par le retour de l'en-tête.",
   "chemin": [
-    "17 fiche de tâche, avant archivage",
     "23 tiers",
-    "24 fiche du tiers",
-    "24 tiers archivé",
-    "23 retour à la liste",
-    "12 équipe du projet",
-    "12 sélecteur de rattachement",
-    "17 fiche de tâche du projet",
-    "17 candidats à l'assignation",
-    "23 liste vide"
+    "24 fiche tiers",
+    "17 tâche",
+    "14 équipe",
+    "23 tiers"
   ],
-  "constate": "avant archivage, le tiers est bien proposé à l'assignation ; le tiers est marqué archivé ; ses rattachements restent affichés ; le retour de l'en-tête ramène sur la liste ; le tiers archivé n'est plus proposé au rattachement d'un projet ; le tiers archivé n'est plus proposé à l'assignation d'une tâche ; liste vide : texte d'explication présent, création offerte.",
+  "constate": "avant archivage, « Élodie Sirvent » proposée à l'assignation d'une tâche : oui (/taches/0000540b-0000-4000-8000-000000000005) ; tiers marqué archivé : oui ; rattachements conservés : 1 projet(s), 1 tâche(s) ; retour de l'en-tête → http://127.0.0.1:4312/tiers (vue 23) ; après archivage, proposée à l'assignation d'une tâche : non ; sélecteur de rattachement au projet : avant proposée, après non proposée ; liste vide : explication présente, création offerte",
   "textes_absents": [],
   "incidents": [],
   "fuites_jeu1": [],
   "preuves": [
-    "01-01-tiers-archive.png",
-    "02-02-retour-liste.png",
-    "03-03-selecteur-rattachement.png",
-    "04-04-candidats.png",
-    "05-05-liste-vide.png",
     "trace.zip",
     "video/"
   ]

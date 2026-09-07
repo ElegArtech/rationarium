@@ -6,23 +6,13 @@
   "objectif": "Karim connaît l'impact avant de supprimer : le bilan d'un tiers comme celui d'un client est affiché, et l'annulation ne supprime rien.",
   "chemin": [
     "23 tiers",
-    "23 bilan d'impact d'un tiers",
-    "23 après annulation",
-    "25 clients",
-    "25 bilan d'impact d'un client",
-    "25 après annulation",
-    "25 après suppression",
-    "10 projets",
-    "10 portefeuille"
+    "25 clients"
   ],
-  "constate": "bilan du tiers : nombre de projets et de tâches affichés (2 et 2) ; l'annulation laisse le tiers en place ; bilan du client : le nombre de projets rattachés est affiché et le projet est nommé ; l'annulation laisse le client en place ; le projet rattaché survit à la suppression du client.",
+  "constate": "bilan du tiers : « BILAN D'IMPACT · Supprimer le tiers · × · Voici ce à quoi ce tiers est rattaché aujourd'hui. · 2 · PROJETS · 2 · TÂCHES · 0 · SAISIES · ! · Archiver conserve l'historique et rend simplement le tiers non assignable. Supprimer efface ses rattachements. · Supprim » → projets chiffrés, tâches chiffrées ; annulation → le tiers est toujours en place ; bilan du client : « BILAN D'IMPACT · Supprimer le client · × · Supprimer définitivement le client « Communauté de communes de l'Orbe amont » ? · → · 3 projets perdront leur bénéficiaire. Ils ne sont pas supprimés. · Projet · Schéma des liaisons cyclables · Projet · Zones à mobili » → projets rattachés annoncés ; annulation → le client est toujours en place ; suppression confirmée : client retiré ; le projet « Schéma des liaisons cyclables » survit",
   "textes_absents": [],
   "incidents": [],
   "fuites_jeu1": [],
   "preuves": [
-    "01-01-bilan-tiers.png",
-    "02-02-bilan-client.png",
-    "03-03-apres-suppression.png",
     "trace.zip",
     "video/"
   ]

@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { Button } from "react-aria-components";
 import * as api from "../api/notifications.js";
-import { formaterDateLongue } from "../formats.js";
+import { formaterDate, formaterDateLongue } from "../formats.js";
 
 /**
  * `EX-NTF-01` à `EX-NTF-03` — le panneau de la cloche.
@@ -61,6 +61,129 @@ export const decouperLien = (lien: string): { to: string; hash?: string } => {
   return hash ? { to: to || lien, hash } : { to: to || lien };
 };
 
+/**
+ * ════════════════════════════════════════════════════════════════════════════
+ * `RG-GEN-08`, `EX-NTF-01`, `RG-NTF-01` — **le panneau compose ses phrases.**
+ *
+ * DÉFAUT CONSTATÉ EN SECONDE PASSE (P-18, P-19, P-20, P-166), et c'est un effet
+ * de la correction précédente : le serveur avait cessé d'écrire la phrase à
+ * l'ÉMISSION pour la rendre à la LECTURE — juste — mais il la rend dans la
+ * langue du COMPTE (`users.langue`, `notifications.service.ts` § `lister`). Or
+ * la langue affichée est celle de la SESSION, posée par la bascule FR/EN de
+ * l'en-tête. Sous interface anglaise, le cadre disait « Notifications / Mark
+ * all as read » et les entrées « Décision sur votre demande de congé ». Les six
+ * équivalents anglais existaient dans `libelles.ts` et n'étaient jamais
+ * atteints.
+ *
+ * **Deux réponses possibles, et on tranche pour la seconde.**
+ *
+ *  1. Faire voyager la langue de session jusqu'au serveur — un paramètre de
+ *     plus sur la route, une seconde autorité sur un fait que le navigateur
+ *     détient déjà, et un serveur qui devrait la préférer à `users.langue`
+ *     pour la cloche mais surtout PAS pour le courriel de `EX-NTF-04`, qui
+ *     part sans navigateur. Deux règles opposées sur le même paramètre.
+ *  2. **Le client rend la clé.** La réponse porte déjà `cle` et `params`
+ *     depuis la vague 1 — `lister()` les expose et personne ne les lisait —
+ *     et le panneau a la langue sous la main. Le serveur garde son rendu pour
+ *     le courriel, qui n'a pas de navigateur, et pour le repli.
+ *
+ * La seconde ne déplace aucune donnée et supprime la question : il n'y a plus
+ * de langue à choisir côté serveur pour un écran. C'est le même contrat que
+ * `messages-metier.ts` — une clé, et sa phrase de repli.
+ *
+ * Le repli est explicite : une clé absente du catalogue rend la phrase du
+ * serveur plutôt qu'un identifiant technique. i18next rend la CLÉ quand elle
+ * manque, ce qui afficherait « notifications.corps_… » à l'écran.
+ * ════════════════════════════════════════════════════════════════════════════
+ *
+ * Les deux familles sont composées à l'exécution ; l'analyse statique de
+ * `i18n:check` ne peut pas les voir, on les lui déclare.
+ *
+ * i18n-familles: coquille:notifications.type_, coquille:notifications.corps_
+ */
+
+/** `cadrage/01 § M18` — l'intitulé se déduit du TYPE. La liste est fermée. */
+export const cleTitre = (type: string): string => `notifications.type_${type}`;
+
+/**
+ * La clé du corps, ou `null` quand le serveur a rendu une phrase déjà rédigée.
+ *
+ * `conge_decide` porte les DEUX faces de la décision — `M18` n'énonce qu'un
+ * type —, et le motif de refus est facultatif : trois phrases pour une clé.
+ * Le motif reste dans la langue où son auteur l'a écrit, c'est une citation.
+ */
+export const cleCorps = (n: {
+  cle: string | null;
+  params: Record<string, string>;
+}): string | null => {
+  if (!n.cle) return null;
+  if (n.cle !== "conge_decide") return `notifications.corps_${n.cle}`;
+  if (n.params["decision"] !== "refuse") return "notifications.corps_conge_decide_approuve";
+  return n.params["motif"]
+    ? "notifications.corps_conge_decide_refuse_motif"
+    : "notifications.corps_conge_decide_refuse";
+};
+
+/**
+ * Les paramètres, mis en forme pour ICU.
+ *
+ * Trois précautions, et chacune correspond à un piège déjà payé :
+ *
+ *  - **Un placeholder manquant fait LEVER `intl-messageformat`**, ce qui
+ *    viderait le panneau entier. Les cinq noms employés par le catalogue sont
+ *    donc toujours fournis.
+ *  - **`Number("")` vaut zéro** : le filtre porte sur la CHAÎNE, pas sur sa
+ *    conversion, sinon un décompte absent s'afficherait « 0 jour ».
+ *  - La date arrive en `AAAA-MM-JJ` du serveur (`notifications.service.ts`) et
+ *    se formate selon le paramétrage global — `RG-GEN-09`, jamais à la main.
+ */
+export const parametresCorps = (
+  params: Record<string, string>,
+): Record<string, string | number> => {
+  const brut = params["jours"];
+  const jours = brut === undefined || brut === "" ? Number.NaN : Number(brut);
+  return {
+    tache: "",
+    projet: "",
+    motif: "",
+    ...params,
+    jours: Number.isFinite(jours) ? jours : 0,
+    date: params["date"] ? formaterDate(params["date"]) : "",
+  };
+};
+
+/**
+ * La fonction de traduction, réduite à ce que la composition en attend.
+ *
+ * `TFunction` d'i18next est un type surchargé une dizaine de fois ; le lier ici
+ * rendrait la règle intestable hors d'un composant. Chaque appelant fournit
+ * l'adaptateur d'une ligne, et la règle reste une fonction pure.
+ */
+export type Traduire = (cle: string, params?: Record<string, string | number>) => string;
+
+/** Ce que le lecteur voit, dans la langue de SA session. */
+export function rendreNotification(
+  n: {
+    type: string;
+    titre: string;
+    contenu: string;
+    cle: string | null;
+    params: Record<string, string>;
+  },
+  t: Traduire,
+): { titre: string; contenu: string } {
+  const cleT = cleTitre(n.type);
+  const titre = t(cleT);
+  const cleC = cleCorps(n);
+  const contenu = cleC ? t(cleC, parametresCorps(n.params)) : n.contenu;
+  return {
+    // Une clé que le catalogue ne connaît pas se rend elle-même : afficher
+    // « notifications.type_xxx » serait pire que la phrase du serveur.
+    titre: titre === cleT ? n.titre : titre,
+    contenu: cleC && contenu === cleC ? n.contenu : contenu,
+  };
+}
+
 export function PanneauNotifications({
   surOuverture,
 }: {
@@ -75,6 +198,8 @@ export function PanneauNotifications({
   surOuverture?: () => void;
 } = {}) {
   const { t } = useTranslation("coquille");
+  /* `t` d'i18next est surchargé ; la composition n'en veut qu'une signature. */
+  const traduire: Traduire = (cle, params) => (params === undefined ? t(cle) : t(cle, params));
   const client = useQueryClient();
 
   const requete = useQuery({
@@ -133,46 +258,51 @@ export function PanneauNotifications({
       ) : null}
 
       <div className="pop-list">
-        {entrees.map((n) => (
-          <div className={`pop-item${n.lue ? "" : " is-unread"}`} key={n.id}>
-            {/* La pastille de non-lu est portée par la liste, pas par un point
-                dans le texte : c'est ce que fait la maquette, et c'est ce qui
-                permet de la lire en survolant la colonne de gauche. */}
-            <span className="pop-mark" aria-hidden="true" />
-            <span className="pop-body">
-              {/* Le lien mène à l'objet : une notification qui ne mène nulle
-                  part oblige à le retrouver à la main. */}
-              {n.lien ? (
-                /*
-                 * `Link`, et non `<a href>` : une ancre brute sort du routeur
-                 * et RECHARGE le document entier — le lot, la session, les
-                 * réglages et le compteur qu'on vient de décrémenter. Le
-                 * défaut était corrigé pour la barre latérale et resté ici.
-                 */
-                <Link
-                  className="pop-title"
-                  {...decouperLien(n.lien)}
-                  onClick={() => ouvrir(n)}
+        {entrees.map((n) => {
+          // `RG-GEN-08` — la phrase se compose ICI, dans la langue de la
+          // session ; le rendu du serveur ne sert plus que de repli.
+          const vu = rendreNotification(n, traduire);
+          return (
+            <div className={`pop-item${n.lue ? "" : " is-unread"}`} key={n.id}>
+              {/* La pastille de non-lu est portée par la liste, pas par un point
+                  dans le texte : c'est ce que fait la maquette, et c'est ce qui
+                  permet de la lire en survolant la colonne de gauche. */}
+              <span className="pop-mark" aria-hidden="true" />
+              <span className="pop-body">
+                {/* Le lien mène à l'objet : une notification qui ne mène nulle
+                    part oblige à le retrouver à la main. */}
+                {n.lien ? (
+                  /*
+                   * `Link`, et non `<a href>` : une ancre brute sort du routeur
+                   * et RECHARGE le document entier — le lot, la session, les
+                   * réglages et le compteur qu'on vient de décrémenter. Le
+                   * défaut était corrigé pour la barre latérale et resté ici.
+                   */
+                  <Link
+                    className="pop-title"
+                    {...decouperLien(n.lien)}
+                    onClick={() => ouvrir(n)}
+                  >
+                    {vu.titre}
+                  </Link>
+                ) : (
+                  <span className="pop-title">{vu.titre}</span>
+                )}
+                <span className="pop-meta">{vu.contenu}</span>
+                <span className="pop-meta">{formaterDateLongue(n.creeLe)}</span>
+              </span>
+              {!n.lue ? (
+                <Button
+                  className="chip-btn"
+                  aria-label={t("notifications.marquerLue", { titre: vu.titre })}
+                  onPress={() => lecture.mutate(n.id)}
                 >
-                  {n.titre}
-                </Link>
-              ) : (
-                <span className="pop-title">{n.titre}</span>
-              )}
-              <span className="pop-meta">{n.contenu}</span>
-              <span className="pop-meta">{formaterDateLongue(n.creeLe)}</span>
-            </span>
-            {!n.lue ? (
-              <Button
-                className="chip-btn"
-                aria-label={t("notifications.marquerLue", { titre: n.titre })}
-                onPress={() => lecture.mutate(n.id)}
-              >
-                <span aria-hidden="true">●</span>
-              </Button>
-            ) : null}
-          </div>
-        ))}
+                  <span aria-hidden="true">●</span>
+                </Button>
+              ) : null}
+            </div>
+          );
+        })}
       </div>
     </>
   );

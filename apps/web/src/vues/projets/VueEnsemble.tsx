@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { Button } from "react-aria-components";
 import * as api from "../../api/projets.js";
+import { ErreurApi } from "../../api/client.js";
 import { messageErreur } from "../../api/erreurs.js";
 import { usePeut } from "../../session/session.js";
 import { Chargement, ErreurDeChargement } from "../../composants/etats.js";
@@ -29,6 +30,9 @@ import "./fiche.css";
 export function VueEnsemble({ projetId }: { projetId: string }) {
   const { t } = useTranslation("projets");
   const { t: tErreurs } = useTranslation("erreurs");
+  /* Deux liaisons dans un même fichier : `i18n:check` attribue chaque appel à
+     SA liaison, à condition de ne pas les nommer pareil. */
+  const { t: tCommun } = useTranslation("commun");
   const peut = usePeut();
   const annoncer = useMessages();
   const client = useQueryClient();
@@ -119,6 +123,12 @@ export function VueEnsemble({ projetId }: { projetId: string }) {
 
   const projet = requete.data;
   const fige = projet.statut === "cancelled" || projet.archive;
+  /*
+   * `RG-SCOPE-02` — la feuille de route est gardée par `milestones:read`, que
+   * la fiche n'exige pas : les deux lectures n'ont pas les mêmes droits, et le
+   * panneau doit dire laquelle lui manque plutôt que de conclure au vide.
+   */
+  const routeRefusee = route.error instanceof ErreurApi && route.error.statut === 403;
 
   return (
     <CadreProjet
@@ -280,7 +290,32 @@ export function VueEnsemble({ projetId }: { projetId: string }) {
             </span>
           </div>
           <div className="panel-body">
-            {route.data && route.data.jalons.length > 0 ? (
+            {routeRefusee ? (
+              /*
+               * ══════════════════════════════════════════════════════════════
+               * `RG-GEN-05`, `RG-GEN-06`, `RG-SCOPE-02` — **un état vide dit
+               * « il n'y a rien », jamais « vous n'avez pas le droit de le
+               * savoir ».**
+               *
+               * DÉFAUT CONSTATÉ EN SECONDE PASSE (P-116, P-165) :
+               * `GET /projets/:id/feuille-de-route` est gardée par
+               * `milestones:read`, que `PORTFOLIO_MANAGER` n'a pas. Le refus
+               * était AVALÉ — `route.data` restait indéfini — et le même écran
+               * annonçait « Feuille de route — 3 jalons » au bandeau pendant
+               * que le corps affichait « Aucun jalon défini » et proposait
+               * « + Créer un jalon », une action que le serveur refuserait.
+               *
+               * Deux lectures contradictoires côte à côte, et la fausse était
+               * la plus rassurante. Le décompte du bandeau, lui, reste : il
+               * vient de la fiche, que le porteur a le droit de lire. Ce qui
+               * change, c'est que le corps ne prétend plus être vide.
+               * ══════════════════════════════════════════════════════════════
+               */
+              <div className="empty" role="status">
+                <p>{tCommun("droits.permissionRequise")}</p>
+                <small>{t("jalons.refusLecture")}</small>
+              </div>
+            ) : route.data && route.data.jalons.length > 0 ? (
               <>
                 <div className="rmap">
                   {route.data.jalons.map((j) => (

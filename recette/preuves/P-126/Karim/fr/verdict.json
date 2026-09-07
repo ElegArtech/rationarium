@@ -5,25 +5,14 @@
   "verdict": "vert",
   "objectif": "Le rôle sur mesure de Karim existe : composé depuis un modèle, ses permissions cochées module par module dans la matrice, et la liste des rôles le porte avec son compte de permissions.",
   "chemin": [
-    "entrée",
+    "06 tableau de bord",
     "32 rôles",
-    "32 fenêtre de création",
-    "32 après création",
-    "32 matrice",
-    "32 après enregistrement"
+    "32 création de rôle",
+    "32 matrice"
   ],
-  "constate": "permissions à la création : 27 (modèle BASIC_USER) ; 24 commandes « tout sélectionner » (une par module) ; 960 cases de croisement module × action ; permissions après enregistrement : 28 ; attribution du rôle à k.brossard → 200 ; entrées de menu du porteur : PILOTAGE ·  · Tableau de bord · Planning ·  · PROJETS ·  · Projets · Tâches · Événements ·  · RESSOURCES HUMAINES ·  · Congés · Télétravail · Temps passé ; les entrées de menu du porteur correspondent une à une à ses permissions",
+  "constate": "ligne ADMIN : Administrateur · ADMIN · 152 / 152 · 2 utilisateurs · SYSTÈME · OUVRIR · RENOMMER · SUPPRIMER ; fenêtre de création : 26 modèles proposés ; rôle créé « Référent recette » (REFERENT_RECETTE) — 27 permissions à la création ; matrice : 24 commandes « tout sélectionner » (une par module), 152 cases de croisement ; case cochée « Journal d'audit — Lire : non accordée » → permissions 27 puis 28 ; attribution du rôle à k.brossard → 200 ; permissions accordées relevées : 28 ; entrées de menu du porteur : Tableau de bord · Planning · Projets · Tâches · Événements · Congés · Télétravail · Temps passé · Journal d'audit ; les entrées de menu du porteur correspondent une à une à ses permissions",
   "textes_absents": [],
   "incidents": [],
   "fuites_jeu1": [],
-  "preuves": [
-    "01-creation-role.png",
-    "02-matrice.png",
-    "03-liste-apres.png",
-    "99-porteur.png",
-    "incidents.json",
-    "trace.zip",
-    "verdict.json",
-    "video"
-  ]
+  "preuves": []
 }

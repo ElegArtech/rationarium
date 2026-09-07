@@ -114,3 +114,75 @@ describe("RG-ADM-03 — un refus de lecture part au serveur, qui le trace", () =
     expect(fautes).toEqual([]);
   });
 });
+
+/**
+ * ════════════════════════════════════════════════════════════════════════════
+ * `RG-GEN-06` — **L'AUTRE MOITIÉ DE LA MÊME RÈGLE : la commande qui mène à une
+ * vue gardée se masque.**
+ *
+ * Le contrôle ci-dessus interdit de court-circuiter la lecture d'une vue ; il
+ * ne dit rien de ce qui **y mène**. La correction précédente a retiré le
+ * `enabled: peut(…)` de la vue 09 — juste, `RG-ADM-03` veut le refus tracé —
+ * et a laissé le lien « Activité » offert sans condition sur les vues 07, 08 et
+ * 09 : clic, « Permission requise », et un `403` en console à chaque visite.
+ *
+ * Les deux moitiés ne disent pas la même chose, et c'est exactement ce qui a
+ * fait confondre :
+ *
+ *   masquer la COMMANDE            → courtoisie, exigée par `RG-GEN-06` ;
+ *   court-circuiter la LECTURE     → contournement du contrôle serveur.
+ *
+ * Le contrôle porte sur la FORME, pas sur l'occurrence : tout groupe de modes
+ * ou d'onglets qui mène à une vue gardée par une permission autre que celle de
+ * la page d'où il est offert. Les deux groupes du produit dans ce cas sont le
+ * sélecteur de mode du planning et la barre de sections d'un projet ; chacun
+ * déclare sa table, et le contrôle exige qu'elle soit APPLIQUÉE.
+ * ════════════════════════════════════════════════════════════════════════════
+ */
+describe("RG-GEN-06 — une commande qui mène à une vue gardée est masquée", () => {
+  /** Le groupe, la table qu'il déclare, et la permission qui doit y figurer. */
+  const GROUPES = [
+    {
+      suffixe: "planning/Planning.tsx",
+      table: "PERMISSION_DU_MODE",
+      filtre: "modesOfferts",
+      /* `planning.controller.ts` : `@RequiertPermission("predefined_tasks:read")`
+         sur `GET /planning/activite`. */
+      permission: "predefined_tasks:read",
+    },
+    {
+      suffixe: "projets/Fiche.tsx",
+      table: "PERMISSION_DE_L_ONGLET",
+      filtre: "PERMISSION_DE_L_ONGLET[o.cle]",
+      /* `projets.controller.ts` : `@RequiertPermission("milestones:read")` sur
+         `GET /projets/:id/feuille-de-route`, que lisent les vues 13 et 15. */
+      permission: "milestones:read",
+    },
+  ];
+
+  it("le contrôle a quelque chose à mesurer", () => {
+    // Un glob qui cesserait d'atteindre ces deux fichiers rendrait le contrôle
+    // muet — et il l'est déjà par nature sur ce qu'il ne connaît pas.
+    for (const g of GROUPES) {
+      expect(sources.some((f) => f.chemin.endsWith(g.suffixe)), g.suffixe).toBe(true);
+    }
+  });
+
+  for (const g of GROUPES) {
+    it(`${g.suffixe} — la table est déclarée ET appliquée`, () => {
+      const fichier = sources.find((f) => f.chemin.endsWith(g.suffixe));
+      expect(fichier, `${g.suffixe} introuvable`).toBeDefined();
+      const texte = fichier?.texte ?? "";
+
+      // La permission de la route d'arrivée est nommée…
+      expect(texte, `${g.suffixe} — ${g.table}`).toContain(g.table);
+      expect(texte, `${g.suffixe} — ${g.permission}`).toContain(`"${g.permission}"`);
+      // …et la table est effectivement passée au filtre. Une table déclarée
+      // que personne n'applique est la famille de défauts la plus coûteuse du
+      // dépôt : elle a l'air d'une règle et ne fait rien.
+      expect(texte, `${g.suffixe} — filtre`).toContain(g.filtre);
+      // Le filtre passe par `peut(…)`, sinon ce n'est pas un masque de droits.
+      expect(texte, `${g.suffixe} — peut()`).toMatch(/peut\(/);
+    });
+  }
+});

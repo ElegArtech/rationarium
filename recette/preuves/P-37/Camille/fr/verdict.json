@@ -8,16 +8,17 @@
     "06 tableau de bord",
     "06 plafond atteint"
   ],
-  "constate": "Compteur de départ « 4 / 20 ». Message de plafond : « Limite de 20 to-dos atteinte. Terminez-en une pour en ajouter. ». 20 lignes rendues, compteur 20/20.",
+  "constate": "Compteur de départ « 4 / 20 ». — Message de plafond : « Limite de 20 to-dos atteinte. Terminez-en une pour en ajouter. ». — 20 lignes rendues, compteur 20/20.",
   "textes_absents": [],
   "incidents": [],
+  "incidents_ecartes": [
+    "401 GET http://127.0.0.1:4302/api/auth/me",
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  ],
   "fuites_jeu1": [],
   "preuves": [
-    "01-06-tableau-de-bord.png",
-    "02-06-plafond-atteint.png",
-    "incidents.json",
     "trace.zip",
-    "verdict.json",
-    "video"
+    "video/",
+    "incidents.json"
   ]
 }

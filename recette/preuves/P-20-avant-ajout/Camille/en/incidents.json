@@ -10,7 +10,7 @@
   },
   {
     "genre": "http",
-    "texte": "403 GET http://127.0.0.1:4301/api/projets/0000500b-0000-4000-8000-000000000003/feuille-de-route"
+    "texte": "403 GET http://127.0.0.1:4301/api/projets/0000500b-0000-4000-8000-000000000003"
   },
   {
     "genre": "console",
@@ -19,7 +19,7 @@
   },
   {
     "genre": "http",
-    "texte": "403 GET http://127.0.0.1:4301/api/projets/0000500b-0000-4000-8000-000000000003"
+    "texte": "403 GET http://127.0.0.1:4301/api/projets/0000500b-0000-4000-8000-000000000003/feuille-de-route"
   },
   {
     "genre": "console",

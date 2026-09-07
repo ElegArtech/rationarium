@@ -10,10 +10,10 @@
     "17 fiche de la tâche en retard",
     "panneau de notifications"
   ],
-  "constate": "La tâche dépassée porte « Overdue » sur les vues 06 et 17, celle due aujourd'hui non, et « Mark all as read » ramène le compteur à zéro.",
+  "constate": "La tâche dépassée porte « Overdue » sur les vues 06 et 17, celle due aujourd'hui non, et « Mark all as read » ramène le compteur à zéro. MAIS un texte attendu du parcours manque à l'écran : « Task due soon », « Overdue task ».",
   "textes_absents": [
-    "Tâche à échéance proche",
-    "Tâche en retard"
+    "Task due soon",
+    "Overdue task"
   ],
   "incidents": [],
   "incidents_refus_attendus": [],
@@ -21,7 +21,7 @@
   "notes": [
     "vue 06, ligne « Consultation des prestataires » : \"Consultation des prestataires\\nOVERDUE\"",
     "vue 06, ligne « Maquette de la page d'accueil » (échéance aujourd'hui) : \"Maquette de la page d'accueil\\nTODAY\"",
-    "entrées du panneau : [\"Notifications\",\"Mark all as read\",\"Décision sur votre demande de congé\",\"Réduction du temps de travail — une demi-journée\",\"7 septembre 2026\",\"Ajout à un projet\",\"Guichet unique d'urbanisme\",\"7 septembre 2026\",\"Échéance proche\",\"Maquette de la page d'accueil — dans trois jours\",\"7 septembre 2026\",\"●\"]",
+    "entrées du panneau : [\"Notifications\",\"Mark all as read\",\"Décision sur votre demande de congé\",\"Réduction du temps de travail — une demi-journée\",\"7 septembre 2026\",\"Ajout à un projet\",\"Guichet unique d'urbanisme\",\"7 septembre 2026\",\"Nouvelle tâche assignée\",\"Recette fonctionnelle — Refonte de l'intranet agents\",\"7 septembre 2026\",\"●\"]",
     "compteur : 2 → 0 ; entrées encore marquées non lues : 0"
   ],
   "preuves": [

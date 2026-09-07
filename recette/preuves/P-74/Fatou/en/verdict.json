@@ -2,14 +2,14 @@
   "parcours": "P-74",
   "persona": "Fatou",
   "langue": "en",
-  "verdict": "rouge",
+  "verdict": "vert",
   "objectif": "La demande de congé que Fatou avait à traiter est approuvée, le solde de l'agent est décompté, et l'onglet À valider ne la porte plus.",
   "chemin": [
     "06 tableau de bord",
     "19 congés",
     "19 onglet à valider"
   ],
-  "constate": "Demande déposée par l'agent du 12/10/2026 au 13/10/2026 : son solde RTT passe de {\"disponible\":20,\"utilises\":0,\"enAttente\":0} à {\"disponible\":18,\"utilises\":0,\"enAttente\":2}. La notification « Demande de congé à valider » est présente et activable : elle ouvre /conges sur l'onglet « My requests2 » — pas « To approve », et par une ancre brute qui RECHARGE tout le document. L'onglet « To approve » porte la demande (1 ligne) ; après « Approve » : « ! 5 requests awaiting approval | Request approved. |  », il en reste 0. Côté agent, la ligne lit « RÉ Réduction du temps de travail From 12/10/2026 to 13/10/2026 2,0 APPROVED Approver: Solène Pichon REQUEST CANCELLATION » et son solde devient {\"disponible\":18,\"utilises\":2,\"enAttente\":0}.",
+  "constate": "Demande déposée par l'agent du 12/10/2026 au 13/10/2026 : son solde RTT passe de {\"disponible\":18,\"utilises\":0,\"enAttente\":2} à {\"disponible\":16,\"utilises\":0,\"enAttente\":4}. La notification « Demande de congé à valider » est présente et activable : elle ouvre /conges#aValider, où la barre de sections marque comme courant « My requests2 + To approve6 » (l'onglet « To approve » en fait partie), sans recharger le document. DEUX onglets portent aria-current=\"page\" en même temps (« My requests2 + To approve6 ») : le composant marque l'onglet actif, et le lien du routeur marque en plus tout lien dont le chemin correspond — les six onglets pointant tous sur /conges. L'onglet « To approve » porte la demande (1 ligne) ; après « Approve » : « ! 5 requests awaiting approval | Request approved. |  », il en reste 0. Côté agent, la ligne lit « RÉ Réduction du temps de travail From 12/10/2026 to 13/10/2026 2.0 APPROVED Approver: Solène Pichon REQUEST CANCELLATION » et son solde passe de {\"disponible\":18,\"utilises\":0,\"enAttente\":2} (avant dépôt) à {\"disponible\":16,\"utilises\":0,\"enAttente\":4} (déposé) puis {\"disponible\":16,\"utilises\":2,\"enAttente\":2} (approuvé) : le disponible a bien diminué de 2 jours et les jours sont passés d'en attente à utilisés.",
   "textes_absents": [],
   "incidents": [],
   "fuites_jeu1": [],

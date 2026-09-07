@@ -1,0 +1,25 @@
+{
+  "parcours": "P-145",
+  "persona": "Camille",
+  "langue": "fr",
+  "verdict": "vert",
+  "objectif": "Camille a récupéré la pièce jointe de sa tâche : le fichier est enregistré sur son poste, et elle est restée dans l'application, sur la fiche de la tâche.",
+  "chemin": [
+    "17 fiche de la tâche",
+    "17 pièce jointe déposée",
+    "17 après téléchargement"
+  ],
+  "constate": "Téléchargement déclenché : « Note-de-recette.txt ». Le parcours est joué sur une pièce que Camille dépose elle-même : les 1 documents que le second jeu d'illustration pose sur cette tâche portent une empreinte non hexadécimale et aucun octet au magasin (jeu2.mjs écrit « recette-f… » sans appeler ecrireContenu), donc leur « Télécharger » ne peut rien remettre. C'est un manque du jeu, pas du produit.",
+  "textes_absents": [],
+  "incidents": [],
+  "fuites_jeu1": [],
+  "preuves": [
+    "01-17-fiche-de-la-t-che.png",
+    "02-17-pi-ce-jointe-d-pos-e.png",
+    "03-17-apr-s-t-l-chargement.png",
+    "incidents.json",
+    "trace.zip",
+    "verdict.json",
+    "video"
+  ]
+}

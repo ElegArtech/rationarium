@@ -2,12 +2,12 @@
   "parcours": "P-34",
   "persona": "Camille",
   "langue": "en",
-  "verdict": "rouge",
+  "verdict": "vert",
   "objectif": "Camille ne peut pas déclarer plus que le plafond journalier : la saisie qui le franchit est refusée en nommant le total déjà constaté et le plafond.",
   "chemin": [
     "21 temps passé"
   ],
-  "constate": "le message ne porte pas le total déjà déclaré (3,5 h) — lu : « !\nThe total declared for this day would exceed the allowed cap. » — le message ne porte pas le plafond (12 h) — lu : « !\nThe total declared for this day would exceed the allowed cap. » — le 07/09/2026 porte déjà 3.5 h, plafond 12 h — message de refus : « !\nThe total declared for this day would exceed the allowed cap. »",
+  "constate": "le 07/09/2026 porte déjà 3.5 h, plafond 12 h — message de refus : « !\nThe total declared for this day would exceed the allowed cap: 3.5 h already logged, 10 h more, i.e. 13.5 h against a cap of 12 h. Reduce the duration, or move part of it to another day. »",
   "textes_absents": [],
   "incidents": [],
   "incidents_ecartes": [

@@ -5,13 +5,23 @@
   "verdict": "rouge",
   "objectif": "Le planning de Driss est sorti au format ICS, et un calendrier ICS reçu a été importé après prévisualisation.",
   "chemin": [
-    "07/08/09 /planning",
-    "07/08/09 /planning/mois",
-    "07/08/09 /planning/activite"
+    "vue /planning",
+    "vue /planning/mois",
+    "vue /planning/activite"
   ],
-  "constate": "aucune commande d'export ICS n'est offerte à Driss sur les trois vues de planning (la commande existe mais elle est gardée par « planning:export_ics », que le modèle de rôle « Chef de projet » ne porte pas) ; aucune commande d'import ICS n'existe nulle part dans le planning : ni bouton, ni champ de fichier, ni entrée de menu — la prévisualisation et le compte rendu à trois issues sont donc inatteignables. commandes d'échange trouvées : /planning → [] ; /planning/mois → [] ; /planning/activite → [] ; menu « Créer » : [Tâche / Événement].",
+  "constate": "aucune commande d'export ICS n'est offerte sur les trois vues de planning : le fichier ICS de la période affichée ne peut pas être produit ; aucune commande d'import ICS n'existe dans le planning — ni bouton, ni champ de fichier, ni entrée de menu : la prévisualisation et le compte rendu à trois issues sont inatteignables. commandes d'échange relevées : /planning → [] ; /planning/mois → [] ; /planning/activite → [] ; menu « Créer » : [Tâche / Événement]. Incidents relevés : http — 403 GET http://127.0.0.1:4305/api/planning/activite?debut=2026-09-07&fin=2026-09-13 | console — Failed to load resource: the server responded with a status of 403 (Forbidden).",
   "textes_absents": [],
-  "incidents": [],
+  "incidents": [
+    {
+      "genre": "http",
+      "texte": "403 GET http://127.0.0.1:4305/api/planning/activite?debut=2026-09-07&fin=2026-09-13"
+    },
+    {
+      "genre": "console",
+      "texte": "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "url": "http://127.0.0.1:4305/planning/activite"
+    }
+  ],
   "refus_attendus": [],
   "fuites_jeu1": [],
   "preuves": [

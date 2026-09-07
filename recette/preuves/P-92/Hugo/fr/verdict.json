@@ -2,28 +2,24 @@
   "parcours": "P-92",
   "persona": "Hugo",
   "langue": "fr",
-  "verdict": "rouge",
+  "verdict": "vert",
   "objectif": "Le référentiel des types de congés d'Hugo est à jour : un type nouveau est sélectionnable avec son code, sa couleur et son régime de validation, un type désactivé ne l'est plus, et le nombre d'utilisations de chaque type est affiché.",
   "chemin": [
     "06 tableau de bord",
     "19 congés",
     "19 types de congés",
-    "19 mes demandes après dépôt",
+    "19 type créé",
+    "19 mes demandes",
     "19 type désactivé",
     "19 toutes les demandes"
   ],
-  "constate": "Référentiel : 5 types ; première ligne « RTT · Réduction du temps de travail · Rémunéré · Requise · 18 j/an · 24 congés · ACTIF · DÉSACTIVER » ; commandes du panneau : DÉSACTIVER, DÉSACTIVER, DÉSACTIVER, DÉSACTIVER, DÉSACTIVER ; pastilles de couleur dans la ligne : 0. ROUGE — aucune commande de création de type de congé dans l'onglet « Types de congés » : le référentiel ne peut pas recevoir de type nouveau (EX-CNG-13). ROUGE — la couleur du type n'est pas affichée dans le référentiel. Type auto-validé : mention « Ce type est approuvé automatiquement. » présente ; ligne déposée : « AB · Absence pour raison de santé · Du 05/10/2026 au 06/10/2026 · 2,0 · APPROUVÉ · Validateur : Thibaut Grasset · DEMANDER L'ANNULATION ». Après désactivation, options du sélecteur : Sélectionner…, Réduction du temps de travail, Compte épargne-temps, Absence pour raison de santé, Événement familial. Les congés déjà posés avec « Formation professionnelle » gardent leur type affiché.",
+  "constate": "Référentiel : 5 types ; première ligne « RT · RTT · Réduction du temps de travail · Jours acquis au titre de la réduction du temps de travail. Solde arrêté au 31 décembre. · Rémunéré · Requise · 18 j/an · 24 congés · SYSTÈME · MODIFIER · DÉSACTIVER » ; pastilles de couleur dans la ligne : 1 ; utilisations affichées : 24 congés, 5 congés, 1 congé, 3 congés, 2 congés ; limites : 18 j/an, 10 j/an, Illimité, 5 j/an, 6 j/an. Création : message « Type de congé créé : Congé de recette. » ; ligne obtenue « RE · REC · Congé de recette · Type créé pendant la recette. · Rémunéré · Auto · 5 j/an · aucun congé · ACTIF · MODIFIER · DÉSACTIVER » ; pastille de couleur : 1. Options du sélecteur de demande : Sélectionner…, Congé de recette, Réduction du temps de travail, Compte épargne-temps, Absence pour raison de santé, Événement familial, Formation professionnelle. Type auto-validé : mention « Ce type est approuvé automatiquement. » présente ; ligne déposée « AB · Absence pour raison de santé · Du 05/10/2026 au 06/10/2026 · 2,0 · APPROUVÉ · Validateur : Thibaut Grasset · DEMANDER L'ANNULATION ». Après désactivation, options du sélecteur : Sélectionner…, Congé de recette, Réduction du temps de travail, Compte épargne-temps, Absence pour raison de santé, Événement familial. Les congés déjà posés avec « Formation professionnelle » gardent leur type affiché.",
   "textes_absents": [],
   "incidents": [],
   "fuites_jeu1": [],
   "preuves": [
-    "01-types.png",
-    "02-demande-auto.png",
-    "03-mes-demandes.png",
-    "incidents.json",
     "trace.zip",
-    "video/page@4326e66c0c49376dede7a6fafdfadb85.webm",
-    "video/page@833d2cb8ca13b44008caa8217e31576a.webm",
-    "video/page@a654c38107f7f2ed40dff8ef8893e283.webm"
+    "video/",
+    "incidents.json"
   ]
 }

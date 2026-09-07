@@ -1,0 +1,23 @@
+{
+  "parcours": "P-146",
+  "persona": "Camille",
+  "langue": "en",
+  "verdict": "vert",
+  "objectif": "Le rattachement d'une tâche se lit partout comme un nom de projet précédé de son symbole : aucun code d'icône n'apparaît en toutes lettres.",
+  "chemin": [
+    "16 liste des tâches",
+    "17 fiche de la tâche"
+  ],
+  "constate": "Pastille de la vue 16 : {\"balise\":\"svg\",\"use\":\"#p-screen\",\"texte\":\"\",\"boite\":13}. Pastille de la vue 17 : {\"balise\":\"svg\",\"use\":\"#p-screen\",\"texte\":\"\",\"boite\":13}.",
+  "textes_absents": [],
+  "incidents": [],
+  "fuites_jeu1": [],
+  "preuves": [
+    "01-16-liste-des-t-ches.png",
+    "02-17-fiche-de-la-t-che.png",
+    "incidents.json",
+    "trace.zip",
+    "verdict.json",
+    "video"
+  ]
+}

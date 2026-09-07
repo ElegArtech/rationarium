@@ -11,13 +11,14 @@
   "constate": "Requête forgée : statut 403, ? ligne(s) rendues, aucune d'un autre agent.",
   "textes_absents": [],
   "incidents": [],
+  "incidents_ecartes": [
+    "401 GET http://127.0.0.1:4302/api/auth/me",
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  ],
   "fuites_jeu1": [],
   "preuves": [
-    "01-21-temps-pass-.png",
-    "02-21-fen-tre-de-saisie.png",
-    "incidents.json",
     "trace.zip",
-    "verdict.json",
-    "video"
+    "video/",
+    "incidents.json"
   ]
 }

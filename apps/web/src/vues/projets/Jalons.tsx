@@ -14,7 +14,8 @@ import * as api from "../../api/projets.js";
 import * as apiTaches from "../../api/taches.js";
 import { messageErreur } from "../../api/erreurs.js";
 import { usePeut } from "../../session/session.js";
-import { Chargement, ErreurDeChargement } from "../../composants/etats.js";
+import { Chargement, ErreurDeChargement, AccesRefuse } from "../../composants/etats.js";
+import { ErreurApi } from "../../api/client.js";
 import { Fenetre } from "../../composants/fenetre.js";
 import { FenetreImport } from "../../composants/Import.js";
 import { useMessages } from "../../composants/messages.js";
@@ -260,6 +261,20 @@ export function Jalons({ projetId }: { projetId: string }) {
     onError: (e) => annoncer("err", messageErreur(e, tErreurs, t("jalons.echecStatut"))),
   });
 
+  /*
+   * `RG-ADM-03`, `RG-GEN-05` — **un refus n'est pas un échec de chargement.**
+   *
+   * `GET /projets/:id/feuille-de-route` est gardée par `milestones:read`, que
+   * `PORTFOLIO_MANAGER` n'a pas : la vue rendait « Le chargement a échoué » et
+   * un bouton « Réessayer » qui ne pouvait que réessayer le même refus. Le
+   * refus se lit sur le `403` REÇU — c'est le serveur qui le prononce et qui
+   * le trace —, et il se dit dans les mots d'un refus.
+   *
+   * L'onglet qui mène ici est masqué depuis le même correctif (`Fiche.tsx`,
+   * `PERMISSION_DE_L_ONGLET`) ; reste l'adresse forcée, qui doit aboutir à un
+   * refus lisible, pas à une panne.
+   */
+  if (route.error instanceof ErreurApi && route.error.statut === 403) return <AccesRefuse />;
   if (projet.isPending || route.isPending) return <Chargement quoi={t("jalons.laFeuille")} />;
   if (projet.isError)
     return <ErreurDeChargement erreur={projet.error} surReessai={() => void projet.refetch()} />;

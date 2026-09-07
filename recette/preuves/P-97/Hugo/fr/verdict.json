@@ -2,19 +2,20 @@
   "parcours": "P-97",
   "persona": "Hugo",
   "langue": "fr",
-  "verdict": "rouge",
+  "verdict": "vert",
   "objectif": "L'import d'Hugo distingue ce qui est ignoré de ce qui est en erreur : seuls doublon et chevauchement sont ignorés, tout le reste — agent inconnu, type désactivé, dates incohérentes, solde dépassé — est en erreur avec sa ligne et son message chiffré.",
   "chemin": [
+    "06 tableau de bord",
     "19 congés",
     "19 types de congés",
-    "19 fenêtre d'import"
+    "19 type désactivé",
+    "19 fenêtre d'import",
+    "19 compte rendu",
+    "19 toutes les demandes"
   ],
-  "constate": "« Formation professionnelle » désactivée au préalable depuis l'onglet « Types de congés » (liste rafraîchie : non, refus effectif constaté ligne 7). Import de 8 lignes — 2 valides, doublon exact, chevauchement, agent inconnu, type désactivé, dates inversées, solde dépassé. AUCUN aperçu ne s'affiche : POST /api/imports/apercu?type=conges répond 403 (il exige tasks:import, que le responsable RH ne détient pas) — RG-IMP-03 est vide sur ce chemin, l'écriture part sans prévisualisation. Compte rendu relevé : « IMPORT CSV | Importer des congés | × | Format attendu | userEmail · leaveTypeName · startDate · endDate · halfDay · comment | Télécharger le modèle CSV | Fichier CSV | conges.csv | 2 importés | 2 ignorés | 4 en erreur | Les lignes ignorées correspondent à des entrées déjà présentes : rejouer un fichier ne crée pas de doublon. | Ligne 6 — aucun compte ne porte l'adresse « inconnu@valmorin.fr ». | Ligne 7 — le type de congé « Formation professionnelle » est désactivé : réactivez-le, ou choisissez un autre type sur cette ligne. | Ligne 8 — la date de fin (2026-10-05) précède la date de début (2026-10-09) : inversez-les. | Ligne 9 — solde insuffisant pour 2026 : 14 jour(s) demandé(s), 5 disponib ». 2 ignorés=true, 4 en erreur=true, 2 importés=true, lignes citées=6/7/8/9, solde chiffré=true.",
+  "constate": "Import de 8 lignes — 2 valides, doublon exact, chevauchement, agent inconnu, type désactivé, dates inversées, solde dépassé. Compte rendu : « IMPORT CSV | Importer des congés | × | Format attendu | userEmail · leaveTypeName · startDate · endDate · halfDay · comment | Télécharger le modèle CSV | Fichier CSV | conges.csv | 2 importés | 2 ignorés | 4 en erreur | 2 congés créés | Lignes ignorées | Ligne 4 — cette période chevauche un congé déjà enregistré : ligne ignorée. | Ligne 5 — cette période chevauche un congé déjà enregistré : ligne ignorée. | Ligne 6 — aucun compte ne porte l'adresse « inconnu@valmorin.fr ». | Ligne 7 — le type de congé « Formation professionnelle » est désactivé : réactivez-le, ou choisissez un autre type sur cette ligne. | Ligne 8 — la date de fin (2026-10-05) précède la date de début (2026-10-09) : inversez-les. | Ligne 9 — solde insuffisant pour 2026 : 14 jour(s) demandé(s), 4 disponible(s), 10 manquant(s). | Fermer ». 2 ignorés=true, 4 en erreur=true, 2 importés=true, lignes citées=6/7/8/9, solde chiffré=true.",
   "textes_absents": [],
-  "incidents": [
-    "http : 403 POST http://127.0.0.1:4308/api/imports/apercu?type=conges",
-    "console : Failed to load resource: the server responded with a status of 403 (Forbidden)"
-  ],
+  "incidents": [],
   "fuites_jeu1": [],
   "preuves": [
     "trace.zip",

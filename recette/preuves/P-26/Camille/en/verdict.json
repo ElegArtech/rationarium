@@ -5,21 +5,34 @@
   "verdict": "rouge",
   "objectif": "La demande de Camille à cheval sur deux années est refusée pour l'année dont le solde ne suffit pas, et le refus est chiffré année par année ; aucune demande n'est créée.",
   "chemin": [
-    "19 congés"
+    "06 tableau de bord",
+    "19 congés — mes demandes",
+    "19 fenêtre de demande à cheval"
   ],
-  "constate": "le message de refus ne nomme pas l'année concernée — lu : « !\nYour balance does not cover this request. » — le message de refus ne porte pas trois nombres (demandés, disponibles, manquants) — lu : « !\nYour balance does not cover this request. » — message de refus : « !\nYour balance does not cover this request. »",
-  "textes_absents": [],
+  "constate": "La demande du 28/12/2026 au 15/01/2027 est refusée par un message chiffré nommant 2027 : « ! Your 2027 balance does not cover this request: 10 days requested, 6 available, 4 short. Shorten the period, or ask for your annual entitlement to be adjusted. » ; aucune ligne créée, soldes inchangés. MAIS un texte attendu du parcours manque à l'écran : « Balances ».",
+  "textes_absents": [
+    "Balances"
+  ],
   "incidents": [],
-  "incidents_ecartes": [
-    "401 GET http://127.0.0.1:4302/api/auth/me",
-    "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
-    "[refus métier attendu] 422 POST http://127.0.0.1:4302/api/conges",
-    "[écho du refus attendu] Failed to load resource: the server responded with a status of 422 (Unprocessable Entity)"
+  "incidents_refus_attendus": [
+    "422 POST http://127.0.0.1:4301/api/conges",
+    "Failed to load resource: the server responded with a status of 422 (Unprocessable Entity)"
   ],
   "fuites_jeu1": [],
+  "notes": [
+    "contrôle du solde : \"LEAVE REQUEST |  | New request |  | × | Leave type * | Select… | Réduction du temps de travail | Compte épargne-temps | Absence pour raison de santé | Événement familial | Formation professionnelle | Start date * | End date * | Half day at start | Full day | Morning | Afternoon | Half day at end | Full day | Morning | Afternoon | Reason | BALANCE CHECK | SPANNING TWO YEARS |  | Granted 2026 | 6.0 |  | Already used | 0.0 |  | Available | 6.0 |  | This request | 4.0 d |  | Granted 2027 | 6.0 |  | \"",
+    "message de refus : \"!\\nYour 2027 balance does not cover this request: 10 days requested, 6 available, 4 short. Shorten the period, or ask for your annual entitlement to be adjusted.\"",
+    "lignes : 5 → 5"
+  ],
   "preuves": [
+    "01-19-fenetre-deux-annees.png",
+    "01-conges-avant.png",
+    "02-19-refus.png",
+    "02-fenetre-deux-annees.png",
+    "03-refus.png",
+    "04-apres-refus.png",
+    "incidents.json",
     "trace.zip",
-    "video/",
-    "incidents.json"
+    "video"
   ]
 }

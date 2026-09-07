@@ -1,0 +1,27 @@
+{
+  "parcours": "P-148",
+  "persona": "Camille",
+  "langue": "fr",
+  "verdict": "vert",
+  "objectif": "L'interface de Camille en anglais ne porte aucun mot français : le surtitre du tableau de bord, le titre du calendrier de télétravail et les en-têtes de journée de la vue du temps passé sont en anglais, et les décimales emploient le même séparateur d'une vue à l'autre.",
+  "chemin": [
+    "06 tableau de bord",
+    "20 calendrier de télétravail",
+    "21 temps passé",
+    "19 congés"
+  ],
+  "constate": "Surtitre du tableau de bord : « LUNDI 7 SEPTEMBRE 2026 ». Titre du calendrier de la vue 20 : « Septembre 2026 ». En-têtes de journée de la vue 21 : [\"10 JEU SEPTEMBRE\",\"9 MER SEPTEMBRE\",\"8 MAR SEPTEMBRE\",\"7 LUN SEPTEMBRE\",\"4 VEN SEPTEMBRE\",\"3 JEU SEPTEMBRE\"]. Séparateur décimal : vue 21 [\",\"], vue 19 [\",\"].",
+  "textes_absents": [],
+  "incidents": [],
+  "fuites_jeu1": [],
+  "preuves": [
+    "01-06-tableau-de-bord.png",
+    "02-20-calendrier-de-t-l-travail.png",
+    "03-21-temps-pass-.png",
+    "04-19-cong-s.png",
+    "incidents.json",
+    "trace.zip",
+    "verdict.json",
+    "video"
+  ]
+}

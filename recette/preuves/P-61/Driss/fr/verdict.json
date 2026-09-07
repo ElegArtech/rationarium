@@ -2,23 +2,25 @@
   "parcours": "P-61",
   "persona": "Driss",
   "langue": "fr",
-  "verdict": "rouge",
+  "verdict": "vert",
   "objectif": "Driss sait qui est disponible : le planning est groupé par service, restreint au périmètre voulu, ses couches sont choisies, et il y a créé une tâche puis ouvert un détail sans quitter la vue.",
   "chemin": [
     "07 planning",
     "07 détail d'une occupation",
-    "clic « Créer ici — Ulysse Cambon, 2026-09-07 » → /taches"
+    "07 création depuis « Créer ici — Ulysse Cambon, 2026-09-07 »"
   ],
-  "constate": "la commande de création d'une cellule (/taches) n'ouvre aucune saisie : elle quitte le planning vers /taches sans ressource ni date, la tâche ne peut donc pas être créée sur cette ressource à cette date. 3 groupes de service, 40 cellules ; menu services : \"Applications métier\\nDonnées et pilotage\\nInfrastructure et postes de travail\" ; « Mon périmètre » est actif mais ne retire aucune ligne (40 = 40) : la grille de Driss est DÉJÀ restreinte à son périmètre — 3 services sur les 7 de la collectivité —, RG-PLN-02 l'appliquant d'office à qui n'a pas la gestion globale.",
+  "constate": "3 groupes de service, 40 cellules ; services proposés : [Applications métier / Données et pilotage / Infrastructure et postes de travail] ; départements proposés : [Tous les départements / Systèmes d'information et innovation] ; le filtre par département ne retire aucune ligne (40 → 40) : le seul département proposé, « Systèmes d'information et innovation », porte les 3 services de la grille — il n'a rien à restreindre ; « Mon périmètre » (aria-pressed false au départ) : 40 lignes-jours par défaut, 40 une fois activé, 40 désactivé — la grille de Driss est déjà restreinte à ses 3 services par RG-PLN-02 ; le clic sur une occupation ouvre son détail : « TÂCHE | Déploiement site par site | × | STATUT » ; fenêtre de création préremplie : date de début « 2026-09-07 », assignés cochés [Ulysse Cambon] ; la tâche « Point de calage réseau » apparaît sur Ulysse Cambon au 2026-09-07.",
   "textes_absents": [],
   "incidents": [],
+  "refus_attendus": [],
   "fuites_jeu1": [],
   "preuves": [
     "01-planning.png",
     "02-menu-services.png",
     "03-couche-desactivee.png",
-    "04-detail-tache.png",
-    "05-apres-creer-ici.png",
+    "04-detail-occupation.png",
+    "05-apres-creation-depuis-cellule.png",
+    "06-planning-apres-creation.png",
     "trace.zip",
     "video/"
   ]

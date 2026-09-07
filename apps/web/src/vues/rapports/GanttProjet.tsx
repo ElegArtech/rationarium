@@ -217,6 +217,15 @@ export function GanttProjet({ projetId }: { projetId: string }) {
    */
   if (taches.error instanceof ErreurApi && taches.error.statut === 403)
     return <AccesRefuse />;
+  /*
+   * La frise lit AUSSI la feuille de route (`milestones:read`), et ce refus-là
+   * était avalé : les jalons disparaissaient de la frise sans un mot, sur une
+   * vue dont ils sont la moitié du propos. Même famille que le panneau de la
+   * vue 11 — un écran ne dit jamais « il n'y a rien » quand la vraie réponse
+   * est « vous n'avez pas le droit de le savoir ».
+   */
+  if (route.error instanceof ErreurApi && route.error.statut === 403)
+    return <AccesRefuse />;
   if (projet.isPending) return <Chargement quoi={t("ganttProjet.leProjet")} />;
   if (projet.isError)
     return <ErreurDeChargement erreur={projet.error} surReessai={() => void projet.refetch()} />;

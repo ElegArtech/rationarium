@@ -7,7 +7,7 @@
   "chemin": [
     "20 télétravail"
   ],
-  "constate": "aucune commande « Configurer jours fixes » : la vue 20 n'offre à Camille aucun moyen de décrire ses jours fixes — commandes de la vue 20 : [\"Mon planning\",\"Vue équipe\",\"‹\",\"›\",\"1\\nTélétravail\\n↻ RÉCURRENT\",\"2\\nBureau\",\"3\\nTélétravail\\n↻ RÉCURRENT\",\"4\\nBureau\",\"7\\nBureau\",\"8\\nTélétravail\\n↻ RÉCURRENT\",\"9\\nBureau\",\"10\\nTélétravail\\n↻ RÉCURRENT\",\"11\\nBureau\",\"14\\nBureau\",\"15\\nBureau\\n⌁ EXCEPTION\",\"16\\nBureau\",\"17\\nTélétravail\\n↻ RÉCURRENT\",\"18\\nBureau\",\"21\",\"22\",\"23\",\"24\",\"25\",\"28\",\"29\",\"30\"]",
+  "constate": "aucune commande « Configurer jours fixes » : la vue 20 n'offre à Camille aucun moyen de décrire ses jours fixes — commandes de la vue 20 : [\"‹\",\"›\",\"1\\nTélétravail\\n↻ RÉCURRENT\",\"2\\nBureau\",\"3\\nTélétravail\\n↻ RÉCURRENT\",\"4\\nBureau\",\"7\\nBureau\",\"8\\nTélétravail\\n↻ RÉCURRENT\",\"9\\nBureau\",\"10\\nTélétravail\\n↻ RÉCURRENT\",\"11\\nBureau\",\"14\\nBureau\",\"15\\nBureau\\n⌁ EXCEPTION\",\"16\\nBureau\",\"17\\nTélétravail\\n↻ RÉCURRENT\",\"18\\nBureau\",\"21\",\"22\",\"23\",\"24\",\"25\",\"28\",\"29\",\"30\"]",
   "textes_absents": [],
   "incidents": [],
   "incidents_ecartes": [

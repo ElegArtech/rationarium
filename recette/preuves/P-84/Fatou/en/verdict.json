@@ -9,16 +9,15 @@
     "30 rapports",
     "16 tâches"
   ],
-  "constate": "Le bandeau d'alerte de la vue 30 lit « ! Attention required — 10 overdue tasks need attention. Open tasks » (chiffré) : la phrase « See the Tasks page for more details. » n'y figure pas, et n'existe dans aucun des deux catalogues. Son activation ouvre bien la vue 16. L'onglet « Advanced analytics » nomme des collaborateurs et porte l'une des deux phrases de backlog. Les agrégats PORTENT des projets et des responsables hors du périmètre de Fatou (elle détient leaves:manage_any, donc un périmètre global).",
+  "constate": "Le bandeau d'alerte de la vue 30 lit « ! Attention required — 1 overdue task needs attention. Open tasks » (chiffré). La phrase « See the Tasks page for more details. » n'y figure pas. Son activation ouvre bien la vue 16. L'onglet « Advanced analytics » nomme des collaborateurs et porte l'une des deux phrases de backlog. Les agrégats restent dans son périmètre.",
   "textes_absents": [
     "See the Tasks page for more details."
   ],
   "incidents": [],
   "fuites_jeu1": [],
   "preuves": [
-    "/home/alex/Documents/Repo/rationarium/recette/preuves/P-84/Fatou/en/01-01-rapports.png",
-    "/home/alex/Documents/Repo/rationarium/recette/preuves/P-84/Fatou/en/02-02-analytics.png",
-    "/home/alex/Documents/Repo/rationarium/recette/preuves/P-84/Fatou/en/03-03-taches.png"
-  ],
-  "incidents_bruts": 2
+    "01-01-rapports.png",
+    "02-02-analytics.png",
+    "03-03-taches.png"
+  ]
 }

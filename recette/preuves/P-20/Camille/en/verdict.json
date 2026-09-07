@@ -2,22 +2,24 @@
   "parcours": "P-20",
   "persona": "Camille",
   "langue": "en",
-  "verdict": "vert",
+  "verdict": "rouge",
   "objectif": "Camille, ajoutée à un projet, en a ouvert la vue d'ensemble depuis sa notification et y accède désormais par le portefeuille.",
   "chemin": [
     "06 tableau de bord",
     "panneau de notifications",
     "11 vue d'ensemble du projet"
   ],
-  "constate": "La notification d'ajout ouvre la vue 11 de « Rénovation thermique des écoles », avec ses indicateurs et sa feuille de route.",
-  "textes_absents": [],
+  "constate": "La notification d'ajout ouvre la vue 11 de « Rénovation thermique des écoles », avec ses indicateurs et sa feuille de route. MAIS un texte attendu du parcours manque à l'écran : « Added to a project ».",
+  "textes_absents": [
+    "Added to a project"
+  ],
   "incidents": [],
   "incidents_refus_attendus": [],
   "fuites_jeu1": [],
   "notes": [
     "adresse du projet AVANT l'ajout : [\"CONTRIBUTEUR PROJET\",\"Loading failed\",\"This item is outside your scope.\",\"Try again\"]",
-    "entrées du panneau : [\"Notifications\",\"Mark all as read\",\"Ajout au projet Rénovation thermique des écoles\",\"Vous avez été ajouté au projet « Rénovation thermique des écoles ».\",\"7 septembre 2026\",\"●\",\"Décision sur votre demande de congé\",\"Réduction du temps de travail — une demi-journée\",\"7 septembre 2026\",\"Ajout à un projet\",\"Guichet unique d'urbanisme\",\"7 septembre 2026\"]",
-    "entrée retenue : \"Ajout au projet Rénovation thermique des écoles | Vous avez été ajouté au projet « Rénovation thermique des écoles ». | 7 septembre 2026 | ●\""
+    "entrées du panneau : [\"Notifications\",\"Mark all as read\",\"Ajout à un projet\",\"Vous avez été ajouté au projet « Rénovation thermique des écoles ».\",\"7 septembre 2026\",\"●\",\"Décision sur votre demande de congé\",\"Réduction du temps de travail — une demi-journée\",\"7 septembre 2026\",\"Ajout à un projet\",\"Guichet unique d'urbanisme\",\"7 septembre 2026\"]",
+    "entrée retenue : \"Ajout à un projet | Vous avez été ajouté au projet « Rénovation thermique des écoles ». | 7 septembre 2026 | ●\""
   ],
   "preuves": [
     "01-panneau.png",

@@ -5,42 +5,14 @@
   "verdict": "rouge",
   "objectif": "Karim ne crée pas de doublon : un email déjà pris et un identifiant déjà pris sont refusés, chacun par son propre message.",
   "chemin": [
-    "27 utilisateurs"
+    "27 utilisateurs",
+    "27 fenêtre de création"
   ],
-  "constate": "Collision email → « Cette adresse électronique est déjà associée à un compte. » ; collision identifiant → « Cet identifiant est déjà pris. » ; 30 comptes avant et après. ROUGE — textes absents : Voir le suivi individuel",
+  "constate": "Collision d'email → « Cette adresse électronique est déjà associée à un compte. » ; collision d'identifiant → « Cet identifiant est déjà pris. » : deux messages distincts, en langue naturelle. 30 comptes avant, 30 après les deux tentatives. Les deux refus sont des 409 sur POST /api/utilisateurs — le refus attendu par le parcours, non un incident subi. Le littéral « Voir le suivi individuel » ne figure nulle part sur la vue 27 : la ligne porte un lien « Suivi » et le menu d'actions offre Modifier · Réinitialiser le mot de passe · Désactiver le compte · Supprimer définitivement. Le catalogue ne le porte que comme libellé d'action du journal d'audit (administration.json, action_read_individual_tracking).",
   "textes_absents": [
     "Voir le suivi individuel"
   ],
   "incidents": [],
   "fuites_jeu1": [],
-  "controles": [
-    {
-      "nom": "email en collision : message en langue naturelle",
-      "ok": true,
-      "note": "message obtenu : « NOUVEAU COMPTE  Créer un utilisateur  × ! Cette adresse électronique est déjà associée à un compte. Prénom * Nom * Email * Login *  L'identifiant de connexion ne pourra plus être modifié ensuite.  Mot »"
-    },
-    {
-      "nom": "identifiant en collision : message en langue naturelle",
-      "ok": true,
-      "note": "message obtenu : « NOUVEAU COMPTE  Créer un utilisateur  × ! Cet identifiant est déjà pris. Prénom * Nom * Email * Login *  L'identifiant de connexion ne pourra plus être modifié ensuite.  Mot de passe * ✓ 8 caractères  »"
-    },
-    {
-      "nom": "les deux messages sont textuellement différents",
-      "ok": true,
-      "note": "un même message sert les deux collisions"
-    },
-    {
-      "nom": "aucun compte créé",
-      "ok": true,
-      "note": "30 → 30"
-    }
-  ],
-  "preuves": [
-    "01-27-email-pris.png",
-    "02-27-login-pris.png",
-    "incidents.json",
-    "trace.zip",
-    "video/page@1924eed90fe600db7a530615c1fe10c9.webm",
-    "video/page@ee4da4024164c60e4a8947b8f4219331.webm"
-  ]
+  "preuves": []
 }

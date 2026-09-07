@@ -1,0 +1,22 @@
+{
+  "parcours": "P-157",
+  "persona": "Fatou",
+  "langue": "en",
+  "verdict": "vert",
+  "objectif": "Fatou a restreint le planning à son périmètre : la grille ne porte plus que le service dont elle a la charge, elle-même comprise, et le filtre survit à la bascule Semaine → Mois.",
+  "chemin": [
+    "06 tableau de bord",
+    "07 planning semaine",
+    "07 planning — périmètre restreint",
+    "08 planning mois"
+  ],
+  "constate": "Planning en Week : 13 ressources avant le filtre. Après « My scope » : 13 ressources, groupe(s) « Carrières et paie » (service encadré : « Carrières et paie »), la persona y figure, filtre posé : true. Après bascule Week → Month (http://127.0.0.1:4308/planning/mois?perimetre=%221%22) : filtre posé true, 13 ressources, groupe(s) « Carrières et paie ».",
+  "textes_absents": [],
+  "incidents": [],
+  "fuites_jeu1": [],
+  "preuves": [
+    "trace.zip",
+    "video/",
+    "incidents.json"
+  ]
+}

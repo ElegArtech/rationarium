@@ -2,7 +2,7 @@
   "parcours": "P-55",
   "persona": "Driss",
   "langue": "fr",
-  "verdict": "rouge",
+  "verdict": "vert",
   "objectif": "Le membre retiré du projet n'y est plus, ses affectations aux tâches et ses rôles RACI de ce projet sont défaits, son compte existe toujours et le temps qu'il a déclaré reste compté au budget consommé — la confirmation avait annoncé le nombre d'affectations avant le geste.",
   "chemin": [
     "11 vue d'ensemble du projet",
@@ -12,12 +12,7 @@
   ],
   "constate": "Constaté — confirmation de retrait : « CONFIRMATION Retirer du projet × Voulez-vous vraiment retirer Léa Vasseur de l'équipe ? → 3 tâches de ce projet lui sont assignées : elles lui seront retirées. Les tâches elles-mêmes restent, sans assigné. 1 rôle RACI sur une tâche de ce projet lui sera également retiré. LE COMPTE ET LE TEMPS DÉCLARÉ SONT CONSERVÉS Ann » · Constaté — ligne visée : absente · Constaté — RACI après retrait : « RACI RESPONSABILITÉS R Responsable MO Malik Oueslati × A Autorité AD Aurélie Delcourt × C Consulté MC Maëlys Corbin × I Informé Personne » · Constaté — budget consommé : 118 h → 118 h (relevé brut 118 h) · Constaté — événements : « Léa Vasseur » figure encore parmi les participants — « RÉUNIONS ET INTERVENTIONS Événements 2 événements Liste Calendrier Créer un événement Tous les projets Refonte de l'intranet agents Socle de téléphonie unifiée Intervention extérieure Septembre 2026 ‹ »",
   "textes_absents": [],
-  "incidents": [
-    "http : 403 GET http://127.0.0.1:4304/api/organisation",
-    "console : Failed to load resource: the server responded with a status of 403 (Forbidden)",
-    "http : 403 GET http://127.0.0.1:4304/api/administration/roles",
-    "console : Failed to load resource: the server responded with a status of 403 (Forbidden)"
-  ],
+  "incidents": [],
   "fuites_jeu1": [],
   "preuves": [
     "01-14-confirmation.png",

@@ -5,6 +5,7 @@ import {
   SESSION_TELETRAVAIL_AUTRUI,
   SESSION_ANA,
   SESSION_SANS_TELETRAVAIL,
+  SESSION_SANS_ACTIVITE,
   SEMAINE,
   SEMAINE_SANS_PERMANENCES,
   MOIS,
@@ -572,6 +573,50 @@ test.describe("Vue 08 — planning, mois", () => {
       "page",
     );
     await expect(segments.locator('a[aria-current="page"]')).toHaveCount(1);
+  });
+
+  /**
+   * ════════════════════════════════════════════════════════════════════════
+   * `RG-GEN-06` — **on ne propose pas ce qui sera refusé.**
+   *
+   * Défaut constaté en seconde passe, et c'est un EFFET de la correction
+   * précédente. `RG-ADM-03` veut que le refus soit tracé, donc prononcé par
+   * le serveur : le `enabled: peut("predefined_tasks:read")` a été retiré de
+   * la lecture de la vue 09 — juste. Mais la **commande** est restée offerte
+   * sans condition sur les vues 07, 08 et 09 : un porteur du seul socle
+   * voyait « Activité », cliquait, obtenait « Permission requise », et
+   * laissait un `403` en console à chaque visite.
+   *
+   * Les deux moitiés de la règle ne disent pas la même chose : masquer la
+   * commande est une courtoisie, court-circuiter la lecture d'une vue est un
+   * contournement du contrôle serveur. Le contrôle ci-dessous exige la
+   * première ET interdit la seconde.
+   * ════════════════════════════════════════════════════════════════════════
+   */
+  test("RG-GEN-06 — « ACTIVITÉ » N'EST PAS OFFERT À QUI NE PEUT PAS L'OUVRIR", async ({
+    page,
+  }) => {
+    await horlogeFixe(page);
+    await serveur(page, { session: SESSION_SANS_ACTIVITE, reponses: reponsesMois });
+    await page.goto("/planning/mois");
+
+    const segments = page.getByRole("group", { name: "Mode d'affichage" });
+    await expect(segments).toBeVisible();
+    await expect(segments.getByRole("link", { name: "Activité" })).toHaveCount(0);
+    // Les deux autres restent : masquer par excès priverait du reste.
+    await expect(segments.getByRole("link")).toHaveCount(2);
+  });
+
+  test("le mode « Activité » reste offert à qui le peut", async ({ page }) => {
+    // Le pendant positif : un masque trop large ne se distingue pas d'un
+    // masque juste, et c'est ce qui rend le contrôle capable d'échouer.
+    await horlogeFixe(page);
+    await serveur(page, { session: SESSION_PLANNING, reponses: reponsesMois });
+    await page.goto("/planning/mois");
+
+    const segments = page.getByRole("group", { name: "Mode d'affichage" });
+    await expect(segments.getByRole("link", { name: "Activité" })).toBeVisible();
+    await expect(segments.getByRole("link")).toHaveCount(3);
   });
 });
 

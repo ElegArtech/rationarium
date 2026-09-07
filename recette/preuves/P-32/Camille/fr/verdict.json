@@ -2,12 +2,12 @@
   "parcours": "P-32",
   "persona": "Camille",
   "langue": "fr",
-  "verdict": "rouge",
+  "verdict": "vert",
   "objectif": "Camille ne voit le télétravail que le sien : aucune bascule vers une vue d'équipe ne lui est offerte, et la lecture du télétravail d'un autre agent lui est refusée.",
   "chemin": [
     "20 télétravail"
   ],
-  "constate": "la vue 20 offre une commande « Vue équipe » active et cliquable alors que Camille n'a pas telework:read_team — commande « Vue équipe » : présente et active — après bascule : « RESSOURCES HUMAINES · Télétravail de l’équipe · 5 jours de télétravail planifiés · Mon planning · Vue équipe ·  · Vue réservée à l’encadrement ·  »",
+  "constate": "commande « Vue équipe » : absente",
   "textes_absents": [],
   "incidents": [],
   "incidents_ecartes": [

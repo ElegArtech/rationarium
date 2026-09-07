@@ -6,19 +6,24 @@
   "objectif": "La tâche prédéfinie que Karim a désactivée n'est plus assignable, mais les assignations déjà posées restent visibles dans la grille d'activité.",
   "chemin": [
     "34 tâches prédéfinies",
-    "34 confirmation de désactivation",
-    "34 tâche désactivée",
-    "09 grille d'activité",
-    "34 génération"
+    "07 planning",
+    "09 grille d'activité"
   ],
-  "constate": "la tâche est désactivée au catalogue ; la colonne de la tâche désactivée a disparu de la grille ; les assignations déjà posées (Maëlys Corbin, Noémie Ducasse, Priscilla Gomez le lundi) ne sont PLUS affichées ; l'assignation en masse ne propose plus la tâche désactivée ; un utilisateur sans droit sur les tâches prédéfinies ne voit aucune permanence.",
+  "constate": "avant désactivation : colonne « Guichet état civil » présente, assignés visibles : Maëlys Corbin, Noémie Ducasse, Priscilla Gomez ; désactivation : effective (« CONFIRMATION · Deactivate recurring activity · × · Deactivate « Guichet état civil » ? · 7 assignments already made are kept. · A DEACTIVATED ACTIVITY STAYS IN THE CATALOGUE: IT CA ») ; après désactivation : colonne « Guichet état civil » toujours présente, assignations déjà posées visibles : Maëlys Corbin, Noémie Ducasse, Priscilla Gomez ; commandes d'assignation offertes sur la colonne « Guichet état civil » après désactivation : 7 ; assignation d'un agent à la tâche DÉSACTIVÉE depuis la vue 09 : refusée (commandes : 7) ; utilisateur sans droit : « Recurring tasks » absent de la barre latérale, onglet « Activity » OFFERT, permanence invisible dans la vue 07",
   "textes_absents": [],
-  "incidents": [],
+  "incidents": [
+    {
+      "genre": "http",
+      "texte": "409 POST http://127.0.0.1:4312/api/activite/assignations"
+    },
+    {
+      "genre": "console",
+      "texte": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "url": "http://127.0.0.1:4312/planning/activite"
+    }
+  ],
   "fuites_jeu1": [],
   "preuves": [
-    "01-01-desactivation.png",
-    "02-02-grille-apres-desactivation.png",
-    "03-03-assignation-en-masse.png",
     "trace.zip",
     "video/"
   ]

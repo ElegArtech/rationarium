@@ -1,0 +1,19 @@
+{
+  "parcours": "P-170",
+  "persona": "Karim",
+  "langue": "fr",
+  "verdict": "rouge",
+  "objectif": "Karim retrouve dans le journal la modification de compte qu'il vient de faire : la ligne la nomme en toutes lettres dans les deux langues, et le détail dit quel rôle a remplacé quel rôle, par leur nom.",
+  "chemin": [
+    "27 utilisateurs",
+    "33 journal d'audit"
+  ],
+  "constate": "rôle d'Ophélie Bardin passé de « Chef de projet » à « Contributeur projet » : enregistré ; ligne du journal : code « user.update » présent, libellé en langue naturelle « Utilisateur modifié » ; détail : « Chef de projet » ABSENT, « Contributeur projet » ABSENT, identifiants ou codes bruts PRÉSENTS — « ÉVÉNEMENT TRACÉ · Utilisateur modifié · × · HORODATAGE · 7 septembre 2026 · ACTION · user.update · TYPE · User · ENTITÉ · 0000550b-0000-4000-8000-000000000013 · ACTEUR · Nathan Bouchard · IDENTIFIANT · 71ac194f-11af-41b2-90e9-a48f47f4d399 · CHAMPS MODIFIÉS · ROLEID · de 37c5bfe1-8d54-4d32-8f22-23eae7cd5794 à db277466-9 »",
+  "textes_absents": [],
+  "incidents": [],
+  "fuites_jeu1": [],
+  "preuves": [
+    "trace.zip",
+    "video/"
+  ]
+}

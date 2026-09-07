@@ -2,23 +2,22 @@
   "parcours": "P-93",
   "persona": "Hugo",
   "langue": "fr",
-  "verdict": "rouge",
+  "verdict": "vert",
   "objectif": "Hugo n'a supprimé ni le type système ni le type déjà utilisé : le premier n'offre que ses champs modifiables, le second a été désactivé après un avertissement chiffré.",
   "chemin": [
     "06 tableau de bord",
     "19 congés",
     "19 types de congés",
-    "19 type désactivé"
+    "19 type désactivé",
+    "19 mes demandes"
   ],
-  "constate": "Pastilles des types : ACTIF, ACTIF, ACTIF, ACTIF, ACTIF ; types système : 0 ; commandes de modification : 0. ROUGE — aucune commande de modification d'un type : les champs modifiables d'un type système (nom, description, icône, couleur, validation) ne sont éditables nulle part (EX-CNG-13, RG-CNG-30). ROUGE — aucun type système dans le référentiel : la restriction de RG-CNG-30 ne s'observe sur aucun type. Ligne RTT : « RTT · Réduction du temps de travail · Rémunéré · Requise · 18 j/an · 24 congés · ACTIF · DÉSACTIVER ». Avertissement : « « Réduction du temps de travail » est utilisé par 24 congés. Il sera désactivé au lieu d'être supprimé. Continuer ? » (titre : RÉFÉRENTIEL DES TYPES DE CONGÉS ·  · Désactiver le type de congé). Après confirmation : message « Type désactivé — 24 congés le conservent. » ; RTT retiré de la liste des actifs.",
+  "constate": "Pastilles des types : SYSTÈME, ACTIF, SYSTÈME, ACTIF, ACTIF ; types système : 2 ; commandes de la liste : MODIFIER, DÉSACTIVER (suppression : 0, modification : 5). Type système « RTT » : explication portée par la pastille « Type système : seuls le nom, la description, l'icône, la couleur et la validation requise peuvent être modifiés. ». Champs non figés dans la fenêtre : tf-nom, tf-description, tf-couleur, tf-icone, tf-remunere, tf-validation, tf-actif ; rémunération non modifiable, statut non modifiable. Commande de suppression sur la ligne : absente. Ligne RTT : « RT · RTT · Réduction du temps de travail · Jours acquis au titre de la réduction du temps de travail. Solde arrêté au 31 décembre. · Rémunéré · Requise · 18 j/an · 24 congés · SYSTÈME · MODIFIER · DÉSACTIVER ». Avertissement : « « Réduction du temps de travail » est utilisé par 24 congés. Il sera désactivé au lieu d'être supprimé. Continuer ? ». Après confirmation : message « Type désactivé — 24 congés le conservent. » ; RTT retiré de la liste des actifs.",
   "textes_absents": [],
   "incidents": [],
   "fuites_jeu1": [],
   "preuves": [
-    "01-types.png",
-    "02-avertissement.png",
-    "incidents.json",
     "trace.zip",
-    "video/page@c660d2a7d3de905214c202d53e782c58.webm"
+    "video/",
+    "incidents.json"
   ]
 }

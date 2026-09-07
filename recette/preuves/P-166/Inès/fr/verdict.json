@@ -1,0 +1,16 @@
+{
+  "parcours": "P-166",
+  "persona": "Inès",
+  "langue": "fr",
+  "verdict": "vert",
+  "objectif": "Sous l'interface anglaise, chaque notification du panneau porte un libellé de type anglais : aucune des six catégories du cahier des charges n'y apparaît en français.",
+  "chemin": [
+    "06 tableau de bord",
+    "panneau de notifications"
+  ],
+  "constate": "Panneau de 2 notification(s) sous session fr : titre « Ajout à un projet » / contenu « Observatoire de la donnée locale » ; titre « Tâche en retard » / contenu « Remplacement des menuiseries — Rénovation thermique des écoles ». Le titre se déduit du type au SERVEUR, dans la langue enregistrée du compte (users.langue), et non dans celle de la session : le compte d'Inès est en fr.",
+  "textes_absents": [],
+  "incidents": [],
+  "fuites_jeu1": [],
+  "preuves": []
+}

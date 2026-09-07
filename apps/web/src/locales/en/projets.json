@@ -195,7 +195,8 @@
     "marque": "Milestone marked as reached.",
     "rouvert": "Milestone reopened.",
     "statutMarque": "This milestone has no task: there is nothing to derive, so its status is set by hand. As soon as a task is linked to it, the calculation takes over and the mark is cleared.",
-    "repereMarque": "Marked"
+    "repereMarque": "Marked",
+    "refusLecture": "You are not allowed to view this project's milestones."
   },
   "equipe": {
     "lEquipe": "the team",

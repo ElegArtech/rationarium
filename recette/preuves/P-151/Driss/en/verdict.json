@@ -1,0 +1,20 @@
+{
+  "parcours": "P-151",
+  "persona": "Driss",
+  "langue": "en",
+  "verdict": "rouge",
+  "objectif": "Le pourcentage d'avancement d'un projet est le même sur sa vue d'ensemble, sur le tableau de santé des rapports et sur le graphe d'avancement ; une grandeur qui n'est pas cet avancement porte un autre nom.",
+  "chemin": [
+    "11 vue d'ensemble",
+    "30 rapports"
+  ],
+  "constate": "Pour « Refonte de l'intranet agents » : la vue 11 affiche 42 % sous « Progress » ; le graphe « Actual vs expected progress » de la vue 30 affiche 46 % ; le tableau de santé porte 20 % sous les en-têtes [PROJECT | HEALTH | COMPLETION COMPLETED TASKS | MILESTONES | ACTIVE TASKS | WHY] (l'en-tête dit bien « Completion »). Ligne de santé relevée : « Refonte de l'intranet agents Malik Oueslati · Systèmes d'information et innovation · 2,000 h WARNING 20 % 2 / 5 due 8 2 overdue · 8 tasks left · ends 15/01/2027 ».",
+  "textes_absents": [],
+  "incidents": [],
+  "fuites_jeu1": [],
+  "preuves": [
+    "/home/alex/Documents/Repo/rationarium/recette/preuves/P-151/Driss/en/01-01-vue-ensemble.png",
+    "/home/alex/Documents/Repo/rationarium/recette/preuves/P-151/Driss/en/02-02-rapports.png"
+  ],
+  "incidents_bruts": 2
+}

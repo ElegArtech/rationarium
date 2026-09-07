@@ -9,7 +9,7 @@
     "05 mot de passe imposé",
     "05 mot de passe imposé"
   ],
-  "constate": "Compte marqué à changer : la connexion aboutit sur la vue 05, sans barre latérale (0 occurrence de la navigation). /planning y ramène (true). Après un changement conforme, arrivée sur la vue 06 avec sa coquille (false).",
+  "constate": "Compte marqué à changer : la connexion aboutit sur la vue 05, sans barre latérale (0 occurrence de la navigation). /planning y ramène (true). Après un changement conforme — le serveur répond 200 et « motDePasseAChanger » repasse à faux en base (true) — l'application part vers « / » puis REVIENT aussitôt sur /mot-de-passe-impose : titre « Change your password », formulaire imposé réaffiché vide (true), coquille de la vue 06 rendue : false.",
   "textes_absents": [
     "Dashboard"
   ],

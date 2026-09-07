@@ -5,9 +5,9 @@
   "verdict": "vert",
   "objectif": "Hugo n'a pas perdu sa saisie en quittant les paramètres : le départ vers une autre vue a déclenché un avertissement, distinct du bandeau qui signale la présence de modifications.",
   "chemin": [
-    "31 paramètres"
+    "31 paramètres — Affichage"
   ],
-  "constate": "Saisie effectuée dans « Display ». Bandeau « You have unsaved changes. » : affiché. Départ vers « Leave » par la barre latérale : une confirmation s'affiche (URL après le clic : http://127.0.0.1:4308/parametres).",
+  "constate": "Saisie effectuée dans « Affichage ». Bandeau « You have unsaved changes. » : affiché. Départ vers « Leave » par la barre latérale : une confirmation s'affiche ; après annulation, URL http://127.0.0.1:4309/parametres, bandeau toujours affiché, format de date choisi toujours retenu. Départ vers l'onglet « Public holidays » de la même vue : aucune confirmation (URL http://127.0.0.1:4309/parametres#feries) — l'observable admet l'un OU l'autre geste.",
   "textes_absents": [],
   "incidents": [],
   "fuites_jeu1": [],

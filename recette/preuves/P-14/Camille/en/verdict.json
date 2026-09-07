@@ -24,6 +24,7 @@
   ],
   "fuites_jeu1": [],
   "notes": [
+    "onglets de la vue 35 : [\"Information\",\"Security\"]",
     "mot de passe « Ab1! » (4 caractères) → \"!\\nDonnées invalides\"",
     "mot de passe « Abcdefghij » (ni chiffre ni caractère spécial) → \"!\\nDonnées invalides\"",
     "mot de passe actuel erroné → \"!\\nCurrent password is incorrect\""

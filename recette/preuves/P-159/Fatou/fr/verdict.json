@@ -1,0 +1,22 @@
+{
+  "parcours": "P-159",
+  "persona": "Fatou",
+  "langue": "fr",
+  "verdict": "rouge",
+  "objectif": "Chaque demande de l'onglet À valider nomme le service de son demandeur, et Fatou peut lire, sans quitter l'écran de décision, les absences déjà posées sur les mêmes dates dans ce service.",
+  "chemin": [
+    "06 tableau de bord",
+    "19 congés",
+    "19 à valider",
+    "19 après décision"
+  ],
+  "constate": "Onglet « À valider » : 5 demande(s). Première ligne : « JF · Jasmine Ferrandi · Événement familial · Du 17/09/2026 au 18/09/2026 · Annulation demandée · Cérémonie annulée · 2,0 · Accepter l'annulation · Refuser l'annulation ». Lignes portant un rattachement organisationnel (service ou département du référentiel) : 0/5. ROUGE — les lignes de l'onglet ne nomment pas le service du demandeur : la colonne « Demandeur » ne porte que le nom de l'agent et le type de congé. Écran de décision — refus : « VALIDATION · Refuser la demande · × · Motif du refus * · LE MOTIF EST TRANSMIS AU DEMANDEUR · Annuler · Confirmer le refus » ; approbation : « aucune fenêtre ». Mention des absences déjà posées sur les mêmes dates dans le service : ABSENTE. ROUGE — l'écran de décision ne donne à lire aucune absence concomitante du même service : le refus ne demande qu'un motif, l'approbation ne demande rien.",
+  "textes_absents": [],
+  "incidents": [],
+  "fuites_jeu1": [],
+  "preuves": [
+    "trace.zip",
+    "video/",
+    "incidents.json"
+  ]
+}

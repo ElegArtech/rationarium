@@ -49,7 +49,21 @@
     "toutMarquerLu": "Tout marquer comme lu",
     "chargement": "Chargement…",
     "aucuneAide": "Vous serez prévenu ici des tâches, congés et projets qui vous concernent.",
-    "marquerLue": "Marquer « {titre} » comme lue"
+    "marquerLue": "Marquer « {titre} » comme lue",
+    "type_tache_assignee": "Nouvelle tâche assignée",
+    "type_conge_a_valider": "Demande de congé à valider",
+    "type_conge_decide": "Décision sur votre demande de congé",
+    "type_tache_echeance_proche": "Tâche à échéance proche",
+    "type_tache_en_retard": "Tâche en retard",
+    "type_ajout_projet": "Ajout à un projet",
+    "corps_tache_assignee": "La tâche « {tache} » vous a été assignée.",
+    "corps_conge_a_valider": "Une demande de congé de {jours, plural, one {# jour} other {# jours}} attend votre décision.",
+    "corps_conge_decide_approuve": "Votre demande de congé a été approuvée.",
+    "corps_conge_decide_refuse": "Votre demande de congé a été refusée.",
+    "corps_conge_decide_refuse_motif": "Votre demande de congé a été refusée. Motif : {motif}",
+    "corps_ajout_projet": "Vous avez été ajouté au projet « {projet} ».",
+    "corps_tache_echeance_proche": "La tâche « {tache} » arrive à échéance le {date}.",
+    "corps_tache_en_retard": "La tâche « {tache} » a dépassé son échéance du {date}."
   },
   "profil": {
     "derniereConnexion": "Dernière connexion",

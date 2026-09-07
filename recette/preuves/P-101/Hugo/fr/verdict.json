@@ -8,7 +8,7 @@
     "31 paramètres",
     "31 vacances scolaires"
   ],
-  "constate": "Section « Vacances scolaires » : trois nombres relevés (undefined au total). Bouton d'import : 0. Bouton « Ajouter une période de vacances » : 0. Aucune commande d'écriture n'est offerte au responsable RH.",
+  "constate": "Section « Vacances scolaires » : commandes offertes [] ; import : 0, ajout d'une période : 0. Statistiques relevées : 10, 10, 0. Sources affichées : Import officiel. ROUGE — aucune commande d'import des vacances scolaires pour une année et une zone. ROUGE — aucune commande de saisie manuelle d'une période, donc aucun refus métier à observer.",
   "textes_absents": [],
   "incidents": [],
   "fuites_jeu1": [],

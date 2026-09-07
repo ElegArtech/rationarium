@@ -2,13 +2,13 @@
   "parcours": "P-35",
   "persona": "Camille",
   "langue": "en",
-  "verdict": "rouge",
+  "verdict": "vert",
   "objectif": "Les tâches terminées de Camille sans temps déclaré sont traitées : l'une porte désormais un temps saisi en une frappe, l'autre est close sans déclaration et distinguée d'un simple oubli.",
   "chemin": [
     "06 tableau de bord",
     "06 onglet « non déclarées »"
   ],
-  "constate": "la saisie rapide n'indique pas le temps déjà déclaré par un autre contributeur : la ligne dit « Consultation des prestataires ·  · Completed on 30/08/2026 · no hours logged · Close without logging · h » alors que 3 h ont été déclarées sur la tâche — panneau des non déclarées : « Recette fonctionnelle ·  · Completed on 17/10/2026 · no hours logged · Close without logging · h ·  · Consultation des prestataires ·  · Completed on 30/08/2026 · no hours logged · Close without logging · h»",
+  "constate": "panneau des non déclarées : « Recette fonctionnelle ·  · Completed on 17/10/2026 · no hours logged · Close without logging · h ·  · Consultation des prestataires ·  · Completed on 30/08/2026 · 3 h already logged, all contributors · Close without logging · h»",
   "textes_absents": [],
   "incidents": [],
   "incidents_ecartes": [

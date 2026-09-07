@@ -2,9 +2,10 @@ import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { IconeProjet } from "../../composants/icones-projet.js";
 import { Link, useRouterState } from "@tanstack/react-router";
-import { STATUTS_PROJET, PRIORITES } from "@rationarium/contracts";
+import { STATUTS_PROJET, PRIORITES, type Permission } from "@rationarium/contracts";
 import type { FicheProjet } from "../../api/projets.js";
 import { Pastille } from "../../composants/pastilles.js";
+import { usePeut } from "../../session/session.js";
 import "../../composants/partages.css";
 import { retourAuPortefeuille } from "./adresse.js";
 import "./fiche.css";
@@ -22,6 +23,33 @@ import "./fiche.css";
 
 export type Onglet = "ensemble" | "taches" | "jalons" | "equipe" | "gantt";
 
+/**
+ * ════════════════════════════════════════════════════════════════════════════
+ * `RG-GEN-06` — **la permission qui garde la vue d'arrivée de chaque onglet.**
+ *
+ * Même forme que le sélecteur de mode du planning, et trouvée par la même
+ * recherche : un groupe d'onglets qui mène à une vue gardée par une permission
+ * que le porteur n'a pas. `PORTFOLIO_MANAGER` — `SOCLE` + `ENCADREMENT`, sans
+ * `CONTRIBUTION_PROJET` — n'a **pas** `milestones:read` : les onglets
+ * « Jalons » et « Gantt » lui étaient offerts, et les deux vues qu'ils ouvrent
+ * lisent `GET /projets/:id/feuille-de-route`, que le serveur refuse.
+ *
+ * On masque la commande, on ne l'éteint pas : une action interdite n'est
+ * jamais proposée puis refusée, et la barre latérale fait déjà ce choix — pas
+ * désactivées, **absentes**. Le contrôle reste au serveur (`RG-ADM-03` : qui
+ * force l'adresse obtient un refus tracé, pas une page qui se tait).
+ * ════════════════════════════════════════════════════════════════════════════
+ */
+export const PERMISSION_DE_L_ONGLET = {
+  ensemble: "projects:read",
+  taches: "tasks:read",
+  /** `projets.controller.ts` : `@RequiertPermission("milestones:read")`. */
+  jalons: "milestones:read",
+  equipe: "projects:read",
+  /** La vue 15 lit la feuille de route autant que les tâches. */
+  gantt: "milestones:read",
+} as const satisfies Record<Onglet, Permission>;
+
 export function CadreProjet({
   projet,
   onglet,
@@ -38,6 +66,7 @@ export function CadreProjet({
   children: ReactNode;
 }) {
   const { t } = useTranslation("projets");
+  const peut = usePeut();
 
   /*
    * `EX-PRJ-02`, `RG-GEN-04` — **le retour rend le portefeuille tel qu'on l'a
@@ -52,7 +81,7 @@ export function CadreProjet({
   const retour = retourAuPortefeuille(brut);
 
   /** Les cinq onglets d'un projet. Le Gantt a rejoint les autres au L-22. */
-  const onglets: { cle: Onglet; libelle: string; nombre?: number; chemin?: string }[] = [
+  const tousLesOnglets: { cle: Onglet; libelle: string; nombre?: number; chemin?: string }[] = [
     { cle: "ensemble", libelle: t("onglets.ensemble"), chemin: "/projets/$id" },
     { cle: "taches", libelle: t("onglets.taches"), nombre: projet.taches.total, chemin: "/projets/$id/taches" },
     { cle: "jalons", libelle: t("onglets.jalons"), nombre: projet.jalons, chemin: "/projets/$id/jalons" },
@@ -64,6 +93,8 @@ export function CadreProjet({
     },
     { cle: "gantt", libelle: t("onglets.gantt"), chemin: "/projets/$id/gantt" },
   ];
+  /* `RG-GEN-06` — masquées, pas désactivées : voir `PERMISSION_DE_L_ONGLET`. */
+  const onglets = tousLesOnglets.filter((o) => peut(PERMISSION_DE_L_ONGLET[o.cle]));
 
   /*
    * PAS DE `.page` ICI. La coquille rend déjà `<main class="page">`, et les

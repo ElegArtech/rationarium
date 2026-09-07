@@ -7,7 +7,7 @@
   "chemin": [
     "19 onglet à valider"
   ],
-  "constate": "Congé de l'agent du 12/10/2026 au 13/10/2026, approuvé puis mis en annulation par lui : sa ligne lisait « RÉ Réduction du temps de travail From 12/10/2026 to 13/10/2026 2,0 APPROVED Approver: Solène Pichon REQUEST CANCELLATION ». Dans l'onglet « To approve », la demande porte 1 « Accept cancellation » et 1 « Reject cancellation » — deux commandes distinctes. Après acceptation : « ! 5 requests awaiting approval | Cancellation accepted: the leave is cancelled. |  », la ligne quitte l'onglet, la ligne de l'agent lit « RÉ Réduction du temps de travail From 12/10/2026 to 13/10/2026 2,0 CANCELLED Approver: Solène Pichon » et son solde passe de {\"disponible\":18,\"utilises\":2,\"enAttente\":0} à {\"disponible\":20,\"utilises\":0,\"enAttente\":0}.",
+  "constate": "Congé de l'agent du 12/10/2026 au 13/10/2026, approuvé puis mis en annulation par lui : sa ligne lisait « RÉ Réduction du temps de travail From 12/10/2026 to 13/10/2026 2.0 APPROVED Approver: Solène Pichon REQUEST CANCELLATION ». Dans l'onglet « To approve », la demande porte 1 « Accept cancellation » et 1 « Reject cancellation » — deux commandes distinctes. Après acceptation : « ! 5 requests awaiting approval | Cancellation accepted: the leave is cancelled. |  », la ligne quitte l'onglet, la ligne de l'agent lit « RÉ Réduction du temps de travail From 12/10/2026 to 13/10/2026 2.0 CANCELLED Approver: Solène Pichon » et son solde passe de {\"disponible\":16,\"utilises\":2,\"enAttente\":2} à {\"disponible\":18,\"utilises\":0,\"enAttente\":2}.",
   "textes_absents": [],
   "incidents": [],
   "fuites_jeu1": [],

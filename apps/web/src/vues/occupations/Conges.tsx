@@ -444,6 +444,25 @@ export function Conges() {
                chercherait une cible qui n'existe pas, et le ferait à chaque
                changement d'onglet. */
             hashScrollIntoView={false}
+            /*
+             * `exact` NE SUFFIT PAS ICI, et c'est ce qui distingue ces onglets
+             * de ceux d'un projet : les six pointent LE MÊME chemin et ne
+             * diffèrent que par le fragment. `Link` se juge alors actif pour
+             * tous, pose son `aria-current="page"` sur chacun — et un lecteur
+             * d'écran annonce plusieurs « page courante » dans une barre qui
+             * n'en a qu'une. `axe` ne le voit pas : plusieurs `aria-current`
+             * ne sont pas une violation au sens des règles, seulement un
+             * repère faux.
+             *
+             * `includeHash` referme l'appariement sur le fragment ; à URL sans
+             * fragment, aucun lien ne correspond et c'est le calcul du
+             * composant, ci-dessous, qui marque l'onglet par défaut. Dans les
+             * deux cas : un seul.
+             */
+            activeOptions={{ exact: true, includeHash: true }}
+            /* Et la classe `active` du routeur est neutralisée : aucune règle
+               ne la définit, elle serait inerte. */
+            activeProps={{ className: "" }}
             className={o.cle === onglet ? "is-active" : ""}
             /* Un lien navigue, il ne bascule pas : l'état courant se dit par
                `aria-current`, jamais par `aria-pressed`. */

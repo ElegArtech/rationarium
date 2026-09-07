@@ -7,19 +7,14 @@
   "chemin": [
     "22 compétences"
   ],
-  "constate": "Import CSV du référentiel et recherche des détenteurs : La vue 22 ne charge pour aucun de ses trois onglets : « HUMAN RESOURCES | Skills management | By person | Catalogue | Matrix | Loading failed | Permission required | Try again ». Le serveur refuse GET /api/competences/matrice en 403 (il exige skills:manage_matrix, que le responsable RH ne détient pas), et le corps entier de la vue est conditionné à la réussite de cette seule requête. Commandes offertes : nouvelle compétence 0, import 0, export 0.",
+  "constate": "Aucune commande d'import n'est offerte dans la vue 22 au responsable RH (bouton « Importer » : 0) : il n'y a ni prévisualisation, ni compte rendu à trois nombres, ni colonnes « name/category/description/requiredCount » à renseigner. La recherche des détenteurs, elle, existe : « Catalogue » porte un bouton « Détenteurs » par compétence, qui rend la liste nominative avec le niveau de chacun — relevé : « ADMINISTRATION POSTGRESQL · Who holds this skill · × · Minimum level · All levels · At least Beginner · At least Intermediate · At least Expert · At least Master · The filter is a floor: “At least Exp ».",
   "textes_absents": [
-    "name",
-    "category",
-    "description",
+    "Référentiel",
     "requiredCount",
     "importés",
     "en erreur"
   ],
-  "incidents": [
-    "http : 403 GET http://127.0.0.1:4308/api/competences/matrice?tri=nom",
-    "console : Failed to load resource: the server responded with a status of 403 (Forbidden)"
-  ],
+  "incidents": [],
   "fuites_jeu1": [],
   "preuves": [
     "trace.zip",

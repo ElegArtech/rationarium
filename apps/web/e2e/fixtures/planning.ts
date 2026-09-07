@@ -30,6 +30,25 @@ export const SESSION_PLANNING = {
 };
 
 /**
+ * ════════════════════════════════════════════════════════════════════════════
+ * `RG-GEN-06` — **le planning sans la grille d'activité.**
+ *
+ * `predefined_tasks:read` vient d'`ENCADREMENT` : un porteur du seul `SOCLE`
+ * ne l'a pas, et `GET /api/planning/activite` lui répond `403`. Le sélecteur
+ * de mode lui proposait pourtant « Activité » sur les vues 07, 08 et 09.
+ *
+ * La permission de permanence `predefined_tasks:assign` part avec elle : la
+ * garder ferait de ce jeu une combinaison que le catalogue de rôles ne produit
+ * pas.
+ * ════════════════════════════════════════════════════════════════════════════
+ */
+export const SESSION_SANS_ACTIVITE = {
+  ...SESSION_PLANNING,
+  role: { code: "SOCLE", nom: "Agent" },
+  permissions: SESSION_PLANNING.permissions.filter((p) => !p.startsWith("predefined_tasks:")),
+};
+
+/**
  * `RG-PLN-04`, `RG-TLT-07` — **la bascule de lieu s'apprécie LIGNE PAR LIGNE.**
  *
  * `SESSION_PLANNING` porte `telework:create` et rien d'autre : elle peut donc

@@ -5,23 +5,14 @@
   "verdict": "rouge",
   "objectif": "Karim ne peut ni se désactiver ni se supprimer lui-même : les deux commandes sont inopérantes sur sa propre ligne, et elles expliquent pourquoi.",
   "chemin": [
-    "entrée",
     "27 utilisateurs",
-    "27 menu sur soi",
-    "27 utilisateurs"
+    "27 menu de sa propre ligne"
   ],
-  "constate": "« Désactiver le compte » : inopérante, explication « Vous ne pouvez pas vous désactiver vous-même » ; « Supprimer définitivement » : inopérante, explication « Vous ne pouvez pas vous supprimer vous-même » ; menu au clavier : menuitem \"Désactiver le compte Vous ne pouvez pas vous désactiver vous-même\" [disabled] ; POST /api/utilisateurs/0000550b-0000-4000-8000-000000000005/desactiver → 422 ; DELETE /api/utilisateurs/0000550b-0000-4000-8000-000000000005 → 422",
+  "constate": "menu de sa propre ligne : - menu \"Actions pour Nathan Bouchard\": - menuitem \"Modifier\" - menuitem \"Réinitialiser le mot de passe Passez par « Mon profil » pour votre propre mot de passe.\" [disabled] - menuitem \"Désactiver le compte Vous ne pouvez pas vous désactiver vous-même\" [disabled] - menuitem \"Supprimer définitivement Vous ne pouvez pas vous supprimer vous-même\" [disabled] ; « Désactiver le compte » : inopérante, explication « Vous ne pouvez pas vous désactiver vous-même » ; « Supprimer définitivement » : inopérante, explication « Vous ne pouvez pas vous supprimer vous-même » ; menu ouvert au clavier, éléments focalisés : Modifier ; explication lisible sans aucun survol : oui ; POST …/desactiver (soi) → 422 ; DELETE … (soi) → 422",
   "textes_absents": [
     "Voir le suivi individuel"
   ],
   "incidents": [],
   "fuites_jeu1": [],
-  "preuves": [
-    "01-menu-sur-soi.png",
-    "02-compte-toujours-actif.png",
-    "incidents.json",
-    "trace.zip",
-    "verdict.json",
-    "video"
-  ]
+  "preuves": []
 }

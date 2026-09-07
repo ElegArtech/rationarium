@@ -10,16 +10,13 @@
     "19 toutes les demandes",
     "19 filtre En attente"
   ],
-  "constate": "Onglet « Toutes les demandes » : compteur « 35 demandes », 35 lignes ; agents de plusieurs services présents : Tiphaine Roussille, Ophélie Bardin, Maëlys Corbin, Léa Vasseur. Filtre « En attente » : 9 lignes, compteur « 9 demandes », 0 ligne(s) hors filtre.",
+  "constate": "Onglet « Toutes les demandes » : compteur « 35 demandes », 35 lignes ; services représentés parmi les demandeurs : Applications métier, Infrastructure et postes de travail, Données et pilotage, Carrières et paie, Propreté et déchets, Instruction des autorisations, Mobilités douces. Filtre « En attente » : 9 lignes, compteur « 9 demandes », 0 ligne(s) hors filtre.",
   "textes_absents": [],
   "incidents": [],
   "fuites_jeu1": [],
   "preuves": [
-    "01-toutes.png",
-    "02-filtre-attente.png",
-    "incidents.json",
     "trace.zip",
-    "video/page@6508f91db62c306e095836ef7dd101de.webm",
-    "video/page@89abbe8dea786370a1b7225e29923da1.webm"
+    "video/",
+    "incidents.json"
   ]
 }

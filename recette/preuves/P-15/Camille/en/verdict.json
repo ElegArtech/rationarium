@@ -2,20 +2,20 @@
   "parcours": "P-15",
   "persona": "Camille",
   "langue": "en",
-  "verdict": "rouge",
+  "verdict": "vert",
   "objectif": "La tâche du jour de Camille est au statut Terminé et son avancement est à 100 %, la bascule ayant été faite depuis sa fiche ouverte au tableau de bord.",
   "chemin": [
     "06 tableau de bord",
     "17 fiche de la tâche",
     "06 tableau de bord (retour par la barre latérale)"
   ],
-  "constate": "A-48 : aucune entrée de « Mes tâches » n'est activable — le titre est un paragraphe, pas un lien (EX-DSH-05)",
+  "constate": "La tâche « Maquette de la page d'accueil » est passée à Done et son avancement affiche 100 % ; le tableau de bord rechargé par la barre latérale ne la porte plus dans les tâches à venir.",
   "textes_absents": [],
   "incidents": [],
   "incidents_refus_attendus": [],
   "fuites_jeu1": [],
   "notes": [
-    "« Mes tâches » : 0 lien(s) vers une fiche",
+    "« Mes tâches » : 5 lien(s) vers une fiche",
     "avancement après passage à Done : 100 %",
     "indicateur des tâches terminées : 1"
   ],

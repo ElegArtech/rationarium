@@ -129,3 +129,34 @@ invitation — lit le jeton dans la base par `sql(pile, "…")`, exporté par le
 `sql` sert à **entrer** dans un parcours, jamais à le **juger** : l'état final se
 constate à l'écran. Un verdict établi par une requête mesure autre chose que ce que
 l'utilisateur voit, et ne prouve pas ce qu'on croit.
+
+---
+
+# Seconde passe
+
+Une première passe a joué les cent quarante-trois parcours dérivés du cahier des
+charges : **cent six verts, cent quatre-vingts rouges, quatre-vingt-dix parcours
+rouges sur cent quarante-trois.** Une soixantaine de défauts ont été corrigés depuis,
+et une vague d'exploration a ajouté vingt-huit parcours (`P-144` et au-delà), qui
+n'ont **jamais été joués**.
+
+Ce que tu dois savoir, et qui change ta lecture :
+
+- **Les verdicts de la première passe sont au dossier de preuves.** Lis celui de ton
+  parcours avant de le jouer : `recette/preuves/<parcours>/<persona>/<langue>/verdict.json`.
+  Il dit ce qui a été vu, et donc ce qu'il faut regarder en priorité. Tu **écrases**
+  ce fichier avec ton verdict à toi.
+- **Un vert de la première passe n'est pas acquis.** Soixante corrections ont traversé
+  le produit ; une régression est exactement ce que cette passe existe pour trouver.
+  Joue-le comme les autres.
+- **Un rouge de la première passe n'est pas acquis non plus.** Ne recopie pas son
+  constat : rejoue, et écris ce que tu vois. Si le défaut est le même, dis-le avec
+  les mêmes mots que ce que tu constates, pas avec ceux du verdict précédent.
+- Les parcours `P-144` et au-delà viennent de l'exploration. Ils ne citent aucune
+  arête et leur `verdict.observable` est parfois plus large : lis-le en entier.
+
+Le second jeu d'illustration a lui aussi été corrigé — les congés portent désormais
+leurs répartitions annuelles (donc les soldes bougent), les notifications ont un
+lien, deux types de congé sont **système**, et les codes d'action du journal d'audit
+sont ceux que le serveur écrit. Les parcours qui butaient sur ces manques sont
+jouables.

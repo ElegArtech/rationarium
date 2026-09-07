@@ -5,19 +5,13 @@
   "verdict": "rouge",
   "objectif": "Karim n'a pas supprimé une direction encore peuplée ; il a été invité à détacher ses départements d'abord, et la suppression d'un département l'a averti que ses services partaient avec lui.",
   "chemin": [
-    "29 départements & services",
-    "29 modification d'un département",
-    "29 bilan de suppression d'un département",
-    "29 après annulation"
+    "29 départements & services"
   ],
-  "constate": "la suppression d'une direction peuplée est refusée : commande désactivée, explication portée par un attribut « title » (« Impossible : 2 départements y sont rattachés. Détachez-les d’abord. ») qu'un bouton désactivé n'ouvre jamais ; la vue énonce la règle et invite au détachement ; le champ « Direction de rattachement » est inerte à la modification (« Le rattachement ne se change pas ici : il se corrige en déplaçant les agents. ») : aucun écran ne permet de détacher un département de sa direction ; les services emportés sont annoncés ; le service est nommé ; les agents détachés sont comptés ; l'annulation ne supprime rien.",
+  "constate": "suppression de « Direction de l'aménagement et du cadre de vie » : bouton désactivé (attribut disabled), aria-disabled=absent, explication portée par title=« Impossible : 2 départements y sont rattachés. Détachez-les d’abord. », invitation au détachement visible à l'écran : oui ; « Espaces publics » : le champ « Direction de rattachement » est INERTE ; « Urbanisme et mobilités » : le champ « Direction de rattachement » est INERTE ; départements détachés : 0/2 ; après détachement, la suppression est TOUJOURS désactivée ; suppression du département « Systèmes d'information et innovation » : services annoncés oui, nommés ou comptés oui — « ACTION IRRÉVERSIBLE · Supprimer le département · × · Supprimer définitivement le département « Systèmes d'information et innovation » ? · ! · Tous les services associés seront également supprimés. · Service · Infrastructure et postes de travail · Service · App » ; annulation → le département est toujours en place",
   "textes_absents": [],
   "incidents": [],
   "fuites_jeu1": [],
   "preuves": [
-    "01-01-arborescence.png",
-    "02-02-modification-departement.png",
-    "03-03-suppression-departement.png",
     "trace.zip",
     "video/"
   ]

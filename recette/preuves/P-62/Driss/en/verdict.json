@@ -9,11 +9,12 @@
     "07 dépôt d'une tâche multi-assignée",
     "07 dépôt d'une tâche mono-assignée"
   ],
-  "constate": "le message affiché après le dépôt est « Task has several assignees: only the assignee changed. The date is unchanged for everyone. » — il ne contient pas « Edit the dates from the task details. ». jours 2026-09-07 → 2026-09-09 ; message : « Task has several assignees: only the assignee changed. The date is unchanged for everyone. » ; mono-assignée : absente de 2026-09-07 avant le dépôt, présente après ; message « Task moved. ». Textes attendus absents : « Edit the dates from the task details. ».",
+  "constate": "le message rendu après le dépôt ne contient pas « Edit the dates from the task details. » : il dit « Task has several assignees: only the assignee changed. The date is unchanged for everyone. ». dépôt de la tâche multi-assignée « Déploiement site par site » : 2026-09-07 (Samuel Nguema) → 2026-09-09 (Ulysse Cambon) ; message affiché : « Task has several assignees: only the assignee changed. The date is unchanged for everyone. » ; la tâche est passée à Ulysse Cambon en gardant sa date (2026-09-07), et n'est pas au 2026-09-09 : false ; mono-assignée « Maquette de la page d'accueil » : 2026-09-07 → 2026-09-11 ; au 2026-09-07 0 occurrence(s) après le geste, au 2026-09-11 1 ; message « Task moved. ». Textes attendus absents : « Edit the dates from the task details. ».",
   "textes_absents": [
     "Edit the dates from the task details."
   ],
   "incidents": [],
+  "refus_attendus": [],
   "fuites_jeu1": [],
   "preuves": [
     "01-apres-depot-multi.png",

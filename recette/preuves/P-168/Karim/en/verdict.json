@@ -1,0 +1,19 @@
+{
+  "parcours": "P-168",
+  "persona": "Karim",
+  "langue": "en",
+  "verdict": "vert",
+  "objectif": "L'état de chargement de l'annuaire et de la liste des rôles est rédigé en français correct.",
+  "chemin": [
+    "27 utilisateurs",
+    "32 rôles"
+  ],
+  "constate": "vue 27 : message d'attente « Loading the accounts… » ; vue 32 : message d'attente « Loading the roles… » ; aucune suite « de le » ni « de les » dans les deux messages",
+  "textes_absents": [],
+  "incidents": [],
+  "fuites_jeu1": [],
+  "preuves": [
+    "trace.zip",
+    "video/"
+  ]
+}

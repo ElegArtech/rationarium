@@ -5,22 +5,13 @@
   "verdict": "vert",
   "objectif": "Karim ne réinitialise pas son propre mot de passe depuis l'administration : il passe par son profil.",
   "chemin": [
-    "entrée",
     "27 utilisateurs",
-    "27 menu sur soi",
-    "en-tête, menu utilisateur",
     "35 mon profil",
-    "35 onglet sécurité"
+    "35 onglet Sécurité"
   ],
-  "constate": "commande inopérante, explication : « Passez par « Mon profil » pour votre propre mot de passe. » ; POST /api/utilisateurs/{soi}/mot-de-passe → 422 ; l'onglet Sécurité offre le changement et exige le mot de passe actuel",
+  "constate": "commande sur sa propre ligne : inopérante, explication « Passez par « Mon profil » pour votre propre mot de passe. » ; POST …/mot-de-passe (soi), corps conforme au schéma → 422 {\"cle\":\"erreurs:soiMemeInterdit\",\"message\":\"Vous ne pouvez pas effectuer cette action sur votre propre compte.\"} ; onglet Sécurité : champ de mot de passe actuel présent",
   "textes_absents": [],
   "incidents": [],
   "fuites_jeu1": [],
-  "preuves": [
-    "01-menu-sur-soi.png",
-    "02-profil-securite.png",
-    "incidents.json",
-    "trace.zip",
-    "video"
-  ]
+  "preuves": []
 }

@@ -11,7 +11,10 @@
   "constate": "Aucune entrée « Rapports » dans la barre latérale, et l'adresse de la vue 30 rend un refus explicite sans indicateur ni graphique.",
   "textes_absents": [],
   "incidents": [],
-  "incidents_refus_attendus": [],
+  "incidents_refus_attendus": [
+    "403 GET http://127.0.0.1:4301/api/rapports?periode=mois",
+    "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+  ],
   "fuites_jeu1": [],
   "notes": [
     "barre latérale : [\"Tableau de bord\",\"Planning\",\"Projets\",\"Tâches\",\"Événements\",\"Congés\",\"Télétravail\",\"Temps passé\"]",

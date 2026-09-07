@@ -9,7 +9,7 @@
     "11 fiche du projet",
     "11 seconde saisie concurrente"
   ],
-  "constate": "second onglet : « Projet enregistré. » ; premier onglet, message de conflit : « ! Quelqu'un a modifié cet élément pendant votre saisie. Rechargez pour voir la version à jour, puis reprenez votre modification. » ; après rechargement, le projet s'appelle « Refonte de l'intranet agents — version A ».",
+  "constate": "second onglet : « Projet enregistré. » ; premier onglet : « PROJET Modifier le projet × ! Quelqu'un a modifié cet élément pendant votre saisie. Rechargez pour voir la version à jour, puis reprenez votre modification. Icône du projet Site web Repère du projet dans le planning, les tâches et le Gantt Nom * Description St » ; après rechargement, le projet s'appelle « Refonte de l'intranet agents — version A ».",
   "textes_absents": [],
   "incidents": [],
   "refus_attendus": [

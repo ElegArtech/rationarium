@@ -1,11 +1,11 @@
 [
   {
     "genre": "http",
-    "texte": "409 POST http://127.0.0.1:4300/api/auth/reset-password"
+    "texte": "409 POST http://127.0.0.1:4300/api/auth/verify-reset-token"
   },
   {
     "genre": "console",
     "texte": "Failed to load resource: the server responded with a status of 409 (Conflict)",
-    "url": "http://127.0.0.1:4300/reinitialisation?jeton=yZuWBe98WGdoZUatrPmx5rNlLP_p0uP8PVoaAhg4z3k&compte=l.vasseur"
+    "url": "http://127.0.0.1:4300/reinitialisation?jeton=kCAqv8x_9A3nfD0sJJBfyLm3nHyq393HRA2NgTq8Khg&compte=l.vasseur"
   }
 ]

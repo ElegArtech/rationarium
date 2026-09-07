@@ -9,7 +9,7 @@
     "11 vue d'ensemble du projet",
     "10 portefeuille"
   ],
-  "constate": "Constaté — mention de calcul non trouvée telle quelle : « Moyenne de l'avancement des 10 tâches du projet. Cette valeur ne se saisit pas. » · Constaté — progression affichée : 46 % ; champs de saisie dans la vue : 0 · Constaté — budget : 118  / 2 000  / 1 882  ; équipe : 9 · Constaté — lignes d'historique : 6 · Constaté — cartes du kanban : 9 · Constaté — export : taches-0000500b-0000-4000-8000-000000000012.csv · Constaté — la tâche créée dans un projet neuf n'apparaît pas au chef de projet qui vient de la créer : le périmètre des tâches exige d'être assigné ou MEMBRE du projet, et créer un projet n'inscrit pas son chef à l'équipe · Constaté — projet de contrôle : 1 tâche(s), avancement de la tâche « 100 % », progression du projet 100 %",
+  "constate": "Constaté — mention de calcul non trouvée telle quelle : « Moyenne de l'avancement des 9 tâches du projet. Cette valeur ne se saisit pas. » · Constaté — progression affichée : 42 % ; champs de saisie dans la vue : 0 · Constaté — budget : 118  / 2 000  / 1 882  ; équipe : 9 · Constaté — lignes d'historique : 6 · Constaté — cartes du kanban : 9 · Constaté — export : taches-0000500b-0000-4000-8000-000000000012.csv · Constaté — la tâche créée dans un projet neuf n'apparaît pas au chef de projet qui vient de la créer : le périmètre des tâches exige d'être assigné ou MEMBRE du projet, et créer un projet n'inscrit pas son chef à l'équipe · Constaté — projet de contrôle : 1 tâche(s), avancement de la tâche « 100 % », progression du projet 100 %",
   "textes_absents": [],
   "incidents": [],
   "fuites_jeu1": [],

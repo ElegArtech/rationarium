@@ -195,7 +195,8 @@
     "marque": "Jalon marqué comme atteint.",
     "rouvert": "Jalon rouvert.",
     "statutMarque": "Ce jalon ne porte aucune tâche : il n'y a rien à calculer, son statut se marque à la main. Dès qu'une tâche lui est rattachée, le calcul reprend la main et la marque est effacée.",
-    "repereMarque": "Marqué"
+    "repereMarque": "Marqué",
+    "refusLecture": "Vous n'avez pas le droit de consulter les jalons de ce projet."
   },
   "equipe": {
     "lEquipe": "l'équipe",

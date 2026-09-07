@@ -9,18 +9,20 @@
     "panneau de notifications",
     "17 fiche de la tâche notifiée"
   ],
-  "constate": "le clic sur la notification RECHARGE le document entier (ancre brute dans une application à routeur) · le compteur de non-lues n'a pas décru d'une unité : 3 → 3",
-  "textes_absents": [],
+  "constate": "La notification « Nouvelle tâche assignée — Reprise des annuaires » ouvre la fiche de cette tâche, sans rechargement, et le compteur passe de 3 à 2. MAIS un texte attendu du parcours manque à l'écran : « New task assigned ».",
+  "textes_absents": [
+    "New task assigned"
+  ],
   "incidents": [],
   "incidents_refus_attendus": [],
   "fuites_jeu1": [],
   "notes": [
     "compteur de non-lues avant : 3",
-    "entrées du panneau : [\"Notifications\",\"Mark all as read\",\"Nouvelle tâche assignée — Reprise des annuaires\",\"La tâche « Reprise des annuaires » vous a été assignée.\",\"7 septembre 2026\",\"●\",\"Décision sur votre demande de congé\",\"Réduction du temps de travail — une demi-journée\",\"7 septembre 2026\",\"Ajout à un projet\",\"Guichet unique d'urbanisme\",\"7 septembre 2026\"]",
+    "entrées du panneau : [\"Notifications\",\"Mark all as read\",\"Nouvelle tâche assignée\",\"La tâche « Reprise des annuaires » vous a été assignée.\",\"7 septembre 2026\",\"●\",\"Décision sur votre demande de congé\",\"Réduction du temps de travail — une demi-journée\",\"7 septembre 2026\",\"Ajout à un projet\",\"Guichet unique d'urbanisme\",\"7 septembre 2026\"]",
     "l'entrée est un lien",
-    "document conservé au clic : false",
+    "document conservé au clic : true",
     "titre de la fiche ouverte : \"Reprise des annuaires\"",
-    "compteur de non-lues après : 3"
+    "compteur de non-lues après : 2"
   ],
   "preuves": [
     "01-panneau-notifications.png",

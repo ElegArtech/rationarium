@@ -7,20 +7,14 @@
   "chemin": [
     "06 tableau de bord",
     "25 clients",
-    "26 fiche du client",
-    "25 retour à la liste",
-    "12 équipe du projet",
-    "12 sélecteur de bénéficiaire"
+    "26 fiche client",
+    "25 clients"
   ],
-  "constate": "identité, coordonnées, section des projets rattachés ; le retour de l'en-tête ramène sur la vue 25 avec sa liste ; seuls les clients actifs sont proposés au rattachement.",
+  "constate": "colonnes : CLIENT · CONTACT · ATTACHED PROJECTS · STATUS · ACTIONS ; identité présente ; coordonnées présentes ; 3 projet(s) rattaché(s) listé(s) ; retour de l'en-tête → http://127.0.0.1:4312/clients avec 4 ligne(s) ; client inactif au rattachement : avant proposé, après non proposé",
   "textes_absents": [],
   "incidents": [],
   "fuites_jeu1": [],
   "preuves": [
-    "01-01-liste-des-clients.png",
-    "02-02-fiche-client.png",
-    "03-03-retour-liste.png",
-    "04-04-selecteur-clients.png",
     "trace.zip",
     "video/"
   ]

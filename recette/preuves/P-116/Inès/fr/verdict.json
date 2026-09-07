@@ -9,43 +9,12 @@
     "10 portefeuille",
     "11 fiche projet"
   ],
-  "constate": "Vue 10 : « Créer un projet » présente et active. PATCH forgé → 200. ROUGE — vue 10 : aucune commande de création : « Créer un projet » est présente et ACTIVE | vue 11 : « Modifier » absente ou inopérante : présente et ACTIVE | vue 11 : « Archiver » absente ou inopérante : présente et ACTIVE | requête forgée de modification refusée : PATCH /api/projets/0000500b-0000-4000-8000-000000000012 → 200 | incident http : 403 GET http://127.0.0.1:4309/api/projets/0000500b-0000-4000-8000-000000000012/feuille-de-route",
+  "constate": "Vue 10 : commande de création présente, ACTIVE. Vue 11 (/projets/0000500b-0000-4000-8000-000000000003) : commandes d'écriture « Modifier » ACTIVE, « Capturer un instantané » ACTIVE, « Archiver » ACTIVE, « Annuler le projet » ACTIVE. Requête forgée PATCH /api/projets/0000500b-0000-4000-8000-000000000003 → 200. Cause de fond : le modèle de rôle « Responsable de portefeuille » porte projects:create, projects:update, projects:archive et projects:manage_any (packages/contracts/src/roles.ts), donc le produit offre légitimement ce que le parcours interdit. ROUGE — vue 10 : la commande de création « Créer un projet » est présente et ACTIVE | vue 11 : la commande « Modifier » est présente et ACTIVE | vue 11 : la commande « Capturer un instantané » est présente et ACTIVE | vue 11 : la commande « Archiver » est présente et ACTIVE | vue 11 : la commande « Annuler le projet » est présente et ACTIVE | requête forgée de modification ACCEPTÉE : PATCH /api/projets/0000500b-0000-4000-8000-000000000003 → 200",
   "textes_absents": [],
   "incidents": [
-    {
-      "genre": "http",
-      "texte": "403 GET http://127.0.0.1:4309/api/projets/0000500b-0000-4000-8000-000000000012/feuille-de-route"
-    }
+    "403 GET http://127.0.0.1:4310/api/projets/0000500b-0000-4000-8000-000000000003/feuille-de-route",
+    "Failed to load resource: the server responded with a status of 403 (Forbidden)"
   ],
   "fuites_jeu1": [],
-  "controles": [
-    {
-      "nom": "vue 10 : aucune commande de création",
-      "ok": false,
-      "note": "« Créer un projet » est présente et ACTIVE"
-    },
-    {
-      "nom": "vue 11 : « Modifier » absente ou inopérante",
-      "ok": false,
-      "note": "présente et ACTIVE"
-    },
-    {
-      "nom": "vue 11 : « Archiver » absente ou inopérante",
-      "ok": false,
-      "note": "présente et ACTIVE"
-    },
-    {
-      "nom": "requête forgée de modification refusée",
-      "ok": false,
-      "note": "PATCH /api/projets/0000500b-0000-4000-8000-000000000012 → 200"
-    }
-  ],
-  "preuves": [
-    "01-10-portefeuille.png",
-    "02-11-fiche.png",
-    "incidents.json",
-    "trace.zip",
-    "video/page@3ca8f2a334161be930c655a899fc504a.webm",
-    "video/page@7db3d7e07fbdfd3a71438b951d09a2d2.webm"
-  ]
+  "preuves": []
 }

@@ -7,18 +7,12 @@
   "chemin": [
     "22 compétences"
   ],
-  "constate": "Référentiel à constituer et niveaux à attribuer : La vue 22 ne charge pour aucun de ses trois onglets : « HUMAN RESOURCES | Skills management | By person | Catalogue | Matrix | Loading failed | Permission required | Try again ». Le serveur refuse GET /api/competences/matrice en 403 (il exige skills:manage_matrix, que le responsable RH ne détient pas), et le corps entier de la vue est conditionné à la réussite de cette seule requête. Commandes offertes : nouvelle compétence 0, import 0, export 0.",
+  "constate": "La vue 22 charge et rend la liste du référentiel — nom, catégorie, description et effectif requis : les quatre colonnes sont là. Mais elle n'offre au responsable RH AUCUN onglet (0 bouton dans le groupe « Vue » : aucun) : les libellés « By person », « Catalogue » et « Matrix » ne sont écrits nulle part dans la vue, donc aucun écran où attribuer une compétence à un agent, changer son niveau ou la retirer. Commandes d'écriture offertes : nouvelle compétence 0, import 0, export 0. Le référentiel n'est donc pas constituable et aucun niveau n'est attribuable.",
   "textes_absents": [
-    "Technique",
-    "Métier",
-    "Débutant",
-    "Expert",
-    "Maître"
+    "Par utilisateur",
+    "Référentiel"
   ],
-  "incidents": [
-    "http : 403 GET http://127.0.0.1:4308/api/competences/matrice?tri=nom",
-    "console : Failed to load resource: the server responded with a status of 403 (Forbidden)"
-  ],
+  "incidents": [],
   "fuites_jeu1": [],
   "preuves": [
     "trace.zip",

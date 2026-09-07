@@ -2,19 +2,14 @@
   "parcours": "P-60",
   "persona": "Driss",
   "langue": "en",
-  "verdict": "rouge",
+  "verdict": "vert",
   "objectif": "Le fichier de Driss dont une colonne d'énumération portait un libellé traduit et une progression hors bornes est refusé ligne à ligne, avec le numéro de ligne, et non par une erreur technique globale.",
   "chemin": [
     "12 kanban du projet"
   ],
-  "constate": "MANQUE — la ligne saine n'a pas été importée seule : 10 → 10 (attendu +1) · Constaté — prévisualisation : « CSV IMPORT Project import (milestones + tasks) × Expected format rowType · name · dueDate · title · description · status · priority · assigneeEmail · milestoneName · estimatedHours · startDate · endDate · subtasks Download the CSV template CSV file r60.csv Add Keeps existing milestones and tasks, adds the contents of the file. Replace Deletes existing milestones, tasks and subtasks, then imports the contents of the file (all or nothing). 3 rows detected ROWTYPE NAME DUEDATE TITLE TASK Ligne au l » · Constaté — compte rendu : « CSV IMPORT Project import (milestones + tasks) × Expected format rowType · name · dueDate · title · description · status · priority · assigneeEmail · milestoneName · estimatedHours · startDate · endDate · subtasks Download the CSV template CSV file r60.csv Add Keeps existing milestones and tasks, ad » · Constaté — tâches 10 → 10 · Constaté — journal du serveur (fin) : _modules/.pnpm/@prisma+client@7.9.1_prisma@7.9.1_@types+react-dom@19.2.4_@types+react@19.2.18__@types+_cda40e07cec500aacbc2c55b0181edca/node_modules/@prisma/client/runtime/client.js:65:7288) |     at process.processTicksAndRejections (node:internal/process/task_queues:104:5) |     at async a (/home/alex/Documents/Repo/rationarium/node_modules/.pnpm/@prisma+client@7.9.1_prisma@7.9.1_@types+react-dom@19.2.4_@types+react@19.2.18__@types+_cda40e07cec500aacbc2c55b0181edca/node_modules/@prisma/client/runtime/client.js:99:6862) |     at async ImportsService.insererTaches (file:///home/alex/Documents/Repo/rationarium/apps/api/dist/imports/imports.service.js:602:27) |     at async file:///home/alex/Documents/Repo/rationarium/apps/api/dist/imports/imports.service.js:531:13 |     at async Proxy._transactionWithCallback (/home/alex/Documents/Repo/rationarium/node_modules/.pnpm/@prisma+client@7.9.1_prisma@7.9.1_@types+react-dom@19.2.4_@types+react@19.2.18__@types+_cda40e07cec500aacbc2c55b0181edca/node_modules/@prisma/client/runtime/client.js:99:4800) |     at async ImportsService.importerProjet (file:///home/alex/Documents/Repo/rationarium/apps/api/dist/imports/imports.service.js:517:9)\u001b[39m | ",
-  "textes_absents": [
-    "2 in error"
-  ],
-  "incidents": [
-    "http : 500 POST http://127.0.0.1:4304/api/imports/projet/0000500b-0000-4000-8000-000000000012",
-    "console : Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
-  ],
+  "constate": "Constaté — prévisualisation : « CSV IMPORT Project import (milestones + tasks) × Expected format rowType · name · dueDate · title · description · status · priority · assigneeEmail · milestoneName · estimatedHours · startDate · endDate · subtasks Download the CSV template CSV file r60.csv Add Keeps existing milestones and tasks, adds the contents of the file. Replace Deletes existing milestones, tasks and subtasks, then imports the contents of the file (all or nothing). 3 rows detected ROWTYPE NAME DUEDATE TITLE TASK Ligne au l » · Constaté — compte rendu : « 1 imported 0 skipped 2 in error 1 item created in the project Row 2 — column “status”: “In progress” is unknown, expected todo, doing, review, done, blocked Row 3 — column “progress”: “500” is not a whole number between 0 and 100 » · Constaté — tâches 9 → 9 (10 après rechargement)",
+  "textes_absents": [],
+  "incidents": [],
   "fuites_jeu1": [],
   "preuves": [
     "01-12-erreurs.png",

@@ -10,9 +10,38 @@
     "/audit",
     "/parametres"
   ],
-  "constate": "la barre latérale de Driss porte « Users » ; ouverture directe : /parametres rend la vue complète (0 contrôles de saisie) — titre « Settings », sections « Display / Schedule / Public holidays / School holidays / Date format / JJ/MM/AAAA ».",
+  "constate": "la barre latérale de Driss porte « Users » ; ouverture directe : /parametres → « ADMINISTRATION | Settings | Global application settings. | Display | Schedule | Public holidays » (0 contrôle(s) de saisie). barre latérale : porte « Users » ; /roles rend un refus sans champ ; /audit rend un refus sans champ.",
   "textes_absents": [],
   "incidents": [],
+  "refus_attendus": [
+    {
+      "genre": "http",
+      "texte": "403 GET http://127.0.0.1:4305/api/administration/roles"
+    },
+    {
+      "genre": "console",
+      "texte": "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "url": "http://127.0.0.1:4305/roles"
+    },
+    {
+      "genre": "http",
+      "texte": "403 GET http://127.0.0.1:4305/api/administration/audit"
+    },
+    {
+      "genre": "console",
+      "texte": "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "url": "http://127.0.0.1:4305/audit"
+    },
+    {
+      "genre": "http",
+      "texte": "403 GET http://127.0.0.1:4305/api/administration/audit/facettes"
+    },
+    {
+      "genre": "console",
+      "texte": "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "url": "http://127.0.0.1:4305/audit"
+    }
+  ],
   "fuites_jeu1": [],
   "preuves": [
     "01-barre-laterale.png",

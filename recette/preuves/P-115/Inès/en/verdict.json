@@ -2,64 +2,17 @@
   "parcours": "P-115",
   "persona": "Inès",
   "langue": "en",
-  "verdict": "rouge",
+  "verdict": "vert",
   "objectif": "Sur un périmètre sans donnée, chaque graphique d'Inès dit ce qui manque au lieu d'afficher une zone blanche, et l'attente est signalée pendant le chargement.",
   "chemin": [
-    "30 rapports (chargement ralenti)"
+    "30 rapports",
+    "30 filtres",
+    "30 analytics",
+    "30 gantt"
   ],
-  "constate": "Périmètre « At-risk projects » + Solène Pichon (aucun projet). Attente signalée : oui. ROUGE — vue d'ensemble : le graphique d'avancement ne montre pas un portefeuille non filtré : le panneau « avancement réel et attendu » rend les projets hors périmètre | vue d'ensemble : aucun indicateur ne reste sur une valeur du portefeuille entier : « Jalons échus tenus » reste à 13 / 20 sur un périmètre vide | vue d'ensemble : le détail des jalons en retard est vide ou explicité : 7 jalons hors périmètre encore listés | analytics : la répartition de charge porte un texte d'état vide : la charge rend le portefeuille entier | analytics : les répartitions portent un texte d'état vide : les répartitions rendent le portefeuille entier",
+  "constate": "Périmètre « à risque » + Solène Pichon : aucun projet retenu. Attente signalée au chargement : oui. Vue d'ensemble : 3 panneaux, 3 avec état vide rédigé ; 0 retard listé. Analytics : 5 panneaux, 5 avec état vide. Gantt : état vide rédigé — « Projects overview No active project to display No data available for this period. ».",
   "textes_absents": [],
   "incidents": [],
   "fuites_jeu1": [],
-  "controles": [
-    {
-      "nom": "l'attente est signalée pendant le chargement",
-      "ok": true,
-      "note": "page pendant l'attente : « ESPONSABLE DE PORTEFEUILLE\nSTEERING\nReports & analytics\nACTIVITY WINDOW\n7 days\n30 days\n90 days\n365 days\nAll projects\nOngoing only\nAt-risk projects\nAll leads\nRefresh\nExport\n\nLoading the analytics data… »"
-    },
-    {
-      "nom": "vue d'ensemble : la santé des projets porte un texte d'état vide",
-      "ok": true,
-      "note": "panneau de santé sans phrase"
-    },
-    {
-      "nom": "vue d'ensemble : le graphique d'avancement ne montre pas un portefeuille non filtré",
-      "ok": false,
-      "note": "le panneau « avancement réel et attendu » rend les projets hors périmètre"
-    },
-    {
-      "nom": "vue d'ensemble : aucun indicateur ne reste sur une valeur du portefeuille entier",
-      "ok": false,
-      "note": "« Jalons échus tenus » reste à 13 / 20 sur un périmètre vide"
-    },
-    {
-      "nom": "vue d'ensemble : le détail des jalons en retard est vide ou explicité",
-      "ok": false,
-      "note": "7 jalons hors périmètre encore listés"
-    },
-    {
-      "nom": "analytics : la répartition de charge porte un texte d'état vide",
-      "ok": false,
-      "note": "la charge rend le portefeuille entier"
-    },
-    {
-      "nom": "analytics : les répartitions portent un texte d'état vide",
-      "ok": false,
-      "note": "les répartitions rendent le portefeuille entier"
-    },
-    {
-      "nom": "gantt : un texte d'état vide au lieu d'une frise hors périmètre",
-      "ok": true,
-      "note": "0 barres rendues sur un périmètre vide"
-    }
-  ],
-  "preuves": [
-    "01-30-attente.png",
-    "02-30-vide-ensemble.png",
-    "03-30-vide-analytics.png",
-    "04-30-vide-gantt.png",
-    "incidents.json",
-    "trace.zip",
-    "video/page@70204b9bdd2153f2440559b5de957d15.webm"
-  ]
+  "preuves": []
 }

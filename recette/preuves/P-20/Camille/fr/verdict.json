@@ -16,8 +16,8 @@
   "fuites_jeu1": [],
   "notes": [
     "adresse du projet AVANT l'ajout : [\"CONTRIBUTEUR PROJET\",\"Le chargement a échoué\",\"Cet élément est hors de votre périmètre.\",\"Réessayer\"]",
-    "entrées du panneau : [\"Notifications\",\"Tout marquer comme lu\",\"Ajout au projet Rénovation thermique des écoles\",\"Vous avez été ajouté au projet « Rénovation thermique des écoles ».\",\"7 septembre 2026\",\"●\",\"Décision sur votre demande de congé\",\"Réduction du temps de travail — une demi-journée\",\"7 septembre 2026\",\"Ajout à un projet\",\"Guichet unique d'urbanisme\",\"7 septembre 2026\"]",
-    "entrée retenue : \"Ajout au projet Rénovation thermique des écoles | Vous avez été ajouté au projet « Rénovation thermique des écoles ». | 7 septembre 2026 | ●\""
+    "entrées du panneau : [\"Notifications\",\"Tout marquer comme lu\",\"Ajout à un projet\",\"Vous avez été ajouté au projet « Rénovation thermique des écoles ».\",\"7 septembre 2026\",\"●\",\"Décision sur votre demande de congé\",\"Réduction du temps de travail — une demi-journée\",\"7 septembre 2026\",\"Ajout à un projet\",\"Guichet unique d'urbanisme\",\"7 septembre 2026\"]",
+    "entrée retenue : \"Ajout à un projet | Vous avez été ajouté au projet « Rénovation thermique des écoles ». | 7 septembre 2026 | ●\""
   ],
   "preuves": [
     "01-panneau.png",

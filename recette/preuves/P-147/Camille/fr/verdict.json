@@ -1,0 +1,29 @@
+{
+  "parcours": "P-147",
+  "persona": "Camille",
+  "langue": "fr",
+  "verdict": "rouge",
+  "objectif": "Camille filtre ses tâches, en ouvre une et revient : la liste affiche à nouveau le résultat filtré, ses filtres sont toujours posés, et l'adresse de la liste filtrée rouverte sert la même liste.",
+  "chemin": [
+    "16 liste des tâches",
+    "16 liste filtrée",
+    "17 fiche de la tâche",
+    "16 retour à la liste",
+    "16 adresse de la liste filtrée rouverte"
+  ],
+  "constate": "au retour, la liste affiche 13 tâche(s) contre 6 avant l'ouverture : le résultat filtré est perdu. au retour, le champ de recherche porte «  » et non « re ». au retour, le filtre de projet porte «  » et non « 0000500b-0000-4000-8000-000000000012 ». l'adresse de la liste filtrée ne sert pas la même liste : 13 tâche(s) contre 6 — l'adresse « /taches » ne porte aucun des deux filtres. Invite du champ de recherche : « Rechercher une tâche… ». Filtres posés : recherche « re », projet « 0000500b-0000-4000-8000-000000000012 » ; 6 ligne(s) contre 13 ; en-tête « TOUTES LES TÂCHES · Tâches · 6 tâches · dont 0 hors projet · Liste · Kanban · Créer une tâche ». Au retour : recherche «  », projet «  », 13 ligne(s), en-tête « TOUTES LES TÂCHES · Tâches · 13 tâches · dont 1 hors projet · Liste · Kanban · Créer une tâche ». Adresse « /taches » rouverte : 13 ligne(s), recherche «  », projet «  ».",
+  "textes_absents": [],
+  "incidents": [],
+  "fuites_jeu1": [],
+  "preuves": [
+    "01-16-liste-des-t-ches.png",
+    "02-16-liste-filtr-e.png",
+    "03-17-fiche-de-la-t-che.png",
+    "04-16-retour-la-liste.png",
+    "05-16-adresse-de-la-liste-filtr-e-rouverte.png",
+    "incidents.json",
+    "trace.zip",
+    "verdict.json",
+    "video"
+  ]
+}

@@ -2,7 +2,7 @@
   "parcours": "P-96",
   "persona": "Hugo",
   "langue": "en",
-  "verdict": "rouge",
+  "verdict": "vert",
   "objectif": "Le fichier de congés d'Hugo est chargé : les lignes valides sont directement approuvées à son nom, et le compte rendu distingue importés, ignorés et en erreur avec le détail ligne à ligne.",
   "chemin": [
     "06 tableau de bord",
@@ -12,21 +12,13 @@
     "19 compte rendu d'import",
     "19 mes demandes"
   ],
-  "constate": "Fenêtre d'import : colonnes documentées userEmail, leaveTypeName, startDate, endDate, halfDay, comment. Lien « Download the CSV template » : réponse 403 — « {\"cle\":\"commun:droits.permissionRequise\"} ». ROUGE — le modèle n'est pas téléchargeable pour Hugo (réponse 403) : RG-IMP-02 n'est pas tenue. Avant fichier, « Import » désactivé : true. Prévisualisation : ABSENTE — « CSV IMPORT ·  · Import leave ·  · × ·  · Expected format ·  · userEmail · leaveTypeName · startDate · endDate · halfDay · comment ·  · Download the CSV template · CSV file · conges.csv · Close · Import ». ROUGE — aucune prévisualisation avant l'écriture. Compte rendu : « CSV IMPORT ·  · Import leave ·  · × ·  · Expected format ·  · userEmail · leaveTypeName · startDate · endDate · halfDay · comment ·  · Download the CSV template · CSV file · conges.csv · 3 imported · 1 skipped · 1 in error ·  · Skipped rows match entries that already exist: replaying a file does not create duplicates. ·  · Row 6 — aucun compte ne porte l'adresse « x.inconnu@valmorin.fr ». · Close ». Ligne importée au nom d'Hugo : « RÉ · Réduction du temps de travail · From 14/12/2026 to 15/12/2026 · Ligne de l'importateur · 2,0 · PENDING · Approver: Solène Pichon · EDIT · DELETE ». Demande importée vue par Léa Vasseur : « RÉ · Réduction du temps de travail · From 07/12/2026 to 08/12/2026 · Import de recette · 2,0 · APPROVED · Approver: Thibaut Grasset · REQUEST CANCELLATION ».",
+  "constate": "Fenêtre d'import : colonnes documentées userEmail, leaveTypeName, startDate, endDate, halfDay, comment. Modèle « Download the CSV template » : réponse 200, en-tête « userEmail;leaveTypeName;startDate;endDate;halfDay;comment ». Avant fichier, « Import » désactivé : true. Prévisualisation : présente — « CSV IMPORT · Import leave · × · Expected format · userEmail · leaveTypeName · startDate · endDate · halfDay · comment · Download the CSV template · CSV file · conges.csv · 5 rows detected · USEREMAIL · LEAVETYPENAME · STARTDATE · ENDDATE · l.vasseur@valmorin.fr · Réduction du temps de travail · 2026-12-07 · 2026-12-08 · m.corbin@valmorin.fr · Réduc ». Compte rendu : « CSV IMPORT · Import leave · × · Expected format · userEmail · leaveTypeName · startDate · endDate · halfDay · comment · Download the CSV template · CSV file · conges.csv · 3 imported · 1 skipped · 1 in error · 3 leave entries created · Skipped rows · Row 5 — this period overlaps a leave already recorded: row skipped. · Row 6 — no account uses the address “x.inconnu@valmorin.fr”. · Close ». Ligne importée au nom d'Hugo : « RÉ · Réduction du temps de travail · From 14/12/2026 to 15/12/2026 · Ligne de l'importateur · 2.0 · PENDING · Approver: Solène Pichon · EDIT · DELETE ». Demande importée vue par l'agent : « RÉ · Réduction du temps de travail · From 07/12/2026 to 08/12/2026 · Import de recette · 2.0 · APPROVED · Approver: Thibaut Grasset · REQUEST CANCELLATION ».",
   "textes_absents": [],
-  "incidents": [
-    "http: 403 GET http://127.0.0.1:4307/api/imports/modele?type=conges",
-    "console: Failed to load resource: the server responded with a status of 403 (Forbidden)",
-    "http: 403 POST http://127.0.0.1:4307/api/imports/apercu?type=conges",
-    "console: Failed to load resource: the server responded with a status of 403 (Forbidden)"
-  ],
+  "incidents": [],
   "fuites_jeu1": [],
   "preuves": [
-    "01-previsualisation.png",
-    "02-compte-rendu.png",
-    "conges.csv",
-    "incidents.json",
     "trace.zip",
-    "video/page@3015584515bb9730b1cf6a18a8c69c53.webm"
+    "video/",
+    "incidents.json"
   ]
 }

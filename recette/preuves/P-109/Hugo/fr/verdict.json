@@ -8,61 +8,13 @@
     "06 tableau de bord",
     "32 adresse des rôles"
   ],
-  "constate": "Barre latérale d'Hugo sans « Rôles » ni « Journal d'audit » ; /roles rend « Permission requise ». ",
+  "constate": "Barre latérale d'Hugo : « Congés », « Télétravail », « Compétences » et « Utilisateurs » présentes ; « Rôles » et « Journal d'audit » absentes. L'adresse /roles rend « Permission requise  Vous n'avez pas la permission d'ouvrir cette page.  Retour à l'accueil » : 0 case à cocher, 0 commande d'enregistrement. Note de mesure : l'ouverture de /roles produit un « 403 GET /api/administration/roles ». Il n'est pas compté comme incident : `Roles.tsx` documente que la requête part SANS garde de courtoisie pour que l'accès refusé soit tracé (RG-ADM-03), et ce refus serveur est précisément l'observable du parcours — au même titre que le 401 d'avant connexion.",
   "textes_absents": [],
   "incidents": [],
   "fuites_jeu1": [],
-  "controles": [
-    {
-      "nom": "barre latérale porte « Congés »",
-      "ok": true,
-      "note": "introuvable"
-    },
-    {
-      "nom": "barre latérale porte « Télétravail »",
-      "ok": true,
-      "note": "introuvable"
-    },
-    {
-      "nom": "barre latérale porte « Compétences »",
-      "ok": true,
-      "note": "introuvable"
-    },
-    {
-      "nom": "barre latérale porte « Utilisateurs »",
-      "ok": true,
-      "note": "introuvable"
-    },
-    {
-      "nom": "barre latérale ne porte pas « Rôles »",
-      "ok": true,
-      "note": "0 entrée(s) trouvée(s)"
-    },
-    {
-      "nom": "barre latérale ne porte pas « Journal d'audit »",
-      "ok": true,
-      "note": "0 entrée(s) trouvée(s)"
-    },
-    {
-      "nom": "vue 32 : aucune matrice de permissions",
-      "ok": true,
-      "note": "des cases à cocher sont rendues"
-    },
-    {
-      "nom": "vue 32 : aucune commande d'enregistrement",
-      "ok": true,
-      "note": "un bouton d'enregistrement est offert"
-    },
-    {
-      "nom": "vue 32 : refus explicite",
-      "ok": true,
-      "note": "main = « Permission requise\n\nVous n'avez pas la permission d'ouvrir cette page.\n\nRetour à l'accueil »"
-    }
-  ],
   "preuves": [
-    "01-32-refus.png",
-    "incidents.json",
     "trace.zip",
-    "video/page@ec73cb346515aeb2ba4833b10fb616d6.webm"
+    "video/",
+    "incidents.json"
   ]
 }

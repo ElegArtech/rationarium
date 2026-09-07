@@ -7,15 +7,14 @@
   "chemin": [
     "19 congés"
   ],
-  "constate": "La barre de sections de la vue 19 ne porte que [\"My requests2\",\"To approve5\"] : AUCUN onglet « Delegations ». Fatou, manager de service, n'a pas « leaves:manage_delegations » : elle ne peut ni consulter, ni créer, ni désactiver une délégation, alors que la délégation qu'elle a donnée existe et est visible par son délégué. GET /api/conges/delegations rend 200.",
+  "constate": "La barre de sections de la vue 19 porte [\"My requests2\",\"To approve5\"] : AUCUN onglet « Delegations ». GET /api/conges/delegations rend 200 (corps : object). Fatou ne peut donc ni consulter, ni créer, ni désactiver une délégation depuis la vue 19.",
   "textes_absents": [
     "Delegations"
   ],
   "incidents": [],
   "fuites_jeu1": [],
   "preuves": [
-    "/home/alex/Documents/Repo/rationarium/recette/preuves/P-80/Fatou/en/01-01-conges.png",
-    "/home/alex/Documents/Repo/rationarium/recette/preuves/P-80/Fatou/en/02-02-ancre-delegations.png"
-  ],
-  "incidents_bruts": 2
+    "01-01-conges.png",
+    "02-02-ancre-delegations.png"
+  ]
 }

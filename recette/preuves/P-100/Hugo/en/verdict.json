@@ -9,7 +9,7 @@
     "31 paramètres",
     "31 jours fériés"
   ],
-  "constate": "Vue 31, section « Public holidays » : AUCUNE entrée « Settings » dans la barre latérale, atteinte par l'URL. Bouton d'import de l'année : 0 trouvé(s). Bouton « Ajouter un jour férié » : 0. Commande de qualification ouvré/chômé : 0. Les quatre statistiques sont affichées — la section est en lecture seule pour le responsable RH.",
+  "constate": "Vue 31, section « Public holidays » : AUCUNE entrée « Settings » dans la barre latérale, atteinte par l'URL. Commandes de la section : []. Import d'une année : 0 ; ajout d'un jour : 0 ; commande de qualification ouvré/chômé : 0. 4 nombre(s) de statistiques affiché(s). ROUGE — aucune commande d'import des jours fériés de l'année. ROUGE — aucune commande d'ajout d'un jour férié. ROUGE — aucune commande pour marquer un jour ouvré ou chômé, ni pour le déclarer récurrent.",
   "textes_absents": [],
   "incidents": [],
   "fuites_jeu1": [],

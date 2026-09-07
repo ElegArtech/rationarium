@@ -7,5 +7,14 @@
     "genre": "console",
     "texte": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
     "url": "http://127.0.0.1:4301/"
+  },
+  {
+    "genre": "http",
+    "texte": "403 GET http://127.0.0.1:4301/api/rapports?periode=mois"
+  },
+  {
+    "genre": "console",
+    "texte": "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+    "url": "http://127.0.0.1:4301/rapports"
   }
 ]

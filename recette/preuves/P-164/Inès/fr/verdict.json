@@ -1,0 +1,19 @@
+{
+  "parcours": "P-164",
+  "persona": "Inès",
+  "langue": "fr",
+  "verdict": "rouge",
+  "objectif": "Inès choisit la fenêtre « 30 jours » et l'analyse porte effectivement sur les trente jours qui précèdent la date d'arrêt.",
+  "chemin": [
+    "30 rapports",
+    "30 période d'analyse",
+    "30 export JSON"
+  ],
+  "constate": "Fenêtres d'analyse offertes : « Semaine en cours · Mois en cours · Trimestre en cours · Année en cours ». Périodes réellement analysées, lues dans le fichier exporté : Semaine en cours → 2026-09-07 au 2026-09-07 (rapport-2026-09-07.json) ; Mois en cours → 2026-09-01 au 2026-09-07 (rapport-2026-09-01.json) ; Trimestre en cours → 2026-07-01 au 2026-09-07 (rapport-2026-07-01.json) ; Année en cours → 2026-01-01 au 2026-09-07 (rapport-2026-01-01.json).  ROUGE — aucune fenêtre « 30 jours » n'est proposée : les périodes offertes sont « Semaine en cours · Mois en cours · Trimestre en cours · Année en cours »",
+  "textes_absents": [
+    "30 jours"
+  ],
+  "incidents": [],
+  "fuites_jeu1": [],
+  "preuves": []
+}

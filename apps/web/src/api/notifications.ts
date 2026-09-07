@@ -11,8 +11,24 @@ import { appeler } from "./client.js";
 export type Notification = {
   id: string;
   type: string;
+  /**
+   * Le titre rendu **par le serveur**, dans la langue du COMPTE (`users.langue`).
+   * Il ne sert plus qu'à deux choses : le courriel de `EX-NTF-04`, qui part sans
+   * navigateur, et le repli d'un type que le catalogue ne connaîtrait pas.
+   */
   titre: string;
+  /** Idem pour le corps — repli d'une phrase déjà rédigée, ou d'une clé inconnue. */
   contenu: string;
+  /**
+   * `RG-GEN-08` — **ce que le panneau compose lui-même.**
+   *
+   * `null` quand le corps stocké est une phrase déjà rédigée. Le serveur les
+   * expose depuis la vague 1 (`notifications.service.ts`, `rendre`) et personne
+   * ne les lisait : la cloche affichait `titre`/`contenu`, donc la langue du
+   * compte, dans une interface qui pouvait être dans l'autre.
+   */
+  cle: string | null;
+  params: Record<string, string>;
   lien: string | null;
   lue: boolean;
   creeLe: string;

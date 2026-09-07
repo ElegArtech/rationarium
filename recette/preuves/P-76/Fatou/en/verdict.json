@@ -2,13 +2,13 @@
   "parcours": "P-76",
   "persona": "Fatou",
   "langue": "en",
-  "verdict": "rouge",
+  "verdict": "vert",
   "objectif": "La demande que Fatou a refusée porte le statut Refusé et le motif qu'elle a saisi, lisible par l'agent.",
   "chemin": [
     "19 congés",
     "19 onglet à valider"
   ],
-  "constate": "La fenêtre de refus lit « APPROVAL  Reject request  × Reason for rejection (optional) THE REASON IS SENT TO THE REQUESTER Cancel Confirm rejection » ; refusée SANS motif, elle ENREGISTRE le refus — le motif n'est pas exigé. Refus avec motif : « ! 5 requests awaiting approval | Request rejected. |  », la demande quitte l'onglet « To approve ». Côté agent, sa ligne lit « RÉ Réduction du temps de travail From 02/11/2026 to 02/11/2026 1,0 REFUSED Approver: Solène Pichon DELETE » : statut « Refused », motif ABSENT de la demande (présent dans la notification). Son solde revient de {\"disponible\":17,\"utilises\":0,\"enAttente\":3} à {\"disponible\":20,\"utilises\":0,\"enAttente\":0} — valeur d'avant tout dépôt : {\"disponible\":20,\"utilises\":0,\"enAttente\":0}.",
+  "constate": "La fenêtre de refus lit « APPROVAL  Reject request  × Reason for rejection * THE REASON IS SENT TO THE REQUESTER Cancel Confirm rejection » ; refusée SANS motif, elle refuse de se fermer. Refus avec motif : « ! 6 requests awaiting approval | Request rejected. |  », la demande quitte l'onglet « To approve ». Côté agent, sa ligne lit « RÉ Réduction du temps de travail From 02/11/2026 to 02/11/2026 Reason for rejection: Deux absences simultanees dans le service 1.0 REFUSED Approver: Solène Pichon DELETE » : statut « Refused », motif affiché (présent dans la notification). Son solde revient de {\"disponible\":15,\"utilises\":0,\"enAttente\":5} à {\"disponible\":16,\"utilises\":0,\"enAttente\":4} — sa valeur d'avant ce dépôt était {\"disponible\":16,\"utilises\":0,\"enAttente\":4} (les jours engagés sont bien libérés).",
   "textes_absents": [],
   "incidents": [],
   "fuites_jeu1": [],

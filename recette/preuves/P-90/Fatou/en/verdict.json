@@ -10,16 +10,13 @@
     "21 rapport par projet",
     "21 fenêtre de saisie"
   ],
-  "constate": "Filtres de la vue 21 : Project, Activity type ; filtre par utilisateur ABSENT. ROUGE — aucun filtre par utilisateur : la liste des saisies est figée sur le compte connecté (RG-TMP-05, EX-TMP-02). Axes du rapport d'équipe : By person, By project, By activity type. Champs de la fenêtre de saisie : Date * | Duration in hours * | Activity type | Project | Task | Description ; sélecteur d'acteur ABSENT. ROUGE — la fenêtre de saisie ne demande aucun acteur : impossible de déclarer du temps pour un intervenant extérieur (EX-TMP-08, RG-TMP-04).",
+  "constate": "Filtres de la vue 21 : Project, Activity type ; filtre par utilisateur ABSENT. Axes du rapport d'équipe : By person, By project, By activity type. Champs de la fenêtre de saisie : Date * | Duration in hours * | Activity type | Project | Task | Description ; sélecteur d'acteur ABSENT.",
   "textes_absents": [],
   "incidents": [],
   "fuites_jeu1": [],
   "preuves": [
-    "01-temps.png",
-    "02-rapport-projet.png",
-    "03-saisie.png",
-    "incidents.json",
-    "trace.zip",
-    "video/page@dadd262e0e3c34b100f5fba2a5afc5a5.webm"
+    "01-01-temps.png",
+    "02-02-rapport-projet.png",
+    "03-03-saisie.png"
   ]
 }

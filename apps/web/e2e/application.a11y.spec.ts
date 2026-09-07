@@ -101,7 +101,11 @@ const NOTIFICATIONS_A11Y = {
   entrees: [
     {
       id: "n1", type: "conge_a_valider", titre: "Demande de congé à valider",
-      contenu: "Une demande attend votre décision.", lien: "/conges",
+      contenu: "Une demande de congé de 3 jours attend votre décision.",
+      // Le panneau compose depuis `cle`/`params` — `RG-GEN-08`. Le jeu d'essai
+      // se calque sur la signature du service, jamais sur ce que le client
+      // croit recevoir : `lister()` rend les quatre champs.
+      cle: "conge_a_valider", params: { jours: "3" }, lien: "/conges",
       lue: false, creeLe: "2026-08-11T08:30:00.000Z",
     },
   ],
@@ -408,6 +412,42 @@ for (const vue of VUES) {
         await vue.apres(page);
         await page.waitForLoadState("networkidle");
       }
+
+      /*
+       * ══════════════════════════════════════════════════════════════════════
+       * **UNE SEULE « PAGE COURANTE » PAR GROUPE DE NAVIGATION.**
+       *
+       * Défaut relevé en seconde passe sur la vue 19 : « Mes demandes » ET
+       * « À valider » portaient toutes deux `aria-current="page"`. Les six
+       * onglets pointent le même chemin et ne diffèrent que par le fragment,
+       * que l'appariement de `Link` ignore par défaut : le routeur les jugeait
+       * tous actifs et posait son attribut sur chacun, par-dessus celui que le
+       * composant calcule.
+       *
+       * `axe` ne le voit pas — plusieurs `aria-current` ne sont une violation
+       * d'aucune règle WCAG, seulement un repère faux annoncé plusieurs fois.
+       * Le contrôle est donc écrit à part, et **il balaie les 35 vues** : la
+       * même forme vivait en 19, 28 et 31, et la vue 11 l'avait déjà payée
+       * sous une autre forme (`exact`). Un correctif de forme dont le contrôle
+       * ne couvre pas toutes les occurrences revient par celle qu'il ne voit
+       * pas.
+       * ══════════════════════════════════════════════════════════════════════
+       */
+      const repetes = await page.evaluate(() => {
+        const fautes: string[] = [];
+        for (const groupe of document.querySelectorAll<HTMLElement>("nav, .seg")) {
+          const marques = groupe.querySelectorAll('[aria-current="page"]');
+          if (marques.length > 1) {
+            fautes.push(
+              `${groupe.tagName.toLowerCase()}.${groupe.className || "—"} : ` +
+                `${marques.length} × aria-current="page" — ` +
+                [...marques].map((m) => (m.textContent ?? "").trim().slice(0, 30)).join(" | "),
+            );
+          }
+        }
+        return fautes;
+      });
+      expect(repetes).toEqual([]);
 
       const resultat = await new AxeBuilder({ page })
         .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])

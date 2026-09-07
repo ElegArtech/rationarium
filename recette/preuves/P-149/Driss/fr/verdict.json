@@ -1,0 +1,21 @@
+{
+  "parcours": "P-149",
+  "persona": "Driss",
+  "langue": "fr",
+  "verdict": "vert",
+  "objectif": "Aucune tâche confidentielle du projet n'apparaît sur sa feuille de route à qui n'a pas le droit de la lire : ni dans un groupe de jalon, ni dans le bloc des tâches sans jalon, et aucune écriture de statut n'y est possible.",
+  "chemin": [
+    "11 fiche du projet",
+    "13 feuille de route"
+  ],
+  "constate": "Sur la feuille de route de « Refonte de l'intranet agents », le bloc « Tâches sans jalon » est présent ; déplié, il porte « Comité de suivi hebdomadaire ». La tâche confidentielle « Note de sécurité sur les accès annuaire » n'apparaît nulle part dans la vue 13, et aucun sélecteur de statut ne lui est offert. Son adresse directe /taches/… ne sert pas son titre.",
+  "textes_absents": [],
+  "incidents": [],
+  "fuites_jeu1": [],
+  "preuves": [
+    "/home/alex/Documents/Repo/rationarium/recette/preuves/P-149/Driss/fr/01-01-feuille-de-route.png",
+    "/home/alex/Documents/Repo/rationarium/recette/preuves/P-149/Driss/fr/02-02-tout-deplie.png",
+    "/home/alex/Documents/Repo/rationarium/recette/preuves/P-149/Driss/fr/03-03-adresse-directe.png"
+  ],
+  "incidents_bruts": 4
+}

@@ -1,4 +1,6 @@
 import { describe, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { TYPES_NOTIFICATION } from "./notifications.service.js";
 import { encoderCorps, langueDe, rendreCorps, titreNotification } from "./libelles.js";
 
@@ -170,5 +172,100 @@ describe("le pluriel du décompte de jours", () => {
     // donc le cas ne se présente pas — la forme est juste quand même.
     expect(rendu("0", "fr")).toContain("0 jour ");
     expect(rendu("0", "en")).toContain("0 days");
+  });
+});
+
+/**
+ * ════════════════════════════════════════════════════════════════════════════
+ * LE RACCORD — **le panneau rend la clé, et c'est LUI qui porte la langue.**
+ *
+ * Défaut relevé en seconde passe (P-18, P-19, P-20, P-166) : ce module rend le
+ * texte dans la langue du COMPTE (`users.langue`, `lister()`), et l'interface
+ * peut être dans l'autre — la bascule FR/EN de l'en-tête pose la langue de la
+ * SESSION. Les six intitulés anglais ci-dessus existaient, corrects, et
+ * n'étaient jamais atteints.
+ *
+ * Le correctif porte côté client : `lister()` expose `cle` et `params` depuis
+ * la vague 1, et le panneau les compose désormais lui-même
+ * (`apps/web/src/coquille/Notifications.tsx`). Ce module garde son rendu pour
+ * le courriel de `EX-NTF-04`, qui part **sans navigateur pour le traduire**,
+ * et comme repli.
+ *
+ * Ce qui casse alors : un SEPTIÈME type, ou une clé renommée ici, sans son
+ * pendant au catalogue du client. Le panneau retomberait en silence sur la
+ * phrase française du serveur — le défaut d'origine, revenu par la porte d'à
+ * côté. Chaque moitié serait juste et testée ; c'est le raccord qui casse.
+ * ════════════════════════════════════════════════════════════════════════════
+ */
+describe("RG-GEN-08 — chaque type émis a sa phrase au catalogue du client", () => {
+  const catalogue = (langue: "fr" | "en"): Record<string, string> => {
+    const chemin = path.resolve(
+      import.meta.dirname,
+      `../../../web/src/locales/${langue}/coquille.json`,
+    );
+    const brut = JSON.parse(readFileSync(chemin, "utf8")) as {
+      notifications?: Record<string, string>;
+    };
+    return brut.notifications ?? {};
+  };
+
+  const fr = catalogue("fr");
+  const en = catalogue("en");
+
+  it("le contrôle a quelque chose à mesurer", () => {
+    // Un contrôle qui n'a rien à mesurer doit échouer, jamais réussir en
+    // silence — quatrième leçon du même piège dans ce dépôt.
+    expect(Object.keys(fr).length).toBeGreaterThan(6);
+    expect(TYPES_NOTIFICATION.length).toBe(6);
+  });
+
+  it("les six INTITULÉS de M18 sont au catalogue, dans les deux langues", () => {
+    for (const type of TYPES_NOTIFICATION) {
+      expect(fr[`type_${type}`], `fr type_${type}`).toBe(titreNotification(type, "fr"));
+      expect(en[`type_${type}`], `en type_${type}`).toBe(titreNotification(type, "en"));
+    }
+  });
+
+  it("chaque type COMPOSABLE a son modèle de corps au catalogue", () => {
+    /*
+     * `conge_decide` porte les deux faces d'une même décision et un motif
+     * facultatif : trois phrases pour un type, et le client choisit laquelle
+     * (`cleCorps`). Les cinq autres se rendent sur leur seul nom.
+     */
+    const attendus = TYPES_NOTIFICATION.flatMap((type) =>
+      type === "conge_decide"
+        ? [
+            "corps_conge_decide_approuve",
+            "corps_conge_decide_refuse",
+            "corps_conge_decide_refuse_motif",
+          ]
+        : [`corps_${type}`],
+    );
+    const manquants = attendus.flatMap((cle) => [
+      ...(fr[cle] ? [] : [`fr ${cle}`]),
+      ...(en[cle] ? [] : [`en ${cle}`]),
+    ]);
+    expect(manquants).toEqual([]);
+  });
+
+  it("aucun modèle du catalogue ne cite un paramètre que l'émetteur n'envoie pas", () => {
+    /*
+     * `intl-messageformat` LÈVE sur un placeholder absent : un modèle qui
+     * réclamerait `{agent}` viderait la cloche entière. Les noms admis sont
+     * ceux que les services passent en `params`.
+     */
+    const admis = new Set(["tache", "projet", "motif", "date", "jours"]);
+    const fautes: string[] = [];
+    for (const [langue, table] of [["fr", fr], ["en", en]] as const) {
+      for (const [cle, phrase] of Object.entries(table)) {
+        if (!cle.startsWith("corps_")) continue;
+        for (const [, nom] of phrase.matchAll(/\{\s*([A-Za-z0-9_]+)/g)) {
+          if (nom !== undefined && !admis.has(nom)) {
+            fautes.push(`${langue}:${cle} — {${nom}} n'est jamais émis`);
+          }
+        }
+      }
+    }
+    expect(fautes).toEqual([]);
   });
 });

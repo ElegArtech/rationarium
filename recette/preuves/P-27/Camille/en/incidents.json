@@ -28,11 +28,11 @@
   },
   {
     "genre": "http",
-    "texte": "500 POST http://127.0.0.1:4302/api/conges"
+    "texte": "400 POST http://127.0.0.1:4302/api/conges"
   },
   {
     "genre": "console",
-    "texte": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+    "texte": "Failed to load resource: the server responded with a status of 400 (Bad Request)",
     "url": "http://127.0.0.1:4302/conges"
   },
   {

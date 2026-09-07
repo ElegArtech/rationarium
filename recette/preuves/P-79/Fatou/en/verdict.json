@@ -2,18 +2,18 @@
   "parcours": "P-79",
   "persona": "Fatou",
   "langue": "en",
-  "verdict": "rouge",
+  "verdict": "vert",
   "objectif": "Fatou ne déclare de congé que pour ses propres collaborateurs : un agent hors de ses services, ou inactif, n'est pas proposé et est refusé s'il est forgé.",
   "chemin": [
     "19 congés"
   ],
-  "constate": "La fenêtre de demande ne propose aucun collaborateur (aucun nom). Requête forgée pour Bastien Fournel (hors des services de Fatou) : 201 undefined. Pour le compte inactif Roxane Thevenin : 409 \"erreurs:collaborateurInactif\". Le suivi de Fournel PORTE de congé au 22/10/2026.",
+  "constate": "La fenêtre de demande ne propose aucun collaborateur (aucun nom). Requête forgée pour Bastien Fournel (hors des services de Fatou) : 403 \"erreurs:horsPerimetre\". Pour le compte inactif Roxane Thevenin : 409 \"erreurs:collaborateurInactif\". L'onglet « Toutes les demandes », ouvert par Hugo qui a le droit de tout voir, ne porte pas de congé pour Bastien Fournel au 22/10/2026, et ne porte pas de congé pour Roxane Thevenin à cette date.",
   "textes_absents": [],
   "incidents": [],
   "fuites_jeu1": [],
   "preuves": [
     "/home/alex/Documents/Repo/rationarium/recette/preuves/P-79/Fatou/en/01-01-fenetre.png",
-    "/home/alex/Documents/Repo/rationarium/recette/preuves/P-79/Fatou/en/02-02-suivi-agent-hors.png"
+    "/home/alex/Documents/Repo/rationarium/recette/preuves/P-79/Fatou/en/02-02-apres-requetes-forgees.png"
   ],
-  "incidents_bruts": 4
+  "incidents_bruts": 6
 }

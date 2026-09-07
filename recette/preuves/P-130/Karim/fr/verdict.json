@@ -5,21 +5,11 @@
   "verdict": "vert",
   "objectif": "Le journal d'audit ne se modifie pas : aucune commande d'écriture n'y existe, et aucune requête ne l'altère.",
   "chemin": [
-    "entrée",
-    "33 journal d'audit",
-    "33 journal d'audit",
-    "06 tableau de bord",
-    "06 tableau de bord"
+    "33 journal d'audit"
   ],
-  "constate": "commandes de la vue : button \"Réinitialiser\" · button \"7 septembre 2026 il y a moins d’une minute Connexion auth.login.success Utilisateur User 0000550b-0000-4000-8000-000000000005 Nathan Bouchard\" · button \"7 septembre 2026 il y a 39 minutes Référentiel de rôles initialisé role.seed Rôle Role Système\" · button \"7 septembre 2026 il y a 40 minutes Télétravail généré telework.generate JeuRecette JeuRecette 0000470b-0000- ; 4 champs, tous de filtrage (recherche, dates) ; PATCH /api/administration/audit/e839c0be-433f-4439-883c-0a3ee35a95c0 → 404 ; DELETE /api/administration/audit/e839c0be-433f-4439-883c-0a3ee35a95c0 → 404 ; POST /api/administration/audit/purger → 404 ; DELETE /api/administration/audit → 404 ; 16 entrées avant, 16 après",
+  "constate": "commandes de la vue : Réinitialiser · 7 septembre 2026 il y a moins d’une minute Connexion auth.login.success UTILISATEUR User 0 · 7 septembre 2026 il y a 42 minutes Référentiel de rôles initialisé role.seed RÔLE Role SYS · 7 septembre 2026 il y a 43 minutes Télétravail généré telework.generate JEURECETTE JeuRece · 7 septembre 2026 il y a 44 minutes Jours fériés importés holiday.import JEURECETTE JeuRece · 7 septembre 2026 il y a 45 minutes Congé déposé leave.create JEURECETTE JeuRecette 0000470 · 7 septembre 2026 il y a 46 minutes Congé modifié leave.update JEURECETTE JeuRecette 000047 · 7 septembre 2026 il y a 47 minutes Tâche créée task.create JEURECETTE JeuRecette 0000470b- · 7 septembre 2026 il y a 48 minutes Tâche modifiée task.update JEURECETTE JeuRecette 000047 · 7 septembre 2026 il y a 49 minutes Temps saisi time_entry.create JEURECETTE JeuRecette 000 · 7 septembre 2026 il y a 50 minutes Tiers créé third_party.create JEURECETTE JeuRecette 000 · 7 septembre 2026 il y a 51 minutes Niveau de compétence défini skill.set_level JEURECETTE  ; 6 champs, tous de filtrage : Type d'entité · Action · Id d'entité · Id d'acteur · Du · Au ; 16 entrées avant les tentatives ; PATCH /audit/f95a2a9a-b8c3-4b26-a98b-2b6166904217 → 404 ; DELETE /audit/f95a2a9a-b8c3-4b26-a98b-2b6166904217 → 404 ; PUT /audit/f95a2a9a-b8c3-4b26-a98b-2b6166904217 → 404 ; POST /audit → 404 ; DELETE /audit → 404 ; 16 entrées après les tentatives",
   "textes_absents": [],
   "incidents": [],
   "fuites_jeu1": [],
-  "preuves": [
-    "01-journal.png",
-    "incidents.json",
-    "trace.zip",
-    "verdict.json",
-    "video"
-  ]
+  "preuves": []
 }

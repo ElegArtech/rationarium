@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { Button, Menu, MenuItem, MenuTrigger, Popover } from "react-aria-components";
-import { STATUTS_TACHE } from "@rationarium/contracts";
+import { STATUTS_TACHE, type Permission } from "@rationarium/contracts";
 import * as api from "../../api/planning.js";
 import { ErreurApi } from "../../api/client.js";
 import { messageErreur } from "../../api/erreurs.js";
@@ -63,7 +63,7 @@ const FILTRES_COMPLETS: Filtres = {
   evenements: new Set(["interne", "externe"]),
 };
 
-type Mode = "semaine" | "mois";
+export type Mode = "semaine" | "mois";
 
 export function Planning({ mode }: { mode: Mode }) {
   const { t } = useTranslation("planning");
@@ -505,6 +505,38 @@ const CHEMIN_MODE = {
 } as const;
 
 /**
+ * ════════════════════════════════════════════════════════════════════════════
+ * `RG-GEN-06` — **la permission qui garde la vue d'arrivée de chaque mode.**
+ *
+ * DÉFAUT CONSTATÉ EN SECONDE PASSE, et c'est un effet de la correction
+ * précédente. `RG-ADM-03` exige que le refus soit TRACÉ, donc prononcé par le
+ * serveur : le `enabled: peut("predefined_tasks:read")` a été retiré de la
+ * lecture de la vue 09, et c'est juste. Mais la **commande qui y mène** est
+ * restée offerte sans condition, sur les vues 07, 08 et 09 : un porteur du
+ * seul socle voyait « Activité », cliquait, obtenait « Permission requise » et
+ * laissait un `403` en console à chaque visite.
+ *
+ * Les deux moitiés de `RG-GEN-06` ne disent pas la même chose, et c'est ce qui
+ * a fait confondre : **masquer la commande** est une courtoisie — on ne
+ * propose pas ce qui sera refusé ; **court-circuiter la lecture d'une vue**
+ * est un contournement du contrôle serveur. La première se fait ici, la
+ * seconde reste interdite (`refus-trace.test.ts`).
+ * ════════════════════════════════════════════════════════════════════════════
+ */
+export const PERMISSION_DU_MODE = {
+  semaine: "planning:read",
+  mois: "planning:read",
+  /** `planning.controller.ts` : `@RequiertPermission("predefined_tasks:read")`. */
+  activite: "predefined_tasks:read",
+} as const satisfies Record<Mode | "activite", Permission>;
+
+/** Les modes réellement ouverts au porteur. Isolé pour être vérifiable seul. */
+export const modesOfferts = (
+  peut: (p: Permission) => boolean,
+): readonly (Mode | "activite")[] =>
+  (["semaine", "mois", "activite"] as const).filter((m) => peut(PERMISSION_DU_MODE[m]));
+
+/**
  * `EX-PLN-01` — le sélecteur de mode, **partagé par les vues 07, 08 et 09**.
  *
  * Deux défauts tenaient à ce qu'il était recopié dans deux fichiers :
@@ -527,9 +559,20 @@ export function SelecteurMode({
   recherche: Record<string, string>;
 }) {
   const { t } = useTranslation("planning");
+  const peut = usePeut();
+  /*
+   * Le mode COURANT reste toujours offert, même sans la permission : on y est,
+   * et le retirer laisserait un groupe où rien n'est marqué courant — un
+   * sélecteur qui ne dit plus où l'on se trouve. Le cas n'arrive qu'à qui
+   * force l'adresse ; la vue, elle, affiche le refus du serveur.
+   */
+  const offerts = modesOfferts(peut);
+  const modes = offerts.includes(mode)
+    ? offerts
+    : ([...offerts, mode] as readonly (Mode | "activite")[]);
   return (
     <div className="seg" role="group" aria-label={t("modes.groupe")}>
-      {(["semaine", "mois", "activite"] as const).map((m) => (
+      {modes.map((m) => (
         <Link
           key={m}
           to={CHEMIN_MODE[m]}

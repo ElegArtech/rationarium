@@ -7,14 +7,5 @@
     "genre": "console",
     "texte": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
     "url": "http://127.0.0.1:4304/"
-  },
-  {
-    "genre": "http",
-    "texte": "500 POST http://127.0.0.1:4304/api/imports/projet/0000500b-0000-4000-8000-000000000012"
-  },
-  {
-    "genre": "console",
-    "texte": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
-    "url": "http://127.0.0.1:4304/projets/0000500b-0000-4000-8000-000000000012/taches"
   }
 ]

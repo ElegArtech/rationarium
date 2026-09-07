@@ -9,15 +9,12 @@
     "07 planning semaine",
     "09 grille d'activité"
   ],
-  "constate": "Grille : 7 lignes de jour, 5 colonnes de tâche prédéfinie, 14 agents nommés dans les cellules. Média impression : barre latérale visible=false, en-tête visible=false, barre d'outils visible=false, cartouche d'impression visible=true, grille visible=true, débordement horizontal=0px (overflow-x: visible).",
+  "constate": "Grille : 7 lignes de jour, 5 colonnes de tâche prédéfinie, 6 agents nommés dans les cellules. Média impression : barre latérale visible=false, en-tête visible=false, barre d'outils visible=false, cartouche d'impression visible=true, grille visible=true, débordement horizontal=0px (overflow-x: visible).",
   "textes_absents": [],
   "incidents": [],
   "fuites_jeu1": [],
   "preuves": [
-    "01-grille-activite.png",
-    "02-impression.png",
-    "incidents.json",
-    "trace.zip",
-    "video/page@04a9ac5c7c0a0a4243c6e22306433e89.webm"
+    "01-01-grille-activite.png",
+    "02-02-impression.png"
   ]
 }

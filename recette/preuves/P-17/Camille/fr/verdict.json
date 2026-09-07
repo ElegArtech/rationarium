@@ -2,7 +2,7 @@
   "parcours": "P-17",
   "persona": "Camille",
   "langue": "fr",
-  "verdict": "rouge",
+  "verdict": "vert",
   "objectif": "La tâche hors projet que Camille vient de créer existe, sans projet, et se retrouve dans les deux présentations de la vue globale.",
   "chemin": [
     "06 tableau de bord",
@@ -10,24 +10,13 @@
     "16 tâche hors projet créée",
     "16 tâches — kanban"
   ],
-  "constate": "RG-TSK-15 : la fenêtre de création n'offre AUCUN candidat à l'assignation pour une tâche hors projet — la liste vient de GET /utilisateurs, refusée en 403 à un contributeur · la tâche « Réunion de recette hors projet » n'apparaît pas dans la liste après création · le filtre « tâches sans projet » ne retient pas la tâche créée · la tâche créée n'apparaît pas au kanban",
+  "constate": "« Réunion de recette hors projet » créée sans projet : visible en liste, retenue par le filtre « sans projet », et présente au kanban dont les cinq colonnes n'offrent aucun masquage.",
   "textes_absents": [],
-  "incidents": [
-    {
-      "genre": "http",
-      "texte": "403 GET http://127.0.0.1:4301/api/utilisateurs"
-    },
-    {
-      "genre": "console",
-      "texte": "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-      "url": "http://127.0.0.1:4301/taches"
-    }
-  ],
+  "incidents": [],
   "incidents_refus_attendus": [],
   "fuites_jeu1": [],
   "notes": [
-    "candidats à l'assignation proposés pour une tâche hors projet : 0",
-    "la tâche reste absente même après rechargement complet",
+    "candidats à l'assignation proposés pour une tâche hors projet : 1",
     "ligne de la tâche : \"\"",
     "colonnes de kanban détectées : 5",
     "commandes de masquage de colonne : 0"

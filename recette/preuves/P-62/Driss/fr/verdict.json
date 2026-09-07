@@ -9,11 +9,12 @@
     "07 dépôt d'une tâche multi-assignée",
     "07 dépôt d'une tâche mono-assignée"
   ],
-  "constate": "le message affiché après le dépôt est « Tâche multi-assignée : seul l'assigné a été modifié. La date reste inchangée pour tous les assignés. » — il ne contient pas « Modifiez les dates via le détail de la tâche. ». jours 2026-09-07 → 2026-09-09 ; message : « Tâche multi-assignée : seul l'assigné a été modifié. La date reste inchangée pour tous les assignés. » ; mono-assignée : absente de 2026-09-07 avant le dépôt, présente après ; message « Tâche déplacée. ». Textes attendus absents : « Modifiez les dates via le détail de la tâche. ».",
+  "constate": "le message rendu après le dépôt ne contient pas « Modifiez les dates via le détail de la tâche. » : il dit « Tâche multi-assignée : seul l'assigné a été modifié. La date reste inchangée pour tous les assignés. ». dépôt de la tâche multi-assignée « Déploiement site par site » : 2026-09-07 (Samuel Nguema) → 2026-09-09 (Ulysse Cambon) ; message affiché : « Tâche multi-assignée : seul l'assigné a été modifié. La date reste inchangée pour tous les assignés. » ; la tâche est passée à Ulysse Cambon en gardant sa date (2026-09-07), et n'est pas au 2026-09-09 : false ; mono-assignée « Maquette de la page d'accueil » : 2026-09-07 → 2026-09-11 ; au 2026-09-07 0 occurrence(s) après le geste, au 2026-09-11 1 ; message « Tâche déplacée. ». Textes attendus absents : « Modifiez les dates via le détail de la tâche. ».",
   "textes_absents": [
     "Modifiez les dates via le détail de la tâche."
   ],
   "incidents": [],
+  "refus_attendus": [],
   "fuites_jeu1": [],
   "preuves": [
     "01-apres-depot-multi.png",

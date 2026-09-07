@@ -5,15 +5,11 @@
   "verdict": "rouge",
   "objectif": "Camille ne bascule le télétravail de personne d'autre depuis le planning : la cellule d'un collègue est en lecture seule et le dit.",
   "chemin": [
-    "07 planning",
-    "07 apres clic cellule autrui"
+    "07 planning"
   ],
-  "constate": "la bascule de télétravail est offerte, active et cliquable sur la cellule d'un autre agent : « Ulysse Cambon, 2026-09-07 — actuellement Non déclaré. Basculer vers Télétravail » (aucune mention de lecture seule ; état « NON DÉCLARÉ » → « NON DÉCLARÉ » après clic). 38 bascules de présence rendues, dont 33 sur la cellule d'un autre agent.",
+  "constate": "l'indication de lecture seule n'est pas atteignable au focus clavier : la zone est un « <span title=\"Lecture seule — permission requise\"> » sans tabindex (tabIndex -1), le focus demandé n'est pas pris — l'explication promise par RG-GEN-06 n'existe qu'à la souris. 5 bascules de présence rendues, dont 0 sur la cellule d'un autre agent. 33 zone(s) de présence en lecture seule rendue(s). Zone en lecture seule : {\"balise\":\"span\",\"texte\":\"NON DÉCLARÉ\",\"title\":\"Lecture seule — permission requise\",\"ariaLabel\":null,\"decritPar\":null,\"tabIndex\":-1,\"focalisable\":false,\"focusPris\":false}.",
   "textes_absents": [],
-  "incidents": [
-    "http — 403 PATCH http://127.0.0.1:4303/api/planning/teletravail",
-    "console — Failed to load resource: the server responded with a status of 403 (Forbidden)"
-  ],
+  "incidents": [],
   "fuites_jeu1": [],
   "preuves": [
     "01-07-planning.png",

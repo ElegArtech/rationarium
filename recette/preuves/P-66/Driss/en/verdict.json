@@ -6,25 +6,16 @@
   "objectif": "La série de réunions de Driss s'arrête à la date voulue : les occurrences futures ont disparu, les passées sont conservées, et la modification qu'il a faite sur une occurrence a déclaré sa portée.",
   "chemin": [
     "18 événements",
-    "18 création d'une série",
+    "18 création d'une série récurrente",
     "18 arrêt de la récurrence depuis l'événement porteur"
   ],
-  "constate": "l'arrêt de la récurrence est proposé sur une occurrence qui n'est pas l'événement porteur, puis refusé : « This event is not a series: it has no occurrences. » (RG-EVT-03, RG-GEN-06) ; les occurrences DÉJÀ PASSÉES ont été supprimées avec les futures : le mois précédent en portait 3, il n'en porte plus que 1 (RG-EVT-04). refus de l'horizon : « ! The recurrence exceeds the allowed generation horizon. Shorten the period. » ; occurrences après création — mois précédent 3, mois courant 4, mois suivant 2 ; portée proposée : « × | This event belongs to a recurring series. What do you want to edit? | This occurrence only | The other occurrences in the series stay unchanged. » ; hors série, aucune portée n'est demandée ; confirmation d'arrêt : « × | Stop the recurrence and delete future occurrences? | The whole series from here | Future occurrences are deleted. Past ones stay untouched. » ; message : « Recurrence stopped: 8 occurrences deleted. » ; occurrences après l'arrêt — mois précédent 1, mois courant 0, mois suivant 0.",
+  "constate": "l'arrêt de la récurrence est proposé sur une occurrence qui n'est pas l'événement porteur de la série (RG-EVT-03). refus de l'horizon : « ! The recurrence exceeds the allowed generation horizon. Shorten the period. » ; occurrences après création — mois précédent 3, mois courant 4, mois suivant 2 ; portée proposée : « SCOPE OF THE ACTION | Edit the event | × | This event belongs to a recurring series. What do you want to edit? | This occurrence only | The other occurrences in the series stay unchanged. » ; hors série, aucune portée n'est demandée ; occurrence du mois courant : « EVENT | Comité de recette hebdomadaire | × | — | DATE » — arrêt de récurrence proposé : oui ; confirmation d'arrêt : « RECURRING SERIES | Stop the recurrence | × | Stop the recurrence and delete future occurrences? | The whole series from here | Future occurrences are deleted. Past ones stay untouched. » ; message : « Recurrence stopped: 6 occurrences deleted. » ; occurrences après l'arrêt — mois précédent 3, mois courant 0, mois suivant 0 ; les occurrences passées sont conservées (3 avant, 3 après).",
   "textes_absents": [],
   "incidents": [],
   "refus_attendus": [
     {
       "genre": "http",
       "texte": "422 POST http://127.0.0.1:4305/api/evenements"
-    },
-    {
-      "genre": "console",
-      "texte": "Failed to load resource: the server responded with a status of 422 (Unprocessable Entity)",
-      "url": "http://127.0.0.1:4305/evenements"
-    },
-    {
-      "genre": "http",
-      "texte": "422 POST http://127.0.0.1:4305/api/evenements/b2383898-67c7-4876-9c24-de6265623457/arreter"
     },
     {
       "genre": "console",
@@ -37,7 +28,7 @@
     "01-horizon-depasse.png",
     "02-serie-creee.png",
     "03-portee-demandee.png",
-    "04-arret-sur-occurrence.png",
+    "04-occurrence-de-serie.png",
     "05-recurrence-arretee.png",
     "trace.zip",
     "video/"

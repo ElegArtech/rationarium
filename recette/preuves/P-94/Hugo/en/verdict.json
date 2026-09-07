@@ -2,7 +2,7 @@
   "parcours": "P-94",
   "persona": "Hugo",
   "langue": "en",
-  "verdict": "rouge",
+  "verdict": "vert",
   "objectif": "Les droits annuels sont posés : un solde par défaut vaut pour tous, un solde particulier a été défini pour un agent, et chaque agent lit un disponible cohérent avec ce qu'il a consommé et engagé.",
   "chemin": [
     "06 tableau de bord",
@@ -11,16 +11,13 @@
     "19 soldes enregistrés",
     "19 mes demandes"
   ],
-  "constate": "Défaut global RTT 2026 = 19 (« The balance for Réduction du temps de travail has been saved. ») ; solde propre de Thibaut Grasset = 30 (« The balance for Réduction du temps de travail has been saved. »). Demandes RTT 2026 de Thibaut Grasset à l'écran : RÉ Réduction du temps de travail From 02/11/2026 to 03/11/2026 2,0 PENDING Approver: Solèn ¶ RÉ Réduction du temps de travail From 10/09/2026 to 11/09/2026 2,0 PENDING Approver: Solèn → approuvés 0 j, en attente 4 j. Carte RTT : ligne du disponible = 28, légende « Used 0,0 · Pending 2,0 · Total 30,0 ». Attendu 30 − 0 − 4 = 26. ROUGE — la ligne du disponible vaut 28 au lieu de 26 : les congés que la vue affiche ne sont pas décomptés du solde (RG-CNG-20).",
+  "constate": "Défaut global RTT 2026 = 19 (« The balance for Réduction du temps de travail has been saved. ») ; solde propre de Thibaut Grasset = 30 (« The balance for Réduction du temps de travail has been saved. »). Demandes RTT 2026 à l'écran : RÉ Réduction du temps de travail From 02/11/2026 to 03/11/2026 2.0 PENDING Approver: Solèn ¶ RÉ Réduction du temps de travail From 10/09/2026 to 11/09/2026 2.0 PENDING Approver: Solèn → approuvés 0 j, en attente 4 j. Carte RTT : LIGNE du disponible = 26, légende « Used 0.0 · Pending 4.0 · Total 30.0 ». Attendu 30 − 0 − 4 = 26.",
   "textes_absents": [],
   "incidents": [],
   "fuites_jeu1": [],
   "preuves": [
-    "01-soldes.png",
-    "02-soldes-enregistres.png",
-    "03-carte-solde.png",
-    "incidents.json",
     "trace.zip",
-    "video/page@30c2eabae3add21d3de6ff569903a1af.webm"
+    "video/",
+    "incidents.json"
   ]
 }

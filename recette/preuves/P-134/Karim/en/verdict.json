@@ -6,29 +6,13 @@
   "objectif": "Le catalogue des tâches prédéfinies de Karim est constitué avec leurs couleurs, durées, poids et règles de récurrence, et la génération sur une plage rend compte de ce qu'elle a créé et ignoré.",
   "chemin": [
     "06 tableau de bord",
-    "34 tâches prédéfinies",
-    "34 fenêtre de création",
-    "34 refus du créneau sans horaires",
-    "34 tâche créée",
-    "34 règle — ordinale",
-    "34 règle — mensuelle au 31",
-    "34 règle créée",
-    "34 bilan de génération",
-    "34 seconde génération",
-    "09 grille d'activité, semaine du 28/09"
+    "34 tâches prédéfinies"
   ],
-  "constate": "créneau sans horaires refusé avec son message ; AUCUN champ d'icône dans la fenêtre de création ; tâche créée, poids « Very heavy » : oui ; icône rendue : 0 (une tâche du jeu en rend 1) ; occurrences proposées : 1st, 2nd, 3rd, 4th, last ; la règle « le 31 de chaque mois » est au catalogue ; premier bilan : « (aucun) » ; second bilan (même plage, mêmes agents) : « None created · 1 skipped » ; la nouvelle tâche a sa colonne dans la grille. Les trois durées et les trois types de récurrence sont proposés et nommés. Écart bloquant : EX-ACT-01 énumère l'icône parmi les attributs d'une tâche prédéfinie, et la fenêtre de création/modification n'offre aucun champ d'icône — la tâche créée est la seule du catalogue sans symbole (0 contre 1 pour une tâche du jeu).",
+  "constate": "fenêtre de création : champ d'icône ABSENT — champs offerts : Name *, Colour, Description, Default duration, Weight, Can be done remotely ; créneau sans horaires : refusé — « CATALOGUE · New recurring activity · × · Name * · Colour · Description · Default duration · Half day · Morning or afternoon, chosen at assignment · Full day · T » ; tâche « Permanence de recette » créée : oui ; ligne du catalogue : « Permanence de recette · Permanence créée par la recette » ; symboles rendus : 0 contre 1 pour une tâche du jeu ; occurrences ordinales : 1st, 2nd, 3rd, 4th, last ; règle « le 31 de chaque mois » créée : oui ; génération : premier bilan « onth · Standard téléphonique du soir · Time slot · no end date · Active · EDIT · DELETE · Every Monday · Veille réglementaire · Time slot · no end date · Active · EDIT · DELETE · 1 assignment created. » ; second bilan « nth · Standard téléphonique du soir · Time slot · no end date · Active · EDIT · DELETE · Every Monday · Veille réglementaire · Time slot · no end date · Active · EDIT · DELETE · No assignment created. » ; report du 31 sur un mois plus court : la tâche apparaît dans la grille d'activité de la semaine du 30/11/2026",
   "textes_absents": [],
   "incidents": [],
   "fuites_jeu1": [],
   "preuves": [
-    "01-01-catalogue.png",
-    "02-02-creneau-sans-horaires.png",
-    "03-03-tache-creee.png",
-    "04-04-regle-31.png",
-    "05-05-bilan-generation.png",
-    "06-06-bilan-seconde-generation.png",
-    "07-07-grille-30-septembre.png",
     "trace.zip",
     "video/"
   ]

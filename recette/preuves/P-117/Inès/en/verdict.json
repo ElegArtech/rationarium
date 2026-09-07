@@ -8,46 +8,9 @@
     "06 tableau de bord",
     "19 congés"
   ],
-  "constate": "Vue 19 pour Inès : 1 onglet « To approve », 0 commande d'approbation. ROUGE — vue 19 : la barre d'onglets ne porte pas « To approve » : 1 onglet(s) « To approve » dans la barre de sections",
+  "constate": "Barre latérale d'Inès : ne porte ni Rôles, ni Journal d'audit, ni Paramètres, ni Tâches prédéfinies. Vue 19 : onglets « My requests1 · To approve1 » ; 0 commande(s) d'approbation. Cause de fond : le modèle « Responsable de portefeuille » hérite de l'ENCADREMENT, qui porte leaves:approve et leaves:read_team. ROUGE — vue 19 : la barre d'onglets porte « To approve1 »",
   "textes_absents": [],
   "incidents": [],
   "fuites_jeu1": [],
-  "controles": [
-    {
-      "nom": "barre latérale sans « Roles »",
-      "ok": true,
-      "note": "0 entrée(s)"
-    },
-    {
-      "nom": "barre latérale sans « Audit log »",
-      "ok": true,
-      "note": "0 entrée(s)"
-    },
-    {
-      "nom": "barre latérale sans « Settings »",
-      "ok": true,
-      "note": "0 entrée(s)"
-    },
-    {
-      "nom": "barre latérale sans « Recurring tasks »",
-      "ok": true,
-      "note": "0 entrée(s)"
-    },
-    {
-      "nom": "vue 19 : la barre d'onglets ne porte pas « To approve »",
-      "ok": false,
-      "note": "1 onglet(s) « To approve » dans la barre de sections"
-    },
-    {
-      "nom": "vue 19 : aucune commande d'approbation",
-      "ok": true,
-      "note": "0 bouton(s) « Approve »"
-    }
-  ],
-  "preuves": [
-    "01-19-conges.png",
-    "incidents.json",
-    "trace.zip",
-    "video/page@4b95653641fac2441eeeccdf7fc8945c.webm"
-  ]
+  "preuves": []
 }

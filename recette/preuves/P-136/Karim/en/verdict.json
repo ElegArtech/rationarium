@@ -2,39 +2,17 @@
   "parcours": "P-136",
   "persona": "Karim",
   "langue": "en",
-  "verdict": "rouge",
+  "verdict": "vert",
   "objectif": "L'organisation est décrite dans le produit : directions, départements et services existent avec leurs responsables, l'arborescence se déplie, se filtre, et les statistiques comptent les effectifs.",
   "chemin": [
     "06 tableau de bord",
-    "29 départements & services",
-    "29 direction créée",
-    "29 département sans direction",
-    "29 service sans département",
-    "29 service créé",
-    "29 service modifié",
-    "29 filtré sur un département",
-    "29 déplié"
+    "29 départements & services"
   ],
-  "constate": "compteurs de tête et effectifs : présents ; un département sans direction est accepté et rangé sous « départements sans direction » ; un service sans département est refusé avec son message ; la modification d'un service échoue : « TEAM Edit — Team × ! An unexpected error occurred » ; le service ne se renomme pas ; le filtre par département restreint l'affichage ; l'arborescence se replie et se déplie.",
+  "constate": "effectifs affichés : 3 members, 3 members, 5 members, 3 members, 2 members, 14 members, 14 members, 8 members, 3 members, 2 members, 3 members ; nombres de services : 7 teams, 1 team, 2 teams, 1 team, 3 teams ; compteurs de tête : 2 divisions · 4 departments · 7 teams ; direction créée avec responsable : oui ; département sans direction : accepté ; service sans département : refusé (« TEAM · New — Team · × · ! · A team must belong to a department. · Name * · Description · Parent department * · Choose a department · Département orphelin de recette · Espaces publics · Ressources huma ») ; modification d'un service « Propreté et déchets » : enregistrée ; filtre par département : restreint l'affichage ; arborescence : repliée 1349 car., dépliée 2514 car. → fonctionne",
   "textes_absents": [],
-  "incidents": [
-    {
-      "genre": "http",
-      "texte": "500 PATCH http://127.0.0.1:4311/api/organisation/services/f4f76830-42d2-44df-a251-60dd541afc39"
-    },
-    {
-      "genre": "console",
-      "texte": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
-      "url": "http://127.0.0.1:4311/departements"
-    }
-  ],
+  "incidents": [],
   "fuites_jeu1": [],
   "preuves": [
-    "01-01-arborescence.png",
-    "02-02-departement-sans-direction.png",
-    "03-03-service-sans-departement.png",
-    "04-05-modification-service-echec.png",
-    "05-04-filtre.png",
     "trace.zip",
     "video/"
   ]

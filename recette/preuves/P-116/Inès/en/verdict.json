@@ -9,43 +9,12 @@
     "10 portefeuille",
     "11 fiche projet"
   ],
-  "constate": "Vue 10 : « New project » présente et active. PATCH forgé → 200. ROUGE — vue 10 : aucune commande de création : « New project » est présente et ACTIVE | vue 11 : « Edit » absente ou inopérante : présente et ACTIVE | vue 11 : « Archive » absente ou inopérante : présente et ACTIVE | requête forgée de modification refusée : PATCH /api/projets/0000500b-0000-4000-8000-000000000012 → 200 | incident http : 403 GET http://127.0.0.1:4309/api/projets/0000500b-0000-4000-8000-000000000012/feuille-de-route",
+  "constate": "Vue 10 : commande de création présente, ACTIVE. Vue 11 (/projets/0000500b-0000-4000-8000-000000000003) : commandes d'écriture « Edit » ACTIVE, « Take a snapshot » ACTIVE, « Archive » ACTIVE, « Cancel project » ACTIVE. Requête forgée PATCH /api/projets/0000500b-0000-4000-8000-000000000003 → 200. Cause de fond : le modèle de rôle « Responsable de portefeuille » porte projects:create, projects:update, projects:archive et projects:manage_any (packages/contracts/src/roles.ts), donc le produit offre légitimement ce que le parcours interdit. ROUGE — vue 10 : la commande de création « New project » est présente et ACTIVE | vue 11 : la commande « Edit » est présente et ACTIVE | vue 11 : la commande « Take a snapshot » est présente et ACTIVE | vue 11 : la commande « Archive » est présente et ACTIVE | vue 11 : la commande « Cancel project » est présente et ACTIVE | requête forgée de modification ACCEPTÉE : PATCH /api/projets/0000500b-0000-4000-8000-000000000003 → 200",
   "textes_absents": [],
   "incidents": [
-    {
-      "genre": "http",
-      "texte": "403 GET http://127.0.0.1:4309/api/projets/0000500b-0000-4000-8000-000000000012/feuille-de-route"
-    }
+    "403 GET http://127.0.0.1:4310/api/projets/0000500b-0000-4000-8000-000000000003/feuille-de-route",
+    "Failed to load resource: the server responded with a status of 403 (Forbidden)"
   ],
   "fuites_jeu1": [],
-  "controles": [
-    {
-      "nom": "vue 10 : aucune commande de création",
-      "ok": false,
-      "note": "« New project » est présente et ACTIVE"
-    },
-    {
-      "nom": "vue 11 : « Edit » absente ou inopérante",
-      "ok": false,
-      "note": "présente et ACTIVE"
-    },
-    {
-      "nom": "vue 11 : « Archive » absente ou inopérante",
-      "ok": false,
-      "note": "présente et ACTIVE"
-    },
-    {
-      "nom": "requête forgée de modification refusée",
-      "ok": false,
-      "note": "PATCH /api/projets/0000500b-0000-4000-8000-000000000012 → 200"
-    }
-  ],
-  "preuves": [
-    "01-10-portefeuille.png",
-    "02-11-fiche.png",
-    "incidents.json",
-    "trace.zip",
-    "video/page@72d40bcb3c4e2361d8dc89fa9cec90dc.webm",
-    "video/page@b9d0842aac0c44342802baef97f7ca6f.webm"
-  ]
+  "preuves": []
 }

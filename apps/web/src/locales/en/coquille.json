@@ -49,7 +49,21 @@
     "toutMarquerLu": "Mark all as read",
     "chargement": "Loading…",
     "aucuneAide": "You will be notified here about the tasks, leave and projects that concern you.",
-    "marquerLue": "Mark “{titre}” as read"
+    "marquerLue": "Mark “{titre}” as read",
+    "type_tache_assignee": "New task assigned",
+    "type_conge_a_valider": "Leave request to approve",
+    "type_conge_decide": "Decision on your leave request",
+    "type_tache_echeance_proche": "Task due soon",
+    "type_tache_en_retard": "Overdue task",
+    "type_ajout_projet": "Added to a project",
+    "corps_tache_assignee": "Task “{tache}” has been assigned to you.",
+    "corps_conge_a_valider": "A leave request of {jours, plural, one {# day} other {# days}} is awaiting your decision.",
+    "corps_conge_decide_approuve": "Your leave request was approved.",
+    "corps_conge_decide_refuse": "Your leave request was declined.",
+    "corps_conge_decide_refuse_motif": "Your leave request was declined. Reason: {motif}",
+    "corps_ajout_projet": "You have been added to the project “{projet}”.",
+    "corps_tache_echeance_proche": "Task “{tache}” is due on {date}.",
+    "corps_tache_en_retard": "Task “{tache}” is past its due date of {date}."
   },
   "profil": {
     "derniereConnexion": "Last sign-in",

@@ -1,29 +1,11 @@
 [
   {
     "genre": "http",
-    "texte": "401 GET http://127.0.0.1:4306/api/auth/me"
+    "texte": "401 GET http://127.0.0.1:4307/api/auth/me"
   },
   {
     "genre": "console",
     "texte": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
-    "url": "http://127.0.0.1:4306/"
-  },
-  {
-    "genre": "http",
-    "texte": "403 GET http://127.0.0.1:4306/api/administration/roles"
-  },
-  {
-    "genre": "console",
-    "texte": "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-    "url": "http://127.0.0.1:4306/utilisateurs"
-  },
-  {
-    "genre": "http",
-    "texte": "403 GET http://127.0.0.1:4306/api/administration/roles"
-  },
-  {
-    "genre": "console",
-    "texte": "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-    "url": "http://127.0.0.1:4306/utilisateurs"
+    "url": "http://127.0.0.1:4307/"
   }
 ]

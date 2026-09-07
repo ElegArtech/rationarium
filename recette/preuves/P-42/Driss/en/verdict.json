@@ -2,7 +2,7 @@
   "parcours": "P-42",
   "persona": "Driss",
   "langue": "en",
-  "verdict": "rouge",
+  "verdict": "vert",
   "objectif": "Driss a ouvert le projet qu'il cherchait depuis son portefeuille filtré, puis en est ressorti par le retour de l'en-tête : le portefeuille affiche le compteur total et le compteur filtré.",
   "chemin": [
     "06 tableau de bord",
@@ -11,7 +11,7 @@
     "11 fiche projet",
     "10 retour au portefeuille"
   ],
-  "constate": "le retour au portefeuille ne conserve pas le filtre appliqué et ne le dit pas (statut retenu : « »). En-tête du portefeuille : « PORTFOLIO · Projects · 2 projects · New project ». Après filtre : 0 carte(s) contre 2 — en-tête « PORTFOLIO · Projects · 0 of 2 · New project ». Filtre posé avant d'ouvrir le projet : « active ». Filtre au retour : «  ».",
+  "constate": "En-tête du portefeuille : « PORTFOLIO · Projects · 2 projects · New project ». Après filtre : 0 carte(s) contre 2 — en-tête « PORTFOLIO · Projects · 0 of 2 · New project ». Filtre posé avant d'ouvrir le projet : « active ». Filtre au retour : « active ».",
   "textes_absents": [],
   "incidents": [],
   "fuites_jeu1": [],

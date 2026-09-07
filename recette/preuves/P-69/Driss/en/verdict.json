@@ -10,14 +10,16 @@
     "10 recherche du projet archivé",
     "11 désarchivage"
   ],
-  "constate": "le portefeuille n'offre aucun filtre qui retrouve un projet archivé — le sélecteur de statut ne porte que [All statuses / Draft / Active / Paused / Completed / Cancelled] et aucun bouton d'archives n'existe. filtres du portefeuille : statut [All statuses / Draft / Active / Paused / Completed / Cancelled], boutons [New project / My projects] ; cartes « Refonte de l'intranet agents » : 1 avant archivage, 0 après ; carte après désarchivage : 1.",
+  "constate": "le portefeuille n'offre aucun filtre qui retrouve un projet archivé : le sélecteur de statut ne porte que [All statuses / Draft / Active / Paused / Completed / Cancelled] et aucun bouton d'archives n'y figure. filtres du portefeuille : statut [All statuses / Draft / Active / Paused / Completed / Cancelled], boutons [New project / My projects] ; cartes « Refonte de l'intranet agents » au portefeuille : 1 avant archivage, 0 après ; carte au portefeuille après désarchivage : 1.",
   "textes_absents": [],
   "incidents": [],
+  "refus_attendus": [],
   "fuites_jeu1": [],
   "preuves": [
     "01-apres-archivage.png",
     "02-portefeuille-apres-archivage.png",
-    "03-apres-desarchivage.png",
+    "03-recherche-du-projet-archive.png",
+    "04-apres-desarchivage.png",
     "trace.zip",
     "video/"
   ]

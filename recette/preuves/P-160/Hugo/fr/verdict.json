@@ -1,0 +1,19 @@
+{
+  "parcours": "P-160",
+  "persona": "Hugo",
+  "langue": "fr",
+  "verdict": "vert",
+  "objectif": "L'allocation propre posée par erreur sur un agent a été retirée : l'agent est revenu au défaut global, et un champ vidé n'a jamais valu zéro jour.",
+  "chemin": [
+    "19 congés — Soldes"
+  ],
+  "constate": "Agent « Léa Vasseur », type « Absence pour raison de santé * » : la mention d'héritage « Aucune allocation propre » est affichée. Après enregistrement de 7 jours, l'allocation devient propre : constaté. Champ vidé puis enregistré : l'enregistrement est refusé par « Indiquez un nombre de jours. Un champ vide n'est pas zéro… » ; zéro écrit : non. État final de la ligne : « Absence pour raison de santé *  ↑ Indiquez un nombre de jours. Un champ vide n'est pas zéro : laissé tel quel, il priverait cet agent de tout congé.  Allocation propre à cet agent  » — l'allocation propre demeure et ne se retire pas.",
+  "textes_absents": [],
+  "incidents": [],
+  "fuites_jeu1": [],
+  "preuves": [
+    "trace.zip",
+    "video/",
+    "incidents.json"
+  ]
+}

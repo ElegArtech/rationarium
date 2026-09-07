@@ -6,73 +6,11 @@
   "objectif": "Inès voit la charge par service et par collaborateur, et les surcharges y sont signalées.",
   "chemin": [
     "30 rapports",
-    "30 onglet analytics"
+    "30 analytics avancés"
   ],
-  "constate": "Répartition de charge sur 20 collaborateurs, surcharges signalées ; répartitions par priorité et par statut rendues avec le vocabulaire unique. ",
+  "constate": "Onglet analytics : répartition de charge sur 20 entrées, ligne de moyenne « Moyenne : 2,6 tâches actives · surcharge signalée au-delà de +40 % », surcharge signalée ; répartitions par priorité et par statut rendues avec le vocabulaire unique.",
   "textes_absents": [],
   "incidents": [],
   "fuites_jeu1": [],
-  "controles": [
-    {
-      "nom": "la répartition de charge nomme les collaborateurs",
-      "ok": true,
-      "note": "aucun collaborateur nommé dans la répartition de charge"
-    },
-    {
-      "nom": "les écarts à la moyenne sont signalés",
-      "ok": true,
-      "note": "« Surcharge » introuvable"
-    },
-    {
-      "nom": "la moyenne de référence est écrite",
-      "ok": true,
-      "note": "aucune moyenne annoncée"
-    },
-    {
-      "nom": "répartition par priorité : « Basse »",
-      "ok": true,
-      "note": "absente"
-    },
-    {
-      "nom": "répartition par priorité : « Normale »",
-      "ok": true,
-      "note": "absente"
-    },
-    {
-      "nom": "répartition par priorité : « Haute »",
-      "ok": true,
-      "note": "absente"
-    },
-    {
-      "nom": "répartition par priorité : « Critique »",
-      "ok": true,
-      "note": "absente"
-    },
-    {
-      "nom": "répartition par statut : « À faire »",
-      "ok": true,
-      "note": "absent"
-    },
-    {
-      "nom": "répartition par statut : « En cours »",
-      "ok": true,
-      "note": "absent"
-    },
-    {
-      "nom": "répartition par statut : « Bloqué »",
-      "ok": true,
-      "note": "absent"
-    },
-    {
-      "nom": "les agrégats ne portent que sur le périmètre visible",
-      "ok": true,
-      "note": ""
-    }
-  ],
-  "preuves": [
-    "01-30-charge.png",
-    "incidents.json",
-    "trace.zip",
-    "video/page@e9c40b22cf63cc3eac2033883ecc5d08.webm"
-  ]
+  "preuves": []
 }

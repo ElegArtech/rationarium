@@ -10,7 +10,7 @@
     "35 onglet sécurité",
     "01 connexion (ancien mot de passe)"
   ],
-  "constate": "le refus d'un mot de passe trop court n'énonce pas la règle : « ! Données invalides » · le refus d'un mot de passe sans chiffre ni caractère spécial n'énonce pas la règle : « ! Données invalides »",
+  "constate": "le premier onglet de la vue 35 est intitulé « Informations » ; le parcours attend « Informations personnelles » · le refus d'un mot de passe trop court n'énonce pas la règle : « ! Données invalides » · le refus d'un mot de passe sans chiffre ni caractère spécial n'énonce pas la règle : « ! Données invalides » · textes attendus absents : « Informations personnelles »",
   "textes_absents": [
     "Informations personnelles"
   ],
@@ -26,6 +26,7 @@
   ],
   "fuites_jeu1": [],
   "notes": [
+    "onglets de la vue 35 : [\"Informations\",\"Sécurité\"]",
     "mot de passe « Ab1! » (4 caractères) → \"!\\nDonnées invalides\"",
     "mot de passe « Abcdefghij » (ni chiffre ni caractère spécial) → \"!\\nDonnées invalides\"",
     "mot de passe actuel erroné → \"!\\nAncien mot de passe incorrect\""

@@ -8,14 +8,16 @@
     "12 onglet Tâches du projet",
     "17 fiche de « Maquette de la page d'accueil »"
   ],
-  "constate": "aucun geste n'invite un service entier : ni la fenêtre de création d'une tâche, ni la fenêtre « Ajouter un assigné » de la fiche ne proposent de service — seules des cases individuelles par personne y figurent (EX-TSK-06) ; le refus nommant l'agent déjà affecté (RG-PLN-06) reste donc inobservable : l'assigné existant est simplement déjà coché. onglet « Tasks10 » ; fenêtre d'assignation : [\"ASSIGNEES\",\"Add an assignee\",\"×\"] ; Léa Vasseur (déjà assignée) est cochée dans la fenêtre.",
+  "constate": "aucun geste n'invite un service entier : la fenêtre de création d'une tâche et la fenêtre « Ajouter un assigné » ne proposent que des cases individuelles par personne, jamais un service (EX-TSK-06) ; le refus nommant l'agent déjà affecté est donc inobservable (RG-PLN-06). onglet « Tasks9 » ; fenêtre d'assignation : [ASSIGNEES | Add an assignee | × | PROJECT MEMBERS] ; Léa Vasseur, déjà assignée, est cochée dans la fenêtre ; hors projet, la liste des assignés est titrée « ALL USERS » ; projet choisi, la liste est titrée « PROJECT MEMBERS ».",
   "textes_absents": [],
   "incidents": [],
+  "refus_attendus": [],
   "fuites_jeu1": [],
   "preuves": [
     "01-onglet-taches.png",
     "02-creation-tache.png",
     "03-fenetre-assignes.png",
+    "04-assignes-hors-projet.png",
     "trace.zip",
     "video/"
   ]

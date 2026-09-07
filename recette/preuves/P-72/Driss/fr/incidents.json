@@ -7,5 +7,32 @@
     "genre": "console",
     "texte": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
     "url": "http://127.0.0.1:4305/"
+  },
+  {
+    "genre": "http",
+    "texte": "403 GET http://127.0.0.1:4305/api/administration/roles"
+  },
+  {
+    "genre": "console",
+    "texte": "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+    "url": "http://127.0.0.1:4305/roles"
+  },
+  {
+    "genre": "http",
+    "texte": "403 GET http://127.0.0.1:4305/api/administration/audit/facettes"
+  },
+  {
+    "genre": "console",
+    "texte": "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+    "url": "http://127.0.0.1:4305/audit"
+  },
+  {
+    "genre": "http",
+    "texte": "403 GET http://127.0.0.1:4305/api/administration/audit"
+  },
+  {
+    "genre": "console",
+    "texte": "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+    "url": "http://127.0.0.1:4305/audit"
   }
 ]

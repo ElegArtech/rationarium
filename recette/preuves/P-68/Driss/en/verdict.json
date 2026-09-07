@@ -9,7 +9,7 @@
     "11 fiche du projet",
     "11 seconde saisie concurrente"
   ],
-  "constate": "second onglet : « Project saved. » ; premier onglet, message de conflit : « ! Someone changed this item while you were editing. Reload to see the current version, then reapply your change. » ; après rechargement, le projet s'appelle « Refonte de l'intranet agents — version A ».",
+  "constate": "second onglet : « Project saved. » ; premier onglet : « PROJECT Edit project × ! Someone changed this item while you were editing. Reload to see the current version, then reapply your change. Project icon Website Identifies the project in the schedule, tasks and Gantt Name * Description Status Draft Active Paused C » ; après rechargement, le projet s'appelle « Refonte de l'intranet agents — version A ».",
   "textes_absents": [],
   "incidents": [],
   "refus_attendus": [

@@ -10,38 +10,18 @@
     "28 suivi individuel",
     "27 retour à l'annuaire"
   ],
-  "constate": "Le tableau de bord porte « Qui est là aujourd'hui » et distingue les trois états (oui). Sur la vue 27, l'action de ligne est intitulée « SUIVI », jamais « Voir le suivi individuel ». Les six onglets : Vue d’ensemble: rendu · Tâches: rendu · Congés: rendu · Télétravail: rendu · Temps: rendu · Compétences: rendu. La période change les nombres : oui. « Retour aux utilisateurs » ramène bien sur la vue 27.",
+  "constate": "Le tableau de bord distingue les états de présence (oui). Sur la vue 27, l'action de ligne est intitulée « SUIVI » (title=null, aria-label=null), jamais « Voir le suivi individuel ». Les six onglets : Vue d’ensemble: rendu · Tâches: rendu · Congés: rendu · Télétravail: rendu · Temps: rendu · Compétences: rendu. La période change les nombres : oui. « Retour aux utilisateurs » ramène bien sur la vue 27.",
   "textes_absents": [
     "Voir le suivi individuel"
   ],
-  "incidents": [
-    {
-      "genre": "http",
-      "texte": "403 GET http://127.0.0.1:4306/api/administration/roles"
-    },
-    {
-      "genre": "console",
-      "texte": "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-      "url": "http://127.0.0.1:4306/utilisateurs"
-    },
-    {
-      "genre": "http",
-      "texte": "403 GET http://127.0.0.1:4306/api/administration/roles"
-    },
-    {
-      "genre": "console",
-      "texte": "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-      "url": "http://127.0.0.1:4306/utilisateurs"
-    }
-  ],
+  "incidents": [],
   "fuites_jeu1": [],
   "preuves": [
-    "/home/alex/Documents/Repo/rationarium/recette/preuves/P-82/Fatou/fr/01-01-tableau-de-bord.png",
-    "/home/alex/Documents/Repo/rationarium/recette/preuves/P-82/Fatou/fr/02-02-utilisateurs.png",
-    "/home/alex/Documents/Repo/rationarium/recette/preuves/P-82/Fatou/fr/03-03-suivi.png",
-    "/home/alex/Documents/Repo/rationarium/recette/preuves/P-82/Fatou/fr/04-04-six-onglets.png",
-    "/home/alex/Documents/Repo/rationarium/recette/preuves/P-82/Fatou/fr/05-05-periodes.png",
-    "/home/alex/Documents/Repo/rationarium/recette/preuves/P-82/Fatou/fr/06-06-retour.png"
-  ],
-  "incidents_bruts": 6
+    "01-01-tableau-de-bord.png",
+    "02-02-utilisateurs.png",
+    "03-03-suivi.png",
+    "04-04-six-onglets.png",
+    "05-05-periodes.png",
+    "06-06-retour.png"
+  ]
 }

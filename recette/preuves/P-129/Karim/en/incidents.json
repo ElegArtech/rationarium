@@ -1,11 +1,101 @@
 [
   {
     "genre": "http",
-    "texte": "401 GET http://127.0.0.1:4310/api/auth/me"
+    "texte": "401 GET http://127.0.0.1:4311/api/auth/me"
   },
   {
     "genre": "console",
     "texte": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
-    "url": "http://127.0.0.1:4310/"
+    "url": "http://127.0.0.1:4311/"
+  },
+  {
+    "genre": "http",
+    "texte": "403 GET http://127.0.0.1:4311/api/administration/audit"
+  },
+  {
+    "genre": "console",
+    "texte": "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+    "url": "http://127.0.0.1:4311/"
+  },
+  {
+    "genre": "http",
+    "texte": "401 POST http://127.0.0.1:4311/api/auth/login"
+  },
+  {
+    "genre": "console",
+    "texte": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "url": "http://127.0.0.1:4311/"
+  },
+  {
+    "genre": "http",
+    "texte": "401 POST http://127.0.0.1:4311/api/auth/login"
+  },
+  {
+    "genre": "console",
+    "texte": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "url": "http://127.0.0.1:4311/"
+  },
+  {
+    "genre": "http",
+    "texte": "401 POST http://127.0.0.1:4311/api/auth/login"
+  },
+  {
+    "genre": "console",
+    "texte": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "url": "http://127.0.0.1:4311/"
+  },
+  {
+    "genre": "http",
+    "texte": "401 POST http://127.0.0.1:4311/api/auth/login"
+  },
+  {
+    "genre": "console",
+    "texte": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "url": "http://127.0.0.1:4311/"
+  },
+  {
+    "genre": "http",
+    "texte": "429 POST http://127.0.0.1:4311/api/auth/login"
+  },
+  {
+    "genre": "console",
+    "texte": "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
+    "url": "http://127.0.0.1:4311/"
+  },
+  {
+    "genre": "http",
+    "texte": "429 POST http://127.0.0.1:4311/api/auth/login"
+  },
+  {
+    "genre": "console",
+    "texte": "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
+    "url": "http://127.0.0.1:4311/"
+  },
+  {
+    "genre": "http",
+    "texte": "429 POST http://127.0.0.1:4311/api/auth/login"
+  },
+  {
+    "genre": "console",
+    "texte": "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
+    "url": "http://127.0.0.1:4311/"
+  },
+  {
+    "genre": "http",
+    "texte": "429 POST http://127.0.0.1:4311/api/auth/login"
+  },
+  {
+    "genre": "console",
+    "texte": "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
+    "url": "http://127.0.0.1:4311/"
+  },
+  {
+    "genre": "http",
+    "texte": "401 GET http://127.0.0.1:4311/api/auth/me"
+  },
+  {
+    "genre": "console",
+    "texte": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "url": "http://127.0.0.1:4311/"
   }
 ]

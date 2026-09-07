@@ -13,6 +13,7 @@ import {
   EPOPEES,
   INSTANTANES,
   SESSION_RAPPORTS,
+  SESSION_SANS_JALONS,
 } from "./fixtures/projets.js";
 
 /**
@@ -1476,5 +1477,88 @@ test.describe("Vue 13 — un jalon sans tâche se marque à la main", () => {
 
     await expect(page.getByText("Reste à planifier")).toBeVisible();
     await expect(page.getByRole("button", { name: "Marquer atteint" })).toHaveCount(0);
+  });
+});
+
+/**
+ * ══════════════════════════════════════════════════════════════════════════════
+ * `RG-GEN-06`, `RG-GEN-05`, `RG-SCOPE-02` — **sans `milestones:read`, la vue 11
+ * ne ment pas et ne propose rien qui sera refusé.**
+ *
+ * Deux défauts constatés en seconde passe, sur les parcours P-116 et P-165 d'un
+ * porteur de `PORTFOLIO_MANAGER` :
+ *
+ *  1. Le panneau annonçait « Feuille de route — 3 jalons » **et** « Aucun jalon
+ *     défini » sur le même écran, en offrant « + Créer un jalon ». Le `403` de
+ *     `GET /projets/:id/feuille-de-route` était avalé, et l'état vide disait
+ *     « il n'y a rien » là où la vraie réponse est « vous n'avez pas le droit
+ *     de le savoir ». Des deux lectures contradictoires, la fausse était la
+ *     plus rassurante.
+ *  2. Les onglets « Jalons » et « Gantt » menaient à deux vues que le serveur
+ *     refuse — même forme que le mode « Activité » du planning.
+ *
+ * Le décompte du bandeau, lui, RESTE : il vient de la fiche, que le porteur a
+ * le droit de lire. Ce qui change est que le corps cesse de le contredire.
+ * ══════════════════════════════════════════════════════════════════════════════
+ */
+test.describe("La vue 11 pour qui n'a pas milestones:read", () => {
+  const reponses = {
+    // Le serveur refuse la feuille de route, et sert la fiche : c'est la
+    // dissymétrie exacte de `PORTFOLIO_MANAGER`.
+    "/feuille-de-route": {
+      statut: 403,
+      corps: { cle: "commun:droits.permissionRequise", message: "Permission requise" },
+    },
+    [`/api/projets/${PROJET.id}`]: { corps: PROJET },
+  };
+
+  test("RG-GEN-05 — LE PANNEAU DIT LE REFUS, il ne dit pas « aucun jalon »", async ({ page }) => {
+    await serveur(page, { session: SESSION_SANS_JALONS, reponses });
+    await page.goto(CHEMIN_PROJET);
+
+    const panneau = page.locator(".panel", { hasText: "Feuille de route" }).first();
+    await expect(panneau).toBeVisible();
+
+    // Le décompte de la fiche reste : il est lisible, et il est vrai. Visé sur
+    // la phrase entière, pas sur le nombre seul — un nombre isolé se retrouve
+    // ailleurs dans le même bloc, et l'assertion large est un faux témoin.
+    await expect(
+      panneau.getByText(`${PROJET.jalons} jalons · ${PROJET.epopees} épopées`),
+    ).toBeVisible();
+    // Et le corps dit pourquoi il ne montre rien.
+    await expect(panneau.getByText("Permission requise")).toBeVisible();
+
+    // Le défaut, mot pour mot : deux lectures contradictoires côte à côte.
+    await expect(panneau.getByText("Aucun jalon défini")).toHaveCount(0);
+    // Et une action que le serveur refuserait n'est pas offerte.
+    await expect(panneau.getByRole("link", { name: /Créer un jalon/ })).toHaveCount(0);
+  });
+
+  test("RG-GEN-06 — LES ONGLETS QUI SERAIENT REFUSÉS NE SONT PAS OFFERTS", async ({ page }) => {
+    await serveur(page, { session: SESSION_SANS_JALONS, reponses });
+    await page.goto(CHEMIN_PROJET);
+
+    const barre = page.getByRole("navigation", { name: "Sections du projet" });
+    await expect(barre).toBeVisible();
+
+    // « Jalons » et « Gantt » lisent tous deux la feuille de route.
+    await expect(barre.getByRole("link", { name: /Jalons/ })).toHaveCount(0);
+    await expect(barre.getByRole("link", { name: /Gantt/ })).toHaveCount(0);
+    // Les trois autres restent : masquer par excès priverait du reste.
+    await expect(barre.getByRole("link")).toHaveCount(3);
+    await expect(barre.getByRole("link", { name: /Vue d'ensemble/ })).toBeVisible();
+    await expect(barre.getByRole("link", { name: /Tâches/ })).toBeVisible();
+    await expect(barre.getByRole("link", { name: /Équipe/ })).toBeVisible();
+  });
+
+  test("RG-ADM-03 — l'adresse FORCÉE aboutit à un refus, pas à une panne", async ({ page }) => {
+    // La commande est masquée ; le contrôle, lui, reste au serveur. Qui force
+    // l'adresse obtient un refus tracé — et non « Le chargement a échoué »
+    // avec un bouton « Réessayer » qui ne peut que réessayer le même refus.
+    await serveur(page, { session: SESSION_SANS_JALONS, reponses });
+    await page.goto(`${CHEMIN_PROJET}/jalons`);
+
+    await expect(page.getByText("Permission requise")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Réessayer" })).toHaveCount(0);
   });
 });

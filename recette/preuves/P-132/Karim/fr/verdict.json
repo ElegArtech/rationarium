@@ -5,28 +5,14 @@
   "verdict": "vert",
   "objectif": "Karim ne peut pas masquer tous les jours du planning, et le choix qu'il fait vaut pour toutes les vues qui le lisent, pas seulement pour celle qu'il regardait.",
   "chemin": [
-    "entrée",
-    "31 paramètres",
-    "31 section planning",
+    "31 paramètres · onglet Planning",
     "07 planning semaine",
     "08 planning mois",
-    "06 tableau de bord",
-    "31 paramètres",
-    "07 planning"
+    "06 tableau de bord"
   ],
-  "constate": "le dernier jour restant (VEN) est rendu inopérant : il ne se décoche pas ; après avoir tenté de tout décocher, il reste : VEN\nVisible ; le message « Au moins un jour doit rester sélectionné. » est affiché ; message : « Paramètres enregistrés. » ; planning.visibleDays = 0,1,2,3,4,5,6 ; vue 07 : samedi et dimanche présents ; vue 08, premiers quantièmes affichés : 1,2,3,4,5,6,7,8,9,10,11,12 ; vue 08 : les samedis et dimanches sont là ; extrait de la vue 06 : Mon planning Semaine du 07/09/2026 au 13/09/2026 ‹ › Ouvrir le planning →  LUN 07  Note de sécurité sur les accès annuaire  MAR 08  Télétravail Note de sécurité sur les accès annuaire  MER 09  Note de sécurité sur les accès annuaire  JEU 10  Note de sécurité s ; vue 06 : samedi et dimanche présents dans l'extrait ; PATCH parametres visibleDays=\"\" → 200 ; liste vide → 31 colonnes de jours dans la vue 07",
+  "constate": "après avoir tenté de tout décocher, il reste : VEN Visible ; message « au moins un jour » : affiché ; message : \"Paramètres enregistrés.\" ; planning.visibleDays = 0,1,2,3,4,5,6 ; vue 07 : samedi et dimanche présents ; vue 08 : quantièmes 1,2,3,4,5,6,7,8,9,10,11,12 — initiales MMJVSDLMMJVS — samedis et dimanches présents ; extrait de la vue 06 : Mon planning · Semaine du 07/09/2026 au 13/09/2026 · ‹ · › · Ouvrir le planning → · LUN 07 · Note de sécurité sur les accès annuaire · MAR 08 · Télétravail · Note de sécurité sur les accès annuaire · MER 09 · Note de sécurité sur les accès annuaire · JEU 10 ·  ; liste de jours vide → 5 jours rendus au planning",
   "textes_absents": [],
   "incidents": [],
   "fuites_jeu1": [],
-  "preuves": [
-    "01-jours-visibles.png",
-    "02-dernier-jour.png",
-    "03-vue-07.png",
-    "04-vue-08.png",
-    "05-vue-06.png",
-    "incidents.json",
-    "trace.zip",
-    "verdict.json",
-    "video"
-  ]
+  "preuves": []
 }

@@ -7,20 +7,14 @@
   "chemin": [
     "06 tableau de bord",
     "23 tiers",
-    "24 fiche du tiers",
-    "11 vue d'ensemble du projet",
-    "23 tiers créé",
-    "24 fiche d'un tiers sans projet"
+    "24 fiche tiers",
+    "11 projet"
   ],
-  "constate": "la liste porte type, organisation, coordonnées et état actif ; une personne morale ne porte pas de contact nommé ; la section des projets rattachés ouvre la vue 11 (« Salle de spectacle Les Tilleuls ») ; un tiers sans projet porte « aucun projet rattaché ».",
+  "constate": "colonnes : TYPE · PARTNER · CONTACT DETAILS · LINKS · STATUS · ACTIONS ; personne morale « Ateliers Bertoli & Fils » : ⌷ · Organisation ·  · Ateliers Bertoli & Fils ·  · Generic contact · contact@ateliers-bertoli.fr · 2 projects · 2 tasks · ACTIVE · VIEW · EDIT · DELETE → contact nommé absent ; personne physique : ◇ · Individual ·  · Élodie Sirvent ·  · Élodie Sirvent · e.sirvent@independante.fr · 1 project · 1 task · ACTIVE · VIEW · EDIT · DELETE ; fiche ouverte : 0000590b-0000-4000-8000-000000000000 ; projets rattachés activables : 2 ; vue 11 atteinte pour « Salle de spectacle Les Tilleuls » ; « Overview » présent ; tiers sans projet → « No linked project » présent",
   "textes_absents": [],
   "incidents": [],
   "fuites_jeu1": [],
   "preuves": [
-    "01-01-liste-des-tiers.png",
-    "02-02-fiche-tiers.png",
-    "03-03-projet.png",
-    "04-04-tiers-sans-projet.png",
     "trace.zip",
     "video/"
   ]

@@ -2,23 +2,22 @@
   "parcours": "P-93",
   "persona": "Hugo",
   "langue": "en",
-  "verdict": "rouge",
+  "verdict": "vert",
   "objectif": "Hugo n'a supprimé ni le type système ni le type déjà utilisé : le premier n'offre que ses champs modifiables, le second a été désactivé après un avertissement chiffré.",
   "chemin": [
     "06 tableau de bord",
     "19 congés",
     "19 types de congés",
-    "19 type désactivé"
+    "19 type désactivé",
+    "19 mes demandes"
   ],
-  "constate": "Pastilles des types : ACTIVE, ACTIVE, ACTIVE, ACTIVE, ACTIVE ; types système : 0 ; commandes de modification : 0. ROUGE — aucune commande de modification d'un type : les champs modifiables d'un type système (nom, description, icône, couleur, validation) ne sont éditables nulle part (EX-CNG-13, RG-CNG-30). ROUGE — aucun type système dans le référentiel : la restriction de RG-CNG-30 ne s'observe sur aucun type. Ligne RTT : « RTT · Réduction du temps de travail · Paid · Required · 18 d/year · 24 leaves · ACTIVE · DEACTIVATE ». Avertissement : « “Réduction du temps de travail” is used by 24 leaves. It will be deactivated instead of deleted. Continue? » (titre : LEAVE TYPE CATALOGUE ·  · Deactivate leave type). Après confirmation : message « Type deactivated — 24 leaves keep it. » ; RTT retiré de la liste des actifs.",
+  "constate": "Pastilles des types : SYSTEM, ACTIVE, SYSTEM, ACTIVE, ACTIVE ; types système : 2 ; commandes de la liste : EDIT, DEACTIVATE (suppression : 0, modification : 5). Type système « RTT » : explication portée par la pastille « System type: only name, description, icon, colour and approval requirement can be changed. ». Champs non figés dans la fenêtre : tf-nom, tf-description, tf-couleur, tf-icone, tf-remunere, tf-validation, tf-actif ; rémunération non modifiable, statut non modifiable. Commande de suppression sur la ligne : absente. Ligne RTT : « RT · RTT · Réduction du temps de travail · Jours acquis au titre de la réduction du temps de travail. Solde arrêté au 31 décembre. · Paid · Required · 18 d/year · 24 leaves · SYSTEM · EDIT · DEACTIVATE ». Avertissement : « “Réduction du temps de travail” is used by 24 leaves. It will be deactivated instead of deleted. Continue? ». Après confirmation : message « Type deactivated — 24 leaves keep it. » ; RTT retiré de la liste des actifs.",
   "textes_absents": [],
   "incidents": [],
   "fuites_jeu1": [],
   "preuves": [
-    "01-types.png",
-    "02-avertissement.png",
-    "incidents.json",
     "trace.zip",
-    "video/page@521428471381ecc7ecdadf39b647e6d3.webm"
+    "video/",
+    "incidents.json"
   ]
 }

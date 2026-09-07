@@ -5,42 +5,14 @@
   "verdict": "rouge",
   "objectif": "Karim ne crée pas de doublon : un email déjà pris et un identifiant déjà pris sont refusés, chacun par son propre message.",
   "chemin": [
-    "27 utilisateurs"
+    "27 utilisateurs",
+    "27 fenêtre de création"
   ],
-  "constate": "Collision email → « This email address is already linked to an account. » ; collision identifiant → « This username is already taken. » ; 30 comptes avant et après. ROUGE — textes absents : Voir le suivi individuel (→ « View individual tracking »)",
+  "constate": "Collision d'email → « This email address is already linked to an account. » ; collision d'identifiant → « This username is already taken. » : deux messages distincts, en langue naturelle. 30 comptes avant, 30 après les deux tentatives. Les deux refus sont des 409 sur POST /api/utilisateurs — le refus attendu par le parcours, non un incident subi. Le littéral « View individual tracking » ne figure nulle part sur la vue 27 : la ligne porte un lien « Tracking » et le menu d'actions offre Modifier · Réinitialiser le mot de passe · Désactiver le compte · Supprimer définitivement. Le catalogue ne le porte que comme libellé d'action du journal d'audit (administration.json, action_read_individual_tracking).",
   "textes_absents": [
-    "Voir le suivi individuel (→ « View individual tracking »)"
+    "Voir le suivi individuel"
   ],
   "incidents": [],
   "fuites_jeu1": [],
-  "controles": [
-    {
-      "nom": "email en collision : message en langue naturelle",
-      "ok": true,
-      "note": "message obtenu : « NEW ACCOUNT  New user  × ! This email address is already linked to an account. First name * Last name * Email * Username *  The login username cannot be changed afterwards.  Password * ✓ At least 8 ch »"
-    },
-    {
-      "nom": "identifiant en collision : message en langue naturelle",
-      "ok": true,
-      "note": "message obtenu : « NEW ACCOUNT  New user  × ! This username is already taken. First name * Last name * Email * Username *  The login username cannot be changed afterwards.  Password * ✓ At least 8 characters ✓ One capit »"
-    },
-    {
-      "nom": "les deux messages sont textuellement différents",
-      "ok": true,
-      "note": "un même message sert les deux collisions"
-    },
-    {
-      "nom": "aucun compte créé",
-      "ok": true,
-      "note": "30 → 30"
-    }
-  ],
-  "preuves": [
-    "01-27-email-pris.png",
-    "02-27-login-pris.png",
-    "incidents.json",
-    "trace.zip",
-    "video/page@091b1bbaee77d517178f935368c77180.webm",
-    "video/page@c7c6ce00df3a6906a804bc647f1b1b27.webm"
-  ]
+  "preuves": []
 }

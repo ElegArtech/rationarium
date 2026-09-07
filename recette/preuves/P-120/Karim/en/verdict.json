@@ -5,56 +5,14 @@
   "verdict": "rouge",
   "objectif": "Le compte modifié par Karim porte son nouveau rôle et ses nouveaux rattachements, son identifiant de connexion étant resté celui d'origine.",
   "chemin": [
-    "27 utilisateurs"
+    "27 utilisateurs",
+    "27 fenêtre de modification"
   ],
-  "constate": "Identifiant non éditable ; rôle et rattachements modifiés ; écriture périmée refusée. ROUGE — textes absents : Voir le suivi individuel (→ « View individual tracking »)",
+  "constate": "identifiant « k.brossard » non éditable ; département « Espaces publics » → services [\"Propreté et déchets\"] ; services cochés après changement : 0 ; ligne après enregistrement : KB ·  · Kevin Brossard ·  · k.brossard@valmorin.fr · k.brossard · ANALYSTE BUDGÉTAIRE · Espaces publics · Propreté et déchets · ACTIVE · TRACK · ⋯ ; service coché : Propreté et déchets ; écriture concurrente (version 2) → 200 ; enregistrement depuis un état périmé → message : \"! Someone changed this item while you were editing. Reload to see the current version, then reapply your change.\"",
   "textes_absents": [
-    "Voir le suivi individuel (→ « View individual tracking »)"
+    "Voir le suivi individuel"
   ],
   "incidents": [],
   "fuites_jeu1": [],
-  "controles": [
-    {
-      "nom": "l'identifiant de connexion n'est pas éditable",
-      "ok": true,
-      "note": "le champ d'identifiant est modifiable"
-    },
-    {
-      "nom": "changer le département restreint la liste de services",
-      "ok": true,
-      "note": "avant : Applications métier · Données et pilotage · Infrastructure et postes de travail / après : Propreté et déchets"
-    },
-    {
-      "nom": "la modification est enregistrée",
-      "ok": true,
-      "note": "la fenêtre est restée ouverte"
-    },
-    {
-      "nom": "la ligne porte le nouveau rattachement",
-      "ok": true,
-      "note": "le rattachement n'a pas changé"
-    },
-    {
-      "nom": "l'identifiant de connexion est resté celui d'origine",
-      "ok": true,
-      "note": "identifiant introuvable"
-    },
-    {
-      "nom": "l'écriture concurrente aboutit",
-      "ok": true,
-      "note": "PATCH concurrent → 200"
-    },
-    {
-      "nom": "la modification périmée est refusée avec un message de conflit",
-      "ok": true,
-      "note": "message obtenu : « USER ACCOUNT  Edit  × ! Someone changed this item while you were editing. Reload to see the current version, then reapply your change. First name * Last name * Email * Username  The login username cannot be changed afterwards.  Role No role Administr »"
-    }
-  ],
-  "preuves": [
-    "01-27-modifie.png",
-    "02-27-conflit.png",
-    "incidents.json",
-    "trace.zip",
-    "video/page@a2b27bc47a126839c0c92458bd780d0c.webm"
-  ]
+  "preuves": []
 }
