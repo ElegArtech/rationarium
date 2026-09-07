@@ -1,0 +1,51 @@
+{
+  "parcours": "P-116",
+  "persona": "Inès",
+  "langue": "en",
+  "verdict": "rouge",
+  "objectif": "Inès ne crée ni ne modifie aucun projet : le portefeuille lui est en lecture, les commandes d'écriture sont absentes ou désactivées avec explication.",
+  "chemin": [
+    "06 tableau de bord",
+    "10 portefeuille",
+    "11 fiche projet"
+  ],
+  "constate": "Vue 10 : « New project » présente et active. PATCH forgé → 200. ROUGE — vue 10 : aucune commande de création : « New project » est présente et ACTIVE | vue 11 : « Edit » absente ou inopérante : présente et ACTIVE | vue 11 : « Archive » absente ou inopérante : présente et ACTIVE | requête forgée de modification refusée : PATCH /api/projets/0000500b-0000-4000-8000-000000000012 → 200 | incident http : 403 GET http://127.0.0.1:4309/api/projets/0000500b-0000-4000-8000-000000000012/feuille-de-route",
+  "textes_absents": [],
+  "incidents": [
+    {
+      "genre": "http",
+      "texte": "403 GET http://127.0.0.1:4309/api/projets/0000500b-0000-4000-8000-000000000012/feuille-de-route"
+    }
+  ],
+  "fuites_jeu1": [],
+  "controles": [
+    {
+      "nom": "vue 10 : aucune commande de création",
+      "ok": false,
+      "note": "« New project » est présente et ACTIVE"
+    },
+    {
+      "nom": "vue 11 : « Edit » absente ou inopérante",
+      "ok": false,
+      "note": "présente et ACTIVE"
+    },
+    {
+      "nom": "vue 11 : « Archive » absente ou inopérante",
+      "ok": false,
+      "note": "présente et ACTIVE"
+    },
+    {
+      "nom": "requête forgée de modification refusée",
+      "ok": false,
+      "note": "PATCH /api/projets/0000500b-0000-4000-8000-000000000012 → 200"
+    }
+  ],
+  "preuves": [
+    "01-10-portefeuille.png",
+    "02-11-fiche.png",
+    "incidents.json",
+    "trace.zip",
+    "video/page@72d40bcb3c4e2361d8dc89fa9cec90dc.webm",
+    "video/page@b9d0842aac0c44342802baef97f7ca6f.webm"
+  ]
+}

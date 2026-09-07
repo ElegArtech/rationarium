@@ -1,0 +1,21 @@
+{
+  "parcours": "P-81",
+  "persona": "Fatou",
+  "langue": "en",
+  "verdict": "rouge",
+  "objectif": "Fatou n'approuve pas sa propre demande de congé : la commande n'existe pas sur sa ligne, et sa demande est traitée par un autre validateur.",
+  "chemin": [
+    "19 congés"
+  ],
+  "constate": "Demande déposée par Fatou le 06/11/2026 (« Request submitted. |  »). Sur « My requests » sa ligne porte 0 « Approve » et 0 « Reject ». Sur son propre onglet « To approve », sa demande APPARAÎT, avec la commande « Approve » active ; le serveur répond « !\n6 requests awaiting approval |  | You cannot approve your own request. ».",
+  "textes_absents": [],
+  "incidents": [],
+  "fuites_jeu1": [],
+  "preuves": [
+    "/home/alex/Documents/Repo/rationarium/recette/preuves/P-81/Fatou/en/01-01-demande-deposee.png",
+    "/home/alex/Documents/Repo/rationarium/recette/preuves/P-81/Fatou/en/02-02-mes-demandes.png",
+    "/home/alex/Documents/Repo/rationarium/recette/preuves/P-81/Fatou/en/03-03-a-valider.png",
+    "/home/alex/Documents/Repo/rationarium/recette/preuves/P-81/Fatou/en/04-04-tentative-auto-approbation.png"
+  ],
+  "incidents_bruts": 4
+}

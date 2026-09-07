@@ -1,0 +1,19 @@
+{
+  "parcours": "P-03",
+  "persona": "Camille",
+  "langue": "en",
+  "verdict": "vert",
+  "objectif": "Le compte de Camille ayant été désactivé, aucune session ne s'ouvre pour elle, même avec des identifiants exacts.",
+  "chemin": [
+    "01 connexion"
+  ],
+  "constate": "Identifiants exacts d'un compte désactivé : reste sur 01 connexion, aucune coquille applicative. Message affiché : « ! Incorrect username or password » — il ne nomme pas la désactivation.",
+  "textes_absents": [],
+  "incidents": [],
+  "fuites_jeu1": [],
+  "preuves": [
+    "trace.zip",
+    "video/",
+    "incidents.json"
+  ]
+}

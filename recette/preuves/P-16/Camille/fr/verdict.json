@@ -1,0 +1,31 @@
+{
+  "parcours": "P-16",
+  "persona": "Camille",
+  "langue": "fr",
+  "verdict": "vert",
+  "objectif": "Camille n'a pas pu laisser un avancement inférieur à 100 % sur une tâche qu'elle laisse au statut Terminé : la valeur est refusée, jamais corrigée en silence.",
+  "chemin": [
+    "06 tableau de bord",
+    "16 tâches",
+    "17 fiche de la tâche"
+  ],
+  "constate": "Sur une tâche terminée, le curseur d'avancement est désactivé et la contrainte est énoncée : « Une tâche terminée est à 100 %. Changez son statut pour saisir un autre pourcentage. ». Après rechargement, 100 % et statut terminé.",
+  "textes_absents": [],
+  "incidents": [],
+  "incidents_refus_attendus": [],
+  "fuites_jeu1": [],
+  "notes": [
+    "curseur d'avancement sur une tâche terminée : désactivé",
+    "explication de la contrainte affichée : true",
+    "message après tentative : \"\"",
+    "après rechargement : avancement 100 %, statut done"
+  ],
+  "preuves": [
+    "01-terminee-a-100.png",
+    "02-apres-tentative-40.png",
+    "03-apres-rechargement.png",
+    "incidents.json",
+    "trace.zip",
+    "video"
+  ]
+}

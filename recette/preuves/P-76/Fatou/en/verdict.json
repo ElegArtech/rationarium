@@ -1,0 +1,22 @@
+{
+  "parcours": "P-76",
+  "persona": "Fatou",
+  "langue": "en",
+  "verdict": "rouge",
+  "objectif": "La demande que Fatou a refusée porte le statut Refusé et le motif qu'elle a saisi, lisible par l'agent.",
+  "chemin": [
+    "19 congés",
+    "19 onglet à valider"
+  ],
+  "constate": "La fenêtre de refus lit « APPROVAL  Reject request  × Reason for rejection (optional) THE REASON IS SENT TO THE REQUESTER Cancel Confirm rejection » ; refusée SANS motif, elle ENREGISTRE le refus — le motif n'est pas exigé. Refus avec motif : « ! 5 requests awaiting approval | Request rejected. |  », la demande quitte l'onglet « To approve ». Côté agent, sa ligne lit « RÉ Réduction du temps de travail From 02/11/2026 to 02/11/2026 1,0 REFUSED Approver: Solène Pichon DELETE » : statut « Refused », motif ABSENT de la demande (présent dans la notification). Son solde revient de {\"disponible\":17,\"utilises\":0,\"enAttente\":3} à {\"disponible\":20,\"utilises\":0,\"enAttente\":0} — valeur d'avant tout dépôt : {\"disponible\":20,\"utilises\":0,\"enAttente\":0}.",
+  "textes_absents": [],
+  "incidents": [],
+  "fuites_jeu1": [],
+  "preuves": [
+    "/home/alex/Documents/Repo/rationarium/recette/preuves/P-76/Fatou/en/01-01-a-valider.png",
+    "/home/alex/Documents/Repo/rationarium/recette/preuves/P-76/Fatou/en/02-02-refus-sans-motif.png",
+    "/home/alex/Documents/Repo/rationarium/recette/preuves/P-76/Fatou/en/03-03-apres-refus.png",
+    "/home/alex/Documents/Repo/rationarium/recette/preuves/P-76/Fatou/en/04-04-onglet-allege.png"
+  ],
+  "incidents_bruts": 2
+}

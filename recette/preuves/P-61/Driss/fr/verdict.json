@@ -1,0 +1,25 @@
+{
+  "parcours": "P-61",
+  "persona": "Driss",
+  "langue": "fr",
+  "verdict": "rouge",
+  "objectif": "Driss sait qui est disponible : le planning est groupé par service, restreint au périmètre voulu, ses couches sont choisies, et il y a créé une tâche puis ouvert un détail sans quitter la vue.",
+  "chemin": [
+    "07 planning",
+    "07 détail d'une occupation",
+    "clic « Créer ici — Ulysse Cambon, 2026-09-07 » → /taches"
+  ],
+  "constate": "la commande de création d'une cellule (/taches) n'ouvre aucune saisie : elle quitte le planning vers /taches sans ressource ni date, la tâche ne peut donc pas être créée sur cette ressource à cette date. 3 groupes de service, 40 cellules ; menu services : \"Applications métier\\nDonnées et pilotage\\nInfrastructure et postes de travail\" ; « Mon périmètre » est actif mais ne retire aucune ligne (40 = 40) : la grille de Driss est DÉJÀ restreinte à son périmètre — 3 services sur les 7 de la collectivité —, RG-PLN-02 l'appliquant d'office à qui n'a pas la gestion globale.",
+  "textes_absents": [],
+  "incidents": [],
+  "fuites_jeu1": [],
+  "preuves": [
+    "01-planning.png",
+    "02-menu-services.png",
+    "03-couche-desactivee.png",
+    "04-detail-tache.png",
+    "05-apres-creer-ici.png",
+    "trace.zip",
+    "video/"
+  ]
+}

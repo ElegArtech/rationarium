@@ -1,0 +1,20 @@
+{
+  "parcours": "P-09",
+  "persona": "Camille",
+  "langue": "en",
+  "verdict": "vert",
+  "objectif": "L'inscription autonome étant désactivée, l'adresse directe de la vue 02 n'offre aucun formulaire : elle ne propose qu'un retour vers la connexion.",
+  "chemin": [
+    "02 inscription",
+    "01 connexion"
+  ],
+  "constate": "Vue 02 par URL directe, inscription désactivée : 0 champ de saisie, 0 bouton de création. Explication présente : true. Commande de retour vers la vue 01 : true, elle y mène avec son formulaire (true). La vue 01 ne porte plus le lien d'inscription : true.",
+  "textes_absents": [],
+  "incidents": [],
+  "fuites_jeu1": [],
+  "preuves": [
+    "trace.zip",
+    "video/",
+    "incidents.json"
+  ]
+}

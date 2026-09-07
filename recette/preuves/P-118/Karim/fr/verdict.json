@@ -1,0 +1,65 @@
+{
+  "parcours": "P-118",
+  "persona": "Karim",
+  "langue": "fr",
+  "verdict": "vert",
+  "objectif": "Le compte que Karim vient de créer existe avec son identité, son rôle, son département et ses services, et il se retrouve par la recherche et les filtres de l'annuaire.",
+  "chemin": [
+    "06 tableau de bord",
+    "27 utilisateurs"
+  ],
+  "constate": "Compte « Camille Rousset » créé (rôle Contributeur projet, Systèmes d'information et innovation / Applications métier) et retrouvé par la recherche et les filtres. ",
+  "textes_absents": [],
+  "incidents": [],
+  "fuites_jeu1": [],
+  "controles": [
+    {
+      "nom": "la liste porte identité, email/login, rôle, département/services, statut",
+      "ok": true,
+      "note": "une des colonnes manque sur la ligne de Léa Vasseur"
+    },
+    {
+      "nom": "services : aucun avant le choix d'un département",
+      "ok": true,
+      "note": "un groupe de services est proposé sans département"
+    },
+    {
+      "nom": "services bornés au département choisi",
+      "ok": true,
+      "note": "services proposés : Propreté et déchets"
+    },
+    {
+      "nom": "le sélecteur de services suit le changement de département",
+      "ok": true,
+      "note": "après changement : Applications métier · Données et pilotage · Infrastructure et postes de travail"
+    },
+    {
+      "nom": "mot de passe initial soumis à la politique",
+      "ok": true,
+      "note": "le compte a été créé avec « abc »"
+    },
+    {
+      "nom": "la fenêtre de création se referme",
+      "ok": true,
+      "note": "la fenêtre est restée ouverte"
+    },
+    {
+      "nom": "le compte se retrouve par la recherche",
+      "ok": true,
+      "note": "absent du résultat de recherche"
+    },
+    {
+      "nom": "les filtres département + service + rôle retrouvent le compte",
+      "ok": true,
+      "note": "filtres département/service/rôle (Contributeur projet) : compte absent"
+    }
+  ],
+  "preuves": [
+    "01-27-cree.png",
+    "02-27-filtres.png",
+    "incidents.json",
+    "trace.zip",
+    "video/page@10ee6ee6aacdd51d4f93a40cfe5a3570.webm",
+    "video/page@454ca8e8b809b23d08f04cc2955dea90.webm"
+  ]
+}

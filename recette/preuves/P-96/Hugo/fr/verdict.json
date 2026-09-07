@@ -1,0 +1,34 @@
+{
+  "parcours": "P-96",
+  "persona": "Hugo",
+  "langue": "fr",
+  "verdict": "rouge",
+  "objectif": "Le fichier de congés d'Hugo est chargé : les lignes valides sont directement approuvées à son nom, et le compte rendu distingue importés, ignorés et en erreur avec le détail ligne à ligne.",
+  "chemin": [
+    "06 tableau de bord",
+    "19 congés",
+    "19 fenêtre d'import",
+    "19 prévisualisation",
+    "19 compte rendu d'import",
+    "19 mes demandes"
+  ],
+  "constate": "Fenêtre d'import : colonnes documentées userEmail, leaveTypeName, startDate, endDate, halfDay, comment. Lien « Télécharger le modèle CSV » : réponse 403 — « {\"cle\":\"commun:droits.permissionRequise\"} ». ROUGE — le modèle n'est pas téléchargeable pour Hugo (réponse 403) : RG-IMP-02 n'est pas tenue. Avant fichier, « Importer » désactivé : true. Prévisualisation : ABSENTE — « IMPORT CSV ·  · Importer des congés ·  · × ·  · Format attendu ·  · userEmail · leaveTypeName · startDate · endDate · halfDay · comment ·  · Télécharger le modèle CSV · Fichier CSV · conges.csv · Fermer · Importer ». ROUGE — aucune prévisualisation avant l'écriture. Compte rendu : « IMPORT CSV ·  · Importer des congés ·  · × ·  · Format attendu ·  · userEmail · leaveTypeName · startDate · endDate · halfDay · comment ·  · Télécharger le modèle CSV · Fichier CSV · conges.csv · 3 importés · 1 ignoré · 1 en erreur ·  · Les lignes ignorées correspondent à des entrées déjà présentes : rejouer un fichier ne crée pas de doublon. ·  · Ligne 6 — aucun compte ne porte l'adresse « x.inconnu@valmorin.fr ». · Fermer ». Ligne importée au nom d'Hugo : « RÉ · Réduction du temps de travail · Du 14/12/2026 au 15/12/2026 · Ligne de l'importateur · 2,0 · EN ATTENTE · Validateur : Solène Pichon · MODIFIER · SUPPRIMER ». Demande importée vue par Léa Vasseur : « RÉ · Réduction du temps de travail · Du 07/12/2026 au 08/12/2026 · Import de recette · 2,0 · APPROUVÉ · Validateur : Thibaut Grasset · DEMANDER L'ANNULATION ».",
+  "textes_absents": [],
+  "incidents": [
+    "http: 403 GET http://127.0.0.1:4307/api/imports/modele?type=conges",
+    "console: Failed to load resource: the server responded with a status of 403 (Forbidden)",
+    "http: 403 POST http://127.0.0.1:4307/api/imports/apercu?type=conges",
+    "console: Failed to load resource: the server responded with a status of 403 (Forbidden)"
+  ],
+  "fuites_jeu1": [],
+  "preuves": [
+    "01-previsualisation.png",
+    "02-compte-rendu.png",
+    "conges.csv",
+    "incidents.json",
+    "trace.zip",
+    "video/page@a14e55f77d48df71e48b390484e0d2b2.webm",
+    "video/page@d22a677035caa8f23e8ffaeec9c14c04.webm",
+    "video/page@ed1de90440d0128a9bbd555ea48f290d.webm"
+  ]
+}

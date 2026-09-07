@@ -1,0 +1,27 @@
+{
+  "parcours": "P-122",
+  "persona": "Karim",
+  "langue": "fr",
+  "verdict": "rouge",
+  "objectif": "Karim ne peut ni se désactiver ni se supprimer lui-même : les deux commandes sont inopérantes sur sa propre ligne, et elles expliquent pourquoi.",
+  "chemin": [
+    "entrée",
+    "27 utilisateurs",
+    "27 menu sur soi",
+    "27 utilisateurs"
+  ],
+  "constate": "« Désactiver le compte » : inopérante, explication « Vous ne pouvez pas vous désactiver vous-même » ; « Supprimer définitivement » : inopérante, explication « Vous ne pouvez pas vous supprimer vous-même » ; menu au clavier : menuitem \"Désactiver le compte Vous ne pouvez pas vous désactiver vous-même\" [disabled] ; POST /api/utilisateurs/0000550b-0000-4000-8000-000000000005/desactiver → 422 ; DELETE /api/utilisateurs/0000550b-0000-4000-8000-000000000005 → 422",
+  "textes_absents": [
+    "Voir le suivi individuel"
+  ],
+  "incidents": [],
+  "fuites_jeu1": [],
+  "preuves": [
+    "01-menu-sur-soi.png",
+    "02-compte-toujours-actif.png",
+    "incidents.json",
+    "trace.zip",
+    "verdict.json",
+    "video"
+  ]
+}

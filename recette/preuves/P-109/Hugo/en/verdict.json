@@ -1,0 +1,68 @@
+{
+  "parcours": "P-109",
+  "persona": "Hugo",
+  "langue": "en",
+  "verdict": "vert",
+  "objectif": "Hugo n'administre ni les rôles ni le journal d'audit : ces entrées n'existent pas pour lui et leurs adresses ne servent rien.",
+  "chemin": [
+    "06 tableau de bord",
+    "32 adresse des rôles"
+  ],
+  "constate": "Barre latérale d'Hugo sans « Roles » ni « Audit log » ; /roles rend « Permission required ». ",
+  "textes_absents": [],
+  "incidents": [],
+  "fuites_jeu1": [],
+  "controles": [
+    {
+      "nom": "barre latérale porte « Leave »",
+      "ok": true,
+      "note": "introuvable"
+    },
+    {
+      "nom": "barre latérale porte « Remote work »",
+      "ok": true,
+      "note": "introuvable"
+    },
+    {
+      "nom": "barre latérale porte « Skills »",
+      "ok": true,
+      "note": "introuvable"
+    },
+    {
+      "nom": "barre latérale porte « Users »",
+      "ok": true,
+      "note": "introuvable"
+    },
+    {
+      "nom": "barre latérale ne porte pas « Roles »",
+      "ok": true,
+      "note": "0 entrée(s) trouvée(s)"
+    },
+    {
+      "nom": "barre latérale ne porte pas « Audit log »",
+      "ok": true,
+      "note": "0 entrée(s) trouvée(s)"
+    },
+    {
+      "nom": "vue 32 : aucune matrice de permissions",
+      "ok": true,
+      "note": "des cases à cocher sont rendues"
+    },
+    {
+      "nom": "vue 32 : aucune commande d'enregistrement",
+      "ok": true,
+      "note": "un bouton d'enregistrement est offert"
+    },
+    {
+      "nom": "vue 32 : refus explicite",
+      "ok": true,
+      "note": "main = « Permission required\n\nYou do not have permission to open this page.\n\nBack to home »"
+    }
+  ],
+  "preuves": [
+    "01-32-refus.png",
+    "incidents.json",
+    "trace.zip",
+    "video/page@33eb146299c9263c39c1dc0624fb4c4a.webm"
+  ]
+}

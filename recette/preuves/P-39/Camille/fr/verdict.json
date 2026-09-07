@@ -1,0 +1,31 @@
+{
+  "parcours": "P-39",
+  "persona": "Camille",
+  "langue": "fr",
+  "verdict": "rouge",
+  "objectif": "Camille sait qui est là cette semaine : le planning affiche dans une même cellule ce qui occupe chacun, distingue congé validé et congé en attente, trame les jours fériés et les vacances scolaires, et sa synthèse quotidienne chiffre l'effectif hors présentiel.",
+  "chemin": [
+    "06 tableau de bord",
+    "07 planning semaine",
+    "08 planning mois",
+    "07 retour semaine",
+    "07 semaine suivante",
+    "07 congés comparés"
+  ],
+  "constate": "aucune cellule ne porte à la fois un congé, une présence et une tâche — le congé occupe la cellule seule (LV Léa Vasseur : congé seul, 0 tâche(s), présence non ; LV Léa Vasseur : congé seul, 0 tâche(s), présence non ; LV Léa Vasseur : congé seul, 0 tâche(s), présence non). Cellules relevées : 40, dont 2 avec congé ; maximum d'occupations superposées à un congé : 0. Congé en attente porté par « Compte épargne-temps · EN ATTENTE », congé validé par « Réduction du temps de travail · MATIN ». Synthèse : « 1/8\n13 % ».",
+  "textes_absents": [],
+  "incidents": [],
+  "fuites_jeu1": [],
+  "preuves": [
+    "01-06-tableau-de-bord.png",
+    "02-07-planning-semaine.png",
+    "03-08-planning-mois.png",
+    "04-07-retour-semaine.png",
+    "05-07-semaine-suivante.png",
+    "06-07-cong-s-compar-s.png",
+    "incidents.json",
+    "trace.zip",
+    "verdict.json",
+    "video"
+  ]
+}

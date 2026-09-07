@@ -1,0 +1,29 @@
+[
+  {
+    "genre": "http",
+    "texte": "401 GET http://127.0.0.1:4306/api/auth/me"
+  },
+  {
+    "genre": "console",
+    "texte": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "url": "http://127.0.0.1:4306/"
+  },
+  {
+    "genre": "http",
+    "texte": "409 POST http://127.0.0.1:4306/api/conges/722db9d7-ff19-4ee5-a0d2-f20acedc9f93/approuver"
+  },
+  {
+    "genre": "console",
+    "texte": "Failed to load resource: the server responded with a status of 409 (Conflict)",
+    "url": "http://127.0.0.1:4306/conges"
+  },
+  {
+    "genre": "http",
+    "texte": "422 POST http://127.0.0.1:4306/api/conges/722db9d7-ff19-4ee5-a0d2-f20acedc9f93/approuver"
+  },
+  {
+    "genre": "console",
+    "texte": "Failed to load resource: the server responded with a status of 422 (Unprocessable Entity)",
+    "url": "http://127.0.0.1:4306/conges"
+  }
+]

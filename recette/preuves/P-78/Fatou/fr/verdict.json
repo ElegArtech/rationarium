@@ -1,0 +1,19 @@
+{
+  "parcours": "P-78",
+  "persona": "Fatou",
+  "langue": "fr",
+  "verdict": "rouge",
+  "objectif": "Le congé que Fatou a déclaré pour un collaborateur de son service est directement approuvé, tracé à son nom, et sans notification de validation à personne.",
+  "chemin": [
+    "19 congés"
+  ],
+  "constate": "La vue 19 n'offre qu'une commande de création, « Nouvelle demande ». Sa fenêtre porte les champs [\"\",\"\",\"\"] : AUCUN sélecteur de collaborateur. Aucun autre chemin de la vue 19 ne déclare un congé pour autrui — EX-CNG-08 est sans porte d'entrée.",
+  "textes_absents": [],
+  "incidents": [],
+  "fuites_jeu1": [],
+  "preuves": [
+    "/home/alex/Documents/Repo/rationarium/recette/preuves/P-78/Fatou/fr/01-01-fenetre-nouvelle-demande.png",
+    "/home/alex/Documents/Repo/rationarium/recette/preuves/P-78/Fatou/fr/02-02-conges.png"
+  ],
+  "incidents_bruts": 2
+}

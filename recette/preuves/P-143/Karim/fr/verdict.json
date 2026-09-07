@@ -1,0 +1,29 @@
+{
+  "parcours": "P-143",
+  "persona": "Karim",
+  "langue": "fr",
+  "verdict": "vert",
+  "objectif": "Karim connaît l'impact avant de supprimer : le bilan d'un tiers comme celui d'un client est affiché, et l'annulation ne supprime rien.",
+  "chemin": [
+    "23 tiers",
+    "23 bilan d'impact d'un tiers",
+    "23 après annulation",
+    "25 clients",
+    "25 bilan d'impact d'un client",
+    "25 après annulation",
+    "25 après suppression",
+    "10 projets",
+    "10 portefeuille"
+  ],
+  "constate": "bilan du tiers : nombre de projets et de tâches affichés (2 et 2) ; l'annulation laisse le tiers en place ; bilan du client : le nombre de projets rattachés est affiché et le projet est nommé ; l'annulation laisse le client en place ; le projet rattaché survit à la suppression du client.",
+  "textes_absents": [],
+  "incidents": [],
+  "fuites_jeu1": [],
+  "preuves": [
+    "01-01-bilan-tiers.png",
+    "02-02-bilan-client.png",
+    "03-03-apres-suppression.png",
+    "trace.zip",
+    "video/"
+  ]
+}

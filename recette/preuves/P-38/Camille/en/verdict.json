@@ -1,0 +1,23 @@
+{
+  "parcours": "P-38",
+  "persona": "Camille",
+  "langue": "en",
+  "verdict": "vert",
+  "objectif": "Camille ne déclare de temps que pour elle : aucune commande ne lui propose un autre acteur, et aucun filtre ne lui ouvre les saisies d'un collègue.",
+  "chemin": [
+    "21 temps passé",
+    "21 fenêtre de saisie"
+  ],
+  "constate": "Requête forgée : statut 403, ? ligne(s) rendues, aucune d'un autre agent.",
+  "textes_absents": [],
+  "incidents": [],
+  "fuites_jeu1": [],
+  "preuves": [
+    "01-21-temps-pass-.png",
+    "02-21-fen-tre-de-saisie.png",
+    "incidents.json",
+    "trace.zip",
+    "verdict.json",
+    "video"
+  ]
+}

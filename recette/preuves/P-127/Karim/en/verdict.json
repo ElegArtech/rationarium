@@ -1,0 +1,25 @@
+{
+  "parcours": "P-127",
+  "persona": "Karim",
+  "langue": "en",
+  "verdict": "vert",
+  "objectif": "Un rôle système résiste à Karim : ni renommage, ni suppression, ni modification de sa structure de permissions, y compris par une requête forgée.",
+  "chemin": [
+    "entrée",
+    "32 rôles",
+    "32 matrice ADMIN",
+    "32 rôles"
+  ],
+  "constate": "^Rename$ : inopérante, infobulle « System roles cannot be renamed. » ; ^Delete$ : inopérante, infobulle « System roles cannot be deleted. » ; l'enregistrement de la matrice est inopérant ; PUT /administration/roles/ADMIN/permissions [] → 403 ; PATCH /administration/roles/ADMIN → 409 ; DELETE /administration/roles/ADMIN → 409 ; ADMIN garde ses 152 permissions",
+  "textes_absents": [],
+  "incidents": [],
+  "fuites_jeu1": [],
+  "preuves": [
+    "01-roles-systeme.png",
+    "02-matrice-systeme.png",
+    "03-roles-inchanges.png",
+    "incidents.json",
+    "trace.zip",
+    "video"
+  ]
+}

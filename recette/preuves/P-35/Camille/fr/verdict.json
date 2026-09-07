@@ -1,0 +1,24 @@
+{
+  "parcours": "P-35",
+  "persona": "Camille",
+  "langue": "fr",
+  "verdict": "rouge",
+  "objectif": "Les tâches terminées de Camille sans temps déclaré sont traitées : l'une porte désormais un temps saisi en une frappe, l'autre est close sans déclaration et distinguée d'un simple oubli.",
+  "chemin": [
+    "06 tableau de bord",
+    "06 onglet « non déclarées »"
+  ],
+  "constate": "la saisie rapide n'indique pas le temps déjà déclaré par un autre contributeur : la ligne dit « Consultation des prestataires ·  · Terminée le 30/08/2026 · aucune heure déclarée · Valider sans déclaration · h » alors que 3 h ont été déclarées sur la tâche — panneau des non déclarées : « Recette fonctionnelle ·  · Terminée le 17/10/2026 · aucune heure déclarée · Valider sans déclaration · h ·  · Consultation des prestataires ·  · Terminée le 30/08/2026 · aucune heure déclarée · Valider sans déclaration · h»",
+  "textes_absents": [],
+  "incidents": [],
+  "incidents_ecartes": [
+    "401 GET http://127.0.0.1:4302/api/auth/me",
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  ],
+  "fuites_jeu1": [],
+  "preuves": [
+    "trace.zip",
+    "video/",
+    "incidents.json"
+  ]
+}

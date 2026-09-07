@@ -1,0 +1,28 @@
+{
+  "parcours": "P-49",
+  "persona": "Driss",
+  "langue": "fr",
+  "verdict": "rouge",
+  "objectif": "Les dépendances de la tâche de Driss sont déclarées et lisibles dans les deux sens, l'incohérence de dates est signalée, et le décalage en cascade a été appliqué en annonçant le nombre de tâches touchées.",
+  "chemin": [
+    "12 kanban du projet",
+    "17 fiche de la tâche dépendante",
+    "17 fiche de la prérequise",
+    "15 Gantt du projet"
+  ],
+  "constate": "MANQUE — l'état « une prérequise supprimée s'affiche “Tâche supprimée” et n'est pas ouvrable » n'est pas atteignable : la suppression d'une tâche dont d'autres dépendent est refusée · Constaté — suppression d'une prérequise : « CONFIRMATION Supprimer la tâche × ! Impossible de supprimer une tâche dont d'autres tâches dépendent. Comité de suivi hebdomadaire RETIREZ D'ABORD CES DÉPENDANC » · Constaté — message après suppression : aucun message vu ; adresse http://127.0.0.1:4304/taches · Constaté — le message « Tâche supprimée. » n'a pas pu être lu : la suppression quitte la fiche par un rechargement complet du document (window.location.assign), qui emporte la file de messages · Constaté — aucune entrée de dépendance « tâche supprimée » n'est atteignable : RG-TSK-07 refuse la suppression d'une prérequise, et le produit libelle une prérequise illisible « Tâche non visible » · Constaté — fenêtre de cascade : « DÉPLACEMENT DE TÂCHE Rédaction du cahier des charges × Cette tâche va être décalée de 7 jour(s). Décaler aussi 4 tâche(s) dépendante(s) ? 07/09/2026 Maquette de la page d'accueil 12/09/2026 Reprise des annuaires 27/09/2026 Recette fonctionn » · Constaté — tâches dont les dates ont bougé : Rédaction du cahier des charges · Maquette de la page d'accueil · Reprise des annuaires · Recette fonctionnelle · Ouverture aux agents · Constaté — aperçu annoncé : 7/4/7/9/2026/12/9/2026/27/9/2026/6/11/2026/4 ; avant : Entretiens avec les directions\n09/06/202",
+  "textes_absents": [
+    "Tâche supprimée."
+  ],
+  "incidents": [],
+  "fuites_jeu1": [],
+  "preuves": [
+    "01-12-kanban.png",
+    "02-17-dependances.png",
+    "03-17-prerequise.png",
+    "04-17-suppression.png",
+    "05-15-cascade.png",
+    "trace.zip",
+    "video/"
+  ]
+}

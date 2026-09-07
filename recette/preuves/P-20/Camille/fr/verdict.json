@@ -1,0 +1,29 @@
+{
+  "parcours": "P-20",
+  "persona": "Camille",
+  "langue": "fr",
+  "verdict": "vert",
+  "objectif": "Camille, ajoutée à un projet, en a ouvert la vue d'ensemble depuis sa notification et y accède désormais par le portefeuille.",
+  "chemin": [
+    "06 tableau de bord",
+    "panneau de notifications",
+    "11 vue d'ensemble du projet"
+  ],
+  "constate": "La notification d'ajout ouvre la vue 11 de « Rénovation thermique des écoles », avec ses indicateurs et sa feuille de route.",
+  "textes_absents": [],
+  "incidents": [],
+  "incidents_refus_attendus": [],
+  "fuites_jeu1": [],
+  "notes": [
+    "adresse du projet AVANT l'ajout : [\"CONTRIBUTEUR PROJET\",\"Le chargement a échoué\",\"Cet élément est hors de votre périmètre.\",\"Réessayer\"]",
+    "entrées du panneau : [\"Notifications\",\"Tout marquer comme lu\",\"Ajout au projet Rénovation thermique des écoles\",\"Vous avez été ajouté au projet « Rénovation thermique des écoles ».\",\"7 septembre 2026\",\"●\",\"Décision sur votre demande de congé\",\"Réduction du temps de travail — une demi-journée\",\"7 septembre 2026\",\"Ajout à un projet\",\"Guichet unique d'urbanisme\",\"7 septembre 2026\"]",
+    "entrée retenue : \"Ajout au projet Rénovation thermique des écoles | Vous avez été ajouté au projet « Rénovation thermique des écoles ». | 7 septembre 2026 | ●\""
+  ],
+  "preuves": [
+    "01-panneau.png",
+    "02-projet.png",
+    "incidents.json",
+    "trace.zip",
+    "video"
+  ]
+}

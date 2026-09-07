@@ -1,0 +1,22 @@
+{
+  "parcours": "P-128",
+  "persona": "Karim",
+  "langue": "en",
+  "verdict": "rouge",
+  "objectif": "Le référentiel de permissions et de rôles a été initialisé par Karim, et la liste des rôles porte ensuite les modèles fournis.",
+  "chemin": [
+    "entrée",
+    "32 rôles",
+    "32 rôles"
+  ],
+  "constate": "MANQUE — aucune commande d'initialisation du référentiel de permissions et de rôles n'existe dans la vue 32 — ni bouton, ni menu ; l'état vide de la vue invite pourtant à « Initialisez le référentiel ». commandes de la vue 32 : button \"Create a role\" · button \"Open\" · button \"Rename\" · button \"Delete\" · button \"Open\" · button \"Rename\" · button \"Delete\" · button \"Open\" · button \"Rename\" · button \"Delete\" · button \"Open\" · button \"Rename\" ; POST /api/administration/roles/initialiser → 404 ; POST /api/administration/referentiel → 404 ; POST /api/administration/roles/seed → 404 ; 26 rôles en base (posés par l'amorçage, hors interface)",
+  "textes_absents": [],
+  "incidents": [],
+  "fuites_jeu1": [],
+  "preuves": [
+    "01-32-roles.png",
+    "incidents.json",
+    "trace.zip",
+    "video"
+  ]
+}

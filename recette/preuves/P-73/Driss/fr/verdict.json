@@ -1,0 +1,22 @@
+{
+  "parcours": "P-73",
+  "persona": "Driss",
+  "langue": "fr",
+  "verdict": "vert",
+  "objectif": "Un projet dont Driss n'est ni créateur, ni chef, ni sponsor, ni membre ne lui est pas servi, même par son adresse directe.",
+  "chemin": [
+    "11 fiche de son projet",
+    "11 adresse directe d'un projet hors périmètre",
+    "10 portefeuille"
+  ],
+  "constate": "Sur son projet « Refonte de l'intranet agents », la barre de sections porte « Vue d'ensemble », « Tâches10 » et « Jalons5 ». L'adresse directe de « Requalification des berges de l'Orbe » rend « Cet élément est hors de votre périmètre. » et ne rend ni nom, ni indicateur, ni équipe, ni tâche. Le portefeuille ne porte pas sa carte.",
+  "textes_absents": [],
+  "incidents": [],
+  "fuites_jeu1": [],
+  "preuves": [
+    "/home/alex/Documents/Repo/rationarium/recette/preuves/P-73/Driss/fr/01-01-projet-sien.png",
+    "/home/alex/Documents/Repo/rationarium/recette/preuves/P-73/Driss/fr/02-02-projet-hors-perimetre.png",
+    "/home/alex/Documents/Repo/rationarium/recette/preuves/P-73/Driss/fr/03-03-portefeuille.png"
+  ],
+  "incidents_bruts": 8
+}

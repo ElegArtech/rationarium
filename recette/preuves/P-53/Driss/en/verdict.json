@@ -1,0 +1,24 @@
+{
+  "parcours": "P-53",
+  "persona": "Driss",
+  "langue": "en",
+  "verdict": "rouge",
+  "objectif": "La tâche de Driss porte une pièce jointe et un fil de discussion : il a renommé son document, corrigé son commentaire, et ces gestes sont dans le journal d'audit.",
+  "chemin": [
+    "12 kanban du projet",
+    "17 fiche de la tâche"
+  ],
+  "constate": "MANQUE — le document ne se télécharge pas : la commande « Download » mène à http://127.0.0.1:4304/api/documents/0000460b-0000-4000-8000-000000000001/telecharger et affiche « {\"id\":\"0000460b-0000-4000-8000-000000000001\",\"nom\":\"Grille-analyse-des-offres.ods\",\"empreinte\":\"recette-f2\",\"tailleOctets\":61200,\"typeMime\":\"application/vnd.oasis.opendocument.spreadsheet\",\"auteurId\": » au lieu de remettre un fichier · MANQUE — le journal d'audit n'est pas atteignable pour cette persona : « Audit log » est absent de la navigation (le chef de projet ne détient pas audit:read), les entrées de création, lecture, téléchargement, modification et suppression ne peuvent donc pas être constatées à l'écran · Constaté — documents : « Documents 2 VND Grille-analyse-des-offres.ods 60 kB · Maëlys Corbin 07/09/2026 DOWNLOAD PDF Cahier-des-charges-intranet-v2.pdf 963 kB · Malik Oueslati 07/09/2026 DOWNLOAD Drop a file here, or click to browse. » · Constaté — téléchargement : fichier aucun ; réponse 200 type application/json; charset=utf-8 disposition aucune · Constaté — documents après suppression : « Documents 2 VND Grille-analyse-des-offres.ods 60 kB · Maëlys Corbin 07/09/2026 DOWNLOAD PDF Cahier-des-charges-intranet-v2.pdf 963 kB · Malik Oueslati 07/09/2026 DOWNLOAD Drop a file here, or click to » · Constaté — commandes du fil : EDIT · DELETE · Post · Constaté — mien=1 1",
+  "textes_absents": [],
+  "incidents": [
+    "http : 404 GET http://127.0.0.1:4304/api/documents/87af93a9-fa15-48e3-a579-f79912787e7a",
+    "console : Failed to load resource: the server responded with a status of 404 (Not Found)"
+  ],
+  "fuites_jeu1": [],
+  "preuves": [
+    "01-17-documents.png",
+    "02-17-commentaires.png",
+    "trace.zip",
+    "video/"
+  ]
+}

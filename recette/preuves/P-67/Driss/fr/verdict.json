@@ -1,0 +1,26 @@
+{
+  "parcours": "P-67",
+  "persona": "Driss",
+  "langue": "fr",
+  "verdict": "rouge",
+  "objectif": "La tâche orpheline que Driss a repérée est désormais rattachée à son projet et à un jalon, et elle s'ouvre depuis sa fiche vers ce projet.",
+  "chemin": [
+    "16 liste des tâches",
+    "16 filtre « Tâches sans projet »",
+    "17 fiche de la tâche orpheline",
+    "17 → 11 (attendu)"
+  ],
+  "constate": "le champ Projet de la fiche n'ouvre pas la vue 11 : le projet y est un menu déroulant de rattachement et une pastille de texte, aucun lien vers /projets/… n'existe sur la fiche. une tâche hors projet créée SANS assigné n'apparaît nulle part chez son auteur — ni dans la liste, ni sous « Tâches sans projet » : le filtre de périmètre des tâches ne connaît que « assigné » et « membre du projet », jamais le créateur (EX-TSK-19) ; jalons proposés : Aucun jalon / Diagnostic / Consultation des entreprises / Livraison technique / Bilan à six mois / Mise en service ; orphelines : 1 avant rattachement, 0 après.",
+  "textes_absents": [],
+  "incidents": [],
+  "fuites_jeu1": [],
+  "preuves": [
+    "01-tache-creee.png",
+    "02-filtre-sans-projet.png",
+    "03-apres-rattachement.png",
+    "04-jalon-rattache.png",
+    "05-fiche-rattachee.png",
+    "trace.zip",
+    "video/"
+  ]
+}

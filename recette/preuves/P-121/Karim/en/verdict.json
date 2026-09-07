@@ -1,0 +1,29 @@
+{
+  "parcours": "P-121",
+  "persona": "Karim",
+  "langue": "en",
+  "verdict": "rouge",
+  "objectif": "Le compte désactivé par Karim ne peut plus se connecter et se distingue dans l'annuaire, puis il a été réactivé.",
+  "chemin": [
+    "entrée",
+    "27 utilisateurs",
+    "27 après désactivation",
+    "16 tâches",
+    "27 utilisateurs",
+    "27 après réactivation"
+  ],
+  "constate": "MANQUE — le compte désactivé Kevin Brossard reste proposé dans le sélecteur d'assignation de la création de tâche. message : « Kevin Brossard was deactivated. » ; POST /api/auth/login sur le compte désactivé → 403 ; message : « Kevin Brossard was reactivated. »",
+  "textes_absents": [
+    "Voir le suivi individuel"
+  ],
+  "incidents": [],
+  "fuites_jeu1": [],
+  "preuves": [
+    "01-desactive.png",
+    "02-selecteur-assignation.png",
+    "03-reactive.png",
+    "incidents.json",
+    "trace.zip",
+    "video"
+  ]
+}

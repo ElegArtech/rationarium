@@ -1,0 +1,29 @@
+{
+  "parcours": "P-107",
+  "persona": "Hugo",
+  "langue": "fr",
+  "verdict": "rouge",
+  "objectif": "Le référentiel de compétences d'Hugo a été chargé depuis un CSV, et il retrouve les agents détenant une compétence donnée.",
+  "chemin": [
+    "22 compétences"
+  ],
+  "constate": "Import CSV du référentiel et recherche des détenteurs : La vue 22 ne charge pour aucun de ses trois onglets : « RESSOURCES HUMAINES | Gestion des compétences | Par utilisateur | Référentiel | Matrice | Le chargement a échoué | Permission requise | Réessayer ». Le serveur refuse GET /api/competences/matrice en 403 (il exige skills:manage_matrix, que le responsable RH ne détient pas), et le corps entier de la vue est conditionné à la réussite de cette seule requête. Commandes offertes : nouvelle compétence 0, import 0, export 0.",
+  "textes_absents": [
+    "name",
+    "category",
+    "description",
+    "requiredCount",
+    "importés",
+    "en erreur"
+  ],
+  "incidents": [
+    "http : 403 GET http://127.0.0.1:4308/api/competences/matrice?tri=nom",
+    "console : Failed to load resource: the server responded with a status of 403 (Forbidden)"
+  ],
+  "fuites_jeu1": [],
+  "preuves": [
+    "trace.zip",
+    "video/",
+    "incidents.json"
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "parcours": "P-139",
+  "persona": "Karim",
+  "langue": "en",
+  "verdict": "rouge",
+  "objectif": "Depuis la fiche d'un tiers, Karim atteint la tâche à laquelle il est assigné ; l'assignation n'est possible que parce que le tiers est rattaché à la tâche ou à son projet parent.",
+  "chemin": [
+    "23 tiers",
+    "24 fiche du tiers",
+    "23 tiers créé",
+    "24 fiche d'un tiers sans tâche",
+    "17 fiche de la tâche",
+    "17 candidats à l'assignation"
+  ],
+  "constate": "la section « Assigned tasks » liste « Rédaction du cahier des charges » en texte inerte : aucun lien, aucun bouton, aucun chemin vers la vue 17 depuis la fiche du tiers ; un tiers déjà assigné n'est plus proposé ; un tiers non rattaché au projet n'est pas proposé.",
+  "textes_absents": [],
+  "incidents": [],
+  "fuites_jeu1": [],
+  "preuves": [
+    "01-01-fiche-tiers.png",
+    "02-02-tiers-sans-tache.png",
+    "03-03-candidats.png",
+    "trace.zip",
+    "video/"
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "parcours": "P-47",
+  "persona": "Driss",
+  "langue": "en",
+  "verdict": "rouge",
+  "objectif": "Depuis la feuille de route, Driss a déplié les tâches d'un jalon, changé le statut de l'une en ligne, et ouvert la fiche d'une autre.",
+  "chemin": [
+    "13 feuille de route",
+    "13 jalon replié",
+    "13 jalon déplié",
+    "13 statut modifié en ligne",
+    "13 activation de la ligne de tâche"
+  ],
+  "constate": "l'activation de la tâche « Maquette de la page d'accueil » dépliée sous son jalon n'ouvre pas la vue 17 : la ligne ne porte ni lien ni commande d'ouverture (liens : [], boutons : []), et le clic laisse sur /projets/0000500b-0000-4000-8000-000000000012/jalons. Jalon « Livraison technique » : « Livraison technique ·  · Due 22/10/2026 · 3 tasks · IN PROGRESS · COMPUTED · 15 % » → « Livraison technique ·  · Due 22/10/2026 · 3 tasks · IN PROGRESS · COMPUTED · 48 % ».",
+  "textes_absents": [],
+  "incidents": [],
+  "fuites_jeu1": [],
+  "preuves": [
+    "01-13-feuille-de-route.png",
+    "02-13-jalon-repli-.png",
+    "03-13-jalon-d-pli-.png",
+    "04-13-statut-modifi-en-ligne.png",
+    "05-13-activation-de-la-ligne-de-t-che.png",
+    "incidents.json",
+    "trace.zip",
+    "verdict.json",
+    "video"
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "parcours": "P-138",
+  "persona": "Karim",
+  "langue": "en",
+  "verdict": "vert",
+  "objectif": "La fiche d'un prestataire porte ses rattachements, et Karim est passé de là au projet auquel il est rattaché.",
+  "chemin": [
+    "06 tableau de bord",
+    "23 tiers",
+    "24 fiche du tiers",
+    "11 vue d'ensemble du projet",
+    "23 tiers créé",
+    "24 fiche d'un tiers sans projet"
+  ],
+  "constate": "la liste porte type, organisation, coordonnées et état actif ; une personne morale ne porte pas de contact nommé ; la section des projets rattachés ouvre la vue 11 (« Salle de spectacle Les Tilleuls ») ; un tiers sans projet porte « aucun projet rattaché ».",
+  "textes_absents": [],
+  "incidents": [],
+  "fuites_jeu1": [],
+  "preuves": [
+    "01-01-liste-des-tiers.png",
+    "02-02-fiche-tiers.png",
+    "03-03-projet.png",
+    "04-04-tiers-sans-projet.png",
+    "trace.zip",
+    "video/"
+  ]
+}

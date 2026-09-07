@@ -1,0 +1,24 @@
+{
+  "parcours": "P-62",
+  "persona": "Driss",
+  "langue": "en",
+  "verdict": "rouge",
+  "objectif": "Le glisser-déposer d'une tâche multi-assignée dans le planning n'a changé que son assigné : sa date n'a pas bougé et le message a renvoyé Driss vers la fiche détaillée.",
+  "chemin": [
+    "07 planning",
+    "07 dépôt d'une tâche multi-assignée",
+    "07 dépôt d'une tâche mono-assignée"
+  ],
+  "constate": "le message affiché après le dépôt est « Task has several assignees: only the assignee changed. The date is unchanged for everyone. » — il ne contient pas « Edit the dates from the task details. ». jours 2026-09-07 → 2026-09-09 ; message : « Task has several assignees: only the assignee changed. The date is unchanged for everyone. » ; mono-assignée : absente de 2026-09-07 avant le dépôt, présente après ; message « Task moved. ». Textes attendus absents : « Edit the dates from the task details. ».",
+  "textes_absents": [
+    "Edit the dates from the task details."
+  ],
+  "incidents": [],
+  "fuites_jeu1": [],
+  "preuves": [
+    "01-apres-depot-multi.png",
+    "02-apres-depot-mono.png",
+    "trace.zip",
+    "video/"
+  ]
+}

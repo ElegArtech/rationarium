@@ -1,0 +1,26 @@
+{
+  "parcours": "P-125",
+  "persona": "Karim",
+  "langue": "fr",
+  "verdict": "vert",
+  "objectif": "Karim ne réinitialise pas son propre mot de passe depuis l'administration : il passe par son profil.",
+  "chemin": [
+    "entrée",
+    "27 utilisateurs",
+    "27 menu sur soi",
+    "en-tête, menu utilisateur",
+    "35 mon profil",
+    "35 onglet sécurité"
+  ],
+  "constate": "commande inopérante, explication : « Passez par « Mon profil » pour votre propre mot de passe. » ; POST /api/utilisateurs/{soi}/mot-de-passe → 422 ; l'onglet Sécurité offre le changement et exige le mot de passe actuel",
+  "textes_absents": [],
+  "incidents": [],
+  "fuites_jeu1": [],
+  "preuves": [
+    "01-menu-sur-soi.png",
+    "02-profil-securite.png",
+    "incidents.json",
+    "trace.zip",
+    "video"
+  ]
+}

@@ -1,0 +1,46 @@
+{
+  "parcours": "P-119",
+  "persona": "Karim",
+  "langue": "en",
+  "verdict": "rouge",
+  "objectif": "Karim ne crée pas de doublon : un email déjà pris et un identifiant déjà pris sont refusés, chacun par son propre message.",
+  "chemin": [
+    "27 utilisateurs"
+  ],
+  "constate": "Collision email → « This email address is already linked to an account. » ; collision identifiant → « This username is already taken. » ; 30 comptes avant et après. ROUGE — textes absents : Voir le suivi individuel (→ « View individual tracking »)",
+  "textes_absents": [
+    "Voir le suivi individuel (→ « View individual tracking »)"
+  ],
+  "incidents": [],
+  "fuites_jeu1": [],
+  "controles": [
+    {
+      "nom": "email en collision : message en langue naturelle",
+      "ok": true,
+      "note": "message obtenu : « NEW ACCOUNT  New user  × ! This email address is already linked to an account. First name * Last name * Email * Username *  The login username cannot be changed afterwards.  Password * ✓ At least 8 ch »"
+    },
+    {
+      "nom": "identifiant en collision : message en langue naturelle",
+      "ok": true,
+      "note": "message obtenu : « NEW ACCOUNT  New user  × ! This username is already taken. First name * Last name * Email * Username *  The login username cannot be changed afterwards.  Password * ✓ At least 8 characters ✓ One capit »"
+    },
+    {
+      "nom": "les deux messages sont textuellement différents",
+      "ok": true,
+      "note": "un même message sert les deux collisions"
+    },
+    {
+      "nom": "aucun compte créé",
+      "ok": true,
+      "note": "30 → 30"
+    }
+  ],
+  "preuves": [
+    "01-27-email-pris.png",
+    "02-27-login-pris.png",
+    "incidents.json",
+    "trace.zip",
+    "video/page@091b1bbaee77d517178f935368c77180.webm",
+    "video/page@c7c6ce00df3a6906a804bc647f1b1b27.webm"
+  ]
+}

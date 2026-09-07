@@ -1,0 +1,20 @@
+{
+  "parcours": "P-101",
+  "persona": "Hugo",
+  "langue": "en",
+  "verdict": "rouge",
+  "objectif": "Les vacances scolaires de la zone de référence sont chargées, une période a été ajoutée à la main, et l'origine de chacune se distingue à l'œil.",
+  "chemin": [
+    "31 paramètres",
+    "31 vacances scolaires"
+  ],
+  "constate": "Section « School holidays » : trois nombres relevés (undefined au total). Bouton d'import : 0. Bouton « Ajouter une période de vacances » : 0. Aucune commande d'écriture n'est offerte au responsable RH.",
+  "textes_absents": [],
+  "incidents": [],
+  "fuites_jeu1": [],
+  "preuves": [
+    "trace.zip",
+    "video/",
+    "incidents.json"
+  ]
+}

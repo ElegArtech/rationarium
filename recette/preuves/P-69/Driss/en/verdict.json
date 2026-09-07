@@ -1,0 +1,24 @@
+{
+  "parcours": "P-69",
+  "persona": "Driss",
+  "langue": "en",
+  "verdict": "rouge",
+  "objectif": "Le projet clos de Driss est archivé et sorti du portefeuille courant, puis désarchivé ; l'un et l'autre geste ne s'offrent qu'une fois.",
+  "chemin": [
+    "10 portefeuille",
+    "11 fiche du projet",
+    "10 recherche du projet archivé",
+    "11 désarchivage"
+  ],
+  "constate": "le portefeuille n'offre aucun filtre qui retrouve un projet archivé — le sélecteur de statut ne porte que [All statuses / Draft / Active / Paused / Completed / Cancelled] et aucun bouton d'archives n'existe. filtres du portefeuille : statut [All statuses / Draft / Active / Paused / Completed / Cancelled], boutons [New project / My projects] ; cartes « Refonte de l'intranet agents » : 1 avant archivage, 0 après ; carte après désarchivage : 1.",
+  "textes_absents": [],
+  "incidents": [],
+  "fuites_jeu1": [],
+  "preuves": [
+    "01-apres-archivage.png",
+    "02-portefeuille-apres-archivage.png",
+    "03-apres-desarchivage.png",
+    "trace.zip",
+    "video/"
+  ]
+}

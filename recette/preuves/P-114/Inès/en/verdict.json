@@ -1,0 +1,78 @@
+{
+  "parcours": "P-114",
+  "persona": "Inès",
+  "langue": "en",
+  "verdict": "vert",
+  "objectif": "Inès voit la charge par service et par collaborateur, et les surcharges y sont signalées.",
+  "chemin": [
+    "30 rapports",
+    "30 onglet analytics"
+  ],
+  "constate": "Répartition de charge sur 20 collaborateurs, surcharges signalées ; répartitions par priorité et par statut rendues avec le vocabulaire unique. ",
+  "textes_absents": [],
+  "incidents": [],
+  "fuites_jeu1": [],
+  "controles": [
+    {
+      "nom": "la répartition de charge nomme les collaborateurs",
+      "ok": true,
+      "note": "aucun collaborateur nommé dans la répartition de charge"
+    },
+    {
+      "nom": "les écarts à la moyenne sont signalés",
+      "ok": true,
+      "note": "« Overload » introuvable"
+    },
+    {
+      "nom": "la moyenne de référence est écrite",
+      "ok": true,
+      "note": "aucune moyenne annoncée"
+    },
+    {
+      "nom": "répartition par priorité : « Low »",
+      "ok": true,
+      "note": "absente"
+    },
+    {
+      "nom": "répartition par priorité : « Normal »",
+      "ok": true,
+      "note": "absente"
+    },
+    {
+      "nom": "répartition par priorité : « High »",
+      "ok": true,
+      "note": "absente"
+    },
+    {
+      "nom": "répartition par priorité : « Critical »",
+      "ok": true,
+      "note": "absente"
+    },
+    {
+      "nom": "répartition par statut : « To do »",
+      "ok": true,
+      "note": "absent"
+    },
+    {
+      "nom": "répartition par statut : « In progress »",
+      "ok": true,
+      "note": "absent"
+    },
+    {
+      "nom": "répartition par statut : « Blocked »",
+      "ok": true,
+      "note": "absent"
+    },
+    {
+      "nom": "les agrégats ne portent que sur le périmètre visible",
+      "ok": true,
+      "note": ""
+    }
+  ],
+  "preuves": [
+    "01-30-charge.png",
+    "incidents.json",
+    "trace.zip",
+    "video/page@444bfda4be67bf952d22c04b27317633.webm"
+  ]
+}

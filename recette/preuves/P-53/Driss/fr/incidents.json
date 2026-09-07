@@ -1,0 +1,20 @@
+[
+  {
+    "genre": "http",
+    "texte": "401 GET http://127.0.0.1:4304/api/auth/me"
+  },
+  {
+    "genre": "console",
+    "texte": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "url": "http://127.0.0.1:4304/"
+  },
+  {
+    "genre": "http",
+    "texte": "404 GET http://127.0.0.1:4304/api/documents/a29b8175-738a-46b1-95a5-5be000be430d"
+  },
+  {
+    "genre": "console",
+    "texte": "Failed to load resource: the server responded with a status of 404 (Not Found)",
+    "url": "http://127.0.0.1:4304/taches/0000540b-0000-4000-8000-000000000002"
+  }
+]

@@ -1,0 +1,27 @@
+{
+  "parcours": "P-65",
+  "persona": "Driss",
+  "langue": "fr",
+  "verdict": "rouge",
+  "objectif": "La réunion de Driss existe avec ses participants, dont un service entier invité, et se lit aussi bien en liste qu'en calendrier ; l'intervention extérieure y est signalée distinctement.",
+  "chemin": [
+    "06 tableau de bord",
+    "18 événements",
+    "18 création d'un événement",
+    "07 planning"
+  ],
+  "constate": "la fenêtre de création d'un événement ne propose aucune invitation de service entier — seules des cases individuelles par personne (EX-EVT-04) ; la fenêtre de création d'un événement ne porte pas de champ Description (EX-EVT-03) : il n'existe que dans la fenêtre de modification ; la fenêtre de création ne porte pas la marque « intervention extérieure » (EX-EVT-03) : elle ne se pose qu'après coup, par « Modifier ». champs de la fenêtre de création : [Titre * / Date * / Toute la journée / Heure de début / Heure de fin / Projet / Participants / Nathan Bouchard / Ulysse Cambon / Aurélie Delcourt / Vanessa Lachaud / Samuel Nguema / Malik Oueslati / Tiphaine Roussille / Léa Vasseur / Événement récurrent] ; détail : [\"ÉVÉNEMENT\",\"Atelier de recette du portail\",\"×\",\"—\",\"DATE\",\"08/09/2026\",\"HORAIRES\",\"09:00 – 10:00\"] ; participants proposés à l'ajout : [Sélectionner… / Nathan Bouchard / Ulysse Cambon / Aurélie Delcourt / Vanessa Lachaud / Samuel Nguema / Tiphaine Roussille] ; marque distincte dans le planning : 1 pastille(s) « EXT ». Textes attendus absents : « Journée entière ».",
+  "textes_absents": [
+    "Journée entière"
+  ],
+  "incidents": [],
+  "refus_attendus": [],
+  "fuites_jeu1": [],
+  "preuves": [
+    "01-calendrier.png",
+    "02-evenement-cree.png",
+    "03-planning-intervention-exterieure.png",
+    "trace.zip",
+    "video/"
+  ]
+}

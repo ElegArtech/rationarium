@@ -1,0 +1,20 @@
+{
+  "parcours": "P-01",
+  "persona": "Camille",
+  "langue": "en",
+  "verdict": "vert",
+  "objectif": "Camille est entrée dans le produit et son tableau de bord porte sa journée : les quatre indicateurs sont chiffrés, son planning de la période est affiché, ses projets et ses tâches sont listés ou explicitement vides.",
+  "chemin": [
+    "01 connexion",
+    "06 tableau de bord"
+  ],
+  "constate": "Connexion par le formulaire ; arrivée sur 06 tableau de bord. Le prénom « Léa » figure dans l'accueil : true. Quatre indicateurs chiffrés : ACTIVE PROJECTS = 2 · TASKS IN PROGRESS = 3 · COMPLETED TASKS = 0 · OVERDUE TASKS = 1. Modules « My schedule », « My projects », « My tasks » rendus ; listes non vides (projets) et non vides (tâches).",
+  "textes_absents": [],
+  "incidents": [],
+  "fuites_jeu1": [],
+  "preuves": [
+    "trace.zip",
+    "video/",
+    "incidents.json"
+  ]
+}

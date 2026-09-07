@@ -1,0 +1,19 @@
+{
+  "parcours": "P-79",
+  "persona": "Fatou",
+  "langue": "en",
+  "verdict": "rouge",
+  "objectif": "Fatou ne déclare de congé que pour ses propres collaborateurs : un agent hors de ses services, ou inactif, n'est pas proposé et est refusé s'il est forgé.",
+  "chemin": [
+    "19 congés"
+  ],
+  "constate": "La fenêtre de demande ne propose aucun collaborateur (aucun nom). Requête forgée pour Bastien Fournel (hors des services de Fatou) : 201 undefined. Pour le compte inactif Roxane Thevenin : 409 \"erreurs:collaborateurInactif\". Le suivi de Fournel PORTE de congé au 22/10/2026.",
+  "textes_absents": [],
+  "incidents": [],
+  "fuites_jeu1": [],
+  "preuves": [
+    "/home/alex/Documents/Repo/rationarium/recette/preuves/P-79/Fatou/en/01-01-fenetre.png",
+    "/home/alex/Documents/Repo/rationarium/recette/preuves/P-79/Fatou/en/02-02-suivi-agent-hors.png"
+  ],
+  "incidents_bruts": 4
+}

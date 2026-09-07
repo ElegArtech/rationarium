@@ -1,0 +1,20 @@
+[
+  {
+    "genre": "http",
+    "texte": "401 GET http://127.0.0.1:4304/api/auth/me"
+  },
+  {
+    "genre": "console",
+    "texte": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "url": "http://127.0.0.1:4304/"
+  },
+  {
+    "genre": "http",
+    "texte": "400 PUT http://127.0.0.1:4304/api/taches/0000540b-0000-4000-8000-000000000002/dependances"
+  },
+  {
+    "genre": "console",
+    "texte": "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+    "url": "http://127.0.0.1:4304/taches/0000540b-0000-4000-8000-000000000002"
+  }
+]

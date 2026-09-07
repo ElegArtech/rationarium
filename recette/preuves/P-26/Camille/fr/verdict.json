@@ -1,0 +1,25 @@
+{
+  "parcours": "P-26",
+  "persona": "Camille",
+  "langue": "fr",
+  "verdict": "rouge",
+  "objectif": "La demande de Camille à cheval sur deux années est refusée pour l'année dont le solde ne suffit pas, et le refus est chiffré année par année ; aucune demande n'est créée.",
+  "chemin": [
+    "19 congés"
+  ],
+  "constate": "le message de refus ne nomme pas l'année concernée — lu : « !\nVotre solde ne couvre pas cette demande. » — le message de refus ne porte pas trois nombres (demandés, disponibles, manquants) — lu : « !\nVotre solde ne couvre pas cette demande. » — message de refus : « !\nVotre solde ne couvre pas cette demande. »",
+  "textes_absents": [],
+  "incidents": [],
+  "incidents_ecartes": [
+    "401 GET http://127.0.0.1:4302/api/auth/me",
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "[refus métier attendu] 422 POST http://127.0.0.1:4302/api/conges",
+    "[écho du refus attendu] Failed to load resource: the server responded with a status of 422 (Unprocessable Entity)"
+  ],
+  "fuites_jeu1": [],
+  "preuves": [
+    "trace.zip",
+    "video/",
+    "incidents.json"
+  ]
+}

@@ -1,6 +1,6 @@
 {
   "panneau": {
-    "organisation": "City of Roqueville",
+    "organisation": "Town of Bellecombe",
     "signature": "Projects, people and time on a single grid.",
     "portefeuille": "Portfolio · 3 active projects",
     "colonnes": "Progress · next milestone · health",
@@ -26,24 +26,24 @@
     },
     "projets": {
       "portail": {
-        "nom": "Citizen portal redesign",
+        "nom": "Municipal website overhaul",
         "jalon": "User testing · 28 Nov"
       },
       "sirh": {
-        "nom": "HRIS migration",
+        "nom": "Payroll migration",
         "jalon": "Data migration · 5 Dec"
       },
       "schema": {
-        "nom": "Digital master plan",
+        "nom": "Digital plan 2030",
         "jalon": "Steering committee · 15 Dec"
       }
     },
     "personnes": {
-      "durand": "C. Durand",
-      "amrani": "D. Amrani",
-      "berthier": "F. Berthier",
-      "nguyen": "H. Nguyen",
-      "rocher": "I. Rocher"
+      "durand": "A. Fabre",
+      "amrani": "B. Nadeau",
+      "berthier": "C. Ollivier",
+      "nguyen": "D. Perrot",
+      "rocher": "E. Quintin"
     },
     "occupations": {
       "maquettes": "Portal mockups",

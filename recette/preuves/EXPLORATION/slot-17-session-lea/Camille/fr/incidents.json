@@ -1,0 +1,38 @@
+[
+  {
+    "genre": "http",
+    "texte": "401 GET http://127.0.0.1:4317/api/auth/me"
+  },
+  {
+    "genre": "console",
+    "texte": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "url": "http://127.0.0.1:4317/"
+  },
+  {
+    "genre": "http",
+    "texte": "401 GET http://127.0.0.1:4317/api/taches"
+  },
+  {
+    "genre": "console",
+    "texte": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "url": "http://127.0.0.1:4317/taches"
+  },
+  {
+    "genre": "http",
+    "texte": "401 GET http://127.0.0.1:4317/api/projets"
+  },
+  {
+    "genre": "console",
+    "texte": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "url": "http://127.0.0.1:4317/taches"
+  },
+  {
+    "genre": "http",
+    "texte": "401 GET http://127.0.0.1:4317/api/auth/me"
+  },
+  {
+    "genre": "console",
+    "texte": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "url": "http://127.0.0.1:4317/taches"
+  }
+]

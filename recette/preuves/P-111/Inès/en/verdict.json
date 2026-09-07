@@ -1,0 +1,52 @@
+{
+  "parcours": "P-111",
+  "persona": "Inès",
+  "langue": "en",
+  "verdict": "vert",
+  "objectif": "Inès sait quels jalons sont en retard, un à un, avec leur projet, l'ancienneté du retard et ce qui reste à faire — pas seulement combien.",
+  "chemin": [
+    "30 rapports"
+  ],
+  "constate": "7 jalons en retard listés (compteur : 7), retards 45 > 40 > 35 > 15 > 14 > 10 > 8 jours. Aucun jalon n'échoit aujourd'hui dans le jeu : la borne « échéance du jour » n'a pas pu être exercée. La liste des retards n'est pas bornée ici (7 < 10) : son dépliage n'a pas pu être exercé. ",
+  "textes_absents": [],
+  "incidents": [],
+  "fuites_jeu1": [],
+  "controles": [
+    {
+      "nom": "le détail des retards est titré",
+      "ok": true,
+      "note": "« What is late » introuvable"
+    },
+    {
+      "nom": "le compteur est décliné en liste nominative",
+      "ok": true,
+      "note": "aucune ligne de jalon en retard"
+    },
+    {
+      "nom": "chaque jalon porte son projet, l'ancienneté du retard et ce qui reste",
+      "ok": true,
+      "note": "lignes relevées : Diagnostic / Guichet unique d'urbanisme / 45 days late / due 24/07/2026 · 1 task left ; Diagnostic / Observatoire de la donnée locale / 40 days late / due 29/07/2026 · 1 task left ; Consultation des entreprises / Rénovation thermique des écoles / 35 days late / due 03/08/2026 · 1 task left ; Mise en service / Rénovation thermique des écoles / 15 days late / due 23/08/2026 · 1 task left ; Réception"
+    },
+    {
+      "nom": "la liste est ordonnée du plus ancien au plus récent",
+      "ok": true,
+      "note": "retards : 45, 40, 35, 15, 14, 10, 8"
+    },
+    {
+      "nom": "la liste annonce son troncage quand elle est bornée",
+      "ok": true,
+      "note": "liste bornée sans annonce"
+    },
+    {
+      "nom": "« Tout afficher » est offert sur la page",
+      "ok": true,
+      "note": "commande absente"
+    }
+  ],
+  "preuves": [
+    "01-30-jalons-en-retard.png",
+    "incidents.json",
+    "trace.zip",
+    "video/page@986e90dd1d81a0656c3dfbfc10cfbbf3.webm"
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "parcours": "P-58",
+  "persona": "Driss",
+  "langue": "fr",
+  "verdict": "rouge",
+  "objectif": "Le fichier CSV de Driss a créé jalons et tâches en une passe : la prévisualisation a précédé l'exécution, l'ordre des lignes était indifférent, l'avancement importé est repris dans la progression du projet, et le compte rendu distingue les trois issues.",
+  "chemin": [
+    "11 vue d'ensemble du projet",
+    "12 kanban du projet"
+  ],
+  "constate": "MANQUE — le compteur de l'onglet reste à 10 après l'import : la fiche du projet n'est pas périmée par l'import, il faut recharger la page pour lire 12 · Constaté — fenêtre d'import : « IMPORT CSV Import projet (jalons + tâches) × Format attendu rowType · name · dueDate · title · description · status · priority · assigneeEmail · milestoneName · estimatedHours · startDate · endDate · subtasks Télécharger le modèle CSV Fichier CSV Ajouter Conserve les jalons et tâches existants, ajoute le contenu du fichier. Remplacer Supprime les jalons, tâches et sous-tâches existants puis import » · Constaté — modèle : modele-projet.csv · Constaté — prévisualisation (point-virgule) : « IMPORT CSV Import projet (jalons + tâches) × Format attendu rowType · name · dueDate · title · description · status · priority · assigneeEmail · milestoneName · estimatedHours · startDate · endDate · subtasks Télécharger le modèle CSV Fichier CSV r58.csv Ajouter Conserve les jalons et tâches existants, ajoute le contenu du fichier. Remplacer Supprime les jalons, tâches et sous-tâches existants pui » · Constaté — prévisualisation (virgule) : « IMPORT CSV Import projet (jalons + tâches) × Format attendu rowType · name · dueDate · title · description · status · priority · assigneeEmail · milestoneName · estimatedHours · startDate · endDate · subtasks Télécharger le modèle CSV Fichier CSV r58-virgule.c » · Constaté — compte rendu : « 3 importés 0 ignoré 0 en erreur » · Constaté — tâches 10 → 10 (12 après rechargement) ; jalons 5 → 5 (6 après rechargement) · Constaté — fiche de la tâche importée : rattachée · Constaté — progression du projet : 46 % → 42 % (42 % après rechargement)",
+  "textes_absents": [
+    "progress"
+  ],
+  "incidents": [],
+  "fuites_jeu1": [],
+  "preuves": [
+    "01-12-apercu.png",
+    "02-12-compte-rendu.png",
+    "03-17-tache-importee.png",
+    "04-11-progression.png",
+    "trace.zip",
+    "video/"
+  ]
+}

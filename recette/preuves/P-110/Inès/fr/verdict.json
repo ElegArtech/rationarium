@@ -1,0 +1,59 @@
+{
+  "parcours": "P-110",
+  "persona": "Inès",
+  "langue": "fr",
+  "verdict": "vert",
+  "objectif": "Inès a la santé de son portefeuille en une page : progression des projets, niveau de santé de chacun, tendance de progression et stagnations signalées, le tout sur la période qu'elle a choisie.",
+  "chemin": [
+    "30 rapports"
+  ],
+  "constate": "La vue d'ensemble rend les mêmes chiffres aux quatre périodes (7/30/90/365 jours) ; l'onglet « Analytics avancés » en change (tendance de progression). 16 projets suivis, 16 barres d'avancement pour 16 projets — aucun troncage à dix, ordre décroissant des écarts (59, 43, 35, 28, 22, 18, 16, 13, 5 points). La santé emploie « Bon », « Attention » et « Critique » ; « Affichage limité aux 10 projets les plus critiques — 6 non affiché(s). » puis « Tout afficher » déplie les 16. La tendance dit « Historique en cours de construction » à 30 jours et trace une courbe à 365 ; aucune stagnation à signaler sur ce jeu.",
+  "textes_absents": [],
+  "incidents": [],
+  "fuites_jeu1": [],
+  "controles": [
+    {
+      "nom": "le choix de période change les nombres affichés",
+      "ok": true,
+      "note": "vue d'ensemble IDENTIQUE et analytics change sur 7/30/90/365 jours"
+    },
+    {
+      "nom": "les trois niveaux de santé sont employés",
+      "ok": true,
+      "note": "un des trois niveaux manque"
+    },
+    {
+      "nom": "le graphique d'avancement montre tous les projets suivis, sans troncage à dix",
+      "ok": true,
+      "note": "16 projets suivis, 26 barres d'avancement relevées"
+    },
+    {
+      "nom": "les projets en retard sont ordonnés du plus en retard au moins",
+      "ok": true,
+      "note": "écarts relevés : 59, 43, 35, 28, 22, 18, 16, 13, 5"
+    },
+    {
+      "nom": "le panneau borné annonce son troncage",
+      "ok": true,
+      "note": "aucune annonce de troncage"
+    },
+    {
+      "nom": "« Tout afficher » déplie le panneau",
+      "ok": true,
+      "note": "le panneau reste borné après le clic"
+    },
+    {
+      "nom": "quand l'historique est trop court, la tendance le dit",
+      "ok": true,
+      "note": "la tendance ne dit rien de son historique"
+    }
+  ],
+  "preuves": [
+    "01-30-vue-ensemble.png",
+    "02-30-analytics.png",
+    "incidents.json",
+    "trace.zip",
+    "video/page@07ab8bcc14924f7b000864822cb62d7d.webm",
+    "video/page@98ba0a71ee9cfaee16f7fc261a96246d.webm"
+  ]
+}

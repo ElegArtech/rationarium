@@ -1,0 +1,22 @@
+{
+  "parcours": "P-64",
+  "persona": "Driss",
+  "langue": "en",
+  "verdict": "rouge",
+  "objectif": "Le planning de Driss est sorti au format ICS, et un calendrier ICS reçu a été importé après prévisualisation.",
+  "chemin": [
+    "07/08/09 /planning",
+    "07/08/09 /planning/mois",
+    "07/08/09 /planning/activite"
+  ],
+  "constate": "aucune commande d'export ICS n'est offerte à Driss sur les trois vues de planning (la commande existe mais elle est gardée par « planning:export_ics », que le modèle de rôle « Chef de projet » ne porte pas) ; aucune commande d'import ICS n'existe nulle part dans le planning : ni bouton, ni champ de fichier, ni entrée de menu — la prévisualisation et le compte rendu à trois issues sont donc inatteignables. commandes d'échange trouvées : /planning → [] ; /planning/mois → [] ; /planning/activite → [] ; menu « Créer » : [Task / Event].",
+  "textes_absents": [],
+  "incidents": [],
+  "refus_attendus": [],
+  "fuites_jeu1": [],
+  "preuves": [
+    "01-barre-outils-planning.png",
+    "trace.zip",
+    "video/"
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "parcours": "P-75",
+  "persona": "Fatou",
+  "langue": "en",
+  "verdict": "rouge",
+  "objectif": "Fatou n'a pas pu approuver une demande dont le solde est devenu insuffisant depuis son dépôt, ni une demande dont l'allocation a bougé pendant qu'elle la traitait : dans les deux cas la demande reste en attente.",
+  "chemin": [
+    "19 congés",
+    "19 onglet à valider"
+  ],
+  "constate": "Demande de l'agent du 12/10/2026 au 13/10/2026. Corrigée par lui pendant l'affichage (« Request updated. |  »), l'approbation sur la version lue rend « ! 6 requests awaiting approval |  | Someone changed this item while you were editing. Reload to see the current version, then reapply your change. » (refus de concurrence), demande toujours en attente. Allocation ramenée à 1 j (« The balance for Réduction du temps de travail has been saved. |  ») : l'approbation rend « ! 6 requests awaiting approval |  | Your balance does not cover this request. » (refus de solde, SANS AUCUN CHIFFRE : ni jours demandés, ni disponibles, ni manquants), demande toujours en attente. Après rechargement, la ligne de l'agent lit « RÉ Réduction du temps de travail From 12/10/2026 to 15/10/2026 4,0 PENDING Approver: Solène Pichon EDIT DELETE ».",
+  "textes_absents": [],
+  "incidents": [],
+  "fuites_jeu1": [],
+  "preuves": [
+    "/home/alex/Documents/Repo/rationarium/recette/preuves/P-75/Fatou/en/01-01-a-valider.png",
+    "/home/alex/Documents/Repo/rationarium/recette/preuves/P-75/Fatou/en/02-02-conflit-de-version.png",
+    "/home/alex/Documents/Repo/rationarium/recette/preuves/P-75/Fatou/en/03-03-refus-solde.png",
+    "/home/alex/Documents/Repo/rationarium/recette/preuves/P-75/Fatou/en/04-04-toujours-en-attente.png"
+  ],
+  "incidents_bruts": 6
+}

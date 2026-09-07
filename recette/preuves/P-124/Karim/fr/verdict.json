@@ -1,0 +1,27 @@
+{
+  "parcours": "P-124",
+  "persona": "Karim",
+  "langue": "fr",
+  "verdict": "rouge",
+  "objectif": "Le mot de passe d'un agent a été réinitialisé par Karim, et l'agent est contraint de le changer à sa première connexion.",
+  "chemin": [
+    "entrée",
+    "27 utilisateurs",
+    "27 après réinitialisation",
+    "33 journal d'audit"
+  ],
+  "constate": "MANQUE — la réinitialisation n'ouvre aucune fenêtre : aucun mot de passe n'est saisi, aucune politique n'est présentée, et le mot de passe posé n'est communiqué nulle part — ni à l'écran, ni par courriel (le journal du serveur n'en porte aucun) ; la vue 05 ne peut pas être atteinte : le mot de passe provisoire est tiré dans le navigateur, jamais affiché ni transmis — l'agent n'a aucun moyen de se connecter, donc le changement imposé n'est pas observable. message : « Mot de passe réinitialisé. Kevin Brossard devra le changer à sa prochaine connexion. » ; en base, motDePasseAChanger = true ; connexion de l'agent avec son ancien mot de passe → 400 ; journal : « Mot de passe réinitialisé » présent",
+  "textes_absents": [
+    "Voir le suivi individuel"
+  ],
+  "incidents": [],
+  "fuites_jeu1": [],
+  "preuves": [
+    "01-menu-reinitialiser.png",
+    "02-apres-reinitialisation.png",
+    "03-journal.png",
+    "incidents.json",
+    "trace.zip",
+    "video"
+  ]
+}

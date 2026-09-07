@@ -1,0 +1,25 @@
+{
+  "parcours": "P-72",
+  "persona": "Driss",
+  "langue": "en",
+  "verdict": "rouge",
+  "objectif": "L'administration reste fermée à Driss : ni rôles, ni journal d'audit, ni paramètres, ni gestion des comptes ne lui sont proposés ni servis.",
+  "chemin": [
+    "06 tableau de bord",
+    "/roles",
+    "/audit",
+    "/parametres"
+  ],
+  "constate": "la barre latérale de Driss porte « Users » ; ouverture directe : /parametres rend la vue complète (0 contrôles de saisie) — titre « Settings », sections « Display / Schedule / Public holidays / School holidays / Date format / JJ/MM/AAAA ».",
+  "textes_absents": [],
+  "incidents": [],
+  "fuites_jeu1": [],
+  "preuves": [
+    "01-barre-laterale.png",
+    "02-ouverture-roles.png",
+    "03-ouverture-audit.png",
+    "04-ouverture-parametres.png",
+    "trace.zip",
+    "video/"
+  ]
+}

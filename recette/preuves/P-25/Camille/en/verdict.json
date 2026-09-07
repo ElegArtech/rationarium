@@ -1,0 +1,25 @@
+{
+  "parcours": "P-25",
+  "persona": "Camille",
+  "langue": "en",
+  "verdict": "vert",
+  "objectif": "La demande de congé de Camille existe au statut En attente, décomptée en jours ouvrés avec sa demi-journée, son validateur est déterminé, et son solde disponible a diminué d'autant.",
+  "chemin": [
+    "06 tableau de bord",
+    "19 congés",
+    "19 fenêtre de demande"
+  ],
+  "constate": "solde RTT 20 → 15.5 ; ligne 05/10/2026 → 10/10 non, 05→09/10 à 4,5 j, statut Pending",
+  "textes_absents": [],
+  "incidents": [],
+  "incidents_ecartes": [
+    "401 GET http://127.0.0.1:4302/api/auth/me",
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  ],
+  "fuites_jeu1": [],
+  "preuves": [
+    "trace.zip",
+    "video/",
+    "incidents.json"
+  ]
+}

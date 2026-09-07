@@ -1,0 +1,24 @@
+{
+  "parcours": "P-85",
+  "persona": "Fatou",
+  "langue": "fr",
+  "verdict": "rouge",
+  "objectif": "Fatou voit qui de son équipe est en télétravail à la date qu'elle interroge, et les statistiques d'un agent sur la période.",
+  "chemin": [
+    "06 tableau de bord",
+    "20 mon planning",
+    "20 vue équipe",
+    "20 vue équipe au 10/09"
+  ],
+  "constate": "Vue équipe : 30 agents listés, 1 en télétravail au 07/09 ; cumuls « TÉLÉTRAVAIL 1 SUR SITE 9 NON DÉCLARÉ 20 » puis, au 10/09, « TÉLÉTRAVAIL 2 SUR SITE 8 NON DÉCLARÉ 20 ». ROUGE — aucune statistique d'agent dans la vue 20 : la vue équipe ne porte que le nom et l'état du jour (aucun cumul mois/année, aucune moyenne mensuelle), et aucune rangée d'agent n'offre de commande (0 lien ou bouton dans les rangées) pour y accéder.",
+  "textes_absents": [],
+  "incidents": [],
+  "fuites_jeu1": [],
+  "preuves": [
+    "01-equipe-jour-1.png",
+    "02-equipe-jour-2.png",
+    "incidents.json",
+    "trace.zip",
+    "video/page@3cb51ae4122a84e5f3333f61a946653c.webm"
+  ]
+}

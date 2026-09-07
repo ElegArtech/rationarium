@@ -1,0 +1,32 @@
+{
+  "parcours": "P-140",
+  "persona": "Karim",
+  "langue": "fr",
+  "verdict": "vert",
+  "objectif": "Le tiers archivé par Karim n'est plus assignable, et il est ressorti de sa fiche vers la liste par le retour de l'en-tête.",
+  "chemin": [
+    "17 fiche de tâche, avant archivage",
+    "23 tiers",
+    "24 fiche du tiers",
+    "24 tiers archivé",
+    "23 retour à la liste",
+    "12 équipe du projet",
+    "12 sélecteur de rattachement",
+    "17 fiche de tâche du projet",
+    "17 candidats à l'assignation",
+    "23 liste vide"
+  ],
+  "constate": "avant archivage, le tiers est bien proposé à l'assignation ; le tiers est marqué archivé ; ses rattachements restent affichés ; le retour de l'en-tête ramène sur la liste ; le tiers archivé n'est plus proposé au rattachement d'un projet ; le tiers archivé n'est plus proposé à l'assignation d'une tâche ; liste vide : texte d'explication présent, création offerte.",
+  "textes_absents": [],
+  "incidents": [],
+  "fuites_jeu1": [],
+  "preuves": [
+    "01-01-tiers-archive.png",
+    "02-02-retour-liste.png",
+    "03-03-selecteur-rattachement.png",
+    "04-04-candidats.png",
+    "05-05-liste-vide.png",
+    "trace.zip",
+    "video/"
+  ]
+}

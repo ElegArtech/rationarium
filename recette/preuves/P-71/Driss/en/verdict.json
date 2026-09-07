@@ -1,0 +1,25 @@
+{
+  "parcours": "P-71",
+  "persona": "Driss",
+  "langue": "en",
+  "verdict": "rouge",
+  "objectif": "Le projet de Driss porte son client et son prestataire, et le prestataire rattaché par erreur en a été détaché sans que la fiche du tiers soit supprimée.",
+  "chemin": [
+    "11 fiche du projet",
+    "14 équipe du projet",
+    "17 fiche d'une tâche du projet",
+    "23 répertoire des tiers"
+  ],
+  "constate": "le rattachement d'un client n'est pas offert à Driss : la fenêtre « Ajouter au projet » ne propose que « Agent » et « Tiers » — le projet ne peut donc pas porter son client (EX-PRJ-10, RG-PRJ-10). onglet « Tasks10 » ; onglet « Milestones5 » ; natures proposées : [◍ Staff With allocation / ◇ Partner No workload] ; tiers proposés : [Select… / Ateliers Bertoli & Fils] ; confirmation : « CONFIRMATION Detach from project × ».",
+  "textes_absents": [],
+  "incidents": [],
+  "fuites_jeu1": [],
+  "preuves": [
+    "01-fenetre-ajout-membre.png",
+    "02-tiers-rattache.png",
+    "03-tiers-detache.png",
+    "04-repertoire-tiers.png",
+    "trace.zip",
+    "video/"
+  ]
+}

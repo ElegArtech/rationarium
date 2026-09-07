@@ -1,0 +1,23 @@
+{
+  "parcours": "P-29",
+  "persona": "Camille",
+  "langue": "fr",
+  "verdict": "vert",
+  "objectif": "Camille ne valide rien : aucun des onglets de validation, de référentiel ou de solde global n'existe pour elle, et sa propre demande ne porte aucune commande d'approbation.",
+  "chemin": [
+    "19 congés"
+  ],
+  "constate": "barre d'onglets : « Mes demandes4 » — commandes de la vue : [\"Nouvelle demande\",\"Comment évolue une demande ?\",\"DEMANDER L'ANNULATION\",\"MODIFIER\",\"SUPPRIMER\",\"DEMANDER L'ANNULATION\"]",
+  "textes_absents": [],
+  "incidents": [],
+  "incidents_ecartes": [
+    "401 GET http://127.0.0.1:4302/api/auth/me",
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  ],
+  "fuites_jeu1": [],
+  "preuves": [
+    "trace.zip",
+    "video/",
+    "incidents.json"
+  ]
+}

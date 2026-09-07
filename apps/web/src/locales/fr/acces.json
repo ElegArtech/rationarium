@@ -1,6 +1,6 @@
 {
   "panneau": {
-    "organisation": "Ville de Roqueville",
+    "organisation": "Ville de Bellecombe",
     "signature": "Projets, ressources et temps sur une seule grille.",
     "portefeuille": "Portefeuille · 3 projets actifs",
     "colonnes": "Progression · prochain jalon · santé",
@@ -26,24 +26,24 @@
     },
     "projets": {
       "portail": {
-        "nom": "Refonte du portail citoyen",
+        "nom": "Refonte du site municipal",
         "jalon": "Recette · 28 nov."
       },
       "sirh": {
-        "nom": "Migration SIRH",
+        "nom": "Migration de la paie",
         "jalon": "Reprise des données · 5 déc."
       },
       "schema": {
-        "nom": "Schéma directeur numérique",
+        "nom": "Plan numérique 2030",
         "jalon": "Comité de pilotage · 15 déc."
       }
     },
     "personnes": {
-      "durand": "C. Durand",
-      "amrani": "D. Amrani",
-      "berthier": "F. Berthier",
-      "nguyen": "H. Nguyen",
-      "rocher": "I. Rocher"
+      "durand": "A. Fabre",
+      "amrani": "B. Nadeau",
+      "berthier": "C. Ollivier",
+      "nguyen": "D. Perrot",
+      "rocher": "E. Quintin"
     },
     "occupations": {
       "maquettes": "Maquettes portail",

@@ -1,0 +1,20 @@
+{
+  "parcours": "P-06",
+  "persona": "Camille",
+  "langue": "fr",
+  "verdict": "rouge",
+  "objectif": "Le lien de réinitialisation de Camille ayant expiré, elle en obtient un neuf sans repasser par la connexion.",
+  "chemin": [
+    "04 réinitialisation",
+    "03 mot de passe oublié"
+  ],
+  "constate": "Jeton expiré ouvert dans la vue 04 : 2 champ(s) de mot de passe à l'ouverture — la vue ne vérifie le jeton qu'à la soumission. Message d'expiration relevé : true ; message « déjà utilisé » : false. Commande « Demander un nouveau lien » présente : true ; elle mène à la vue 03 avec son formulaire : true.",
+  "textes_absents": [],
+  "incidents": [],
+  "fuites_jeu1": [],
+  "preuves": [
+    "trace.zip",
+    "video/",
+    "incidents.json"
+  ]
+}

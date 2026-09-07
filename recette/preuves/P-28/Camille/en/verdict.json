@@ -1,0 +1,24 @@
+{
+  "parcours": "P-28",
+  "persona": "Camille",
+  "langue": "en",
+  "verdict": "vert",
+  "objectif": "Le congé approuvé que Camille ne peut plus prendre est passé en annulation demandée, et non annulé de sa main ; elle a par ailleurs supprimé une demande refusée.",
+  "chemin": [
+    "06 tableau de bord",
+    "19 congés"
+  ],
+  "constate": "commandes sur un congé approuvé : [\"REQUEST CANCELLATION\"]",
+  "textes_absents": [],
+  "incidents": [],
+  "incidents_ecartes": [
+    "401 GET http://127.0.0.1:4302/api/auth/me",
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  ],
+  "fuites_jeu1": [],
+  "preuves": [
+    "trace.zip",
+    "video/",
+    "incidents.json"
+  ]
+}

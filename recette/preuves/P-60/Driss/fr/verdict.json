@@ -1,0 +1,25 @@
+{
+  "parcours": "P-60",
+  "persona": "Driss",
+  "langue": "fr",
+  "verdict": "rouge",
+  "objectif": "Le fichier de Driss dont une colonne d'énumération portait un libellé traduit et une progression hors bornes est refusé ligne à ligne, avec le numéro de ligne, et non par une erreur technique globale.",
+  "chemin": [
+    "12 kanban du projet"
+  ],
+  "constate": "MANQUE — la ligne saine n'a pas été importée seule : 10 → 10 (attendu +1) · Constaté — prévisualisation : « IMPORT CSV Import projet (jalons + tâches) × Format attendu rowType · name · dueDate · title · description · status · priority · assigneeEmail · milestoneName · estimatedHours · startDate · endDate · subtasks Télécharger le modèle CSV Fichier CSV r60.csv Ajouter Conserve les jalons et tâches existants, ajoute le contenu du fichier. Remplacer Supprime les jalons, tâches et sous-tâches existants puis importe le contenu du fichier (tout ou rien). 3 lignes détectées ROWTYPE NAME DUEDATE TITLE TASK L » · Constaté — compte rendu : « IMPORT CSV Import projet (jalons + tâches) × Format attendu rowType · name · dueDate · title · description · status · priority · assigneeEmail · milestoneName · estimatedHours · startDate · endDate · subtasks Télécharger le modèle CSV Fichier CSV r60.csv Ajouter Conserve les jalons et tâches existan » · Constaté — tâches 10 → 10 · Constaté — journal du serveur (fin) : _modules/.pnpm/@prisma+client@7.9.1_prisma@7.9.1_@types+react-dom@19.2.4_@types+react@19.2.18__@types+_cda40e07cec500aacbc2c55b0181edca/node_modules/@prisma/client/runtime/client.js:65:7288) |     at process.processTicksAndRejections (node:internal/process/task_queues:104:5) |     at async a (/home/alex/Documents/Repo/rationarium/node_modules/.pnpm/@prisma+client@7.9.1_prisma@7.9.1_@types+react-dom@19.2.4_@types+react@19.2.18__@types+_cda40e07cec500aacbc2c55b0181edca/node_modules/@prisma/client/runtime/client.js:99:6862) |     at async ImportsService.insererTaches (file:///home/alex/Documents/Repo/rationarium/apps/api/dist/imports/imports.service.js:602:27) |     at async file:///home/alex/Documents/Repo/rationarium/apps/api/dist/imports/imports.service.js:531:13 |     at async Proxy._transactionWithCallback (/home/alex/Documents/Repo/rationarium/node_modules/.pnpm/@prisma+client@7.9.1_prisma@7.9.1_@types+react-dom@19.2.4_@types+react@19.2.18__@types+_cda40e07cec500aacbc2c55b0181edca/node_modules/@prisma/client/runtime/client.js:99:4800) |     at async ImportsService.importerProjet (file:///home/alex/Documents/Repo/rationarium/apps/api/dist/imports/imports.service.js:517:9)\u001b[39m | ",
+  "textes_absents": [
+    "2 en erreur"
+  ],
+  "incidents": [
+    "http : 500 POST http://127.0.0.1:4304/api/imports/projet/0000500b-0000-4000-8000-000000000012",
+    "console : Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+  ],
+  "fuites_jeu1": [],
+  "preuves": [
+    "01-12-erreurs.png",
+    "02-12-apres-import.png",
+    "trace.zip",
+    "video/"
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "parcours": "P-95",
+  "persona": "Hugo",
+  "langue": "en",
+  "verdict": "vert",
+  "objectif": "Hugo lit toutes les demandes de l'organisation, filtrées comme il l'entend, et celles de ses subordonnés en particulier.",
+  "chemin": [
+    "06 tableau de bord",
+    "19 congés",
+    "19 toutes les demandes",
+    "19 filtre En attente"
+  ],
+  "constate": "Onglet « All requests » : compteur « 35 requests », 35 lignes ; agents de plusieurs services présents : Tiphaine Roussille, Ophélie Bardin, Maëlys Corbin, Léa Vasseur. Filtre « Pending » : 9 lignes, compteur « 9 requests », 0 ligne(s) hors filtre.",
+  "textes_absents": [],
+  "incidents": [],
+  "fuites_jeu1": [],
+  "preuves": [
+    "01-toutes.png",
+    "02-filtre-attente.png",
+    "incidents.json",
+    "trace.zip",
+    "video/page@a73586604a5432f5562d6bc366328a3b.webm"
+  ]
+}

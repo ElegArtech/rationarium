@@ -1,0 +1,31 @@
+{
+  "parcours": "P-48",
+  "persona": "Driss",
+  "langue": "fr",
+  "verdict": "rouge",
+  "objectif": "Le kanban du projet reflète le déplacement que Driss a fait par glisser-déposer, et il est ressorti de la fiche d'une tâche par le retour de l'en-tête.",
+  "chemin": [
+    "11 vue d'ensemble",
+    "12 kanban",
+    "12 carte déposée",
+    "12 après rechargement",
+    "17 fiche de la tâche",
+    "12 retour"
+  ],
+  "constate": "le retour de la vue 17 mène à /taches et non au kanban du projet (lien « ← RETOUR AUX TÂCHES » → /taches).",
+  "textes_absents": [],
+  "incidents": [],
+  "fuites_jeu1": [],
+  "preuves": [
+    "01-11-vue-d-ensemble.png",
+    "02-12-kanban.png",
+    "03-12-carte-d-pos-e.png",
+    "04-12-apr-s-rechargement.png",
+    "05-17-fiche-de-la-t-che.png",
+    "06-12-retour.png",
+    "incidents.json",
+    "trace.zip",
+    "verdict.json",
+    "video"
+  ]
+}

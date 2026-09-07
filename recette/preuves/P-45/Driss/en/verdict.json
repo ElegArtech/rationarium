@@ -1,0 +1,27 @@
+{
+  "parcours": "P-45",
+  "persona": "Driss",
+  "langue": "en",
+  "verdict": "vert",
+  "objectif": "La feuille de route du projet de Driss porte ses jalons datés dans l'ordre chronologique, ses indicateurs sont chiffrés, et une épopée regroupe les tâches d'un thème.",
+  "chemin": [
+    "11 vue d'ensemble",
+    "13 feuille de route",
+    "13 jalon ajouté",
+    "13 choix de jalon d'une tâche"
+  ],
+  "constate": "Jalons rendus : Diagnostic 2026-07-09 · Consultation des entreprises 2026-08-28 · Recette de bout en bout 2026-09-30 · Livraison technique 2026-10-22 · Bilan à six mois 2027-03-06 · Mise en service sans date",
+  "textes_absents": [],
+  "incidents": [],
+  "fuites_jeu1": [],
+  "preuves": [
+    "01-11-vue-d-ensemble.png",
+    "02-13-feuille-de-route.png",
+    "03-13-jalon-ajout-.png",
+    "04-13-choix-de-jalon-d-une-t-che.png",
+    "incidents.json",
+    "trace.zip",
+    "verdict.json",
+    "video"
+  ]
+}

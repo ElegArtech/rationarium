@@ -40,3 +40,13 @@ design/captures/
 
 # Arbres de travail des agents — jamais versionnés.
 .claude/worktrees/
+
+# Recette par persona.
+# Les VERDICTS sont versionnés — ils disent ce qui est passé, et le rapport
+# s'y adosse. Les traces lourdes (vidéo, trace Playwright, captures) et les
+# scripts d'exécutant restent sur le disque : elles se régénèrent en rejouant.
+recette/preuves/**/*.png
+recette/preuves/**/*.zip
+recette/preuves/**/video/
+recette/travail/
+recette/harnais/instantane.sql

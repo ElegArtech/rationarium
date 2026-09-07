@@ -1,0 +1,28 @@
+{
+  "parcours": "P-142",
+  "persona": "Karim",
+  "langue": "fr",
+  "verdict": "rouge",
+  "objectif": "Depuis la fiche d'un client, Karim ouvre le projet dont ce client bénéficie.",
+  "chemin": [
+    "25 clients",
+    "26 fiche du client",
+    "11 vue d'ensemble du projet",
+    "26 retour à la fiche",
+    "26 après détachement",
+    "33 journal d'audit",
+    "33 journal d'audit"
+  ],
+  "constate": "le projet « Schéma des liaisons cyclables » s'ouvre depuis la fiche du client ; le projet « Schéma des liaisons cyclables » est TOUJOURS rattaché après le clic sur « Détacher » ; le détachement n'apparaît pas au journal d'audit ; le rattachement est tracé au journal d'audit.",
+  "textes_absents": [],
+  "incidents": [],
+  "fuites_jeu1": [],
+  "preuves": [
+    "01-01-fiche-client.png",
+    "02-02-projet.png",
+    "03-03-detache.png",
+    "04-04-journal.png",
+    "trace.zip",
+    "video/"
+  ]
+}

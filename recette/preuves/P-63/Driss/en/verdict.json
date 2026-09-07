@@ -1,0 +1,22 @@
+{
+  "parcours": "P-63",
+  "persona": "Driss",
+  "langue": "en",
+  "verdict": "rouge",
+  "objectif": "L'invitation d'un service entier sur la tâche de Driss n'a ajouté que ceux qui n'y étaient pas, l'agent déjà affecté étant refusé par un message qui le nomme.",
+  "chemin": [
+    "12 onglet Tâches du projet",
+    "17 fiche de « Maquette de la page d'accueil »"
+  ],
+  "constate": "aucun geste n'invite un service entier : ni la fenêtre de création d'une tâche, ni la fenêtre « Ajouter un assigné » de la fiche ne proposent de service — seules des cases individuelles par personne y figurent (EX-TSK-06) ; le refus nommant l'agent déjà affecté (RG-PLN-06) reste donc inobservable : l'assigné existant est simplement déjà coché. onglet « Tasks10 » ; fenêtre d'assignation : [\"ASSIGNEES\",\"Add an assignee\",\"×\"] ; Léa Vasseur (déjà assignée) est cochée dans la fenêtre.",
+  "textes_absents": [],
+  "incidents": [],
+  "fuites_jeu1": [],
+  "preuves": [
+    "01-onglet-taches.png",
+    "02-creation-tache.png",
+    "03-fenetre-assignes.png",
+    "trace.zip",
+    "video/"
+  ]
+}

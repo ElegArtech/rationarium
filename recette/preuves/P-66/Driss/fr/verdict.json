@@ -1,0 +1,45 @@
+{
+  "parcours": "P-66",
+  "persona": "Driss",
+  "langue": "fr",
+  "verdict": "rouge",
+  "objectif": "La série de réunions de Driss s'arrête à la date voulue : les occurrences futures ont disparu, les passées sont conservées, et la modification qu'il a faite sur une occurrence a déclaré sa portée.",
+  "chemin": [
+    "18 événements",
+    "18 création d'une série",
+    "18 arrêt de la récurrence depuis l'événement porteur"
+  ],
+  "constate": "l'arrêt de la récurrence est proposé sur une occurrence qui n'est pas l'événement porteur, puis refusé : « Cet événement n'est pas une série : il n'a pas d'occurrences. » (RG-EVT-03, RG-GEN-06) ; les occurrences DÉJÀ PASSÉES ont été supprimées avec les futures : le mois précédent en portait 3, il n'en porte plus que 1 (RG-EVT-04). refus de l'horizon : « ! La récurrence dépasse l'horizon de génération autorisé. Raccourcissez la période. » ; occurrences après création — mois précédent 3, mois courant 4, mois suivant 2 ; portée proposée : « × | Cet événement fait partie d'une série récurrente. Que souhaitez-vous modifier ? | Cette occurrence seulement | Les autres occurrences de la série ne bougent pas. » ; hors série, aucune portée n'est demandée ; confirmation d'arrêt : « × | Arrêter la récurrence et supprimer les occurrences futures ? | Toute la série à partir d'ici | Les occurrences futures sont supprimées. Celles déjà passées restent intactes. » ; message : « Récurrence arrêtée : 8 occurrences supprimées. » ; occurrences après l'arrêt — mois précédent 1, mois courant 0, mois suivant 0.",
+  "textes_absents": [],
+  "incidents": [],
+  "refus_attendus": [
+    {
+      "genre": "http",
+      "texte": "422 POST http://127.0.0.1:4305/api/evenements"
+    },
+    {
+      "genre": "console",
+      "texte": "Failed to load resource: the server responded with a status of 422 (Unprocessable Entity)",
+      "url": "http://127.0.0.1:4305/evenements"
+    },
+    {
+      "genre": "http",
+      "texte": "422 POST http://127.0.0.1:4305/api/evenements/f9e8fc5d-16d2-4fd9-99a4-73bcc24d2c28/arreter"
+    },
+    {
+      "genre": "console",
+      "texte": "Failed to load resource: the server responded with a status of 422 (Unprocessable Entity)",
+      "url": "http://127.0.0.1:4305/evenements"
+    }
+  ],
+  "fuites_jeu1": [],
+  "preuves": [
+    "01-horizon-depasse.png",
+    "02-serie-creee.png",
+    "03-portee-demandee.png",
+    "04-arret-sur-occurrence.png",
+    "05-recurrence-arretee.png",
+    "trace.zip",
+    "video/"
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "parcours": "P-40",
+  "persona": "Camille",
+  "langue": "en",
+  "verdict": "rouge",
+  "objectif": "Camille ne bascule le télétravail de personne d'autre depuis le planning : la cellule d'un collègue est en lecture seule et le dit.",
+  "chemin": [
+    "07 planning",
+    "07 apres clic cellule autrui"
+  ],
+  "constate": "la bascule de télétravail est offerte, active et cliquable sur la cellule d'un autre agent : « Ulysse Cambon, 2026-09-07 — currently Not declared. Switch to Remote » (aucune mention de lecture seule ; état « NOT DECLARED » → « NOT DECLARED » après clic). 38 bascules de présence rendues, dont 33 sur la cellule d'un autre agent.",
+  "textes_absents": [],
+  "incidents": [
+    "http — 403 PATCH http://127.0.0.1:4303/api/planning/teletravail",
+    "console — Failed to load resource: the server responded with a status of 403 (Forbidden)"
+  ],
+  "fuites_jeu1": [],
+  "preuves": [
+    "01-07-planning.png",
+    "02-07-apres-clic-cellule-autrui.png",
+    "incidents.json",
+    "trace.zip",
+    "verdict.json",
+    "video"
+  ]
+}

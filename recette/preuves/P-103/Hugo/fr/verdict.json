@@ -1,0 +1,19 @@
+{
+  "parcours": "P-103",
+  "persona": "Hugo",
+  "langue": "fr",
+  "verdict": "vert",
+  "objectif": "Le décompte d'un congé posé sur une semaine contenant un jour férié marqué ouvré compte ce jour comme travaillé, et une demi-journée ne s'applique qu'à un congé d'une seule journée.",
+  "chemin": [
+    "19 congés"
+  ],
+  "constate": "Congé 09→13/11/2026 (contient l'Armistice, chômé) : « 09/11/2026 au 13/11/2026 4,0 EN ATTENTE Validateur : Solène Pichon MODIFIER SUPPRIMER RÉ R » → 4 jours attendus, constaté. Congé 31/05→04/06/2027 (contient la Journée de solidarité, comptée travaillée) : « 31/05/2027 au 04/06/2027 5,0 EN ATTENTE Validateur : Solène Pichon MODIFIER SUPPRIMER RÉ R » → 5 jours attendus, constaté. Congé 21→25/09/2026 avec après-midi/matin aux deux bouts : « 21/09/2026 au 25/09/2026 Après-midi le premier jour · Matin le dernier 4,0 EN ATTENTE Vali » → 4 jours attendus, constaté. La fenêtre offre 2 sélecteur(s) de demi-journée sur un congé de plusieurs jours.",
+  "textes_absents": [],
+  "incidents": [],
+  "fuites_jeu1": [],
+  "preuves": [
+    "trace.zip",
+    "video/",
+    "incidents.json"
+  ]
+}

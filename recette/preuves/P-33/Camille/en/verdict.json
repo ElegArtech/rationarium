@@ -1,0 +1,24 @@
+{
+  "parcours": "P-33",
+  "persona": "Camille",
+  "langue": "en",
+  "verdict": "vert",
+  "objectif": "Les heures de la semaine de Camille sont déclarées : chaque saisie porte une tâche ou un projet, le cumul affiche le nombre d'entrées et le total d'heures, et une saisie erronée a été supprimée.",
+  "chemin": [
+    "06 tableau de bord",
+    "21 temps passé"
+  ],
+  "constate": "refus sans tâche ni projet : « !\nA task or a project must be specified. » — aucun champ éditable d'acteur : 0 champ(s) trouvé(s) dans la liste des saisies — cumul : {\"entrees\":12,\"heures\":35.5} → saisie {\"entrees\":13,\"heures\":37.5} → suppression {\"entrees\":12,\"heures\":35.5} → filtres {\"entrees\":5,\"heures\":13}/{\"entrees\":1,\"heures\":2}",
+  "textes_absents": [],
+  "incidents": [],
+  "incidents_ecartes": [
+    "401 GET http://127.0.0.1:4302/api/auth/me",
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  ],
+  "fuites_jeu1": [],
+  "preuves": [
+    "trace.zip",
+    "video/",
+    "incidents.json"
+  ]
+}

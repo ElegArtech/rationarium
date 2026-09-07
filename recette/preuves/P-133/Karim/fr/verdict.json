@@ -1,0 +1,21 @@
+{
+  "parcours": "P-133",
+  "persona": "Karim",
+  "langue": "fr",
+  "verdict": "vert",
+  "objectif": "Les paramètres publics sont lisibles sans session : la page de connexion respecte déjà la langue et les formats de l'organisation.",
+  "chemin": [
+    "01 connexion",
+    "01 connexion, inscription ouverte"
+  ],
+  "constate": "inscription fermée : la ligne d'inscription est absente de la vue 01 ; GET /api/auth/acces → 200 {\"inscriptionAutonome\":false} ; réglage à true : la ligne d'inscription apparaît. Aucun paramètre privé dans la charge publique : oui. Aucune date n'est rendue par la vue 01 hors panneau d'illustration. Le réglage « inscription autonome » n'est offert par aucune des 35 vues : il a été posé en base pour observer les deux variantes.",
+  "textes_absents": [],
+  "incidents": [],
+  "fuites_jeu1": [],
+  "preuves": [
+    "01-01-connexion-inscription-fermee.png",
+    "02-02-connexion-inscription-ouverte.png",
+    "trace.zip",
+    "video/"
+  ]
+}

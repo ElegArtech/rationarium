@@ -1,0 +1,29 @@
+{
+  "parcours": "P-88",
+  "persona": "Fatou",
+  "langue": "fr",
+  "verdict": "rouge",
+  "objectif": "Les permanences de la semaine sont réparties : Fatou a affecté un agent depuis la cellule, assigné en masse le reste, et déclaré la réalisation d'une assignation passée.",
+  "chemin": [
+    "06 tableau de bord",
+    "09 grille d'activité",
+    "09 après ajout depuis la cellule",
+    "09 assignation en masse",
+    "09 semaine précédente"
+  ],
+  "constate": "Ajout depuis la cellule « Ajouter des agents à Veille réglementaire, le 11/09/2026 » : 29 agents éligibles, message « 1 assignation créée », page non rechargée. Réouverture de la même cellule : 2 case(s) désactivée(s), motif « déjà assigné » présent. Assignation en masse de 3 agents : message « 3 assignations créées ». Marqueurs de réalisation : 0 actionnables, 3 inertes (rendus en <span aria-hidden>). ROUGE — aucune assignation ne porte de marqueur ACTIONNABLE de réalisation : Fatou, manager, détient predefined_tasks:assign mais pas predefined_tasks:update, et le marqueur se rend en <span aria-hidden> — EX-ACT-06 lui est inatteignable.",
+  "textes_absents": [
+    "Matin → Matin",
+    "Après-midi → Après-midi"
+  ],
+  "incidents": [],
+  "fuites_jeu1": [],
+  "preuves": [
+    "01-apres-ajout.png",
+    "02-realisation.png",
+    "incidents.json",
+    "trace.zip",
+    "video/page@062c62b78b213eee5b2dab8cf0d0ff62.webm",
+    "video/page@916b312399d41156bea7e90885165161.webm"
+  ]
+}

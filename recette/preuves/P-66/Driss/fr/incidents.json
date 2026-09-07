@@ -1,0 +1,29 @@
+[
+  {
+    "genre": "http",
+    "texte": "401 GET http://127.0.0.1:4305/api/auth/me"
+  },
+  {
+    "genre": "console",
+    "texte": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "url": "http://127.0.0.1:4305/"
+  },
+  {
+    "genre": "http",
+    "texte": "422 POST http://127.0.0.1:4305/api/evenements"
+  },
+  {
+    "genre": "console",
+    "texte": "Failed to load resource: the server responded with a status of 422 (Unprocessable Entity)",
+    "url": "http://127.0.0.1:4305/evenements"
+  },
+  {
+    "genre": "http",
+    "texte": "422 POST http://127.0.0.1:4305/api/evenements/f9e8fc5d-16d2-4fd9-99a4-73bcc24d2c28/arreter"
+  },
+  {
+    "genre": "console",
+    "texte": "Failed to load resource: the server responded with a status of 422 (Unprocessable Entity)",
+    "url": "http://127.0.0.1:4305/evenements"
+  }
+]

@@ -1,0 +1,26 @@
+{
+  "parcours": "P-90",
+  "persona": "Fatou",
+  "langue": "fr",
+  "verdict": "rouge",
+  "objectif": "Fatou dispose du temps déclaré de son équipe : filtré sur un agent, agrégé par projet, et elle a déclaré du temps pour un intervenant extérieur.",
+  "chemin": [
+    "06 tableau de bord",
+    "21 temps passé",
+    "21 rapport par projet",
+    "21 fenêtre de saisie"
+  ],
+  "constate": "Filtres de la vue 21 : Projet, Type d'activité ; filtre par utilisateur ABSENT. ROUGE — aucun filtre par utilisateur : la liste des saisies est figée sur le compte connecté (RG-TMP-05, EX-TMP-02). Axes du rapport d'équipe : Par agent, Par projet, Par type d'activité. Champs de la fenêtre de saisie : Date * | Durée en heures * | Type d'activité | Projet | Tâche | Description ; sélecteur d'acteur ABSENT. ROUGE — la fenêtre de saisie ne demande aucun acteur : impossible de déclarer du temps pour un intervenant extérieur (EX-TMP-08, RG-TMP-04).",
+  "textes_absents": [],
+  "incidents": [],
+  "fuites_jeu1": [],
+  "preuves": [
+    "01-temps.png",
+    "02-rapport-projet.png",
+    "03-saisie.png",
+    "incidents.json",
+    "trace.zip",
+    "video/page@db87c25c2f07d1d2637c8e7563210b47.webm",
+    "video/page@f068e4ed7e78cd9afab7b0a9752f3060.webm"
+  ]
+}

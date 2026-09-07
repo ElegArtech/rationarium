@@ -1,0 +1,24 @@
+{
+  "parcours": "P-137",
+  "persona": "Karim",
+  "langue": "en",
+  "verdict": "rouge",
+  "objectif": "Karim n'a pas supprimé une direction encore peuplée ; il a été invité à détacher ses départements d'abord, et la suppression d'un département l'a averti que ses services partaient avec lui.",
+  "chemin": [
+    "29 départements & services",
+    "29 modification d'un département",
+    "29 bilan de suppression d'un département",
+    "29 après annulation"
+  ],
+  "constate": "la suppression d'une direction peuplée est refusée : commande désactivée, explication portée par un attribut « title » (« Not possible: 2 departments attached. Detach them first. ») qu'un bouton désactivé n'ouvre jamais ; la vue énonce la règle et invite au détachement ; le champ « Parent division » est inerte à la modification (« Attachment cannot be changed here: correct it by moving the members. ») : aucun écran ne permet de détacher un département de sa direction ; les services emportés sont annoncés ; le service est nommé ; les agents détachés sont comptés ; l'annulation ne supprime rien.",
+  "textes_absents": [],
+  "incidents": [],
+  "fuites_jeu1": [],
+  "preuves": [
+    "01-01-arborescence.png",
+    "02-02-modification-departement.png",
+    "03-03-suppression-departement.png",
+    "trace.zip",
+    "video/"
+  ]
+}

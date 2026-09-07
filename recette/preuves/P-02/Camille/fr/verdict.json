@@ -1,0 +1,19 @@
+{
+  "parcours": "P-02",
+  "persona": "Camille",
+  "langue": "fr",
+  "verdict": "vert",
+  "objectif": "Après le nombre paramétré de tentatives infructueuses, le compte de Camille est temporairement verrouillé : la connexion reste refusée par un message qui ne dit pas laquelle des deux moitiés est fausse, et l'échec comme le verrouillage sont dans le journal d'audit.",
+  "chemin": [
+    "01 connexion"
+  ],
+  "constate": "Identifiant inconnu → « ! Identifiant ou mot de passe incorrect » ; mot de passe erroné → « ! Identifiant ou mot de passe incorrect » (identiques : true). Au cinquième échec → « ! Trop de tentatives de connexion. Réessayez plus tard. ». Le bon mot de passe est ensuite refusé : « ! Trop de tentatives de connexion. Réessayez plus tard. », toujours sur 01 connexion. Journal d'audit : auth.login.failed×5, auth.login.locked×1, auth.login.lockout×1, auth.login_success×1.",
+  "textes_absents": [],
+  "incidents": [],
+  "fuites_jeu1": [],
+  "preuves": [
+    "trace.zip",
+    "video/",
+    "incidents.json"
+  ]
+}

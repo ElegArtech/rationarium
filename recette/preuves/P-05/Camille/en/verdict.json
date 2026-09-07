@@ -1,0 +1,21 @@
+{
+  "parcours": "P-05",
+  "persona": "Camille",
+  "langue": "en",
+  "verdict": "rouge",
+  "objectif": "Le mot de passe de Camille est changé depuis le lien reçu par courriel, le jeton est consommé, et elle est ramenée sur la connexion où le nouveau mot de passe fonctionne.",
+  "chemin": [
+    "04 réinitialisation",
+    "01 connexion",
+    "06 tableau de bord"
+  ],
+  "constate": "Jeton valide : la vue 04 accepte un mot de passe conforme, affiche « Password changed. » et redirige vers la connexion (true) ; le nouveau mot de passe ouvre bien une session (true). Second usage du MÊME lien : la vue rouvre le FORMULAIRE de mot de passe (2 champ(s)) au lieu de refuser le lien ; le message « This reset link has already been used. » n'apparaît qu'après une nouvelle soumission (true).",
+  "textes_absents": [],
+  "incidents": [],
+  "fuites_jeu1": [],
+  "preuves": [
+    "trace.zip",
+    "video/",
+    "incidents.json"
+  ]
+}

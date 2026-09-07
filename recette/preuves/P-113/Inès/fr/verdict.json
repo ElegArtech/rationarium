@@ -1,0 +1,58 @@
+{
+  "parcours": "P-113",
+  "persona": "Inès",
+  "langue": "fr",
+  "verdict": "rouge",
+  "objectif": "Inès repart avec le rapport de la période, filtré par projet et par responsable, dans le format qu'elle a choisi.",
+  "chemin": [
+    "30 rapports"
+  ],
+  "constate": "Filtres « Projets à risque » + Solène Pichon appliqués. Formats offerts : PDF (impression) · CSV (tableur) · JSON. La trace d'audit de l'export n'est pas observable par Inès (pas d'accès au journal). ROUGE — le filtre par projet et par responsable restreint le panneau d'avancement : 9 barres d'avancement subsistent sur un périmètre d'un projet | le filtre restreint le détail des jalons en retard : 7 jalons en retard restent listés | les indicateurs suivent le filtre : « Avancement moyen » et « Jalons échus tenus » restent ceux du portefeuille entier | le format Excel est proposé : formats proposés : PDF (impression) · CSV (tableur) · JSON | le fichier produit porte les données de la période et des filtres : l'export porte 19021 octets et contient des projets hors filtre",
+  "textes_absents": [],
+  "incidents": [],
+  "fuites_jeu1": [],
+  "controles": [
+    {
+      "nom": "le filtre par projet et par responsable restreint le panneau d'avancement",
+      "ok": false,
+      "note": "9 barres d'avancement subsistent sur un périmètre d'un projet"
+    },
+    {
+      "nom": "le filtre restreint le détail des jalons en retard",
+      "ok": false,
+      "note": "7 jalons en retard restent listés"
+    },
+    {
+      "nom": "les indicateurs suivent le filtre",
+      "ok": false,
+      "note": "« Avancement moyen » et « Jalons échus tenus » restent ceux du portefeuille entier"
+    },
+    {
+      "nom": "le format PDF est proposé",
+      "ok": true,
+      "note": "PDF (impression) · CSV (tableur) · JSON"
+    },
+    {
+      "nom": "le format Excel est proposé",
+      "ok": false,
+      "note": "formats proposés : PDF (impression) · CSV (tableur) · JSON"
+    },
+    {
+      "nom": "le format JSON est proposé",
+      "ok": true,
+      "note": "PDF (impression) · CSV (tableur) · JSON"
+    },
+    {
+      "nom": "le fichier produit porte les données de la période et des filtres",
+      "ok": false,
+      "note": "l'export porte 19021 octets et contient des projets hors filtre"
+    }
+  ],
+  "preuves": [
+    "01-30-filtres.png",
+    "02-30-formats.png",
+    "incidents.json",
+    "trace.zip",
+    "video/page@66bc18afe9eacbe1098274020ddcc4a7.webm"
+  ]
+}

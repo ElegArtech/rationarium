@@ -1,0 +1,21 @@
+{
+  "parcours": "P-104",
+  "persona": "Hugo",
+  "langue": "en",
+  "verdict": "rouge",
+  "objectif": "Le télétravail de l'organisation est piloté par Hugo : les plannings sont engendrés depuis les règles sur la plage voulue, et les statistiques d'un agent sont consultables.",
+  "chemin": [
+    "20 télétravail",
+    "20 jours fixes",
+    "20 vue équipe"
+  ],
+  "constate": "Génération 01/10→31/12/2026 : « Schedules generated: 13 created, 0 skipped. ». Rejeu sur la même plage : « Schedules generated: 0 created, 13 skipped. » — 0 créé et autant d'ignorés : constaté. Cumul du MOIS du connecté : affiché. Cumul de l'ANNÉE : ABSENT de la vue 20. La « Vue équipe » ne montre qu'un seul jour, un état par agent, sans aucun cumul ni accès aux statistiques d'un agent (clic sur une rangée : sans effet).",
+  "textes_absents": [],
+  "incidents": [],
+  "fuites_jeu1": [],
+  "preuves": [
+    "trace.zip",
+    "video/",
+    "incidents.json"
+  ]
+}

@@ -1,0 +1,6 @@
+userEmail,leaveTypeName,startDate,endDate,halfDay,comment
+l.vasseur@valmorin.fr,Réduction du temps de travail,2026-12-07,2026-12-08,,Import de recette
+m.corbin@valmorin.fr,Réduction du temps de travail,2026-12-09,2026-12-10,,Import de recette
+t.grasset@valmorin.fr,Réduction du temps de travail,2026-12-14,2026-12-15,,Ligne de l'importateur
+l.vasseur@valmorin.fr,Réduction du temps de travail,2026-12-07,2026-12-08,,Doublon exact
+x.inconnu@valmorin.fr,Réduction du temps de travail,2026-12-21,2026-12-22,,Agent inconnu

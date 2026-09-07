@@ -1,0 +1,30 @@
+{
+  "parcours": "P-13",
+  "persona": "Camille",
+  "langue": "en",
+  "verdict": "rouge",
+  "objectif": "Le profil de Camille porte son identité, son avatar, sa langue et son thème à jour, ainsi que la date de sa dernière connexion, et son mot de passe a été changé depuis cette page.",
+  "chemin": [
+    "06 tableau de bord",
+    "35 mon profil",
+    "35 onglet sécurité"
+  ],
+  "constate": "la vue 35 porte 2 onglets (Information / Security) au lieu des trois exigés « Informations personnelles / Sécurité / Préférences » · aucun contrôle d'avatar (RG-AUTH-09) : ni téléversement, ni visuel prédéfini, ni suppression",
+  "textes_absents": [],
+  "incidents": [],
+  "incidents_refus_attendus": [],
+  "fuites_jeu1": [],
+  "notes": [
+    "onglets rendus : [\"Information\",\"Security\"]",
+    "contrôles d'avatar (input[type=file]) : 0",
+    "dernière connexion : \"LAST SIGN-IN | 7 septembre 2026\""
+  ],
+  "preuves": [
+    "01-profil.png",
+    "02-langue-basculee.png",
+    "03-mot-de-passe-change.png",
+    "incidents.json",
+    "trace.zip",
+    "video"
+  ]
+}

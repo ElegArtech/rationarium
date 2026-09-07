@@ -1,0 +1,25 @@
+{
+  "parcours": "P-86",
+  "persona": "Fatou",
+  "langue": "en",
+  "verdict": "vert",
+  "objectif": "L'interrogation de Fatou sur plus de 366 jours de télétravail est refusée par un message, sans page d'erreur.",
+  "chemin": [
+    "06 tableau de bord",
+    "20 télétravail",
+    "20 fenêtre jours fixes",
+    "20 plage de 366 jours"
+  ],
+  "constate": "Plage de 367 jours : message « !\nThe date range cannot exceed 366 days. », commande « Generate » désactivée. Plage de 366 jours : commande active, message «  ».",
+  "textes_absents": [],
+  "incidents": [],
+  "fuites_jeu1": [],
+  "preuves": [
+    "01-plage-367.png",
+    "02-plage-366.png",
+    "incidents.json",
+    "trace.zip",
+    "video/page@7959501d8946554cb9c80f7193da5946.webm",
+    "video/page@c38e9a0ec36bd61fbed9b9e771507859.webm"
+  ]
+}

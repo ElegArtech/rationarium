@@ -1,0 +1,59 @@
+{
+  "parcours": "P-110",
+  "persona": "Inès",
+  "langue": "en",
+  "verdict": "vert",
+  "objectif": "Inès a la santé de son portefeuille en une page : progression des projets, niveau de santé de chacun, tendance de progression et stagnations signalées, le tout sur la période qu'elle a choisie.",
+  "chemin": [
+    "30 rapports"
+  ],
+  "constate": "The overview renders identical figures for all four periods (7/30/90/365 days); the « Advanced analytics » tab does change (progress trend). 16 tracked projects, one progress bar each — no truncation at ten, gaps in decreasing order. Health uses « Good », « Warning », « Critical »; the bounded panel announces its truncation and « Show all » unfolds it. The trend says « History still being built » at 30 days and draws a curve at 365; no stagnation to report on this dataset.",
+  "textes_absents": [],
+  "incidents": [],
+  "fuites_jeu1": [],
+  "controles": [
+    {
+      "nom": "le choix de période change les nombres affichés",
+      "ok": true,
+      "note": "vue d'ensemble IDENTIQUE et analytics change sur 7/30/90/365 jours"
+    },
+    {
+      "nom": "les trois niveaux de santé sont employés",
+      "ok": true,
+      "note": "un des trois niveaux manque"
+    },
+    {
+      "nom": "le graphique d'avancement montre tous les projets suivis, sans troncage à dix",
+      "ok": true,
+      "note": "16 projets suivis, 26 barres d'avancement relevées"
+    },
+    {
+      "nom": "les projets en retard sont ordonnés du plus en retard au moins",
+      "ok": true,
+      "note": "écarts relevés : 59, 43, 35, 28, 22, 18, 16, 13, 5"
+    },
+    {
+      "nom": "le panneau borné annonce son troncage",
+      "ok": true,
+      "note": "aucune annonce de troncage"
+    },
+    {
+      "nom": "« Tout afficher » déplie le panneau",
+      "ok": true,
+      "note": "le panneau reste borné après le clic"
+    },
+    {
+      "nom": "quand l'historique est trop court, la tendance le dit",
+      "ok": true,
+      "note": "la tendance ne dit rien de son historique"
+    }
+  ],
+  "preuves": [
+    "01-30-vue-ensemble.png",
+    "02-30-analytics.png",
+    "incidents.json",
+    "trace.zip",
+    "video/page@29c4703e1f73017f77d763fd589b60da.webm",
+    "video/page@50a014b657fd4cadbcaca39b20d951d0.webm"
+  ]
+}

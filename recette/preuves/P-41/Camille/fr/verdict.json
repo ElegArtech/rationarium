@@ -1,0 +1,29 @@
+{
+  "parcours": "P-41",
+  "persona": "Camille",
+  "langue": "fr",
+  "verdict": "rouge",
+  "objectif": "L'organigramme reste fermé à Camille : l'entrée de menu n'existe pas et l'adresse directe rend un refus nommé, pas des effectifs.",
+  "chemin": [
+    "06 tableau de bord",
+    "29 adresse directe"
+  ],
+  "constate": "la vue 29 ne dit pas « 🔒 Accès restreint » : elle rend « Permission requise ·  · Vous n'avez pas la permission d'ouvrir cette page. ·  · Retour à l'accueil ».",
+  "textes_absents": [
+    "Départements",
+    "🔒 Accès restreint"
+  ],
+  "incidents": [
+    "http — 403 GET http://127.0.0.1:4303/api/organisation",
+    "console — Failed to load resource: the server responded with a status of 403 (Forbidden)"
+  ],
+  "fuites_jeu1": [],
+  "preuves": [
+    "01-06-tableau-de-bord.png",
+    "02-29-adresse-directe.png",
+    "incidents.json",
+    "trace.zip",
+    "verdict.json",
+    "video"
+  ]
+}

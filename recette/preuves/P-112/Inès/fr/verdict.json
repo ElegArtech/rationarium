@@ -1,0 +1,153 @@
+{
+  "parcours": "P-112",
+  "persona": "Inès",
+  "langue": "fr",
+  "verdict": "rouge",
+  "objectif": "Inès lit son portefeuille dans le temps : le Gantt affiche une barre par projet avec son statut RAG, et l'échelle change ce qu'elle voit sans changer les données agrégées.",
+  "chemin": [
+    "30 rapports",
+    "30 onglet Gantt"
+  ],
+  "constate": "16 projets, 16 barres, statuts RAG complets ; quatre échelles proposées, le mois par défaut ; les numéros de semaine sont continus (S31…S29 sur 104 graduations) ; aucune gouttière ; la période d'analyse ne bouge pas. ROUGE — une graduation partielle est tronquée à deux échelles : à l'échelle Jour, la DERNIÈRE graduation (« 24/07 ») fait 8 px pour un libellé de 38 px ; à l'échelle Semaine, la PREMIÈRE (« S31 »/« W31 ») fait 14 px pour 26 px. Les échelles Mois et Trimestre sont indemnes. De plus, l'onglet est libellé « Gantt portefeuille » là où le parcours attend le littéral « Gantt Portfolio ».",
+  "textes_absents": [
+    "Gantt Portfolio"
+  ],
+  "incidents": [],
+  "fuites_jeu1": [],
+  "controles": [
+    {
+      "nom": "le vocabulaire RAG porte « On track »",
+      "ok": true,
+      "note": "absent de la frise"
+    },
+    {
+      "nom": "le vocabulaire RAG porte « À risque »",
+      "ok": true,
+      "note": "absent de la frise"
+    },
+    {
+      "nom": "le vocabulaire RAG porte « En retard »",
+      "ok": true,
+      "note": "absent de la frise"
+    },
+    {
+      "nom": "le vocabulaire RAG porte « À venir »",
+      "ok": true,
+      "note": "absent de la frise"
+    },
+    {
+      "nom": "le vocabulaire RAG porte « Terminé »",
+      "ok": true,
+      "note": "absent de la frise"
+    },
+    {
+      "nom": "une barre par projet du périmètre",
+      "ok": true,
+      "note": "16 lignes de projet, 16 barres"
+    },
+    {
+      "nom": "l'échelle « Jour » est proposée",
+      "ok": true,
+      "note": "absente"
+    },
+    {
+      "nom": "l'échelle « Semaine » est proposée",
+      "ok": true,
+      "note": "absente"
+    },
+    {
+      "nom": "l'échelle « Mois » est proposée",
+      "ok": true,
+      "note": "absente"
+    },
+    {
+      "nom": "l'échelle « Trimestre » est proposée",
+      "ok": true,
+      "note": "absente"
+    },
+    {
+      "nom": "le mois est l'échelle par défaut",
+      "ok": true,
+      "note": "aria-pressed = true"
+    },
+    {
+      "nom": "échelle Jour : étiquettes de graduation entières",
+      "ok": false,
+      "note": "1 étiquette(s) tronquée(s) : 24/07"
+    },
+    {
+      "nom": "échelle Jour : pas de gouttière",
+      "ok": true,
+      "note": "frise 30530 px pour un cadre de 1258 px"
+    },
+    {
+      "nom": "échelle Jour : défilement seulement si ça ne tient pas",
+      "ok": true,
+      "note": "défilement alors que tout tient"
+    },
+    {
+      "nom": "échelle Semaine : étiquettes de graduation entières",
+      "ok": false,
+      "note": "1 étiquette(s) tronquée(s) : S31"
+    },
+    {
+      "nom": "échelle Semaine : pas de gouttière",
+      "ok": true,
+      "note": "frise 10370 px pour un cadre de 1258 px"
+    },
+    {
+      "nom": "échelle Semaine : défilement seulement si ça ne tient pas",
+      "ok": true,
+      "note": "défilement alors que tout tient"
+    },
+    {
+      "nom": "échelle Mois : étiquettes de graduation entières",
+      "ok": true,
+      "note": "0 étiquette(s) tronquée(s) : "
+    },
+    {
+      "nom": "échelle Mois : pas de gouttière",
+      "ok": true,
+      "note": "frise 2594 px pour un cadre de 1258 px"
+    },
+    {
+      "nom": "échelle Mois : défilement seulement si ça ne tient pas",
+      "ok": true,
+      "note": "défilement alors que tout tient"
+    },
+    {
+      "nom": "échelle Trimestre : étiquettes de graduation entières",
+      "ok": true,
+      "note": "0 étiquette(s) tronquée(s) : "
+    },
+    {
+      "nom": "échelle Trimestre : pas de gouttière",
+      "ok": true,
+      "note": "frise 1258 px pour un cadre de 1258 px"
+    },
+    {
+      "nom": "échelle Trimestre : défilement seulement si ça ne tient pas",
+      "ok": true,
+      "note": "défilement alors que tout tient"
+    },
+    {
+      "nom": "les numéros de semaine sont continus d'une année à l'autre",
+      "ok": true,
+      "note": "numéros relevés : 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29"
+    },
+    {
+      "nom": "changer d'échelle ne change pas la période d'analyse",
+      "ok": true,
+      "note": "true → true"
+    }
+  ],
+  "preuves": [
+    "01-30-gantt-jour.png",
+    "02-30-gantt-semaine.png",
+    "03-30-gantt-mois.png",
+    "04-30-gantt-trimestre.png",
+    "incidents.json",
+    "trace.zip",
+    "video/page@063b58ea2c38d721942017cd7b01a056.webm"
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "parcours": "P-126",
+  "persona": "Karim",
+  "langue": "en",
+  "verdict": "vert",
+  "objectif": "Le rôle sur mesure de Karim existe : composé depuis un modèle, ses permissions cochées module par module dans la matrice, et la liste des rôles le porte avec son compte de permissions.",
+  "chemin": [
+    "entrée",
+    "32 rôles",
+    "32 fenêtre de création",
+    "32 après création",
+    "32 matrice",
+    "32 après enregistrement"
+  ],
+  "constate": "permissions à la création : 27 (modèle BASIC_USER) ; 24 commandes « tout sélectionner » (une par module) ; 960 cases de croisement module × action ; permissions après enregistrement : 28 ; attribution du rôle à k.brossard → 200 ; entrées de menu du porteur : STEERING ·  · Dashboard · Schedule ·  · PROJECTS ·  · Projects · Tasks · Events ·  · HUMAN RESOURCES ·  · Leave · Remote work · Time tracking ; les entrées de menu du porteur correspondent une à une à ses permissions",
+  "textes_absents": [],
+  "incidents": [],
+  "fuites_jeu1": [],
+  "preuves": [
+    "01-creation-role.png",
+    "02-matrice.png",
+    "03-liste-apres.png",
+    "99-porteur.png",
+    "incidents.json",
+    "trace.zip",
+    "video"
+  ]
+}

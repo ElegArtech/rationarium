@@ -1,0 +1,24 @@
+{
+  "parcours": "P-130",
+  "persona": "Karim",
+  "langue": "en",
+  "verdict": "vert",
+  "objectif": "Le journal d'audit ne se modifie pas : aucune commande d'écriture n'y existe, et aucune requête ne l'altère.",
+  "chemin": [
+    "entrée",
+    "33 journal d'audit",
+    "33 journal d'audit",
+    "06 tableau de bord",
+    "06 tableau de bord"
+  ],
+  "constate": "commandes de la vue : button \"Reset\" · button \"7 septembre 2026 less than a minute ago Sign-in auth.login.success User User 0000550b-0000-4000-8000-000000000005 Nathan Bouchard\" · button \"7 septembre 2026 49 minutes ago Role catalogue initialised role.seed Role Role System\" · button \"7 septembre 2026 50 minutes ago Remote work generated telework.generate JeuRecette JeuRecette 0000470b-0000-4000-8000-000000000000 System ; 4 champs, tous de filtrage (recherche, dates) ; PATCH /api/administration/audit/e839c0be-433f-4439-883c-0a3ee35a95c0 → 404 ; DELETE /api/administration/audit/e839c0be-433f-4439-883c-0a3ee35a95c0 → 404 ; POST /api/administration/audit/purger → 404 ; DELETE /api/administration/audit → 404 ; 16 entrées avant, 16 après",
+  "textes_absents": [],
+  "incidents": [],
+  "fuites_jeu1": [],
+  "preuves": [
+    "01-journal.png",
+    "incidents.json",
+    "trace.zip",
+    "video"
+  ]
+}

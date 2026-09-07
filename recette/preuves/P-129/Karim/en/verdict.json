@@ -1,0 +1,25 @@
+{
+  "parcours": "P-129",
+  "persona": "Karim",
+  "langue": "en",
+  "verdict": "vert",
+  "objectif": "Karim retrouve dans le journal qui a fait quoi, quand et sur quoi : la page est horodatée, filtrée, et distingue l'action système de l'action humaine — l'accès refusé d'un agent y figure.",
+  "chemin": [
+    "entrée",
+    "06 tableau de bord",
+    "33 journal d'audit",
+    "33 filtré"
+  ],
+  "constate": "connexion d'un agent : réelle, par le formulaire ; échecs de connexion → 401,401,401,401,429,429 ; accès refusé au journal → 403 ; déconnexion → 204 ; décision de congé → 201 ; téléchargement de document → 200 ; export de données → 200 ; acteur « System » distingué d'un acteur humain ; page 2 atteinte : ADMINISTRATION Audit log  Read-only consultation of recorded ; lignes : sans filtre 50, type 1, action 1, acteur 2, entité 44, dates 0",
+  "textes_absents": [],
+  "incidents": [],
+  "fuites_jeu1": [],
+  "preuves": [
+    "01-journal.png",
+    "02-pagination.png",
+    "03-filtres.png",
+    "incidents.json",
+    "trace.zip",
+    "video"
+  ]
+}

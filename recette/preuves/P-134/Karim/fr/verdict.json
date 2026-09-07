@@ -1,0 +1,35 @@
+{
+  "parcours": "P-134",
+  "persona": "Karim",
+  "langue": "fr",
+  "verdict": "rouge",
+  "objectif": "Le catalogue des tâches prédéfinies de Karim est constitué avec leurs couleurs, durées, poids et règles de récurrence, et la génération sur une plage rend compte de ce qu'elle a créé et ignoré.",
+  "chemin": [
+    "06 tableau de bord",
+    "34 tâches prédéfinies",
+    "34 fenêtre de création",
+    "34 refus du créneau sans horaires",
+    "34 tâche créée",
+    "34 règle — ordinale",
+    "34 règle — mensuelle au 31",
+    "34 règle créée",
+    "34 bilan de génération",
+    "34 seconde génération",
+    "09 grille d'activité, semaine du 28/09"
+  ],
+  "constate": "créneau sans horaires refusé avec son message ; AUCUN champ d'icône dans la fenêtre de création ; tâche créée, poids « Très lourde » : oui ; icône rendue : 0 (une tâche du jeu en rend 1) ; occurrences proposées : 1er, 2e, 3e, 4e, dernier ; la règle « le 31 de chaque mois » est au catalogue ; premier bilan : « (aucun) » ; second bilan (même plage, mêmes agents) : « Aucune créée · 1 ignorée » ; la nouvelle tâche a sa colonne dans la grille. Les trois durées et les trois types de récurrence sont proposés et nommés. Écart bloquant : EX-ACT-01 énumère l'icône parmi les attributs d'une tâche prédéfinie, et la fenêtre de création/modification n'offre aucun champ d'icône — la tâche créée est la seule du catalogue sans symbole (0 contre 1 pour une tâche du jeu).",
+  "textes_absents": [],
+  "incidents": [],
+  "fuites_jeu1": [],
+  "preuves": [
+    "01-01-catalogue.png",
+    "02-02-creneau-sans-horaires.png",
+    "03-03-tache-creee.png",
+    "04-04-regle-31.png",
+    "05-05-bilan-generation.png",
+    "06-06-bilan-seconde-generation.png",
+    "07-07-grille-30-septembre.png",
+    "trace.zip",
+    "video/"
+  ]
+}

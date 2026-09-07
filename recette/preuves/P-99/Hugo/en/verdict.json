@@ -1,0 +1,30 @@
+{
+  "parcours": "P-99",
+  "persona": "Hugo",
+  "langue": "en",
+  "verdict": "rouge",
+  "objectif": "Le fichier d'utilisateurs d'Hugo sans aucune ligne, puis celui aux adresses déjà prises, sont traités sans rien créer d'incohérent : les colonnes sont lues sur l'en-tête, et les collisions d'email et d'identifiant produisent deux messages distincts.",
+  "chemin": [
+    "27 utilisateurs",
+    "27 import — fichier vide",
+    "27 import — collisions"
+  ],
+  "constate": "Fichier d'en-têtes seuls : aperçu « CSV IMPORT | Import users | × | Expected format | email · login · password · firstName · lastName · role · departmentName · serviceNames | Download the CSV template | CSV file | vide.csv | Close | Import », compte rendu « CSV IMPORT | Import users | × | Expected format | email · login · password · firstName · lastName · role · departmentName · serviceNames | Download the CSV template | CSV file | vide.csv | 0 imported  ». Collisions email/identifiant : compte rendu « CSV IMPORT | Import users | × | Expected format | email · login · password · firstName · lastName · role · departmentName · serviceNames | Download the CSV template | CSV file | collisions.csv | 0 imported | 2 skipped | 0 in error | Skipped rows match entries that already exist: replaying a file doe » — messages distincts relevés : []. Effectif 30 → 30.",
+  "textes_absents": [],
+  "incidents": [
+    "http : 403 GET http://127.0.0.1:4308/api/organisation",
+    "console : Failed to load resource: the server responded with a status of 403 (Forbidden)",
+    "http : 403 GET http://127.0.0.1:4308/api/administration/roles",
+    "console : Failed to load resource: the server responded with a status of 403 (Forbidden)",
+    "http : 403 POST http://127.0.0.1:4308/api/imports/apercu?type=utilisateurs",
+    "console : Failed to load resource: the server responded with a status of 403 (Forbidden)",
+    "http : 403 POST http://127.0.0.1:4308/api/imports/apercu?type=utilisateurs",
+    "console : Failed to load resource: the server responded with a status of 403 (Forbidden)"
+  ],
+  "fuites_jeu1": [],
+  "preuves": [
+    "trace.zip",
+    "video/",
+    "incidents.json"
+  ]
+}

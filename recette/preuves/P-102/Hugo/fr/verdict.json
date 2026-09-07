@@ -1,0 +1,19 @@
+{
+  "parcours": "P-102",
+  "persona": "Hugo",
+  "langue": "fr",
+  "verdict": "vert",
+  "objectif": "Hugo n'a pas perdu sa saisie en quittant les paramètres : le départ vers une autre vue a déclenché un avertissement, distinct du bandeau qui signale la présence de modifications.",
+  "chemin": [
+    "31 paramètres"
+  ],
+  "constate": "Saisie effectuée dans « Affichage ». Bandeau « Vous avez des modifications non enregistrées. » : affiché. Départ vers « Congés » par la barre latérale : une confirmation s'affiche (URL après le clic : http://127.0.0.1:4308/parametres).",
+  "textes_absents": [],
+  "incidents": [],
+  "fuites_jeu1": [],
+  "preuves": [
+    "trace.zip",
+    "video/",
+    "incidents.json"
+  ]
+}

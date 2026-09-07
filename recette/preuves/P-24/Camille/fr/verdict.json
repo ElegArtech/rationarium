@@ -1,0 +1,49 @@
+{
+  "parcours": "P-24",
+  "persona": "Camille",
+  "langue": "fr",
+  "verdict": "rouge",
+  "objectif": "Camille ne dispose d'aucune commande de suppression sur une tâche qui ne lui est pas assignée, ni d'aucune commande de création dans un projet dont elle n'est pas membre.",
+  "chemin": [
+    "06 tableau de bord",
+    "16 tâches",
+    "17 fiche d'une tâche non assignée à Camille"
+  ],
+  "constate": "RG-TSK-14 : la commande de suppression est offerte, active et cliquable sur « Cartographie des contenus existants », à laquelle Camille n'est pas assignée — le serveur refuse après coup",
+  "textes_absents": [],
+  "incidents": [
+    {
+      "genre": "console",
+      "texte": "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "url": "http://127.0.0.1:4301/taches/0000540b-0000-4000-8000-000000000000"
+    },
+    {
+      "genre": "console",
+      "texte": "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "url": "http://127.0.0.1:4301/taches"
+    }
+  ],
+  "incidents_refus_attendus": [
+    "403 DELETE http://127.0.0.1:4301/api/taches/0000540b-0000-4000-8000-000000000000",
+    "403 GET http://127.0.0.1:4301/api/utilisateurs"
+  ],
+  "fuites_jeu1": [],
+  "notes": [
+    "assignés de « Cartographie des contenus existants » : \"MC\"",
+    "commande de suppression présente : true",
+    "commande de suppression désactivée : false",
+    "confirmation de suppression offerte : true",
+    "suite du geste : refus du serveur",
+    "projets proposés à la création : [\"Aucun projet (tâche indépendante)\",\"Refonte de l'intranet agents\",\"Guichet unique d'urbanisme\"]"
+  ],
+  "preuves": [
+    "01-fiche-autrui.png",
+    "02-fenetre-suppression.png",
+    "03-apres-suppression.png",
+    "03-fenetre-creation.png",
+    "04-fenetre-creation.png",
+    "incidents.json",
+    "trace.zip",
+    "video"
+  ]
+}

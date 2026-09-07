@@ -1,0 +1,25 @@
+{
+  "parcours": "P-34",
+  "persona": "Camille",
+  "langue": "en",
+  "verdict": "rouge",
+  "objectif": "Camille ne peut pas déclarer plus que le plafond journalier : la saisie qui le franchit est refusée en nommant le total déjà constaté et le plafond.",
+  "chemin": [
+    "21 temps passé"
+  ],
+  "constate": "le message ne porte pas le total déjà déclaré (3,5 h) — lu : « !\nThe total declared for this day would exceed the allowed cap. » — le message ne porte pas le plafond (12 h) — lu : « !\nThe total declared for this day would exceed the allowed cap. » — le 07/09/2026 porte déjà 3.5 h, plafond 12 h — message de refus : « !\nThe total declared for this day would exceed the allowed cap. »",
+  "textes_absents": [],
+  "incidents": [],
+  "incidents_ecartes": [
+    "401 GET http://127.0.0.1:4302/api/auth/me",
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "[refus métier attendu] 422 POST http://127.0.0.1:4302/api/temps",
+    "[écho du refus attendu] Failed to load resource: the server responded with a status of 422 (Unprocessable Entity)"
+  ],
+  "fuites_jeu1": [],
+  "preuves": [
+    "trace.zip",
+    "video/",
+    "incidents.json"
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "parcours": "P-98",
+  "persona": "Hugo",
+  "langue": "en",
+  "verdict": "rouge",
+  "objectif": "Les nouveaux agents sont créés en masse depuis le fichier d'Hugo, après prévisualisation, et le compte rendu dit combien ont été créés, ignorés et en erreur.",
+  "chemin": [
+    "06 tableau de bord",
+    "27 utilisateurs",
+    "27 fenêtre d'import"
+  ],
+  "constate": "Modèle CSV (GET /api/imports/modele?type=utilisateurs) : HTTP 403 — « {\"cle\":\"commun:droits.permissionRequise\"} ». Colonnes annoncées dans la fenêtre : « email · login · password · firstName · lastName · role · departmentName · serviceNames » (8). Aucun aperçu ne s'affiche avant l'exécution : POST /api/imports/apercu?type=utilisateurs répond 403. Compte rendu : CSV IMPORT | Import users | × | Expected format | email · login · password · firstName · lastName · role · departmentName · serviceNames | Download the CSV template | CSV file | utilisateurs.csv | 2 imported | 1 skipped | 1 in error | Skipped rows match entries that already exist: replaying a file does not create duplicates. | Row 5 — colonne « login » vide | Close. Effectif 30 → 32. Le compte « Noé Arbogast » apparaît dans la vue 27 avec son rôle.",
+  "textes_absents": [
+    "créés"
+  ],
+  "incidents": [
+    "http : 403 GET http://127.0.0.1:4308/api/organisation",
+    "console : Failed to load resource: the server responded with a status of 403 (Forbidden)",
+    "http : 403 GET http://127.0.0.1:4308/api/administration/roles",
+    "console : Failed to load resource: the server responded with a status of 403 (Forbidden)",
+    "http : 403 GET http://127.0.0.1:4308/api/imports/modele?type=utilisateurs",
+    "console : Failed to load resource: the server responded with a status of 403 (Forbidden)",
+    "http : 403 POST http://127.0.0.1:4308/api/imports/apercu?type=utilisateurs",
+    "console : Failed to load resource: the server responded with a status of 403 (Forbidden)"
+  ],
+  "fuites_jeu1": [],
+  "preuves": [
+    "trace.zip",
+    "video/",
+    "incidents.json"
+  ]
+}

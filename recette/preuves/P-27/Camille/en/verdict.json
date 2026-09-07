@@ -1,0 +1,32 @@
+{
+  "parcours": "P-27",
+  "persona": "Camille",
+  "langue": "en",
+  "verdict": "rouge",
+  "objectif": "Camille ne peut poser aucun congé qui chevauche un congé déjà approuvé ou une demande déjà en attente, ni créer ce chevauchement par une modification.",
+  "chemin": [
+    "19 congés"
+  ],
+  "constate": "incident : http — 500 POST http://127.0.0.1:4302/api/conges — incident : console — Failed to load resource: the server responded with a status of 500 (Internal Server Error) — chevauchement d'un approuvé : « !\nYou already have time off over this period. » — chevauchement d'une demande en attente : « !\nYou already have time off over this period. » — fin avant début : « !\nAn unexpected error occurred. The incident has been recorded. » — élargissement jusqu'au recouvrement : « !\nYou already have time off over this period. »",
+  "textes_absents": [],
+  "incidents": [
+    "http — 500 POST http://127.0.0.1:4302/api/conges",
+    "console — Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+  ],
+  "incidents_ecartes": [
+    "401 GET http://127.0.0.1:4302/api/auth/me",
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "[refus métier attendu] 409 POST http://127.0.0.1:4302/api/conges",
+    "[écho du refus attendu] Failed to load resource: the server responded with a status of 409 (Conflict)",
+    "[refus métier attendu] 409 POST http://127.0.0.1:4302/api/conges",
+    "[écho du refus attendu] Failed to load resource: the server responded with a status of 409 (Conflict)",
+    "[refus métier attendu] 409 PATCH http://127.0.0.1:4302/api/conges/0000630b-0000-4000-8000-000000000001",
+    "[écho du refus attendu] Failed to load resource: the server responded with a status of 409 (Conflict)"
+  ],
+  "fuites_jeu1": [],
+  "preuves": [
+    "trace.zip",
+    "video/",
+    "incidents.json"
+  ]
+}

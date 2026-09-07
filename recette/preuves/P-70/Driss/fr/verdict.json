@@ -1,0 +1,22 @@
+{
+  "parcours": "P-70",
+  "persona": "Driss",
+  "langue": "fr",
+  "verdict": "rouge",
+  "objectif": "Le projet abandonné de Driss est passé au statut Annulé et reste restaurable ; sa suppression définitive est refusée parce que du temps y est déclaré, et l'archivage est proposé à la place ; tant qu'il est annulé, il ne se modifie pas.",
+  "chemin": [
+    "10 portefeuille",
+    "11 fiche du projet"
+  ],
+  "constate": "le portefeuille n'offre aucune commande de suppression : la vue 10 ne porte que « Créer un projet » et ses filtres, la suppression ne se demande donc pas depuis le portefeuille ; l'annulation du projet s'exécute au premier clic, sans aucune confirmation : rien ne nomme le projet ni ses conséquences avant le geste (RG-GEN-01, RG-GEN-10) ; le projet ne porte pas le statut « Annulé » après l'annulation ; la suppression définitive n'est offerte nulle part à Driss : le refus nommant les données historiques et proposant l'archivage (RG-PRJ-03) est donc inobservable. commandes du portefeuille : [Créer un projet / Mes projets] ; bandeau : « Ce projet est annulé. Utilisez le point de restauration dédié pour le réactiver. | Restaurer | CRÉÉ PAR MALIK OUESLATI » ; carte au portefeuille après annulation : 1 par défaut, 1 avec le filtre « Annulé » ; sur le projet annulé : 0 bouton « Modifier » (inactif), 1 bouton « Restaurer ».",
+  "textes_absents": [],
+  "incidents": [],
+  "refus_attendus": [],
+  "fuites_jeu1": [],
+  "preuves": [
+    "01-apres-annulation.png",
+    "02-projet-annule.png",
+    "trace.zip",
+    "video/"
+  ]
+}

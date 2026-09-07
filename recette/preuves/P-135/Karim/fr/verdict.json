@@ -1,0 +1,25 @@
+{
+  "parcours": "P-135",
+  "persona": "Karim",
+  "langue": "fr",
+  "verdict": "rouge",
+  "objectif": "La tâche prédéfinie que Karim a désactivée n'est plus assignable, mais les assignations déjà posées restent visibles dans la grille d'activité.",
+  "chemin": [
+    "34 tâches prédéfinies",
+    "34 confirmation de désactivation",
+    "34 tâche désactivée",
+    "09 grille d'activité",
+    "34 génération"
+  ],
+  "constate": "la tâche est désactivée au catalogue ; la colonne de la tâche désactivée a disparu de la grille ; les assignations déjà posées (Maëlys Corbin, Noémie Ducasse, Priscilla Gomez le lundi) ne sont PLUS affichées ; l'assignation en masse ne propose plus la tâche désactivée ; un utilisateur sans droit sur les tâches prédéfinies ne voit aucune permanence.",
+  "textes_absents": [],
+  "incidents": [],
+  "fuites_jeu1": [],
+  "preuves": [
+    "01-01-desactivation.png",
+    "02-02-grille-apres-desactivation.png",
+    "03-03-assignation-en-masse.png",
+    "trace.zip",
+    "video/"
+  ]
+}

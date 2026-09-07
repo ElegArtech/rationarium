@@ -1,0 +1,21 @@
+{
+  "parcours": "P-56",
+  "persona": "Driss",
+  "langue": "fr",
+  "verdict": "vert",
+  "objectif": "Le Gantt du projet de Driss montre les tâches dans le temps et les liens de dépendance qui les relient.",
+  "chemin": [
+    "11 vue d'ensemble du projet",
+    "15 Gantt du projet"
+  ],
+  "constate": "Constaté — barres : 9 ; tâches datées listées : 9 · Constaté — liens de dépendance dessinés : 0 au repos, 2 sur une tâche sélectionnée, 4 avec « Afficher toutes les dépendances » · Constaté — barres après création d'une tâche sans date : 9",
+  "textes_absents": [],
+  "incidents": [],
+  "fuites_jeu1": [],
+  "preuves": [
+    "01-15-gantt.png",
+    "02-15-sans-date.png",
+    "trace.zip",
+    "video/"
+  ]
+}
