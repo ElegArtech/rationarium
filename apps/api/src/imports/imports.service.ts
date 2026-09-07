@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { parse } from "csv-parse/sync";
 import { stringify } from "csv-stringify/sync";
 import {
+  AVANCEMENT_TERMINE,
   CATEGORIES_COMPETENCE,
   DEMI_JOURNEES,
   PRIORITES,
@@ -419,6 +420,26 @@ export class ImportsService {
           });
         }
       }
+      /*
+       * `RG-TSK-17` — la cohérence entre `status` et `progress`, ligne à ligne.
+       *
+       * Le contrôle est ici, comme celui des énumérations et des bornes,
+       * parce que c'est le seul endroit qui connaisse le numéro de ligne du
+       * fichier. Une colonne absente ne dit rien — c'est l'écriture qui
+       * l'emporte à cent ; c'est la valeur EXPLICITE qui contredit.
+       */
+      if (
+        (type === "taches" || type === "projet") &&
+        NON_VIDE(ligne["status"]) &&
+        ligne["status"].trim() === "done" &&
+        NON_VIDE(ligne["progress"]) &&
+        Number(ligne["progress"].trim()) !== AVANCEMENT_TERMINE
+      ) {
+        erreurs.push({
+          ligne: i + 2,
+          message: `colonne « progress » : une tâche « done » est à ${AVANCEMENT_TERMINE}`,
+        });
+      }
       for (const { colonne, valeurs } of ENUMERATIONS[type] ?? []) {
         const brut = ligne[colonne];
         if (!NON_VIDE(brut)) continue;
@@ -698,7 +719,19 @@ export class ImportsService {
             priorite: (NON_VIDE(ligne["priority"]) ? ligne["priority"].trim() : "normal") as never,
             // `EX-TSK-08` — l'avancement importé. `Number("")` vaut zéro : le
             // filtre porte sur la chaîne, jamais sur sa conversion.
-            avancement: NON_VIDE(ligne["progress"]) ? Number(ligne["progress"]) : 0,
+            /*
+             * `RG-TSK-17` — une tâche importée déjà terminée entre à cent pour
+             * cent. Un fichier de reprise porte `status=done` sans toujours
+             * porter la colonne `progress` : sans cela, `RG-PRJ-07` rendait un
+             * projet clos à zéro pour cent dès le premier import.
+             * L'incohérence explicite, elle, est refusée à l'analyse, avec son
+             * numéro de ligne.
+             */
+            avancement: NON_VIDE(ligne["progress"])
+              ? Number(ligne["progress"])
+              : NON_VIDE(ligne["status"]) && ligne["status"].trim() === "done"
+                ? AVANCEMENT_TERMINE
+                : 0,
             dateDebut: dateDe(ligne["startDate"]),
             dateFin: dateDe(ligne["endDate"]),
             estimationHeures: NON_VIDE(ligne["estimatedHours"])

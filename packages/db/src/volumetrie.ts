@@ -170,16 +170,21 @@ export async function peupler(
   const etendue = cible.annees * 365;
   const taches = Array.from({ length: cible.taches }, (_, i) => {
     const debut = jour(aujourdhui, -etendue + ((i * 7) % etendue));
+    const statut = (["todo", "doing", "review", "done", "blocked"] as const)[i % 5]!;
     return {
       id: uuidDe("e1", i),
       titre: `Tâche ${i + 1}`,
       projectId: projets[i % projets.length]!.id,
       milestoneId: jalons[i % jalons.length]!.id,
-      statut: (["todo", "doing", "review", "done", "blocked"] as const)[i % 5]! as never,
+      statut: statut as never,
       priorite: (["low", "normal", "high", "critical"] as const)[i % 4]! as never,
       dateDebut: debut,
       dateFin: jour(debut, 1 + (i % 9)),
-      avancement: (i * 7) % 101,
+      // `RG-TSK-17` — le jeu de volumétrie écrit en base sans passer par le
+      // service : la règle ne s'y applique que si on l'y écrit. Un cinquième
+      // des tâches est terminé ; les laisser à un pourcentage quelconque
+      // ferait mentir la progression des deux cents projets qu'on mesure.
+      avancement: statut === "done" ? 100 : (i * 7) % 101,
       confidentielle: i % 97 === 0,
     };
   });

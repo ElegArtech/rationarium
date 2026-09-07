@@ -4,6 +4,7 @@
   "agentIndisponible": "This person is away over the period: leave, event, or a duty already assigned.",
   "allocationModifiee": "The balance has changed since you loaded it. Reload the request before approving.",
   "autoValidationInterdite": "You cannot approve your own request.",
+  "avancementIncoherent": "A completed task is at 100% progress. Change its status first to enter a different percentage.",
   "chevauchement": "You already have time off over this period.",
   "clientInactif": "This client is inactive and can no longer be linked.",
   "codeDejaPris": "This code is already in use. Choose another one.",

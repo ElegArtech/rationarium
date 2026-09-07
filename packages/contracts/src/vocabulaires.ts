@@ -40,6 +40,30 @@ export const STATUTS_TACHE = vocabulaire([
 ]);
 export type StatutTache = (typeof STATUTS_TACHE)[number]["code"];
 
+/**
+ * `RG-TSK-17` — **une tâche terminée est à cent pour cent d'avancement.**
+ *
+ * Le lien entre les deux champs manquait : on passait une tâche à *Terminé* et
+ * son avancement restait là où il était. `RG-PRJ-07` moyenne l'avancement des
+ * tâches pour rendre la progression d'un projet, et `RG-JAL-01` en déduit le
+ * statut d'un jalon : un projet entièrement terminé y affichait moins de cent
+ * pour cent, et un jalon dont toutes les tâches étaient closes restait « en
+ * cours ». Deux lectures calculées, fausses ensemble, sans rien pour les
+ * contredire.
+ *
+ * L'implication est **à sens unique** : terminer impose cent, cent n'impose pas
+ * de terminer — une tâche peut être achevée et attendre sa revue.
+ *
+ * La constante vit ici parce que les trois chemins d'écriture la partagent —
+ * la création, la modification et l'import — et que la fiche s'en sert pour
+ * n'offrir aucun réglage qui serait refusé (`RG-GEN-06`).
+ */
+export const AVANCEMENT_TERMINE = 100;
+
+/** L'avancement qu'un statut impose, ou `null` s'il n'en impose aucun. */
+export const avancementImposePar = (statut: StatutTache): number | null =>
+  statut === "done" ? AVANCEMENT_TERMINE : null;
+
 export const STATUTS_JALON = vocabulaire([
   { code: "pending", fr: "En attente", en: "Pending" },
   { code: "doing", fr: "En cours", en: "In progress" },

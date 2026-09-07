@@ -1,9 +1,15 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { Button } from "react-aria-components";
-import { STATUTS_TACHE, PRIORITES, ROLES_RACI } from "@rationarium/contracts";
+import {
+  STATUTS_TACHE,
+  PRIORITES,
+  ROLES_RACI,
+  avancementImposePar,
+  type StatutTache,
+} from "@rationarium/contracts";
 import * as api from "../../api/taches.js";
 import * as apiTemps from "../../api/occupations.js";
 import * as apiProjets from "../../api/projets.js";
@@ -39,6 +45,14 @@ import "./fiche.css";
  * écriture transmet la version lue ; un écart remonte en 409 avec un message
  * qui dit quoi faire — recharger — plutôt qu'un échec muet.
  */
+/**
+ * Le temps d'arrêt qui vaut « geste terminé » sur le curseur d'avancement.
+ *
+ * Assez court pour que l'enregistrement suive la main, assez long pour couvrir
+ * une rafale de flèches au clavier.
+ */
+const DELAI_CURSEUR = 500;
+
 export function FicheTache({ tacheId }: { tacheId: string }) {
   const { t } = useTranslation("taches");
   const { t: tErreurs } = useTranslation("erreurs");
@@ -49,6 +63,28 @@ export function FicheTache({ tacheId }: { tacheId: string }) {
   const [suppressionOuverte, setSuppressionOuverte] = useState(false);
   const [assignesOuvert, setAssignesOuvert] = useState(false);
   const [modificationOuverte, setModificationOuverte] = useState(false);
+  /*
+   * Le curseur d'avancement, pendant qu'on le déplace.
+   *
+   * Il était contrôlé par la valeur du serveur et écrivait à CHAQUE cran : un
+   * glissement de zéro à cinquante-cinq lançait onze requêtes `PATCH`, toutes
+   * porteuses de la MÊME version lue au rendu. La première passait, les dix
+   * autres remontaient un 409 de `RG-GEN-07` — la concurrence détectée était
+   * la nôtre, et l'utilisateur voyait onze échecs pour un seul geste.
+   *
+   * La valeur est donc tenue en local pendant le geste, et l'écriture part
+   * quand le geste s'arrête. Le délai vaut pour les deux entrées : à la souris
+   * il couvre le glissement, au clavier la rafale de flèches — un `pointerup`
+   * n'aurait rien réglé pour la seconde.
+   */
+  const [avancementSaisi, setAvancementSaisi] = useState<number | null>(null);
+  const minuterieAvancement = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (minuterieAvancement.current !== null) clearTimeout(minuterieAvancement.current);
+    },
+    [],
+  );
 
   const requete = useQuery({ queryKey: ["tache", tacheId], queryFn: () => api.fiche(tacheId) });
   const contexteTemps = useQuery({
@@ -60,11 +96,18 @@ export function FicheTache({ tacheId }: { tacheId: string }) {
 
   const modifier = useMutation({
     mutationFn: (champs: Parameters<typeof api.modifier>[1]) => api.modifier(tacheId, champs),
-    onSuccess: () => void client.invalidateQueries({ queryKey: ["tache", tacheId] }),
+    /*
+     * `onSuccess` REND sa promesse : react-query l'attend avant `onSettled`.
+     * La valeur locale du curseur n'est donc relâchée qu'une fois la fiche
+     * rechargée, sinon l'affichage retomberait sur l'ancien pourcentage entre
+     * la réponse et le rafraîchissement.
+     */
+    onSuccess: () => client.invalidateQueries({ queryKey: ["tache", tacheId] }),
     onError: (e) => {
       annoncer("err", messageErreur(e, tErreurs, t("fiche.echecEnregistrement")));
-      void client.invalidateQueries({ queryKey: ["tache", tacheId] });
+      return client.invalidateQueries({ queryKey: ["tache", tacheId] });
     },
+    onSettled: () => setAvancementSaisi(null),
   });
 
   if (requete.isPending) return <Chargement quoi={t("fiche.laTache")} />;
@@ -73,6 +116,34 @@ export function FicheTache({ tacheId }: { tacheId: string }) {
 
   const tache = requete.data;
   const incoherentes = tache.incoherences;
+
+  /*
+   * `RG-TSK-17` — le statut décide de l'avancement, à sens unique : une tâche
+   * terminée est à cent pour cent. Le curseur ne propose donc pas un réglage
+   * que le serveur refuserait (`RG-GEN-06`), et l'explication est écrite en
+   * clair sous lui — un curseur désactivé ne reçoit ni survol ni focus, une
+   * infobulle n'y serait jamais déclenchée.
+   */
+  const avancementImpose = avancementImposePar(tache.statut as StatutTache);
+  const avancementAffiche = avancementSaisi ?? tache.avancement;
+
+  /** Le geste est fini : UNE écriture, avec la version lue au rendu. */
+  const ecrireAvancement = (valeur: number) => {
+    minuterieAvancement.current = null;
+    if (valeur === tache.avancement) setAvancementSaisi(null);
+    else modifier.mutate({ version: tache.version, avancement: valeur });
+  };
+  const glisserAvancement = (valeur: number) => {
+    setAvancementSaisi(valeur);
+    if (minuterieAvancement.current !== null) clearTimeout(minuterieAvancement.current);
+    minuterieAvancement.current = setTimeout(() => ecrireAvancement(valeur), DELAI_CURSEUR);
+  };
+  /** Quitter le curseur n'attend pas le délai : ce qui est saisi part tout de suite. */
+  const validerAvancement = () => {
+    if (minuterieAvancement.current === null) return;
+    clearTimeout(minuterieAvancement.current);
+    if (avancementSaisi !== null) ecrireAvancement(avancementSaisi);
+  };
 
   return (
     <div className="page">
@@ -229,15 +300,17 @@ export function FicheTache({ tacheId }: { tacheId: string }) {
               min={0}
               max={100}
               step={5}
-              value={tache.avancement}
-              disabled={!modifiable}
+              value={avancementAffiche}
+              disabled={!modifiable || avancementImpose !== null}
               aria-label={t("fiche.avancement")}
-              onChange={(e) =>
-                modifier.mutate({ version: tache.version, avancement: Number(e.target.value) })
-              }
+              onChange={(e) => glisserAvancement(Number(e.target.value))}
+              onBlur={validerAvancement}
             />
-            <span className="pct-val">{tache.avancement} %</span>
+            <span className="pct-val">{avancementAffiche} %</span>
           </div>
+          {avancementImpose !== null ? (
+            <span className="field-hint">{t("fiche.avancementImpose")}</span>
+          ) : null}
         </div>
       </div>
 

@@ -1,0 +1,25 @@
+-- `RG-TSK-17` — une tâche terminée est à 100 % d'avancement.
+--
+-- MOTIF. La règle a été écrite le 2026-09-07, à l'usage : le cadrage était muet
+-- sur le lien entre les deux champs, et rien ne le faisait. Les trois chemins
+-- d'écriture la tiennent désormais — création, modification, import —, mais les
+-- lignes déjà en base restent fausses tant qu'on ne les touche pas. Or
+-- `RG-PRJ-07` moyenne l'avancement des tâches pour rendre la progression d'un
+-- projet et `RG-JAL-01` en déduit le statut d'un jalon : une instance en
+-- exploitation continuerait d'afficher un projet entièrement clos sous les cent
+-- pour cent. Corriger le code sans reprendre les données ne corrige que les
+-- tâches à venir.
+--
+-- PORTÉE. Aucune modification de structure : ni colonne, ni contrainte, ni
+-- index. C'est une reprise de données, et elle est idempotente — la rejouer ne
+-- change plus rien.
+--
+-- PAS DE CONTRAINTE `CHECK`. `C15` énumère les règles à doubler en base ;
+-- celle-ci n'y figure pas, et une contrainte refuserait au passage les jeux de
+-- données qui écrivent en base sans passer par le service.
+--
+-- RÉVERSIBILITÉ. Le retour arrière n'existe pas : les pourcentages d'avant
+-- n'étaient nulle part ailleurs qu'ici. C'est le prix d'une reprise de données,
+-- et il se paie une fois — un état incohérent n'a pas de valeur à restaurer.
+
+UPDATE "tasks" SET "avancement" = 100 WHERE "statut" = 'done' AND "avancement" <> 100;

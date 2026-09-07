@@ -3,7 +3,12 @@ import { PrismaService } from "../prisma.service.js";
 import { AuditService } from "../commun/audit.service.js";
 import { PerimetreService, type Perimetre } from "../commun/perimetre.service.js";
 import { NotificationsService } from "../notifications/notifications.service.js";
-import type { StatutTache, Priorite, RoleRaci } from "@rationarium/contracts";
+import {
+  avancementImposePar,
+  type StatutTache,
+  type Priorite,
+  type RoleRaci,
+} from "@rationarium/contracts";
 import { debutDuJour, echeanceAujourdhui, echeanceDepassee } from "../commun/dates.js";
 
 /**
@@ -31,6 +36,7 @@ export type EchecTache =
   | "deja_assigne"
   | "dates_incoherentes"
   | "horaires_incoherents"
+  | "avancement_incoherent"
   | "droit_de_creation_manquant"
   | "pas_membre_du_projet"
   | "suppression_reservee_aux_assignes"
@@ -46,6 +52,31 @@ export class ErreurTache extends Error {
     super(code);
   }
 }
+
+/**
+ * `RG-TSK-17` — l'avancement que le statut RÉSULTANT impose.
+ *
+ * Trois chemins d'écriture partagent cette fonction : la création, la
+ * modification, et l'import de tâches. La règle porte sur l'état résultant, pas
+ * sur le corps reçu — ne changer QUE le statut doit emporter l'avancement déjà
+ * en base, sinon la règle ne tiendrait que sur les saisies complètes.
+ *
+ * Le refus est aussi important que l'imposition : demander explicitement moins
+ * de cent sur une tâche qui restera terminée est une contradiction, et
+ * l'écraser en silence serait un réglage qui s'enregistre sans s'appliquer. On
+ * refuse, et le message dit par quoi commencer.
+ */
+const avancementResultant = (
+  statutResultant: StatutTache,
+  avancementDemande: number | undefined,
+): number | undefined => {
+  const impose = avancementImposePar(statutResultant);
+  if (impose === null) return avancementDemande;
+  if (avancementDemande !== undefined && avancementDemande !== impose) {
+    throw new ErreurTache("avancement_incoherent", { statut: statutResultant, impose });
+  }
+  return impose;
+};
 
 @Injectable()
 export class TachesService {
@@ -277,6 +308,14 @@ export class TachesService {
       ...new Set([...(donnees.assigneIds ?? []), ...parServices.map((s) => s.userId)]),
     ];
 
+    /*
+     * `RG-TSK-17` — créer une tâche DÉJÀ terminée l'écrit à cent pour cent.
+     * L'import de reprise crée exactement cela, et un fichier qui porte
+     * `status=done` sans colonne d'avancement produisait sinon un projet clos
+     * à zéro pour cent.
+     */
+    const avancement = avancementResultant(donnees.statut ?? "todo", donnees.avancement);
+
     const tache = await this.prisma.task.create({
       data: {
         titre: donnees.titre,
@@ -293,7 +332,7 @@ export class TachesService {
         estimationHeures: donnees.estimationHeures ?? null,
         // Absent du corps, il vaut zéro — la même valeur que le défaut de la
         // colonne, écrite ici pour que les deux ne puissent pas diverger.
-        avancement: donnees.avancement ?? 0,
+        avancement: avancement ?? 0,
         confidentielle: donnees.confidentielle ?? false,
         interventionExterieure: donnees.interventionExterieure ?? false,
         assignes: {
@@ -554,6 +593,16 @@ export class TachesService {
         }
       }
     }
+
+    /*
+     * `RG-TSK-17` — le statut RÉSULTANT décide de l'avancement, et il décide
+     * seul. Passer une tâche à *Terminé* sans toucher au curseur l'emporte à
+     * cent ; demander explicitement moins tout en la laissant terminée est
+     * refusé, pas écrasé.
+     */
+    const statutResultant = champs.statut ?? avant.statut;
+    const avancement = avancementResultant(statutResultant, champs.avancement);
+    if (avancement !== undefined) champs.avancement = avancement;
 
     const misAJour = await this.prisma.task.update({
       where: { id: taskId, version },

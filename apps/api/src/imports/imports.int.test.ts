@@ -1185,6 +1185,40 @@ describe("EX-TSK-08 — l'import porte l'avancement, et l'export le rend", () =>
     expect(apercu.erreurs[0]?.message).toContain("100");
   });
 
+  it("RG-TSK-17 — `status=done` sans colonne `progress` importe à 100, pas à zéro", async () => {
+    /*
+     * C'est la forme même d'un fichier de reprise : on charge l'historique
+     * d'un projet, statut par statut, et la colonne d'avancement n'est pas
+     * toujours du voyage. Sans la règle, `RG-PRJ-07` rendait un projet clos à
+     * zéro pour cent dès le premier import.
+     */
+    const fichier = ENTETE_TACHES + "Close sans pourcentage;;done;normal;;;;;;\n";
+    await imports.importerTachesProjet(projet, fichier, acteur);
+    const t = await prisma.task.findFirstOrThrow({
+      where: { projectId: projet, titre: "Close sans pourcentage" },
+    });
+    expect(t.avancement).toBe(100);
+  });
+
+  it("RG-TSK-17 — `status=done` avec un `progress` contradictoire est une LIGNE EN ERREUR", async () => {
+    /*
+     * L'écriture emporte ce qui manque ; elle ne corrige pas ce qui contredit.
+     * Le contrôle est à l'analyse, seul endroit qui connaisse le numéro de
+     * ligne du fichier — et `RG-IMP-03` veut que le problème se voie AVANT
+     * d'écrire.
+     */
+    const fichier = ENTETE_TACHES + "Terminée à moitié;;done;normal;;;;;;50\n";
+    const apercu = imports.analyser("taches", fichier);
+    expect(apercu.erreurs).toHaveLength(1);
+    expect(apercu.erreurs[0]?.ligne).toBe(2);
+    expect(apercu.erreurs[0]?.message).toContain("progress");
+
+    // Et la même ligne, cohérente, ne dit rien.
+    expect(
+      imports.analyser("taches", ENTETE_TACHES + "Terminée;;done;normal;;;;;;100\n").erreurs,
+    ).toEqual([]);
+  });
+
   it("EX-IMP — l'export ÉCRIT l'avancement, sans quoi l'aller-retour le perd", async () => {
     /*
      * Le défaut d'origine, remonté d'un cran : ajouter la colonne à l'import

@@ -176,6 +176,16 @@ export const MESSAGES_METIER: Record<string, Message> = {
     "erreurs:raciEnDouble",
     "Cette personne porte déjà ce rôle sur la tâche.",
   ),
+  /*
+   * `RG-TSK-17` — l'implication est à sens unique, et le message le dit : ce
+   * qu'il faut changer d'abord, c'est le STATUT. « Valeur refusée » sans cela
+   * laisserait croire à une borne de saisie.
+   */
+  avancement_incoherent: m(
+    422,
+    "erreurs:avancementIncoherent",
+    "Une tâche terminée est à 100 % d'avancement. Changez d'abord son statut pour saisir un autre pourcentage.",
+  ),
   hors_projet_avec_jalon: m(
     422,
     "erreurs:horsProjetAvecJalon",

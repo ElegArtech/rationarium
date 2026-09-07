@@ -1259,6 +1259,72 @@ describe("EX-TSK-07 — modifier depuis la FICHE : ce que la fiche rend compose 
   });
 });
 
+/**
+ * `RG-TSK-17` — une tâche terminée est à cent pour cent.
+ *
+ * La règle a été écrite le 2026-09-07, à l'usage : le cadrage ne disait rien du
+ * lien entre les deux champs, et rien ne le faisait. `RG-PRJ-07` moyennant
+ * l'avancement des tâches, un projet entièrement clos affichait moins de cent
+ * pour cent — deux lectures calculées, fausses ensemble, sans rien pour les
+ * contredire.
+ */
+describe("RG-TSK-17 — le statut Terminé emporte l'avancement", () => {
+  it("RG-TSK-17 — passer une tâche à Terminé la porte à 100, sans qu'on le demande", async () => {
+    const a = await agent();
+    const t = await creerTache([a]);
+    const p = await globalP();
+
+    await taches.modifier(t, { version: 1, avancement: 40 }, a, DROITS_CREATION);
+    expect((await taches.fiche(t, p, toutes)).avancement).toBe(40);
+
+    // Le corps ne porte QUE le statut : c'est le geste réel de la fiche et du
+    // kanban, et c'est celui qui ne faisait rien.
+    await taches.modifier(t, { version: 2, statut: "done" }, a, DROITS_CREATION);
+    expect((await taches.fiche(t, p, toutes)).avancement).toBe(100);
+  });
+
+  it("RG-TSK-17 — créer une tâche DÉJÀ terminée l'écrit à 100, pas à zéro", async () => {
+    const t = await taches.creer(
+      { titre: "Reprise d'historique", statut: "done" },
+      acteur,
+      DROITS_CREATION,
+    );
+    expect(t.avancement).toBe(100);
+  });
+
+  it("RG-TSK-17 — l'implication est à SENS UNIQUE : 100 % n'impose pas Terminé", async () => {
+    /*
+     * `STATUTS_TACHE` porte « En revue » : une tâche peut être achevée et
+     * attendre son contrôle. Refermer la règle dans l'autre sens rendrait ce
+     * statut inatteignable pour une tâche finie.
+     */
+    const a = await agent();
+    const t = await creerTache([a]);
+    await taches.modifier(t, { version: 1, statut: "review", avancement: 100 }, a, DROITS_CREATION);
+    const apres = await taches.fiche(t, await globalP(), toutes);
+    expect(apres.statut).toBe("review");
+    expect(apres.avancement).toBe(100);
+  });
+
+  it("RG-TSK-17 — un avancement contradictoire est REFUSÉ, pas écrasé en silence", async () => {
+    const a = await agent();
+    const t = await creerTache([a]);
+    await taches.modifier(t, { version: 1, statut: "done" }, a, DROITS_CREATION);
+
+    // La tâche reste terminée : demander 60 est une contradiction, et
+    // l'écraser à 100 serait un réglage qui s'enregistre sans s'appliquer.
+    await expect(
+      taches.modifier(t, { version: 2, avancement: 60 }, a, DROITS_CREATION),
+    ).rejects.toMatchObject({ code: "avancement_incoherent" });
+    expect((await taches.fiche(t, await globalP(), toutes)).avancement).toBe(100);
+
+    // La sortie existe, et c'est celle que le message nomme : changer le
+    // statut dans la MÊME requête.
+    await taches.modifier(t, { version: 2, statut: "doing", avancement: 60 }, a, DROITS_CREATION);
+    expect((await taches.fiche(t, await globalP(), toutes)).avancement).toBe(60);
+  });
+});
+
 describe("EX-TSK-08 — le pourcentage d'avancement", () => {
   it("EX-TSK-08 — l'avancement s'écrit et se relit sur la fiche", async () => {
     const a = await agent();

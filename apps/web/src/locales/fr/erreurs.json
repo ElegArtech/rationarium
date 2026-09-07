@@ -4,6 +4,7 @@
   "agentIndisponible": "Cette personne est absente sur la période : congé, événement ou permanence déjà posée.",
   "allocationModifiee": "Le solde a changé depuis votre lecture. Rechargez la demande avant de valider.",
   "autoValidationInterdite": "Vous ne pouvez pas valider votre propre demande.",
+  "avancementIncoherent": "Une tâche terminée est à 100 % d'avancement. Changez d'abord son statut pour saisir un autre pourcentage.",
   "chevauchement": "Vous avez déjà une absence sur cette période.",
   "clientInactif": "Ce client est inactif : il ne peut plus être rattaché.",
   "codeDejaPris": "Ce code est déjà utilisé. Choisissez-en un autre.",

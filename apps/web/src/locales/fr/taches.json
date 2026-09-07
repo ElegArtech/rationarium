@@ -95,6 +95,7 @@
     "supprimee": "Tâche supprimée.",
     "echecEnregistrement": "La modification n'a pas été enregistrée.",
     "avancement": "Avancement",
+    "avancementImpose": "Une tâche terminée est à 100 %. Changez son statut pour saisir un autre pourcentage.",
     "description": "Description",
     "aucuneDescription": "Aucune description",
     "sousTaches": "Sous-tâches",

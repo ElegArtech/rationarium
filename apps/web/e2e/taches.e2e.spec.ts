@@ -1252,6 +1252,56 @@ test.describe("Vue 17 — les horaires et le rattachement, à l'écran", () => {
     });
   });
 
+  /*
+   * `RG-GEN-07` pris à l'envers : la concurrence détectée était la NÔTRE.
+   *
+   * Le curseur écrivait à chaque cran, toujours avec la version lue au rendu.
+   * Un glissement produisait donc une rafale de `PATCH` dont la première seule
+   * pouvait passer — onze 409 dans la console pour un seul geste. Le contrôle
+   * frappe des flèches, parce qu'un `fill()` sur un curseur ne produit qu'un
+   * évènement et passerait AVEC comme SANS le correctif.
+   */
+  test("RG-GEN-07 — le curseur d'avancement écrit UNE fois, pas un envoi par cran", async ({
+    page,
+  }) => {
+    await serveur(page, { session: SESSION_TACHES, reponses: fiche });
+    const envois = await journalPatch(page);
+    await page.goto(`/taches/${FICHE.id}`);
+
+    const curseur = page.getByLabel("Avancement", { exact: true });
+    await curseur.focus();
+    for (let i = 0; i < 5; i += 1) await page.keyboard.press("ArrowRight");
+    // Le pas est de cinq : cinq crans depuis 45 mènent à 70.
+    await expect(curseur).toHaveValue("70");
+
+    await expect.poll(() => envois, { timeout: 3000 }).toHaveLength(1);
+    expect(envois[0]).toEqual({ version: FICHE.version, avancement: 70 });
+  });
+
+  /*
+   * `RG-TSK-17` — le statut décide, et l'interface ne propose pas ce que le
+   * serveur refuserait (`RG-GEN-06`). L'explication est du texte visible : un
+   * curseur désactivé ne reçoit ni survol ni focus, une infobulle n'y serait
+   * jamais déclenchée.
+   */
+  test("RG-TSK-17 — sur une tâche terminée, le curseur est à 100 et inerte, avec son motif", async ({
+    page,
+  }) => {
+    const close = { ...FICHE, statut: "done", avancement: 100 };
+    await serveur(page, {
+      session: SESSION_TACHES,
+      reponses: { ...fiche, [`/api/taches/${FICHE.id}`]: { corps: close } },
+    });
+    await page.goto(`/taches/${FICHE.id}`);
+
+    const curseur = page.getByLabel("Avancement", { exact: true });
+    await expect(curseur).toHaveValue("100");
+    await expect(curseur).toBeDisabled();
+    await expect(
+      page.getByText("Une tâche terminée est à 100 %.", { exact: false }),
+    ).toBeVisible();
+  });
+
   test("EX-TSK-15 — le projet se choisit sur la fiche, il n'est plus en lecture seule", async ({
     page,
   }) => {

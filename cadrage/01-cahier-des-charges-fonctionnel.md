@@ -437,6 +437,9 @@ Trois niveaux : **Direction → Département → Service**.
 - **RG-TSK-14** — Sans permission élargie, un utilisateur ne peut supprimer que les tâches qui lui sont assignées.
 - **RG-TSK-15** — Les assignés proposés sont en priorité les membres du projet ; si le projet n'a pas de membre, tous les utilisateurs sont proposés, et l'interface l'explique.
 - **RG-TSK-16** — Les colonnes *À faire* et *Terminé* du kanban ne peuvent pas être masquées.
+- **RG-TSK-17** — Une tâche au statut *Terminé* est à **100 % d'avancement**. Passer une tâche à *Terminé* emporte son avancement ; l'implication est à sens unique — 100 % n'impose pas de statut, une tâche peut être achevée et attendre sa revue. Un avancement explicitement inférieur à 100 % sur une tâche qui reste *Terminée* est **refusé**, jamais écrasé en silence. La règle vaut sur les trois chemins d'écriture : création, modification, import.
+
+  *Écrit le 2026-09-07, à l'usage.* Le cadrage ne disait rien du lien entre les deux champs, et l'implémentation ne l'avait donc pas fait : une tâche passée à *Terminé* gardait son avancement. Or `RG-PRJ-07` moyenne l'avancement des tâches pour rendre la progression d'un projet, et `RG-JAL-01` en déduit le statut d'un jalon — un projet dont toutes les tâches étaient closes affichait moins de cent pour cent, et son jalon restait « en cours ». **Deux lectures calculées, fausses ensemble, donc aucune divergence pour les signaler.** Le sens de l'implication a été tranché par le vocabulaire lui-même : `STATUTS_TACHE` porte *En revue*, qui n'aurait aucun sens si cent pour cent valait terminé.
 
 ---
 

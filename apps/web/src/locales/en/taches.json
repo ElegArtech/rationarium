@@ -95,6 +95,7 @@
     "supprimee": "Task deleted.",
     "echecEnregistrement": "The change was not saved.",
     "avancement": "Progress",
+    "avancementImpose": "A completed task is at 100%. Change its status to enter a different percentage.",
     "description": "Description",
     "aucuneDescription": "No description",
     "sousTaches": "Subtasks",
