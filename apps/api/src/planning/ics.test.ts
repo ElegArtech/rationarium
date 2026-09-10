@@ -197,3 +197,24 @@ describe("EX-PLN-15 — lecture", () => {
     expect(analyserIcs("n'importe quoi").evenements).toEqual([]);
   });
 });
+
+describe("EX-PLN-15 — aucune altération silencieuse des horaires importés", () => {
+  it.each([
+    ["DTSTART;TZID=America/New_York:20260910T080000", "DTEND;TZID=America/New_York:20260910T090000", "fuseau_non_pris_en_charge"],
+    ["DTSTART;VALUE=DATE:20260910garbage", "", "date_invalide"],
+    ["DTSTART:20260910T080000", "", "incomplet"],
+  ])("EX-PLN-15 — rejette explicitement %s", (debut, fin, motif) => {
+    const lu = analyserIcs(["BEGIN:VCALENDAR", "BEGIN:VEVENT", "SUMMARY:Horaire externe", debut, fin, "END:VEVENT", "END:VCALENDAR"].join("\n"));
+    expect(lu.evenements).toEqual([]); expect(lu.ignores).toBe(1);
+    expect(lu.erreurs).toMatchObject([{ motif }]);
+  });
+});
+
+it.each([
+  ["20260910T080000Z", "20260910T090000Z", "2026-09-10", "10:00", "11:00"],
+  ["20260110T080000Z", "20260110T090000Z", "2026-01-10", "09:00", "10:00"],
+  ["20260910T230000Z", "20260910T233000Z", "2026-09-11", "01:00", "01:30"],
+])("EX-PLN-15 — convertit UTC vers Paris sans perdre le jour : %s", (debut, fin, date, heureDebut, heureFin) => {
+  const lu = analyserIcs(`BEGIN:VCALENDAR\nBEGIN:VEVENT\nSUMMARY:UTC\nDTSTART:${debut}\nDTEND:${fin}\nEND:VEVENT\nEND:VCALENDAR`);
+  expect(lu.ignores).toBe(0); expect(lu.evenements).toMatchObject([{ date, heureDebut, heureFin }]);
+});

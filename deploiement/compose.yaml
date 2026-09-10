@@ -8,7 +8,8 @@
 # énuméré dans `README.md § 6` — ce n'est pas une variante de ce fichier, c'est
 # une décision à prendre puis à éprouver.
 #
-# Trois services et un seul état persistant : la base. C'est `C1` appliqué —
+# Base, serveur et façade ; migrations et amorçage ponctuels. Base et magasin
+# documentaire sont sauvegardés ensemble. C'est `C1` appliqué —
 # chaque service supplémentaire est une pièce à installer, sauvegarder,
 # superviser et redémarrer (`cadrage/03 § 231`).
 # ════════════════════════════════════════════════════════════════════════════
@@ -110,6 +111,7 @@ services:
     environment:
       DATABASE_URL: postgres://${POSTGRES_UTILISATEUR}:${POSTGRES_MOTDEPASSE}@base:5432/${POSTGRES_BASE:-rationarium}
       COOKIE_SECRET: ${COOKIE_SECRET:?secret de session requis}
+      RATIONARIUM_DOCUMENTS: /var/lib/rationarium/documents
       RATIONARIUM_FUSEAU: ${RATIONARIUM_FUSEAU:-Europe/Paris}
       RATIONARIUM_CRON_ALERTES: ${RATIONARIUM_CRON_ALERTES:-0 7 * * *}
       SMTP_HOTE: ${SMTP_HOTE:-}
@@ -117,6 +119,8 @@ services:
       SMTP_TLS: ${SMTP_TLS:-false}
       SMTP_UTILISATEUR: ${SMTP_UTILISATEUR:-}
       SMTP_MOTDEPASSE: ${SMTP_MOTDEPASSE:-}
+    volumes:
+      - documents:/var/lib/rationarium/documents
     healthcheck:
       # La sonde de DISPONIBILITÉ, pas celle de vivacité : Compose s'en sert
       # pour savoir quand relayer le trafic. Voir `sante.controller.ts`, où la
@@ -149,5 +153,6 @@ services:
       - caddy:/data
 
 volumes:
+  documents:
   donnees:
   caddy:

@@ -66,7 +66,18 @@
     "categoriesIcone": "Icon categories",
     "toutesCategories": "All",
     "bibliothequeIcones": "Icon library",
-    "aucuneIconeTrouvee": "No icon found"
+    "aucuneIconeTrouvee": "No icon found",
+    "archives": "Archived projects",
+    "chefId": "Project manager",
+    "sponsorId": "Sponsor",
+    "departementId": "Department",
+    "selectionConservee": "Current selection retained",
+    "choixRestreint": "Your permissions do not allow selection from this directory.",
+    "choixErreur": "Choices could not be loaded. Close and reopen the form to retry.",
+    "annulerUnProjet": "Cancel a project",
+    "projetAAnnuler": "Project to cancel",
+    "choisirProjet": "Select a project…",
+    "annulationListe": "Choose a project from the displayed results. Already cancelled projects are not listed."
   },
   "fiche": {
     "leProjet": "the project",
@@ -130,7 +141,9 @@
     "progressionAu": "Progress on {date}",
     "tachesFiniesSur": "{finies, number} done out of {total, number}",
     "historiqueVide": "No snapshot for this project",
-    "historiqueVideExplication": "A snapshot is captured automatically every night. Use “Take a snapshot” to freeze today's progress without waiting."
+    "historiqueVideExplication": "A snapshot is captured automatically every night. Use “Take a snapshot” to freeze today's progress without waiting.",
+    "historiqueRestreint": "Snapshots cover the entire project. Your scope does not allow access to this project-wide history.",
+    "instantanePrisRestreint": "Snapshot saved. Its project-wide contents are outside your viewing scope."
   },
   "jalons": {
     "laFeuille": "the roadmap",

@@ -155,7 +155,7 @@ export const SEMAINE = {
   occupations: {
     taches: [
       {
-        id: "t-note", titre: "Rédiger la note de cadrage", statut: "doing",
+        id: "t-note", titre: "Rédiger la note de cadrage", version: 1, statut: "doing",
         priorite: "high", avancement: 40,
         dateDebut: "2026-08-10", dateFin: "2026-08-11",
         heureDebut: null, heureFin: null, interventionExterieure: false,
@@ -164,7 +164,7 @@ export const SEMAINE = {
       },
       {
         // Hors projet : filet interrompu, visuellement distincte.
-        id: "t-veille", titre: "Veille technique", statut: "todo",
+        id: "t-veille", titre: "Veille technique", version: 1, statut: "todo",
         priorite: "low", avancement: 0,
         dateDebut: "2026-08-12", dateFin: "2026-08-12",
         heureDebut: null, heureFin: null, interventionExterieure: false,
@@ -172,7 +172,7 @@ export const SEMAINE = {
       },
       {
         // `RG-TSK-11` — multi-assignée : la date ne se déplace pas d'ici.
-        id: "t-partagee", titre: "Recette croisée", statut: "review",
+        id: "t-partagee", titre: "Recette croisée", version: 1, statut: "review",
         priorite: "normal", avancement: 60,
         dateDebut: "2026-08-13", dateFin: "2026-08-13",
         heureDebut: null, heureFin: null, interventionExterieure: false,
@@ -226,7 +226,7 @@ export const SEMAINE = {
         id: "a-accueil", userId: "u-solo", date: "2026-08-10",
         periode: "full_day", realisee: false,
         predefinedTask: {
-          id: "pt1", nom: "Permanence accueil", couleur: null, icone: null,
+          actif: true, id: "pt1", nom: "Permanence accueil", couleur: null, icone: null,
           heureDebut: "08:30", heureFin: "12:30",
         },
       },
@@ -276,7 +276,7 @@ export const MOIS = {
     taches: [
       ...SEMAINE.occupations.taches,
       ...["Reprise des libellés", "Recette portail", "Charte éditoriale"].map((titre, i) => ({
-        id: `t-charge-${i}`, titre, statut: "doing",
+        id: `t-charge-${i}`, titre, version: 1, statut: "doing",
         priorite: "normal", avancement: 10,
         dateDebut: "2026-08-13", dateFin: "2026-08-13",
         heureDebut: null, heureFin: null, interventionExterieure: false,
@@ -308,10 +308,10 @@ export const AUCUNE_RESSOURCE = {
 export const GRILLE_ACTIVITE = {
   colonnes: [
     {
-      id: "pt1", nom: "Permanence accueil", couleur: null, icone: null,
+      actif: true, id: "pt1", nom: "Permanence accueil", couleur: null, icone: null,
       heureDebut: "08:30", heureFin: "12:30",
     },
-    { id: "pt2", nom: "Astreinte technique", couleur: null, icone: null, heureDebut: null, heureFin: null },
+    { actif: true, id: "pt2", nom: "Astreinte technique", couleur: null, icone: null, heureDebut: null, heureFin: null },
   ],
   lignes: jours("2026-08-10", 7).map((date, i) => ({
     date,
@@ -327,12 +327,12 @@ export const GRILLE_ACTIVITE = {
                    à rien — les deux cas doivent tenir. */
                 {
                   id: "u-ana", prenom: "Ana", nom: "Berger",
-                  assignationId: "as1", periode: "full_day", realisee: true,
+                  version: 1, assignationId: "as1", periode: "full_day", realisee: true,
                   services: [{ service: { id: "s1", nom: "Études et développement" } }],
                 },
                 {
                   id: "u-bruno", prenom: "Bruno", nom: "Costa",
-                  assignationId: "as2", periode: "full_day", realisee: false,
+                  version: 1, assignationId: "as2", periode: "full_day", realisee: false,
                   services: [],
                 },
               ]

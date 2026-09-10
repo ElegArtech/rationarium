@@ -323,9 +323,9 @@ export class ProjetsController {
    */
   @Post(":id/instantane")
   @RequiertPermission("reports:read")
-  instantane(@Param("id") id: string, @Body() corps: unknown) {
+  instantane(@Param("id") id: string, @Body() corps: unknown, @Demande() d: ContexteDemande) {
     const { date } = valider(z.object({ date: dateSchema }), corps);
-    return this.projets.capturerInstantane(id, date);
+    return this.projets.capturerPourLecteur(id, date, d.perimetre, d.permissions);
   }
 
   /**

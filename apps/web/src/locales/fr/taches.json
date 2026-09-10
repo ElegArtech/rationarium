@@ -31,6 +31,8 @@
     "nouvelleTache": "Nouvelle tâche",
     "projet": "Projet",
     "tousProjets": "Tous les projets",
+    "statut": "Statut",
+    "tousStatuts": "Tous les statuts",
     "priorite": "Priorité",
     "toutesPriorites": "Toutes les priorités",
     "sansProjet": "Tâches sans projet",
@@ -79,7 +81,12 @@
     "videAucune": "Aucune tâche n’a encore été créée.",
     "statutMisAJour": "Statut mis à jour.",
     "echecStatut": "Le statut n’a pas pu être modifié.",
-    "statutDe": "Statut de « {titre} »"
+    "statutDe": "Statut de « {titre} »",
+    "inviterService": "Inviter un service entier",
+    "choisirService": "Choisir un service",
+    "ajouterService": "Ajouter le service",
+    "servicesAdmissibles": "Services dont tous les membres visibles sont proposés pour cette tâche.",
+    "serviceDoublons": "Déjà assignés : {noms}. Seuls les autres membres ont été ajoutés."
   },
   "fiche": {
     "laTache": "la tâche",
@@ -212,7 +219,18 @@
     "jalon": "Jalon",
     "aucunJalon": "Aucun jalon",
     "jalonDuProjet": "Seuls les jalons de ce projet sont proposés.",
-    "confidentielleAide": "Une tâche confidentielle n'est lisible qu'avec la permission dédiée — y être assigné ne suffit pas."
+    "aucuneEpopee": "Aucune épopée",
+    "epopeeDuProjet": "Seules les épopées de ce projet sont proposées.",
+    "confidentielleAide": "Une tâche confidentielle n'est lisible qu'avec la permission dédiée — y être assigné ne suffit pas.",
+    "raciAttribue": "Rôle RACI attribué.",
+    "raciRetire": "Rôle RACI retiré.",
+    "raciChoisir": "Choisissez un agent.",
+    "raciDoublon": "Cet agent porte déjà ce rôle RACI.",
+    "raciAgent": "Agent",
+    "raciRole": "Rôle",
+    "raciAttribuer": "Attribuer le rôle",
+    "raciAnnuaireRestreint": "Sans droit de lecture de l’annuaire, seul votre compte est proposé.",
+    "raciAnnuaireErreur": "Impossible de charger l’annuaire. Rouvrez la fiche pour réessayer."
   },
   "onglet": {
     "titre": "Tableau des tâches",

@@ -43,6 +43,14 @@
     "monProfil": "Mon profil",
     "deconnexion": "Déconnexion"
   },
+  "recherche": {
+    "resultatsPour": "Résultats de recherche pour « {terme} »",
+    "chargement": "Recherche en cours…",
+    "erreur": "La recherche n’a pas pu être chargée. Réessayez.",
+    "aucun": "Aucun projet ni aucune tâche visible ne correspond à « {terme} ».",
+    "projets": "Projets",
+    "taches": "Tâches"
+  },
   "notifications": {
     "titre": "Notifications",
     "aucune": "Aucune notification",
@@ -73,7 +81,7 @@
     "compteActif": "Compte actif",
     "seDeconnecter": "Se déconnecter",
     "sections": "Sections du profil",
-    "onglet_info": "Informations",
+    "onglet_info": "Informations personnelles",
     "onglet_sec": "Sécurité",
     "modifiableParVous": "Modifiable par vous",
     "modifiableParVousAide": "Ces informations vous appartiennent : modifiez-les quand vous le souhaitez.",
@@ -107,6 +115,38 @@
     "themeSombre": "Sombre",
     "themeAuto": "Automatique",
     "enregistre": "Profil enregistré.",
-    "echecEnregistrement": "L'enregistrement a échoué."
+    "echecEnregistrement": "L'enregistrement a échoué.",
+    "onglet_pref": "Préférences",
+    "enregistrerPreferences": "Enregistrer les préférences",
+    "langue_fr": "Français",
+    "langue_en": "English",
+    "historiqueConnexion": "Historique de connexion",
+    "motDePasseCourt": "Le mot de passe doit contenir au moins 8 caractères",
+    "avatar": "Avatar",
+    "avatarChoisir": "Choisir une image",
+    "avatarPredefinis": "Choisir un visuel prédéfini",
+    "avatarPredefiniEnregistre": "Visuel prédéfini enregistré.",
+    "visuelsAvatar": {
+      "constellation": "Constellation",
+      "feuille": "Feuille",
+      "montagne": "Montagne",
+      "vagues": "Vagues",
+      "soleil": "Soleil",
+      "mosaique": "Mosaïque"
+    },
+    "avatarSupprimer": "Supprimer l’avatar",
+    "avatarFormats": "Formats acceptés : jpg, png ou webp.",
+    "avatarEnregistre": "Avatar enregistré.",
+    "avatarSupprime": "Avatar supprimé.",
+    "avatarEchec": "La modification de l’avatar a échoué."
+  },
+  "rolesSysteme": {
+    "ADMIN": "Administrateur",
+    "ADMIN_DELEGATED": "Administrateur délégué",
+    "PORTFOLIO_MANAGER": "Responsable de portefeuille",
+    "MANAGER": "Manager de service",
+    "PROJECT_LEAD": "Chef de projet",
+    "PROJECT_CONTRIBUTOR": "Contributeur projet",
+    "HR_OFFICER": "Responsable RH"
   }
 }

@@ -36,6 +36,9 @@
  *     RECETTE_AUJOURDHUI=2026-09-16 DATABASE_URL="…" node recette/jeu2.mjs
  */
 
+import { createHash } from "node:crypto";
+import { readFile } from "node:fs/promises";
+import { ecrireContenu } from "../apps/api/dist/documents/stockage.js";
 import { creerClient } from "../packages/db/dist/index.js";
 import { hacherMotDePasse } from "../apps/api/dist/auth/mots-de-passe.js";
 import { pathToFileURL } from "node:url";
@@ -1287,9 +1290,14 @@ export async function peuplerJeu2(prisma, aujourdhui = new Date()) {
   compte.sousTaches = SOUS_TACHES.length;
 
   for (const [i, d] of DOCUMENTS.entries()) {
+    const extension = d.nom.split(".").at(-1);
+    const contenu = await readFile(new URL(`./fichiers/document.${extension}`, import.meta.url));
+    const empreinte = createHash("sha256").update(contenu).digest("hex");
+    await ecrireContenu(empreinte, contenu);
     const donnees = {
+      empreinte,
       nom: d.nom,
-      tailleOctets: d.octets,
+      tailleOctets: contenu.length,
       typeMime: d.type,
       auteurId: id(d.auteur),
       taskId: d.tache ? taches.get(d.tache).id : null,
@@ -1297,7 +1305,7 @@ export async function peuplerJeu2(prisma, aujourdhui = new Date()) {
     };
     await prisma.document.upsert({
       where: { id: idStable("F", i) },
-      create: { id: idStable("F", i), empreinte: `recette-${d.cle}`, ...donnees },
+      create: { id: idStable("F", i), ...donnees },
       update: donnees,
     });
   }

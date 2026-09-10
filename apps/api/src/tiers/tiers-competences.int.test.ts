@@ -118,18 +118,18 @@ describe("EX-TRS-02, RG-TRS-02, RG-TRS-04 — rattacher au projet, assigner à l
 
     // Sans cette règle, un prestataire apparaîtrait dans le planning sur un
     // projet auquel il n'a jamais été associé.
-    await expect(tiers.assignerALaTache(tache.id, t.id, acteur)).rejects.toMatchObject({
+    await expect(tiers.assignerALaTache(tache.id, t.id, acteur, await globalP(), droitsProjet)).rejects.toMatchObject({
       code: "non_rattache_au_projet",
     });
 
     await tiers.rattacherAuProjet(p, t.id, acteur, await porteeProjet(), droitsProjet);
-    await expect(tiers.assignerALaTache(tache.id, t.id, acteur)).resolves.toBeUndefined();
+    await expect(tiers.assignerALaTache(tache.id, t.id, acteur, await globalP(), droitsProjet)).resolves.toBeUndefined();
   });
 
   it("une tâche hors projet ne réclame aucun rattachement préalable", async () => {
     const t = await tiers.creerTiers({ type: "individual", contactNom: "Libre" }, acteur);
     const tache = await prisma.task.create({ data: { titre: "Hors projet" } });
-    await expect(tiers.assignerALaTache(tache.id, t.id, acteur)).resolves.toBeUndefined();
+    await expect(tiers.assignerALaTache(tache.id, t.id, acteur, await globalP(), droitsProjet)).resolves.toBeUndefined();
   });
 });
 
@@ -152,8 +152,8 @@ describe("RG-PRJ-12 — détacher un tiers d'un projet", () => {
 
     const tache = await prisma.task.create({ data: { titre: "Du projet", projectId: p } });
     const ailleurs = await prisma.task.create({ data: { titre: "De l'autre", projectId: autre } });
-    await tiers.assignerALaTache(tache.id, t.id, acteur);
-    await tiers.assignerALaTache(ailleurs.id, t.id, acteur);
+    await tiers.assignerALaTache(tache.id, t.id, acteur, await globalP(), droitsProjet);
+    await tiers.assignerALaTache(ailleurs.id, t.id, acteur, await globalP(), droitsProjet);
     await prisma.timeEntry.create({
       data: { thirdPartyId: t.id, projectId: p, date: new Date("2026-04-01"), heures: 4 },
     });
@@ -811,7 +811,7 @@ describe("EX-TRS-03 — consulter la fiche d'un tiers et ses rattachements", () 
     const p = await projet();
     await tiers.rattacherAuProjet(p, t.id, acteur, await porteeProjet(), droitsProjet);
     const tache = await prisma.task.create({ data: { titre: "Audit", projectId: p } });
-    await tiers.assignerALaTache(tache.id, t.id, acteur);
+    await tiers.assignerALaTache(tache.id, t.id, acteur, await globalP(), droitsProjet);
     await prisma.timeEntry.createMany({
       data: [
         { thirdPartyId: t.id, projectId: p, date: utc("2026-02-10"), heures: 7 },
@@ -882,7 +882,7 @@ describe("EX-TRS-06 — consulter l'impact d'une suppression AVANT de la confirm
     const p = await projet();
     await tiers.rattacherAuProjet(p, t.id, acteur, await porteeProjet(), droitsProjet);
     const tache = await prisma.task.create({ data: { titre: "Reprise", projectId: p } });
-    await tiers.assignerALaTache(tache.id, t.id, acteur);
+    await tiers.assignerALaTache(tache.id, t.id, acteur, await globalP(), droitsProjet);
     await prisma.timeEntry.create({
       data: { thirdPartyId: t.id, projectId: p, date: utc("2026-04-01"), heures: 6 },
     });
@@ -958,7 +958,7 @@ describe("EX-TRS-02 — les tiers assignables à une tâche", () => {
       data: { projectId: p.id, thirdPartyId: rattache.id },
     });
 
-    const candidats = await tiers.candidatsPourTache(tache.id);
+    const candidats = await tiers.candidatsPourTache(tache.id, await globalP(), droitsProjet);
     expect(candidats.map((c) => c.id)).toEqual([rattache.id]);
     expect(candidats.map((c) => c.id)).not.toContain(etranger.id);
   });
@@ -973,9 +973,9 @@ describe("EX-TRS-02 — les tiers assignables à une tâche", () => {
     });
     await prisma.projectThirdParty.create({ data: { projectId: p.id, thirdPartyId: tp.id } });
 
-    expect((await tiers.candidatsPourTache(tache.id)).map((c) => c.id)).toEqual([tp.id]);
+    expect((await tiers.candidatsPourTache(tache.id, await globalP(), droitsProjet)).map((c) => c.id)).toEqual([tp.id]);
     await prisma.taskThirdParty.create({ data: { taskId: tache.id, thirdPartyId: tp.id } });
-    expect(await tiers.candidatsPourTache(tache.id)).toEqual([]);
+    expect(await tiers.candidatsPourTache(tache.id, await globalP(), droitsProjet)).toEqual([]);
   });
 
   it("RG-TRS-02 — un tiers ARCHIVÉ n'est pas proposé", async () => {
@@ -988,7 +988,7 @@ describe("EX-TRS-02 — les tiers assignables à une tâche", () => {
     });
     await prisma.projectThirdParty.create({ data: { projectId: p.id, thirdPartyId: tp.id } });
 
-    expect(await tiers.candidatsPourTache(tache.id)).toEqual([]);
+    expect(await tiers.candidatsPourTache(tache.id, await globalP(), droitsProjet)).toEqual([]);
   });
 
   it("hors projet, la règle de rattachement N'A PAS DE PRISE : tout tiers actif est candidat", async () => {
@@ -1002,6 +1002,6 @@ describe("EX-TRS-02 — les tiers assignables à une tâche", () => {
     const tp = await prisma.thirdParty.create({
       data: { type: "individual", contactNom: "Indépendant" },
     });
-    expect((await tiers.candidatsPourTache(tache.id)).map((c) => c.id)).toContain(tp.id);
+    expect((await tiers.candidatsPourTache(tache.id, await globalP(), droitsProjet)).map((c) => c.id)).toContain(tp.id);
   });
 });

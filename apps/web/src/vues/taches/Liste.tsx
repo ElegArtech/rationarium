@@ -38,12 +38,6 @@ export function ListeTaches() {
   const client = useQueryClient();
   const annoncer = useMessages();
 
-  const [recherche, setRecherche] = useState("");
-  const [projectId, setProjectId] = useState("");
-  const [priorite, setPriorite] = useState("");
-  const [horsProjet, setHorsProjet] = useState(false);
-  const [vue, setVue] = useState<"liste" | "kanban">("liste");
-
   /*
    * `EX-PLN-11` — **le « + » d'une cellule de planning arrive ici.**
    *
@@ -59,21 +53,45 @@ export function ListeTaches() {
    */
   const navigate = useNavigate();
   const adresse = useRouterState({ select: (e) => e.location.search }) as Record<string, unknown>;
+  const adresseListe = useRouterState({ select: (e) => e.location.href });
   const texte = (cle: string) => (typeof adresse[cle] === "string" ? (adresse[cle] as string) : "");
+  const recherche = texte("q");
+  const projectId = texte("projectId");
+  const statut = texte("statut");
+  const priorite = texte("priorite");
+  const horsProjet = adresse["horsProjet"] === 1;
+  const enRetard = adresse["retard"] === 1;
+  const vue: "liste" | "kanban" = texte("vue") === "kanban" ? "kanban" : "liste";
   const dateVoulue = texte("date");
   const assigneVoulu = texte("assigne");
-  const [creationOuverte, setCreationOuverte] = useState(texte("creer") === "1");
+  const creationDemandee = adresse["creer"] === 1;
+  const [creationOuverte, setCreationOuverte] = useState(creationDemandee);
 
   /*
    * `EX-RPT-12` — **le bandeau d'alerte des rapports arrive ici avec son
    * filtre.** « Ouvrir les tâches » y compte les tâches en retard, puis
    * pointait `/taches` sans rien : on arrivait sur les cinquante-cinq, filtre
    * éteint, et il fallait reposer à la main celui qu'on venait de nommer.
-   * `Rapports.tsx` pose désormais `search={{ retard: "1" }}` ; c'est cette
+   * `Rapports.tsx` pose désormais `search={{ retard: 1 }}` ; c'est cette
    * ligne-ci qui le lit, exactement comme `creer=1` juste au-dessus. Les deux
    * moitiés étaient justes séparément : c'est le raccord qui manquait.
    */
-  const [enRetard, setEnRetard] = useState(texte("retard") === "1");
+  const changerAdresse = (partiel: Record<string, string | number | undefined>) => {
+    const suivante = {
+      q: recherche || undefined,
+      projectId: projectId || undefined,
+      statut: statut || undefined,
+      priorite: priorite || undefined,
+      horsProjet: horsProjet ? 1 as const : undefined,
+      retard: enRetard ? 1 as const : undefined,
+      vue,
+      creer: creationDemandee ? 1 as const : undefined,
+      date: dateVoulue || undefined,
+      assigne: assigneVoulu || undefined,
+      ...partiel,
+    };
+    void navigate({ to: "/taches", search: suivante, replace: true });
+  };
 
   /*
    * `RG-GEN-06` — **deux droits, pas un.** Créer une tâche DANS un projet et
@@ -85,7 +103,14 @@ export function ListeTaches() {
    */
   const peutCreerUneTache = peut("tasks:create") || peut("tasks:create_standalone");
 
-  const filtres = { projectId, priorite, horsProjet, enRetard };
+  const filtres = {
+    projectId,
+    statut,
+    priorite,
+    horsProjet,
+    enRetard,
+    ...(assigneVoulu ? { assigneId: assigneVoulu } : {}),
+  };
   const cle = ["taches", filtres] as const;
   const requete = useQuery({ queryKey: cle, queryFn: () => api.lister(filtres) });
 
@@ -105,14 +130,10 @@ export function ListeTaches() {
     return q ? tout.filter((x) => x.titre.toLowerCase().includes(q)) : tout;
   }, [requete.data, recherche]);
   const independantes = taches.filter((x) => x.horsProjet).length;
-  const filtreActif = Boolean(recherche || projectId || priorite || horsProjet || enRetard);
+  const filtreActif = Boolean(recherche || projectId || statut || priorite || horsProjet || enRetard);
 
   const reinitialiser = () => {
-    setRecherche("");
-    setProjectId("");
-    setPriorite("");
-    setHorsProjet(false);
-    setEnRetard(false);
+    void navigate({ to: "/taches", search: {}, replace: true });
   };
 
   const changerStatut = useMutation({
@@ -138,10 +159,10 @@ export function ListeTaches() {
         </span>
         <div className="pl-toolbar-fin">
           <div className="seg" role="group" aria-label={t("liste.affichage")}>
-            <Button aria-pressed={vue === "liste"} onPress={() => setVue("liste")}>
+            <Button aria-pressed={vue === "liste"} onPress={() => changerAdresse({ vue: "liste" })}>
               {t("liste.affichageListe")}
             </Button>
-            <Button aria-pressed={vue === "kanban"} onPress={() => setVue("kanban")}>
+            <Button aria-pressed={vue === "kanban"} onPress={() => changerAdresse({ vue: "kanban" })}>
               {t("liste.affichageKanban")}
             </Button>
           </div>
@@ -158,7 +179,7 @@ export function ListeTaches() {
           className="f-input filtre-recherche"
           type="search"
           value={recherche}
-          onChange={(e) => setRecherche(e.target.value)}
+          onChange={(e) => changerAdresse({ q: e.target.value || undefined })}
           aria-label={t("liste.rechercher")}
           placeholder={t("liste.rechercher")}
         />
@@ -166,7 +187,7 @@ export function ListeTaches() {
         <select
           className="f-input"
           value={projectId}
-          onChange={(e) => setProjectId(e.target.value)}
+          onChange={(e) => changerAdresse({ projectId: e.target.value || undefined })}
           aria-label={t("liste.projet")}
           disabled={horsProjet}
         >
@@ -180,8 +201,22 @@ export function ListeTaches() {
 
         <select
           className="f-input"
+          value={statut}
+          onChange={(e) => changerAdresse({ statut: e.target.value || undefined })}
+          aria-label={t("liste.statut")}
+        >
+          <option value="">{t("liste.tousStatuts")}</option>
+          {STATUTS_TACHE.map((s) => (
+            <option key={s.code} value={s.code}>
+              {libelle(s.code, STATUTS_TACHE)}
+            </option>
+          ))}
+        </select>
+
+        <select
+          className="f-input"
           value={priorite}
-          onChange={(e) => setPriorite(e.target.value)}
+          onChange={(e) => changerAdresse({ priorite: e.target.value || undefined })}
           aria-label={t("liste.priorite")}
         >
           <option value="">{t("liste.toutesPriorites")}</option>
@@ -198,8 +233,7 @@ export function ListeTaches() {
           className="filter-toggle is-indep"
           aria-pressed={horsProjet}
           onPress={() => {
-            setHorsProjet((v) => !v);
-            setProjectId("");
+            changerAdresse({ horsProjet: horsProjet ? undefined : 1, projectId: undefined });
           }}
         >
           {t("liste.sansProjet")}
@@ -207,7 +241,7 @@ export function ListeTaches() {
         <Button
           className="filter-toggle"
           aria-pressed={enRetard}
-          onPress={() => setEnRetard((v) => !v)}
+          onPress={() => changerAdresse({ retard: enRetard ? undefined : 1 })}
         >
           {t("liste.enRetard")}
         </Button>
@@ -264,6 +298,7 @@ export function ListeTaches() {
               <LigneTache
                 key={tache.id}
                 tache={tache}
+                retour={adresseListe}
                 modifiable={peut("tasks:update")}
                 surStatut={(statut) => changerStatut.mutate({ tache, statut })}
               />
@@ -279,7 +314,7 @@ export function ListeTaches() {
           /* La demande est honorée : l'adresse ne la reporte plus. Sans ce
              nettoyage, un rechargement rouvrirait la fenêtre sur une tâche
              déjà créée. */
-          if (texte("creer")) void navigate({ to: "/taches", search: {}, replace: true });
+          if (creationDemandee) void navigate({ to: "/taches", search: {}, replace: true });
         }}
         projets={projets.data?.projets ?? []}
         {...(dateVoulue ? { dateInitiale: dateVoulue } : {})}
@@ -368,10 +403,12 @@ function IconePastille({ icone }: { icone: string | null }) {
 
 function LigneTache({
   tache,
+  retour,
   modifiable,
   surStatut,
 }: {
   tache: api.LigneTache;
+  retour: string;
   modifiable: boolean;
   surStatut: (statut: string) => void;
 }) {
@@ -384,7 +421,7 @@ function LigneTache({
         {/* Le titre porte le lien : la ligne entière ne peut pas l'être,
             elle contient une liste déroulante de statut. */}
         <p className="t2-name">
-          <Link to="/taches/$id" params={{ id: tache.id }}>
+          <Link to="/taches/$id" params={{ id: tache.id }} search={{ retour }}>
             {tache.titre}
           </Link>
         </p>

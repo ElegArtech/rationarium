@@ -31,6 +31,8 @@
     "nouvelleTache": "New task",
     "projet": "Project",
     "tousProjets": "All projects",
+    "statut": "Status",
+    "tousStatuts": "All statuses",
     "priorite": "Priority",
     "toutesPriorites": "All priorities",
     "sansProjet": "Tasks without a project",
@@ -79,7 +81,12 @@
     "videAucune": "No task has been created yet.",
     "statutMisAJour": "Status updated.",
     "echecStatut": "The status could not be changed.",
-    "statutDe": "Status of “{titre}”"
+    "statutDe": "Status of “{titre}”",
+    "inviterService": "Invite a whole team",
+    "choisirService": "Choose a team",
+    "ajouterService": "Add team",
+    "servicesAdmissibles": "Teams whose visible members are all eligible for this task.",
+    "serviceDoublons": "Already assigned: {noms}. Only the other members were added."
   },
   "fiche": {
     "laTache": "the task",
@@ -212,7 +219,18 @@
     "jalon": "Milestone",
     "aucunJalon": "No milestone",
     "jalonDuProjet": "Only milestones of this project are offered.",
-    "confidentielleAide": "A confidential task is readable only with the dedicated permission — being assigned is not enough."
+    "aucuneEpopee": "No epic",
+    "epopeeDuProjet": "Only epics from this project are offered.",
+    "confidentielleAide": "A confidential task is readable only with the dedicated permission — being assigned is not enough.",
+    "raciAttribue": "RACI role assigned.",
+    "raciRetire": "RACI role removed.",
+    "raciChoisir": "Choose a staff member.",
+    "raciDoublon": "This staff member already holds this RACI role.",
+    "raciAgent": "Staff member",
+    "raciRole": "Role",
+    "raciAttribuer": "Assign role",
+    "raciAnnuaireRestreint": "Without directory access, only your account is available.",
+    "raciAnnuaireErreur": "The directory could not be loaded. Reopen this page to retry."
   },
   "onglet": {
     "titre": "Task board",

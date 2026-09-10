@@ -153,7 +153,7 @@ export class EvenementsService {
       journeeEntiere?: boolean; heureDebut?: string | null; heureFin?: string | null;
       projectId?: string | null; interventionExterieure?: boolean;
       participantIds?: string[]; serviceIds?: string[];
-      recurrence?: { frequenceSemaines: number; jourSemaine: number; jusqua: Date };
+      recurrence?: { frequenceSemaines: number; jourSemaine: number; jusqua?: Date | undefined };
     },
     acteurId: string,
   ) {
@@ -161,11 +161,13 @@ export class EvenementsService {
       if (donnees.heureFin <= donnees.heureDebut) throw new ErreurEvenement("horaires_incoherents");
     }
 
+    let recurrence: { frequenceSemaines: number; jourSemaine: number; jusqua: Date } | undefined;
     if (donnees.recurrence) {
       const horizon = await this.horizonAnnees();
       const limite = new Date(donnees.date);
       limite.setUTCFullYear(limite.getUTCFullYear() + horizon);
-      if (donnees.recurrence.jusqua > limite) {
+      recurrence = { ...donnees.recurrence, jusqua: donnees.recurrence.jusqua ?? limite };
+      if (recurrence.jusqua > limite) {
         throw new ErreurEvenement("horizon_depasse", {
           horizonAnnees: horizon,
           limite: limite.toISOString().slice(0, 10),
@@ -176,7 +178,7 @@ export class EvenementsService {
     // EX-EVT-04 — inviter des services entiers, dépliés à la création.
     const parServices = donnees.serviceIds?.length
       ? await this.prisma.userService.findMany({
-          where: { serviceId: { in: donnees.serviceIds } },
+          where: { serviceId: { in: donnees.serviceIds }, user: { actif: true } },
           select: { userId: true },
         })
       : [];
@@ -198,20 +200,20 @@ export class EvenementsService {
       data: {
         ...base,
         date: donnees.date,
-        recurrenceFrequence: donnees.recurrence?.frequenceSemaines ?? null,
-        recurrenceJourSemaine: donnees.recurrence?.jourSemaine ?? null,
-        recurrenceFin: donnees.recurrence?.jusqua ?? null,
+        recurrenceFrequence: recurrence?.frequenceSemaines ?? null,
+        recurrenceJourSemaine: recurrence?.jourSemaine ?? null,
+        recurrenceFin: recurrence?.jusqua ?? null,
         participants: { create: participants.map((userId) => ({ userId })) },
       },
     });
 
     let occurrences = 0;
-    if (donnees.recurrence) {
+    if (recurrence) {
       const dates: Date[] = [];
-      const pas = donnees.recurrence.frequenceSemaines * 7 * 86_400_000;
+      const pas = recurrence.frequenceSemaines * 7 * 86_400_000;
       for (
         let d = new Date(donnees.date.getTime() + pas);
-        d <= donnees.recurrence.jusqua;
+        d <= recurrence.jusqua;
         d = new Date(d.getTime() + pas)
       ) {
         dates.push(new Date(d));
@@ -526,23 +528,8 @@ export class EvenementsService {
    * envoyer — un client qui se trompe de date ne doit pas pouvoir réécrire
    * l'histoire de ceux qui étaient à la réunion.
    *
-   * DÉCISION, second volet du même parcours. Le tiroir propose « Arrêter la
-   * récurrence » sur **toute** occurrence, et le serveur refusait sur une
-   * occurrence enfant par un message — « cet événement n'est pas une série »
-   * — qui contredit le bandeau « Fait partie d'une série récurrente » affiché
-   * deux lignes plus haut. L'arrêt est désormais **accepté depuis n'importe
-   * quelle occurrence** : il porte sur la série, la résout par son parent, et
-   * coupe à la date de l'occurrence par laquelle on l'a demandé. `RG-EVT-03`
-   * reste tenue au fond — ce qui s'arrête est bien la récurrence du parent,
-   * il n'y en a pas d'autre —, et la lettre de la règle (« seul un événement
-   * parent peut voir sa récurrence arrêtée ») décrit une contrainte
-   * d'implémentation plutôt qu'une règle métier : elle demande une reprise en
-   * `cadrage/01 § M9`, signalée au compte rendu. Le refus subsiste pour ce
-   * qu'il désigne vraiment : un événement isolé, qui n'a aucune série à
-   * arrêter. Le geste reste par ailleurs disponible sous l'autre verbe —
-   * `supprimer` avec la portée `serie` fait exactement cela depuis une
-   * occurrence quelconque.
-   * ════════════════════════════════════════════════════════════════════════
+   * RM05 — RG-EVT-03 est explicite : la commande vise exclusivement le parent.
+   * L'ancienne acceptation d'un enfant contredisait la source restée inchangée.
    */
   async arreterRecurrence(
     eventId: string,
@@ -551,13 +538,14 @@ export class EvenementsService {
     perimetre: Perimetre,
     permissions: ReadonlySet<string>,
     maintenant: Date = new Date(),
+    version?: number,
   ) {
     // Le périmètre manquait ici : la route exigeait `events:update` et n'a
     // jamais confronté l'événement au périmètre de l'appelant. Écrire sur ce
     // qu'on n'a pas le droit de lire est un défaut de cloisonnement, pas une
     // omission — corrigé en L-42, avec le même prédicat que la lecture.
     const evenement = await this.chargerVisible(eventId, perimetre, permissions);
-    if (evenement.parentId === null && evenement.recurrenceFrequence === null) {
+    if (evenement.parentId !== null || evenement.recurrenceFrequence === null) {
       throw new ErreurEvenement("pas_un_parent");
     }
     const parentId = evenement.parentId ?? evenement.id;
@@ -572,12 +560,13 @@ export class EvenementsService {
     const plancher = debutDuJour(maintenant);
     const coupe = aPartirDe > plancher ? aPartirDe : plancher;
 
-    const { count } = await this.prisma.event.deleteMany({
-      where: { parentId, date: { gte: coupe } },
-    });
-    await this.prisma.event.update({
-      where: { id: parentId },
-      data: { recurrenceFin: coupe, version: { increment: 1 } },
+    const count = await this.prisma.$transaction(async (tx) => {
+      const modifie = await tx.event.updateMany({
+        where: { id: parentId, version: version ?? evenement.version },
+        data: { recurrenceFin: coupe, version: { increment: 1 } },
+      });
+      if (modifie.count !== 1) throw new ErreurEvenement("conflit_de_version");
+      return (await tx.event.deleteMany({ where: { parentId, date: { gte: coupe } } })).count;
     });
 
     await this.audit.tracer({

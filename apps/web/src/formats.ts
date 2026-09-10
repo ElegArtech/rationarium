@@ -46,78 +46,9 @@ export const appliquerReglages = (valeurs: Record<string, string>): void => {
 /** Le réglage courant, ou son défaut. */
 const reglage = (cle: string, defaut: string): string => reglages[cle] ?? defaut;
 
-/**
- * ════════════════════════════════════════════════════════════════════════════
- * **L'ARBITRAGE DES LOCALES — deux lectures, un seul endroit où les lire.**
- *
- * Deux autorités se disputent le formatage, et elles ne disent pas la même
- * chose : le **réglage d'instance** `display.locale` — « Langue et région »,
- * vue 31, qui vaut `fr-FR` par défaut et s'applique à tout le monde — et la
- * **langue de la session**, que le lecteur choisit par la bascule FR/EN.
- *
- * `RG-GEN-09` tranche pour les dates et les heures : elles suivent le
- * paramétrage global. Elle **ne dit rien des nombres**, qui subissaient
- * pourtant le même réglage. C'est un silence de cadrage, pas une décision, et
- * il se payait à l'écran.
- *
- * ── Les NOMBRES : tranché ici, et il n'y avait rien à trancher ─────────────
- *
- * Le produit possède DEUX formateurs de nombres, et un seul est réglable. Les
- * pluriels et les quantités des catalogues passent par ICU (`i18next-icu`), qui
- * formate sur la langue de la session et **ne sait pas faire autrement** ;
- * `formaterNombre` passait, lui, par le réglage d'instance. Une session
- * anglaise lisait donc « 20,0 days available » à côté de « 35.5 h total », dans
- * la même page. Un séparateur décimal qui change d'une ligne à l'autre n'est
- * défendable par aucune lecture de `RG-GEN-09` : les nombres suivent la langue
- * de l'interface, comme ceux d'ICU, et les deux formateurs cessent de se
- * contredire.
- *
- * ── Les DATES : NON tranché, et ce n'est pas au code de le faire ───────────
- *
- * Constat, en session anglaise sur une instance réglée `fr-FR` : « LUNDI
- * 7 SEPTEMBRE 2026 » sous « Hello Léa », « Septembre 2026 » au calendrier de
- * télétravail, « THU SEPTEMBRE » aux en-têtes de journée — un jour anglais
- * suivi d'un mois français, sur la même ligne, parce que l'abréviation du jour
- * vient d'ailleurs. Deux lectures possibles :
- *
- *   **(a) Le réglage est une convention de maison.** L'aide du réglage annonce
- *   qu'il décide du nom des mois et des jours ; il l'emporte donc sur la langue
- *   du lecteur, et un agent en session anglaise lit des mois français comme il
- *   lit des noms de services français. C'est ce que le code fait aujourd'hui.
- *
- *   **(b) Le réglage fixe la FORME, la langue fournit les MOTS.** Ordre des
- *   champs, premier jour de semaine, 12 h ou 24 h viennent du paramétrage ;
- *   « Monday 7 September 2026 » vient de la session. C'est ce qu'un produit
- *   bilingue veut dire d'ordinaire, et cela supprime les hybrides — un « THU
- *   SEPTEMBRE » n'est possible que sous (a).
- *
- * Rien dans `cadrage/01` ne permet de choisir : `RG-GEN-09` dit « le
- * paramétrage global » sans dire s'il porte la forme ou la langue. La question
- * remonte au cadrage ; elle ne s'invente pas ici. Le jour où elle est tranchée,
- * **une seule fonction change** — `localeDate` —, et c'est la raison d'être de
- * cette séparation.
- * ════════════════════════════════════════════════════════════════════════════
- */
-
-/**
- * La locale des DATES et des HEURES — `RG-GEN-09`, lecture (a), en vigueur.
- *
- * Non réglée, la région suit la langue de l'interface, comme auparavant : sans
- * ce branchement le réglage s'enregistrerait sans rien changer, défaut trouvé
- * par l'audit L-28 sur cette vue-là.
- */
-const localeDate = (): string => {
-  const choisie = reglage("display.locale", "");
-  return choisie === "" ? langueInterface() : choisie;
-};
-
-/**
- * La locale des NOMBRES — la langue de la session, comme celle d'ICU.
- *
- * Ce n'est pas un oubli du réglage : c'est le seul moyen que les deux
- * formateurs de nombres du produit s'accordent. Voir l'arbitrage ci-dessus.
- */
-const localeNombre = (): string => langueInterface();
+/** D-RM06 : les mots suivent la langue UI, les séparateurs le réglage global. */
+const localeDate = (): string => langueInterface();
+export const localeNombre = (): string => reglage("display.locale", "") || langueInterface();
 
 /**
  * Le premier jour de la semaine — `0` dimanche, `1` lundi.
@@ -185,7 +116,7 @@ export const formaterDate = (valeur: string | Date | null | undefined): string =
   // américain et l'ordre ISO. Ils se construisent à partir des PARTIES
   // rendues par `Intl`, jamais par découpage de chaîne — c'est la seule façon
   // d'obtenir les bons chiffres sans réimplémenter un calendrier.
-  if (format === "AAAA-MM-JJ" || format === "MM/JJ/AAAA") {
+  if (format === "AAAA-MM-JJ" || format === "MM/JJ/AAAA" || format === "JJ/MM/AAAA") {
     const parties = new Intl.DateTimeFormat("en-CA", {
       day: "2-digit",
       month: "2-digit",
@@ -194,7 +125,7 @@ export const formaterDate = (valeur: string | Date | null | undefined): string =
     }).formatToParts(d);
     const valeurDe = (type: string) => parties.find((p) => p.type === type)?.value ?? "";
     const [a, m, j] = [valeurDe("year"), valeurDe("month"), valeurDe("day")];
-    return format === "AAAA-MM-JJ" ? `${a}-${m}-${j}` : `${m}/${j}/${a}`;
+    return format === "AAAA-MM-JJ" ? `${a}-${m}-${j}` : format === "MM/JJ/AAAA" ? `${m}/${j}/${a}` : `${j}/${m}/${a}`;
   }
 
   return new Intl.DateTimeFormat(localeDate(), {

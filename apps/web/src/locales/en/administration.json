@@ -6,6 +6,7 @@
   "champsObligatoires": "* required fields",
   "heures": "{n, number} h",
   "utilisateurs": {
+    "tableauLibelle": "User list",
     "surtitre": "Reference data",
     "titre": "Users",
     "lesComptes": "the accounts",
@@ -32,6 +33,13 @@
     "actionsPour": "Actions for {nom}",
     "desactiver": "Deactivate account",
     "reactiver": "Reactivate account",
+    "gestionCompte": "Account management",
+    "desactiverTitre": "Deactivate {nom}'s account",
+    "reactiverTitre": "Reactivate {nom}'s account",
+    "desactiverExplication": "The account will no longer be able to sign in. This action remains reversible.",
+    "reactiverExplication": "The account will be able to sign in again with its current permissions.",
+    "desactiverConfirmer": "Confirm deactivation",
+    "reactiverConfirmer": "Confirm reactivation",
     "supprimerDefinitivement": "Delete permanently",
     "pasSoiMemeDesactiver": "You cannot deactivate yourself",
     "pasSoiMemeSupprimer": "You cannot delete yourself",
@@ -49,6 +57,12 @@
     "etapeAction": "Confirmation",
     "suppressionRefusee": "This user cannot be deleted.",
     "reassignerDabord": "Please reassign or complete these items first.",
+    "impact_temps": "Time entries",
+    "impact_projets": "Led or sponsored projects",
+    "impact_conges": "Approved leave",
+    "impact_assignations": "Task assignments",
+    "impact_todos": "Personal tasks",
+    "impact_notifications": "Notifications",
     "irreversible": "Warning: this action cannot be undone.",
     "prenom": "First name",
     "nom": "Last name",
@@ -72,7 +86,7 @@
     "filtreActifs": "Active",
     "filtreDesactives": "Deactivated",
     "filtreTous": "All",
-    "suivi": "Track",
+    "suivi": "View individual tracking",
     "reinitialiserMotDePasse": "Reset password",
     "pasSoiMemeMotDePasse": "Use “My profile” for your own password.",
     "motDePasseReinitialise": "Password reset. {nom} must change it at next sign-in.",
@@ -84,7 +98,8 @@
     "organisationNonLisible": "Reading the organisation tree requires a dedicated permission.",
     "supprimeFaitDe": "{nom}'s account has been deleted.",
     "supprimerLeCompteDe": "Permanently delete {nom}'s account",
-    "toutesLesDonneesDe": "All data attached to {nom} ({login}) — history, comments, time entries — will be permanently deleted."
+    "toutesLesDonneesDe": "All data attached to {nom} ({login}) — history, comments, time entries — will be permanently deleted.",
+    "remiseMotDePasse": "Choose a temporary password and give it to {nom} outside the application. The current password will be replaced; the account holder must change this password at next sign-in."
   },
   "suivi": {
     "leSuivi": "the individual tracking",
@@ -252,7 +267,8 @@
     "responsableValidateur": "The head becomes the natural leave approver for their scope.",
     "horsDirectionPossible": "A department may exist without a division.",
     "horsDepartementImpossible": "A team cannot exist outside a department.",
-    "rattachementFige": "Attachment cannot be changed here: correct it by moving the members."
+    "rattachementFige": "Attachment cannot be changed here: correct it by moving the members.",
+    "rattachementDepartementModifiable": "The department can be attached to another division, or detached from every division."
   },
   "parametres": {
     "surtitre": "Administration",
@@ -369,7 +385,18 @@
     "cle_display_timeFormat": "Time format",
     "cle_display_locale": "Region",
     "cle_display_firstDayOfWeek": "First day of the week",
-    "cle_planning_visibleDays": "Days shown in the planning"
+    "cle_planning_visibleDays": "Days shown in the planning",
+    "ferieModifie": "Public holiday updated.",
+    "anneeScolaireExemple": "2026-2027",
+    "importerVacances": "Import school holidays",
+    "importPeriodeRequise": "Enter a school year as YYYY-YYYY and a zone.",
+    "importReference": "Periods from the bundled official calendar; events without an end date are not imported.",
+    "filtrerCalendrier": "Filter",
+    "importPlage": "Available school years: {debut} to {fin}.",
+    "zoneScolaire": "School holiday zone",
+    "zoneNonConfiguree": "Not configured",
+    "zoneNom": "Zone {zone}",
+    "zoneScolaireAide": "This zone is the default for school holiday imports and schedule backgrounds."
   },
   "roles": {
     "surtitre": "Administration",
@@ -379,6 +406,13 @@
     "laMatrice": "the matrix",
     "videTitre": "No role configured",
     "videExplication": "Initialise the catalogue to get the roles shipped with the product.",
+    "initialiser": "Initialise the catalogue",
+    "initialiserCategorie": "Shipped catalogue",
+    "initialiserTitre": "Initialise roles and permissions",
+    "initialiserExplication": "Missing templates will be added. Custom roles and their permissions are preserved; this action can be run again without creating duplicates.",
+    "initialiserConfirmer": "Confirm initialisation",
+    "initialise": "Catalogue initialised: {crees, number} created, {existants, number} already present.",
+    "initialiseCollisions": "Partial initialisation: {n, plural, one {reserved code {codes} is already used by a custom role} other {reserved codes {codes} are already used by custom roles}}. Rename these roles, then run initialisation again.",
     "colNom": "Role",
     "colPermissions": "Permissions",
     "colActions": "Actions",
@@ -575,8 +609,10 @@
     "action_event_participant_remove": "Participant removed",
     "action_event_recurrence_stop": "Recurrence stopped",
     "action_export_csv": "CSV export",
+    "action_report_export": "Report exported",
     "action_holiday_create": "Public holiday declared",
     "action_holiday_import": "Public holidays imported",
+    "action_holiday_update": "Public holiday updated",
     "action_leave_approve": "Leave approved",
     "action_leave_cancel": "Leave cancelled",
     "action_leave_cancellation_refused": "Cancellation refused",
@@ -609,6 +645,7 @@
     "action_role_set_permissions": "Role permissions changed",
     "action_role_update": "Role updated",
     "action_school_vacation_create": "School holidays declared",
+    "action_school_vacation_import": "School holidays imported",
     "action_service_create": "Team created",
     "action_settings_update": "Settings changed",
     "action_skill_create": "Skill created",
@@ -850,7 +887,8 @@
     "confirmerSuppressionRegle": "Delete this recurrence rule?",
     "regleSuppressionMention": "Assignments already generated are not deleted.",
     "effetSuppressionRegle": "The rule stops generating assignments. Those it already created stay in the schedule.",
-    "regleSupprimee": "{n, plural, =0 {Rule deleted.} one {Rule deleted, 1 assignment kept.} other {Rule deleted, # assignments kept.}}"
+    "regleSupprimee": "{n, plural, =0 {Rule deleted.} one {Rule deleted, 1 assignment kept.} other {Rule deleted, # assignments kept.}}",
+    "icone": "Icon"
   },
   "jours": {
     "long": {

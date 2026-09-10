@@ -38,6 +38,7 @@ type Nature = "direction" | "departement" | "service";
 /** Ce que la fenêtre a besoin de connaître d'un nœud existant pour le préremplir. */
 type Noeud = {
   id: string;
+  version: number;
   nom: string;
   description: string | null;
   parentId: string | null;
@@ -281,6 +282,7 @@ export function Organisation() {
                 deplie={ouvert(dep.id)}
                 surBascule={() => basculer(dep.id)}
                 surOuvrir={setEdition}
+                directionId={null}
               />
             ))}
           </div>
@@ -346,6 +348,7 @@ function BlocDirection({
                   nature: "direction",
                   noeud: {
                     id: direction.id,
+                    version: direction.version,
                     nom: direction.nom,
                     description: direction.description,
                     parentId: null,
@@ -400,6 +403,7 @@ function BlocDirection({
                 deplie={ouvert(dep.id)}
                 surBascule={() => surBascule(dep.id)}
                 surOuvrir={surOuvrir}
+                directionId={direction.id}
               />
             ))
           )}
@@ -420,11 +424,13 @@ function BlocDepartement({
   deplie,
   surBascule,
   surOuvrir,
+  directionId,
 }: {
   departement: api.Departement;
   deplie: boolean;
   surBascule: () => void;
   surOuvrir: (e: { nature: Nature; noeud: Noeud | null }) => void;
+  directionId: string | null;
 }) {
   const { t } = useTranslation("administration");
   const peut = usePeut();
@@ -467,9 +473,10 @@ function BlocDepartement({
                   nature: "departement",
                   noeud: {
                     id: departement.id,
+                    version: departement.version,
                     nom: departement.nom,
                     description: departement.description,
-                    parentId: null,
+                    parentId: directionId,
                     responsableId: departement.responsable?.id ?? null,
                   },
                 })
@@ -566,6 +573,7 @@ function ServiceLigne({
                 nature: "service",
                 noeud: {
                   id: service.id,
+                  version: service.version,
                   nom: service.nom,
                   description: service.description,
                   parentId: departementId,
@@ -958,9 +966,11 @@ function FenetreNoeud({
               ? "departements"
               : "services";
         return api.modifierNoeud(niveau, noeud.id, {
+          version: noeud.version,
           nom,
           description: description || null,
           responsableId: champResponsable,
+          ...(nature === "departement" ? { directionId: parent || null } : {}),
         });
       }
       if (nature === "direction") {
@@ -1086,7 +1096,7 @@ function FenetreNoeud({
             className="field"
             id="org-parent"
             value={parent}
-            disabled={noeud !== null}
+            disabled={noeud !== null && nature === "service"}
             onChange={(e) => setParent(e.target.value)}
           >
             {nature === "departement" ? (
@@ -1102,7 +1112,9 @@ function FenetreNoeud({
           </select>
           <p className="field-hint">
             {noeud
-              ? t("organisation.rattachementFige")
+              ? nature === "departement"
+                ? t("organisation.rattachementDepartementModifiable")
+                : t("organisation.rattachementFige")
               : nature === "departement"
                 ? t("organisation.horsDirectionPossible")
                 : t("organisation.horsDepartementImpossible")}

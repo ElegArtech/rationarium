@@ -3,6 +3,7 @@ import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testconta
 import { execFileSync } from "node:child_process";
 import path from "node:path";
 import { creerClient, type PrismaClient } from "@rationarium/db";
+import { ProjetsService } from "../projets/projets.service.js";
 import { RapportsService, debutDe } from "./rapports.service.js";
 import { AuditService } from "../commun/audit.service.js";
 import { PerimetreService } from "../commun/perimetre.service.js";
@@ -97,7 +98,7 @@ beforeEach(async () => {
   await prisma.project.deleteMany();
 });
 
-const global = () => perimetres.resoudre(chef, new Set(["users:manage_any"]));
+const global = () => perimetres.resoudre(chef, new Set(["users:manage_any", "tasks:read_confidential"]));
 const PERMISSIONS = new Set(["reports:read", "projects:readAll"]);
 
 const page = async () =>
@@ -415,7 +416,7 @@ describe("EX-RPT-08 — la complétion des jalons", () => {
     expect(vue.jalons.retardsNonListes).toBe(0);
   });
 
-  it("`RG-RPT-02` et `RG-RPT-07` — au-delà de dix retards, la liste s'arrête et le dit", async () => {
+  it("`RG-RPT-02` et `RG-RPT-07` — au-delà de dix retards, le client peut déplier la liste entière", async () => {
     const p = await projet({ nom: "Débordé", chefId: chef });
     for (let i = 0; i < 13; i += 1) {
       const j = await prisma.milestone.create({
@@ -428,8 +429,9 @@ describe("EX-RPT-08 — la complétion des jalons", () => {
 
     const vue = await page();
     expect(vue.jalons.enRetard).toBe(13);
-    // Le compte global reste juste : c'est la LISTE qui est bornée.
-    expect(vue.jalons.retards).toHaveLength(10);
+    // Le compte global reste juste et le client reçoit de quoi déplier la
+    // liste entière après son affichage initial borné à dix.
+    expect(vue.jalons.retards).toHaveLength(13);
     expect(vue.jalons.retardsNonListes).toBe(3);
   });
 
@@ -545,11 +547,11 @@ describe("EX-RPT-03 — l'export", () => {
     expect(relu.sante.map((s) => s.nom)).toEqual(["Exporté"]);
   });
 
-  it("M20 — l'export est tracé : c'est une sortie de données", async () => {
-    await prisma.auditLog.deleteMany({ where: { action: "export.csv" } });
+  it("M20 — le service ne trace pas avant la réussite de la route HTTP", async () => {
+    await prisma.auditLog.deleteMany({ where: { action: "report.export" } });
     await rapports.exporter("csv", { periode: "mois" }, await global(), PERMISSIONS, MOMENT, chef);
-    const trace = await prisma.auditLog.findFirst({ where: { action: "export.csv" } });
-    expect(trace?.detail).toMatchObject({ format: "csv" });
+    const trace = await prisma.auditLog.findFirst({ where: { action: "report.export" } });
+    expect(trace).toBeNull();
   });
 });
 
@@ -828,12 +830,79 @@ describe("EX-RPT-03 — l'export suit la langue demandée", () => {
     expect(fr.contenu).not.toBe(en.contenu);
   });
 
-  it("M20 — la trace d'audit dit la langue de la sortie", async () => {
-    await prisma.auditLog.deleteMany({ where: { action: "export.csv" } });
-    await rapports.exporter(
-      "csv", { periode: "mois" }, await global(), PERMISSIONS, MOMENT, chef, "en",
-    );
-    const trace = await prisma.auditLog.findFirst({ where: { action: "export.csv" } });
-    expect(trace?.detail).toMatchObject({ format: "csv", langue: "en" });
+  // M20 est exercé au niveau qui en est désormais l'auteur : l'intercepteur
+  // HTTP, dans `remediation/rm-11.test.ts`.
+});
+
+describe("RM-01 — confidentialité des contributions", () => {
+  it("RG-RPT-01, RG-SCOPE-04 — une tâche confidentielle ne change aucun agrégat ni export du lecteur", async () => {
+    const p = await projet({ nom: "Agrégats", chefId: chef });
+    const j = await prisma.milestone.create({ data: { projectId: p.id, nom: "Livraison", dateEcheance: utc("2026-08-01") } });
+    await prisma.task.create({ data: { projectId: p.id, milestoneId: j.id, titre: "Visible", statut: "done", avancement: 100 } });
+    const scope = await perimetres.resoudre(chef, new Set(["users:readAll"]));
+    const pageVisible = () => rapports.vueEnsemble({ periode: "mois" }, scope, PERMISSIONS, MOMENT);
+    const avant = await pageVisible();
+    const projets = new ProjetsService(prisma as never, new AuditService(prisma as never), perimetres, undefined as never);
+    const routeAvant = await projets.feuilleDeRoute(p.id, scope, PERMISSIONS);
+    const ganttAvant = await rapports.gantt({ periode: "mois" }, scope, PERMISSIONS, MOMENT);
+    await prisma.task.create({ data: {
+      projectId: p.id, milestoneId: j.id, titre: "Secret", confidentielle: true,
+      statut: "doing", avancement: 0, dateFin: utc("2026-08-01"),
+      creeLe: utc("2026-08-02"), assignes: { create: { userId: chef } },
+    } });
+    expect(await projets.feuilleDeRoute(p.id, scope, PERMISSIONS)).toEqual(routeAvant);
+    expect(await pageVisible()).toEqual(avant);
+    expect(await rapports.gantt({ periode: "mois" }, scope, PERMISSIONS, MOMENT)).toEqual(ganttAvant);
+    const exporte = await rapports.exporter("json", { periode: "mois" }, scope, PERMISSIONS, MOMENT, chef);
+    expect(JSON.parse(exporte.contenu)).toEqual(avant);
+    const autorise = await rapports.vueEnsemble({ periode: "mois" }, { ...scope, confidentiel: true }, PERMISSIONS, MOMENT);
+    expect(autorise.progression.projets[0]?.progression).toBe(50);
+    expect(autorise.repartitions.actives).toBe(1);
+    expect(autorise.charge.agents[0]?.taches).toBe(1);
+    expect(autorise.jalons.enRetard).toBe(1);
   });
+
+  it("RG-JAL-06 — un jalon vide marqué atteint ne figure pas parmi les retards", async () => {
+    const p = await projet({ nom: "Livré", chefId: chef });
+    await prisma.milestone.create({ data: { projectId: p.id, nom: "Livraison", statut: "done", dateEcheance: utc("2026-08-01") } });
+    expect((await page()).jalons).toMatchObject({ aTemps: 1, enRetard: 0 });
+  });
+});
+
+it("RG-RPT-01 — les instantanés globaux restent inaccessibles quand des contributions peuvent être masquées", async () => {
+  const p = await projet({ nom: "Historique", chefId: chef });
+  await prisma.projectSnapshot.create({ data: { projectId: p.id, date: utc("2026-08-02"), progression: 73, tachesTotal: 10, tachesFinies: 7, heuresConsommees: 0 } });
+  const scope = await global();
+  expect((await page()).tendance.points).toEqual([{ date: "2026-08-02", progression: 73 }]);
+  const restreint = await rapports.vueEnsemble({ periode: "mois" }, { ...scope, confidentiel: false }, PERMISSIONS, MOMENT);
+  expect(restreint.tendance.points).toEqual([]);
+  expect(restreint.tendance.historiqueSuffisant).toBe(false);
+  expect(restreint.tendance.accesRestreint).toBe(true);
+});
+
+it("RG-RPT-01, RG-SCOPE-04 — budget et historique projet ne révèlent pas le temps d'une tâche confidentielle", async () => {
+  const p = await projet({ nom: "Budget protégé", chefId: chef });
+  const projets = new ProjetsService(prisma as never, new AuditService(prisma as never), perimetres, undefined as never);
+  const droits = new Set(["users:readAll", "projects:read", "reports:read"]);
+  const scope = await perimetres.resoudre(chef, droits);
+  await prisma.timeEntry.create({ data: { userId: chef, projectId: p.id, date: MOMENT, heures: 2 } });
+  const avant = await projets.budget(p.id, scope, droits);
+  const secret = await prisma.task.create({ data: { projectId: p.id, titre: "Secret", confidentielle: true } });
+  await prisma.timeEntry.createMany({ data: [
+    { userId: chef, taskId: secret.id, date: MOMENT, heures: 5 },
+    { userId: chef, projectId: p.id, taskId: secret.id, date: MOMENT, heures: 3 },
+  ] });
+  expect(await projets.budget(p.id, scope, droits)).toEqual(avant);
+  const fiche = await projets.fiche(p.id, scope, droits);
+  expect(fiche.budget).toEqual(avant);
+  expect(fiche.departement).toEqual({ id: departement, nom: "Direction des services numériques" });
+  expect(await projets.capturerPourLecteur(p.id, MOMENT, scope, droits)).toBeNull();
+  const horsScope = await perimetres.resoudre(etranger, new Set(["reports:read"]));
+  await expect(projets.capturerPourLecteur(p.id, MOMENT, horsScope, new Set(["reports:read"]))).rejects.toMatchObject({ code: "hors_perimetre" });
+  expect(await projets.instantanes(p.id, scope, droits)).toEqual([]);
+  expect((await projets.fiche(p.id, scope, droits)).dernierInstantane).toBeNull();
+  const complets = new Set([...droits, "tasks:read_confidential"]);
+  const autorise = await perimetres.resoudre(chef, complets);
+  expect((await projets.budget(p.id, autorise, complets)).consomme).toBe(10);
+  expect(await projets.instantanes(p.id, autorise, complets)).toHaveLength(1);
 });

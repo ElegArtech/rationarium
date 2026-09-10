@@ -57,3 +57,6 @@ recette/preuves/**/*.zip
 recette/preuves/**/video/
 recette/travail/
 recette/harnais/instantane.sql
+
+# Magasins de recette : recréés depuis les fichiers de démonstration.
+recette/harnais/magasins/

@@ -1,3 +1,5 @@
+import { presenceALaDate } from "../commun/presence.js";
+import { CalendrierService } from "../parametrage/calendrier.service.js";
 import { Injectable } from "@nestjs/common";
 import { champRefuse, CHAMPS_GOUVERNES_UTILISATEUR } from "../commun/champs-gouvernes.js";
 import { PrismaService } from "../prisma.service.js";
@@ -92,7 +94,7 @@ export class UtilisateursService {
       select: {
         id: true, prenom: true, nom: true, email: true, login: true, actif: true,
         derniereConnexion: true, version: true,
-        role: { select: { id: true, code: true, nom: true } },
+        role: { select: { id: true, code: true, nom: true, systeme: true } },
         departement: { select: { id: true, nom: true } },
         services: { select: { service: { select: { id: true, nom: true } } } },
       },
@@ -146,7 +148,7 @@ export class UtilisateursService {
       select: {
         id: true, prenom: true, nom: true, email: true, login: true, actif: true,
         creeLe: true, derniereConnexion: true,
-        role: { select: { code: true, nom: true } },
+        role: { select: { code: true, nom: true, systeme: true } },
         departement: { select: { id: true, nom: true } },
         services: { select: { service: { select: { id: true, nom: true } } } },
       },
@@ -284,61 +286,17 @@ export class UtilisateursService {
    * `Telework` à l'état `office`. L'absence de déclaration n'est pas une
    * présence — c'est ce qu'on ne sait pas.
    *
-   * **Le week-end n'est PAS traité ici, et c'est un manque de spec assumé.**
-   * La fin de `RG-TLT-02` — « le week-end est distingué » — n'est développée
-   * qu'en `cadrage/02 § vue 20` : « cinq apparences à distinguer sur une même
-   * case de calendrier », c'est-à-dire un quatrième état de CASE, non
-   * cliquable et hors décompte (`teletravail.service.ts` le tient déjà par son
-   * drapeau `weekend`). Ni `EX-USR-09`, ni le brief de la vue 06, ni
-   * `design/etats.json` ne disent ce que devient la présence du jour un
-   * samedi : aucun cinquième état, aucune exclusion, rien. L'énumération
-   * rendue ici n'existe d'ailleurs que dans le code. Inventer un état
-   * `week_end` serait une décision de conception prise à l'exécution ; elle
-   * remonte au cadrage, elle ne se tranche pas ici (`CLAUDE.md`, sources de
-   * vérité).
-   * ══════════════════════════════════════════════════════════════════════════
+   * D-RM-11 tranche désormais le week-end et les jours fériés non ouvrés :
+   * ils sont distingués, sans fabriquer de non-déclaration. Les deux vues
+   * partagent le calcul de commun/presence.ts.
    */
   async presenceDuJour(perimetre: Perimetre, jour: Date) {
-    const filtre = this.perimetres.filtreUtilisateur(perimetre);
-    const agents = await this.prisma.user.findMany({
-      where: { AND: [filtre, { actif: true }] },
-      select: { id: true, prenom: true, nom: true },
-      orderBy: [{ nom: "asc" }],
-    });
-    const ids = agents.map((a) => a.id);
-
-    const [conges, teletravail] = await Promise.all([
-      this.prisma.leave.findMany({
-        where: {
-          userId: { in: ids },
-          statut: "approved",
-          dateDebut: { lte: jour },
-          dateFin: { gte: jour },
-        },
-        select: { userId: true, type: { select: { nom: true, couleur: true } } },
-      }),
-      this.prisma.telework.findMany({
-        where: { userId: { in: ids }, date: jour },
-        select: { userId: true, etat: true },
-      }),
-    ]);
-
-    const enConge = new Map(conges.map((c) => [c.userId, c.type.nom]));
-    const etatTt = new Map(teletravail.map((t) => [t.userId, t.etat]));
-
+    const agents = await presenceALaDate(this.prisma, this.perimetres, new CalendrierService(this.prisma, this.audit), perimetre, jour);
     return agents.map((a) => ({
       ...a,
-      etat: enConge.has(a.id)
-        ? ("conge" as const)
-        : etatTt.get(a.id) === "telework"
-          ? ("teletravail" as const)
-          : // « Bureau DÉCLARÉ » : une ligne `Telework` à l'état `office`, et
-            // rien d'autre. Un `else` qui dirait « présent » ferait de
-            // l'absence de déclaration une affirmation.
-            etatTt.get(a.id) === "office"
-            ? ("present" as const)
-            : ("non_declare" as const),
-      typeConge: enConge.get(a.id) ?? null,
+      etat: a.nonOuvre ? "non_ouvre" as const : a.enConge ? "conge" as const
+        : a.etat === "telework" ? "teletravail" as const
+          : a.etat === "office" ? "present" as const : "non_declare" as const,
     }));
   }
 
@@ -388,7 +346,11 @@ export class UtilisateursService {
 
     const avant = await this.prisma.user.findUnique({
       where: { id },
-      select: { id: true, version: true, prenom: true, nom: true, email: true, roleId: true, departementId: true },
+      select: {
+        id: true, version: true, prenom: true, nom: true, email: true,
+        roleId: true, departementId: true,
+        role: { select: { nom: true } },
+      },
     });
     if (!avant) throw new ErreurUtilisateur("introuvable");
     if (avant.version !== donnees.version) throw new ErreurUtilisateur("conflit_de_version");
@@ -413,20 +375,35 @@ export class UtilisateursService {
      * frontière HTTP. Un test l'a montré en une ligne.
      */
     const { serviceIds } = donnees;
-    const user = await this.prisma.user.update({
-      where: { id },
-      data: {
-        ...(donnees.prenom !== undefined ? { prenom: donnees.prenom } : {}),
-        ...(donnees.nom !== undefined ? { nom: donnees.nom } : {}),
-        ...(donnees.roleId !== undefined ? { roleId: donnees.roleId } : {}),
-        ...(donnees.departementId !== undefined ? { departementId: donnees.departementId } : {}),
-        ...(email ? { email } : {}),
-        version: { increment: 1 },
-        ...(serviceIds
-          ? { services: { deleteMany: {}, create: serviceIds.map((serviceId) => ({ serviceId })) } }
-          : {}),
-      },
-    });
+    let user;
+    try {
+      user = await this.prisma.user.update({
+        // La version fait partie de l'écriture : le précontrôle seul laisserait
+        // deux requêtes franchir la lecture puis s'écraser.
+        where: { id, version: donnees.version },
+        data: {
+          ...(donnees.prenom !== undefined ? { prenom: donnees.prenom } : {}),
+          ...(donnees.nom !== undefined ? { nom: donnees.nom } : {}),
+          ...(donnees.roleId !== undefined ? { roleId: donnees.roleId } : {}),
+          ...(donnees.departementId !== undefined ? { departementId: donnees.departementId } : {}),
+          ...(email ? { email } : {}),
+          version: { increment: 1 },
+          ...(serviceIds
+            ? { services: { deleteMany: {}, create: serviceIds.map((serviceId) => ({ serviceId })) } }
+            : {}),
+        },
+      });
+    } catch (erreur) {
+      if (codePrisma(erreur) === "P2025") throw new ErreurUtilisateur("conflit_de_version");
+      if (codePrisma(erreur) === "P2002") throw new ErreurUtilisateur("email_deja_pris");
+      throw erreur;
+    }
+
+    const roleApres = donnees.roleId === undefined
+      ? avant.role
+      : donnees.roleId === null
+        ? null
+        : await this.prisma.role.findUnique({ where: { id: donnees.roleId }, select: { nom: true } });
 
     await this.audit.tracer({
       action: "user.update",
@@ -434,8 +411,8 @@ export class UtilisateursService {
       entiteId: id,
       acteurId,
       detail: {
-        avant: { prenom: avant.prenom, nom: avant.nom, email: avant.email, roleId: avant.roleId },
-        apres: { prenom: user.prenom, nom: user.nom, email: user.email, roleId: user.roleId },
+        avant: { prenom: avant.prenom, nom: avant.nom, email: avant.email, role: avant.role?.nom ?? null },
+        apres: { prenom: user.prenom, nom: user.nom, email: user.email, role: roleApres?.nom ?? null },
       },
     });
     return user;
@@ -467,20 +444,32 @@ export class UtilisateursService {
     }
     await this.verifierServices(donnees.departementId ?? null, donnees.serviceIds ?? []);
 
-    const user = await this.prisma.user.create({
-      data: {
-        prenom: donnees.prenom,
-        nom: donnees.nom,
-        email,
-        login: donnees.login,
-        motDePasseHash: await hacherMotDePasse(donnees.motDePasse),
-        // EX-AUTH-07 — mot de passe défini par un tiers : changement imposé.
-        motDePasseAChanger: true,
-        roleId: donnees.roleId ?? null,
-        departementId: donnees.departementId ?? null,
-        services: { create: (donnees.serviceIds ?? []).map((serviceId) => ({ serviceId })) },
-      },
-    });
+    let user;
+    try {
+      user = await this.prisma.user.create({
+        data: {
+          prenom: donnees.prenom,
+          nom: donnees.nom,
+          email,
+          login: donnees.login,
+          motDePasseHash: await hacherMotDePasse(donnees.motDePasse),
+          // EX-AUTH-07 — mot de passe défini par un tiers : changement imposé.
+          motDePasseAChanger: true,
+          roleId: donnees.roleId ?? null,
+          departementId: donnees.departementId ?? null,
+          services: { create: (donnees.serviceIds ?? []).map((serviceId) => ({ serviceId })) },
+        },
+      });
+    } catch (erreur) {
+      if (codePrisma(erreur) === "P2002") {
+        const cible = String((erreur as { meta?: { target?: unknown } }).meta?.target ?? "");
+        const emailPris = cible.includes("email") || Boolean(await this.prisma.user.findUnique({
+          where: { email }, select: { id: true },
+        }));
+        throw new ErreurUtilisateur(emailPris ? "email_deja_pris" : "login_deja_pris");
+      }
+      throw erreur;
+    }
 
     await this.audit.tracer({
       action: "user.create", typeEntite: "User", entiteId: user.id, acteurId,
@@ -522,20 +511,44 @@ export class UtilisateursService {
    * désactivation ne prendrait effet qu'à la prochaine connexion, c'est-à-dire
    * jamais pour quelqu'un déjà connecté.
    */
-  async desactiver(id: string, acteurId: string) {
+  async desactiver(id: string, acteurId: string, version: number) {
     if (id === acteurId) throw new ErreurUtilisateur("soi_meme_interdit");
-
-    await this.prisma.$transaction([
-      this.prisma.user.update({ where: { id }, data: { actif: false } }),
-      this.prisma.session.deleteMany({ where: { userId: id } }),
-    ]);
+    const avant = await this.prisma.user.findUnique({ where: { id }, select: { actif: true, version: true } });
+    if (!avant) throw new ErreurUtilisateur("introuvable");
+    if (avant.version !== version) throw new ErreurUtilisateur("conflit_de_version");
+    if (!avant.actif) throw new ErreurUtilisateur("conflit_de_version");
+    try {
+      await this.prisma.$transaction([
+        this.prisma.user.update({
+          where: { id, version, actif: true },
+          data: { actif: false, version: { increment: 1 } },
+        }),
+        this.prisma.session.deleteMany({ where: { userId: id } }),
+      ]);
+    } catch (erreur) {
+      if (codePrisma(erreur) === "P2025") throw new ErreurUtilisateur("conflit_de_version");
+      throw erreur;
+    }
     await this.audit.tracer({
       action: "user.deactivate", typeEntite: "User", entiteId: id, acteurId,
     });
   }
 
-  async reactiver(id: string, acteurId: string) {
-    await this.prisma.user.update({ where: { id }, data: { actif: true } });
+  async reactiver(id: string, acteurId: string, version: number) {
+    if (id === acteurId) throw new ErreurUtilisateur("soi_meme_interdit");
+    const avant = await this.prisma.user.findUnique({ where: { id }, select: { actif: true, version: true } });
+    if (!avant) throw new ErreurUtilisateur("introuvable");
+    if (avant.version !== version) throw new ErreurUtilisateur("conflit_de_version");
+    if (avant.actif) throw new ErreurUtilisateur("conflit_de_version");
+    try {
+      await this.prisma.user.update({
+        where: { id, version, actif: false },
+        data: { actif: true, version: { increment: 1 } },
+      });
+    } catch (erreur) {
+      if (codePrisma(erreur) === "P2025") throw new ErreurUtilisateur("conflit_de_version");
+      throw erreur;
+    }
     await this.audit.tracer({
       action: "user.reactivate", typeEntite: "User", entiteId: id, acteurId,
     });
@@ -555,12 +568,14 @@ export class UtilisateursService {
    */
   async impactSuppression(id: string): Promise<{
     nom: string;
+    login: string;
+    version: number;
     blocages: Blocage[];
     effacements: Blocage[];
   }> {
     const user = await this.prisma.user.findUnique({
       where: { id },
-      select: { prenom: true, nom: true },
+      select: { prenom: true, nom: true, login: true, version: true },
     });
     if (!user) throw new ErreurUtilisateur("introuvable");
 
@@ -575,16 +590,22 @@ export class UtilisateursService {
       ]);
 
     const blocages: Blocage[] = [];
-    if (temps > 0) blocages.push({ objet: "saisies de temps", nombre: temps });
-    if (projetsDiriges > 0) blocages.push({ objet: "projets dirigés ou sponsorisés", nombre: projetsDiriges });
-    if (congesApprouves > 0) blocages.push({ objet: "congés approuvés", nombre: congesApprouves });
+    if (temps > 0) blocages.push({ objet: "temps", nombre: temps });
+    if (projetsDiriges > 0) blocages.push({ objet: "projets", nombre: projetsDiriges });
+    if (congesApprouves > 0) blocages.push({ objet: "conges", nombre: congesApprouves });
 
     const effacements: Blocage[] = [];
-    if (tachesAssignees > 0) effacements.push({ objet: "assignations de tâches", nombre: tachesAssignees });
-    if (todos > 0) effacements.push({ objet: "to-do personnelles", nombre: todos });
+    if (tachesAssignees > 0) effacements.push({ objet: "assignations", nombre: tachesAssignees });
+    if (todos > 0) effacements.push({ objet: "todos", nombre: todos });
     if (notifications > 0) effacements.push({ objet: "notifications", nombre: notifications });
 
-    return { nom: `${user.prenom} ${user.nom}`, blocages, effacements };
+    return {
+      nom: `${user.prenom} ${user.nom}`,
+      login: user.login,
+      version: user.version,
+      blocages,
+      effacements,
+    };
   }
 
   /**
@@ -595,10 +616,11 @@ export class UtilisateursService {
    * pu apparaître. Se fier au contrôle d'affichage serait un « dernier arrivé
    * gagne » déguisé.
    */
-  async supprimerDefinitivement(id: string, acteurId: string) {
+  async supprimerDefinitivement(id: string, acteurId: string, version: number) {
     if (id === acteurId) throw new ErreurUtilisateur("soi_meme_interdit");
 
     const impact = await this.impactSuppression(id);
+    if (impact.version !== version) throw new ErreurUtilisateur("conflit_de_version");
     if (impact.blocages.length > 0) {
       throw new ErreurUtilisateur("suppression_bloquee", { blocages: impact.blocages });
     }
@@ -614,7 +636,12 @@ export class UtilisateursService {
       detail: { nom: impact.nom, efface: impact.effacements },
     });
 
-    await this.prisma.user.delete({ where: { id } });
+    try {
+      await this.prisma.user.delete({ where: { id, version } });
+    } catch (erreur) {
+      if (codePrisma(erreur) === "P2025") throw new ErreurUtilisateur("conflit_de_version");
+      throw erreur;
+    }
   }
 
   /**
@@ -640,3 +667,8 @@ export class UtilisateursService {
     });
   }
 }
+
+const codePrisma = (erreur: unknown): string | undefined =>
+  typeof erreur === "object" && erreur !== null && "code" in erreur
+    ? String((erreur as { code?: unknown }).code)
+    : undefined;

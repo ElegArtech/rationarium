@@ -23,6 +23,7 @@ export type EtatPortefeuille = {
   statut: string;
   priorite: string;
   mesProjets: boolean;
+  archives?: boolean;
 };
 
 export const PORTEFEUILLE_VIDE: EtatPortefeuille = {
@@ -33,7 +34,7 @@ export const PORTEFEUILLE_VIDE: EtatPortefeuille = {
 };
 
 /** Les paramètres qui appartiennent au portefeuille, et eux seuls. */
-export const CLES_PORTEFEUILLE = ["q", "statut", "priorite", "miens"] as const;
+export const CLES_PORTEFEUILLE = ["q", "statut", "priorite", "miens", "archives"] as const;
 
 const chaine = (v: unknown): string => (typeof v === "string" ? v : "");
 
@@ -43,6 +44,7 @@ export function lirePortefeuille(brut: Record<string, unknown>): EtatPortefeuill
     statut: chaine(brut["statut"]),
     priorite: chaine(brut["priorite"]),
     mesProjets: chaine(brut["miens"]) === "1",
+    ...(chaine(brut["archives"]) === "1" ? { archives: true } : {}),
   };
 }
 
@@ -53,6 +55,7 @@ export function adressePortefeuille(etat: EtatPortefeuille): Record<string, stri
   if (etat.statut) s["statut"] = etat.statut;
   if (etat.priorite) s["priorite"] = etat.priorite;
   if (etat.mesProjets) s["miens"] = "1";
+  if (etat.archives) s["archives"] = "1";
   return s;
 }
 

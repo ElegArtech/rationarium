@@ -171,7 +171,7 @@ describe("les portées offertes", () => {
  * Le lien annonçait « Ouvrir les tâches » sous un compte de tâches en retard
  * et pointait `/taches` sans rien : on arrivait sur les cinquante-cinq, filtre
  * éteint. Corrigé en deux temps et par deux mains — `Rapports.tsx` a posé
- * `search={{ retard: "1" }}` une vague avant que `Liste.tsx` ne le lise —, ce
+ * `search={{ retard: 1 }}` une vague avant que `Liste.tsx` ne le lise —, ce
  * qui est exactement la forme du défaut de raccord : **un paramètre qui voyage
  * sans que personne le lise ne fait échouer aucun contrôle.** Le typage ne le
  * voit pas (`/taches` n'a pas de schéma de recherche), le parcours de bout en
@@ -202,24 +202,24 @@ describe("EX-RPT-12 — le filtre « en retard » traverse le lien", () => {
 
   it("le bandeau ÉCRIT le paramètre sur la route des tâches", () => {
     expect(fichier("/Rapports.tsx")).toMatch(
-      /<Link\s+to="\/taches"\s+search=\{\{\s*retard:\s*"1"\s*\}\}/,
+      /<Link\s+to="\/taches"\s+search=\{\{\s*retard:\s*1\s*\}\}/,
     );
   });
 
   it("la liste LIT le paramètre pour amorcer son filtre — la moitié qui manquait", () => {
     const liste = fichier("/Liste.tsx");
-    expect(liste).toMatch(/useState\(texte\("retard"\) === "1"\)/);
+    expect(liste).toMatch(/const enRetard = adresse\["retard"\] === 1/);
     // Et plus jamais l'amorçage en dur : c'est la forme du défaut.
     expect(liste).not.toMatch(/const \[enRetard, setEnRetard\] = useState\(false\)/);
   });
 
   it("les deux moitiés nomment le MÊME paramètre", () => {
-    const ecrit = /search=\{\{\s*(\w+):/.exec(fichier("/Rapports.tsx"))?.[1];
-    const lu = /useState\(texte\("(\w+)"\) === "1"\)[\s\S]{0,40}enRetard|const \[enRetard[\s\S]{0,80}texte\("(\w+)"\)/.exec(
+    const ecrit = /search=\{\{\s*(\w+):\s*1/.exec(fichier("/Rapports.tsx"))?.[1];
+    const lu = /const enRetard = adresse\["(\w+)"\] === 1/.exec(
       fichier("/Liste.tsx"),
     );
     expect(ecrit).toBe("retard");
-    expect(lu?.[1] ?? lu?.[2]).toBe("retard");
+    expect(lu?.[1]).toBe("retard");
   });
 });
 
@@ -242,6 +242,6 @@ describe("RG-GEN-08 — l'export part avec la langue du lecteur", () => {
   it("l'adresse ne concatène plus la langue derrière `adresseExport`", () => {
     // La forme du défaut, mot pour mot.
     expect(vue).not.toContain("&langue=");
-    expect(vue).toMatch(/const adresse = \(format: "csv" \| "json"\) =>\s*api\.adresseExport\(filtres, format\)/);
+    expect(vue).toMatch(/const adresse = \(format: "xlsx" \| "json"\) =>\s*api\.adresseExport\(filtres, format\)/);
   });
 });

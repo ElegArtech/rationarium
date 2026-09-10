@@ -1,3 +1,4 @@
+import { CiblesPlanning } from "../commun/planning-cible.garde.js";
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from "@nestjs/common";
 import { z } from "zod";
 import {
@@ -181,6 +182,7 @@ export class ActiviteController {
   }
 
   @Post("assignations")
+  @CiblesPlanning("activite")
   @RequiertPermission("predefined_tasks:assign")
   assigner(@Body() corps: unknown, @Demande() d: ContexteDemande) {
     const q = valider(
@@ -203,6 +205,7 @@ export class ActiviteController {
   }
 
   @Post("generer")
+  @CiblesPlanning("activite")
   @RequiertPermission("predefined_tasks:generate")
   generer(@Body() corps: unknown, @Demande() d: ContexteDemande) {
     const q = valider(
@@ -225,12 +228,13 @@ export class ActiviteController {
 
   /** `EX-ACT-09` — dire si la permanence a bien été tenue. */
   @Post("assignations/realisation")
+  @CiblesPlanning("realisation")
   @RequiertPermission("predefined_tasks:update")
   declarerRealisation(@Body() corps: unknown, @Demande() d: ContexteDemande) {
     const q = valider(
-      z.object({ assignationId: z.uuid(), realisee: z.boolean() }),
+      z.object({ assignationId: z.uuid(), realisee: z.boolean(), version: z.number().int().positive() }),
       corps,
     );
-    return this.activite.declarerRealisation(q.assignationId, q.realisee, d.userId);
+    return this.activite.declarerRealisation(q.assignationId, q.realisee, d.userId, q.version);
   }
 }

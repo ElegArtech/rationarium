@@ -92,17 +92,21 @@ export const UTILISATEURS = [
 
 export const IMPACT_BLOQUE = {
   nom: "Camille Roussel",
+  login: "camille.roussel",
+  version: 1,
   blocages: [
-    { objet: "saisies de temps", nombre: 218 },
-    { objet: "congés approuvés", nombre: 4 },
+    { objet: "temps", nombre: 218 },
+    { objet: "conges", nombre: 4 },
   ],
   effacements: [],
 };
 
 export const IMPACT_LIBRE = {
   nom: "Ancien Collegue",
+  login: "ancien",
+  version: 1,
   blocages: [],
-  effacements: [{ objet: "to-do personnelles", nombre: 3 }],
+  effacements: [{ objet: "todos", nombre: 3 }],
 };
 
 // ── Vue 28 ──────────────────────────────────────────────────────────────────

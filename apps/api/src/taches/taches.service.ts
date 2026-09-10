@@ -1579,66 +1579,42 @@ export class TachesService {
 
   async deplacerDepuisPlanning(
     taskId: string,
-    cible: { nouvelleDate?: Date; nouvelAssigneId?: string; ancienAssigneId?: string },
+    cible: { version: number; nouvelleDate?: Date; nouvelAssigneId?: string; ancienAssigneId?: string },
     acteurId: string,
-  ): Promise<{ dateModifiee: boolean; assigneModifie: boolean; avertissement?: string }> {
-    const assignes = await this.prisma.taskAssignee.findMany({
-      where: { taskId },
-      select: { userId: true },
+  ): Promise<{ dateModifiee: boolean; assigneModifie: boolean; version: number; avertissement?: string }> {
+    const resultat = await this.prisma.$transaction(async (tx) => {
+      // Le verrou versionné précède les lectures des assignations ; toute erreur annule l'ensemble.
+      const verrou = await tx.task.updateMany({ where: { id: taskId, version: cible.version }, data: { version: { increment: 1 } } });
+      if (verrou.count !== 1) throw new ErreurTache("conflit_de_version");
+      const tache = await tx.task.findUniqueOrThrow({ where: { id: taskId }, include: { assignes: { select: { userId: true } } } });
+      const multiAssignee = tache.assignes.length > 1;
+      let assigneModifie = false;
+      let dateModifiee = false;
+      if (cible.nouvelAssigneId) {
+        if (tache.assignes.some((a) => a.userId === cible.nouvelAssigneId)) throw new ErreurTache("deja_assigne");
+        if (cible.ancienAssigneId && !tache.assignes.some((a) => a.userId === cible.ancienAssigneId)) throw new ErreurTache("introuvable");
+        if (cible.ancienAssigneId) await tx.taskAssignee.delete({ where: { taskId_userId: { taskId, userId: cible.ancienAssigneId } } });
+        await tx.taskAssignee.create({ data: { taskId, userId: cible.nouvelAssigneId } });
+        assigneModifie = true;
+      }
+      if (cible.nouvelleDate && !multiAssignee) {
+        const duree = tache.dateDebut && tache.dateFin ? tache.dateFin.getTime() - tache.dateDebut.getTime() : 0;
+        await tx.task.update({ where: { id: taskId }, data: {
+          dateDebut: cible.nouvelleDate, dateFin: new Date(cible.nouvelleDate.getTime() + duree),
+        } });
+        dateModifiee = true;
+      }
+      // Un geste interdit en date seulement ne modifie même pas la version.
+      if (!assigneModifie && !dateModifiee) await tx.task.update({ where: { id: taskId }, data: { version: cible.version } });
+      return { dateModifiee, assigneModifie, version: cible.version + (assigneModifie || dateModifiee ? 1 : 0),
+        ...(cible.nouvelleDate && multiAssignee ? { avertissement: assigneModifie ? "multi_assignee_assigne_seul" : "multi_assignee_date" } : {}),
+      };
     });
-    const multiAssignee = assignes.length > 1;
-
-    let dateModifiee = false;
-    let assigneModifie = false;
-
-    if (cible.nouvelAssigneId) {
-      // RG-PLN-06 — l'assignation d'un agent déjà affecté est refusée.
-      if (assignes.some((a) => a.userId === cible.nouvelAssigneId)) {
-        throw new ErreurTache("deja_assigne");
-      }
-      if (cible.ancienAssigneId) {
-        await this.prisma.taskAssignee.delete({
-          where: { taskId_userId: { taskId, userId: cible.ancienAssigneId } },
-        });
-      }
-      await this.prisma.taskAssignee.create({
-        data: { taskId, userId: cible.nouvelAssigneId },
-      });
-      assigneModifie = true;
-    }
-
-    if (cible.nouvelleDate) {
-      if (multiAssignee) {
-        // La date n'est PAS modifiée. Si un changement d'assigné a eu lieu, il
-        // reste acquis — c'est exactement ce que dit la règle.
-        return {
-          dateModifiee: false,
-          assigneModifie,
-          avertissement: assigneModifie ? "multi_assignee_assigne_seul" : "multi_assignee_date",
-        };
-      }
-      const tache = await this.prisma.task.findUniqueOrThrow({
-        where: { id: taskId },
-        select: { dateDebut: true, dateFin: true },
-      });
-      const duree =
-        tache.dateDebut && tache.dateFin ? tache.dateFin.getTime() - tache.dateDebut.getTime() : 0;
-      await this.prisma.task.update({
-        where: { id: taskId },
-        data: {
-          dateDebut: cible.nouvelleDate,
-          dateFin: new Date(cible.nouvelleDate.getTime() + duree),
-          version: { increment: 1 },
-        },
-      });
-      dateModifiee = true;
-    }
-
-    await this.audit.tracer({
+    if (resultat.dateModifiee || resultat.assigneModifie) await this.audit.tracer({
       action: "task.planning_move", typeEntite: "Task", entiteId: taskId, acteurId,
-      detail: { dateModifiee, assigneModifie },
+      detail: resultat,
     });
-    return { dateModifiee, assigneModifie };
+    return resultat;
   }
 
   /** `EX-TSK-19` — les tâches orphelines : ni projet, ni assigné. */

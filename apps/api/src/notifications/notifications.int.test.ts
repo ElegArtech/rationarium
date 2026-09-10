@@ -55,9 +55,10 @@ let typeSansValidation: string;
 
 async function creerAgent(prenom: string) {
   const id = uuid();
+  const role = await prisma.role.create({ data: { code: `LECT_${id}`, nom: "Lecture tâche", permissions: { create: { permission: "tasks:read" } } } });
   await prisma.user.create({
     data: {
-      id, login: `u-${id.slice(0, 8)}`, email: `${id.slice(0, 8)}@exemple.fr`,
+      roleId: role.id, id, login: `u-${id.slice(0, 8)}`, email: `${id.slice(0, 8)}@exemple.fr`,
       motDePasseHash: "x", prenom, nom: "Agent",
     },
   });
@@ -634,4 +635,54 @@ describe("RG-GEN-08 — une notification émise en français se lit en anglais",
     );
     envois.mockRestore();
   });
+});
+
+describe("RM-04 — confidentialité du destinataire", () => {
+  it("RG-SCOPE-04 — l'assignation et le retard d'une tâche confidentielle ne divulguent rien à un assigné sans droit", async () => {
+    const dest = await creerAgent("Sans droit confidentiel");
+    const role = await prisma.role.create({ data: { code: `GLOBAL_${uuid()}`, nom: "Lecture globale", permissions: { create: [{ permission: "users:readAll" }, { permission: "tasks:read" }] } } });
+    await prisma.user.update({ where: { id: dest }, data: { roleId: role.id } });
+    const publier = vi.spyOn(file, "publier").mockResolvedValue(null);
+    await taches.creer({ titre: "Secret RH", confidentielle: true, assigneIds: [dest], dateFin: utc("2026-08-01") }, validateur, DROITS_TACHE);
+    expect(await notifsDe(dest)).toEqual([]);
+    expect(await notifications.alertesEcheance(utc("2026-08-11"))).toMatchObject({ emises: 0 });
+    expect(await notifsDe(dest)).toEqual([]);
+    expect(publier).not.toHaveBeenCalled();
+    await taches.creer({ titre: "Travail visible", assigneIds: [dest] }, validateur, DROITS_TACHE);
+    expect((await notifsDe(dest)).map((n) => n.type)).toEqual(["tache_assignee"]);
+  });
+
+  it("RG-SCOPE-04 — le droit du destinataire permet l'alerte et sa révocation masque aussi les notifications conservées", async () => {
+    const dest = await creerAgent("Autorisé");
+    const role = await prisma.role.create({ data: { code: `CONF_${uuid()}`, nom: "Confidentiel", permissions: { create: [{ permission: "tasks:read_confidential" }, { permission: "tasks:read" }] } } });
+    await prisma.user.update({ where: { id: dest }, data: { roleId: role.id } });
+    await taches.creer({ titre: "Secret RH", confidentielle: true, assigneIds: [dest], dateFin: utc("2026-08-01") }, validateur, DROITS_TACHE);
+    expect((await notifsDe(dest)).map((n) => n.type)).toEqual(["tache_assignee"]);
+    await notifications.alertesEcheance(utc("2026-08-11"));
+    expect((await notifsDe(dest)).map((n) => n.type)).toEqual(["tache_assignee", "tache_en_retard"]);
+    expect((await notifications.lister(dest)).nonLues).toBe(2);
+    await prisma.rolePermission.deleteMany({ where: { roleId: role.id, permission: "tasks:read_confidential" } });
+    expect(await notifications.lister(dest)).toEqual({ entrees: [], nonLues: 0 });
+    await notifications.notifier({ userId: dest, type: "conge_decide", contenu: "Décision" });
+    const visibles = await notifications.lister(dest);
+    expect(visibles.entrees.map((n) => n.type)).toEqual(["conge_decide"]);
+    expect(visibles.nonLues).toBe(1);
+  });
+});
+
+
+it("RG-SCOPE-02, RG-SCOPE-04 — sortie du périmètre puis suppression ne rendent jamais une notification de tâche lisible", async () => {
+  const dest = await creerAgent("Ancien assigné");
+  const tache = await taches.creer({ titre: "À retirer", assigneIds: [dest] }, validateur, DROITS_TACHE);
+  expect((await notifications.lister(dest)).nonLues).toBe(1);
+  const compte = await prisma.user.findUniqueOrThrow({ where: { id: dest }, select: { roleId: true } });
+  await prisma.rolePermission.deleteMany({ where: { roleId: compte.roleId! } });
+  expect(await notifications.lister(dest)).toEqual({ entrees: [], nonLues: 0 });
+  await prisma.rolePermission.create({ data: { roleId: compte.roleId!, permission: "tasks:read" } });
+  expect((await notifications.lister(dest)).nonLues).toBe(1);
+  await prisma.taskAssignee.deleteMany({ where: { taskId: tache.id, userId: dest } });
+  expect(await notifications.lister(dest)).toEqual({ entrees: [], nonLues: 0 });
+  await prisma.task.update({ where: { id: tache.id }, data: { confidentielle: true } });
+  await prisma.task.delete({ where: { id: tache.id } });
+  expect(await notifications.lister(dest)).toEqual({ entrees: [], nonLues: 0 });
 });

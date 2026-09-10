@@ -4,6 +4,7 @@ import { motDePasse } from "@rationarium/contracts";
 import { UtilisateursService } from "./utilisateurs.service.js";
 import { Demande, RequiertPermission, type ContexteDemande } from "../commun/permissions.garde.js";
 import { valider, dateSchema } from "../commun/http.js";
+import { CibleUtilisateur } from "./utilisateur-cible.garde.js";
 
 /** M3 — comptes, annuaire, suivi individuel. Vues 27 et 28. */
 
@@ -56,6 +57,7 @@ export class UtilisateursController {
 
   @Post()
   @RequiertPermission("users:create")
+  @CibleUtilisateur({ rattachements: true, creation: true })
   creer(@Body() corps: unknown, @Demande() d: ContexteDemande) {
     const donnees = valider(
       z.object({
@@ -87,6 +89,7 @@ export class UtilisateursController {
    */
   @Patch(":id")
   @RequiertPermission("users:update")
+  @CibleUtilisateur({ cible: true, rattachements: true })
   modifier(@Param("id") id: string, @Body() corps: unknown, @Demande() d: ContexteDemande) {
     const donnees = valider(
       z.object({
@@ -105,31 +108,43 @@ export class UtilisateursController {
 
   @Post(":id/desactiver")
   @RequiertPermission("users:deactivate")
-  desactiver(@Param("id") id: string, @Demande() d: ContexteDemande) {
-    return this.utilisateurs.desactiver(id, d.userId);
+  @CibleUtilisateur({ cible: true })
+  desactiver(@Param("id") id: string, @Body() corps: unknown, @Demande() d: ContexteDemande) {
+    const { version } = valider(z.object({ version: z.number().int().positive() }).strict(), corps);
+    return this.utilisateurs.desactiver(id, d.userId, version);
   }
 
   @Post(":id/reactiver")
   @RequiertPermission("users:deactivate")
-  reactiver(@Param("id") id: string, @Demande() d: ContexteDemande) {
-    return this.utilisateurs.reactiver(id, d.userId);
+  @CibleUtilisateur({ cible: true })
+  reactiver(@Param("id") id: string, @Body() corps: unknown, @Demande() d: ContexteDemande) {
+    const { version } = valider(z.object({ version: z.number().int().positive() }).strict(), corps);
+    return this.utilisateurs.reactiver(id, d.userId, version);
   }
 
   /** L'inventaire de ce qui sera perdu — présenté **avant** la confirmation. */
   @Get(":id/impact")
   @RequiertPermission("users:delete_permanently")
+  @CibleUtilisateur({ cible: true })
   impact(@Param("id") id: string) {
     return this.utilisateurs.impactSuppression(id);
   }
 
   @Delete(":id")
   @RequiertPermission("users:delete_permanently")
-  supprimer(@Param("id") id: string, @Demande() d: ContexteDemande) {
-    return this.utilisateurs.supprimerDefinitivement(id, d.userId);
+  @CibleUtilisateur({ cible: true })
+  supprimer(@Param("id") id: string, @Body() corps: unknown, @Demande() d: ContexteDemande) {
+    const { confirmer, version } = valider(z.object({
+      confirmer: z.literal(true),
+      version: z.number().int().positive(),
+    }).strict(), corps);
+    void confirmer;
+    return this.utilisateurs.supprimerDefinitivement(id, d.userId, version);
   }
 
   @Post(":id/mot-de-passe")
   @RequiertPermission("users:reset_password")
+  @CibleUtilisateur({ cible: true })
   reinitialiser(@Param("id") id: string, @Body() corps: unknown, @Demande() d: ContexteDemande) {
     const { nouveau } = valider(z.object({ nouveau: motDePasse }), corps);
     return this.utilisateurs.reinitialiserMotDePasse(id, nouveau, d.userId);

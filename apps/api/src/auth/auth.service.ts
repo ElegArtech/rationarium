@@ -3,11 +3,16 @@ import { PrismaService } from "../prisma.service.js";
 import { AuditService } from "../commun/audit.service.js";
 import { FileService, FILE_COURRIEL } from "../notifications/file.service.js";
 import {
+  estVisuelAvatarPredefini,
+  type VisuelAvatarPredefini,
+} from "@rationarium/contracts";
+import {
   hacherMotDePasse,
   verifierMotDePasse,
   engendrerJeton,
   hacherJeton,
 } from "./mots-de-passe.js";
+import { detecterTypeAvatar, lireAvatar, stockerAvatar, type TypeAvatar } from "./avatar.js";
 
 /**
  * Erreurs métier de l'authentification.
@@ -30,6 +35,10 @@ export type EchecAuth =
   | "domaine_non_autorise"
   | "inscription_desactivee"
   | "avatar_ambigu"
+  | "avatar_predefini_invalide"
+  | "avatar_format_invalide"
+  | "avatar_vide"
+  | "avatar_introuvable"
   | "conflit_de_version";
 
 export class ErreurAuth extends Error {
@@ -557,6 +566,25 @@ export class AuthService {
    * donnée strictement personnelle, sans domaine au catalogue de
    * `cadrage/01 § 3.2`.
    */
+  /** EX-AUTH-07, cadrage/02 vue 05 — expliquer le blocage sans divulguer le journal. */
+  async motifChangementMotDePasse(userId: string, impose: boolean): Promise<{
+    motifChangementMotDePasse: "premiere" | "administrateur" | null;
+    motDePasseReinitialiseLe: string | null;
+  }> {
+    if (!impose) return { motifChangementMotDePasse: null, motDePasseReinitialiseLe: null };
+    // L'action réelle est user.reset_password ; seul l'horodatage du compte
+    // authentifié est nécessaire. L'acteur et les détails ne sortent jamais.
+    const reset = await this.prisma.auditLog.findFirst({
+      where: { action: "user.reset_password", typeEntite: "User", entiteId: userId },
+      orderBy: { horodatage: "desc" },
+      select: { horodatage: true },
+    });
+    return {
+      motifChangementMotDePasse: reset ? "administrateur" : "premiere",
+      motDePasseReinitialiseLe: reset?.horodatage.toISOString() ?? null,
+    };
+  }
+
   async profil(userId: string) {
     const u = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -570,6 +598,7 @@ export class AuthService {
         avatarPredefini: true,
         langue: true,
         theme: true,
+        motDePasseAChanger: true,
         derniereConnexion: true,
         creeLe: true,
         /* `RG-GEN-07` — `modificationProfilSchema` EXIGE la version lue. Elle
@@ -580,15 +609,23 @@ export class AuthService {
         version: true,
         departement: { select: { nom: true } },
         services: { select: { service: { select: { nom: true } } } },
-        role: { select: { code: true, nom: true, permissions: { select: { permission: true } } } },
+        role: { select: { code: true, nom: true, systeme: true, permissions: { select: { permission: true } } } },
       },
     });
     if (!u) throw new ErreurAuth("identifiants_invalides");
 
     const { role, creeLe, departement, services, ...identite } = u;
+    const avatarPredefini = identite.avatarPredefini &&
+      estVisuelAvatarPredefini(identite.avatarPredefini)
+      ? identite.avatarPredefini
+      : null;
     return {
       ...identite,
-      role: role ? { code: role.code, nom: role.nom } : null,
+      /** Seul un identifiant du catalogue partagé traverse la session. */
+      avatarPredefini,
+      /** URL personnelle stable ; l'identifiant de compte ne circule pas. */
+      avatarUrl: identite.avatarFichier ? "/api/auth/me/avatar" : null,
+      role: role ? { code: role.code, nom: role.nom, systeme: role.systeme } : null,
       /* Un agent peut appartenir à PLUSIEURS services : la vue les énumère,
          elle n'en choisit pas un. */
       departement: departement?.nom ?? null,
@@ -627,7 +664,7 @@ export class AuthService {
       langue?: string | undefined;
       theme?: string | undefined;
       avatarFichier?: string | null | undefined;
-      avatarPredefini?: string | null | undefined;
+      avatarPredefini?: VisuelAvatarPredefini | null | undefined;
       version: number;
     },
   ) {
@@ -640,8 +677,16 @@ export class AuthService {
      * reçu : poser un fichier sans effacer le prédéfini déjà là produirait les
      * deux à la fois, et le schéma seul ne peut pas le voir.
      */
-    const fichier = d.avatarFichier !== undefined ? d.avatarFichier : avant.avatarFichier;
+    if (d.avatarFichier && d.avatarPredefini) throw new ErreurAuth("avatar_ambigu");
+    const fichier = d.avatarPredefini
+      ? null
+      : d.avatarFichier !== undefined
+        ? d.avatarFichier
+        : avant.avatarFichier;
     const predefini = d.avatarPredefini !== undefined ? d.avatarPredefini : avant.avatarPredefini;
+    if (predefini && !estVisuelAvatarPredefini(predefini)) {
+      throw new ErreurAuth("avatar_predefini_invalide");
+    }
     if (fichier && predefini) throw new ErreurAuth("avatar_ambigu");
 
     if (d.email && d.email !== avant.email) {
@@ -660,12 +705,68 @@ export class AuthService {
         ...(d.langue !== undefined ? { langue: d.langue } : {}),
         ...(d.theme !== undefined ? { theme: d.theme } : {}),
         ...(d.avatarFichier !== undefined ? { avatarFichier: d.avatarFichier } : {}),
+        ...(d.avatarPredefini ? { avatarFichier: null } : {}),
         ...(d.avatarPredefini !== undefined ? { avatarPredefini: d.avatarPredefini } : {}),
         version: { increment: 1 },
       },
     });
     if (count === 0) throw new ErreurAuth("conflit_de_version");
 
+    return this.profil(userId);
+  }
+
+  /**
+   * `EX-AUTH-09`, `RG-AUTH-09` — téléverser son avatar personnel.
+   *
+   * Le type est établi depuis la signature réelle. Le MIME déclaré n'est
+   * qu'une vérification supplémentaire et ne peut jamais rendre valide un
+   * contenu qui ne l'est pas. La version lue conditionne l'écriture.
+   */
+  async televerserAvatar(
+    userId: string,
+    donnees: { contenu: Buffer; typeMime: string; version: number },
+  ) {
+    if (donnees.contenu.byteLength === 0) throw new ErreurAuth("avatar_vide");
+    const typeMime = detecterTypeAvatar(donnees.contenu);
+    if (!typeMime || typeMime !== donnees.typeMime) {
+      throw new ErreurAuth("avatar_format_invalide");
+    }
+
+    const empreinte = await stockerAvatar(donnees.contenu);
+    const { count } = await this.prisma.user.updateMany({
+      where: { id: userId, version: donnees.version },
+      data: {
+        avatarFichier: empreinte,
+        // Les trois états sont exclusifs : un fichier personnel remplace
+        // proprement le visuel prédéfini sélectionné auparavant.
+        avatarPredefini: null,
+        version: { increment: 1 },
+      },
+    });
+    if (count === 0) throw new ErreurAuth("conflit_de_version");
+    return this.profil(userId);
+  }
+
+  /** `EX-AUTH-09` — lire uniquement l'avatar de la session courante. */
+  async avatar(userId: string): Promise<{ contenu: Buffer; typeMime: TypeAvatar }> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { avatarFichier: true },
+    });
+    if (!user?.avatarFichier) throw new ErreurAuth("avatar_introuvable");
+    const contenu = await lireAvatar(user.avatarFichier);
+    const typeMime = contenu ? detecterTypeAvatar(contenu) : null;
+    if (!contenu || !typeMime) throw new ErreurAuth("avatar_introuvable");
+    return { contenu, typeMime };
+  }
+
+  /** `EX-AUTH-09` — revenir à « aucun avatar », avec concurrence détectée. */
+  async supprimerAvatar(userId: string, version: number) {
+    const { count } = await this.prisma.user.updateMany({
+      where: { id: userId, version },
+      data: { avatarFichier: null, avatarPredefini: null, version: { increment: 1 } },
+    });
+    if (count === 0) throw new ErreurAuth("conflit_de_version");
     return this.profil(userId);
   }
 }

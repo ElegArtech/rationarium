@@ -1,4 +1,5 @@
-import { Injectable } from "@nestjs/common";
+import { ConflictException, Injectable, UnprocessableEntityException } from "@nestjs/common";
+import { readFileSync } from "node:fs";
 import { PrismaService } from "../prisma.service.js";
 import { AuditService } from "../commun/audit.service.js";
 
@@ -15,7 +16,11 @@ import { AuditService } from "../commun/audit.service.js";
  * peut travailler un 11 novembre.
  */
 
-export type EchecCalendrier = "dates_incoherentes" | "jour_deja_declare" | "introuvable";
+export type EchecCalendrier =
+  | "dates_incoherentes"
+  | "jour_deja_declare"
+  | "introuvable"
+  | "conflit_de_version";
 
 export class ErreurCalendrier extends Error {
   constructor(
@@ -28,6 +33,70 @@ export class ErreurCalendrier extends Error {
 
 const jour = (d: Date | string): string =>
   (typeof d === "string" ? d : d.toISOString()).slice(0, 10);
+
+type ZoneScolaire = "A" | "B" | "C";
+type PeriodeOfficielle = {
+  anneeScolaire: string;
+  zone: ZoneScolaire;
+  libelle: string;
+  dateDebut: string;
+  dateFin: string;
+};
+type ReferenceScolaire = {
+  collecte: string;
+  sha256Source: string;
+  periodes: PeriodeOfficielle[];
+};
+
+export const META_AUDIT_IMPORT_SCOLAIRE = Symbol("audit-import-scolaire");
+export type ResultatImportScolaire = {
+  crees: number;
+  existants: number;
+  [META_AUDIT_IMPORT_SCOLAIRE]?: {
+    anneeScolaire: string;
+    zone: ZoneScolaire;
+    crees: number;
+    existants: number;
+    collecte: string;
+    sha256Source: string;
+    nombrePeriodes: number;
+  };
+};
+
+const estZoneScolaire = (valeur: string | undefined): valeur is ZoneScolaire =>
+  valeur === "A" || valeur === "B" || valeur === "C";
+
+/**
+ * ADR-0017 — l'instantané est lu à côté du lot compilé. En développement, le
+ * repli pointe vers la référence versionnée ; la construction API la copie
+ * dans `dist/parametrage`, qui est ensuite copiée telle quelle dans l'image.
+ */
+const chargerReferenceScolaire = (): ReferenceScolaire => {
+  const chemins = [
+    new URL("./periodes-metropole.json", import.meta.url),
+    new URL("../../../../docs/references/calendrier/periodes-metropole.json", import.meta.url),
+  ];
+  let contenu: string | undefined;
+  for (const chemin of chemins) {
+    try {
+      contenu = readFileSync(chemin, "utf8");
+      break;
+    } catch {
+      // Le premier chemin n'existe qu'après construction ; le second en dev.
+    }
+  }
+  if (!contenu) throw new Error("La référence scolaire embarquée est introuvable.");
+  const reference = JSON.parse(contenu) as ReferenceScolaire;
+  if (
+    reference.sha256Source !== "777eb79d413ebaadd9be0338c5fa09a7261f5ddd0f3eb782d4f3c121cd35fa6e" ||
+    reference.periodes.length !== 171
+  ) {
+    throw new Error("La référence scolaire embarquée ne correspond pas à l'instantané validé.");
+  }
+  return reference;
+};
+
+const REFERENCE_SCOLAIRE = chargerReferenceScolaire();
 
 @Injectable()
 export class CalendrierService {
@@ -180,6 +249,33 @@ export class CalendrierService {
     return ferie;
   }
 
+  /** `RG-GEN-07` — la version relue participe au prédicat atomique d'écriture. */
+  async modifierJourFerie(
+    id: string,
+    donnees: { version: number; ouvre?: boolean; recurrent?: boolean },
+  ) {
+    const modifie = await this.prisma.holiday.updateMany({
+      where: { id, version: donnees.version },
+      data: {
+        ...(donnees.ouvre === undefined ? {} : { ouvre: donnees.ouvre }),
+        ...(donnees.recurrent === undefined ? {} : { recurrent: donnees.recurrent }),
+        version: { increment: 1 },
+      },
+    });
+    if (modifie.count === 0) {
+      const actuel = await this.prisma.holiday.findUnique({
+        where: { id },
+        select: { version: true },
+      });
+      if (!actuel) throw new ErreurCalendrier("introuvable");
+      throw new ErreurCalendrier("conflit_de_version", {
+        attendue: actuel.version,
+        recue: donnees.version,
+      });
+    }
+    return this.prisma.holiday.findUniqueOrThrow({ where: { id } });
+  }
+
   /**
    * `RG-PRM-03` — l'import rend compte : créés / déjà existants.
    *
@@ -273,14 +369,14 @@ export class CalendrierService {
   async declarerVacances(
     donnees: {
       libelle: string; dateDebut: Date; dateFin: Date;
-      zone: string; anneeScolaire: string; importee?: boolean;
+      zone: string; anneeScolaire: string;
     },
     acteurId: string,
   ) {
-    if (donnees.dateFin < donnees.dateDebut) throw new ErreurCalendrier("dates_incoherentes");
+    if (donnees.dateFin <= donnees.dateDebut) throw new ErreurCalendrier("dates_incoherentes");
 
     const periode = await this.prisma.schoolVacation.create({
-      data: { ...donnees, importee: donnees.importee ?? false },
+      data: { ...donnees, importee: false },
     });
     await this.audit.tracer({
       action: "school_vacation.create",
@@ -291,8 +387,85 @@ export class CalendrierService {
     return periode;
   }
 
+  /**
+   * D-RM-15 / ADR-0017 — import strictement local, année-zone explicite ou
+   * héritée du réglage global. `createMany(skipDuplicates)` fait porter
+   * l'idempotence concurrente par l'unicité déjà présente en base.
+   */
+  async importerVacances(
+    anneeScolaire: string,
+    zoneDemandee?: ZoneScolaire,
+  ): Promise<ResultatImportScolaire> {
+    const zone = zoneDemandee ?? await this.zoneScolaireConfiguree();
+    const periodes = zone
+      ? REFERENCE_SCOLAIRE.periodes.filter(
+          (periode) => periode.anneeScolaire === anneeScolaire && periode.zone === zone,
+        )
+      : [];
+    if (!zone || periodes.length === 0) {
+      throw new UnprocessableEntityException({
+        cle: "erreurs:calendrierScolaireIndisponible",
+        message: "Aucune période officielle n'est disponible pour cette année scolaire et cette zone. Choisissez une combinaison disponible.",
+      });
+    }
+
+    const donnees = periodes.map((periode) => ({
+      libelle: periode.libelle,
+      dateDebut: new Date(`${periode.dateDebut}T00:00:00.000Z`),
+      dateFin: new Date(`${periode.dateFin}T00:00:00.000Z`),
+      zone: periode.zone,
+      anneeScolaire: periode.anneeScolaire,
+      importee: true,
+    }));
+    const creees = await this.prisma.$transaction(async (tx) => {
+      const insertion = await tx.schoolVacation.createMany({
+        data: donnees,
+        skipDuplicates: true,
+      });
+      const stockees = await tx.schoolVacation.findMany({
+        where: {
+          zone,
+          anneeScolaire,
+          libelle: { in: donnees.map((periode) => periode.libelle) },
+        },
+      });
+      const attendues = new Map(donnees.map((periode) => [periode.libelle, periode]));
+      const conflit = stockees.find((periode) => {
+        const attendue = attendues.get(periode.libelle);
+        return !attendue || !periode.importee ||
+          jour(periode.dateDebut) !== jour(attendue.dateDebut) ||
+          jour(periode.dateFin) !== jour(attendue.dateFin);
+      });
+      if (conflit) {
+        throw new ConflictException({
+          cle: "erreurs:periodeScolaireEnConflit",
+          message: "Une période saisie manuellement porte le même nom qu'une période officielle avec d'autres dates. Renommez ou supprimez la période manuelle avant de relancer l'import.",
+          detail: { libelle: conflit.libelle, zone, anneeScolaire },
+        });
+      }
+      return insertion.count;
+    });
+    const resultat: ResultatImportScolaire = {
+      crees: creees,
+      existants: periodes.length - creees,
+    };
+    Object.defineProperty(resultat, META_AUDIT_IMPORT_SCOLAIRE, {
+      enumerable: false,
+      value: {
+        anneeScolaire,
+        zone,
+        ...resultat,
+        collecte: REFERENCE_SCOLAIRE.collecte,
+        sha256Source: REFERENCE_SCOLAIRE.sha256Source,
+        nombrePeriodes: REFERENCE_SCOLAIRE.periodes.length,
+      },
+    });
+    return resultat;
+  }
+
   /** `EX-PLN-14` — trame de fond du planning : fériés et vacances scolaires. */
   async trameDeFond(debut: Date, fin: Date, zone?: string) {
+    const zoneEffective = estZoneScolaire(zone) ? zone : await this.zoneScolaireConfiguree();
     const [chomes, vacances] = await Promise.all([
       this.joursChomes(debut, fin),
       this.prisma.schoolVacation.findMany({
@@ -300,7 +473,10 @@ export class CalendrierService {
           AND: [
             { dateDebut: { lte: fin } },
             { dateFin: { gte: debut } },
-            ...(zone ? [{ zone }] : []),
+            // Une zone globale vide signifie « aucune trame scolaire », pas
+            // « superposer les trois zones ». Une zone explicite garde la
+            // priorité pour la lecture unitaire historique.
+            ...(zoneEffective ? [{ zone: zoneEffective }] : [{ zone: "__aucune_zone__" }]),
           ],
         },
         select: { libelle: true, dateDebut: true, dateFin: true, zone: true },
@@ -309,8 +485,16 @@ export class CalendrierService {
     return { joursChomes: [...chomes].sort(), vacances };
   }
 
+  private async zoneScolaireConfiguree(): Promise<ZoneScolaire | undefined> {
+    const reglage = await this.prisma.setting.findUnique({
+      where: { cle: "planning.schoolZone" },
+      select: { valeur: true },
+    });
+    return estZoneScolaire(reglage?.valeur) ? reglage.valeur : undefined;
+  }
+
   /**
-   * `EX-PRM-01` — les réglages globaux.
+   * M19 — les réglages globaux.
    *
    * Seuls les réglages **publics** sortent : la table porte aussi des limites
    * internes (plafond journalier, durée de session) qu'un écran de préférences
@@ -352,7 +536,7 @@ export class CalendrierService {
   }
 
   /**
-   * `EX-PRM-02` — les jours fériés d'une année, avec leur statistique.
+   * M19 / `RG-PRM-01..03` — les jours fériés d'une année et leurs statistiques.
    *
    * Le compte de jours **ouvrés** est mis en avant parce que c'est le réglage
    * à effet lointain : un férié marqué ouvré compte comme travaillé dans le
@@ -398,18 +582,45 @@ export class CalendrierService {
     };
   }
 
-  /** `EX-PRM-03` — les vacances scolaires d'une année scolaire. */
-  async vacances(anneeScolaire?: string) {
+  /** M19 / `RG-PRM-04` — les vacances scolaires d'une année et d'une zone. */
+  async vacances(anneeScolaire?: string, zone?: ZoneScolaire) {
     const vacances = await this.prisma.schoolVacation.findMany({
-      ...(anneeScolaire ? { where: { anneeScolaire } } : {}),
+      ...(
+        anneeScolaire || zone
+          ? {
+              where: {
+                ...(anneeScolaire ? { anneeScolaire } : {}),
+                ...(zone ? { zone } : {}),
+              },
+            }
+          : {}
+      ),
       orderBy: { dateDebut: "asc" },
     });
+
+    const zonesParAnnee = new Map<string, Set<ZoneScolaire>>();
+    for (const periode of REFERENCE_SCOLAIRE.periodes) {
+      const zones = zonesParAnnee.get(periode.anneeScolaire) ?? new Set<ZoneScolaire>();
+      zones.add(periode.zone);
+      zonesParAnnee.set(periode.anneeScolaire, zones);
+    }
     return {
       vacances,
       statistiques: {
         total: vacances.length,
         importees: vacances.filter((v) => v.importee).length,
         manuelles: vacances.filter((v) => !v.importee).length,
+      },
+      reference: {
+        collecte: REFERENCE_SCOLAIRE.collecte,
+        sha256Source: REFERENCE_SCOLAIRE.sha256Source,
+        nombrePeriodes: REFERENCE_SCOLAIRE.periodes.length,
+        combinaisons: [...zonesParAnnee.entries()]
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([anneeDisponible, zones]) => ({
+            anneeScolaire: anneeDisponible,
+            zones: [...zones].sort(),
+          })),
       },
     };
   }

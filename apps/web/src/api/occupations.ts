@@ -90,7 +90,8 @@ export const creerEvenement = (donnees: {
   projectId?: string | null;
   interventionExterieure?: boolean;
   participantIds?: string[];
-  recurrence?: { frequenceSemaines: number; jourSemaine: number; jusqua: string };
+  serviceIds?: string[];
+  recurrence?: { frequenceSemaines: number; jourSemaine: number; jusqua?: string };
 }) => appeler<{ id: string }>("/evenements", { methode: "POST", corps: donnees });
 
 /**
@@ -139,10 +140,10 @@ export const supprimerEvenement = (
   });
 };
 
-export const arreterRecurrence = (id: string, aPartirDe: string) =>
+export const arreterRecurrence = (id: string, aPartirDe: string, version: number) =>
   appeler<{ supprimees: number }>(`/evenements/${id}/arreter`, {
     methode: "POST",
-    corps: { aPartirDe },
+    corps: { aPartirDe, version },
   });
 
 // ── M10 — Congés, vue 19 ────────────────────────────────────────────────────
@@ -225,7 +226,8 @@ export type DemandeConge = {
   joursOuvres: string;
   version: number;
   type: { id: string; nom: string; couleur: string | null; icone: string | null };
-  user: Personne;
+  user: Personne & { services?: { id: string; nom: string }[]; departement?: { id: string; nom: string } | null };
+  absencesConcomitantes?: { id: string; user: Personne; dateDebut: string; dateFin: string }[];
   validateur: Personne | null;
   /** `RG-CNG-19` — une demande à cheval sur deux ans se répartit par année. */
   repartitions: { annee: number; jours: string }[];
@@ -303,15 +305,12 @@ export const attribuerSolde = (donnees: {
  * les tranche, et il les tranche **à la date**, parce qu'une délégation a un
  * début et une fin.
  *
- * **La réponse ne porte qu'un identifiant, jamais un nom.** Le point d'entrée
- * est gardé par `leaves:read` ; `GET /utilisateurs`, le seul annuaire du
- * produit, l'est par `users:read`, qu'un agent ordinaire n'a pas. Un client
- * qui n'a que `leaves:read` reçoit donc un UUID qu'il n'a aucun moyen de
- * nommer. Voir le commentaire de `FenetreDemande` pour le contournement, et
- * le compte rendu du lot pour le défaut.
+ * L'identité est rendue avec l'identifiant, sans lecture d'annuaire supplémentaire.
  */
-export const validateurDeConge = (date: string) =>
-  appeler<{ validateurId: string | null }>(`/conges/validateur${params({ date })}`);
+export const candidatsConge = () => appeler<Personne[]>("/conges/candidats");
+
+export const validateurDeConge = (date: string, userId?: string) =>
+  appeler<{ validateurId: string | null; validateur: Personne | null }>(`/conges/validateur${params({ date, userId })}`);
 
 export const delegations = () =>
   appeler<{ donnees: Delegation[]; recues: Delegation[] }>("/conges/delegations");
@@ -518,7 +517,13 @@ export type PlanningTeletravail = {
   calendrier: JourTeletravail[];
   cumul: { teletravail: number; bureau: number; nonDeclares: number };
 };
+export const statistiquesTeletravail = (userId: string, annee: number) =>
+  appeler<{ annee: number; total: number; parMois: number[]; moyenneMensuelle: number }>(`/teletravail/statistiques${params({ userId, annee })}`);
+
 export type AgentTeletravail = {
+  enConge?: boolean;
+  nonOuvre?: boolean;
+  typeConge?: string | null;
   id: string;
   prenom: string;
   nom: string;
@@ -623,6 +628,7 @@ export type SaisieTemps = {
 };
 
 export const temps = (filtres: {
+  thirdPartyId?: string;
   userId?: string;
   projectId?: string;
   debut?: string;

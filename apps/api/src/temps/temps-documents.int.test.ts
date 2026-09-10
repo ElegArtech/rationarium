@@ -200,6 +200,8 @@ describe("RG-TMP-05 — filtrer sur autrui exige une permission", () => {
 
   it("sans filtre, on ne voit que ses propres saisies", async () => {
     const u = await agent();
+    // Le contrôle porte sur le cumul d'un projet réellement accessible.
+    await prisma.projectMember.create({ data: { projectId: projet, userId: u, roleProjet: "contributeur" } });
     const autre = await agent();
     await temps.saisir({ userId: u, projectId: projet, date: utc("2026-05-04"), heures: 2 }, acteur, DROITS_ENCADRANT);
     await temps.saisir({ userId: autre, projectId: projet, date: utc("2026-05-04"), heures: 3 }, acteur, DROITS_ENCADRANT);
@@ -467,6 +469,8 @@ describe("EX-TMP-01 — consulter ses saisies avec cumul : nombre d'entrées, to
      * dans l'autre.
      */
     const u = await agent();
+    // Le contrôle porte sur le cumul d'un projet réellement accessible.
+    await prisma.projectMember.create({ data: { projectId: projet, userId: u, roleProjet: "contributeur" } });
     const p = await perimetres.resoudre(u, new Set());
     await temps.saisir({ userId: u, date: utc("2026-10-01"), heures: 2.5, projectId: projet }, u);
     await temps.saisir({ userId: u, date: utc("2026-10-02"), heures: 4, projectId: projet }, u);
@@ -490,9 +494,11 @@ describe("EX-TMP-01 — consulter ses saisies avec cumul : nombre d'entrées, to
 describe("EX-TMP-02 — filtrer par projet et par plage de dates", () => {
   it("le filtre par projet écarte l'autre projet, et le cumul suit le filtre", async () => {
     const u = await agent();
+    // Le contrôle porte sur le cumul d'un projet réellement accessible.
+    await prisma.projectMember.create({ data: { projectId: projet, userId: u, roleProjet: "contributeur" } });
     const p = await perimetres.resoudre(u, new Set());
     const autre = await prisma.project.create({
-      data: { nom: `Autre-${uuid().slice(0, 8)}`, dateDebut: utc("2026-01-01"), dateFin: utc("2026-12-31") },
+      data: { chefId: u, nom: `Autre-${uuid().slice(0, 8)}`, dateDebut: utc("2026-01-01"), dateFin: utc("2026-12-31") },
     });
     await temps.saisir({ userId: u, date: utc("2026-11-02"), heures: 3, projectId: projet }, u);
     await temps.saisir({ userId: u, date: utc("2026-11-03"), heures: 5, projectId: autre.id }, u);
@@ -510,6 +516,8 @@ describe("EX-TMP-02 — filtrer par projet et par plage de dates", () => {
      * « du 1er au 31 » qui omet le 31 se remarque une fois par an.
      */
     const u = await agent();
+    // Le contrôle porte sur le cumul d'un projet réellement accessible.
+    await prisma.projectMember.create({ data: { projectId: projet, userId: u, roleProjet: "contributeur" } });
     const p = await perimetres.resoudre(u, new Set());
     await temps.saisir({ userId: u, date: utc("2026-11-30"), heures: 1, projectId: projet }, u);
     await temps.saisir({ userId: u, date: utc("2026-12-01"), heures: 2, projectId: projet }, u);
@@ -529,6 +537,8 @@ describe("EX-TMP-02 — filtrer par projet et par plage de dates", () => {
 describe("EX-TMP-04 — supprimer une saisie", () => {
   it("la ligne disparaît, et le cumul du journal en tient compte", async () => {
     const u = await agent();
+    // Le contrôle porte sur le cumul d'un projet réellement accessible.
+    await prisma.projectMember.create({ data: { projectId: projet, userId: u, roleProjet: "contributeur" } });
     const p = await perimetres.resoudre(u, new Set());
     const a = await temps.saisir({ userId: u, date: utc("2026-12-10"), heures: 2, projectId: projet }, u);
     await temps.saisir({ userId: u, date: utc("2026-12-11"), heures: 3, projectId: projet }, u);

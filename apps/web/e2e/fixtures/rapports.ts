@@ -23,7 +23,7 @@ const projet = (i: number) => ({
   id: `p${i}`,
   nom: `Projet ${String(i).padStart(2, "0")}`,
   icone: "◆",
-  progression: 10 * i,
+  progression: Math.min(8 * i, 100),
   taches: 4 + i,
 });
 
@@ -50,6 +50,7 @@ export const VUE_ENSEMBLE = {
       id: "p1", nom: "Portail citoyen", icone: "◆", completion: 90,
       restantes: 3, enRetard: 4, jalons: 5, jalonsAVenir: 2, tachesActives: 3,
       dateFin: "2026-12-31",
+      budgetHeures: 1_200,
       chef: { id: "u1", prenom: "Driss", nom: "Amrani" },
       service: "Direction des services numériques",
       sante: "critical",
@@ -58,10 +59,12 @@ export const VUE_ENSEMBLE = {
       id: "p2", nom: "Refonte intranet", icone: "◆", completion: 45,
       restantes: 8, enRetard: 0, jalons: 2, jalonsAVenir: 2, tachesActives: 8,
       dateFin: "2027-03-31",
+      budgetHeures: 640,
       chef: null, service: null, sante: "good",
     },
   ],
   tendance: {
+    accesRestreint: false,
     points: [
       { date: "2026-08-01", progression: 30 },
       { date: "2026-08-04", progression: 38 },
@@ -72,6 +75,8 @@ export const VUE_ENSEMBLE = {
     moyenne: 42,
     gain: 25,
     stagnation: false,
+    relevesHorsFenetre: 0,
+    minimumRequis: 4,
   },
   jalons: {
     total: 7, aTemps: 3, enRetard: 2, aVenir: 2, echus: 5,
@@ -124,11 +129,14 @@ export const VUE_ENSEMBLE_JEUNE = {
   progression: { projets: [projet(1)], total: 1 },
   charge: { agents: [], moyenne: 0, surcharges: 0 },
   tendance: {
+    accesRestreint: false,
     points: [{ date: "2026-08-01", progression: 12 }],
     historiqueSuffisant: false,
     moyenne: 12,
     gain: 0,
     stagnation: false,
+    relevesHorsFenetre: 0,
+    minimumRequis: 4,
   },
   jalons: { total: 0, aTemps: 0, enRetard: 0, aVenir: 0, echus: 0, retards: [], retardsNonListes: 0 },
   activite: {
@@ -140,6 +148,7 @@ export const VUE_ENSEMBLE_JEUNE = {
 export const VUE_ENSEMBLE_STAGNANTE = {
   ...VUE_ENSEMBLE,
   tendance: {
+    accesRestreint: false,
     points: [
       { date: "2026-08-01", progression: 42 },
       { date: "2026-08-04", progression: 42 },
@@ -150,6 +159,8 @@ export const VUE_ENSEMBLE_STAGNANTE = {
     moyenne: 42,
     gain: 0,
     stagnation: true,
+    relevesHorsFenetre: 0,
+    minimumRequis: 4,
   },
 };
 

@@ -56,14 +56,12 @@ const clesDeNiveau1 = (texte: string, debut: number): string[] => {
   return cles;
 };
 
-/** Ce que le serveur rend pour la tendance — le `return` de `tendance()`. */
+/** Ce que le serveur promet pour la tendance — son contrat explicite. */
 const clesServeur = (): string[] => {
   const source = lire("../../../api/src/rapports/rapports.service.ts");
-  const methode = source.indexOf("private async tendance(");
-  expect(methode).toBeGreaterThan(0);
-  const retour = source.indexOf("return {", methode);
-  expect(retour).toBeGreaterThan(methode);
-  return clesDeNiveau1(source, source.indexOf("{", retour));
+  const contrat = source.indexOf("export type TendanceRapport =");
+  expect(contrat).toBeGreaterThan(0);
+  return clesDeNiveau1(source, source.indexOf("{", contrat));
 };
 
 /** Ce que le client déclare — le membre `tendance` de `VueEnsemble`. */
@@ -101,11 +99,11 @@ describe("RG-GEN-08 — l'export part avec la langue du lecteur", () => {
     // Elle était jointe à l'adresse au point d'appel, donc dépendante de la
     // vigilance de chacun : le prochain export en aurait fait l'économie sans
     // que rien ne le dise.
-    expect(adresseExport({ ...filtres, langue: "en" }, "csv")).toContain("&langue=en");
+    expect(adresseExport({ ...filtres, langue: "en" }, "xlsx")).toContain("&langue=en");
   });
 
   it("sans langue demandée, l'adresse n'invente pas de paramètre vide", () => {
-    expect(adresseExport(filtres, "csv")).not.toContain("langue");
+    expect(adresseExport(filtres, "xlsx")).not.toContain("langue");
   });
 
   it("les filtres posés partent avec l'export — RG-RPT-02", () => {

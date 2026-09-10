@@ -241,5 +241,27 @@
   "fenetreDate": {
     "nouvelleDate": "Nouvelle date",
     "mention": "La tâche reste assignée à la même personne"
+  },
+  "ics": {
+    "importer": "Importer un ICS",
+    "fermer": "Fermer",
+    "previsualiser": "Prévisualiser",
+    "confirmer": "Confirmer l’import",
+    "fichier": "Fichier ICS",
+    "explication": "Prévisualisez les événements avant de confirmer leur import dans votre agenda. Les événements existants sont conservés ; les entrées non prises en charge sont ignorées.",
+    "echec": "Le fichier ICS n’a pas pu être traité.",
+    "apercu": "Aperçu : {crees} à importer · {existants} existants · {ignores} ignorés.",
+    "bilan": "Import terminé : {crees, plural, one {# créé} other {# créés}} · {existants, plural, one {# existant} other {# existants}} · {ignores, plural, one {# ignoré} other {# ignorés}}.",
+    "a_importer": "À importer",
+    "existant": "Déjà présent",
+    "entreeIgnoree": "Entrée {index} {titre} :",
+    "motif_incomplet": "Événement incomplet.",
+    "motif_date_invalide": "Date invalide.",
+    "motif_horaires_invalides": "Horaires invalides.",
+    "motif_multi_jours": "Les événements sur plusieurs jours ne sont pas pris en charge.",
+    "motif_recurrence_non_prise_en_charge": "Cette forme de récurrence n’est pas prise en charge.",
+    "motif_titre_trop_long": "Titre trop long.",
+    "motif_horizon_depasse": "Horizon de récurrence dépassé.",
+    "motif_fuseau_non_pris_en_charge": "Le fuseau horaire de cet événement n’est pas pris en charge."
   }
 }

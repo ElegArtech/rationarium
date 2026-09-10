@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "react-aria-components";
-import { DUREES_TACHE_PREDEFINIE, TYPES_RECURRENCE } from "@rationarium/contracts";
+import { DUREES_TACHE_PREDEFINIE, TYPES_RECURRENCE, ICONES_PROJET } from "@rationarium/contracts";
 import * as api from "../../api/administration.js";
 import * as apiPlanning from "../../api/planning.js";
 import { messageErreur } from "../../api/erreurs.js";
@@ -22,6 +22,7 @@ import "../taches/liste.css";
 import "../taches/fiche.css";
 import "../occupations/evenements.css";
 import "../projets/fiche.css";
+import "../projets/portefeuille.css";
 import "./predefinies.css";
 
 /**
@@ -320,7 +321,7 @@ export function Predefinies() {
       <FenetreBascule tache={bascule} surFermeture={() => setBascule(null)} />
       <FenetreRegle
         ouverte={regleNouvelle}
-        taches={requete.data}
+        taches={requete.data.filter(tache => tache.actif)}
         surFermeture={() => setRegleNouvelle(false)}
       />
       {regleEditee ? (
@@ -329,14 +330,14 @@ export function Predefinies() {
           // Remontée à chaque règle : les champs se réamorcent sur celle qu'on
           // ouvre, jamais sur celle d'avant.
           key={`${regleEditee.regle.id}:${regleEditee.regle.version}`}
-          taches={requete.data}
+          taches={requete.data.filter(tache => tache.actif)}
           existante={regleEditee}
           surFermeture={() => setRegleEditee(null)}
         />
       ) : null}
       <FenetreGeneration
         ouverte={generation}
-        taches={requete.data}
+        taches={requete.data.filter(tache => tache.actif)}
         surFermeture={() => setGeneration(false)}
       />
     </div>
@@ -500,7 +501,7 @@ function FenetreTache({
   cible: api.TachePredefinie | "nouvelle" | null;
   surFermeture: () => void;
 }) {
-  const { t } = useTranslation("administration");
+  const { t, i18n } = useTranslation("administration");
   const { t: tErreurs } = useTranslation("erreurs");
   const libelle = useLibelle();
   const annoncer = useMessages();
@@ -508,6 +509,7 @@ function FenetreTache({
 
   const existante = cible && cible !== "nouvelle" ? cible : null;
 
+  const [icone, setIcone] = useState<string | null>(null);
   const [nom, setNom] = useState("");
   const [description, setDescription] = useState("");
   const [couleur, setCouleur] = useState<string>(COULEURS[0]);
@@ -524,6 +526,7 @@ function FenetreTache({
     if (!cible) return;
     setTouche(false);
     setNom(existante?.nom ?? "");
+    setIcone(existante?.icone ?? null);
     setDescription(existante?.description ?? "");
     setCouleur(existante?.couleur ?? COULEURS[0]);
     setDuree(existante?.dureeParDefaut ?? "half_day");
@@ -542,6 +545,7 @@ function FenetreTache({
     mutationFn: () => {
       const donnees = {
         nom: nom.trim(),
+        icone,
         description: description.trim() === "" ? null : description.trim(),
         couleur,
         dureeParDefaut: duree,
@@ -589,6 +593,12 @@ function FenetreTache({
         </>
       }
     >
+      <div className="field-block">
+        <span className="field-label" id="pt-icone-label">{t("predefinies.icone")}</span>
+        <div className="igrid" role="group" aria-labelledby="pt-icone-label">
+          {ICONES_PROJET.filter(i => ["p-person", "p-group", "p-clipboard", "p-shield", "p-helmet", "p-lock", "p-server", "p-cityhall", "p-stamp", "p-book", "p-drop", "p-bulb"].includes(i.code)).map(i => <Button key={i.code} className="iopt" aria-pressed={icone === i.code} aria-label={i[i18n.language.startsWith("en") ? "en" : "fr"]} onPress={() => setIcone(icone === i.code ? null : i.code)}><svg className="picon" aria-hidden="true"><use href={`#${i.code}`} /></svg></Button>)}
+        </div>
+      </div>
       <div className="form-grid">
         <div className="field-block">
           <label className="field-label" htmlFor="pt-nom">

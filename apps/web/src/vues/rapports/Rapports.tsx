@@ -33,6 +33,7 @@ import "./rapports.css";
 
 const PERIODES = ["semaine", "mois", "trimestre", "annee"] as const;
 const ONGLETS = ["over", "adv", "gantt"] as const;
+const PLAFOND_RETARDS = 10;
 type Onglet = (typeof ONGLETS)[number];
 
 /** Le filtre de périmètre de la barre d'activité — repris de la maquette. */
@@ -81,6 +82,7 @@ export function vueVide(periode: api.VueEnsemble["periode"]): api.VueEnsemble {
     sante: [],
     tendance: {
       points: [],
+      accesRestreint: false,
       historiqueSuffisant: false,
       moyenne: 0,
       gain: 0,
@@ -213,7 +215,7 @@ export function Rapports() {
    * l'adresse en deux endroits, et c'est ainsi qu'on obtient un jour deux
    * paramètres `langue` ou aucun.
    */
-  const adresse = (format: "csv" | "json") => api.adresseExport(filtres, format);
+  const adresse = (format: "xlsx" | "json") => api.adresseExport(filtres, format);
 
   return (
     <div className="page">
@@ -300,10 +302,10 @@ export function Rapports() {
                   </MenuItem>
                   <MenuItem
                     className="pop-action"
-                    id="csv"
-                    href={adresse("csv")}
+                    id="xlsx"
+                    href={adresse("xlsx")}
                   >
-                    {t("actions.exportCsv")}
+                    {t("actions.exportExcel")}
                   </MenuItem>
                   <MenuItem
                     className="pop-action"
@@ -376,6 +378,7 @@ function Contenu({
           </span>
           <span className="alert-corps">
             <strong>{t("alerte.titre")}</strong> {t("alerte.texte", { n: donnees.alerte.tachesEnRetard })}
+            {` ${t("alerte.details")}`}
           </span>
           {/*
             **Une ancre brute recharge tout le document.** Elle relançait
@@ -398,7 +401,7 @@ function Contenu({
             `vues/rapports/rapports.test.ts` compare maintenant, l'écriture du
             paramètre ici ET sa lecture là-bas.
           */}
-          <Link to="/taches" search={{ retard: "1" }} className="chip-btn">
+          <Link to="/taches" search={{ retard: 1 }} className="chip-btn">
             {t("alerte.ouvrirLesTaches")}
           </Link>
         </div>
@@ -541,7 +544,12 @@ function SanteDuPortefeuille({ lignes }: { lignes: api.SanteLigne[] }) {
           <small>{t("sante.videAide")}</small>
         </div>
       ) : (
-        <>
+        <div
+          className="health-table"
+          role="region"
+          aria-label={t("sante.titre")}
+          tabIndex={0}
+        >
           <div className="health-grid health-head">
             <span>{t("sante.colProjet")}</span>
             <span>{t("sante.colSante")}</span>
@@ -555,7 +563,7 @@ function SanteDuPortefeuille({ lignes }: { lignes: api.SanteLigne[] }) {
               quand l'en-tête visible disait « Avancement ». Le libellé suit
               désormais la valeur, et le marqueur dit ce qui les sépare.
             */}
-            <span className="ligne-icone">
+            <span className="ligne-icone health-completion-head">
               {t("sante.colCompletion")}
               <MarqueurCalcule
                 libelle={t("sante.completionMarqueur")}
@@ -661,7 +669,7 @@ function SanteDuPortefeuille({ lignes }: { lignes: api.SanteLigne[] }) {
               </Button>
             </div>
           ) : null}
-        </>
+        </div>
       )}
     </section>
   );
@@ -822,6 +830,7 @@ function Jalons({ jalons }: { jalons: api.VueEnsemble["jalons"] }) {
  */
 function RetardsDeJalons({ jalons }: { jalons: api.VueEnsemble["jalons"] }) {
   const { t } = useTranslation("rapports");
+  const [tout, setTout] = useState(false);
 
   if (jalons.enRetard === 0) {
     // L'absence de retard est une information, et elle vaut d'être écrite :
@@ -833,7 +842,7 @@ function RetardsDeJalons({ jalons }: { jalons: api.VueEnsemble["jalons"] }) {
     <div className="mile-late">
       <span className="eyebrow">{t("jalons.detailRetards")}</span>
       <ul className="mile-list">
-        {jalons.retards.map((j) => (
+        {(tout ? jalons.retards : jalons.retards.slice(0, PLAFOND_RETARDS)).map((j) => (
           <li className="mile-item" key={j.id}>
             <Link
               className="mile-lien"
@@ -857,7 +866,19 @@ function RetardsDeJalons({ jalons }: { jalons: api.VueEnsemble["jalons"] }) {
         ))}
       </ul>
       {jalons.retardsNonListes > 0 ? (
-        <p className="mile-tronque">{t("jalons.autresRetards", { n: jalons.retardsNonListes })}</p>
+        <div className="trunc mile-tronque">
+          <span aria-hidden="true">▾</span>
+          <span>
+            {tout
+              ? t("jalons.tousAffiches")
+              : t("jalons.autresRetards", { n: jalons.retardsNonListes })}
+          </span>
+          <Button className="chip-btn ligne-actions-fin" onPress={() => setTout(!tout)}>
+            {tout
+              ? t("jalons.revenirA", { n: PLAFOND_RETARDS })
+              : t("jalons.toutAfficher")}
+          </Button>
+        </div>
       ) : null}
     </div>
   );
@@ -998,7 +1019,12 @@ function Tendance({ tendance }: { tendance: api.VueEnsemble["tendance"] }) {
       <div className="panel-body">
         {/* `RG-RPT-03` — une courbe lissée sur trois points est le plus
             efficace des mensonges : elle a l'air d'une mesure. */}
-        {!tendance.historiqueSuffisant ? (
+        {tendance.accesRestreint ? (
+          <div className="empty">
+            <p>{t("tendance.accesRestreint")}</p>
+            <small>{t("tendance.accesRestreintAide")}</small>
+          </div>
+        ) : !tendance.historiqueSuffisant ? (
           <div className="empty">
             <p>
               {horsFenetre > 0

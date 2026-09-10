@@ -13,7 +13,7 @@
     "actualiser": "Refresh",
     "exporter": "Export",
     "exportPdf": "PDF (print)",
-    "exportCsv": "CSV (spreadsheet)",
+    "exportExcel": "Excel (.xlsx)",
     "exportJson": "JSON"
   },
   "onglets": {
@@ -25,6 +25,7 @@
   "alerte": {
     "titre": "Attention required",
     "texte": "— {n, plural, one {# overdue task needs attention} other {# overdue tasks need attention}}.",
+    "details": "See the Tasks page for more details.",
     "ouvrirLesTaches": "Open tasks"
   },
   "sante": {
@@ -77,6 +78,8 @@
     "stagnation": "Stagnation detected",
     "historiqueCourt": "History still being built",
     "historiqueCourtAide": "{n, plural, one {# snapshot is required} other {# snapshots are required}} to draw a trend.",
+    "accesRestreint": "Partially accessible history",
+    "accesRestreintAide": "The trend is not drawn because some snapshots belong to a scope or confidential project you cannot view.",
     "libelle": "Progress from {debut, number}% to {fin, number}% over {points, number} readings",
     "instantanes": "Snapshots",
     "instantanesExplication": "Progress snapshots taken at month end.",
@@ -95,7 +98,10 @@
     "retardDeJours": "{n, plural, one {# day late} other {# days late}}",
     "echeanceEtReste": "due {date} · {n, plural, =0 {no task attached} one {# task left} other {# tasks left}}",
     "allerAuProjet": "View milestones for {projet}",
-    "autresRetards": "{n, plural, one {# more late milestone is not listed} other {# more late milestones are not listed}}"
+    "autresRetards": "{n, plural, one {# more late milestone is hidden} other {# more late milestones are hidden}}",
+    "toutAfficher": "Show all",
+    "revenirA": "Back to {n, number}",
+    "tousAffiches": "All late milestones are shown."
   },
   "repartitions": {
     "parPriorite": "Breakdown by priority",

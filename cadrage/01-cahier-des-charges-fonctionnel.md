@@ -852,6 +852,10 @@ Créer, modifier, supprimer une période · Importer depuis le calendrier offici
 | EX-PRM-02 | Réinitialiser un paramètre, ou l'ensemble, aux valeurs par défaut, après confirmation |
 | EX-PRM-03 | Consulter les paramètres publics sans être authentifié |
 
+Précision du 10 septembre 2026 (D-RM-22) : avant toute session, les réglages publics sont chargés et appliqués. En l’absence de préférence de langue explicitement mémorisée sur l’appareil, `display.locale` détermine la langue des vues publiques ; une préférence locale volontaire reste prioritaire, puis la langue du compte s’applique après connexion.
+
+Précision du 10 septembre 2026 (D-RM-23) : le pied des vues d’accès rend la date du jour selon `display.dateFormat`, avec un libellé dans la langue de l’interface. Ce témoin public permet de vérifier l’application du format avant session sans exposer de réglage privé.
+
 - **RG-PRM-01** — Un jour férié marqué *ouvré* compte comme jour travaillé dans le décompte des congés.
 - **RG-PRM-02** — Un jour férié récurrent se reconduit automatiquement chaque année.
 - **RG-PRM-03** — L'import des jours fériés rend compte : créés / déjà existants.

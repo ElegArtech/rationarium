@@ -103,10 +103,10 @@ export function VueEnsemble({ projetId }: { projetId: string }) {
     onSuccess: (pris) => {
       annoncer(
         "ok",
-        t("fiche.instantanePris", {
+        pris ? t("fiche.instantanePris", {
           pct: pris.progression,
           date: formaterDate(pris.date),
-        }),
+        }) : t("fiche.instantanePrisRestreint"),
       );
       void client.invalidateQueries({ queryKey: ["projet", projetId] });
       // L'historique juste en dessous doit MONTRER la ligne qu'on vient
@@ -356,6 +356,8 @@ export function VueEnsemble({ projetId }: { projetId: string }) {
                     : null
                 }
               />
+              <Info libelle={t("portefeuille.chefId")} valeur={projet.chef ? `${projet.chef.prenom} ${projet.chef.nom}` : null} />
+              <Info libelle={t("portefeuille.departementId")} valeur={projet.departement?.nom ?? null} />
               <Info
                 libelle={t("fiche.sponsor")}
                 valeur={projet.sponsor ? `${projet.sponsor.prenom} ${projet.sponsor.nom}` : null}
@@ -412,7 +414,8 @@ export function VueEnsemble({ projetId }: { projetId: string }) {
             ) : null}
           </div>
           <div className="panel-body is-flush">
-            {historique.isPending ? (
+            {projet.instantanesAccesRestreint ? <div className="panel-body"><p className="field-hint" role="status">{t("fiche.historiqueRestreint")}</p></div> : null}
+            {historique.isPending && !projet.instantanesAccesRestreint ? (
               <div className="panel-body">
                 <Chargement quoi={t("fiche.lHistorique")} />
               </div>
@@ -425,7 +428,7 @@ export function VueEnsemble({ projetId }: { projetId: string }) {
                 />
               </div>
             ) : null}
-            {historique.data ? (
+            {historique.data && !projet.instantanesAccesRestreint ? (
               historique.data.length > 0 ? (
                 <>
                   {/* Le motif de liste tabulaire du produit — celui du journal
@@ -514,12 +517,16 @@ export function VueEnsemble({ projetId }: { projetId: string }) {
              sans cette ligne la fenêtre rouvrirait sur « Aucune icône » et
              l'enregistrement effacerait celle du projet. */
           icone: projet.icone,
+          chefId: projet.chef?.id ?? null,
+          sponsorId: projet.sponsor?.id ?? null,
+          departementId: projet.departement?.id ?? null,
           version: projet.version,
         }}
         surFermeture={() => setEditionOuverte(false)}
         surSucces={() => {
           setEditionOuverte(false);
           annoncer("ok", t("fiche.modifie"));
+          void client.invalidateQueries({ queryKey: ["projet", projetId] });
           void client.invalidateQueries({ queryKey: ["projets"] });
         }}
         traduireErreur={(e) => messageErreur(e, tErreurs, t("fiche.echecAction"))}

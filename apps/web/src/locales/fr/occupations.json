@@ -57,7 +57,6 @@
     "jourSemaine": "Jour de la semaine",
     "memeJourQueLaDate": "Automatique (même jour que la date)",
     "jusqua": "Date de fin (optionnelle)",
-    "sansFin": "sans date de fin",
     "apercuTitre": "Ce que cette récurrence produira",
     "apercuRecurrence": "Toutes les {n, plural, one {semaine} other {# semaines}}, le {jour}, jusqu'au {fin}.",
     "serieRecurrente": "Série récurrente",
@@ -114,7 +113,11 @@
     "echecParticipant": "La modification des participants a échoué.",
     "aucunParticipant": "Aucun participant pour l'instant.",
     "ajouterParticipant": "Ajouter",
-    "retirerParticipant": "Retirer {nom}"
+    "retirerParticipant": "Retirer {nom}",
+    "inviterServices": "Inviter des services entiers",
+    "arretDepuis": "Les occurrences sont supprimées à partir du {date}, aujourd’hui. Les occurrences antérieures sont conservées.",
+    "horizonConfigure": "l’horizon configuré",
+    "finParHorizon": "Sans date de fin, la série s’arrêtera à la date de début augmentée de l’horizon de récurrence configuré."
   },
   "conges": {
     "surtitre": "Ressources humaines",
@@ -314,7 +317,13 @@
     "faute_limiteAnnuelle": "La limite annuelle doit être comprise entre 0 et 366 jours, ou vide pour un type illimité.",
     "faute_ordre": "L'ordre d'affichage doit être un entier compris entre 0 et 9999.",
     "soldePropreAvecGlobal": "Allocation propre à cet agent : elle l'emporte sur le défaut global, qui vaut {n} j. Elle ne peut pas être retirée — seulement corrigée.",
-    "soldePropreSansGlobal": "Allocation propre à cet agent. Aucun défaut global pour ce type : cette allocation ne peut pas être retirée, seulement corrigée."
+    "soldePropreSansGlobal": "Allocation propre à cet agent. Aucun défaut global pour ce type : cette allocation ne peut pas être retirée, seulement corrigée.",
+    "autruiApprouve": "Ce congé sera directement approuvé et tracé à votre nom.",
+    "absencesConcomitantes": "Absences concomitantes : {n}",
+    "deleguerValidation": "Déléguer la validation",
+    "deleguerA": "Déléguer à",
+    "creerDelegation": "Créer la délégation",
+    "delegationCreee": "Délégation créée."
   },
   "teletravail": {
     "surtitre": "Ressources humaines",
@@ -386,7 +395,14 @@
     "generation": "Plannings générés : {crees, number} créé(s), {ignores, number} ignoré(s).",
     "echecGeneration": "La génération n'a pas abouti.",
     "plageMaximale": "La plage de dates ne peut pas dépasser 366 jours.",
-    "exception": "Exception"
+    "exception": "Exception",
+    "enConge": "En congé",
+    "nonOuvre": "Jour non ouvré",
+    "statistiques": "Statistiques",
+    "statistiquesAgent": "Statistiques de {nom}",
+    "cumulMois": "Mois {periode} : {n} jours",
+    "cumulAnnee": "Année {annee} : {n} jours",
+    "moyenneMensuelle": "Moyenne mensuelle : {n} jours"
   },
   "temps": {
     "surtitre": "Ressources humaines",
@@ -463,7 +479,8 @@
     "saisirCourt": "Saisir",
     "supprimer": "Supprimer",
     "surTache": "· {titre}",
-    "supprimerLaSaisie": "Supprimer la saisie du {date}"
+    "supprimerLaSaisie": "Supprimer la saisie du {date}",
+    "acteur": "Acteur"
   },
   "supprimer": "Supprimer",
   "enregistrer": "Enregistrer"

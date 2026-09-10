@@ -237,19 +237,22 @@ export class ProjetsService {
     });
     if (!projet) throw new ErreurProjet("introuvable");
 
-    const [progression, budget, parStatut, dernier] = await Promise.all([
+    const [progression, budget, parStatut, dernier, departement] = await Promise.all([
       this.progression(projectId, tachesVisibles),
-      this.calculerBudget(projectId),
+      this.calculerBudget(projectId, tachesVisibles),
       this.prisma.task.groupBy({
         by: ["statut"],
         where: { AND: [{ projectId }, tachesVisibles] },
         _count: true,
       }),
-      this.prisma.projectSnapshot.findFirst({
+      perimetre.global && perimetre.confidentiel ? this.prisma.projectSnapshot.findFirst({
         where: { projectId },
         orderBy: { date: "desc" },
         select: { date: true, progression: true },
-      }),
+      }) : Promise.resolve(null),
+      projet.departementId ? this.prisma.departement.findUnique({
+        where: { id: projet.departementId }, select: { id: true, nom: true },
+      }) : Promise.resolve(null),
     ]);
 
     const compte = (statut: string) =>
@@ -258,6 +261,7 @@ export class ProjetsService {
     const { clients, _count, ...reste } = projet;
     return {
       ...reste,
+      departement,
       progression,
       budget,
       taches: {
@@ -270,6 +274,7 @@ export class ProjetsService {
       epopees: _count.epopees,
       clients: clients.map((c) => c.client),
       dernierInstantane: dernier,
+      instantanesAccesRestreint: !perimetre.global || !perimetre.confidentiel,
     };
   }
 
@@ -311,7 +316,7 @@ export class ProjetsService {
     permissions: ReadonlySet<string>,
   ) {
     await this.exigerVisible(projectId, perimetre, permissions);
-    return this.calculerBudget(projectId);
+    return this.calculerBudget(projectId, this.perimetres.filtreTache(perimetre, permissions));
   }
 
   /*
@@ -320,14 +325,17 @@ export class ProjetsService {
    * appel interne ait à se fabriquer un périmètre — c'est-à-dire à en inventer
    * un plus large que celui de l'appelant.
    */
-  private async calculerBudget(projectId: string) {
+  private async calculerBudget(projectId: string, tachesVisibles: Record<string, unknown> = {}) {
 
     const projet = await this.prisma.project.findUnique({
       where: { id: projectId },
       select: { budgetHeures: true },
     });
     const consomme = await this.prisma.timeEntry.aggregate({
-      where: { OR: [{ projectId }, { task: { projectId } }] },
+      where: { AND: [
+        { OR: [{ projectId }, { task: { projectId } }] },
+        { OR: [{ taskId: null }, { task: { is: tachesVisibles } }] },
+      ] },
       _sum: { heures: true },
     });
     const heures = Number(consomme._sum.heures ?? 0);
@@ -918,12 +926,9 @@ export class ProjetsService {
    * Recalculé à la lecture plutôt que stocké : un statut stocké se désynchronise
    * au premier changement de tâche qui oublierait de le rafraîchir.
    *
-   * **Il n'est PAS filtré par le périmètre du lecteur**, et c'est délibéré : le
-   * statut d'un jalon est un fait du projet, pas une lecture de qui l'ouvre.
-   * Le filtrer rendrait « Terminé » un jalon dont la seule tâche restante est
-   * confidentielle — un mensonge sur l'échéance, là où l'écart de compteur
-   * n'était qu'une indiscrétion. La feuille de route ne montre donc pas la
-   * tâche cachée, et n'en déclare pas moins le jalon en cours.
+   * Cette lecture intégrale sert aux opérations métier internes. La feuille
+   * de route calcule séparément son statut sur les tâches visibles : un état
+   * calculé à partir d'une tâche masquée divulgue aussi sa contribution.
    */
   async statutJalon(milestoneId: string): Promise<"pending" | "doing" | "done"> {
     const taches = await this.prisma.task.findMany({
@@ -1045,9 +1050,14 @@ export class ProjetsService {
       },
     });
 
-    const avecStatut = await Promise.all(
-      jalons.map(async (j) => ({ ...j, statut: await this.statutJalon(j.id) })),
-    );
+    // RG-SCOPE-04 — même population pour la liste, les compteurs et le statut.
+    const avecStatut = jalons.map((j) => ({
+      ...j,
+      statut: j.taches.length === 0
+        ? j.statut === "done" ? "done" : "pending"
+        : j.taches.every((t) => t.statut === "done") ? "done"
+          : j.taches.every((t) => t.statut === "todo") ? "pending" : "doing",
+    }));
 
     /*
      * **Les tâches sans jalon, nommées plutôt que tues.**
@@ -1240,6 +1250,13 @@ export class ProjetsService {
     return { tachesDetachees: detachees };
   }
 
+  /** La capture demandée par un lecteur protège sa cible et son résultat. */
+  async capturerPourLecteur(projectId: string, date: Date, perimetre: Perimetre, permissions: ReadonlySet<string>) {
+    await this.exigerVisible(projectId, perimetre, permissions);
+    const capture = await this.capturerInstantane(projectId, date);
+    return perimetre.global && perimetre.confidentiel ? capture : null;
+  }
+
   /** `RG-PRJ-09` — instantané d'avancement, pour les courbes de tendance. */
   async capturerInstantane(projectId: string, date: Date) {
     const [progression, taches, finies, budget] = await Promise.all([
@@ -1287,6 +1304,8 @@ export class ProjetsService {
   ) {
     await this.exigerVisible(projectId, perimetre, permissions);
 
+    // RG-RPT-01 — les contributions historiques ne peuvent pas être filtrées.
+    if (!perimetre.global || !perimetre.confidentiel) return [];
     return this.prisma.projectSnapshot.findMany({
       where: { projectId },
       orderBy: { date: "desc" },

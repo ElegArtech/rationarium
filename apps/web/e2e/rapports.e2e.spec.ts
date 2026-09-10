@@ -340,9 +340,7 @@ test.describe("Vue 30 — rapports et analytics", () => {
     await page.goto("/rapports");
 
     await page.getByRole("button", { name: "Exporter" }).click();
-    // « CSV (tableur) » plutôt qu'« Excel » : le produit ne rend pas un
-    // classeur, et l'annoncer autrement serait un mensonge d'étiquette.
-    await expect(page.getByRole("menuitem", { name: "CSV (tableur)" })).toBeVisible();
+    await expect(page.getByRole("menuitem", { name: "Excel (.xlsx)" })).toBeVisible();
     await expect(page.getByRole("menuitem", { name: "JSON" })).toBeVisible();
     await expect(page.getByRole("menuitem", { name: "PDF (impression)" })).toBeVisible();
   });
@@ -459,6 +457,49 @@ test.describe("Vue 30 — la complétion des jalons", () => {
 
     await expect(page.getByText("Aucun jalon échu n'est en retard.")).toBeVisible();
     await expect(page.locator(".mile-item")).toHaveCount(0);
+  });
+
+  test("RG-RPT-02 — la liste bornée annonce son troncage et Tout afficher la déplie", async ({ page }) => {
+    await horlogeFixe(page);
+    const retards = Array.from({ length: 13 }, (_, index) => ({
+      id: `j-${index}`,
+      nom: `Jalon en retard ${index + 1}`,
+      projetId: "p2",
+      projetNom: "Sous tension",
+      dateEcheance: "2026-07-03",
+      joursDeRetard: 39 - index,
+      tachesRestantes: index + 1,
+    }));
+    await serveur(page, {
+      session: SESSION_RAPPORTS,
+      reponses: {
+        ...reponses,
+        "/api/rapports": {
+          corps: {
+            ...VUE_ENSEMBLE,
+            jalons: {
+              total: 16,
+              aTemps: 1,
+              enRetard: 13,
+              aVenir: 2,
+              echus: 14,
+              retards,
+              retardsNonListes: 3,
+            },
+          },
+        },
+      },
+    });
+    await page.goto("/rapports");
+
+    const bloc = page.locator(".mile-late");
+    await expect(bloc.locator(".mile-item")).toHaveCount(10);
+    await expect(bloc.getByText("3 autres jalons en retard ne sont pas affichés", { exact: true })).toBeVisible();
+    await bloc.getByRole("button", { name: "Tout afficher", exact: true }).click();
+    await expect(bloc.locator(".mile-item")).toHaveCount(13);
+    await expect(bloc.getByText("Tous les jalons en retard sont affichés.", { exact: true })).toBeVisible();
+    await bloc.getByRole("button", { name: "Revenir à 10", exact: true }).click();
+    await expect(bloc.locator(".mile-item")).toHaveCount(10);
   });
 });
 

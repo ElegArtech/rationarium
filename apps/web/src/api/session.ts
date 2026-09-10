@@ -1,3 +1,4 @@
+import type { Session as SessionComplete } from "../session/session.js";
 import { appeler } from "./client.js";
 
 export type Session = { userId: string; motDePasseAChanger: boolean };
@@ -7,7 +8,7 @@ export const connexion = (identifiant: string, motDePasse: string) =>
 
 export const deconnexion = () => appeler<void>("/auth/logout", { methode: "POST" });
 
-export const sessionCourante = () => appeler<Session>("/auth/me");
+export const sessionCourante = () => appeler<SessionComplete>("/auth/me");
 
 export const inscription = (donnees: {
   prenom: string;
@@ -63,5 +64,25 @@ export const modifierProfil = (donnees: {
   prenom?: string;
   nom?: string;
   email?: string;
+  langue?: string;
+  theme?: string;
+  avatarFichier?: null;
+  avatarPredefini?: SessionComplete["avatarPredefini"];
   version: number;
-}) => appeler<unknown>("/auth/me", { methode: "PATCH", corps: donnees });
+}) => appeler<SessionComplete>("/auth/me", { methode: "PATCH", corps: donnees });
+
+/** `EX-AUTH-09` — l'avatar personnel réel, versionné comme le reste du profil. */
+export const televerserAvatar = (donnees: {
+  contenuBase64: string;
+  typeMime: "image/jpeg" | "image/png" | "image/webp";
+  version: number;
+}) => appeler<SessionComplete>("/auth/me/avatar", { methode: "POST", corps: donnees });
+
+export const supprimerAvatar = (version: number) =>
+  appeler<SessionComplete>("/auth/me/avatar", { methode: "DELETE", corps: { version } });
+
+/**
+ * Le GET est effectué par le navigateur via `<img>`. Le chemin reste littéral
+ * ici afin que la surface HTTP sache constater ce troisième client réel.
+ */
+export const adresseAvatar = (version: number): string => `/api/auth/me/avatar?v=${version}`;

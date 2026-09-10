@@ -371,6 +371,14 @@ textarea.field {
   font-size: 8px;
   flex: none;
 }
+.avatar-image { object-fit: cover; }
+.avatar-predefini { font-family: var(--font-display); font-size: 62%; font-weight: 600; }
+.avatar-predefini-constellation { background: var(--accent-soft); color: var(--accent); }
+.avatar-predefini-feuille,
+.avatar-predefini-vagues { background: var(--success-soft); color: var(--activity); }
+.avatar-predefini-montagne,
+.avatar-predefini-mosaique { background: var(--warn-soft); color: var(--st-review); }
+.avatar-predefini-soleil { background: var(--danger-soft); color: var(--event); }
 
 .kcol-n {
   font-family: var(--font-mono);

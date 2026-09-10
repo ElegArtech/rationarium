@@ -175,7 +175,7 @@ export class TempsService {
   async lister(
     perimetre: Perimetre,
     permissions: ReadonlySet<string>,
-    filtres: { userId?: string; projectId?: string; debut?: Date; fin?: Date } = {},
+    filtres: { userId?: string; thirdPartyId?: string; projectId?: string; debut?: Date; fin?: Date } = {},
   ) {
     const surAutrui = filtres.userId !== undefined && filtres.userId !== perimetre.userId;
     if (surAutrui && !permissions.has("time_tracking:readAll") && !permissions.has("time_tracking:read_team")) {
@@ -185,7 +185,7 @@ export class TempsService {
     const clauses: Record<string, unknown>[] = [];
     clauses.push(
       surAutrui || permissions.has("time_tracking:readAll")
-        ? this.perimetres.filtreParAgent(perimetre)
+        ? { OR: [this.perimetres.filtreParAgent(perimetre), { creePar: { is: this.perimetres.filtreUtilisateur(perimetre) } }] }
         : {
             /*
              * `RG-TMP-05` — la vue personnelle montre ce que j'ai déclaré,
@@ -209,6 +209,9 @@ export class TempsService {
     if (filtres.userId) {
       clauses.push({ OR: [{ userId: filtres.userId }, { creeParId: filtres.userId }] });
     }
+    clauses.push({ OR: [{ projectId: null }, { project: { is: this.perimetres.filtreProjet(perimetre, permissions) } }] });
+    clauses.push({ OR: [{ taskId: null }, { task: { is: this.perimetres.filtreTache(perimetre, permissions) } }] });
+    if (filtres.thirdPartyId) clauses.push({ thirdPartyId: filtres.thirdPartyId });
     if (filtres.projectId) clauses.push({ projectId: filtres.projectId });
     if (filtres.debut) clauses.push({ date: { gte: filtres.debut } });
     if (filtres.fin) clauses.push({ date: { lte: filtres.fin } });
@@ -277,10 +280,13 @@ export class TempsService {
     perimetre: Perimetre,
     axe: "agent" | "projet" | "type",
     fenetre: { debut: Date; fin: Date },
+    permissions: ReadonlySet<string> = new Set(),
   ) {
     const base = {
       AND: [
-        this.perimetres.filtreParAgent(perimetre),
+        { OR: [this.perimetres.filtreParAgent(perimetre), { creePar: { is: this.perimetres.filtreUtilisateur(perimetre) } }] },
+        { OR: [{ taskId: null }, { task: { is: this.perimetres.filtreTache(perimetre, permissions) } }] },
+        { OR: [{ projectId: null }, { project: { is: this.perimetres.filtreProjet(perimetre, permissions) } }] },
         { date: { gte: fenetre.debut, lte: fenetre.fin } },
       ],
     };

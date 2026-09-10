@@ -1,8 +1,12 @@
-import { Body, Controller, Get, Post, Put, Query } from "@nestjs/common";
+import { Body, Controller, Get, Param, Patch, Post, Put, Query, UseInterceptors } from "@nestjs/common";
 import { z } from "zod";
 import { CalendrierService } from "./calendrier.service.js";
-import { Demande, RequiertPermission, type ContexteDemande } from "../commun/permissions.garde.js";
+import { Demande, Public, RequiertPermission, type ContexteDemande } from "../commun/permissions.garde.js";
 import { valider, dateSchema } from "../commun/http.js";
+import {
+  IntercepteurAuditParametrage,
+  TraceParametrage,
+} from "./audit-parametrage.interceptor.js";
 
 /**
  * M19 — paramétrage : jours fériés, vacances scolaires, trame de fond. Vue 31.
@@ -18,9 +22,9 @@ const plage = z.object({ debut: dateSchema, fin: dateSchema });
 export class ParametrageController {
   constructor(private readonly calendrier: CalendrierService) {}
 
-  /** `EX-PRM-01` — les réglages globaux publics. Vue 31. */
+  /** EX-PRM-03 — lecture anonyme des seuls réglages marqués publics. */
   @Get()
-  @RequiertPermission("settings:read")
+  @Public()
   reglages() {
     return this.calendrier.reglages();
   }
@@ -50,8 +54,15 @@ export class ParametrageController {
 
   @Get("vacances")
   @RequiertPermission("school_vacations:read")
-  vacances(@Query("anneeScolaire") anneeScolaire?: string) {
-    return this.calendrier.vacances(anneeScolaire);
+  vacances(@Query() requete: unknown) {
+    const q = valider(
+      z.object({
+        anneeScolaire: z.string().regex(/^\d{4}-\d{4}$/).optional(),
+        zone: z.enum(["A", "B", "C"]).optional(),
+      }),
+      requete,
+    );
+    return this.calendrier.vacances(q.anneeScolaire, q.zone);
   }
 
   /**
@@ -117,6 +128,40 @@ export class ParametrageController {
     return this.calendrier.importerJoursFeries(annee, d.userId);
   }
 
+  @Patch("feries/:id")
+  @RequiertPermission("holidays:update")
+  @TraceParametrage("holiday.update", "Holiday")
+  @UseInterceptors(IntercepteurAuditParametrage)
+  modifierFerie(
+    @Param("id") id: string,
+    @Body() corps: unknown,
+  ) {
+    const donnees = valider(
+      z.object({
+        version: z.number().int().positive(),
+        ouvre: z.boolean().optional(),
+        recurrent: z.boolean().optional(),
+      }).refine((valeur) => valeur.ouvre !== undefined || valeur.recurrent !== undefined),
+      corps,
+    );
+    return this.calendrier.modifierJourFerie(id, donnees);
+  }
+
+  @Post("vacances/importer")
+  @RequiertPermission("school_vacations:import")
+  @TraceParametrage("school_vacation.import", "SchoolVacation")
+  @UseInterceptors(IntercepteurAuditParametrage)
+  importerVacances(@Body() corps: unknown) {
+    const donnees = valider(
+      z.object({
+        anneeScolaire: z.string().regex(/^\d{4}-\d{4}$/),
+        zone: z.enum(["A", "B", "C"]).optional(),
+      }),
+      corps,
+    );
+    return this.calendrier.importerVacances(donnees.anneeScolaire, donnees.zone);
+  }
+
   @Post("vacances")
   @RequiertPermission("school_vacations:create")
   declarerVacances(@Body() corps: unknown, @Demande() d: ContexteDemande) {
@@ -127,8 +172,7 @@ export class ParametrageController {
         dateFin: dateSchema,
         zone: z.string().min(1).max(10),
         anneeScolaire: z.string().min(4).max(12),
-        importee: z.boolean().optional(),
-      }),
+      }).strict(),
       corps,
     );
     return this.calendrier.declarerVacances(donnees, d.userId);

@@ -1,3 +1,4 @@
+import { CibleRH } from "../commun/rh-cible.garde.js";
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from "@nestjs/common";
 import { z } from "zod";
 import { enumDe, ETATS_TELETRAVAIL } from "@rationarium/contracts";
@@ -13,6 +14,7 @@ export class TeletravailController {
 
   @Get()
   @RequiertPermission("telework:read")
+  @CibleRH({ source: "query", autrui: ["telework:read_team", "telework:readAll"] })
   planning(@Demande() d: ContexteDemande, @Query() requete: unknown) {
     const q = valider(
       z.object({ userId: z.uuid().optional(), debut: dateSchema, fin: dateSchema }),
@@ -30,6 +32,7 @@ export class TeletravailController {
 
   @Get("statistiques")
   @RequiertPermission("telework:read")
+  @CibleRH({ source: "query", autrui: ["telework:read_team", "telework:readAll"] })
   statistiques(@Demande() d: ContexteDemande, @Query() requete: unknown) {
     const q = valider(
       z.object({ userId: z.uuid().optional(), annee: z.coerce.number().int() }),
@@ -47,6 +50,7 @@ export class TeletravailController {
    */
   @Post()
   @RequiertPermission("telework:create")
+  @CibleRH({ source: "body", autrui: ["telework:manage_any"] })
   basculer(@Body() corps: unknown, @Demande() d: ContexteDemande) {
     const q = valider(
       z.object({
@@ -63,6 +67,7 @@ export class TeletravailController {
 
   @Get("regles")
   @RequiertPermission("telework:read")
+  @CibleRH({ source: "query", autrui: ["telework:read_team", "telework:readAll"] })
   regles(@Demande() d: ContexteDemande, @Query("userId") userId?: string) {
     return this.teletravail.regles(userId ?? d.userId);
   }
@@ -90,6 +95,7 @@ export class TeletravailController {
 
   @Post("regles")
   @RequiertPermission("telework:manage_rules")
+  @CibleRH({ source: "body", autrui: ["telework:manage_any"] })
   creerRegle(@Body() corps: unknown, @Demande() d: ContexteDemande) {
     const donnees = valider(
       z.object({
@@ -121,6 +127,7 @@ export class TeletravailController {
    */
   @Patch("regles/:id")
   @RequiertPermission("telework:manage_rules")
+  @CibleRH({ source: "regle", autrui: ["telework:manage_any"] })
   modifierRegle(@Param("id") id: string, @Body() corps: unknown, @Demande() d: ContexteDemande) {
     const donnees = valider(
       z.object({
@@ -146,12 +153,14 @@ export class TeletravailController {
    */
   @Delete("regles/:id")
   @RequiertPermission("telework:manage_rules")
+  @CibleRH({ source: "regle", autrui: ["telework:manage_any"] })
   supprimerRegle(@Param("id") id: string, @Demande() d: ContexteDemande) {
     return this.teletravail.supprimerRegle(id, d.userId, d.permissions);
   }
 
   @Post("generer")
   @RequiertPermission("telework:generate")
+  @CibleRH({ source: "body", autrui: ["telework:manage_any"] })
   generer(@Body() corps: unknown, @Demande() d: ContexteDemande) {
     const q = valider(
       z.object({ userId: z.uuid().optional(), debut: dateSchema, fin: dateSchema }),

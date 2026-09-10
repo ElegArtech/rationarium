@@ -3,6 +3,9 @@ import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testconta
 import { execFileSync } from "node:child_process";
 import path from "node:path";
 import { PrismaClient, creerClient } from "@rationarium/db";
+import { AuthController } from "./auth.controller.js";
+import { UtilisateursService } from "../utilisateurs/utilisateurs.service.js";
+import { PerimetreService } from "../commun/perimetre.service.js";
 import { AuthService, ErreurAuth } from "./auth.service.js";
 import { modificationProfilSchema } from "@rationarium/contracts";
 import { AuditService } from "../commun/audit.service.js";
@@ -572,10 +575,61 @@ describe("EX-AUTH-09 — modifier son profil", () => {
     await expect(
       auth.modifierProfil(u.id, {
         avatarFichier: "photo.webp",
-        avatarPredefini: "a-07",
+        avatarPredefini: "constellation",
         version: 1,
       }),
     ).rejects.toMatchObject({ code: "avatar_ambigu" });
+  });
+
+  it("RG-AUTH-09 — refuse un identifiant prédéfini hors catalogue même sans frontière HTTP", async () => {
+    const u = await poserUnCompte();
+    await expect(
+      auth.modifierProfil(u.id, { avatarPredefini: "a-07", version: 1 } as never),
+    ).rejects.toMatchObject({ code: "avatar_predefini_invalide" });
+
+    const relu = await prisma.user.findUniqueOrThrow({ where: { id: u.id } });
+    expect(relu.avatarPredefini).toBeNull();
+    expect(relu.version).toBe(1);
+  });
+
+  it("RG-AUTH-09 — persiste un visuel catalogué et expose sa sélection dans la session", async () => {
+    const u = await poserUnCompte();
+    const apres = await auth.modifierProfil(u.id, {
+      avatarPredefini: "montagne",
+      version: 1,
+    });
+
+    expect(apres).toMatchObject({
+      avatarFichier: null,
+      avatarPredefini: "montagne",
+      avatarUrl: null,
+      version: 2,
+    });
+    await expect(auth.profil(u.id)).resolves.toMatchObject({
+      avatarPredefini: "montagne",
+      avatarUrl: null,
+    });
+    await expect(
+      prisma.user.findUniqueOrThrow({ where: { id: u.id } }),
+    ).resolves.toMatchObject({ avatarFichier: null, avatarPredefini: "montagne" });
+  });
+
+  it("RG-AUTH-09 — choisir un visuel prédéfini remplace le fichier existant", async () => {
+    const u = await poserUnCompte();
+    await prisma.user.update({
+      where: { id: u.id },
+      data: { avatarFichier: "empreinte-existante" },
+    });
+
+    const apres = await auth.modifierProfil(u.id, {
+      avatarPredefini: "vagues",
+      version: 1,
+    });
+    expect(apres).toMatchObject({
+      avatarFichier: null,
+      avatarPredefini: "vagues",
+      avatarUrl: null,
+    });
   });
 
   it("RG-AUTH-09 — refuse aussi quand l'AMBIGUÏTÉ NAÎT DE L'ÉTAT DÉJÀ EN BASE", async () => {
@@ -586,7 +640,7 @@ describe("EX-AUTH-09 — modifier son profil", () => {
      * fabriquaient l'état que la règle interdit.
      */
     const u = await poserUnCompte();
-    await auth.modifierProfil(u.id, { avatarPredefini: "a-07", version: 1 });
+    await auth.modifierProfil(u.id, { avatarPredefini: "constellation", version: 1 });
     await expect(
       auth.modifierProfil(u.id, { avatarFichier: "photo.webp", version: 2 }),
     ).rejects.toMatchObject({ code: "avatar_ambigu" });
@@ -594,7 +648,7 @@ describe("EX-AUTH-09 — modifier son profil", () => {
 
   it("RG-AUTH-09 — accepte de remplacer un avatar par l'autre en une requête", async () => {
     const u = await poserUnCompte();
-    await auth.modifierProfil(u.id, { avatarPredefini: "a-07", version: 1 });
+    await auth.modifierProfil(u.id, { avatarPredefini: "constellation", version: 1 });
     const r = await auth.modifierProfil(u.id, {
       avatarPredefini: null,
       avatarFichier: "photo.webp",
@@ -713,5 +767,33 @@ describe("EX-AUTH-09 — le profil dit à quelle organisation appartient l'agent
     expect(pb.id).toBe(b.id);
     expect(pb.departement).toBeNull();
     expect(pb.services).toEqual([]);
+  });
+});
+
+
+it("EX-AUTH-07 — me distingue première connexion et vrai reset administrateur sans exposer son identité", async () => {
+  const c = await poserUnCompte({ motDePasseAChanger: true });
+  const administrateur = await poserUnCompte();
+  const controller = new AuthController(auth);
+  const demande = { userId: c.id, permissions: new Set<string>(), perimetre: {} as never };
+  const premiere = await auth.connecter(c.login, MDP);
+  expect(premiere.jeton).toBeTruthy();
+  expect(await controller.me(demande)).toMatchObject({
+    motDePasseAChanger: true, motifChangementMotDePasse: "premiere", motDePasseReinitialiseLe: null,
+  });
+  const utilisateurs = new UtilisateursService(prisma as never, new AuditService(prisma as never), new PerimetreService(prisma as never));
+  await utilisateurs.reinitialiserMotDePasse(c.id, "Provisoire12!", administrateur.id);
+  const trace = await prisma.auditLog.findFirstOrThrow({ where: { action: "user.reset_password", entiteId: c.id }, orderBy: { horodatage: "desc" } });
+  const reset = await auth.connecter(c.login, "Provisoire12!");
+  const me = await controller.me(demande);
+  expect(me).toMatchObject({
+    motDePasseAChanger: true, motifChangementMotDePasse: "administrateur", motDePasseReinitialiseLe: trace.horodatage.toISOString(),
+  });
+  expect(JSON.stringify(me)).not.toContain(administrateur.id);
+  expect(JSON.stringify(me)).not.toContain("Provisoire12!");
+  const session = await auth.resoudreSession(reset.jeton);
+  await auth.changerMotDePasse(c.id, "Provisoire12!", "Definitif12!", { conserverSessionId: session!.sessionId });
+  expect(await controller.me(demande)).toMatchObject({
+    motDePasseAChanger: false, motifChangementMotDePasse: null, motDePasseReinitialiseLe: null,
   });
 });

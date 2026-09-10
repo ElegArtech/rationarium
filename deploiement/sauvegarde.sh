@@ -64,9 +64,22 @@ utilisateur="${POSTGRES_UTILISATEUR:?POSTGRES_UTILISATEUR manquant}"
 horodatage="$(date -u +%Y%m%dT%H%M%SZ)"
 
 mkdir -p "$destination"
+destination="$(cd "$destination" && pwd)"
 
 archive="$destination/rationarium-$horodatage.dump"
 roles="$destination/rationarium-$horodatage.roles.sql"
+documents="$destination/rationarium-$horodatage.documents.tar.gz"
+
+# Un même instant logique pour les métadonnées et leurs contenus.
+services_actifs="$(docker compose ps --status running --services | grep -E '^(api|web)$' || true)"
+reprendre() {
+  if [ -n "$services_actifs" ]; then
+    # Les noms viennent de la liste fermée api|web ci-dessus.
+    docker compose start $services_actifs
+  fi
+}
+trap reprendre EXIT
+docker compose stop api web
 
 echo "── sauvegarde $horodatage ──"
 
@@ -85,7 +98,9 @@ docker compose exec -T base \
 # 2. La relecture immédiate, à la source. `--list` échoue sur une archive
 #    tronquée ou corrompue, ce qui est le mode de défaillance le plus courant :
 #    un disque plein rend un fichier de taille plausible.
-entrees="$(docker compose exec -T base pg_restore --list /tmp/rationarium-sauvegarde.dump | grep -c ';' || true)"
+liste="$(docker compose exec -T base pg_restore --list /tmp/rationarium-sauvegarde.dump)"
+entrees="$(printf '%s\n' "$liste" | awk '!/^;/ && NF {n++} END {print n+0}')"
+[ "$entrees" -gt 0 ] || { echo "Archive sans objet restaurable" >&2; exit 1; }
 
 # 3. La sortie du conteneur, puis les rôles — hors de portée de pg_dump.
 docker compose cp base:/tmp/rationarium-sauvegarde.dump "$archive"
@@ -95,14 +110,24 @@ docker compose exec -T base \
   pg_dumpall --username "$utilisateur" --roles-only \
   > "$roles"
 
+# Le volume est lu pendant que toute écriture applicative est arrêtée.
+docker compose run --rm -T --no-deps --user "$(id -u):$(id -g)" \
+  --volume "$destination:/sauvegarde" --entrypoint tar api \
+  -czf "/sauvegarde/$(basename "$documents")" -C /var/lib/rationarium/documents .
+tar -tzf "$documents" > /dev/null
+(cd "$destination" && sha256sum "$(basename "$archive")" "$(basename "$roles")" "$(basename "$documents")" > "rationarium-$horodatage.sha256")
+
 taille="$(du -h "$archive" | cut -f1)"
 echo "archive : $archive ($taille) — relue sans erreur, $entrees entrées"
 echo "rôles   : $roles"
+echo "documents : $documents"
 
 # 4. La rétention. `-mtime +N` ne supprime que les fichiers de sauvegarde de ce
 #    répertoire : le motif est nommé, jamais un `*`.
 supprimes="$(find "$destination" -maxdepth 1 -name 'rationarium-*.dump' -mtime "+$retention" -print -delete | wc -l)"
 find "$destination" -maxdepth 1 -name 'rationarium-*.roles.sql' -mtime "+$retention" -delete
+find "$destination" -maxdepth 1 -name 'rationarium-*.documents.tar.gz' -mtime "+$retention" -delete
+find "$destination" -maxdepth 1 -name 'rationarium-*.sha256' -mtime "+$retention" -delete
 echo "rétention $retention jours : $supprimes archive(s) supprimée(s)"
 
 # 5. Ce que ce script NE fait pas, et qui doit être décidé (`cadrage/03 § 8.3`) :

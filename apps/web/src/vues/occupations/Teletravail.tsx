@@ -386,7 +386,10 @@ function VueEquipe() {
   });
 
   const agents = requete.data ?? [];
-  const compte = (etat: string) => agents.filter((a) => a.etat === etat).length;
+  const compte = (etat: string) => agents.filter((a) => !a.enConge && !a.nonOuvre && a.etat === etat).length;
+  const [agentId, setAgentId] = useState("");
+  const moisStatistiques = Number(date.slice(5, 7)) - 1;
+  const statistiques = useQuery({ queryKey: ["teletravail", "statistiques", agentId, date.slice(0, 4)], queryFn: () => api.statistiquesTeletravail(agentId, Number(date.slice(0, 4))), enabled: Boolean(agentId) && Boolean(date) && peut("telework:read_team") });
 
   if (!peut("telework:read_team")) {
     return (
@@ -417,6 +420,11 @@ function VueEquipe() {
         <ErreurDeChargement erreur={requete.error} surReessai={() => void requete.refetch()} />
       ) : null}
 
+      {agentId ? <section className="panel panel-espace"><div className="panel-head"><h2 className="panel-title">{t("teletravail.statistiquesAgent", { nom: agents.find((a) => a.id === agentId) ? `${agents.find((a) => a.id === agentId)?.prenom} ${agents.find((a) => a.id === agentId)?.nom}` : "" })}</h2></div><div className="panel-body">
+        {statistiques.isPending ? <Chargement quoi={t("teletravail.statistiques")} /> : null}
+        {statistiques.isError ? <ErreurDeChargement erreur={statistiques.error} surReessai={() => void statistiques.refetch()} /> : null}
+        {statistiques.data ? <div className="team-sum"><span>{t("teletravail.cumulMois", { periode: date.slice(0, 7), n: statistiques.data.parMois[moisStatistiques] ?? 0 })}</span><span>{t("teletravail.cumulAnnee", { annee: String(statistiques.data.annee), n: statistiques.data.total })}</span><span>{t("teletravail.moyenneMensuelle", { n: statistiques.data.moyenneMensuelle })}</span></div> : null}
+      </div></section> : null}
       {requete.data ? (
         agents.length === 0 ? (
           <div className="empty empty-large">
@@ -439,6 +447,7 @@ function VueEquipe() {
                 <span className="tb-val">{compte("undeclared")}</span>
               </span>
             </div>
+            <div className="team-sum"><span className="tb-item"><span className="eyebrow">{t("teletravail.enConge")}</span><span className="tb-val">{agents.filter((a) => a.enConge && !a.nonOuvre).length}</span></span><span className="tb-item"><span className="eyebrow">{t("teletravail.nonOuvre")}</span><span className="tb-val">{agents.filter((a) => a.nonOuvre).length}</span></span></div>
             {agents.map((a) => (
               <div className="team-row" key={a.id}>
                 <span className="lv-who">
@@ -448,7 +457,7 @@ function VueEquipe() {
                   </span>
                 </span>
                 <span>
-                  {a.etat === "telework" ? (
+                  {a.nonOuvre ? <span className="lv-val">{t("teletravail.nonOuvre")}</span> : a.enConge ? <span className="lv-val">{t("teletravail.enConge")}</span> : a.etat === "telework" ? (
                     <span className="tt-tag is-tt">{t("teletravail.etat_telework")}</span>
                   ) : a.etat === "office" ? (
                     <span className="tt-tag is-office">{t("teletravail.etat_office")}</span>
@@ -456,7 +465,7 @@ function VueEquipe() {
                     <span className="lv-val">{t("teletravail.etat_undeclared")}</span>
                   )}
                 </span>
-                <span className="lv-acts" />
+                <span className="lv-acts"><Button className="chip-btn" aria-label={t("teletravail.statistiquesAgent", { nom: `${a.prenom} ${a.nom}` })} onPress={() => setAgentId(a.id)}>{t("teletravail.statistiques")}</Button></span>
               </div>
             ))}
           </section>

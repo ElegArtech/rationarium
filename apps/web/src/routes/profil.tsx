@@ -1,17 +1,30 @@
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { changerLangue, LANGUES } from "../i18n/index.js";
 import { definirTheme, themeCourant, THEMES, type Theme } from "../theme/index.js";
 import i18next from "i18next";
-import { Button } from "react-aria-components";
-import { ChampMotDePasse, PolitiqueMotDePasse } from "../composants/champs.js";
-import { AvatarAgent } from "../composants/pastilles.js";
-import { changerMotDePasse, deconnexion, modifierProfil } from "../api/session.js";
+import { Button, Radio, RadioGroup } from "react-aria-components";
+import {
+  VISUELS_AVATAR_PREDEFINIS,
+  estVisuelAvatarPredefini,
+  type VisuelAvatarPredefini,
+} from "@rationarium/contracts";
+import { ChampMotDePasse, PolitiqueMotDePasse, politiqueTenue } from "../composants/champs.js";
+import { AvatarUtilisateur } from "../composants/pastilles.js";
+import {
+  adresseAvatar,
+  changerMotDePasse,
+  deconnexion,
+  modifierProfil,
+  supprimerAvatar,
+  televerserAvatar,
+} from "../api/session.js";
 import { CLE_SESSION } from "../session/session.js";
+import { useMessages } from "../composants/messages.js";
 import { messageErreur } from "../api/erreurs.js";
-import { formaterDateLongue } from "../formats.js";
+import { formaterDate } from "../formats.js";
 import "../composants/partages.css";
 import "./profil.css";
 
@@ -29,7 +42,24 @@ import "./profil.css";
  * dans le journal d'audit, et c'est ce que dit son explication.
  */
 
-type Onglet = "info" | "sec";
+type Onglet = "info" | "sec" | "pref";
+
+/* Les appels restent littéraux pour que le contrôle i18n puisse prouver les
+   six clés. Le catalogue partagé fournit les identifiants persistés ; cette
+   fonction ne définit que leur libellé d'interface. */
+function libelleVisuelAvatar(
+  t: ReturnType<typeof useTranslation>["t"],
+  visuel: VisuelAvatarPredefini,
+): string {
+  switch (visuel) {
+    case "constellation": return t("profil.visuelsAvatar.constellation");
+    case "feuille": return t("profil.visuelsAvatar.feuille");
+    case "montagne": return t("profil.visuelsAvatar.montagne");
+    case "vagues": return t("profil.visuelsAvatar.vagues");
+    case "soleil": return t("profil.visuelsAvatar.soleil");
+    case "mosaique": return t("profil.visuelsAvatar.mosaique");
+  }
+}
 
 export function Profil({
   utilisateur,
@@ -45,6 +75,8 @@ export function Profil({
     departement: string | null;
     services: string[];
     membreDepuis: string;
+    avatarUrl: string | null;
+    avatarPredefini: VisuelAvatarPredefini | null;
     version: number;
   };
 }) {
@@ -57,7 +89,13 @@ export function Profil({
   return (
     <div className="page">
       <div className="proj-head profil-head">
-        <AvatarAgent prenom={utilisateur.prenom} nom={utilisateur.nom} classe="agent-av avatar-xl" />
+        <AvatarUtilisateur
+          prenom={utilisateur.prenom}
+          nom={utilisateur.nom}
+          url={utilisateur.avatarUrl ? adresseAvatar(utilisateur.version) : null}
+          predefini={utilisateur.avatarPredefini}
+          classe="agent-av avatar-xl"
+        />
         <div className="bloc-etroit">
           <span className="eyebrow">{t("profil.monCompte")}</span>
           <h1 className="proj-name nom-profil">
@@ -110,23 +148,22 @@ export function Profil({
       </div>
 
       <nav className="tabbar" aria-label={t("profil.sections")}>
-        {(["info", "sec"] as const).map((o) => (
-          <button
+        {(["info", "sec", "pref"] as const).map((o) => (
+          <Button
             key={o}
-            type="button"
             className={o === onglet ? "is-active" : ""}
-            aria-current={o === onglet ? "true" : undefined}
-            onClick={() => setOnglet(o)}
+            {...(o === onglet ? { "aria-current": "true" as const } : {})}
+            onPress={() => setOnglet(o)}
           >
             <span>{t(`profil.onglet_${o}`)}</span>
-          </button>
+          </Button>
         ))}
       </nav>
 
       {onglet === "info" ? (
         <Informations utilisateur={utilisateur} />
       ) : (
-        <Securite tAuth={tAuth} t={t} />
+        onglet === "pref" ? <Preferences version={utilisateur.version} /> : <Securite tAuth={tAuth} t={t} derniereConnexion={utilisateur.derniereConnexion} />
       )}
     </div>
   );
@@ -147,6 +184,8 @@ function Informations({
     departement: string | null;
     services: string[];
     membreDepuis: string;
+    avatarUrl: string | null;
+    avatarPredefini: VisuelAvatarPredefini | null;
     version: number;
   };
 }) {
@@ -158,9 +197,9 @@ function Informations({
   const [prenom, setPrenom] = useState(utilisateur.prenom);
   const [nom, setNom] = useState(utilisateur.nom);
   const [email, setEmail] = useState(utilisateur.email);
-  const [theme, setTheme] = useState<Theme>(themeCourant);
-  const [langue, setLangue] = useState(() => i18next.language);
   const [retour, setRetour] = useState<{ type: "succes" | "erreur"; texte: string } | null>(null);
+  const [retourAvatar, setRetourAvatar] = useState<{ type: "succes" | "erreur"; texte: string } | null>(null);
+  const saisieAvatar = useRef<HTMLInputElement>(null);
 
   const modifie =
     prenom !== utilisateur.prenom || nom !== utilisateur.nom || email !== utilisateur.email;
@@ -190,6 +229,69 @@ function Informations({
     setNom(utilisateur.nom);
     setEmail(utilisateur.email);
     setRetour(null);
+  };
+
+  const avatar = useMutation({
+    mutationFn: async (fichier: File) => {
+      const types = ["image/jpeg", "image/png", "image/webp"] as const;
+      if (!types.includes(fichier.type as (typeof types)[number])) {
+        throw new Error("avatar-format");
+      }
+      const octets = new Uint8Array(await fichier.arrayBuffer());
+      let binaire = "";
+      for (const octet of octets) binaire += String.fromCharCode(octet);
+      return televerserAvatar({
+        contenuBase64: btoa(binaire),
+        typeMime: fichier.type as (typeof types)[number],
+        version: utilisateur.version,
+      });
+    },
+    onSuccess: (session) => {
+      client.setQueryData(CLE_SESSION, session);
+      setRetourAvatar({ type: "succes", texte: t("profil.avatarEnregistre") });
+      if (saisieAvatar.current) saisieAvatar.current.value = "";
+    },
+    onError: (e) => {
+      const texte = e instanceof Error && e.message === "avatar-format"
+        ? tAuth("erreurs.avatarFormatInvalide")
+        : messageErreur(e, tAuth, t("profil.avatarEchec"));
+      setRetourAvatar({ type: "erreur", texte });
+      if (saisieAvatar.current) saisieAvatar.current.value = "";
+    },
+  });
+
+  const suppressionAvatar = useMutation({
+    mutationFn: () => supprimerAvatar(utilisateur.version),
+    onSuccess: (session) => {
+      client.setQueryData(CLE_SESSION, session);
+      setRetourAvatar({ type: "succes", texte: t("profil.avatarSupprime") });
+    },
+    onError: (e) =>
+      setRetourAvatar({
+        type: "erreur",
+        texte: messageErreur(e, tAuth, t("profil.avatarEchec")),
+      }),
+  });
+
+  const avatarPredefini = useMutation({
+    mutationFn: (visuel: VisuelAvatarPredefini) => modifierProfil({
+      avatarFichier: null,
+      avatarPredefini: visuel,
+      version: utilisateur.version,
+    }),
+    onSuccess: (session) => {
+      client.setQueryData(CLE_SESSION, session);
+      setRetourAvatar({ type: "succes", texte: t("profil.avatarPredefiniEnregistre") });
+    },
+    onError: (e) => setRetourAvatar({
+      type: "erreur",
+      texte: messageErreur(e, tAuth, t("profil.avatarEchec")),
+    }),
+  });
+
+  const choisirAvatar = (e: ChangeEvent<HTMLInputElement>) => {
+    const fichier = e.currentTarget.files?.[0];
+    if (fichier) avatar.mutate(fichier);
   };
 
   /*
@@ -244,18 +346,9 @@ function Informations({
       },
       {
         cle: t("profil.membreDepuis"),
-        valeur: formaterDateLongue(utilisateur.membreDepuis),
+        valeur: formaterDate(utilisateur.membreDepuis),
         mono: true,
         pourquoi: t("profil.pourquoiMembreDepuis"),
-        par: t("profil.nonModifiable"),
-      },
-      {
-        cle: t("profil.derniereConnexion"),
-        valeur: utilisateur.derniereConnexion
-          ? formaterDateLongue(utilisateur.derniereConnexion)
-          : t("profil.jamaisConnecte"),
-        mono: true,
-        pourquoi: t("profil.pourquoiDerniereConnexion"),
         par: t("profil.nonModifiable"),
       },
     ];
@@ -273,6 +366,82 @@ function Informations({
           </div>
         </div>
         <div className="panel-body">
+          <div className="field-block">
+            <label className="field-label" htmlFor="profil-avatar">
+              {t("profil.avatar")}
+            </label>
+            <div className="avatar-actions">
+              <AvatarUtilisateur
+                prenom={utilisateur.prenom}
+                nom={utilisateur.nom}
+                url={utilisateur.avatarUrl ? adresseAvatar(utilisateur.version) : null}
+                predefini={utilisateur.avatarPredefini}
+                classe="agent-av avatar-xl"
+              />
+              <input
+                ref={saisieAvatar}
+                className="sr-only"
+                id="profil-avatar"
+                type="file"
+                accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+                disabled={avatar.isPending || suppressionAvatar.isPending}
+                onChange={choisirAvatar}
+              />
+              <Button
+                className="btn btn-secondary"
+                isDisabled={avatar.isPending || avatarPredefini.isPending || suppressionAvatar.isPending}
+                onPress={() => saisieAvatar.current?.click()}
+              >
+                {t("profil.avatarChoisir")}
+              </Button>
+              {utilisateur.avatarUrl || utilisateur.avatarPredefini ? (
+                <Button
+                  className="btn btn-secondary"
+                  isDisabled={avatar.isPending || avatarPredefini.isPending || suppressionAvatar.isPending}
+                  onPress={() => suppressionAvatar.mutate()}
+                >
+                  {t("profil.avatarSupprimer")}
+                </Button>
+              ) : null}
+            </div>
+            <p className="field-hint">{t("profil.avatarFormats")}</p>
+            <RadioGroup
+              className="avatar-catalogue"
+              aria-label={t("profil.avatarPredefinis")}
+              value={utilisateur.avatarPredefini ?? ""}
+              isDisabled={avatar.isPending || avatarPredefini.isPending || suppressionAvatar.isPending}
+              onChange={(valeur) => {
+                if (estVisuelAvatarPredefini(valeur)) avatarPredefini.mutate(valeur);
+              }}
+            >
+              {VISUELS_AVATAR_PREDEFINIS.map((visuel) => (
+                <Radio
+                  key={visuel.id}
+                  value={visuel.id}
+                  className={({ isSelected }) => `avatar-option${isSelected ? " is-selected" : ""}`}
+                >
+                  <AvatarUtilisateur
+                    prenom=""
+                    nom=""
+                    predefini={visuel.id}
+                    classe="agent-av avatar-option-visuel"
+                  />
+                  <span>{libelleVisuelAvatar(t, visuel.id)}</span>
+                </Radio>
+              ))}
+            </RadioGroup>
+          </div>
+          <div aria-live="polite" className="avatar-retour">
+            {retourAvatar ? (
+              <div
+                className={`alert ${retourAvatar.type === "succes" ? "alert-success" : "alert-error"}`}
+                role={retourAvatar.type === "succes" ? "status" : "alert"}
+              >
+                <span className="alert-icon" aria-hidden="true">!</span>
+                <span>{retourAvatar.texte}</span>
+              </div>
+            ) : null}
+          </div>
           <div className="form-grid">
             <div className="field-block">
               <label className="field-label" htmlFor="profil-prenom">
@@ -346,65 +515,6 @@ function Informations({
         </div>
       </section>
 
-      {/*
-        Les préférences d'affichage — maquette 35, section « Préférences ».
-        Langue et thème en groupes segmentés, formats en listes.
-
-        **Le thème y porte TROIS états** là où la maquette n'en dessine que
-        deux : `cadrage/01 § 7` exige « clair, sombre et automatique », et le
-        troisième n'a de place nulle part ailleurs — une bascule ne sait pas
-        dire trois états, un choix de préférence si. C'est l'écart assumé entre
-        ce que le produit doit faire et ce que la maquette montre.
-      */}
-      <section className="panel">
-        <div className="panel-head">
-          <span className="panel-title">{t("profil.preferences")}</span>
-        </div>
-        <div className="panel-body">
-          <div className="field-block">
-            <label className="field-label">{t("profil.langue")}</label>
-            <div className="seg" role="group" aria-label={t("profil.langue")}>
-              {LANGUES.map((l) => (
-                <Button
-                  key={l}
-                  aria-pressed={langue.startsWith(l)}
-                  onPress={() => {
-                    void changerLangue(l);
-                    setLangue(l);
-                  }}
-                >
-                  {l === "fr" ? "Français" : "English"}
-                </Button>
-              ))}
-            </div>
-          </div>
-
-          <div className="field-block" style={{ margin: 0 }}>
-            <label className="field-label">{t("profil.theme")}</label>
-            <div className="seg" role="group" aria-label={t("profil.theme")}>
-              {THEMES.map((mode) => (
-                <Button
-                  key={mode}
-                  aria-pressed={theme === mode}
-                  onPress={() => {
-                    definirTheme(mode);
-                    setTheme(mode);
-                  }}
-                >
-                  {t(
-                    mode === "clair"
-                      ? "profil.themeClair"
-                      : mode === "sombre"
-                        ? "profil.themeSombre"
-                        : "profil.themeAuto",
-                  )}
-                </Button>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
       <section className="panel">
         <div className="adm-head">
           <span className="blk-ic blk-ic-admin" aria-hidden="true">
@@ -459,7 +569,9 @@ function Informations({
 function Securite({
   t,
   tAuth,
+  derniereConnexion,
 }: {
+  derniereConnexion: string | null;
   t: (cle: string) => string;
   tAuth: (cle: string) => string;
 }) {
@@ -475,6 +587,16 @@ function Securite({
     setMessage(null);
     if (nouveau !== confirmation) {
       setMessage({ type: "erreur", texte: tAuth("erreurs.motsDePasseDifferents") });
+      return;
+    }
+    if (!politiqueTenue(nouveau)) {
+      const absents = [
+        nouveau.length < 8 ? t("profil.motDePasseCourt") : "",
+        !/[A-ZÀ-Þ]/.test(nouveau) ? tAuth("politique.majuscule") : "",
+        !/\d/.test(nouveau) ? tAuth("politique.chiffre") : "",
+        !/[^\p{L}\p{N}]/u.test(nouveau) ? tAuth("politique.special") : "",
+      ].filter(Boolean);
+      setMessage({ type: "erreur", texte: absents.join(" · ") });
       return;
     }
     setEnCours(true);
@@ -545,6 +667,78 @@ function Securite({
           </form>
         </div>
       </section>
+      <section className="panel">
+        <div className="panel-head"><span className="panel-title">{t("profil.historiqueConnexion")}</span></div>
+        <div className="panel-body"><span className="field-label">{t("profil.derniereConnexion")}</span><p>{derniereConnexion ? formaterDate(derniereConnexion) : t("profil.jamaisConnecte")}</p><p className="field-hint">{t("profil.pourquoiDerniereConnexion")}</p></div>
+      </section>
     </div>
   );
+}
+
+function Preferences({ version }: { version: number }) {
+  const { t } = useTranslation("coquille");
+  const { t: tErreurs } = useTranslation("erreurs");
+  const client = useQueryClient();
+  const annoncer = useMessages();
+  const [theme, setTheme] = useState<Theme>(themeCourant);
+  const [langue, setLangue] = useState(() => i18next.language.startsWith("en") ? "en" : "fr");
+  const [retour, setRetour] = useState<string | null>(null);
+  const enregistrement = useMutation({
+    mutationFn: () => modifierProfil({ langue, theme, version }),
+    onSuccess: async () => { annoncer("ok", t("profil.enregistre")); setRetour(null); await client.invalidateQueries({ queryKey: CLE_SESSION }); },
+    onError: (e) => setRetour(messageErreur(e, tErreurs, t("profil.echecEnregistrement"))),
+  });
+  return <div className="two-col">
+      <section className="panel">
+        <div className="panel-head">
+          <span className="panel-title">{t("profil.preferences")}</span>
+        </div>
+        <div className="panel-body">
+          <div className="field-block">
+            <label className="field-label">{t("profil.langue")}</label>
+            <div className="seg" role="group" aria-label={t("profil.langue")}>
+              {LANGUES.map((l) => (
+                <Button
+                  key={l}
+                  aria-pressed={langue.startsWith(l)}
+                  onPress={() => {
+                    void changerLangue(l);
+                    setLangue(l);
+                  }}
+                >
+                  {t(`profil.langue_${l}`)}
+                </Button>
+              ))}
+            </div>
+          </div>
+
+          <div className="field-block" style={{ margin: 0 }}>
+            <label className="field-label">{t("profil.theme")}</label>
+            <div className="seg" role="group" aria-label={t("profil.theme")}>
+              {THEMES.map((mode) => (
+                <Button
+                  key={mode}
+                  aria-pressed={theme === mode}
+                  onPress={() => {
+                    definirTheme(mode);
+                    setTheme(mode);
+                  }}
+                >
+                  {t(
+                    mode === "clair"
+                      ? "profil.themeClair"
+                      : mode === "sombre"
+                        ? "profil.themeSombre"
+                        : "profil.themeAuto",
+                  )}
+                </Button>
+              ))}
+            </div>
+          </div>
+          {retour ? <p className="alert alert-error" role="alert">{retour}</p> : null}
+          <Button className="btn btn-primary" isDisabled={enregistrement.isPending} onPress={() => enregistrement.mutate()}>{t("profil.enregistrerPreferences")}</Button>
+        </div>
+      </section>
+
+  </div>;
 }

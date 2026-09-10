@@ -3,6 +3,7 @@ import { z } from "zod";
 import { OrganisationService } from "./organisation.service.js";
 import { Demande, RequiertPermission, type ContexteDemande } from "../commun/permissions.garde.js";
 import { valider } from "../commun/http.js";
+import { CibleOrganisation } from "./organisation-cible.garde.js";
 
 /** M2 — structure organisationnelle. Vue 29. */
 
@@ -40,6 +41,7 @@ export class OrganisationController {
 
   @Get("statistiques/:niveau/:id")
   @RequiertPermission("departments:read")
+  @CibleOrganisation({ niveau: "parametre" })
   statistiques(@Param("niveau") niveau: string, @Param("id") id: string) {
     const n = valider(z.enum(["departement", "service"]), niveau);
     return this.organisation.statistiques(id, n);
@@ -49,6 +51,7 @@ export class OrganisationController {
 
   @Post("directions")
   @RequiertPermission("directions:create")
+  @CibleOrganisation({ creation: "direction", rattachements: true })
   creerDirection(@Body() corps: unknown, @Demande() d: ContexteDemande) {
     const donnees = valider(
       identite.extend({ responsableId: z.uuid().nullish() }),
@@ -63,40 +66,52 @@ export class OrganisationController {
    * Corriger une faute dans un nom de service imposait jusqu'ici de le
    * SUPPRIMER, donc d'en détacher les agents.
    */
-  @Patch(":niveau/:id")
+  @Patch("directions/:id")
+  @RequiertPermission("directions:update")
+  @CibleOrganisation({ niveau: "direction", rattachements: true })
+  modifierDirection(@Param("id") id: string, @Body() corps: unknown, @Demande() d: ContexteDemande) {
+    const donnees = valider(modificationNoeud, corps);
+    return this.organisation.renommer("direction", id, donnees, d.userId);
+  }
+
+  @Patch("departements/:id")
   @RequiertPermission("departments:update")
-  renommer(
-    @Param("niveau") niveau: string,
-    @Param("id") id: string,
-    @Body() corps: unknown,
-    @Demande() d: ContexteDemande,
-  ) {
-    const cible = valider(
-      z.enum(["directions", "departements", "services"]),
-      niveau,
-    );
+  @CibleOrganisation({ niveau: "departement", rattachements: true })
+  modifierDepartement(@Param("id") id: string, @Body() corps: unknown, @Demande() d: ContexteDemande) {
     const donnees = valider(
-      z.object({
-        nom: z.string().min(1).max(160).optional(),
-        description: z.string().max(2000).nullish(),
-        responsableId: z.uuid().nullable().optional(),
-      }),
+      modificationNoeud.extend({ directionId: z.uuid().nullable().optional() }),
       corps,
     );
-    const singulier = cible === "directions" ? "direction" : cible === "departements" ? "departement" : "service";
-    return this.organisation.renommer(singulier, id, donnees, d.userId);
+    return this.organisation.renommer("departement", id, donnees, d.userId);
+  }
+
+  @Patch("services/:id")
+  @RequiertPermission("services:update")
+  @CibleOrganisation({ niveau: "service", rattachements: true })
+  modifierService(@Param("id") id: string, @Body() corps: unknown, @Demande() d: ContexteDemande) {
+    const donnees = valider(modificationNoeud, corps);
+    return this.organisation.renommer("service", id, donnees, d.userId);
   }
 
   @Delete("directions/:id")
   @RequiertPermission("directions:delete")
+  @CibleOrganisation({ niveau: "direction" })
   supprimerDirection(@Param("id") id: string, @Demande() d: ContexteDemande) {
     return this.organisation.supprimerDirection(id, d.userId);
+  }
+
+  @Get("directions/:id/impact")
+  @RequiertPermission("directions:delete")
+  @CibleOrganisation({ niveau: "direction" })
+  impactDirection(@Param("id") id: string) {
+    return this.organisation.impactSuppressionDirection(id);
   }
 
   // ── Départements ─────────────────────────────────────────────────────────
 
   @Post("departements")
   @RequiertPermission("departments:create")
+  @CibleOrganisation({ creation: "departement", rattachements: true })
   creerDepartement(@Body() corps: unknown, @Demande() d: ContexteDemande) {
     const donnees = valider(
       identite.extend({ directionId: z.uuid().nullish(), responsableId: z.uuid().nullish() }),
@@ -114,12 +129,14 @@ export class OrganisationController {
    */
   @Get("departements/:id/impact")
   @RequiertPermission("departments:delete")
+  @CibleOrganisation({ niveau: "departement" })
   impactDepartement(@Param("id") id: string) {
     return this.organisation.impactSuppressionDepartement(id);
   }
 
   @Delete("departements/:id")
   @RequiertPermission("departments:delete")
+  @CibleOrganisation({ niveau: "departement" })
   supprimerDepartement(@Param("id") id: string, @Demande() d: ContexteDemande) {
     return this.organisation.supprimerDepartement(id, d.userId);
   }
@@ -128,6 +145,7 @@ export class OrganisationController {
 
   @Post("services")
   @RequiertPermission("services:create")
+  @CibleOrganisation({ creation: "service", rattachements: true })
   creerService(@Body() corps: unknown, @Demande() d: ContexteDemande) {
     const donnees = valider(
       identite.extend({ departementId: z.uuid(), managerId: z.uuid().nullish() }),
@@ -143,13 +161,22 @@ export class OrganisationController {
    */
   @Get("services/:id/impact")
   @RequiertPermission("services:delete")
+  @CibleOrganisation({ niveau: "service" })
   impactService(@Param("id") id: string) {
     return this.organisation.impactSuppressionService(id);
   }
 
   @Delete("services/:id")
   @RequiertPermission("services:delete")
+  @CibleOrganisation({ niveau: "service" })
   supprimerService(@Param("id") id: string, @Demande() d: ContexteDemande) {
     return this.organisation.supprimerService(id, d.userId);
   }
 }
+
+const modificationNoeud = z.object({
+  version: z.number().int().positive(),
+  nom: z.string().min(1).max(160).optional(),
+  description: z.string().max(2000).nullish(),
+  responsableId: z.uuid().nullable().optional(),
+}).strict();

@@ -6,6 +6,7 @@
   "champsObligatoires": "* champs obligatoires",
   "heures": "{n, number} h",
   "utilisateurs": {
+    "tableauLibelle": "Liste des utilisateurs",
     "surtitre": "Référentiels",
     "titre": "Utilisateurs",
     "lesComptes": "les comptes",
@@ -32,6 +33,13 @@
     "actionsPour": "Actions pour {nom}",
     "desactiver": "Désactiver le compte",
     "reactiver": "Réactiver le compte",
+    "gestionCompte": "Gestion du compte",
+    "desactiverTitre": "Désactiver le compte de {nom}",
+    "reactiverTitre": "Réactiver le compte de {nom}",
+    "desactiverExplication": "Le compte ne pourra plus se connecter. Cette action reste réversible.",
+    "reactiverExplication": "Le compte pourra de nouveau se connecter avec ses droits actuels.",
+    "desactiverConfirmer": "Confirmer la désactivation",
+    "reactiverConfirmer": "Confirmer la réactivation",
     "supprimerDefinitivement": "Supprimer définitivement",
     "pasSoiMemeDesactiver": "Vous ne pouvez pas vous désactiver vous-même",
     "pasSoiMemeSupprimer": "Vous ne pouvez pas vous supprimer vous-même",
@@ -49,6 +57,12 @@
     "etapeAction": "Confirmation",
     "suppressionRefusee": "Impossible de supprimer cet utilisateur.",
     "reassignerDabord": "Veuillez d'abord réassigner ou terminer ces éléments.",
+    "impact_temps": "Saisies de temps",
+    "impact_projets": "Projets dirigés ou sponsorisés",
+    "impact_conges": "Congés approuvés",
+    "impact_assignations": "Assignations de tâches",
+    "impact_todos": "Tâches personnelles",
+    "impact_notifications": "Notifications",
     "irreversible": "Attention : cette action est irréversible.",
     "prenom": "Prénom",
     "nom": "Nom",
@@ -72,7 +86,7 @@
     "filtreActifs": "Actifs",
     "filtreDesactives": "Désactivés",
     "filtreTous": "Tous",
-    "suivi": "Suivi",
+    "suivi": "Voir le suivi individuel",
     "reinitialiserMotDePasse": "Réinitialiser le mot de passe",
     "pasSoiMemeMotDePasse": "Passez par « Mon profil » pour votre propre mot de passe.",
     "motDePasseReinitialise": "Mot de passe réinitialisé. {nom} devra le changer à sa prochaine connexion.",
@@ -84,7 +98,8 @@
     "organisationNonLisible": "Lire l'arborescence de l'organisation demande une permission dédiée.",
     "supprimeFaitDe": "Le compte de {nom} a été supprimé.",
     "supprimerLeCompteDe": "Supprimer définitivement le compte de {nom}",
-    "toutesLesDonneesDe": "Toutes les données associées à {nom} ({login}) — historique, commentaires, entrées de temps — seront définitivement supprimées."
+    "toutesLesDonneesDe": "Toutes les données associées à {nom} ({login}) — historique, commentaires, entrées de temps — seront définitivement supprimées.",
+    "remiseMotDePasse": "Choisissez un mot de passe provisoire et transmettez-le à {nom} hors de l’application. Le mot de passe actuel sera remplacé ; le titulaire devra changer ce mot de passe à sa prochaine connexion."
   },
   "suivi": {
     "leSuivi": "le suivi individuel",
@@ -252,7 +267,8 @@
     "responsableValidateur": "Le responsable devient validateur naturel des congés de son périmètre.",
     "horsDirectionPossible": "Un département peut exister hors direction.",
     "horsDepartementImpossible": "Un service ne peut pas exister hors département.",
-    "rattachementFige": "Le rattachement ne se change pas ici : il se corrige en déplaçant les agents."
+    "rattachementFige": "Le rattachement ne se change pas ici : il se corrige en déplaçant les agents.",
+    "rattachementDepartementModifiable": "Le département peut être rattaché à une autre direction, ou détaché de toute direction."
   },
   "parametres": {
     "surtitre": "Administration",
@@ -369,7 +385,18 @@
     "cle_display_timeFormat": "Format d'heure",
     "cle_display_locale": "Région",
     "cle_display_firstDayOfWeek": "Premier jour de la semaine",
-    "cle_planning_visibleDays": "Jours affichés au planning"
+    "cle_planning_visibleDays": "Jours affichés au planning",
+    "ferieModifie": "Jour férié modifié.",
+    "anneeScolaireExemple": "2026-2027",
+    "importerVacances": "Importer les vacances",
+    "importPeriodeRequise": "Indiquez une année scolaire au format AAAA-AAAA et une zone.",
+    "importReference": "Périodes du calendrier officiel embarqué ; les événements sans date de fin ne sont pas importés.",
+    "filtrerCalendrier": "Filtrer",
+    "importPlage": "Années disponibles : {debut} à {fin}.",
+    "zoneScolaire": "Zone scolaire",
+    "zoneNonConfiguree": "Non configurée",
+    "zoneNom": "Zone {zone}",
+    "zoneScolaireAide": "Cette zone sert par défaut à l’import des vacances scolaires et à la trame des plannings."
   },
   "roles": {
     "surtitre": "Administration",
@@ -379,6 +406,13 @@
     "laMatrice": "la matrice",
     "videTitre": "Aucun rôle configuré",
     "videExplication": "Initialisez le référentiel pour disposer des rôles fournis avec le produit.",
+    "initialiser": "Initialiser le référentiel",
+    "initialiserCategorie": "Référentiel fourni",
+    "initialiserTitre": "Initialiser les rôles et permissions",
+    "initialiserExplication": "Les modèles manquants seront ajoutés. Les rôles personnalisés et leurs permissions seront conservés ; cette action peut être rejouée sans créer de doublon.",
+    "initialiserConfirmer": "Confirmer l’initialisation",
+    "initialise": "Référentiel initialisé : {crees, number} créé(s), {existants, number} déjà présent(s).",
+    "initialiseCollisions": "Initialisation partielle : {n, plural, one {le code réservé {codes} est déjà utilisé par un rôle personnalisé} other {les codes réservés {codes} sont déjà utilisés par des rôles personnalisés}}. Renommez ces rôles puis relancez l'initialisation.",
     "colNom": "Rôle",
     "colPermissions": "Permissions",
     "colActions": "Actions",
@@ -575,8 +609,10 @@
     "action_event_participant_remove": "Participant retiré",
     "action_event_recurrence_stop": "Récurrence interrompue",
     "action_export_csv": "Export CSV",
+    "action_report_export": "Rapport exporté",
     "action_holiday_create": "Jour férié déclaré",
     "action_holiday_import": "Jours fériés importés",
+    "action_holiday_update": "Jour férié modifié",
     "action_leave_approve": "Congé approuvé",
     "action_leave_cancel": "Congé annulé",
     "action_leave_cancellation_refused": "Annulation refusée",
@@ -609,6 +645,7 @@
     "action_role_set_permissions": "Permissions du rôle modifiées",
     "action_role_update": "Rôle modifié",
     "action_school_vacation_create": "Vacances scolaires déclarées",
+    "action_school_vacation_import": "Vacances scolaires importées",
     "action_service_create": "Service créé",
     "action_settings_update": "Paramètres modifiés",
     "action_skill_create": "Compétence créée",
@@ -850,7 +887,8 @@
     "confirmerSuppressionRegle": "Supprimer cette règle de récurrence ?",
     "regleSuppressionMention": "Les assignations déjà engendrées ne sont pas supprimées.",
     "effetSuppressionRegle": "La règle cesse d'engendrer des assignations. Celles qu'elle a déjà posées restent au planning.",
-    "regleSupprimee": "{n, plural, =0 {Règle supprimée.} one {Règle supprimée, 1 assignation conservée.} other {Règle supprimée, # assignations conservées.}}"
+    "regleSupprimee": "{n, plural, =0 {Règle supprimée.} one {Règle supprimée, 1 assignation conservée.} other {Règle supprimée, # assignations conservées.}}",
+    "icone": "Icône"
   },
   "jours": {
     "long": {

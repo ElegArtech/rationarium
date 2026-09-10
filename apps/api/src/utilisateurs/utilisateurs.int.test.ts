@@ -141,13 +141,13 @@ describe("RG-USR-08 — les services dépendent du département", () => {
 
 describe("RG-USR-02 — nul n'agit sur soi-même", () => {
   it("on ne se désactive pas", async () => {
-    await expect(users.desactiver(karim, karim)).rejects.toMatchObject({
+    await expect(users.desactiver(karim, karim, 1)).rejects.toMatchObject({
       code: "soi_meme_interdit",
     });
   });
 
   it("on ne se supprime pas", async () => {
-    await expect(users.supprimerDefinitivement(karim, karim)).rejects.toMatchObject({
+    await expect(users.supprimerDefinitivement(karim, karim, 1)).rejects.toMatchObject({
       code: "soi_meme_interdit",
     });
   });
@@ -168,7 +168,7 @@ describe("EX-USR-05 — désactivation réversible", () => {
     await prisma.user.update({ where: { id: u.id }, data: { motDePasseAChanger: false } });
     const { jeton } = await auth.connecter(d.login, MDP);
 
-    await users.desactiver(u.id, karim);
+    await users.desactiver(u.id, karim, u.version);
 
     expect((await prisma.user.findUniqueOrThrow({ where: { id: u.id } })).actif).toBe(false);
     // Sans la coupure de session, la désactivation ne prendrait effet qu'à la
@@ -178,8 +178,8 @@ describe("EX-USR-05 — désactivation réversible", () => {
 
   it("et se réactive — c'est ce qui la distingue de la suppression", async () => {
     const u = await users.creer(nouveau(), karim, TOUS_DROITS_UTILISATEUR);
-    await users.desactiver(u.id, karim);
-    await users.reactiver(u.id, karim);
+    await users.desactiver(u.id, karim, u.version);
+    await users.reactiver(u.id, karim, u.version + 1);
     expect((await prisma.user.findUniqueOrThrow({ where: { id: u.id } })).actif).toBe(true);
   });
 });
@@ -189,7 +189,7 @@ describe("RG-USR-03 — contrôle de dépendances avant suppression définitive"
     const u = await users.creer(nouveau(), karim, TOUS_DROITS_UTILISATEUR);
     const impact = await users.impactSuppression(u.id);
     expect(impact.blocages).toEqual([]);
-    await expect(users.supprimerDefinitivement(u.id, karim)).resolves.toBeUndefined();
+    await expect(users.supprimerDefinitivement(u.id, karim, u.version)).resolves.toBeUndefined();
     expect(await prisma.user.findUnique({ where: { id: u.id } })).toBeNull();
   });
 
@@ -207,10 +207,10 @@ describe("RG-USR-03 — contrôle de dépendances avant suppression définitive"
     });
 
     const impact = await users.impactSuppression(u.id);
-    expect(impact.blocages).toContainEqual({ objet: "saisies de temps", nombre: 1 });
+    expect(impact.blocages).toContainEqual({ objet: "temps", nombre: 1 });
 
     const erreur = await users
-      .supprimerDefinitivement(u.id, karim)
+      .supprimerDefinitivement(u.id, karim, u.version)
       .catch((e: ErreurUtilisateur) => e);
     expect((erreur as ErreurUtilisateur).code).toBe("suppression_bloquee");
     expect((erreur as ErreurUtilisateur).detail?.blocages).toHaveLength(1);
@@ -224,8 +224,8 @@ describe("RG-USR-03 — contrôle de dépendances avant suppression définitive"
 
     const impact = await users.impactSuppression(u.id);
     expect(impact.blocages).toEqual([]);
-    expect(impact.effacements).toContainEqual({ objet: "to-do personnelles", nombre: 1 });
-    await expect(users.supprimerDefinitivement(u.id, karim)).resolves.toBeUndefined();
+    expect(impact.effacements).toContainEqual({ objet: "todos", nombre: 1 });
+    await expect(users.supprimerDefinitivement(u.id, karim, u.version)).resolves.toBeUndefined();
   });
 
   it("le contrôle est REJOUÉ à l'exécution, pas seulement à l'affichage", async () => {
@@ -246,14 +246,14 @@ describe("RG-USR-03 — contrôle de dépendances avant suppression définitive"
     });
 
     // Se fier au contrôle d'affichage serait un « dernier arrivé gagne » déguisé.
-    await expect(users.supprimerDefinitivement(u.id, karim)).rejects.toMatchObject({
+    await expect(users.supprimerDefinitivement(u.id, karim, u.version)).rejects.toMatchObject({
       code: "suppression_bloquee",
     });
   });
 
   it("RG-USR-04 — la trace précède la suppression, sinon acteur et cible sont perdus", async () => {
     const u = await users.creer(nouveau(), karim, TOUS_DROITS_UTILISATEUR);
-    await users.supprimerDefinitivement(u.id, karim);
+    await users.supprimerDefinitivement(u.id, karim, u.version);
     const trace = await prisma.auditLog.findFirst({
       where: { action: "user.delete_permanently", entiteId: u.id },
     });
@@ -283,7 +283,7 @@ describe("EX-USR-01, EX-USR-02 — annuaire filtré", () => {
 
   it("filtre par statut actif", async () => {
     const u = await users.creer({ ...nouveau(), departementId: deptA }, karim, TOUS_DROITS_UTILISATEUR);
-    await users.desactiver(u.id, karim);
+    await users.desactiver(u.id, karim, u.version);
     const p = await globalP();
     const inactifs = await users.lister(p, { actif: false });
     expect(inactifs.map((x) => x.id)).toContain(u.id);
@@ -651,7 +651,7 @@ describe("EX-USR-03 — créer un compte : identité, email, identifiant, mot de
 });
 
 describe("EX-USR-06 — supprimer définitivement un compte APRÈS contrôle de dépendances", () => {
-  it("l'effacement emporte réellement ce que l'inventaire avait annoncé", async () => {
+  it("RG-GEN-08 — l'impact emploie des codes traduisibles et l'effacement les tient", async () => {
     const u = await users.creer(nouveau("efface"), karim, TOUS_DROITS_UTILISATEUR);
     await prisma.todo.create({ data: { userId: u.id, libelle: "À faire" } });
     await prisma.notification.create({
@@ -659,11 +659,11 @@ describe("EX-USR-06 — supprimer définitivement un compte APRÈS contrôle de 
     });
 
     const impact = await users.impactSuppression(u.id);
-    expect(impact.effacements).toContainEqual({ objet: "to-do personnelles", nombre: 1 });
+    expect(impact.effacements).toContainEqual({ objet: "todos", nombre: 1 });
     expect(impact.effacements).toContainEqual({ objet: "notifications", nombre: 1 });
     expect(impact.nom).toContain(u.nom);
 
-    await users.supprimerDefinitivement(u.id, karim);
+    await users.supprimerDefinitivement(u.id, karim, u.version);
 
     // Annoncer un effacement et le laisser derrière soi serait pire que de ne
     // rien annoncer : l'inventaire deviendrait une promesse sans effet.
@@ -675,7 +675,7 @@ describe("EX-USR-06 — supprimer définitivement un compte APRÈS contrôle de 
   it("un compte inconnu est refusé, il n'est pas « déjà supprimé »", async () => {
     const inconnu = "00000000-0000-4000-8000-000000000000";
     await expect(users.impactSuppression(inconnu)).rejects.toMatchObject({ code: "introuvable" });
-    await expect(users.supprimerDefinitivement(inconnu, karim)).rejects.toMatchObject({
+    await expect(users.supprimerDefinitivement(inconnu, karim, 1)).rejects.toMatchObject({
       code: "introuvable",
     });
   });

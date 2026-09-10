@@ -256,9 +256,13 @@ export class TiersService {
    * (`RG-TRS-02`), non rattaché au projet parent (`RG-TRS-04`), déjà assigné
    * (`RG-TRS-03`) —, sans quoi l'écran proposerait ce que le serveur refuse.
    */
-  async candidatsPourTache(taskId: string) {
-    const tache = await this.prisma.task.findUnique({
-      where: { id: taskId },
+  async candidatsPourTache(
+    taskId: string,
+    perimetre: Perimetre,
+    permissions: ReadonlySet<string>,
+  ) {
+    const tache = await this.prisma.task.findFirst({
+      where: { AND: [{ id: taskId }, this.perimetres.filtreTache(perimetre, permissions)] },
       select: { projectId: true },
     });
     if (!tache) throw new ErreurTiers("introuvable");
@@ -285,14 +289,19 @@ export class TiersService {
     });
   }
 
-  async assignerALaTache(taskId: string, thirdPartyId: string, acteurId: string) {
-    await this.refuserSiArchive(thirdPartyId);
-
-    const tache = await this.prisma.task.findUnique({
-      where: { id: taskId },
+  async assignerALaTache(
+    taskId: string,
+    thirdPartyId: string,
+    acteurId: string,
+    perimetre: Perimetre,
+    permissions: ReadonlySet<string>,
+  ) {
+    const tache = await this.prisma.task.findFirst({
+      where: { AND: [{ id: taskId }, this.perimetres.filtreTache(perimetre, permissions)] },
       select: { projectId: true },
     });
     if (!tache) throw new ErreurTiers("introuvable");
+    await this.refuserSiArchive(thirdPartyId);
 
     if (tache.projectId) {
       const rattache = await this.prisma.projectThirdParty.findUnique({

@@ -37,6 +37,24 @@
       ]
     },
     {
+      "fichier": "apps/web/src/vues/administration/Utilisateurs.tsx",
+      "repere": "utilisateurs.pasSoiMemeMotDePasse",
+      "raison": "RG-USR-02 — un administrateur ne réinitialise pas son propre mot de passe depuis l'annuaire. L'action reste atteignable au clavier avec aria-disabled et explique le refus ; le gestionnaire neutralise le geste et le serveur le refuse également.",
+      "regles": ["RG-USR-02", "RG-GEN-06"]
+    },
+    {
+      "fichier": "apps/web/src/vues/administration/Utilisateurs.tsx",
+      "repere": "utilisateurs.pasSoiMemeDesactiver",
+      "raison": "RG-USR-04 — se désactiver soi-même retirerait l'accès courant. L'action reste lisible et focalisable avec son motif, mais aucun geste n'est envoyé ; le serveur conserve le même interdit.",
+      "regles": ["RG-USR-04", "RG-GEN-06"]
+    },
+    {
+      "fichier": "apps/web/src/vues/administration/Utilisateurs.tsx",
+      "repere": "utilisateurs.pasSoiMemeSupprimer",
+      "raison": "RG-USR-04 — la suppression définitive de son propre compte est interdite. L'action reste focalisable afin que son explication soit accessible, tandis que le gestionnaire et le serveur neutralisent le geste.",
+      "regles": ["RG-USR-04", "RG-GEN-06"]
+    },
+    {
       "fichier": "apps/web/src/vues/planning/Semaine.tsx",
       "repere": "actions.dateVerrouillee",
       "raison": "RG-TSK-11 — dans le planning, une tâche multi-assignée ne voit pas sa date changer par glisser-déposer ; le doublage clavier suit la même règle. La branche n'est atteinte que dans ce cas, et l'entrée dit la raison au lieu d'ouvrir un sous-menu qui refuserait ensuite.",
@@ -60,6 +78,15 @@
       "raison": "Même branche pour la réassignation : quand la semaine n'affiche aucun autre agent, le sous-menu s'ouvrirait sur rien. L'entrée dit pourquoi, au lieu de proposer un geste sans cible.",
       "regles": [
         "RG-GEN-04",
+        "RG-GEN-06"
+      ]
+    },
+    {
+      "fichier": "apps/web/src/vues/planning/Semaine.tsx",
+      "repere": "Button",
+      "raison": "RG-PLN-04 — le lieu reste visible lorsque la personne n'a pas le droit de le modifier. La commande est alors volontairement inerte, atteignable et accompagnée de l'explication « Lecture seule — permission requise » ; le serveur conserve le contrôle du geste.",
+      "regles": [
+        "RG-PLN-04",
         "RG-GEN-06"
       ]
     },

@@ -56,6 +56,9 @@ const SOCLE = [
   "telework:create",
   "telework:update",
   "telework:delete",
+  // D-RM-12 : règles de son propre calendrier, sans manage_any.
+  "telework:manage_rules",
+  "telework:generate",
   "time_tracking:read",
   "time_tracking:create",
   "time_tracking:delete",
@@ -336,7 +339,8 @@ export const MODELES_ROLES: readonly ModeleRole[] = [
     famille: "RH",
     systeme: true,
     description: "Hugo : paramétrer types de congés et soldes, importer en masse, contrôler.",
-    permissions: dedoublonne([...SOCLE, ...RH]),
+    // D-RM-03 : référentiel et matrice RH ; le rôle léger conserve RH seul.
+    permissions: dedoublonne([...SOCLE, ...RH, ...tout("skills")]),
   },
   {
     code: "HR_OFFICER_LIGHT",

@@ -57,6 +57,7 @@ const AVANT_SESSION = [
   "/auth/forgot-password",
   "/auth/reset-password",
   "/auth/verify-reset-token",
+  "/parametrage",
 ];
 
 /** Vrai une fois la sortie enclenchée : dix requêtes en vol ne partent qu'une fois. */

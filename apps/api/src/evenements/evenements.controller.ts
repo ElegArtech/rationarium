@@ -1,3 +1,4 @@
+import { CiblesPlanning } from "../commun/planning-cible.garde.js";
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from "@nestjs/common";
 import { z } from "zod";
 import { heure } from "@rationarium/contracts";
@@ -14,8 +15,9 @@ export class EvenementsController {
   /**
    * Les événements d'une plage, bornés au périmètre.
    *
-   * Les bornes sont nullables : le service traite « depuis toujours » et
-   * « jusqu'à la fin » sans que le client ait à inventer des dates sentinelles.
+   * Les bornes restent nullables dans le schéma d'entrée afin que le service
+   * rende le refus métier explicite `plage_incomplete` (422). Il exige les
+   * deux dates : aucune plage ouverte ni export déguisé n'est accepté.
    */
   @Get()
   @RequiertPermission("events:read")
@@ -37,6 +39,7 @@ export class EvenementsController {
   }
 
   @Post()
+  @CiblesPlanning("evenement")
   @RequiertPermission("events:create")
   creer(@Body() corps: unknown, @Demande() d: ContexteDemande) {
     const donnees = valider(
@@ -55,7 +58,7 @@ export class EvenementsController {
           .object({
             frequenceSemaines: z.number().int().min(1).max(52),
             jourSemaine: z.number().int().min(0).max(6),
-            jusqua: dateSchema,
+            jusqua: dateSchema.optional(),
           })
           .optional(),
       }),
@@ -82,6 +85,7 @@ export class EvenementsController {
    * régénérerait la série, ce qui est un autre geste que « modifier ».
    */
   @Patch(":id")
+  @CiblesPlanning("evenement")
   @RequiertPermission("events:update")
   modifier(@Param("id") id: string, @Body() corps: unknown, @Demande() d: ContexteDemande) {
     const donnees = valider(
@@ -125,6 +129,7 @@ export class EvenementsController {
   }
 
   @Post(":id/participants")
+  @CiblesPlanning("evenement")
   @RequiertPermission("events:update")
   ajouterParticipant(@Param("id") id: string, @Body() corps: unknown, @Demande() d: ContexteDemande) {
     const { userId } = valider(z.object({ userId: z.uuid() }), corps);
@@ -151,7 +156,7 @@ export class EvenementsController {
   @Post(":id/arreter")
   @RequiertPermission("events:update")
   arreterRecurrence(@Param("id") id: string, @Body() corps: unknown, @Demande() d: ContexteDemande) {
-    const { aPartirDe } = valider(z.object({ aPartirDe: dateSchema }), corps);
-    return this.evenements.arreterRecurrence(id, aPartirDe, d.userId, d.perimetre, d.permissions);
+    const { aPartirDe, version } = valider(z.object({ aPartirDe: dateSchema, version: z.number().int().positive() }), corps);
+    return this.evenements.arreterRecurrence(id, aPartirDe, d.userId, d.perimetre, d.permissions, new Date(), version);
   }
 }

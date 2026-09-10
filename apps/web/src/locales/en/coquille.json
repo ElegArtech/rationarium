@@ -43,6 +43,14 @@
     "monProfil": "My profile",
     "deconnexion": "Sign out"
   },
+  "recherche": {
+    "resultatsPour": "Search results for “{terme}”",
+    "chargement": "Searching…",
+    "erreur": "Search results could not be loaded. Try again.",
+    "aucun": "No visible project or task matches “{terme}”.",
+    "projets": "Projects",
+    "taches": "Tasks"
+  },
   "notifications": {
     "titre": "Notifications",
     "aucune": "No notifications",
@@ -73,7 +81,7 @@
     "compteActif": "Active account",
     "seDeconnecter": "Sign out",
     "sections": "Profile sections",
-    "onglet_info": "Information",
+    "onglet_info": "Personal information",
     "onglet_sec": "Security",
     "modifiableParVous": "You can change these",
     "modifiableParVousAide": "These details are yours: change them whenever you want.",
@@ -107,6 +115,38 @@
     "themeSombre": "Dark",
     "themeAuto": "Automatic",
     "enregistre": "Profile saved.",
-    "echecEnregistrement": "Saving failed."
+    "echecEnregistrement": "Saving failed.",
+    "onglet_pref": "Preferences",
+    "enregistrerPreferences": "Save preferences",
+    "langue_fr": "Français",
+    "langue_en": "English",
+    "historiqueConnexion": "Login history",
+    "motDePasseCourt": "The password must contain at least 8 characters",
+    "avatar": "Avatar",
+    "avatarChoisir": "Choose an image",
+    "avatarPredefinis": "Choose a predefined visual",
+    "avatarPredefiniEnregistre": "Predefined visual saved.",
+    "visuelsAvatar": {
+      "constellation": "Constellation",
+      "feuille": "Leaf",
+      "montagne": "Mountain",
+      "vagues": "Waves",
+      "soleil": "Sun",
+      "mosaique": "Mosaic"
+    },
+    "avatarSupprimer": "Remove avatar",
+    "avatarFormats": "Accepted formats: jpg, png or webp.",
+    "avatarEnregistre": "Avatar saved.",
+    "avatarSupprime": "Avatar removed.",
+    "avatarEchec": "The avatar could not be changed."
+  },
+  "rolesSysteme": {
+    "ADMIN": "Administrator",
+    "ADMIN_DELEGATED": "Delegated administrator",
+    "PORTFOLIO_MANAGER": "Portfolio manager",
+    "MANAGER": "Service manager",
+    "PROJECT_LEAD": "Project lead",
+    "PROJECT_CONTRIBUTOR": "Project contributor",
+    "HR_OFFICER": "HR officer"
   }
 }

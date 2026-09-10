@@ -241,5 +241,27 @@
   "fenetreDate": {
     "nouvelleDate": "New date",
     "mention": "The task stays assigned to the same person"
+  },
+  "ics": {
+    "importer": "Import ICS",
+    "fermer": "Close",
+    "previsualiser": "Preview",
+    "confirmer": "Confirm import",
+    "fichier": "ICS file",
+    "explication": "Preview events before confirming their import into your calendar. Existing events are kept; unsupported entries are ignored.",
+    "echec": "The ICS file could not be processed.",
+    "apercu": "Preview: {crees} to import · {existants} existing · {ignores} ignored.",
+    "bilan": "Import complete: {crees, plural, one {# created} other {# created}} · {existants, plural, one {# existing} other {# existing}} · {ignores, plural, one {# ignored} other {# ignored}}.",
+    "a_importer": "To import",
+    "existant": "Already present",
+    "entreeIgnoree": "Entry {index} {titre}:",
+    "motif_incomplet": "Incomplete event.",
+    "motif_date_invalide": "Invalid date.",
+    "motif_horaires_invalides": "Invalid times.",
+    "motif_multi_jours": "Events spanning multiple days are not supported.",
+    "motif_recurrence_non_prise_en_charge": "This recurrence pattern is not supported.",
+    "motif_titre_trop_long": "Title too long.",
+    "motif_horizon_depasse": "Recurrence horizon exceeded.",
+    "motif_fuseau_non_pris_en_charge": "The time zone of this event is not supported."
   }
 }

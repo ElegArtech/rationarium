@@ -51,6 +51,7 @@ export type FicheProjet = {
   creeLe: string;
   chef: Personne | null;
   sponsor: Personne | null;
+  departement?: { id: string; nom: string } | null;
   createur: Personne | null;
   progression: number;
   budget: Budget;
@@ -59,6 +60,7 @@ export type FicheProjet = {
   jalons: number;
   epopees: number;
   clients: { id: string; nom: string }[];
+  instantanesAccesRestreint?: boolean;
   dernierInstantane: { date: string; progression: number } | null;
 };
 
@@ -180,6 +182,9 @@ export const modifierProjet = (
     budgetHeures?: number | null;
     /** `EX-PRJ-04` — `null` retire l'icône, une chaîne hors bibliothèque est refusée. */
     icone?: string | null;
+    chefId?: string | null;
+    sponsorId?: string | null;
+    departementId?: string | null;
     version: number;
   },
 ) => appeler<{ id: string }>(`/projets/${id}`, { methode: "PATCH", corps: donnees });
@@ -237,7 +242,7 @@ export type Instantane = {
 };
 
 export const capturerInstantane = (id: string, date: string) =>
-  appeler<Instantane>(`/projets/${id}/instantane`, { methode: "POST", corps: { date } });
+  appeler<Instantane | null>(`/projets/${id}/instantane`, { methode: "POST", corps: { date } });
 
 /**
  * `EX-PRJ-13` — **l'historique**, du plus récent au plus ancien.

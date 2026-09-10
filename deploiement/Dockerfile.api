@@ -47,6 +47,11 @@ RUN pnpm --filter @rationarium/contracts build \
  && pnpm --filter @rationarium/db build \
  && pnpm --filter @rationarium/api build
 
+# Les jeux et contrôles compilés ne font pas partie du lot livré.
+RUN find apps/api/dist packages/db/dist packages/contracts/dist -type f \( -name '*.test.*' -o -name '*.spec.*' -o -name '*.map' \) -delete \
+ && rm -f packages/db/dist/maquette* packages/db/dist/volumetrie* packages/db/dist/mesure* packages/db/dist/purge-volumetrie* \
+ && rm -rf apps/api/dist/perf
+
 # ── Exécution ───────────────────────────────────────────────────────────────
 FROM base AS execution
 
@@ -60,12 +65,21 @@ ENV PRISMA_SCHEMA_ENGINE_BINARY=/usr/local/lib/prisma/schema-engine
 
 COPY --from=construction /rationarium/node_modules /rationarium/node_modules
 COPY --from=construction /rationarium/package.json /rationarium/pnpm-workspace.yaml ./
-COPY --from=construction /rationarium/packages/contracts /rationarium/packages/contracts
-COPY --from=construction /rationarium/packages/db /rationarium/packages/db
-COPY --from=construction /rationarium/apps/api /rationarium/apps/api
+COPY --from=construction /rationarium/packages/contracts/dist /rationarium/packages/contracts/dist
+COPY --from=construction /rationarium/packages/contracts/node_modules /rationarium/packages/contracts/node_modules
+COPY --from=construction /rationarium/packages/contracts/package.json /rationarium/packages/contracts/package.json
+COPY --from=construction /rationarium/packages/db/dist /rationarium/packages/db/dist
+COPY --from=construction /rationarium/packages/db/node_modules /rationarium/packages/db/node_modules
+COPY --from=construction /rationarium/packages/db/package.json /rationarium/packages/db/package.json
+COPY --from=construction /rationarium/packages/db/prisma /rationarium/packages/db/prisma
+COPY --from=construction /rationarium/packages/db/prisma.config.ts /rationarium/packages/db/prisma.config.ts
+COPY --from=construction /rationarium/apps/api/dist /rationarium/apps/api/dist
+COPY --from=construction /rationarium/apps/api/node_modules /rationarium/apps/api/node_modules
+COPY --from=construction /rationarium/apps/api/package.json /rationarium/apps/api/package.json
 
 # Le conteneur ne tourne pas en `root`. Voir aussi le piège de propriété des
 # fichiers montés, consigné dans `CLAUDE.md`.
+RUN mkdir -p /var/lib/rationarium/documents && chown node:node /var/lib/rationarium/documents
 USER node
 
 ENV NODE_ENV=production

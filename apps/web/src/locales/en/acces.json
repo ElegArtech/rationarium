@@ -68,6 +68,7 @@
   "pied": {
     "version": "Rationarium v1.0",
     "accessibilite": "Accessibility: RGAA compliant",
+    "aujourdhui": "Today: {date}",
     "aide": "Help"
   },
   "connexion": {

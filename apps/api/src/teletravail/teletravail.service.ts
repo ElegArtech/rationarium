@@ -1,3 +1,5 @@
+import { presenceALaDate } from "../commun/presence.js";
+import { CalendrierService } from "../parametrage/calendrier.service.js";
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma.service.js";
 import { AuditService } from "../commun/audit.service.js";
@@ -90,14 +92,16 @@ export class TeletravailService {
     etat: EtatTeletravail,
     acteurId: string,
     permissions: ReadonlySet<string> = new Set(),
+    version?: number,
   ) {
     this.refuserAutrui(userId, acteurId, permissions, "telework:manage_any");
     const existant = await this.prisma.telework.findUnique({
       where: { userId_date: { userId, date } },
-      select: { issuDeRegle: true },
+      select: { issuDeRegle: true, version: true },
     });
 
-    const enregistrement = await this.prisma.telework.upsert({
+    if (version !== undefined && version !== (existant?.version ?? 0)) throw new ErreurTeletravail("conflit_de_version");
+    const enregistrement = version === undefined ? await this.prisma.telework.upsert({
       where: { userId_date: { userId, date } },
       create: { userId, date, etat },
       update: {
@@ -106,6 +110,17 @@ export class TeletravailService {
         exception: existant?.issuDeRegle === true,
         version: { increment: 1 },
       },
+    }) : await this.prisma.$transaction(async (tx) => {
+      if (version === 0) {
+        const creation = await tx.telework.createMany({ data: [{ userId, date, etat }], skipDuplicates: true });
+        if (creation.count !== 1) throw new ErreurTeletravail("conflit_de_version");
+      } else {
+        const modification = await tx.telework.updateMany({ where: { userId, date, version }, data: {
+          etat, exception: existant?.issuDeRegle === true, version: { increment: 1 },
+        } });
+        if (modification.count !== 1) throw new ErreurTeletravail("conflit_de_version");
+      }
+      return tx.telework.findUniqueOrThrow({ where: { userId_date: { userId, date } } });
     });
 
     await this.audit.tracer({
@@ -422,22 +437,7 @@ export class TeletravailService {
 
   /** `EX-TLT-07` — le télétravail de l'équipe à une date. */
   async equipeALaDate(perimetre: Perimetre, date: Date) {
-    const agents = await this.prisma.user.findMany({
-      where: { AND: [this.perimetres.filtreUtilisateur(perimetre), { actif: true }] },
-      select: { id: true, prenom: true, nom: true },
-      orderBy: [{ nom: "asc" }],
-    });
-
-    const declarations = await this.prisma.telework.findMany({
-      where: { userId: { in: agents.map((a) => a.id) }, date },
-      select: { userId: true, etat: true },
-    });
-    const parAgent = new Map(declarations.map((d) => [d.userId, d.etat]));
-
-    return agents.map((a) => ({
-      ...a,
-      etat: (parAgent.get(a.id) ?? "undeclared") as EtatTeletravail,
-    }));
+    return presenceALaDate(this.prisma, this.perimetres, new CalendrierService(this.prisma, this.audit), perimetre, date);
   }
 
   /** `EX-TLT-08` — statistiques d'un agent : cumuls et moyenne mensuelle. */

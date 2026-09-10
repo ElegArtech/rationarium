@@ -24,6 +24,7 @@ test-results
 **/test-results
 playwright-report
 **/playwright-report
+**/.playwright
 **/.turbo
 **/*.tsbuildinfo
 
@@ -35,6 +36,18 @@ deploiement/.env
 # Documentation et références : elles n'entrent dans aucune image.
 cadrage
 mockups
-docs
+# ADR-0017 : une seule référence fonctionnelle entre dans le contexte. Le
+# reste de la documentation demeure exclu, comme les jeux et preuves RM-08.
+docs/*
+!docs/references/
+docs/references/*
+!docs/references/calendrier/
+docs/references/calendrier/*
+!docs/references/calendrier/periodes-metropole.json
 guide
 design
+
+# RM-08 : ni harnais, ni preuves, ni configuration des agents.
+recette
+.agents
+.codex

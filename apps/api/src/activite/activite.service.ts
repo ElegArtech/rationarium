@@ -492,6 +492,9 @@ export class ActiviteService {
     userIds: string[],
     acteurId: string,
   ) {
+    const tache = await this.prisma.predefinedTask.findUnique({ where: { id: predefinedTaskId }, select: { actif: true, nom: true } });
+    if (!tache) throw new ErreurActivite("introuvable");
+    if (!tache.actif) throw new ErreurActivite("tache_inactive", { tache: tache.nom });
     const recurrences = await this.prisma.predefinedTaskRecurrence.findMany({
       where: {
         predefinedTaskId,
@@ -653,6 +656,7 @@ export class ActiviteService {
             assignationId: a.id,
             periode: a.periode,
             realisee: a.realisee,
+            version: a.version,
           })),
         })),
       });
@@ -662,11 +666,12 @@ export class ActiviteService {
   }
 
   /** `EX-ACT-06` — déclarer le statut de réalisation d'une assignation. */
-  async declarerRealisation(assignationId: string, realisee: boolean, acteurId: string) {
-    await this.prisma.predefinedTaskAssignment.update({
-      where: { id: assignationId },
+  async declarerRealisation(assignationId: string, realisee: boolean, acteurId: string, version?: number) {
+    const resultat = await this.prisma.predefinedTaskAssignment.updateMany({
+      where: { id: assignationId, ...(version === undefined ? {} : { version }) },
       data: { realisee, version: { increment: 1 } },
     });
+    if (resultat.count !== 1) throw new ErreurActivite("conflit_de_version");
     await this.audit.tracer({
       action: "predefined_task.status", typeEntite: "PredefinedTaskAssignment",
       entiteId: assignationId, acteurId, detail: { realisee },

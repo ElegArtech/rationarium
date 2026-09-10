@@ -146,39 +146,17 @@ describe("RG-EVT-03, RG-EVT-04 — arrêter une récurrence", () => {
     expect(restantes.length).toBeGreaterThan(0);
   });
 
-  /*
-   * DÉCISION, P-66. Le tiroir propose « Arrêter la récurrence » sur TOUTE
-   * occurrence, et le serveur refusait sur une occurrence enfant par un
-   * message — « cet événement n'est pas une série » — qui contredisait le
-   * bandeau « Fait partie d'une série récurrente » affiché deux lignes plus
-   * haut. L'arrêt porte sur la SÉRIE : il se résout par le parent, quelle que
-   * soit l'occurrence par laquelle on le demande. Le refus reste pour ce qu'il
-   * désigne vraiment — un événement isolé, qui n'a aucune série à arrêter.
-   */
-  it("RG-EVT-03 — l'arrêt demandé depuis une OCCURRENCE porte sur la série", async () => {
-    const { evenement } = await evenements.creer(
-      {
-        titre: "Série", date: utc("2026-05-04"), journeeEntiere: true,
-        recurrence: { frequenceSemaines: 1, jourSemaine: 1, jusqua: utc("2026-06-01") },
-      },
-      acteur,
-    );
-    const occurrence = await prisma.event.findFirstOrThrow({
-      where: { parentId: evenement.id, date: utc("2026-05-18") },
-    });
-
-    const r = await evenements.arreterRecurrence(
-      occurrence.id, utc("2026-05-18"), acteur, await globalP(), PERMISSIONS_GLOBALES,
-      new Date("2026-05-04T14:00:00.000Z"),
-    );
-    expect(r.supprimees).toBe(3); // les 18 et 25 mai, le 1er juin
-
-    // La série est coupée à la date demandée, et le PARENT porte la nouvelle
-    // fin : c'est lui qui décrit la récurrence, l'occurrence n'en sait rien.
-    const parent = await prisma.event.findUniqueOrThrow({ where: { id: evenement.id } });
-    expect(parent.recurrenceFin?.toISOString().slice(0, 10)).toBe("2026-05-18");
-    const restantes = await prisma.event.findMany({ where: { parentId: evenement.id } });
-    expect(restantes.map((e) => e.date.toISOString().slice(0, 10))).toEqual(["2026-05-11"]);
+  // RM05 : l'ancien test acceptait l'enfant en dépit de RG-EVT-03 restée inchangée.
+  it("RG-EVT-03 — l'arrêt sur une occurrence enfant est refusé sans modifier la série", async () => {
+    const { evenement } = await evenements.creer({
+      titre: "Série", date: utc("2026-05-04"), journeeEntiere: true,
+      recurrence: { frequenceSemaines: 1, jourSemaine: 1, jusqua: utc("2026-06-01") },
+    }, acteur);
+    const avant = await prisma.event.findMany({ where: { OR: [{ id: evenement.id }, { parentId: evenement.id }] }, include: { participants: true }, orderBy: { id: "asc" } });
+    const occurrence = avant.find((e) => e.parentId === evenement.id)!;
+    await expect(evenements.arreterRecurrence(occurrence.id, occurrence.date, acteur, await globalP(), PERMISSIONS_GLOBALES,
+      new Date("2026-05-04T14:00:00Z"))).rejects.toMatchObject({ code: "pas_un_parent" });
+    expect(await prisma.event.findMany({ where: { OR: [{ id: evenement.id }, { parentId: evenement.id }] }, include: { participants: true }, orderBy: { id: "asc" } })).toEqual(avant);
   });
 
   it("RG-EVT-03 — un événement ISOLÉ n'a aucune récurrence à arrêter", async () => {

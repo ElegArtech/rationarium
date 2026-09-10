@@ -1260,6 +1260,18 @@ export class CongesService {
    * ses propres congés : c'est la même route, et c'est le filtre qui change de
    * question.
    */
+  /** EX-CNG-08/11 — uniquement les comptes actifs du périmètre pour les sélecteurs RH. */
+  async candidats(perimetre: Perimetre) {
+    const agents = await this.prisma.user.findMany({
+      where: { AND: [this.perimetres.filtreUtilisateur(perimetre), { actif: true }] },
+      select: {
+        id: true, prenom: true, nom: true, departement: { select: { id: true, nom: true } },
+        services: { select: { service: { select: { id: true, nom: true } } } },
+      }, orderBy: [{ nom: "asc" }, { prenom: "asc" }],
+    });
+    return agents.map((a) => ({ ...a, services: a.services.map((s) => s.service) }));
+  }
+
   async lister(
     perimetre: Perimetre,
     filtres: { userId?: string; aValider?: boolean; statut?: string; annee?: number } = {},
@@ -1278,15 +1290,29 @@ export class CongesService {
     }
     if (filtres.annee) clauses.push({ repartitions: { some: { annee: filtres.annee } } });
 
-    return this.prisma.leave.findMany({
+    const demandes = await this.prisma.leave.findMany({
       where: { AND: clauses },
       orderBy: { dateDebut: "desc" },
       include: {
         type: { select: { id: true, nom: true, couleur: true, icone: true } },
-        user: { select: { id: true, prenom: true, nom: true } },
+        user: { select: { id: true, prenom: true, nom: true, departement: { select: { id: true, nom: true } }, services: { select: { service: { select: { id: true, nom: true } } } } } },
         validateur: { select: { id: true, prenom: true, nom: true } },
         repartitions: true,
       },
     });
+    return Promise.all(demandes.map(async (demande) => {
+      const services = demande.user.services.map((s) => s.service);
+      const absencesConcomitantes = filtres.aValider && services.length > 0
+        ? await this.prisma.leave.findMany({
+          where: { AND: [
+            this.perimetres.filtreParAgent(perimetre),
+            { id: { not: demande.id }, userId: { not: demande.userId }, statut: { in: ["approved", "cancellation_requested"] }, dateDebut: { lte: demande.dateFin }, dateFin: { gte: demande.dateDebut } },
+            { user: { services: { some: { serviceId: { in: services.map((s) => s.id) } } } } },
+          ] },
+          select: { id: true, dateDebut: true, dateFin: true, user: { select: { id: true, prenom: true, nom: true } } },
+          orderBy: [{ dateDebut: "asc" }, { id: "asc" }],
+        }) : [];
+      return { ...demande, user: { ...demande.user, services }, absencesConcomitantes };
+    }));
   }
 }

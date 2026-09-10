@@ -92,6 +92,7 @@ const DEFAUTS: Record<string, string> = {
   "display.locale": "fr-FR",
   "display.firstDayOfWeek": "1",
   "planning.visibleDays": "1,2,3,4,5",
+  "planning.schoolZone": "",
 };
 
 /**
@@ -169,6 +170,8 @@ export function Parametres() {
     onSuccess: () => {
       annoncer("ok", t("parametres.enregistre"));
       void client.invalidateQueries({ queryKey: ["parametrage"] });
+      void client.invalidateQueries({ queryKey: ["planning"] });
+      void client.invalidateQueries({ queryKey: ["tableau"] });
     },
     onError: (e) => annoncer("err", messageErreur(e, tErreurs, t("parametres.echecAction"))),
   });
@@ -270,6 +273,7 @@ export function Parametres() {
             ) : null}
             {commandes.enregistrer ? (
               <Button
+                id="parametres-enregistrer"
                 className="btn btn-primary"
                 isDisabled={!modifie}
                 isPending={enregistrement.isPending}
@@ -308,6 +312,7 @@ export function Parametres() {
           {commandes.enregistrer ? (
             <Button
               className="btn btn-primary"
+              aria-labelledby="parametres-enregistrer"
               isPending={enregistrement.isPending}
               onPress={() => enregistrement.mutate()}
             >
@@ -359,7 +364,7 @@ export function Parametres() {
       {onglet === "affichage" ? <Affichage lire={lire} ecrire={ecrire} /> : null}
       {onglet === "planning" ? <Planning lire={lire} ecrire={ecrire} /> : null}
       {onglet === "feries" ? <Feries /> : null}
-      {onglet === "vacances" ? <VacancesScolaires /> : null}
+      {onglet === "vacances" ? <VacancesScolaires zoneConfiguree={enregistre["planning.schoolZone"] ?? ""} /> : null}
       {/*
         `RG-PRM-05` — la question est posée dans NOS mots, avec la sortie et le
         retour clairement nommés. « Quitter sans enregistrer » dit ce qui se
@@ -652,6 +657,7 @@ function Planning({ lire, ecrire }: Acces) {
   };
 
   return (
+    <>
     <section className="panel">
       <div className="panel-head">
         <span className="panel-title">{t("parametres.joursVisibles")}</span>
@@ -680,6 +686,19 @@ function Planning({ lire, ecrire }: Acces) {
         <p className="field-hint">{t("parametres.auMoinsUnJour")}</p>
       </div>
     </section>
+    <section className="panel panel-espace">
+      <div className="panel-head"><span className="panel-title">{t("parametres.zoneScolaire")}</span></div>
+      <div className="panel-body">
+        <label className="field-label" htmlFor="planning-school-zone">{t("parametres.champZone")}</label>
+        <select className="f-input" id="planning-school-zone" value={lire("planning.schoolZone", "")}
+          onChange={(e) => ecrire("planning.schoolZone", e.target.value)}>
+          <option value="">{t("parametres.zoneNonConfiguree")}</option>
+          {["A", "B", "C"].map(zone => <option key={zone} value={zone}>{t("parametres.zoneNom", { zone })}</option>)}
+        </select>
+        <p className="field-hint">{t("parametres.zoneScolaireAide")}</p>
+      </div>
+    </section>
+    </>
   );
 }
 
@@ -710,6 +729,18 @@ function Feries() {
     onSuccess: (r) => {
       annoncer("ok", t("parametres.importTermine", { crees: r.crees, existants: r.existants }));
       void client.invalidateQueries({ queryKey: ["parametrage", "feries"] });
+    },
+    onError: (e) => annoncer("err", messageErreur(e, tErreurs, t("parametres.echecAction"))),
+  });
+
+  const qualification = useMutation({
+    mutationFn: ({ ferie, champ, valeur }: { ferie: api.JourFerie; champ: "ouvre" | "recurrent"; valeur: boolean }) =>
+      api.modifierFerie(ferie.id, { version: ferie.version, [champ]: valeur }),
+    onSuccess: () => {
+      annoncer("ok", t("parametres.ferieModifie"));
+      for (const domaine of ["parametrage", "planning", "conges", "teletravail", "tableau"]) {
+        void client.invalidateQueries({ queryKey: [domaine] });
+      }
     },
     onError: (e) => annoncer("err", messageErreur(e, tErreurs, t("parametres.echecAction"))),
   });
@@ -771,13 +802,15 @@ function Feries() {
         </div>
       </div>
 
+      {peut("holidays:update") ? <p className="field-hint" id="feries-consequence">{t("parametres.jourOuvreAide")} {t("parametres.consequenceTexte")}</p> : null}
+
       {feries.length === 0 ? (
         <div className="empty empty-large">
           <p>{t("parametres.aucunFerie", { annee: String(annee) })}</p>
           <small>{t("parametres.aucunFerieAide")}</small>
         </div>
       ) : (
-        <div className="tlist">
+        <div className="tlist" role="region" aria-label={t("parametres.ongletFeries")} tabIndex={0}>
           <div className="hol-grid set-head" aria-hidden="true">
             <span>{t("parametres.colDate")}</span>
             <span>{t("parametres.colLibelle")}</span>
@@ -791,15 +824,19 @@ function Feries() {
               <span className="lv-when">{formaterDate(f.date)}</span>
               <span className="lnk-n">{f.libelle}</span>
               <span className="us-org">{t(`parametres.typeFerie_${f.type}`, f.type)}</span>
-              <span className="toggle-wrap">
-                <span className="toggle" aria-hidden="true" data-etat={f.ouvre} />
-                <span className="toggle-lab">
-                  {f.ouvre ? t("parametres.compteTravaille") : t("parametres.chome")}
-                </span>
-              </span>
-              <span className="us-org">
-                {f.recurrent ? t("parametres.recurrent") : t("parametres.ponctuel")}
-              </span>
+              {peut("holidays:update") ? <label className="check">
+                <input type="checkbox" checked={f.ouvre} disabled={qualification.isPending}
+                  aria-label={`${t("parametres.colJourOuvre")} — ${f.libelle}`}
+                  aria-describedby="feries-consequence"
+                  onChange={(e) => qualification.mutate({ ferie: f, champ: "ouvre", valeur: e.target.checked })} />
+                <span>{f.ouvre ? t("parametres.compteTravaille") : t("parametres.chome")}</span>
+              </label> : <span className="toggle-wrap"><span className="toggle" aria-hidden="true" data-etat={f.ouvre} /><span className="toggle-lab">{f.ouvre ? t("parametres.compteTravaille") : t("parametres.chome")}</span></span>}
+              {peut("holidays:update") ? <label className="check">
+                <input type="checkbox" checked={f.recurrent} disabled={qualification.isPending}
+                  aria-label={`${t("parametres.recurrentLabel")} — ${f.libelle}`}
+                  onChange={(e) => qualification.mutate({ ferie: f, champ: "recurrent", valeur: e.target.checked })} />
+                <span>{f.recurrent ? t("parametres.recurrent") : t("parametres.ponctuel")}</span>
+              </label> : <span className="us-org">{f.recurrent ? t("parametres.recurrent") : t("parametres.ponctuel")}</span>}
               <span />
             </div>
           ))}
@@ -999,23 +1036,63 @@ function FenetreFerie({
   );
 }
 
-function VacancesScolaires() {
+function VacancesScolaires({ zoneConfiguree }: { zoneConfiguree: string }) {
   const { t } = useTranslation("administration");
   const peut = usePeut();
+  const { t: tErreurs } = useTranslation("erreurs");
+  const client = useQueryClient();
+  const annoncer = useMessages();
+  const [anneeScolaire, setAnneeScolaire] = useState(() => {
+    const maintenant = new Date();
+    const debut = maintenant.getFullYear() - (maintenant.getMonth() < 8 ? 1 : 0);
+    return `${debut}-${debut + 1}`;
+  });
+  const [zone, setZone] = useState(zoneConfiguree);
+  const [erreur, setErreur] = useState<string | null>(null);
   const [ajoutOuvert, setAjoutOuvert] = useState(false);
+  const [filtres, setFiltres] = useState<{ anneeScolaire?: string | undefined; zone?: string | undefined }>({ anneeScolaire, zone: zoneConfiguree || undefined });
   const requete = useQuery({
-    queryKey: ["parametrage", "vacances"],
-    queryFn: () => api.vacancesScolaires(),
+    queryKey: ["parametrage", "vacances", filtres],
+    queryFn: () => api.vacancesScolaires(filtres.anneeScolaire, filtres.zone),
+  });
+  const periodeValide = /^\d{4}-\d{4}$/.test(anneeScolaire) &&
+    Number(anneeScolaire.slice(5)) === Number(anneeScolaire.slice(0, 4)) + 1;
+
+
+  const importation = useMutation({
+    mutationFn: (cible: { anneeScolaire: string; zone: string }) => api.importerVacances(cible.anneeScolaire, cible.zone),
+    onSuccess: (r, cible) => {
+      setFiltres(cible);
+      annoncer("ok", t("parametres.importTermine", { crees: r.crees, existants: r.existants }));
+      void client.invalidateQueries({ queryKey: ["parametrage"] });
+      void client.invalidateQueries({ queryKey: ["planning"] });
+      setErreur(null);
+    },
+    onError: (e) => setErreur(messageErreur(e, tErreurs, t("parametres.echecAction"))),
   });
 
-  if (requete.isPending) return <Chargement quoi={t("parametres.lesVacances")} />;
-  if (requete.isError)
-    return <ErreurDeChargement erreur={requete.error} surReessai={() => void requete.refetch()} />;
-
-  const { vacances, statistiques } = requete.data;
+  const vacances = requete.data?.vacances ?? [];
+  const statistiques = requete.data?.statistiques;
 
   return (
     <>
+      <div className="filters">
+        <label className="field-label" htmlFor="vac-import-annee">{t("parametres.champAnneeScolaire")}</label>
+        <input className="f-input" id="vac-import-annee" placeholder={t("parametres.anneeScolaireExemple")} value={anneeScolaire} onChange={(e) => setAnneeScolaire(e.target.value)} />
+        <label className="field-label" htmlFor="vac-import-zone">{t("parametres.champZone")}</label>
+        <input className="f-input" id="vac-import-zone" value={zone} onChange={(e) => setZone(e.target.value)} />
+        <Button className="chip-btn" onPress={() => {
+          if (anneeScolaire && !periodeValide) { setErreur(t("parametres.importPeriodeRequise")); return; }
+          setErreur(null);
+          setFiltres({ anneeScolaire: anneeScolaire || undefined, zone: zone.trim() || undefined });
+        }}>{t("parametres.filtrerCalendrier")}</Button>
+        {peut("school_vacations:import") ? <Button className="chip-btn" isPending={importation.isPending} onPress={() => {
+          if (!periodeValide || !zone.trim()) { setErreur(t("parametres.importPeriodeRequise")); return; }
+          importation.mutate({ anneeScolaire, zone: zone.trim() });
+        }}>{t("parametres.importerVacances")}</Button> : null}
+      </div>
+      <p className="field-hint">{t("parametres.importReference")} {t("parametres.importPlage", { debut: "2017-2018", fin: "2026-2027" })}</p>
+      {erreur ? <p className="alert alert-error" role="alert">{erreur}</p> : null}
       {/* `M19 § Vacances scolaires` — « Créer […] une période ». */}
       {peut("school_vacations:create") ? (
         <div className="filters">
@@ -1027,6 +1104,8 @@ function VacancesScolaires() {
         </div>
       ) : null}
 
+      {requete.isPending ? <Chargement quoi={t("parametres.lesVacances")} /> : requete.isError ?
+        <ErreurDeChargement erreur={requete.error} surReessai={() => void requete.refetch()} /> : statistiques ? <>
       <div className="set-stats">
         <div className="kpi">
           <span className="eyebrow">{t("parametres.totalVacances")}</span>
@@ -1048,7 +1127,7 @@ function VacancesScolaires() {
           <small>{t("parametres.aucuneVacanceAide")}</small>
         </div>
       ) : (
-        <div className="tlist">
+        <div className="tlist" role="region" aria-label={t("parametres.ongletVacances")} tabIndex={0}>
           <div className="vac-grid set-head" aria-hidden="true">
             <span>{t("parametres.colPeriode")}</span>
             <span>{t("parametres.colDebut")}</span>
@@ -1077,6 +1156,7 @@ function VacancesScolaires() {
         </div>
       )}
 
+      </> : null}
       <FenetreVacances ouverte={ajoutOuvert} surFermeture={() => setAjoutOuvert(false)} />
     </>
   );

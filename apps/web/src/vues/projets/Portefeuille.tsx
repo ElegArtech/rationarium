@@ -6,6 +6,8 @@ import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { Button } from "react-aria-components";
 import { STATUTS_PROJET, PRIORITES } from "@rationarium/contracts";
 import * as api from "../../api/projets.js";
+import { appeler } from "../../api/client.js";
+import { arborescence } from "../../api/administration.js";
 import { messageErreur } from "../../api/erreurs.js";
 import { usePeut } from "../../session/session.js";
 import { Chargement, ErreurDeChargement } from "../../composants/etats.js";
@@ -63,7 +65,7 @@ export function Portefeuille() {
   const navigate = useNavigate();
   const brut = useRouterState({ select: (e) => e.location.search }) as Record<string, unknown>;
   const etat = lirePortefeuille(brut);
-  const { statut, priorite, mesProjets } = etat;
+  const { statut, priorite, mesProjets, archives = false } = etat;
 
   /*
    * La recherche tient sa valeur EN LOCAL pendant la frappe : lue depuis
@@ -91,18 +93,41 @@ export function Portefeuille() {
   const setMesProjets = (v: boolean) => majEtat({ mesProjets: v });
 
   const [creationOuverte, setCreationOuverte] = useState(false);
+  const [annulationOuverte, setAnnulationOuverte] = useState(false);
+  const [projetAnnuleId, setProjetAnnuleId] = useState("");
+  const [erreurAnnulation, setErreurAnnulation] = useState<string | null>(null);
+  const annulation = useMutation({
+    mutationFn: (id: string) => api.annulerProjet(id),
+    onSuccess: () => {
+      annoncer("ok", t("fiche.annulerFait"));
+      setAnnulationOuverte(false);
+      setProjetAnnuleId("");
+      return client.invalidateQueries({ queryKey: ["projets"] });
+    },
+    onError: e => setErreurAnnulation(messageErreur(e, tErreurs, t("fiche.echecAction"))),
+  });
 
-  const filtres = { recherche, statut, priorite, ...(mesProjets ? { mesProjets } : {}) };
-  const filtre = Boolean(recherche || statut || priorite || mesProjets);
+  const filtres = { recherche, statut, priorite, archive: archives, ...(mesProjets ? { mesProjets } : {}) };
+  const filtre = Boolean(recherche || statut || priorite || mesProjets || archives);
 
   const requete = useQuery({
     queryKey: ["projets", filtres],
     queryFn: () => api.portefeuille(filtres),
   });
 
+  // La confirmation porte uniquement sur un projet encore présent et nommé.
+  const projetAAnnuler = requete.isFetching ? undefined : requete.data?.projets.find(
+    p => p.id === projetAnnuleId && p.statut !== "cancelled",
+  );
+  const fermerAnnulation = () => {
+    setAnnulationOuverte(false);
+    setProjetAnnuleId("");
+    setErreurAnnulation(null);
+  };
+
   const reinitialiser = () => {
     setRechercheLocale("");
-    majEtat(PORTEFEUILLE_VIDE);
+    majEtat({ ...PORTEFEUILLE_VIDE, archives: false });
   };
 
   return (
@@ -167,6 +192,9 @@ export function Portefeuille() {
           ))}
         </select>
 
+        {peut("projects:update") ? <Button className="chip-btn" onPress={() => { setProjetAnnuleId(""); setAnnulationOuverte(true); setErreurAnnulation(null); }}>
+          {t("portefeuille.annulerUnProjet")}
+        </Button> : null}
         <span className="vsep" />
 
         {/* `RG-GEN-06` — un resserrement de lecture, pas un contrôle de droit :
@@ -178,6 +206,9 @@ export function Portefeuille() {
           onPress={() => setMesProjets(!mesProjets)}
         >
           {t("portefeuille.mesProjets")}
+        </Button>
+        <Button className="chip-btn" aria-pressed={archives} onPress={() => majEtat({ archives: !archives })}>
+          {t("portefeuille.archives")}
         </Button>
       </div>
 
@@ -215,6 +246,33 @@ export function Portefeuille() {
           </div>
         )
       ) : null}
+
+      <Fenetre
+        ouverte={annulationOuverte}
+        surFermeture={fermerAnnulation}
+        categorie={t("confirmation")}
+        titre={t("fiche.annulerProjet")}
+        mention={t("fiche.annulationReversible")}
+        actions={<>
+          <Button className="btn btn-secondary" onPress={fermerAnnulation}>{t("fiche.annulationRenoncer")}</Button>
+          <Button className="btn btn-danger" isDisabled={!projetAAnnuler} isPending={annulation.isPending} onPress={() => { if (projetAAnnuler) annulation.mutate(projetAAnnuler.id); }}>{t("fiche.annulationConfirmer")}</Button>
+        </>}
+      >
+        {erreurAnnulation ? <div className="alert alert-error" role="alert">{erreurAnnulation}</div> : null}
+        <label className="field-label" htmlFor="pf-annuler">{t("portefeuille.projetAAnnuler")}</label>
+        <select className="field" id="pf-annuler" value={projetAAnnuler?.id ?? ""} onChange={e => setProjetAnnuleId(e.target.value)}>
+          <option value="">{t("portefeuille.choisirProjet")}</option>
+          {(requete.data?.projets ?? []).filter(p => p.statut !== "cancelled").map(p => <option key={p.id} value={p.id}>{p.nom}</option>)}
+        </select>
+        {projetAAnnuler ? <>
+          <p className="phrase-confirmation">{t("fiche.confirmationAnnulation")} <span className="quoted">« {projetAAnnuler.nom} »</span> ?</p>
+          <div className="danger-box"><strong>{t("fiche.annulationConsequencesTitre")}</strong><ul>
+            <li>{t("fiche.annulationEffetFige")}</li>
+            <li>{t("fiche.annulationEffetTaches", { n: projetAAnnuler._count.taches })}</li>
+            <li>{t("fiche.annulationEffetRestaurable")}</li>
+          </ul></div>
+        </> : <p className="field-hint">{t("portefeuille.annulationListe")}</p>}
+      </Fenetre>
 
       <FenetreCreation
         ouverte={creationOuverte}
@@ -361,6 +419,9 @@ export function FenetreCreation({
     budgetHeures: number | null;
     /** `EX-PRJ-04` — la fenêtre sert aussi à CHANGER l'icône d'un projet. */
     icone: string | null;
+    chefId?: string | null;
+    sponsorId?: string | null;
+    departementId?: string | null;
     version: number;
   } | null;
   surFermeture: () => void;
@@ -368,7 +429,19 @@ export function FenetreCreation({
   traduireErreur: (e: unknown) => string;
 }) {
   const { t } = useTranslation("projets");
+  const { t: tErreurs } = useTranslation("erreurs");
   const libelle = useLibelle();
+  const peut = usePeut();
+  const personnes = useQuery({
+    queryKey: ["utilisateurs", "assignables"],
+    queryFn: () => appeler<api.Personne[]>("/utilisateurs?actif=true"),
+    enabled: ouverte && peut("users:read") && peut("projects:manage_members"),
+  });
+  const organisation = useQuery({
+    queryKey: ["organisation", "choix-projet"],
+    queryFn: () => arborescence(),
+    enabled: ouverte && peut("directions:read"),
+  });
 
   const [valeurs, setValeurs] = useState({
     nom: "",
@@ -378,6 +451,7 @@ export function FenetreCreation({
     dateDebut: "",
     dateFin: "",
     budgetHeures: "",
+    chefId: "", sponsorId: "", departementId: "",
   });
   /*
    * L'icône vit à part de `valeurs` : c'est un code de vocabulaire fermé, pas
@@ -405,6 +479,9 @@ export function FenetreCreation({
       dateDebut: existant?.dateDebut?.slice(0, 10) ?? "",
       dateFin: existant?.dateFin?.slice(0, 10) ?? "",
       budgetHeures: existant?.budgetHeures != null ? String(existant.budgetHeures) : "",
+      chefId: existant?.chefId ?? "",
+      sponsorId: existant?.sponsorId ?? "",
+      departementId: existant?.departementId ?? "",
     });
     setIcone(existant?.icone ?? null);
     setManquants([]);
@@ -424,10 +501,14 @@ export function FenetreCreation({
             budgetHeures: valeurs.budgetHeures ? Number(valeurs.budgetHeures) : null,
             // `null` retire l'icône ; l'omettre la laisserait telle quelle.
             icone,
+            ...(peut("projects:manage_members") ? { chefId: valeurs.chefId || null, sponsorId: valeurs.sponsorId || null } : {}),
+            ...(peut("directions:read") ? { departementId: valeurs.departementId || null } : {}),
             version: existant.version,
           })
         : api.creerProjet({
         nom: valeurs.nom,
+        ...(peut("projects:manage_members") ? { chefId: valeurs.chefId || null, sponsorId: valeurs.sponsorId || null } : {}),
+        ...(valeurs.departementId ? { departementId: valeurs.departementId } : {}),
         ...(valeurs.description ? { description: valeurs.description } : {}),
         statut: valeurs.statut,
         priorite: valeurs.priorite,
@@ -448,6 +529,10 @@ export function FenetreCreation({
     setManquants(vides);
     if (vides.length > 0) {
       setErreur(t("portefeuille.champsObligatoires"));
+      return;
+    }
+    if (valeurs.dateFin < valeurs.dateDebut) {
+      setErreur(tErreurs("datesIncoherentes"));
       return;
     }
     creation.mutate();
@@ -545,6 +630,22 @@ export function FenetreCreation({
             </p>
           </div>
 
+          {(["chefId", "sponsorId", "departementId"] as const).map((cle) => {
+            const org = cle === "departementId";
+            const permis = org ? peut("directions:read") : peut("projects:manage_members") && peut("users:read");
+            const choix = org ? organisation.data?.departements ?? [] : (personnes.data ?? []).map(p => ({ id: p.id, nom: `${p.prenom} ${p.nom}` }));
+            const selection = cle === "chefId" ? existant?.chefId : cle === "sponsorId" ? existant?.sponsorId : existant?.departementId;
+            return <div className="field-block" key={cle}>
+              <label className="field-label" htmlFor={`pf-${cle}`}>{t(`portefeuille.${cle}`)}</label>
+              <select className="field" id={`pf-${cle}`} {...champ(cle)} disabled={!permis} aria-describedby={!permis ? `pf-${cle}-aide` : undefined}>
+                <option value="">{t("nonRenseigne")}</option>
+                {selection && !choix.some(c => c.id === selection) ? <option value={selection}>{t("portefeuille.selectionConservee")}</option> : null}
+                {choix.map(c => <option key={c.id} value={c.id}>{c.nom}</option>)}
+              </select>
+              {!permis ? <p className="field-hint" id={`pf-${cle}-aide`}>{t("portefeuille.choixRestreint")}</p> : null}
+              {permis && (org ? organisation.isError : personnes.isError) ? <p className="field-error" role="alert">{t("portefeuille.choixErreur")}</p> : null}
+            </div>;
+          })}
           <div className="field-block span2">
             <label className="field-label" htmlFor="pf-desc">
               {t("portefeuille.description")}

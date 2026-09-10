@@ -274,3 +274,9 @@ SELECT creer_partition_audit((CURRENT_DATE + interval '1 month')::date);
 La rétention du journal (`cadrage/03 § 8.4`) n'est pas arbitrée : sans décision,
 aucune partition n'est détachée et le journal croît indéfiniment. C'est un choix
 conservateur — on ne détruit pas une trace par défaut.
+
+### Documents et sauvegardes (RM-08)
+
+Le volume `documents` conserve les pièces jointes entre les redémarrages. Une sauvegarde complète comporte quatre fichiers portant le même horodatage : `.dump`, `.roles.sql`, `.documents.tar.gz` et `.sha256`. Conserver ces fichiers ensemble. Le script suspend les écritures applicatives pendant leur capture, puis rétablit les services précédemment actifs. Prévoir cette courte indisponibilité dans la fenêtre d’exploitation.
+
+La restauration vérifie l’ensemble avant toute destruction et remplace aussi le magasin. Une ancienne sauvegarde qui ne contient que PostgreSQL ne restaure pas les pièces jointes ; le script la refuse comme ensemble incomplet. Voir ADR-0016.

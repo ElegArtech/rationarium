@@ -108,6 +108,12 @@ test.describe("RG-GEN-05 — toute vue de données montre qu'elle charge", () =>
               body: JSON.stringify(SESSION),
             });
           }
+          // Les réglages publics sont désormais une précondition du premier
+          // rendu (P-133). Les retenir ici bloquerait l'application avant la
+          // vue de données que ce test cherche à observer.
+          if (chemin === "/api/parametrage") {
+            return route.fulfill({ status: 200, contentType: "application/json", body: "{}" });
+          }
           // Retenue indéfiniment : la vue reste dans son état de chargement.
           // On n'y répond jamais — le test se termine avant, et Playwright
           // ferme la page.

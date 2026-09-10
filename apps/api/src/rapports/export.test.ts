@@ -16,6 +16,7 @@ import { csvSante, langueDe, type LigneSanteExport } from "./rapports.service.js
  * d'intégration.
  */
 const LIGNE: LigneSanteExport = {
+  id: "projet-export",
   nom: "Portail citoyen",
   completion: 46,
   restantes: 12,

@@ -13,7 +13,7 @@
     "actualiser": "Actualiser",
     "exporter": "Exporter",
     "exportPdf": "PDF (impression)",
-    "exportCsv": "CSV (tableur)",
+    "exportExcel": "Excel (.xlsx)",
     "exportJson": "JSON"
   },
   "onglets": {
@@ -25,6 +25,7 @@
   "alerte": {
     "titre": "Attention requise",
     "texte": "— {n, plural, one {# tâche en retard nécessite votre attention} other {# tâches en retard nécessitent votre attention}}.",
+    "details": "Consultez la page Tâches pour plus de détails.",
     "ouvrirLesTaches": "Ouvrir les tâches"
   },
   "sante": {
@@ -77,6 +78,8 @@
     "stagnation": "Stagnation détectée",
     "historiqueCourt": "Historique en cours de construction",
     "historiqueCourtAide": "{n, plural, one {# relevé au minimum est nécessaire} other {# relevés au minimum sont nécessaires}} pour dessiner une tendance.",
+    "accesRestreint": "Historique partiellement accessible",
+    "accesRestreintAide": "La tendance n’est pas tracée : certains instantanés appartiennent à un périmètre ou à un projet confidentiel que vous ne pouvez pas consulter.",
     "libelle": "Progression de {debut, number} % à {fin, number} % sur {points, number} relevés",
     "instantanes": "Instantanés",
     "instantanesExplication": "Instantanés d'avancement relevés en fin de mois.",
@@ -95,7 +98,10 @@
     "retardDeJours": "{n, plural, one {# jour de retard} other {# jours de retard}}",
     "echeanceEtReste": "échue le {date} · {n, plural, =0 {aucune tâche rattachée} one {# tâche reste} other {# tâches restent}}",
     "allerAuProjet": "Voir les jalons de {projet}",
-    "autresRetards": "{n, plural, one {# autre jalon en retard n'est pas listé} other {# autres jalons en retard ne sont pas listés}}"
+    "autresRetards": "{n, plural, one {# autre jalon en retard n'est pas affiché} other {# autres jalons en retard ne sont pas affichés}}",
+    "toutAfficher": "Tout afficher",
+    "revenirA": "Revenir à {n, number}",
+    "tousAffiches": "Tous les jalons en retard sont affichés."
   },
   "repartitions": {
     "parPriorite": "Répartition par priorité",

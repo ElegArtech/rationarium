@@ -15,6 +15,36 @@ import {
   PERMISSIONS_GESTION_GLOBALE,
 } from "./permissions.js";
 import { MODELES_ROLES, NOMBRE_MODELES, modeleParCode } from "./roles.js";
+import {
+  IDS_VISUELS_AVATAR_PREDEFINIS,
+  VISUELS_AVATAR_PREDEFINIS,
+  estVisuelAvatarPredefini,
+} from "./avatars.js";
+import { modificationProfilSchema } from "./schemas.js";
+
+describe("avatars prédéfinis — RG-AUTH-09", () => {
+  it("RG-AUTH-09 — porte un petit catalogue stable, distinct et traduisible", () => {
+    expect(IDS_VISUELS_AVATAR_PREDEFINIS).toHaveLength(6);
+    expect(new Set(IDS_VISUELS_AVATAR_PREDEFINIS).size).toBe(6);
+    for (const visuel of VISUELS_AVATAR_PREDEFINIS) {
+      expect(visuel.cleLibelle).toBe(`profil.visuelsAvatar.${visuel.id}`);
+      expect(estVisuelAvatarPredefini(visuel.id)).toBe(true);
+    }
+  });
+
+  it("RG-AUTH-09 — le contrat refuse un identifiant de visuel hors catalogue", () => {
+    expect(() =>
+      modificationProfilSchema.parse({ avatarPredefini: "a-07", version: 1 }),
+    ).toThrow("Choisissez un visuel proposé dans le catalogue, puis enregistrez.");
+  });
+
+  it("RG-AUTH-09 — le contrat accepte un visuel catalogué ou aucun visuel", () => {
+    expect(modificationProfilSchema.parse({ avatarPredefini: "feuille", version: 1 }))
+      .toMatchObject({ avatarPredefini: "feuille" });
+    expect(modificationProfilSchema.parse({ avatarPredefini: null, version: 1 }))
+      .toMatchObject({ avatarPredefini: null });
+  });
+});
 
 describe("vocabulaires — cadrage/01 § 4.1", () => {
   it("§ 4.1 — priorité : quatre niveaux, conformes à l'arbitrage B1", () => {
@@ -173,6 +203,25 @@ describe("modèles de rôles — cadrage/01 § 3.2", () => {
       "HR_OFFICER",
       "BASIC_USER",
     ]);
+  });
+
+  it("RM-03 EX-TLT-04/06, RG-TLT-07 — Camille gère ses règles sans gérer autrui", () => {
+    const p = modeleParCode("PROJECT_CONTRIBUTOR")!.permissions;
+    expect(p).toContain("telework:manage_rules");
+    expect(p).toContain("telework:generate");
+    expect(p).not.toContain("telework:manage_any");
+  });
+
+  it("RM-03 EX-CMP — le RH complet administre les compétences, le RH léger consulte", () => {
+    const complet = modeleParCode("HR_OFFICER")!.permissions;
+    const leger = modeleParCode("HR_OFFICER_LIGHT")!.permissions;
+    for (const permission of ["skills:create", "skills:update", "skills:delete", "skills:manage_matrix", "skills:import", "skills:export"]) {
+      expect(complet).toContain(permission);
+      expect(leger).not.toContain(permission);
+    }
+    expect(complet).not.toContain("users:manage_roles");
+    expect(complet).not.toContain("holidays:create");
+    expect(complet).not.toContain("holidays:import");
   });
 
   it("ADMIN détient l'intégralité du catalogue", () => {

@@ -19,6 +19,8 @@ let journal: AuditQueryService;
 let karim: string;
 
 const uuid = () => crypto.randomUUID();
+const versionDe = async (id: string) =>
+  (await prisma.role.findUniqueOrThrow({ where: { id }, select: { version: true } })).version;
 
 beforeAll(async () => {
   pg = await new PostgreSqlContainer("postgres:18-alpine").start();
@@ -70,26 +72,48 @@ describe("EX-ADM-06 — initialisation du référentiel", () => {
 
   it("un rôle personnalisé N'EST PAS réécrit par une réinitialisation", async () => {
     const sur_mesure = await roles.creer({ code: "SUR_MESURE", nom: "Sur mesure" }, karim);
-    await roles.definirPermissions(sur_mesure.id, ["projects:read"], karim);
+    await roles.definirPermissions(sur_mesure.id, ["projects:read"], karim, sur_mesure.version);
 
     await roles.initialiserReferentiel(karim);
 
     const apres = await prisma.rolePermission.findMany({ where: { roleId: sur_mesure.id } });
     expect(apres.map((p) => p.permission)).toEqual(["projects:read"]);
   });
+
+  it("EX-ADM-06 — une collision avec un code personnalisé est signalée sans interrompre l'initialisation", async () => {
+    const code = "OBSERVER_HR_ONLY";
+    const systeme = await prisma.role.findUniqueOrThrow({ where: { code } });
+    await prisma.role.delete({ where: { id: systeme.id } });
+    const personnalise = await prisma.role.create({
+      data: { code, nom: "Collision volontaire", systeme: false },
+    });
+
+    const resultat = await roles.initialiserReferentiel(karim);
+    expect(resultat.collisions).toEqual([{ code, roleId: personnalise.id }]);
+    expect(await prisma.role.findUniqueOrThrow({ where: { code } })).toMatchObject({
+      id: personnalise.id,
+      nom: "Collision volontaire",
+      systeme: false,
+    });
+
+    // Restitue le modèle pour que ce témoin ne pollue pas les preuves suivantes.
+    await prisma.role.delete({ where: { id: personnalise.id } });
+    const restaure = await roles.initialiserReferentiel(karim);
+    expect(restaure.crees).toBe(1);
+  });
 });
 
 describe("RG-DROITS-02 — les rôles système sont protégés", () => {
   it("un rôle système ne se supprime pas", async () => {
     const admin = await prisma.role.findUniqueOrThrow({ where: { code: "ADMIN" } });
-    await expect(roles.supprimer(admin.id, karim)).rejects.toMatchObject({
+    await expect(roles.supprimer(admin.id, karim, admin.version)).rejects.toMatchObject({
       code: "role_systeme_non_supprimable",
     });
   });
 
   it("un rôle système ne se renomme pas", async () => {
     const admin = await prisma.role.findUniqueOrThrow({ where: { code: "ADMIN" } });
-    await expect(roles.renommer(admin.id, "Grand chef", karim)).rejects.toMatchObject({
+    await expect(roles.renommer(admin.id, "Grand chef", karim, admin.version)).rejects.toMatchObject({
       code: "role_systeme_non_renommable",
     });
   });
@@ -109,7 +133,7 @@ describe("RG-DROITS-02 — les rôles système sont protégés", () => {
     const admin = await prisma.role.findUniqueOrThrow({ where: { code: "ADMIN" } });
     const avant = await prisma.rolePermission.count({ where: { roleId: admin.id } });
 
-    await expect(roles.definirPermissions(admin.id, [], karim)).rejects.toMatchObject({
+    await expect(roles.definirPermissions(admin.id, [], karim, admin.version)).rejects.toMatchObject({
       code: "role_systeme_non_modifiable",
     });
 
@@ -142,7 +166,7 @@ describe("RG-DROITS-02 — les rôles système sont protégés", () => {
     expect(copie.systeme).toBe(false);
     const permissions = await prisma.rolePermission.count({ where: { roleId: copie.id } });
     expect(permissions).toBe(NOMBRE_PERMISSIONS);
-    await expect(roles.supprimer(copie.id, karim)).resolves.toBeUndefined();
+    await expect(roles.supprimer(copie.id, karim, await versionDe(copie.id))).resolves.toBeUndefined();
   });
 });
 
@@ -158,8 +182,8 @@ describe("RG-DROITS-03 — liste blanche stricte", () => {
 
   it("et RIEN n'est écrit quand une seule permission est fautive", async () => {
     const r = await roles.creer({ code: "ESSAI_2", nom: "Essai" }, karim);
-    await roles.definirPermissions(r.id, ["projects:read"], karim);
-    await roles.definirPermissions(r.id, ["tasks:read", "inexistant:read"], karim).catch(() => {});
+    await roles.definirPermissions(r.id, ["projects:read"], karim, r.version);
+    await roles.definirPermissions(r.id, ["tasks:read", "inexistant:read"], karim, await versionDe(r.id)).catch(() => {});
     const apres = await prisma.rolePermission.findMany({ where: { roleId: r.id } });
     expect(apres.map((p) => p.permission)).toEqual(["projects:read"]);
   });
@@ -229,17 +253,17 @@ describe("EX-ADM-01 — lister les rôles : nom, code, nombre de permissions, sy
     expect(lignes.slice(0, premierPerso).every((l) => l.systeme)).toBe(true);
     expect(lignes.slice(premierPerso).every((l) => !l.systeme)).toBe(true);
 
-    await roles.supprimer(perso.id, karim);
+    await roles.supprimer(perso.id, karim, perso.version);
   });
 
   it("le nombre de permissions SUIT les permissions, il n'est pas figé à la création", async () => {
     const r = await roles.creer({ code: `COMPTE_${uuid().slice(0, 6)}`, nom: "Compté" }, karim);
     expect((await roles.lister()).find((l) => l.id === r.id)!.nombrePermissions).toBe(0);
 
-    await roles.definirPermissions(r.id, ["projects:read", "tasks:read"], karim);
+    await roles.definirPermissions(r.id, ["projects:read", "tasks:read"], karim, r.version);
 
     expect((await roles.lister()).find((l) => l.id === r.id)!.nombrePermissions).toBe(2);
-    await roles.supprimer(r.id, karim);
+    await roles.supprimer(r.id, karim, await versionDe(r.id));
   });
 });
 
@@ -249,7 +273,7 @@ describe("EX-ADM-02 — créer un rôle, éventuellement à partir d'un modèle"
     const r = await roles.creer({ code, nom: "Rôle nu" }, karim);
 
     expect(await prisma.rolePermission.count({ where: { roleId: r.id } })).toBe(0);
-    await roles.supprimer(r.id, karim);
+    await roles.supprimer(r.id, karim, r.version);
   });
 
   it("depuis un modèle : il en reçoit les permissions, à l'identique", async () => {
@@ -270,7 +294,7 @@ describe("EX-ADM-02 — créer un rôle, éventuellement à partir d'un modèle"
     // « À partir d'un modèle » est un POINT DE DÉPART (`RG-DROITS-01`) : la
     // description suit si on n'en donne pas, et le rôle reste modifiable.
     expect(r.description).toBe(modele.description);
-    await roles.supprimer(r.id, karim);
+    await roles.supprimer(r.id, karim, r.version);
   });
 
   it("un modèle inconnu ne fait pas échouer la création — il ne copie rien", async () => {
@@ -279,7 +303,7 @@ describe("EX-ADM-02 — créer un rôle, éventuellement à partir d'un modèle"
       karim,
     );
     expect(await prisma.rolePermission.count({ where: { roleId: r.id } })).toBe(0);
-    await roles.supprimer(r.id, karim);
+    await roles.supprimer(r.id, karim, r.version);
   });
 
   it("un code déjà pris est refusé — le code identifie le rôle", async () => {
@@ -290,7 +314,7 @@ describe("EX-ADM-02 — créer un rôle, éventuellement à partir d'un modèle"
       code: "code_deja_pris",
     });
 
-    await roles.supprimer(r.id, karim);
+    await roles.supprimer(r.id, karim, r.version);
   });
 
   it("la création est tracée, avec le modèle d'origine s'il y en a un", async () => {
@@ -303,7 +327,7 @@ describe("EX-ADM-02 — créer un rôle, éventuellement à partir d'un modèle"
     });
     expect(trace).not.toBeNull();
     expect(JSON.stringify(trace!.detail)).toContain("PROJECT_CONTRIBUTOR");
-    await roles.supprimer(r.id, karim);
+    await roles.supprimer(r.id, karim, r.version);
   });
 });
 
@@ -317,7 +341,7 @@ describe("EX-ADM-05 — tout sélectionner pour un module", () => {
    */
   it("cocher toute la ligne d'un module la remplit, et ne déborde sur aucune autre", async () => {
     const r = await roles.creer({ code: `MODULE_${uuid().slice(0, 6)}`, nom: "Par module" }, karim);
-    await roles.definirPermissions(r.id, ["tasks:read"], karim);
+    await roles.definirPermissions(r.id, ["tasks:read"], karim, r.version);
 
     const avant = await roles.matrice(r.id);
     const ligneProjets = avant.lignes.find((l) => l.domaine === "projects")!;
@@ -328,7 +352,7 @@ describe("EX-ADM-05 — tout sélectionner pour un module", () => {
       .map((c) => c.permission);
     expect(duModule.length).toBeGreaterThan(1);
 
-    await roles.definirPermissions(r.id, [...duModule, "tasks:read"], karim);
+    await roles.definirPermissions(r.id, [...duModule, "tasks:read"], karim, await versionDe(r.id));
 
     const apres = await roles.matrice(r.id);
     const projets = apres.lignes.find((l) => l.domaine === "projects")!;
@@ -340,7 +364,7 @@ describe("EX-ADM-05 — tout sélectionner pour un module", () => {
     expect(taches.cases.find((c) => c.action === "read")?.detenue).toBe(true);
     expect(taches.cases.find((c) => c.action === "delete")?.detenue).toBe(false);
 
-    await roles.supprimer(r.id, karim);
+    await roles.supprimer(r.id, karim, await versionDe(r.id));
   });
 
   it("et la sélection se DÉFAIT : tout décocher un module ne vide pas les autres", async () => {
@@ -351,8 +375,8 @@ describe("EX-ADM-05 — tout sélectionner pour un module", () => {
       .cases.filter((c) => c.detenue !== null)
       .map((c) => c.permission);
 
-    await roles.definirPermissions(r.id, [...projets, "tasks:read"], karim);
-    await roles.definirPermissions(r.id, ["tasks:read"], karim);
+    await roles.definirPermissions(r.id, [...projets, "tasks:read"], karim, r.version);
+    await roles.definirPermissions(r.id, ["tasks:read"], karim, await versionDe(r.id));
 
     const apres = await roles.matrice(r.id);
     expect(
@@ -365,7 +389,7 @@ describe("EX-ADM-05 — tout sélectionner pour un module", () => {
         ?.detenue,
     ).toBe(true);
 
-    await roles.supprimer(r.id, karim);
+    await roles.supprimer(r.id, karim, await versionDe(r.id));
   });
 });
 
@@ -374,12 +398,12 @@ describe("EX-ADM-03 — suppression d'un rôle", () => {
     const r = await roles.creer({ code: "PORTE", nom: "Porté" }, karim);
     await prisma.user.update({ where: { id: karim }, data: { roleId: r.id } });
 
-    const erreur = await roles.supprimer(r.id, karim).catch((e: ErreurRole) => e);
+    const erreur = await roles.supprimer(r.id, karim, r.version).catch((e: ErreurRole) => e);
     expect((erreur as ErreurRole).code).toBe("role_utilise");
     expect((erreur as ErreurRole).detail?.utilisateurs).toBe(1);
 
     await prisma.user.update({ where: { id: karim }, data: { roleId: null } });
-    await expect(roles.supprimer(r.id, karim)).resolves.toBeUndefined();
+    await expect(roles.supprimer(r.id, karim, await versionDe(r.id))).resolves.toBeUndefined();
   });
 });
 

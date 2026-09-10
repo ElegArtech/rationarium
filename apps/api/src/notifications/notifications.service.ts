@@ -1,4 +1,5 @@
 import { Injectable } from "@nestjs/common";
+import { ConfidentialiteNotificationGarde } from "../commun/confidentialite-notification.garde.js";
 import { PrismaService } from "../prisma.service.js";
 import { FileService, FILE_COURRIEL } from "./file.service.js";
 import {
@@ -95,6 +96,7 @@ export class NotificationsService {
     titre?: string;
     lien?: string | null;
   }) {
+    if (!await ConfidentialiteNotificationGarde.autorise(this.prisma, entree.userId, entree.lien)) return null;
     const corps = entree.params
       ? encoderCorps(entree.type, entree.params)
       : (entree.contenu ?? "");
@@ -158,8 +160,9 @@ export class NotificationsService {
     },
   ) {
     const uniques = [...new Set(userIds)];
-    for (const userId of uniques) await this.notifier({ userId, ...entree });
-    return { emises: uniques.length };
+    let emises = 0;
+    for (const userId of uniques) if (await this.notifier({ userId, ...entree })) emises += 1;
+    return { emises };
   }
 
   /**
@@ -172,13 +175,14 @@ export class NotificationsService {
    * accompagnée de sa phrase de repli.
    */
   async lister(userId: string, options: { nonLuesSeulement?: boolean; limite?: number } = {}) {
+    const confidentiel = await ConfidentialiteNotificationGarde.filtre(this.prisma, userId);
     const [entrees, nonLues, lecteur] = await Promise.all([
       this.prisma.notification.findMany({
-        where: { userId, ...(options.nonLuesSeulement ? { lue: false } : {}) },
+        where: { userId, ...confidentiel, ...(options.nonLuesSeulement ? { lue: false } : {}) },
         orderBy: { creeLe: "desc" },
         take: options.limite ?? 50,
       }),
-      this.prisma.notification.count({ where: { userId, lue: false } }),
+      this.prisma.notification.count({ where: { userId, lue: false, ...confidentiel } }),
       this.prisma.user.findUnique({ where: { id: userId }, select: { langue: true } }),
     ]);
 
@@ -290,7 +294,7 @@ export class NotificationsService {
            * en dur, ne pouvait plus être relu autrement — c'est le défaut
            * P-18/P-19/P-20, et il se corrige en n'écrivant PAS la phrase.
            */
-          await this.notifier({
+          const notification = await this.notifier({
             userId,
             type,
             params: {
@@ -299,7 +303,8 @@ export class NotificationsService {
             },
             lien: `/taches/${tache.id}`,
           });
-          emises += 1;
+          if (notification) emises += 1;
+          else ignorees += 1;
         }
       }
     }

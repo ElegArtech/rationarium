@@ -5,6 +5,8 @@ import { Button } from "react-aria-components";
 import { TYPES_ACTIVITE } from "@rationarium/contracts";
 import * as api from "../../api/occupations.js";
 import * as apiProjets from "../../api/projets.js";
+import * as apiAdmin from "../../api/administration.js";
+import * as apiReferentiels from "../../api/referentiels.js";
 import * as apiTaches from "../../api/taches.js";
 import { messageErreur } from "../../api/erreurs.js";
 import { usePeut, useSession } from "../../session/session.js";
@@ -83,7 +85,10 @@ export function Temps() {
    * d'équipe est un autre point d'entrée (`EX-TMP-07`).
    */
   const { session } = useSession();
-  const filtres = { userId: session.id, projectId, debut, fin };
+  const [acteur, setActeur] = useState(`user:${session.id}`);
+  const acteurs = useQuery({ queryKey: ["utilisateurs", { actif: true }], queryFn: () => apiAdmin.utilisateurs({ actif: true }), enabled: peut("users:read") && peut("time_tracking:read_team") });
+  const tiers = useQuery({ queryKey: ["tiers", {}], queryFn: () => apiReferentiels.listerTiers({}), enabled: peut("third_parties:read") && peut("time_tracking:read_team") });
+  const filtres = { ...(acteur.startsWith("third:") ? { thirdPartyId: acteur.slice(6) } : { userId: acteur.slice(5) }), projectId, debut, fin };
   const requete = useQuery({ queryKey: ["temps", filtres], queryFn: () => api.temps(filtres) });
   const projets = useQuery({
     queryKey: ["projets", {}],
@@ -156,6 +161,7 @@ export function Temps() {
   const reinitialiser = () => {
     setProjectId("");
     setTypeActivite("");
+    setActeur(`user:${session.id}`);
     setDebut(moisCourant().debut);
     setFin(moisCourant().fin);
   };
@@ -181,6 +187,7 @@ export function Temps() {
       </div>
 
       <div className="filters">
+        {peut("time_tracking:read_team") ? <select className="f-input" aria-label={t("temps.acteur")} value={acteur} onChange={(e) => setActeur(e.target.value)}><option value={`user:${session.id}`}>{session.prenom} {session.nom}</option>{(acteurs.data ?? []).filter((u) => u.id !== session.id).map((u) => <option key={u.id} value={`user:${u.id}`}>{u.prenom} {u.nom}</option>)}{(tiers.data ?? []).map((u) => <option key={u.id} value={`third:${u.id}`}>{u.organisation ?? u.contactNom}</option>)}</select> : null}
         <select
           className="f-input"
           value={projectId}
@@ -695,6 +702,12 @@ function FenetreSaisie({
   const annoncer = useMessages();
   const client = useQueryClient();
 
+  const peut = usePeut();
+  const { session } = useSession();
+  const [acteur, setActeur] = useState(`user:${session.id}`);
+  const pourAutrui = peut("time_tracking:declare_for_third_party");
+  const agents = useQuery({ queryKey: ["utilisateurs", { actif: true }], queryFn: () => apiAdmin.utilisateurs({ actif: true }), enabled: ouverte && pourAutrui && peut("users:read") });
+  const tiers = useQuery({ queryKey: ["tiers", {}], queryFn: () => apiReferentiels.listerTiers({}), enabled: ouverte && pourAutrui && peut("third_parties:read") });
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [heures, setHeures] = useState("");
   const [typeActivite, setTypeActivite] = useState("development");
@@ -712,6 +725,7 @@ function FenetreSaisie({
   const saisie = useMutation({
     mutationFn: () =>
       api.saisirTemps({
+        ...(acteur.startsWith("third:") ? { thirdPartyId: acteur.slice(6) } : { userId: acteur.slice(5) }),
         date,
         heures: Number(heures),
         typeActivite,
@@ -773,6 +787,7 @@ function FenetreSaisie({
       ) : null}
 
       <div className="form-grid form-grid-espace">
+        {pourAutrui ? <div className="field-block span2"><label className="field-label" htmlFor="tp-acteur">{t("temps.acteur")}</label><select id="tp-acteur" className="field" value={acteur} onChange={(e) => setActeur(e.target.value)}><option value={`user:${session.id}`}>{session.prenom} {session.nom}</option>{(agents.data ?? []).filter((u) => u.id !== session.id).map((u) => <option key={u.id} value={`user:${u.id}`}>{u.prenom} {u.nom}</option>)}{(tiers.data ?? []).map((u) => <option key={u.id} value={`third:${u.id}`}>{u.organisation ?? u.contactNom}</option>)}</select><p className="field-hint">{t("temps.acteurImmuable")}</p>{agents.isError ? <ErreurDeChargement erreur={agents.error} surReessai={() => void agents.refetch()} /> : null}{tiers.isError ? <ErreurDeChargement erreur={tiers.error} surReessai={() => void tiers.refetch()} /> : null}</div> : null}
         <div className="field-block">
           <label className="field-label" htmlFor="tp-date">
             {t("temps.date")} <span className="req">*</span>

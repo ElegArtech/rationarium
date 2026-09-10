@@ -1,3 +1,4 @@
+import { arborescence } from "../../api/administration.js";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -454,7 +455,7 @@ function PanneauDetail({
               <p className="drawer-serie-t">{t("evenements.faitPartieDuneSerie")}</p>
               <p className="drawer-serie-d">{t("evenements.serieExplication")}</p>
             </div>
-            {peut("events:update") ? (
+            {peut("events:update") && evenement.parentId === null ? (
               <Button className="btn btn-secondary btn-block" onPress={() => setGeste("arreter")}>
                 {t("evenements.arreterRecurrence")}
               </Button>
@@ -636,8 +637,10 @@ function FenetrePortee({
     action === "arreter" ? "serie" : "occurrence",
   );
 
+  const dateArret = new Date().toISOString().slice(0, 10);
+  const dateArretLisible = formaterDate(dateArret);
   const arret = useMutation({
-    mutationFn: () => api.arreterRecurrence(evenement.id, evenement.date.slice(0, 10)),
+    mutationFn: () => api.arreterRecurrence(evenement.id, dateArret, evenement.version),
     onSuccess: (r) => {
       annoncer("ok", t("evenements.recurrenceArretee", { n: r.supprimees }));
       surFermeture();
@@ -757,6 +760,7 @@ function FenetrePortee({
       }
     >
       <p className="phrase-confirmation">{question}</p>
+      {action === "arreter" ? <p className="field-hint">{t("evenements.arretDepuis", {date:dateArretLisible})}</p> : null}
       {serie ? (
         <div className="scope-opts" role="radiogroup" aria-label={t("evenements.porteeDuGeste")}>
           {options.map((o) => (
@@ -1090,8 +1094,12 @@ function FenetreCreation({
   const { t: tErreurs } = useTranslation("erreurs");
   const annoncer = useMessages();
   const client = useQueryClient();
+  const peut = usePeut();
 
   const [titre, setTitre] = useState("");
+  const [description, setDescription] = useState("");
+  const [interventionExterieure, setInterventionExterieure] = useState(false);
+  const [serviceIds, setServiceIds] = useState<string[]>([]);
   const [date, setDate] = useState("");
   const [journeeEntiere, setJourneeEntiere] = useState(false);
   const [heureDebut, setHeureDebut] = useState("09:00");
@@ -1106,22 +1114,34 @@ function FenetreCreation({
   const [manquants, setManquants] = useState<string[]>([]);
 
   const utilisateurs = useQuery({
-    queryKey: ["utilisateurs", "tous"],
+    queryKey: ["utilisateurs", "evenements", "actifs"],
     queryFn: () =>
-      appeler<{ id: string; prenom: string; nom: string }[]>("/utilisateurs"),
-    enabled: ouverte,
+      appeler<{ id: string; prenom: string; nom: string }[]>("/utilisateurs?actif=true"),
+    enabled: ouverte && peut("users:read"),
   });
+
+  const organisation = useQuery({
+    queryKey: ["organisation", "invitation"],
+    queryFn: () => arborescence(),
+    enabled: ouverte && peut("directions:read"),
+  });
+  const services = organisation.data
+    ? [...organisation.data.directions.flatMap(d => d.departements), ...organisation.data.departementsSansDirection].flatMap(d => d.services)
+    : [];
 
   const creation = useMutation({
     mutationFn: () =>
       api.creerEvenement({
         titre,
+        description,
+        interventionExterieure,
+        serviceIds,
         date,
         journeeEntiere,
         ...(journeeEntiere ? {} : { heureDebut, heureFin }),
         projectId: projectId || null,
         ...(participants.length > 0 ? { participantIds: participants } : {}),
-        ...(recurrent && jusqua
+        ...(recurrent
           ? {
               recurrence: {
                 frequenceSemaines: frequence,
@@ -1129,7 +1149,7 @@ function FenetreCreation({
                   jourSemaine === "auto"
                     ? new Date(`${date}T00:00:00.000Z`).getUTCDay()
                     : jourSemaine,
-                jusqua,
+                ...(jusqua ? {jusqua} : {}),
               },
             }
           : {}),
@@ -1137,6 +1157,13 @@ function FenetreCreation({
     onSuccess: () => {
       annoncer("ok", t("evenements.cree"));
       setTitre("");
+      setDescription("");
+      setInterventionExterieure(false);
+      setServiceIds([]);
+      setParticipants([]);
+      setProjectId("");
+      setRecurrent(false);
+      setJusqua("");
       setDate("");
       surFermeture();
       void client.invalidateQueries({ queryKey: ["evenements"] });
@@ -1164,7 +1191,7 @@ function FenetreCreation({
             jourSemaine === "auto"
               ? t("evenements.memeJourQueLaDate")
               : t(`jours.long.${jourSemaine}`),
-          fin: jusqua ? formaterDate(jusqua) : t("evenements.sansFin"),
+          fin: jusqua ? formaterDate(jusqua) : t("evenements.horizonConfigure"),
         })
       : null;
 
@@ -1211,6 +1238,13 @@ function FenetreCreation({
           />
         </div>
 
+        <div className="field-block span2">
+          <label className="field-label" htmlFor="ev-desc">{t("evenements.descriptionChamp")}</label>
+          <textarea className="field" id="ev-desc" rows={3} value={description} onChange={e => setDescription(e.target.value)} />
+        </div>
+        <div className="field-block span2">
+          <label className="check"><input type="checkbox" checked={interventionExterieure} onChange={e => setInterventionExterieure(e.target.checked)} /><span>{t("evenements.interventionExterieure")}</span></label>
+        </div>
         <div className="field-block">
           <label className="field-label" htmlFor="ev-date">
             {t("evenements.date")} <span className="req">*</span>
@@ -1286,6 +1320,13 @@ function FenetreCreation({
           </select>
         </div>
 
+        {peut("directions:read") ? <div className="field-block span2">
+          <span className="field-label" id="ev-services-lab">{t("evenements.inviterServices")}</span>
+          {organisation.isError ? <ErreurDeChargement erreur={organisation.error} surReessai={() => void organisation.refetch()} /> : null}
+          <div className="pickbox" role="group" aria-labelledby="ev-services-lab">
+            {services.map(service => <label className="pick-item" key={service.id}><input type="checkbox" checked={serviceIds.includes(service.id)} onChange={e => setServiceIds(ids => e.target.checked ? [...ids, service.id] : ids.filter(id => id !== service.id))} /><span>{service.nom}</span></label>)}
+          </div>
+        </div> : null}
         <div className="field-block span2">
           <span className="field-label" id="ev-part-lab">
             {t("evenements.participantsChamp")}
@@ -1373,6 +1414,7 @@ function FenetreCreation({
                 </div>
               </div>
 
+              {!jusqua ? <p className="field-hint">{t("evenements.finParHorizon")}</p> : null}
               {apercu ? (
                 <div className="rec-prev">
                   <span aria-hidden="true">↻</span>

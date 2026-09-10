@@ -738,20 +738,19 @@ test.describe("Vue 19 — congés : trois publics, un écran", () => {
      * paraissait toujours avoir le solde plein de l'année courante. Le contrôle
      * serveur (`RG-CNG-21`) n'a jamais été trompé ; c'est l'écran qui mentait.
      */
-    await serveur(page, {
-      session: CAMILLE,
-      reponses: {
-        ...reponses,
-        // 2026 : 10 disponibles. 2027 : une allocation neuve, 25 disponibles.
-        // Chaque année a SA réponse, sur la route qui prend une année en
-        // paramètre — c'est la seule façon de les distinguer à l'écran.
-        "/api/conges/solde?typeId=t1&annee=2026": {
-          corps: { annee: 2026, attribues: 25, consommes: 12, engages: 3, disponibles: 10 },
-        },
-        "/api/conges/solde?typeId=t1&annee=2027": {
-          corps: { annee: 2027, attribues: 25, consommes: 0, engages: 0, disponibles: 25 },
-        },
-      },
+    await serveur(page, { session: CAMILLE, reponses });
+    // RM-07 transmet désormais le bénéficiaire explicitement. Lire les
+    // paramètres préserve l'oracle par année sans dépendre de leur ordre.
+    await page.route((url) => url.pathname === "/api/conges/solde", async (route) => {
+      const parametres = new URL(route.request().url()).searchParams;
+      expect(parametres.get("typeId")).toBe("t1");
+      expect(parametres.get("userId")).toBe(CAMILLE.id);
+      const annee = Number(parametres.get("annee"));
+      expect([2026, 2027]).toContain(annee);
+      await route.fulfill({ json: annee === 2026
+        ? { annee, attribues: 25, consommes: 12, engages: 3, disponibles: 10 }
+        : { annee, attribues: 25, consommes: 0, engages: 0, disponibles: 25 },
+      });
     });
     await page.goto("/conges");
     await page.getByRole("button", { name: "Nouvelle demande" }).click();

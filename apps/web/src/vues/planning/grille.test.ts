@@ -84,7 +84,7 @@ describe("EX-PLN-03 — l'indexation des occupations", () => {
           ...vide.occupations,
           taches: [
             {
-              id: "t1", titre: "Note", statut: "doing", priorite: "normal", avancement: 0,
+              id: "t1", titre: "Note", statut: "doing", priorite: "normal", version: 1, avancement: 0,
               dateDebut: "2026-03-03", dateFin: "2026-03-05", heureDebut: null, heureFin: null,
               interventionExterieure: false, project: null, assignes: ["u1"],
               horsProjet: true, multiAssignee: false,
@@ -109,13 +109,13 @@ describe("EX-PLN-03 — l'indexation des occupations", () => {
         ...vide.occupations,
         taches: [
           {
-            id: "t1", titre: "Projet", statut: "doing", priorite: "normal", avancement: 0,
+            id: "t1", titre: "Projet", statut: "doing", priorite: "normal", version: 1, avancement: 0,
             dateDebut: "2026-03-03", dateFin: "2026-03-03", heureDebut: null, heureFin: null,
             interventionExterieure: false, project: { id: "p", nom: "P", icone: null },
             assignes: ["u1"], horsProjet: false, multiAssignee: false,
           },
           {
-            id: "t2", titre: "Hors projet", statut: "doing", priorite: "normal", avancement: 0,
+            id: "t2", titre: "Hors projet", statut: "doing", priorite: "normal", version: 1, avancement: 0,
             dateDebut: "2026-03-03", dateFin: "2026-03-03", heureDebut: null, heureFin: null,
             interventionExterieure: false, project: null, assignes: ["u1"],
             horsProjet: true, multiAssignee: false,
@@ -141,7 +141,7 @@ describe("EX-PLN-03 — l'indexation des occupations", () => {
         ...vide.occupations,
         taches: [
           {
-            id: "t1", titre: "Terminée", statut: "done", priorite: "normal", avancement: 100,
+            id: "t1", titre: "Terminée", statut: "done", priorite: "normal", version: 1, avancement: 100,
             dateDebut: "2026-03-03", dateFin: "2026-03-03", heureDebut: null, heureFin: null,
             interventionExterieure: false, project: null, assignes: ["u1"],
             horsProjet: true, multiAssignee: false,
@@ -210,7 +210,7 @@ describe("EX-PLN-03 — l'indexation des occupations", () => {
           ...vide.occupations,
           taches: [
             {
-              id: "t1", titre: "Note", statut: "doing", priorite: "normal", avancement: 0,
+              id: "t1", titre: "Note", statut: "doing", priorite: "normal", version: 1, avancement: 0,
               dateDebut: "2026-03-03", dateFin: "2026-03-03", heureDebut: null, heureFin: null,
               interventionExterieure: false, project: null, assignes: ["u1"],
               horsProjet: true, multiAssignee: false,

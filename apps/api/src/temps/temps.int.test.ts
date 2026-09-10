@@ -262,6 +262,8 @@ describe("EX-TMP-01 — `heures` a UNE forme dans tout le module", () => {
      * dans l'autre sans que rien ne dise lequel.
      */
     const moi = await agent();
+    // La sérialisation se vérifie sur une saisie dont le projet est visible.
+    await prisma.projectMember.create({ data: { projectId: projet, userId: moi, roleProjet: "contributeur" } });
     await temps.saisir(
       { userId: moi, projectId: projet, date: utc("2026-04-20"), heures: 2.5 },
       moi,

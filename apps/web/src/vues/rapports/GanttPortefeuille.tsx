@@ -109,7 +109,14 @@ export function GanttPortefeuille({ filtres }: { filtres: api.FiltresRapport }) 
 
   const lignes = useMemo(() => trier(requete.data?.lignes ?? [], tri), [requete.data, tri]);
 
-  const plage = useMemo(() => bornes(lignes), [lignes]);
+  const plageDonnees = useMemo(() => bornes(lignes), [lignes]);
+  // Une graduation de bord se lit en entier. La frise montre donc la période
+  // civile complète qui contient les premières et dernières dates, tandis que
+  // les barres restent positionnées sur leurs dates métier exactes.
+  const plage = useMemo(
+    () => etendreAuxGraduations(plageDonnees, echelle),
+    [plageDonnees, echelle],
+  );
 
   if (requete.isPending) return <Chargement quoi={t("gantt.leGantt")} />;
   if (requete.isError)
@@ -329,7 +336,20 @@ function bornes(lignes: api.LigneGantt[]): { debut: number; fin: number } {
   }
   const debuts = lignes.map((l) => new Date(`${l.dateDebut}T00:00:00.000Z`).getTime());
   const fins = lignes.map((l) => new Date(`${l.dateFin}T00:00:00.000Z`).getTime());
-  return { debut: Math.min(...debuts), fin: Math.max(...fins) };
+  // Les dates métier sont inclusives. Sans le jour qui suit comme borne
+  // exclusive, la dernière graduation avait une largeur nulle et son libellé
+  // était systématiquement tronqué au bord droit.
+  return { debut: Math.min(...debuts), fin: Math.max(...fins) + JOUR_MS };
+}
+
+/** Étend la plage de données aux bornes complètes de l'échelle choisie. */
+function etendreAuxGraduations(
+  plage: { debut: number; fin: number },
+  echelle: Echelle,
+): { debut: number; fin: number } {
+  const debut = debutDeGraduation(plage.debut, echelle);
+  const derniere = debutDeGraduation(Math.max(plage.debut, plage.fin - 1), echelle);
+  return { debut, fin: graduationSuivante(derniere, echelle) };
 }
 
 /**
@@ -362,7 +382,7 @@ function decouperEnPeriodes(
   // Une garde de boucle : une échelle inconnue ou une plage aberrante ne doit
   // pas produire un rendu infini. Un jour par pixel sur un siècle reste sous
   // ce plafond.
-  for (let garde = 0; curseur <= plage.fin && garde < 40_000; garde += 1) {
+  for (let garde = 0; curseur < plage.fin && garde < 40_000; garde += 1) {
     const suivante = graduationSuivante(curseur, echelle);
     const debutVisible = Math.max(curseur, plage.debut);
     const finVisible = Math.min(suivante, plage.fin);

@@ -5,10 +5,12 @@
  * définitive — et elles doivent être impossibles à confondre.
  */
 
-.us-grid{ display:grid; grid-template-columns:minmax(0,1.1fr) 208px 156px minmax(0,1fr) 112px 150px; gap:13px; }
-.us-head{ padding:9px 14px; background:var(--surface-2); border-bottom:1px solid var(--line-strong); }
+.us-scroll{ overflow:auto; max-height:calc(100vh - 260px); }
+.us-grid{ display:grid; grid-template-columns:minmax(180px,1.1fr) 208px 156px minmax(180px,1fr) 112px 150px; gap:13px; min-width:1050px; }
+.us-head{ position:sticky; top:0; z-index:3; padding:9px 14px; background:var(--surface-2); border-bottom:1px solid var(--line-strong); }
 .us-head span{ font-family:var(--font-mono); font-size:8.5px; font-weight:500; letter-spacing:.12em;
   text-transform:uppercase; color:var(--muted); }
+.us-head > span:first-child{ position:sticky; left:0; z-index:2; background:var(--surface-2); }
 .us-row{ padding:10px 14px; border-bottom:1px solid var(--line); align-items:center; }
 .us-row:last-child{ border-bottom:none; }
 .us-row:hover{ background:var(--surface-2); }
@@ -17,6 +19,10 @@
    statut le dit en mots. */
 .us-row.is-off{ background:var(--surface-2); }
 .us-row.is-me{ background:color-mix(in srgb, var(--accent) 4%, var(--surface)); }
+.us-row > .us-who{ position:sticky; left:0; z-index:1; background:var(--surface); }
+.us-row:hover > .us-who,
+.us-row.is-off > .us-who{ background:var(--surface-2); }
+.us-row.is-me > .us-who{ background:color-mix(in srgb, var(--accent) 4%, var(--surface)); }
 
 .us-who{ display:flex; align-items:center; gap:9px; min-width:0; }
 .us-n{ font-size:13px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }

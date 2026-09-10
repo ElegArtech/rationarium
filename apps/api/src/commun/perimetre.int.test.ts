@@ -206,10 +206,22 @@ describe("RG-SCOPE-04 — les tâches confidentielles", () => {
     expect(JSON.stringify(filtre)).not.toContain("confidentielle");
   });
 
-  it("un périmètre global voit le confidentiel", async () => {
-    const p = await perimetre.resoudre(decor.camille, avec("tasks:manage_any"));
-    expect(p.confidentiel).toBe(true);
-  });
+  // RM-01 : l'ancien test « un périmètre global voit le confidentiel »
+  // consacrait global || permission sans source. RG-SCOPE-04 et RG-TSK-13
+  // exigent un droit explicite ; RG-SCOPE-03 ne lève que le périmètre.
+  it.each(["users:readAll", "users:manage_any", "tasks:manage_any"])(
+    "RG-SCOPE-04, RG-TSK-13 — %s garde le périmètre global sans autoriser les tâches confidentielles",
+    async (permission) => {
+      const droits = avec(permission);
+      const p = await perimetre.resoudre(decor.camille, droits);
+      expect(p.global).toBe(true);
+      expect(p.confidentiel).toBe(false);
+      expect(perimetre.filtreUtilisateur(p)).toEqual({});
+      expect(perimetre.filtreTache(p, droits)).toEqual({ confidentielle: false });
+      const explicite = await perimetre.resoudre(decor.camille, avec(permission, "tasks:read_confidential"));
+      expect(explicite.confidentiel).toBe(true);
+    },
+  );
 });
 
 describe("RG-SCOPE-02 — visibilité des projets", () => {

@@ -1,6 +1,8 @@
 import i18next from "i18next";
-import ICU from "i18next-icu";
+import { ICUGlobal } from "./icu-global.js";
 import { initReactI18next } from "react-i18next";
+import { languePublique } from "./langue-publique.js";
+export { languePublique } from "./langue-publique.js";
 
 import communFr from "../locales/fr/commun.json";
 import authFr from "../locales/fr/auth.json";
@@ -54,7 +56,7 @@ const detecter = (): Langue => {
 };
 
 await i18next
-  .use(ICU)
+  .use(ICUGlobal)
   .use(initReactI18next)
   .init({
     lng: detecter(),
@@ -71,6 +73,14 @@ await i18next
 export const changerLangue = async (langue: Langue): Promise<void> => {
   await i18next.changeLanguage(langue);
   localStorage.setItem(CLE_LANGUE, langue);
+  document.documentElement.lang = langue;
+};
+
+/** Applique la langue d'organisation sans la transformer en préférence personnelle. */
+export const appliquerLanguePublique = async (reglages: Readonly<Record<string, string>>): Promise<void> => {
+  const langue = languePublique(reglages, localStorage.getItem(CLE_LANGUE));
+  if (!langue) return;
+  await i18next.changeLanguage(langue);
   document.documentElement.lang = langue;
 };
 

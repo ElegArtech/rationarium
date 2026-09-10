@@ -198,6 +198,15 @@ a.eyebrow:hover{ color:var(--ink); }
 .field[aria-invalid="true"]{ border-color:var(--st-blocked); }
 .field[aria-invalid="true"]:focus{ box-shadow:0 0 0 3px var(--danger-soft); }
 .field:disabled{ background:var(--surface-2); color:var(--muted); cursor:not-allowed; }
+/* Les pictogrammes de calendrier et d'horloge sont peints par le navigateur,
+   pas par nos jetons. Leur annoncer le jeu de couleurs effectif évite l'icône
+   noire illisible sur la surface sombre, sans la remplacer par un dessin local. */
+html:not(.dark) input:is([type="date"],[type="time"],[type="datetime-local"],[type="month"],[type="week"]){
+  color-scheme:light;
+}
+html.dark input:is([type="date"],[type="time"],[type="datetime-local"],[type="month"],[type="week"]){
+  color-scheme:dark;
+}
 .field-error{ font-size:12.5px; color:var(--st-blocked); margin:5px 0 0; display:flex; gap:5px; align-items:flex-start; line-height:1.4; }
 /* Certains messages tiennent sur deux lignes : on réserve la hauteur en conséquence. */
 .field-error.is-tall{ min-height:35px; }

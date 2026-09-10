@@ -1,5 +1,6 @@
 import { useState, useEffect, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
+import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
   Button,
@@ -15,9 +16,12 @@ import {
 import { PanneauNotifications } from "./Notifications.js";
 import { BibliothequeIcones, Icone } from "./icones.js";
 import { BibliothequeIconesProjet } from "../composants/icones-projet.js";
+import { AvatarUtilisateur } from "../composants/pastilles.js";
+import type { VisuelAvatarPredefini } from "@rationarium/contracts";
 import { navigationVisible } from "./navigation.js";
 import { changerLangue, LANGUES } from "../i18n/index.js";
 import { definirTheme } from "../theme/index.js";
+import * as apiRecherche from "../api/recherche.js";
 import "./coquille.css";
 
 /**
@@ -56,6 +60,7 @@ export type Utilisateur = {
   nom: string;
   role: string;
   avatarUrl?: string | undefined;
+  avatarPredefini?: VisuelAvatarPredefini | null | undefined;
 };
 
 export function Coquille({
@@ -87,16 +92,23 @@ export function Coquille({
   const [sombre, setSombre] = useState(() =>
     document.documentElement.classList.contains("dark"),
   );
+  const [recherche, setRecherche] = useState("");
+  const [termeSoumis, setTermeSoumis] = useState("");
+  const resultatsRecherche = useQuery({
+    queryKey: ["recherche-globale", termeSoumis],
+    queryFn: () => apiRecherche.rechercher(termeSoumis),
+    enabled: termeSoumis.length > 0,
+    retry: false,
+  });
 
   const groupes = navigationVisible(permissions);
-  const initiales = `${utilisateur.prenom[0] ?? ""}${utilisateur.nom[0] ?? ""}`.toUpperCase();
-
   const basculer = () => {
     definirTheme(sombre ? "clair" : "sombre");
     setSombre(!sombre);
   };
 
   const chemin = useRouterState({ select: (etat) => etat.location.pathname });
+  const adresseCourante = useRouterState({ select: (etat) => etat.location.href });
   const navigate = useNavigate();
 
   /*
@@ -287,9 +299,71 @@ export function Coquille({
               ))}
             </p>
 
-            <SearchField className="search" aria-label={t("entete.rechercheGlobale")}>
+            <SearchField
+              className="search"
+              aria-label={t("entete.rechercheGlobale")}
+              value={recherche}
+              onChange={(valeur) => {
+                setRecherche(valeur);
+                if (valeur.trim() !== termeSoumis) setTermeSoumis("");
+              }}
+              onClear={() => setTermeSoumis("")}
+              onSubmit={(valeur) => setTermeSoumis(valeur.trim())}
+            >
               <Icone nom="i-search" petite />
               <Input placeholder={t("entete.rechercheGlobale")} />
+              {termeSoumis ? (
+                <div
+                  className="pop search-panel"
+                  role="region"
+                  aria-label={t("recherche.resultatsPour", { terme: termeSoumis })}
+                >
+                  {resultatsRecherche.isPending ? (
+                    <p className="search-state">{t("recherche.chargement")}</p>
+                  ) : resultatsRecherche.isError ? (
+                    <p className="search-state" role="alert">{t("recherche.erreur")}</p>
+                  ) : resultatsRecherche.data?.total === 0 ? (
+                    <p className="search-state">{t("recherche.aucun", { terme: termeSoumis })}</p>
+                  ) : (
+                    <>
+                      {resultatsRecherche.data?.projets.length ? (
+                        <section className="search-group" aria-labelledby="recherche-projets">
+                          <h2 className="eyebrow" id="recherche-projets">{t("recherche.projets")}</h2>
+                          {resultatsRecherche.data.projets.map((projet) => (
+                            <Link
+                              className="pop-action"
+                              key={projet.id}
+                              to="/projets/$id"
+                              params={{ id: projet.id }}
+                              onClick={() => setTermeSoumis("")}
+                            >
+                              {projet.nom}
+                            </Link>
+                          ))}
+                        </section>
+                      ) : null}
+                      {resultatsRecherche.data?.taches.length ? (
+                        <section className="search-group" aria-labelledby="recherche-taches">
+                          <h2 className="eyebrow" id="recherche-taches">{t("recherche.taches")}</h2>
+                          {resultatsRecherche.data.taches.map((tache) => (
+                            <Link
+                              className="pop-action search-task"
+                              key={tache.id}
+                              to="/taches/$id"
+                              params={{ id: tache.id }}
+                              search={{ retour: adresseCourante }}
+                              onClick={() => setTermeSoumis("")}
+                            >
+                              <span>{tache.titre}</span>
+                              {tache.projet ? <small>{tache.projet.nom}</small> : null}
+                            </Link>
+                          ))}
+                        </section>
+                      ) : null}
+                    </>
+                  )}
+                </div>
+              ) : null}
             </SearchField>
 
             <div className="topbar-right">
@@ -351,9 +425,13 @@ export function Coquille({
               <div className="has-pop">
                 <MenuTrigger>
                   <Button className="usermenu-btn" aria-label={t("entete.menuUtilisateur")}>
-                    <span className="avatar" aria-hidden="true">
-                      {initiales}
-                    </span>
+                    <AvatarUtilisateur
+                      prenom={utilisateur.prenom}
+                      nom={utilisateur.nom}
+                      url={utilisateur.avatarUrl}
+                      predefini={utilisateur.avatarPredefini}
+                      classe="avatar"
+                    />
                     <span>
                       <span className="um-name">
                         {utilisateur.prenom} {utilisateur.nom}

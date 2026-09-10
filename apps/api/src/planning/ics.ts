@@ -102,6 +102,9 @@ export type EvenementIcs = {
   heureDebut?: string | null;
   heureFin?: string | null;
   categorie?: string;
+  statut?: "TENTATIVE" | "CONFIRMED";
+  transparent?: boolean;
+  proprietes?: Record<string, string>;
 };
 
 /**
@@ -136,6 +139,9 @@ export function genererIcs(evenements: EvenementIcs[], estampille: Date): string
       lignes.push(`DTEND:${horodatage(e.dateFin ?? e.date, e.heureFin ?? e.heureDebut)}`);
     }
 
+    if (e.transparent) lignes.push("TRANSP:TRANSPARENT");
+    for (const [cle, valeur] of Object.entries(e.proprietes ?? {})) lignes.push(`${cle}:${echapper(valeur)}`);
+    if (e.statut) lignes.push(`STATUS:${e.statut}`);
     lignes.push(`SUMMARY:${echapper(e.titre)}`);
     if (e.description) lignes.push(`DESCRIPTION:${echapper(e.description)}`);
     if (e.categorie) lignes.push(`CATEGORIES:${echapper(e.categorie)}`);
@@ -147,6 +153,7 @@ export function genererIcs(evenements: EvenementIcs[], estampille: Date): string
 }
 
 export type EvenementImporte = {
+  index?: number;
   uid: string | null;
   titre: string;
   description: string | null;
@@ -154,6 +161,7 @@ export type EvenementImporte = {
   journeeEntiere: boolean;
   heureDebut: string | null;
   heureFin: string | null;
+  recurrence?: { frequenceSemaines: number; jourSemaine: number; jusqua: string };
 };
 
 /**
@@ -168,21 +176,25 @@ export type EvenementImporte = {
 export function analyserIcs(texte: string): {
   evenements: EvenementImporte[];
   ignores: number;
+  erreurs: { index: number; titre: string | null; motif: string }[];
 } {
   const evenements: EvenementImporte[] = [];
   let ignores = 0;
+  let index = 0;
+  const erreurs: { index: number; titre: string | null; motif: string }[] = [];
   let courant: Record<string, { valeur: string; params: string }> | null = null;
 
   for (const ligne of deplier(texte)) {
     if (ligne === "BEGIN:VEVENT") {
       courant = {};
+      index++;
       continue;
     }
     if (ligne === "END:VEVENT") {
       if (courant) {
         const lu = construire(courant);
-        if (lu) evenements.push(lu);
-        else ignores += 1;
+        if (!("erreur" in lu)) evenements.push({ ...lu, index });
+        else { ignores++; erreurs.push({ index, titre: courant["SUMMARY"]?.valeur ?? null, motif: lu.erreur }); }
       }
       courant = null;
       continue;
@@ -197,32 +209,57 @@ export function analyserIcs(texte: string): {
     courant[nom.toUpperCase()] = { valeur, params: params.join(";").toUpperCase() };
   }
 
-  return { evenements, ignores };
+  if (courant || index === 0) {
+    ignores++; erreurs.push({ index: index || 1, titre: courant?.["SUMMARY"]?.valeur ?? null, motif: "incomplet" });
+  }
+  return { evenements, ignores, erreurs };
 }
 
-function construire(
-  champs: Record<string, { valeur: string; params: string }>,
-): EvenementImporte | null {
+function construire(champs: Record<string, { valeur: string; params: string }>): EvenementImporte | { erreur: string } {
   const titre = champs["SUMMARY"]?.valeur;
-  const debut = champs["DTSTART"];
-  if (!titre || !debut) return null;
-
-  const brut = debut.valeur;
-  const date = `${brut.slice(0, 4)}-${brut.slice(4, 6)}-${brut.slice(6, 8)}`;
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
-
-  // Une date sans partie horaire, ou marquée VALUE=DATE, vaut journée entière.
-  const journeeEntiere = !brut.includes("T") || debut.params.includes("VALUE=DATE");
-  const heure = (v?: string) =>
-    v && v.includes("T") ? `${v.slice(9, 11)}:${v.slice(11, 13)}` : null;
-
-  return {
-    uid: champs["UID"]?.valeur ?? null,
-    titre: desechapper(titre),
-    description: champs["DESCRIPTION"] ? desechapper(champs["DESCRIPTION"].valeur) : null,
-    date,
-    journeeEntiere,
-    heureDebut: journeeEntiere ? null : heure(brut),
-    heureFin: journeeEntiere ? null : heure(champs["DTEND"]?.valeur),
+  if (!titre || !champs["DTSTART"]) return { erreur: "incomplet" };
+  const lireDate = (champ: { valeur: string; params: string }): { date: string; heure: string | null } | { erreur: string } => {
+    const v = champ.valeur;
+    const dateSeule = /^\d{8}$/.test(v);
+    if (!dateSeule && !/^\d{8}T\d{6}Z?$/.test(v)) return { erreur: "date_invalide" };
+    if (champ.params.split(";").includes("VALUE=DATE") && !dateSeule) return { erreur: "date_invalide" };
+    const date = `${v.slice(0, 4)}-${v.slice(4, 6)}-${v.slice(6, 8)}`;
+    const parsed = new Date(`${date}T00:00:00Z`);
+    if (!Number.isFinite(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== date) return { erreur: "date_invalide" };
+    if (dateSeule) return { date, heure: null };
+    const heure = `${v.slice(9, 11)}:${v.slice(11, 13)}`;
+    if (!/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(heure) || v.slice(13, 15) !== "00") return { erreur: "horaires_invalides" };
+    const zone = champ.params.split(";").find((p) => p.startsWith("TZID="))?.slice(5);
+    if (zone && zone !== "EUROPE/PARIS") return { erreur: "fuseau_non_pris_en_charge" };
+    if (!v.endsWith("Z")) return { date, heure };
+    const instant = new Date(`${date}T${heure}:00Z`);
+    const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Paris", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(instant);
+    const part = (type: string) => parts.find((p) => p.type === type)!.value;
+    return { date: `${part("year")}-${part("month")}-${part("day")}`, heure: `${part("hour")}:${part("minute")}` };
+  };
+  const debut = lireDate(champs["DTSTART"]);
+  if ("erreur" in debut) return debut;
+  const fin = champs["DTEND"] ? lireDate(champs["DTEND"]) : null;
+  if (fin && "erreur" in fin) return fin;
+  if (debut.heure !== null && fin === null) return { erreur: "incomplet" };
+  if (fin && (debut.heure === null) !== (fin.heure === null)) return { erreur: "horaires_invalides" };
+  if (fin && (debut.heure === null ? fin.date !== lendemain(debut.date) : fin.date !== debut.date)) return { erreur: "multi_jours" };
+  if (debut.heure && fin?.heure && fin.heure <= debut.heure) return { erreur: "horaires_invalides" };
+  let recurrence: EvenementImporte["recurrence"];
+  if (champs["RRULE"]) {
+    const regle = Object.fromEntries(champs["RRULE"].valeur.split(";").map((p) => p.split("=")));
+    const intervalle = Number(regle["INTERVAL"] ?? 1);
+    const jusqua = lireDate({ valeur: regle["UNTIL"] ?? "", params: "" });
+    const jourSemaine = new Date(`${debut.date}T00:00:00Z`).getUTCDay();
+    if (regle["FREQ"] !== "WEEKLY" || !Number.isInteger(intervalle) || intervalle < 1 || intervalle > 52
+      || Object.keys(regle).some((k) => !["FREQ", "INTERVAL", "UNTIL", "BYDAY"].includes(k))
+      || (regle["BYDAY"] !== undefined && regle["BYDAY"] !== ["SU", "MO", "TU", "WE", "TH", "FR", "SA"][jourSemaine])
+      || "erreur" in jusqua || jusqua.date < debut.date || champs["DTSTART"].valeur.endsWith("Z")) return { erreur: "recurrence_non_prise_en_charge" };
+    recurrence = { frequenceSemaines: intervalle, jourSemaine, jusqua: jusqua.date };
+  }
+  if (desechapper(titre).length > 200) return { erreur: "titre_trop_long" };
+  return { ...(recurrence ? { recurrence } : {}), uid: champs["UID"]?.valeur ?? null,
+    titre: desechapper(titre), description: champs["DESCRIPTION"] ? desechapper(champs["DESCRIPTION"].valeur) : null,
+    date: debut.date, journeeEntiere: debut.heure === null, heureDebut: debut.heure, heureFin: fin?.heure ?? null,
   };
 }

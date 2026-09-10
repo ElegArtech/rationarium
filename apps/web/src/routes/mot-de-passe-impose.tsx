@@ -49,9 +49,8 @@ export function MotDePasseImpose({
   /**
    * Le motif du blocage.
    *
-   * `design/etats.json` en déclare deux ; **le serveur n'expose rien qui
-   * permette de les distinguer** — `/auth/me` ne rend qu'un booléen
-   * `motDePasseAChanger`. Voir le compte rendu.
+   * `design/etats.json` en déclare deux ; `/auth/me` les distingue depuis
+   * la dernière réinitialisation administrative auditée (RM-02).
    */
   motif?: MotifBlocage;
   /** La date de la réinitialisation administrateur, déjà formatée. */

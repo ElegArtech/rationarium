@@ -858,6 +858,8 @@ function LigneDemande({
               {demande.user.prenom} {demande.user.nom}
             </span>
             <span className="lv-ws">{demande.type.nom}</span>
+            {avecValidation ? <span className="lv-ws">{demande.user.services?.map((service) => service.nom).join(", ") || demande.user.departement?.nom}</span> : null}
+            {avecValidation && demande.absencesConcomitantes ? <span className="lv-ws">{t("conges.absencesConcomitantes", { n: demande.absencesConcomitantes.length })}{demande.absencesConcomitantes.map((absence) => <span className="lv-ws" key={absence.id}>{absence.user.prenom} {absence.user.nom} · {formaterDate(absence.dateDebut)} – {formaterDate(absence.dateFin)}</span>)}</span> : null}
           </span>
         </span>
       ) : (
@@ -1171,11 +1173,36 @@ function ToutesLesDemandes() {
 }
 
 /** `EX-CNG-19` — les délégations, dans les deux sens, avec leur explication. */
+function FenetreDelegation({ surFermeture }: { surFermeture: () => void }) {
+  const { t } = useTranslation("occupations");
+  const { t: tErreurs } = useTranslation("erreurs");
+  const { session } = useSession();
+  const annoncer = useMessages();
+  const client = useQueryClient();
+  const [delegueId, setDelegueId] = useState("");
+  const [dateDebut, setDateDebut] = useState("");
+  const [dateFin, setDateFin] = useState("");
+  const [erreur, setErreur] = useState<string | null>(null);
+  const candidats = useQuery({ queryKey: ["conges", "candidats"], queryFn: api.candidatsConge });
+  const creation = useMutation({ mutationFn: () => api.creerDelegation({ delegantId: session.id, delegueId, dateDebut, dateFin }), onSuccess: () => { annoncer("ok", t("conges.delegationCreee")); void client.invalidateQueries({ queryKey: ["conges"] }); surFermeture(); }, onError: (e) => setErreur(messageErreur(e, tErreurs, t("conges.echecAction"))) });
+  return <Fenetre ouverte surFermeture={surFermeture} categorie={t("conges.ongletDelegations")} titre={t("conges.deleguerValidation")} actions={<><Button className="btn btn-secondary" onPress={surFermeture}>{t("annuler")}</Button><Button className="btn btn-primary" isPending={creation.isPending} onPress={() => { if (!delegueId || !dateDebut || !dateFin) { setErreur(t("champsObligatoires")); return; } if (dateFin < dateDebut) { setErreur(tErreurs("datesIncoherentes")); return; } setErreur(null); creation.mutate(); }}>{t("conges.creerDelegation")}</Button></>}>
+    {erreur ? <p className="alert alert-error" role="alert">{erreur}</p> : null}
+    {candidats.isError ? <ErreurDeChargement erreur={candidats.error} surReessai={() => void candidats.refetch()} /> : null}
+    <div className="form-grid">
+      <div className="field-block span2"><label className="field-label" htmlFor="dg-who">{t("conges.deleguerA")}</label><select id="dg-who" className="field" value={delegueId} onChange={(e) => setDelegueId(e.target.value)}><option value="">{t("selectionner")}</option>{(candidats.data ?? []).filter((u) => u.id !== session.id).map((u) => <option value={u.id} key={u.id}>{u.prenom} {u.nom}</option>)}</select></div>
+      <div className="field-block"><label className="field-label" htmlFor="dg-debut">{t("conges.dateDebut")}</label><input id="dg-debut" className="field" type="date" value={dateDebut} onChange={(e) => setDateDebut(e.target.value)} /></div>
+      <div className="field-block"><label className="field-label" htmlFor="dg-fin">{t("conges.dateFin")}</label><input id="dg-fin" className="field" type="date" value={dateFin} min={dateDebut} onChange={(e) => setDateFin(e.target.value)} /></div>
+      <p className="alert alert-neutral span2">{t("conges.delegationExplication")}</p>
+    </div>
+  </Fenetre>;
+}
+
 function Delegations() {
   const { t } = useTranslation("occupations");
   const { t: tErreurs } = useTranslation("erreurs");
   const annoncer = useMessages();
   const client = useQueryClient();
+  const [creationOuverte, setCreationOuverte] = useState(false);
   const requete = useQuery({ queryKey: ["conges", "delegations"], queryFn: api.delegations });
 
   const desactiver = useMutation({
@@ -1234,6 +1261,8 @@ function Delegations() {
 
   return (
     <>
+      <Button className="btn btn-primary" onPress={() => setCreationOuverte(true)}>{t("conges.deleguerValidation")}</Button>
+      {creationOuverte ? <FenetreDelegation surFermeture={() => setCreationOuverte(false)} /> : null}
       {bloc(
         t("conges.delegationsDonnees"),
         requete.data.donnees,
@@ -2076,6 +2105,9 @@ function FenetreDemande({
   const client = useQueryClient();
   const { session } = useSession();
 
+  const peut = usePeut();
+  const [beneficiaire, setBeneficiaire] = useState(demande?.user.id ?? session.id);
+  const candidats = useQuery({ queryKey: ["conges", "candidats"], queryFn: api.candidatsConge, enabled: ouverte && peut("leaves:declare_for_other") });
   const [typeId, setTypeId] = useState(demande?.type.id ?? "");
   const [dateDebut, setDateDebut] = useState(demande?.dateDebut.slice(0, 10) ?? "");
   const [dateFin, setDateFin] = useState(demande?.dateFin.slice(0, 10) ?? "");
@@ -2103,34 +2135,16 @@ function FenetreDemande({
    * quelqu'un d'autre **selon la date**. Seul le serveur le sait.
    */
   const validateur = useQuery({
-    queryKey: ["conges", "validateur", dateDebut],
-    queryFn: () => api.validateurDeConge(dateDebut),
+    queryKey: ["conges", "validateur", dateDebut, beneficiaire],
+    queryFn: () => api.validateurDeConge(dateDebut, beneficiaire),
     enabled: ouverte && dateDebut !== "" && type?.validationRequise === true,
   });
 
-  /**
-   * **DÉFAUT SERVEUR CONTOURNÉ ICI, pas corrigé.**
-   *
-   * `GET /conges/validateur` rend `{ validateurId }` — un UUID, jamais un nom.
-   * Elle est gardée par `leaves:read` ; le seul annuaire du produit,
-   * `GET /utilisateurs`, l'est par `users:read`, qu'un agent ordinaire n'a
-   * pas. Le client qui a le droit d'appeler la route n'a donc pas le droit de
-   * traduire sa réponse.
-   *
-   * Le seul nom qu'un agent possède légitimement est celui que ses PROPRES
-   * demandes portent déjà : `GET /conges` rend `validateur` en clair. On y
-   * cherche l'identifiant reçu. La clé est celle de la vue parente — React
-   * Query sert la même entrée de cache, il n'y a pas de second appel.
-   *
-   * Ce qui reste découvert, et qui est le défaut : une PREMIÈRE demande, par
-   * quelqu'un qui n'en a jamais déposé, n'a aucun nom à joindre. La mention
-   * retombe alors sur la formule générique de `cadrage/02`. Refermer ce cas
-   * demande que la route rende `{ id, prenom, nom }` — c'est une tâche
-   * serveur.
-   */
+  // Le nom du validateur vient directement du serveur ; les anciennes demandes
+  // restent un repli pour les réponses antérieures au contrat enrichi.
   const mesDemandes = useQuery({
-    queryKey: ["conges", { userId: session.id }],
-    queryFn: () => api.conges({ userId: session.id }),
+    queryKey: ["conges", { userId: beneficiaire }],
+    queryFn: () => api.conges({ userId: beneficiaire }),
     enabled: ouverte && type?.validationRequise === true,
   });
 
@@ -2138,6 +2152,7 @@ function FenetreDemande({
     const id = validateur.data?.validateurId;
     if (!id) return null;
     const connu = [
+      validateur.data?.validateur,
       demande?.validateur,
       ...(mesDemandes.data ?? []).map((d) => d.validateur),
     ].find((v) => v?.id === id);
@@ -2189,8 +2204,8 @@ function FenetreDemande({
    */
   const soldesParAnnee = useQueries({
     queries: parAnnee.map((p) => ({
-      queryKey: ["conges", "solde", typeId, p.annee],
-      queryFn: () => api.solde(typeId, p.annee),
+      queryKey: ["conges", "solde", typeId, p.annee, beneficiaire],
+      queryFn: () => api.solde(typeId, p.annee, beneficiaire),
       enabled: ouverte && Boolean(typeId),
     })),
   });
@@ -2219,7 +2234,7 @@ function FenetreDemande({
       // modification ne change pas le statut, donc rien d'autre ne détecte
       // deux corrections concurrentes de la même demande.
       if (demande) return api.modifierConge(demande.id, { ...plage, version: demande.version });
-      await api.deposerConge({ typeId, ...plage });
+      await api.deposerConge({ typeId, ...plage, userId: beneficiaire });
     },
     onSuccess: () => {
       annoncer("ok", demande ? t("conges.demandeModifiee") : t("conges.demandeDeposee"));
@@ -2287,6 +2302,15 @@ function FenetreDemande({
       ) : null}
 
       <div className="form-grid form-grid-espace">
+        {!demande && peut("leaves:declare_for_other") ? <div className="field-block span2">
+          <label className="field-label" htmlFor="cg-beneficiaire">{t("conges.beneficiaire")}</label>
+          <select id="cg-beneficiaire" className="field" value={beneficiaire} onChange={(e) => setBeneficiaire(e.target.value)}>
+            <option value={session.id}>{session.prenom} {session.nom}</option>
+            {(candidats.data ?? []).filter((u) => u.id !== session.id).map((u) => <option key={u.id} value={u.id}>{u.prenom} {u.nom}</option>)}
+          </select>
+          {candidats.isError ? <ErreurDeChargement erreur={candidats.error} surReessai={() => void candidats.refetch()} /> : null}
+          {beneficiaire !== session.id ? <p className="field-hint">{t("conges.autruiApprouve")}</p> : null}
+        </div> : null}
         <div className="field-block span2">
           <label className="field-label" htmlFor="cg-type">
             {t("conges.typeDeConge")} <span className="req">*</span>
@@ -2429,7 +2453,7 @@ function FenetreDemande({
 
         {/* `RG-CNG-08` — la validation s'annonce avec le NOM de qui la fera,
             dès que le serveur l'a déterminée et que l'écran sait la traduire. */}
-        {type?.validationRequise ? (
+        {type?.validationRequise && beneficiaire === session.id ? (
           <div className="field-block span2">
             <div className="alert alert-neutral">
               <span className="alert-icon" aria-hidden="true">

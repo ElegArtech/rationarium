@@ -8,12 +8,14 @@ import { createRoot } from "react-dom/client";
 import { MutationCache, QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "@tanstack/react-router";
 
-import "./i18n/index.js";
+import { appliquerLanguePublique } from "./i18n/index.js";
 import "./styles/socle.css";
 import { initialiserTheme } from "./theme/index.js";
 import { routeur } from "./app/routeur.js";
 import { FournisseurMessages } from "./composants/messages.js";
 import { ErreurApi } from "./api/client.js";
+import { reglages as chargerReglagesPublics } from "./api/administration.js";
+import { appliquerReglages } from "./formats.js";
 
 /**
  * @rationarium/web — point d'entrée du client.
@@ -96,6 +98,21 @@ const cache = new QueryClient({
     mutations: { retry: false },
   },
 });
+
+/*
+ * `EX-PRM-03` — les réglages marqués publics valent aussi avant la session.
+ * Les charger avant le premier rendu évite un éclair dans la langue du
+ * navigateur, puis une seconde peinture dans celle de l'organisation.
+ * Une indisponibilité conserve les défauts locaux : le paramétrage n'est pas
+ * une condition de démarrage de l'écran de connexion.
+ */
+try {
+  const reglagesPublics = await chargerReglagesPublics();
+  appliquerReglages(reglagesPublics);
+  await appliquerLanguePublique(reglagesPublics);
+} catch {
+  // Les valeurs locales par défaut restent utilisables hors ligne API.
+}
 
 initialiserTheme();
 

@@ -24,6 +24,7 @@ import { DocumentsModule } from "./documents/documents.module.js";
 import { CompetencesModule } from "./competences/competences.module.js";
 import { TiersModule } from "./tiers/tiers.module.js";
 import { ExploitationModule } from "./exploitation/exploitation.module.js";
+import { RechercheModule } from "./recherche/recherche.module.js";
 
 /**
  * L'assemblage du serveur.
@@ -62,6 +63,7 @@ import { ExploitationModule } from "./exploitation/exploitation.module.js";
     CompetencesModule,
     TiersModule,
     ExploitationModule,
+    RechercheModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: GardePermission },

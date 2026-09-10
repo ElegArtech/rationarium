@@ -1,3 +1,4 @@
+import { nomRole } from "../../roles.js";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FenetreImport } from "../../composants/Import.js";
@@ -7,7 +8,7 @@ import { Button, Menu, MenuItem, MenuTrigger, Popover } from "react-aria-compone
 import * as api from "../../api/administration.js";
 import { messageErreur } from "../../api/erreurs.js";
 import { ErreurApi } from "../../api/client.js";
-import { PolitiqueMotDePasse, politiqueTenue } from "../../composants/champs.js";
+import { ChampMotDePasse, PolitiqueMotDePasse, politiqueTenue } from "../../composants/champs.js";
 import { usePeut, useSession } from "../../session/session.js";
 import { Chargement, ErreurDeChargement } from "../../composants/etats.js";
 import { Fenetre } from "../../composants/fenetre.js";
@@ -175,7 +176,7 @@ export function Utilisateurs() {
             <option value="">{t("utilisateurs.tousRoles")}</option>
             {(roles.data ?? []).map((r) => (
               <option key={r.id} value={r.id}>
-                {r.nom}
+                {nomRole(r)}
               </option>
             ))}
           </select>
@@ -202,18 +203,25 @@ export function Utilisateurs() {
 
       {requete.data ? (
         <section className="panel">
-          <div className="us-grid us-head">
-            <span>{t("utilisateurs.colUtilisateur")}</span>
-            <span>{t("utilisateurs.colEmail")}</span>
-            <span>{t("utilisateurs.colRole")}</span>
-            <span>{t("utilisateurs.colOrganisation")}</span>
-            <span>{t("utilisateurs.colStatut")}</span>
-            <span style={{ textAlign: "right" }}>{t("utilisateurs.colActions")}</span>
-          </div>
-          <div>
-            {liste.map((u) => (
-              <LigneUtilisateur key={u.id} utilisateur={u} />
-            ))}
+          <div
+            className="us-scroll"
+            role="region"
+            aria-label={t("utilisateurs.tableauLibelle")}
+            tabIndex={0}
+          >
+            <div className="us-grid us-head">
+              <span>{t("utilisateurs.colUtilisateur")}</span>
+              <span>{t("utilisateurs.colEmail")}</span>
+              <span>{t("utilisateurs.colRole")}</span>
+              <span>{t("utilisateurs.colOrganisation")}</span>
+              <span>{t("utilisateurs.colStatut")}</span>
+              <span style={{ textAlign: "right" }}>{t("utilisateurs.colActions")}</span>
+            </div>
+            <div>
+              {liste.map((u) => (
+                <LigneUtilisateur key={u.id} utilisateur={u} />
+              ))}
+            </div>
           </div>
           {liste.length === 0 ? (
             <div className="empty">
@@ -250,21 +258,6 @@ export function Utilisateurs() {
 }
 
 /**
- * Un mot de passe provisoire, jamais réutilisé.
- *
- * Il n'est pas montré : le compte devra le changer à la première connexion, et
- * l'exploitant le communique par le canal qu'il choisit. Le tirage vient de
- * `crypto`, pas de `Math.random` — un mot de passe prévisible n'en est pas un.
- */
-function motDePasseProvisoire(): string {
-  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
-  const tirage = crypto.getRandomValues(new Uint32Array(12));
-  return (
-    [...tirage].map((n) => alphabet[n % alphabet.length]).join("") + "!2Aa"
-  );
-}
-
-/**
  * La couleur d'une pastille de rôle.
  *
  * La maquette colore par famille : administration en rouge, encadrement et RH
@@ -289,6 +282,8 @@ function LigneUtilisateur({ utilisateur }: { utilisateur: api.Utilisateur }) {
   const client = useQueryClient();
   const [suppressionOuverte, setSuppressionOuverte] = useState(false);
   const [modificationOuverte, setModificationOuverte] = useState(false);
+  const [reinitialisationOuverte, setReinitialisationOuverte] = useState(false);
+  const [cycleDemande, setCycleDemande] = useState<"desactiver" | "reactiver" | null>(null);
 
   /** `RG-USR-04` — soi-même est le cas qu'on n'a pas le droit de traiter. */
   const soiMeme = utilisateur.id === session.id;
@@ -297,21 +292,16 @@ function LigneUtilisateur({ utilisateur }: { utilisateur: api.Utilisateur }) {
   const cycle = useMutation({
     mutationFn: (geste: "desactiver" | "reactiver") =>
       geste === "desactiver"
-        ? api.desactiverUtilisateur(utilisateur.id)
-        : api.reactiverUtilisateur(utilisateur.id),
+        ? api.desactiverUtilisateur(utilisateur.id, utilisateur.version)
+        : api.reactiverUtilisateur(utilisateur.id, utilisateur.version),
     onSuccess: (_, geste) => {
       annoncer("ok", t(`utilisateurs.${geste}Fait`, { nom: nomComplet }));
+      setCycleDemande(null);
       void client.invalidateQueries({ queryKey: ["utilisateurs"] });
     },
     onError: (e) => annoncer("err", messageErreur(e, tErreurs, t("utilisateurs.echecAction"))),
   });
 
-  const motDePasse = useMutation({
-    mutationFn: () => api.reinitialiserMotDePasse(utilisateur.id, motDePasseProvisoire()),
-    onSuccess: () =>
-      annoncer("ok", t("utilisateurs.motDePasseReinitialise", { nom: nomComplet })),
-    onError: (e) => annoncer("err", messageErreur(e, tErreurs, t("utilisateurs.echecAction"))),
-  });
 
   return (
     <div
@@ -348,7 +338,7 @@ function LigneUtilisateur({ utilisateur }: { utilisateur: api.Utilisateur }) {
           style={{ color: jetonRole(utilisateur.role?.code) }}
           title={utilisateur.role?.code ?? undefined}
         >
-          {utilisateur.role?.nom ?? t("utilisateurs.sansRole")}
+          {nomRole(utilisateur.role) || t("utilisateurs.sansRole")}
         </span>
       </div>
 
@@ -406,8 +396,18 @@ function LigneUtilisateur({ utilisateur }: { utilisateur: api.Utilisateur }) {
               {peut("users:reset_password") ? (
                 <MenuItem
                   className="pop-action"
-                  isDisabled={soiMeme}
-                  onAction={() => motDePasse.mutate()}
+                  data-disabled={soiMeme || undefined}
+                  aria-disabled={soiMeme}
+                  /* React Aria retire `aria-disabled` d'un MenuItem qui ne porte
+                     pas `isDisabled`, mais `isDisabled` le retire aussi de la
+                     navigation clavier. On pose donc la sémantique sur le nœud
+                     rendu et le gestionnaire neutralise réellement le geste. */
+                  ref={(element) => {
+                    if (soiMeme) element?.setAttribute("aria-disabled", "true");
+                  }}
+                  onAction={() => {
+                    if (!soiMeme) setReinitialisationOuverte(true);
+                  }}
                 >
                   {t("utilisateurs.reinitialiserMotDePasse")}
                   {soiMeme ? (
@@ -419,8 +419,14 @@ function LigneUtilisateur({ utilisateur }: { utilisateur: api.Utilisateur }) {
               {peut("users:deactivate") ? (
                 <MenuItem
                   className="pop-action"
-                  isDisabled={soiMeme}
-                  onAction={() => cycle.mutate(utilisateur.actif ? "desactiver" : "reactiver")}
+                  data-disabled={soiMeme || undefined}
+                  aria-disabled={soiMeme}
+                  ref={(element) => {
+                    if (soiMeme) element?.setAttribute("aria-disabled", "true");
+                  }}
+                  onAction={() => {
+                    if (!soiMeme) setCycleDemande(utilisateur.actif ? "desactiver" : "reactiver");
+                  }}
                 >
                   {utilisateur.actif ? t("utilisateurs.desactiver") : t("utilisateurs.reactiver")}
                   {/* La raison accompagne l'interdit : désactiver sans dire
@@ -434,8 +440,14 @@ function LigneUtilisateur({ utilisateur }: { utilisateur: api.Utilisateur }) {
               {peut("users:delete_permanently") ? (
                 <MenuItem
                   className="pop-action is-danger menu-sep"
-                  isDisabled={soiMeme}
-                  onAction={() => setSuppressionOuverte(true)}
+                  data-disabled={soiMeme || undefined}
+                  aria-disabled={soiMeme}
+                  ref={(element) => {
+                    if (soiMeme) element?.setAttribute("aria-disabled", "true");
+                  }}
+                  onAction={() => {
+                    if (!soiMeme) setSuppressionOuverte(true);
+                  }}
                 >
                   {t("utilisateurs.supprimerDefinitivement")}
                   {soiMeme ? (
@@ -447,6 +459,40 @@ function LigneUtilisateur({ utilisateur }: { utilisateur: api.Utilisateur }) {
           </Popover>
         </MenuTrigger>
       </div>
+
+      {reinitialisationOuverte ? (
+        <FenetreReinitialisation
+          utilisateur={utilisateur}
+          surFermeture={() => setReinitialisationOuverte(false)}
+        />
+      ) : null}
+
+      <Fenetre
+        ouverte={cycleDemande !== null}
+        surFermeture={() => setCycleDemande(null)}
+        categorie={t("utilisateurs.gestionCompte")}
+        titre={cycleDemande
+          ? t(`utilisateurs.${cycleDemande}Titre`, { nom: nomComplet })
+          : ""}
+        actions={
+          <>
+            <Button className="btn btn-secondary" onPress={() => setCycleDemande(null)}>
+              {t("annuler")}
+            </Button>
+            <Button
+              className={cycleDemande === "desactiver" ? "btn btn-danger" : "btn btn-primary"}
+              isPending={cycle.isPending}
+              onPress={() => cycleDemande && cycle.mutate(cycleDemande)}
+            >
+              {cycleDemande ? t(`utilisateurs.${cycleDemande}Confirmer`) : ""}
+            </Button>
+          </>
+        }
+      >
+        <p className="lede">
+          {cycleDemande ? t(`utilisateurs.${cycleDemande}Explication`) : ""}
+        </p>
+      </Fenetre>
 
       <FenetreModification
         utilisateur={modificationOuverte ? utilisateur : null}
@@ -501,7 +547,10 @@ function FenetreSuppression({
   const nomComplet = `${utilisateur.prenom} ${utilisateur.nom}`;
 
   const suppression = useMutation({
-    mutationFn: () => api.supprimerUtilisateur(utilisateur.id),
+    mutationFn: () => api.supprimerUtilisateur(
+      utilisateur.id,
+      impact.data?.version ?? utilisateur.version,
+    ),
     onSuccess: () => {
       annoncer("ok", t("utilisateurs.supprimeFaitDe", { nom: nomComplet }));
       surFermeture();
@@ -602,7 +651,7 @@ function FenetreSuppression({
             {impact.data.blocages.map((b) => (
               <li key={b.objet}>
                 <span className="imp-k">{b.nombre}</span>
-                <span>{b.objet}</span>
+                <span>{libelleImpact(t, b.objet)}</span>
               </li>
             ))}
           </ul>
@@ -625,6 +674,24 @@ function FenetreSuppression({
       ) : null}
     </Fenetre>
   );
+}
+
+/** `RG-GEN-08` — l'API transporte des codes, jamais une phrase française. */
+function libelleImpact(t: ReturnType<typeof useTranslation>["t"], objet: string): string {
+  const cle = ({
+    temps: "temps",
+    "saisies de temps": "temps",
+    projets: "projets",
+    "projets dirigés ou sponsorisés": "projets",
+    conges: "conges",
+    "congés approuvés": "conges",
+    assignations: "assignations",
+    "assignations de tâches": "assignations",
+    todos: "todos",
+    "to-do personnelles": "todos",
+    notifications: "notifications",
+  } as Record<string, string>)[objet];
+  return cle ? t(`utilisateurs.impact_${cle}`) : objet;
 }
 
 /**
@@ -744,7 +811,7 @@ function ChampsRattachement({
           <option value="">{t("utilisateurs.sansRole")}</option>
           {(roles.data ?? []).map((r) => (
             <option key={r.id} value={r.id}>
-              {r.nom}
+              {nomRole(r)}
             </option>
           ))}
         </select>
@@ -1190,6 +1257,81 @@ function FenetreCreation({
           }}
         />
       </div>
+    </Fenetre>
+  );
+}
+
+/** RM-02 — le secret est choisi par l'administrateur, qui le remet au titulaire. */
+function FenetreReinitialisation({ utilisateur, surFermeture }: {
+  utilisateur: api.Utilisateur;
+  surFermeture: () => void;
+}) {
+  const { t } = useTranslation("administration");
+  const { t: tAuth } = useTranslation("auth");
+  const { t: tErreurs } = useTranslation("erreurs");
+  const annoncer = useMessages();
+  const [nouveau, setNouveau] = useState("");
+  const [confirmation, setConfirmation] = useState("");
+  const [erreur, setErreur] = useState<string | null>(null);
+  const nom = `${utilisateur.prenom} ${utilisateur.nom}`;
+  const mutation = useMutation({
+    mutationFn: () => api.reinitialiserMotDePasse(utilisateur.id, nouveau),
+    onSuccess: () => {
+      annoncer("ok", t("utilisateurs.motDePasseReinitialise", { nom }));
+      surFermeture();
+    },
+    onError: (e) => setErreur(messageErreur(e, tErreurs, t("utilisateurs.echecAction"))),
+  });
+  const soumettre = () => {
+    if (mutation.isPending) return;
+    setErreur(null);
+    if (!politiqueTenue(nouveau)) {
+      document.getElementById("us-reset-nouveau")?.focus();
+      return;
+    }
+    if (nouveau !== confirmation) {
+      setErreur(tAuth("erreurs.motsDePasseDifferents"));
+      return;
+    }
+    mutation.mutate();
+  };
+  const fermer = () => { if (!mutation.isPending) surFermeture(); };
+  return (
+    <Fenetre
+      ouverte
+      surFermeture={fermer}
+      categorie={nom}
+      titre={t("utilisateurs.reinitialiserMotDePasse")}
+      mention={t("champsObligatoires")}
+      actions={<>
+        <Button className="btn btn-secondary" isDisabled={mutation.isPending} onPress={fermer}>
+          {t("annuler")}
+        </Button>
+        <Button className="btn btn-primary" isPending={mutation.isPending} onPress={soumettre}>
+          {t("utilisateurs.reinitialiserMotDePasse")}
+        </Button>
+      </>}
+    >
+      <p className="field-hint">{t("utilisateurs.remiseMotDePasse", { nom })}</p>
+      {erreur ? <div className="alert alert-error" role="alert">{erreur}</div> : null}
+      <ChampMotDePasse
+        libelle={tAuth("reinitialisation.nouveau")}
+        idChamp="us-reset-nouveau"
+        value={nouveau}
+        onChange={setNouveau}
+        autoComplete="new-password"
+        isDisabled={mutation.isPending}
+        politique
+        reserve
+      />
+      <ChampMotDePasse
+        libelle={tAuth("reinitialisation.confirmation")}
+        value={confirmation}
+        onChange={setConfirmation}
+        autoComplete="new-password"
+        isDisabled={mutation.isPending}
+        reserve
+      />
     </Fenetre>
   );
 }

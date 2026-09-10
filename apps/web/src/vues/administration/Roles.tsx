@@ -1,3 +1,4 @@
+import { nomRole } from "../../roles.js";
 import { Fragment, useEffect, useMemo, useState, type CSSProperties } from "react";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -43,6 +44,7 @@ export function Roles() {
   const clientR = useQueryClient();
   const [roleId, setRoleId] = useState<string | null>(null);
   const [creationOuverte, setCreationOuverte] = useState(false);
+  const [initialisationOuverte, setInitialisationOuverte] = useState(false);
   const [aRenommer, setARenommer] = useState<api.Role | null>(null);
 
   /**
@@ -54,10 +56,10 @@ export function Roles() {
    * expliqué pour un rôle système.
    */
   const suppression = useMutation({
-    mutationFn: (id: string) => api.supprimerRole(id),
-    onSuccess: (_, id) => {
+    mutationFn: (role: api.Role) => api.supprimerRole(role.id, role.version),
+    onSuccess: (_, role) => {
       annoncerR("ok", t("roles.supprime"));
-      if (roleId === id) setRoleId(null);
+      if (roleId === role.id) setRoleId(null);
       void clientR.invalidateQueries({ queryKey: ["roles"] });
     },
     onError: (e) => annoncerR("err", messageErreur(e, tErreursR, t("roles.echecSuppression"))),
@@ -66,6 +68,24 @@ export function Roles() {
   const liste = useQuery({
     queryKey: ["roles"],
     queryFn: api.roles,
+  });
+
+  const initialisation = useMutation({
+    mutationFn: api.initialiserRoles,
+    onSuccess: (bilan) => {
+      if (bilan.collisions.length > 0) {
+        // i18n-familles: administration:roles.initialiseCollisions
+        annoncerR("err", t("roles.initialiseCollisions", {
+          n: bilan.collisions.length,
+          codes: bilan.collisions.map(({ code }) => code).join(", "),
+        }));
+      } else {
+        annoncerR("ok", t("roles.initialise", bilan));
+      }
+      setInitialisationOuverte(false);
+      return clientR.invalidateQueries({ queryKey: ["roles"] });
+    },
+    onError: (e) => annoncerR("err", messageErreur(e, tErreursR, t("roles.echecAction"))),
   });
 
   /*
@@ -113,6 +133,11 @@ export function Roles() {
           <div className="empty">
             <p>{t("roles.videTitre")}</p>
             <small>{t("roles.videExplication")}</small>
+            {peut("users:manage_roles") ? (
+              <Button className="btn btn-primary" onPress={() => setInitialisationOuverte(true)}>
+                {t("roles.initialiser")}
+              </Button>
+            ) : null}
           </div>
         ) : (
           <>
@@ -129,13 +154,13 @@ export function Roles() {
                 key={r.id}
               >
                 <div className="bloc-etroit">
-                  <p className="role-n">{r.nom}</p>
+                  <p className="role-n">{nomRole(r)}</p>
                   <span className="role-c">{r.code}</span>
                 </div>
                 <span className="role-perm">
                   <Barre
                     valeur={(r.nombrePermissions / NOMBRE_PERMISSIONS) * 100}
-                    libelle={t("roles.permissionsDe", { nom: r.nom })}
+                    libelle={t("roles.permissionsDe", { nom: nomRole(r) })}
                   />
                   <span className="role-pn">
                     {r.nombrePermissions} / {NOMBRE_PERMISSIONS}
@@ -198,7 +223,7 @@ export function Roles() {
                         // atteignable, donc la commande aussi.
                         aria-disabled={r.systeme || suppression.isPending}
                         onPress={() => {
-                          if (!r.systeme && !suppression.isPending) suppression.mutate(r.id);
+                          if (!r.systeme && !suppression.isPending) suppression.mutate(r);
                         }}
                       >
                         {t("roles.supprimer")}
@@ -229,6 +254,34 @@ export function Roles() {
         }}
       />
       <FenetreRenommage role={aRenommer} surFermeture={() => setARenommer(null)} />
+      <Fenetre
+        ouverte={initialisationOuverte}
+        surFermeture={() => {
+          if (!initialisation.isPending) setInitialisationOuverte(false);
+        }}
+        categorie={t("roles.initialiserCategorie")}
+        titre={t("roles.initialiserTitre")}
+        actions={(
+          <>
+            <Button
+              className="btn btn-secondary"
+              isDisabled={initialisation.isPending}
+              onPress={() => setInitialisationOuverte(false)}
+            >
+              {t("annuler")}
+            </Button>
+            <Button
+              className="btn btn-primary"
+              isPending={initialisation.isPending}
+              onPress={() => initialisation.mutate()}
+            >
+              {t("roles.initialiserConfirmer")}
+            </Button>
+          </>
+        )}
+      >
+        <p>{t("roles.initialiserExplication")}</p>
+      </Fenetre>
     </div>
   );
 }
@@ -448,7 +501,7 @@ function FenetreRenommage({
   }, [role]);
 
   const renommage = useMutation({
-    mutationFn: () => api.renommerRole(role!.id, nom.trim()),
+    mutationFn: () => api.renommerRole(role!.id, nom.trim(), role!.version),
     onSuccess: () => {
       annoncer("ok", t("roles.renomme", { nom: nom.trim() }));
       void client.invalidateQueries({ queryKey: ["roles"] });
@@ -464,7 +517,7 @@ function FenetreRenommage({
       ouverte={role !== null}
       surFermeture={surFermeture}
       categorie={t("roles.renommer")}
-      titre={role ? `${role.nom} · ${role.code}` : ""}
+      titre={role ? `${nomRole(role)} · ${role.code}` : ""}
       mention={t("roles.codeInchange")}
       actions={
         <>
@@ -519,7 +572,11 @@ function MatricePermissions({ roleId }: { roleId: string }) {
   });
 
   const enregistrement = useMutation({
-    mutationFn: (permissions: string[]) => api.definirPermissions(roleId, permissions),
+    mutationFn: (permissions: string[]) => api.definirPermissions(
+      roleId,
+      permissions,
+      matrice.data!.role.version,
+    ),
     onSuccess: () => {
       annoncer("ok", t("roles.permissionsEnregistrees"));
       setBrouillon(null);
@@ -589,7 +646,7 @@ function MatricePermissions({ roleId }: { roleId: string }) {
       <div className="pl-toolbar">
         <div>
           <span className="eyebrow">{t("roles.matriceSurtitre")}</span>
-          <h2 className="panel-title titre-matrice">{role.nom}</h2>
+          <h2 className="panel-title titre-matrice">{nomRole(role)}</h2>
         </div>
         <div className="ligne-actions-fin">
           <Button
@@ -732,7 +789,7 @@ function MatricePermissions({ roleId }: { roleId: string }) {
         ouverte={impactOuvert}
         surFermeture={() => setImpactOuvert(false)}
         categorie={t("roles.avantEnregistrer")}
-        titre={`${role.nom} · ${role.code}`}
+        titre={`${nomRole(role)} · ${role.code}`}
         large
         mention={t("roles.rienNEstEcrit")}
         actions={

@@ -75,6 +75,26 @@ export const MESSAGES: Record<EchecAuth, { statut: number; cle: string; message:
     cle: "auth:erreurs.avatarAmbigu",
     message: "Choisissez un visuel prédéfini ou une image téléversée, pas les deux. Retirez l'un des deux, puis enregistrez.",
   },
+  avatar_predefini_invalide: {
+    statut: 400,
+    cle: "auth:erreurs.avatarPredefiniInvalide",
+    message: "Ce visuel prédéfini n'est pas disponible. Choisissez-en un dans le catalogue, puis enregistrez.",
+  },
+  avatar_format_invalide: {
+    statut: 400,
+    cle: "auth:erreurs.avatarFormatInvalide",
+    message: "Format non supporté. Utilisez jpg, png ou webp.",
+  },
+  avatar_vide: {
+    statut: 400,
+    cle: "auth:erreurs.avatarVide",
+    message: "Choisissez une image jpg, png ou webp non vide, puis réessayez.",
+  },
+  avatar_introuvable: {
+    statut: 404,
+    cle: "auth:erreurs.avatarIntrouvable",
+    message: "Aucun avatar personnel n'est disponible. Téléversez une image depuis votre profil.",
+  },
   conflit_de_version: {
     statut: 409,
     cle: "erreurs:conflitDeVersion",

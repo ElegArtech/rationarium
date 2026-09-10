@@ -475,7 +475,7 @@ test.describe("Vue 24 — fiche tiers", () => {
      * d'affaiblir l'assertion, qui sinon cesserait de dire lequel manque.
      */
     await expect(
-      page.getByRole("link", { name: "Refonte du portail citoyen" }),
+      page.locator(".lnk-row").filter({ hasText: "Refonte du portail citoyen" }),
     ).toBeVisible();
     await expect(page.getByText("Audit d'accessibilité")).toBeVisible();
     // Le nombre de saisies est porté deux fois : sous le compteur d'heures

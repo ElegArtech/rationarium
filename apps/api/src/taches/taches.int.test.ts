@@ -305,7 +305,7 @@ describe("RG-TSK-11 — glisser-déposer d'une tâche multi-assignée", () => {
       { titre: "Mono", projectId: projetA, assigneIds: [u], dateDebut: utc("2026-07-01"), dateFin: utc("2026-07-03") },
       acteur, DROITS_CREATION
     );
-    const r = await taches.deplacerDepuisPlanning(t.id, { nouvelleDate: utc("2026-07-08") }, acteur);
+    const r = await taches.deplacerDepuisPlanning(t.id, { version: t.version, nouvelleDate: utc("2026-07-08") }, acteur);
     expect(r.dateModifiee).toBe(true);
 
     const apres = await prisma.task.findUniqueOrThrow({ where: { id: t.id } });
@@ -321,7 +321,7 @@ describe("RG-TSK-11 — glisser-déposer d'une tâche multi-assignée", () => {
       { titre: "Multi", projectId: projetA, assigneIds: [u1, u2], dateDebut: utc("2026-07-01"), dateFin: utc("2026-07-03") },
       acteur, DROITS_CREATION
     );
-    const r = await taches.deplacerDepuisPlanning(t.id, { nouvelleDate: utc("2026-07-08") }, acteur);
+    const r = await taches.deplacerDepuisPlanning(t.id, { version: t.version, nouvelleDate: utc("2026-07-08") }, acteur);
     expect(r.dateModifiee).toBe(false);
     expect(r.avertissement).toBe("multi_assignee_date");
 
@@ -342,7 +342,7 @@ describe("RG-TSK-11 — glisser-déposer d'une tâche multi-assignée", () => {
 
     const r = await taches.deplacerDepuisPlanning(
       t.id,
-      { nouvelleDate: utc("2026-07-08"), nouvelAssigneId: u3, ancienAssigneId: u1 },
+      { version: t.version, nouvelleDate: utc("2026-07-08"), nouvelAssigneId: u3, ancienAssigneId: u1 },
       acteur,
     );
     expect(r.assigneModifie).toBe(true);
@@ -357,7 +357,7 @@ describe("RG-TSK-11 — glisser-déposer d'une tâche multi-assignée", () => {
     const u1 = await agent();
     const t = await taches.creer({ titre: "T", projectId: projetA, assigneIds: [u1] }, acteur, DROITS_CREATION);
     await expect(
-      taches.deplacerDepuisPlanning(t.id, { nouvelAssigneId: u1 }, acteur),
+      taches.deplacerDepuisPlanning(t.id, { version: t.version, nouvelAssigneId: u1 }, acteur),
     ).rejects.toMatchObject({ code: "deja_assigne" });
   });
 });
@@ -519,9 +519,16 @@ describe("EX-TSK-06 — la liste des assignés se FIXE depuis la fiche", () => {
     const acteur = await agent();
     const deja = await agent();
     const arrivant = await agent();
+    // RG-SCOPE-04 — les destinataires doivent pouvoir ouvrir la tâche notifiée.
+    const role = await prisma.role.create({ data: {
+      code: `NOTIF_${uuid()}`, nom: "Lecture tâche",
+      permissions: { create: { permission: "tasks:read" } },
+    } });
+    await prisma.user.updateMany({ where: { id: { in: [deja, arrivant, acteur] } }, data: { roleId: role.id } });
     const t = await creerTache([]);
     await taches.definirAssignes(t, [deja], await versionDe(t), acteur, DROITS_CREATION);
     const avant = await prisma.notification.count({ where: { userId: deja } });
+    expect(avant).toBe(1);
 
     await taches.definirAssignes(t, [deja, arrivant, acteur], await versionDe(t), acteur, DROITS_CREATION);
 
@@ -551,7 +558,11 @@ describe("RG-SCOPE-04 — la confidentialité se change APRÈS COUP", () => {
     const apres = await taches.modifier(t, { version: 1, confidentielle: true }, a, DROITS_CREATION);
     expect(apres.confidentielle).toBe(true);
 
-    const rendue = await taches.modifier(t, { version: apres.version, confidentielle: false }, a, DROITS_CREATION);
+    // RG-SCOPE-04 — manage_any ne dispense jamais de lire le confidentiel.
+    await expect(taches.modifier(t, { version: apres.version, confidentielle: false }, a, DROITS_CREATION))
+      .rejects.toMatchObject({ code: "hors_perimetre" });
+    const droitsConfidentiels = new Set([...DROITS_CREATION, "tasks:read_confidential"]);
+    const rendue = await taches.modifier(t, { version: apres.version, confidentielle: false }, a, droitsConfidentiels);
     expect(rendue.confidentielle).toBe(false);
   });
 });

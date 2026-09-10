@@ -12,6 +12,7 @@
  */
 
 import { z } from "zod";
+import { IDS_VISUELS_AVATAR_PREDEFINIS } from "./avatars.js";
 import {
   STATUTS_PROJET,
   STATUTS_TACHE,
@@ -110,6 +111,10 @@ export const changementMotDePasseSchema = z
     path: ["confirmation"],
   });
 
+export const visuelAvatarPredefiniSchema = z.enum(IDS_VISUELS_AVATAR_PREDEFINIS, {
+  error: "Choisissez un visuel proposé dans le catalogue, puis enregistrez.",
+});
+
 /**
  * `EX-AUTH-09` — modifier son propre profil : identité, avatar, langue, thème.
  *
@@ -130,7 +135,7 @@ export const modificationProfilSchema = z
     langue: z.enum(["fr", "en"]).optional(),
     theme: z.enum(["clair", "sombre", "auto"]).optional(),
     avatarFichier: z.string().max(255).nullish(),
-    avatarPredefini: z.string().max(60).nullish(),
+    avatarPredefini: visuelAvatarPredefiniSchema.nullish(),
     /** `RG-GEN-07` — la version lue accompagne l'écriture. */
     version: z.number().int().positive(),
   })

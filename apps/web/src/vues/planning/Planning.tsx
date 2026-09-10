@@ -1,4 +1,5 @@
-import { useMemo, useState, type CSSProperties } from "react";
+import { Fenetre } from "../../composants/fenetre.js";
+import { useMemo, useState, useRef, type CSSProperties } from "react";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
@@ -451,9 +452,12 @@ export function Planning({ mode }: { mode: Mode }) {
             deplacementPossible={peut("tasks:update")}
             creationPossible={peutCreerUneTache}
             surSelection={setSelection}
-            surDeplacer={(donnees) => deplacement.mutate(donnees)}
+            surDeplacer={(geste) => {
+              const tache = donnees.occupations.taches.find(t => t.id === geste.taskId);
+              if (tache) deplacement.mutate({...geste, version: tache.version});
+            }}
             surBasculerTeletravail={(userId, date, etat) =>
-              bascule.mutate({ userId, date, etat })
+              bascule.mutate({ userId, date, etat, version: donnees.occupations.teletravail.find(t => t.userId === userId && t.date.slice(0, 10) === date)?.version ?? 0 })
             }
           />
         ) : (
@@ -664,11 +668,7 @@ function BarreOutils({
         <Button className="chip-btn no-print" onPress={() => window.print()}>
           {t("actions.imprimer")}
         </Button>
-        {peut("planning:export_ics") ? (
-          <a className="chip-btn" href={api.adresseExportIcs(filtresExport)} download>
-            {t("actions.exporterIcs")}
-          </a>
-        ) : null}
+        <EchangesIcs filtres={filtresExport} />
         {peutCreerUneTache || peut("events:create") ? (
           <MenuTrigger>
             <Button className="btn btn-primary">{t("actions.creer")}</Button>
@@ -684,7 +684,7 @@ function BarreOutils({
                   <MenuItem
                     className="pop-action"
                     id="tache"
-                    onAction={() => void navigate({ to: "/taches", search: { creer: "1" } })}
+                    onAction={() => void navigate({ to: "/taches", search: { creer: 1 } })}
                   >
                     {t("actions.creerTache")}
                   </MenuItem>
@@ -853,4 +853,54 @@ function Legende({
       </div>
     </section>
   );
+}
+
+
+/** Aperçu sans écriture, puis confirmation explicite de la même source. */
+export function EchangesIcs({ filtres }: { filtres: api.FiltresPlanning }) {
+  const { t, i18n } = useTranslation("planning");
+  const { t: tErreurs } = useTranslation("erreurs");
+  const peut = usePeut();
+  const client = useQueryClient();
+  const lectureCourante = useRef(0);
+  const [ouverte, setOuverte] = useState(false);
+  const [contenu, setContenu] = useState("");
+  const [lecture, setLecture] = useState(false);
+  const [erreurLecture, setErreurLecture] = useState(false);
+  const apercu = useMutation({ mutationFn: api.previsualiserIcs });
+  const importer = useMutation({
+    mutationFn: api.importerIcs,
+    onSuccess: async () => { await Promise.all([client.invalidateQueries({queryKey: ["planning"]}), client.invalidateQueries({queryKey: ["evenements"]})]); },
+  });
+  const fermer = () => { lectureCourante.current++; setLecture(false); setOuverte(false); };
+  const ouvrir = () => { lectureCourante.current++; setLecture(false); setContenu(""); setErreurLecture(false); apercu.reset(); importer.reset(); setOuverte(true); };
+  const erreur = apercu.error ?? importer.error;
+  const bilan = importer.data ?? apercu.data;
+  const erreursBilan = importer.data?.erreurs ?? apercu.data?.erreurs ?? [];
+  const evenementsApercu = importer.data ? [] : (apercu.data?.evenements ?? []);
+  return <>
+    {peut("planning:export_ics") ? <a className="chip-btn" href={api.adresseExportIcs(filtres, i18n.language.startsWith("en") ? "en" : "fr")} download>{t("actions.exporterIcs")}</a> : null}
+    {peut("planning:import_ics") ? <Button className="chip-btn" onPress={ouvrir}>{t("ics.importer")}</Button> : null}
+    <Fenetre ouverte={ouverte} surFermeture={fermer} titre={t("ics.importer")} categorie={t("titre")} large actions={<>
+      <Button className="btn btn-secondary" onPress={fermer}>{t("ics.fermer")}</Button>
+      {!importer.data && !apercu.data ? <Button className="btn btn-primary" isDisabled={!contenu || lecture} isPending={apercu.isPending} onPress={() => apercu.mutate(contenu)}>{t("ics.previsualiser")}</Button> : null}
+      {!importer.data && apercu.data ? <Button className="btn btn-primary" isDisabled={apercu.data.crees === 0} isPending={importer.isPending} onPress={() => importer.mutate(contenu)}>{t("ics.confirmer")}</Button> : null}
+    </>}>
+      <p className="field-hint">{t("ics.explication")}</p>
+      <div className="field-block"><label className="field-label" htmlFor="ics-fichier">{t("ics.fichier")}</label><input className="field" id="ics-fichier" type="file" accept=".ics,text/calendar" disabled={lecture || apercu.isPending || importer.isPending} onChange={e => {
+        const fichier = e.target.files?.[0];
+        apercu.reset(); importer.reset(); setContenu(""); setErreurLecture(false);
+        if (!fichier) return;
+        setLecture(true);
+        const demande = ++lectureCourante.current;
+        void fichier.text().then(texte => { if (demande === lectureCourante.current) setContenu(texte); }).catch(() => { if (demande === lectureCourante.current) setErreurLecture(true); }).finally(() => { if (demande === lectureCourante.current) setLecture(false); });
+      }} /></div>
+      {erreur || erreurLecture ? <p className="alert alert-error" role="alert">{erreur ? messageErreur(erreur, tErreurs, t("ics.echec")) : t("ics.echec")}</p> : null}
+      {bilan ? <div role="status" aria-live="polite">
+        <p className="alert alert-neutral">{t(importer.data ? "ics.bilan" : "ics.apercu", bilan)}</p>
+        {erreursBilan.length ? <ul>{erreursBilan.map(e => <li key={e.index}>{t("ics.entreeIgnoree", {index:e.index, titre:e.titre ?? ""})} {t(`ics.motif_${e.motif}`, {defaultValue:t("ics.motif_incomplet")})}</li>)}</ul> : null}
+      </div> : null}
+      {evenementsApercu.length ? <ul>{evenementsApercu.map((e, i) => <li key={`${e.uid}-${i}`}>{e.titre} · {formaterDate(e.date)} · {t(`ics.${e.statut}`)}</li>)}</ul> : null}
+    </Fenetre>
+  </>;
 }

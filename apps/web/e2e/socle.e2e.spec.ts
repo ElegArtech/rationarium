@@ -202,6 +202,7 @@ test.describe("Le socle est bilingue et bithématique", () => {
     await expect(page.locator("html")).toHaveClass(/dark/);
 
     // Et le troisième état reste atteignable, là où il a sa place.
+    await page.getByRole("button", { name: "Préférences", exact: true }).click();
     await expect(
       page.getByRole("group", { name: /thème/i }).getByRole("button", { name: "Automatique" }),
     ).toBeVisible();

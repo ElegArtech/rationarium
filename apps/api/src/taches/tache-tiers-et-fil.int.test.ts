@@ -110,7 +110,7 @@ describe("EX-TSK-16 — assigner un TIERS EXTERNE à une tâche", () => {
     const avant = await taches.fiche(t.id, await perimetreGlobal(), TOUTES);
     expect(avant.tiers).toEqual([]);
 
-    await tiers.assignerALaTache(t.id, externe, acteur);
+    await tiers.assignerALaTache(t.id, externe, acteur, await perimetreGlobal(), TOUTES);
 
     const apres = await taches.fiche(t.id, await perimetreGlobal(), TOUTES);
     expect(apres.tiers.map((x) => x.id)).toEqual([externe]);
@@ -127,14 +127,16 @@ describe("EX-TSK-16 — assigner un TIERS EXTERNE à une tâche", () => {
     const t = await taches.creer({ titre: "Câblage" }, acteur, DROITS_CREATION);
     const externe = await tiersExterne();
 
-    const avant = await tiers.candidatsPourTache(t.id);
+    const avant = await tiers.candidatsPourTache(t.id, await perimetreGlobal(), TOUTES);
     expect(avant.map((c) => c.id)).toContain(externe);
 
-    await tiers.assignerALaTache(t.id, externe, acteur);
+    await tiers.assignerALaTache(t.id, externe, acteur, await perimetreGlobal(), TOUTES);
 
-    const apres = await tiers.candidatsPourTache(t.id);
+    const apres = await tiers.candidatsPourTache(t.id, await perimetreGlobal(), TOUTES);
     expect(apres.map((c) => c.id)).not.toContain(externe);
-    await expect(tiers.assignerALaTache(t.id, externe, acteur)).rejects.toBeInstanceOf(ErreurTiers);
+    await expect(tiers.assignerALaTache(
+      t.id, externe, acteur, await perimetreGlobal(), TOUTES,
+    )).rejects.toBeInstanceOf(ErreurTiers);
   });
 
   it("EX-TSK-16 — sur une tâche DE PROJET, seul un tiers rattaché au projet est assignable", async () => {
@@ -153,11 +155,13 @@ describe("EX-TSK-16 — assigner un TIERS EXTERNE à une tâche", () => {
     });
 
     await expect(
-      tiers.assignerALaTache(t.id, etranger, acteur),
+      tiers.assignerALaTache(t.id, etranger, acteur, await perimetreGlobal(), TOUTES),
     ).rejects.toMatchObject({ code: "non_rattache_au_projet" });
-    expect((await tiers.candidatsPourTache(t.id)).map((c) => c.id)).toEqual([rattache]);
+    expect((await tiers.candidatsPourTache(
+      t.id, await perimetreGlobal(), TOUTES,
+    )).map((c) => c.id)).toEqual([rattache]);
 
-    await tiers.assignerALaTache(t.id, rattache, acteur);
+    await tiers.assignerALaTache(t.id, rattache, acteur, await perimetreGlobal(), TOUTES);
     const fiche = await taches.fiche(t.id, await perimetreGlobal(), TOUTES);
     expect(fiche.tiers.map((x) => x.id)).toEqual([rattache]);
   });

@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   HttpCode,
   HttpException,
   Post,
@@ -8,6 +9,7 @@ import {
   Get,
   Req,
   Res,
+  StreamableFile,
 } from "@nestjs/common";
 import type { FastifyReply, FastifyRequest } from "fastify";
 import {
@@ -33,15 +35,44 @@ const optionsCookie = (jours: number) => ({
   maxAge: jours * 86_400,
 });
 
-const valider = <T>(schema: z.ZodType<T>, donnees: unknown): T => {
+const valider = <T>(
+  schema: z.ZodType<T>,
+  donnees: unknown,
+  erreurPersonnalisee?: (erreur: z.ZodError<T>) => never,
+): T => {
   const r = schema.safeParse(donnees);
   if (!r.success) {
+    if (erreurPersonnalisee) return erreurPersonnalisee(r.error);
     throw new HttpException(
       { message: "Données invalides", details: r.error.issues.map((i) => ({ champ: i.path.join("."), message: i.message })) },
       400,
     );
   }
   return r.data;
+};
+
+/**
+ * `RG-AUTH-06` — la page doit pouvoir afficher la règle, pas seulement
+ * « données invalides ». Le schéma partagé reste l'autorité de validation ;
+ * cette fonction rend ses refus en langue naturelle au niveau supérieur de
+ * la réponse, que tous les clients savent afficher.
+ */
+const erreurChangementMotDePasse = (erreur: z.ZodError<z.infer<typeof changementMotDePasseSchema>>): never => {
+  const confirmation = erreur.issues.find((i) => i.path[0] === "confirmation");
+  const actuel = erreur.issues.find((i) => i.path[0] === "actuel");
+  const message = confirmation
+    ? "Les mots de passe ne correspondent pas"
+    : actuel
+      ? "Saisissez votre mot de passe actuel."
+      : "Le mot de passe doit contenir au moins 8 caractères, une majuscule, un chiffre et un caractère spécial.";
+  throw new HttpException(
+    {
+      cle: "auth:erreurs.politiqueMotDePasse",
+      message,
+      details: erreur.issues.map((i) => ({ champ: i.path.join("."), message: i.message })),
+    },
+    400,
+  );
 };
 
 const traduire = (e: unknown): never => {
@@ -185,7 +216,7 @@ export class AuthController {
   }
 
   /** EX-AUTH-08 — changer son mot de passe depuis son profil. */
-  @Public()
+  @Personnel()
   @Post("change-password")
   @HttpCode(200)
   async changePassword(@Body() corps: unknown, @Req() req: FastifyRequest) {
@@ -193,7 +224,7 @@ export class AuthController {
     const session = jeton ? await this.auth.resoudreSession(jeton) : null;
     if (!session) throw new HttpException({ message: "Session requise" }, 401);
 
-    const d = valider(changementMotDePasseSchema, corps);
+    const d = valider(changementMotDePasseSchema, corps, erreurChangementMotDePasse);
     try {
       /*
        * La session courante est ÉPARGNÉE : sans cela, le changement de mot de
@@ -211,15 +242,13 @@ export class AuthController {
   }
 
   /** EX-AUTH-09, EX-AUTH-10 — qui suis-je, et quand me suis-je connecté ? */
-  @Public()
+  @Personnel()
   @Get("me")
-  async me(@Req() req: FastifyRequest) {
-    const jeton = req.cookies?.[COOKIE];
-    const session = jeton ? await this.auth.resoudreSession(jeton) : null;
-    if (!session) throw new HttpException({ cle: "auth:erreurs.sessionRequise", message: "Session requise" }, 401);
+  async me(@Demande() demande: ContexteDemande) {
+    const profil = await this.auth.profil(demande.userId);
     return {
-      ...(await this.auth.profil(session.userId)),
-      motDePasseAChanger: session.motDePasseAChanger,
+      ...profil,
+      ...(await this.auth.motifChangementMotDePasse(demande.userId, profil.motDePasseAChanger)),
     };
   }
 
@@ -247,6 +276,66 @@ export class AuthController {
     const d = valider(modificationProfilSchema, corps);
     try {
       return await this.auth.modifierProfil(demande.userId, d);
+    } catch (e) {
+      return traduire(e);
+    }
+  }
+
+  /** `EX-AUTH-09`, `RG-AUTH-09` — téléverser une image personnelle réelle. */
+  @Personnel()
+  @Post("me/avatar")
+  async televerserAvatar(@Body() corps: unknown, @Demande() demande: ContexteDemande) {
+    const d = valider(
+      z.object({
+        // La chaîne vide est une base64 syntaxiquement valide ; le service
+        // la distingue ensuite comme fichier vide pour rendre un message
+        // actionnable au lieu du générique de validation.
+        contenuBase64: z.base64(),
+        typeMime: z.enum(["image/jpeg", "image/png", "image/webp"]),
+        version: z.number().int().positive(),
+      }),
+      corps,
+    );
+    try {
+      return await this.auth.televerserAvatar(demande.userId, {
+        contenu: Buffer.from(d.contenuBase64, "base64"),
+        typeMime: d.typeMime,
+        version: d.version,
+      });
+    } catch (e) {
+      return traduire(e);
+    }
+  }
+
+  /** `EX-AUTH-09` — l'image de l'utilisateur authentifié, jamais celle d'un id reçu. */
+  @Personnel()
+  @Get("me/avatar")
+  async lireAvatar(
+    @Demande() demande: ContexteDemande,
+    @Res({ passthrough: true }) reponse: FastifyReply,
+  ) {
+    try {
+      const avatar = await this.auth.avatar(demande.userId);
+      // L'URL personnelle reste stable après remplacement : sans cette
+      // directive, le navigateur pourrait conserver l'ancienne image.
+      reponse.header("Cache-Control", "private, no-store");
+      return new StreamableFile(avatar.contenu, {
+        type: avatar.typeMime,
+        disposition: "inline",
+        length: avatar.contenu.byteLength,
+      });
+    } catch (e) {
+      return traduire(e);
+    }
+  }
+
+  /** `EX-AUTH-09` — supprimer son avatar, avec la version qui a été lue. */
+  @Personnel()
+  @Delete("me/avatar")
+  async supprimerAvatar(@Body() corps: unknown, @Demande() demande: ContexteDemande) {
+    const { version } = valider(z.object({ version: z.number().int().positive() }), corps);
+    try {
+      return await this.auth.supprimerAvatar(demande.userId, version);
     } catch (e) {
       return traduire(e);
     }

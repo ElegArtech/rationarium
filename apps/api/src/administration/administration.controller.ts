@@ -23,6 +23,14 @@ export class AdministrationController {
     return this.roles.lister();
   }
 
+  /** `EX-ADM-06` — initialisation interactive, explicite et rejouable. */
+  @Post("roles/initialiser")
+  @RequiertPermission("users:manage_roles")
+  initialiserRoles(@Body() corps: unknown, @Demande() d: ContexteDemande) {
+    valider(z.object({ confirmer: z.literal(true) }).strict(), corps);
+    return this.roles.initialiserReferentiel(d.userId);
+  }
+
   /**
    * Le catalogue des permissions et les modèles de rôles.
    *
@@ -63,14 +71,18 @@ export class AdministrationController {
   @Patch("roles/:id")
   @RequiertPermission("users:manage_roles")
   renommer(@Param("id") id: string, @Body() corps: unknown, @Demande() d: ContexteDemande) {
-    const { nom } = valider(z.object({ nom: z.string().min(1).max(80) }), corps);
-    return this.roles.renommer(id, nom, d.userId);
+    const { nom, version } = valider(
+      z.object({ nom: z.string().min(1).max(80), version: z.number().int().positive() }).strict(),
+      corps,
+    );
+    return this.roles.renommer(id, nom, d.userId, version);
   }
 
   @Delete("roles/:id")
   @RequiertPermission("users:manage_roles")
-  supprimerRole(@Param("id") id: string, @Demande() d: ContexteDemande) {
-    return this.roles.supprimer(id, d.userId);
+  supprimerRole(@Param("id") id: string, @Body() corps: unknown, @Demande() d: ContexteDemande) {
+    const { version } = valider(z.object({ version: z.number().int().positive() }).strict(), corps);
+    return this.roles.supprimer(id, d.userId, version);
   }
 
   /**
@@ -88,11 +100,14 @@ export class AdministrationController {
     @Body() corps: unknown,
     @Demande() d: ContexteDemande,
   ) {
-    const { permissions } = valider(
-      z.object({ permissions: z.array(z.string()).max(400) }),
+    const { permissions, version } = valider(
+      z.object({
+        permissions: z.array(z.string()).max(400),
+        version: z.number().int().positive(),
+      }).strict(),
       corps,
     );
-    return this.roles.definirPermissions(id, permissions, d.userId);
+    return this.roles.definirPermissions(id, permissions, d.userId, version);
   }
 
   // ── Journal d'audit — vue 33 ─────────────────────────────────────────────

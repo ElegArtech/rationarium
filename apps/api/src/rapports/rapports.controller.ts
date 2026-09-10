@@ -4,6 +4,7 @@ import { z } from "zod";
 import { RapportsService, langueDe, type Periode } from "./rapports.service.js";
 import { Demande, RequiertPermission, type ContexteDemande } from "../commun/permissions.garde.js";
 import { valider } from "../commun/http.js";
+import { AuditService } from "../commun/audit.service.js";
 
 /**
  * M17 — rapports et analytics. Vue 30, et le Gantt de la vue 15.
@@ -24,7 +25,10 @@ const listeDe = (valeur: string | undefined) =>
 
 @Controller("rapports")
 export class RapportsController {
-  constructor(private readonly rapports: RapportsService) {}
+  constructor(
+    private readonly rapports: RapportsService,
+    private readonly audit: AuditService,
+  ) {}
 
   /** `EX-RPT-04` à `EX-RPT-12` — tous les modules d'analyse, en un appel. */
   @Get()
@@ -70,7 +74,7 @@ export class RapportsController {
      */
     const q = valider(
       filtres.extend({
-        format: z.enum(["json", "csv"]).default("csv"),
+        format: z.enum(["json", "xlsx", "csv"]).default("xlsx"),
         langue: z.string().max(10).optional(),
       }),
       requete,
@@ -84,6 +88,19 @@ export class RapportsController {
       d.userId,
       langueDe(q.langue),
     );
+    // M20 — seulement après que la lecture et la fabrication ont abouti.
+    await this.audit.tracer({
+      action: "report.export",
+      typeEntite: "Report",
+      entiteId: q.periode,
+      acteurId: d.userId,
+      detail: {
+        format: q.format,
+        langue: langueDe(q.langue),
+        projets: listeDe(q.projets) ?? [],
+        responsables: listeDe(q.responsables) ?? [],
+      },
+    });
     return reponse
       .header("Content-Type", fichier.type)
       .header("Content-Disposition", `attachment; filename="${fichier.nom}"`)

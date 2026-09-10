@@ -106,7 +106,7 @@ afterAll(async () => {
   await pg?.stop();
 });
 
-const global = () => perimetres.resoudre(chef, new Set(["projects:manage_any"]));
+const global = () => perimetres.resoudre(chef, new Set(["projects:manage_any", "users:readAll", "tasks:read_confidential"]));
 const toutes = new Set(["projects:manage_any"]);
 
 describe("RG-PRJ-01 — cohérence des dates", () => {
@@ -643,10 +643,10 @@ describe("EX-PRJ-13 — consulter l'historique des instantanés", () => {
       { code: "hors_perimetre" },
     );
 
-    // Le chef, lui, le voit : c'est le MÊME appel, et c'est ce qui prouve que
-    // le refus tient au périmètre et non à l'appel lui-même.
+    // Le chef voit le projet, mais les instantanés globaux ne sont pas
+    // filtrables : le refus de projet et la restriction d'historique diffèrent.
     const dedans = await perimetres.resoudre(chef, new Set(["reports:read"]));
-    expect(await projets.instantanes(p.id, dedans, new Set(["reports:read"]))).toHaveLength(1);
+    expect(await projets.instantanes(p.id, dedans, new Set(["reports:read"]))).toEqual([]);
   });
 
   it("EX-PRJ-13 — un projet inexistant se dit introuvable, pas hors périmètre", async () => {

@@ -5,7 +5,7 @@
   "type": "module",
   "description": "Serveur applicatif : NestJS sur adaptateur Fastify",
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json && cp ../../docs/references/calendrier/periodes-metropole.json dist/parametrage/periodes-metropole.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint src",
     "test": "vitest run --passWithNoTests",

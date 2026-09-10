@@ -1,8 +1,9 @@
+import { peupler, CIBLE } from "@rationarium/db/mesure";
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
 import { execFileSync } from "node:child_process";
 import path from "node:path";
-import { creerClient, peupler, CIBLE, type PrismaClient } from "@rationarium/db";
+import { creerClient, type PrismaClient } from "@rationarium/db";
 import { PERMISSIONS } from "@rationarium/contracts";
 import { PlanningService } from "../planning/planning.service.js";
 import { TableauService } from "../tableau/tableau.service.js";

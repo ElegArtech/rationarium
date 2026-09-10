@@ -213,7 +213,13 @@ export class OrganisationService {
   async renommer(
     niveau: "direction" | "departement" | "service",
     id: string,
-    donnees: { nom?: string; description?: string | null; responsableId?: string | null },
+    donnees: {
+      version: number;
+      nom?: string;
+      description?: string | null;
+      responsableId?: string | null;
+      directionId?: string | null;
+    },
     acteurId: string,
   ) {
     const table =
@@ -223,9 +229,10 @@ export class OrganisationService {
           ? this.prisma.departement
           : this.prisma.service;
 
-    const avant = await (table as { findUnique: (a: unknown) => Promise<{ nom: string } | null> })
+    const avant = await (table as { findUnique: (a: unknown) => Promise<{ nom: string; version: number } | null> })
       .findUnique({ where: { id } });
     if (!avant) throw new ErreurOrganisation("introuvable");
+    if (avant.version !== donnees.version) throw new ErreurOrganisation("conflit_de_version");
     /*
      * `RG-ORG-04` — le nom reste unique à son niveau. Le service en est exclu :
      * son unicité est portée par le couple (département, nom), deux
@@ -246,17 +253,35 @@ export class OrganisationService {
     if (donnees.responsableId !== undefined) {
       data[niveau === "service" ? "managerId" : "responsableId"] = donnees.responsableId;
     }
+    if (niveau === "departement" && donnees.directionId !== undefined) {
+      data["directionId"] = donnees.directionId;
+    }
 
-    const modifie = await (
-      table as { update: (a: unknown) => Promise<{ id: string; nom: string }> }
-    ).update({ where: { id }, data });
+    let modifie: { id: string; nom: string };
+    try {
+      modifie = await (
+        table as { update: (a: unknown) => Promise<{ id: string; nom: string }> }
+      ).update({ where: { id, version: donnees.version }, data });
+    } catch (erreur) {
+      if (typeof erreur === "object" && erreur !== null && "code" in erreur &&
+        (erreur as { code: unknown }).code === "P2025") {
+        throw new ErreurOrganisation("conflit_de_version");
+      }
+      throw erreur;
+    }
 
     await this.audit.tracer({
       action: `${niveau}.update`,
       typeEntite: niveau === "direction" ? "Direction" : niveau === "departement" ? "Departement" : "Service",
       entiteId: id,
       acteurId,
-      detail: { avant: avant.nom, apres: modifie.nom },
+      detail: {
+        avant: avant.nom,
+        apres: modifie.nom,
+        ...(niveau === "departement" && donnees.directionId !== undefined
+          ? { directionId: donnees.directionId }
+          : {}),
+      },
     });
     return modifie;
   }
@@ -267,17 +292,31 @@ export class OrganisationService {
    * au préalable** : le refus nomme les blocages, il ne dit pas seulement non.
    */
   async supprimerDirection(id: string, acteurId: string) {
-    const rattaches = await this.prisma.departement.findMany({
-      where: { directionId: id },
-      select: { id: true, nom: true },
-    });
-    if (rattaches.length > 0) {
+    const impact = await this.impactSuppressionDirection(id);
+    if (impact.departements.length > 0) {
       throw new ErreurOrganisation("direction_a_des_departements", {
-        departements: rattaches.map((d) => d.nom),
+        departements: impact.departements,
       });
     }
     await this.prisma.direction.delete({ where: { id } });
-    await this.audit.tracer({ action: "direction.delete", typeEntite: "Direction", entiteId: id, acteurId });
+    await this.audit.tracer({
+      action: "direction.delete", typeEntite: "Direction", entiteId: id, acteurId,
+      detail: { nom: impact.nom },
+    });
+  }
+
+  /** `RG-ORG-01` — données de confirmation, avec les départements à détacher. */
+  async impactSuppressionDirection(id: string) {
+    const direction = await this.prisma.direction.findUnique({
+      where: { id },
+      select: { nom: true, departements: { orderBy: { nom: "asc" }, select: { nom: true } } },
+    });
+    if (!direction) throw new ErreurOrganisation("introuvable");
+    return {
+      nom: direction.nom,
+      departements: direction.departements.map((departement) => departement.nom),
+      supprimable: direction.departements.length === 0,
+    };
   }
 
   // ── Départements — EX-ORG-02 ─────────────────────────────────────────────

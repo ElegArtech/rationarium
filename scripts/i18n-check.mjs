@@ -17,6 +17,7 @@ import path from "node:path";
 const RACINE = process.cwd();
 const CATALOGUES = path.join(RACINE, "apps/web/src/locales");
 const SOURCES = path.join(RACINE, "apps/web/src");
+const SOURCES_API = path.join(RACINE, "apps/api/src");
 const LANGUES = ["fr", "en"];
 
 const ecarts = [];
@@ -185,6 +186,27 @@ if (declarees.size > 0) {
 for (const f of familles) {
   if (![...declarees].some((c) => c.startsWith(f))) {
     ecarts.push(`famille employée dynamiquement mais sans aucune clé : ${f}*`);
+  }
+}
+
+// 5. Une action d'audit ajoutée au serveur doit être lisible dans le journal.
+// La vue construit cette clé dynamiquement ; une liste manuscrite a déjà laissé
+// passer deux actions. La source serveur est donc croisée à chaque exécution.
+const actionsAudit = new Set();
+for (const f of fichiersRecursifs(
+  SOURCES_API,
+  (p) => p.endsWith(".ts") && !p.endsWith(".test.ts"),
+)) {
+  const src = fs.readFileSync(f, "utf8");
+  for (const m of src.matchAll(/\baction\s*:\s*["']([a-z0-9_.-]+)["']/g)) {
+    if (m[1].includes(".")) actionsAudit.add(m[1]);
+  }
+}
+if (actionsAudit.size === 0) ecarts.push("aucune action d'audit serveur trouvée — contrôle sans objet");
+for (const action of actionsAudit) {
+  const cle = `administration:audit.action_${action.replaceAll(".", "_")}`;
+  for (const langue of LANGUES) {
+    if (!parLangue[langue].has(cle)) ecarts.push(`action d'audit sans libellé « ${langue} » : ${action}`);
   }
 }
 

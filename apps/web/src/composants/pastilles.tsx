@@ -4,6 +4,7 @@ import {
   STATUTS_TACHE,
   STATUTS_JALON,
   PRIORITES,
+  type VisuelAvatarPredefini,
   type Terme,
 } from "@rationarium/contracts";
 import "./partages.css";
@@ -151,6 +152,49 @@ export function AvatarAgent({
       {initiales}
     </span>
   );
+}
+
+/**
+ * Un avatar personnel, fichier, visuel prédéfini ou initiales (`RG-AUTH-09`).
+ *
+ * Les six motifs ne reposent pas sur la couleur : leur glyphe reste distinct
+ * en couleurs forcées. L'avatar est décoratif partout où il accompagne déjà
+ * le nom écrit de la personne, donc il reste muet pour les lecteurs d'écran.
+ */
+const SYMBOLE_AVATAR = {
+  constellation: "✦",
+  feuille: "❧",
+  montagne: "△",
+  vagues: "≋",
+  soleil: "☼",
+  mosaique: "▦",
+} satisfies Record<VisuelAvatarPredefini, string>;
+
+export function AvatarUtilisateur({
+  prenom,
+  nom,
+  url,
+  predefini,
+  classe = "agent-av",
+}: {
+  prenom: string;
+  nom: string;
+  url?: string | null | undefined;
+  predefini?: VisuelAvatarPredefini | null | undefined;
+  classe?: string;
+}) {
+  if (url) return <img className={`${classe} avatar-image`} src={url} alt="" />;
+  if (predefini) {
+    return (
+      <span
+        className={`${classe} avatar-predefini avatar-predefini-${predefini}`}
+        aria-hidden="true"
+      >
+        {SYMBOLE_AVATAR[predefini]}
+      </span>
+    );
+  }
+  return <AvatarAgent prenom={prenom} nom={nom} classe={classe} />;
 }
 
 /**

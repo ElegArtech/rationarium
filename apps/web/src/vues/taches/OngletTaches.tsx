@@ -49,7 +49,11 @@ function ImportProjet({ projetId, surFermer }: { projetId: string; surFermer: ()
       volumes={volumes.data}
       surExecuter={async (contenu, mode) => {
         const rendu = await apiImports.importerProjet(projetId, contenu, mode);
-        await client.invalidateQueries({ queryKey: ["taches"] });
+        await Promise.all([
+          client.invalidateQueries({ queryKey: ["taches"] }),
+          client.invalidateQueries({ queryKey: ["projet", projetId] }),
+          client.invalidateQueries({ queryKey: ["projets"] }),
+        ]);
         return rendu;
       }}
       surFermer={surFermer}
@@ -75,7 +79,11 @@ function ImportTaches({ projetId, surFermer }: { projetId: string; surFermer: ()
       ]}
       surExecuter={async (contenu) => {
         const rendu = await apiImports.importerTaches(projetId, contenu);
-        await client.invalidateQueries({ queryKey: ["taches"] });
+        await Promise.all([
+          client.invalidateQueries({ queryKey: ["taches"] }),
+          client.invalidateQueries({ queryKey: ["projet", projetId] }),
+          client.invalidateQueries({ queryKey: ["projets"] }),
+        ]);
         return rendu;
       }}
       surFermer={surFermer}

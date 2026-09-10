@@ -28,6 +28,7 @@ import { RapportsController } from "../rapports/rapports.controller.js";
 import { NotificationsController } from "../notifications/notifications.controller.js";
 import { ImportsController } from "../imports/imports.controller.js";
 import { SanteController } from "../exploitation/sante.controller.js";
+import { RechercheController } from "../recherche/recherche.controller.js";
 
 /**
  * `RG-DROITS-03` — **aucun point d'entrée n'est ouvert par inadvertance.**
@@ -67,6 +68,7 @@ const CONTROLEURS = [
   NotificationsController,
   ImportsController,
   SanteController,
+  RechercheController,
 ];
 
 /** Les seules routes autorisées à se passer de permission. */
@@ -80,10 +82,11 @@ const PUBLIQUES_ATTENDUES = new Set([
   // par définition : c'est le seul moyen de ne pas faire saisir un mot de passe
   // pour rien sur un jeton mort.
   "AuthController.verifierJeton",
-  "AuthController.changePassword",
-  "AuthController.me",
   // Ce que la page de connexion doit savoir avant toute session (vue 01).
   "AuthController.acces",
+  // EX-PRM-03 — ces valeurs pilotent aussi les écrans précédant la session ;
+  // le service filtre strictement les lignes portant `public: true`.
+  "ParametrageController.reglages",
   // L-29 — une sonde d'exploitation n'a pas de session. Voir sante.controller.ts.
   "SanteController.vivant",
   "SanteController.pret",
@@ -117,6 +120,11 @@ const PERSONNELLES_ATTENDUES = new Set([
    * les deux erreurs successivement.
    */
   "AuthController.modifierProfil",
+  "AuthController.changePassword",
+  "AuthController.me",
+  "AuthController.televerserAvatar",
+  "AuthController.lireAvatar",
+  "AuthController.supprimerAvatar",
 ]);
 
 type Route = {
@@ -617,4 +625,3 @@ describe("aucune route serveur sans appel client", () => {
     expect([...new Set(dansLeVide)].sort()).toEqual([]);
   });
 });
-

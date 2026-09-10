@@ -110,7 +110,7 @@ export function FenetreCreationTache({
   const annuaireLisible = peut(PERMISSION_ANNUAIRE);
   const tous = useQuery({
     queryKey: ["utilisateurs", "assignables"],
-    queryFn: () => appeler<Candidat[]>(CHEMIN_ANNUAIRE),
+    queryFn: () => appeler<CandidatAvecServices[]>(CHEMIN_ANNUAIRE),
     enabled: ouverte && annuaireLisible,
   });
 
@@ -178,6 +178,10 @@ export function FenetreCreationTache({
      */
     if (heureDebut && heureFin && heureFin <= heureDebut) {
       setErreur(t("liste.horairesIncoherents"));
+      return;
+    }
+    if (dateDebut && dateFin && dateFin < dateDebut) {
+      setErreur(tErreurs("datesIncoherentes"));
       return;
     }
     creation.mutate();
@@ -402,6 +406,7 @@ export function FenetreCreationTache({
             <p className="field-hint">{t("liste.horairesAide")}</p>
           </div>
 
+          <InvitationService annuaire={tous.data ?? []} candidats={candidats} choisis={assignes} surChangement={setAssignes} />
           <div className="field-block span2">
             <span className="field-label" id="tk-assignes-lab">
               {t("liste.assignes")}
@@ -430,4 +435,36 @@ export function FenetreCreationTache({
       </form>
     </Fenetre>
   );
+}
+
+
+export type CandidatAvecServices = Candidat & { services?: { service: { id: string; nom: string } }[] };
+
+/** Une invitation explicite déplie les membres admissibles et refuse les doublons nommément. */
+export function InvitationService({ annuaire, candidats, choisis, surChangement }: {
+  annuaire: CandidatAvecServices[]; candidats: Candidat[]; choisis: string[]; surChangement: (ids: string[]) => void;
+}) {
+  const { t } = useTranslation("taches");
+  const [serviceId, setServiceId] = useState("");
+  const [doublons, setDoublons] = useState<string | null>(null);
+  const groupes = new Map<string, {nom: string; membres: Candidat[]} >();
+  for (const personne of annuaire) for (const {service} of personne.services ?? []) {
+    const groupe = groupes.get(service.id) ?? {nom: service.nom, membres: []};
+    groupe.membres.push(personne); groupes.set(service.id, groupe);
+  }
+  const disponibles = [...groupes].filter(([,g]) => g.membres.every(p => candidats.some(c => c.id === p.id)));
+  if (!disponibles.length) return null;
+  const groupe = disponibles.find(([id]) => id === serviceId)?.[1];
+  return <div className="field-block span2">
+    <label className="field-label">{t("liste.inviterService")}<select className="field" value={groupe ? serviceId : ""} onChange={e => {setServiceId(e.target.value); setDoublons(null);}}><option value="">{t("liste.choisirService")}</option>{disponibles.map(([id,g]) => <option key={id} value={id}>{g.nom}</option>)}</select></label>
+    <p className="field-hint">{t("liste.servicesAdmissibles")}</p>
+    <Button className="btn btn-secondary" isDisabled={!groupe} onPress={() => {
+      if (!groupe) return;
+      const deja = groupe.membres.filter(p => choisis.includes(p.id));
+      const nouveaux = groupe.membres.filter(p => !choisis.includes(p.id));
+      setDoublons(deja.length ? deja.map(p => `${p.prenom} ${p.nom}`).join(", ") : null);
+      if (nouveaux.length) surChangement([...choisis, ...nouveaux.map(p => p.id)]);
+    }}>{t("liste.ajouterService")}</Button>
+    {doublons ? <p className="alert alert-error" role="alert">{t("liste.serviceDoublons", {noms:doublons})}</p> : null}
+  </div>;
 }

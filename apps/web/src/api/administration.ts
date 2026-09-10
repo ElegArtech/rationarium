@@ -26,13 +26,15 @@ export type Utilisateur = {
   actif: boolean;
   derniereConnexion: string | null;
   version: number;
-  role: { id: string; code: string; nom: string } | null;
+  role: { id: string; code: string; nom: string; systeme?: boolean } | null;
   departement: { id: string; nom: string } | null;
   services: { service: { id: string; nom: string } }[];
 };
 
 export type Impact = {
   nom: string;
+  login: string;
+  version: number;
   blocages: { objet: string; nombre: number }[];
   effacements: { objet: string; nombre: number }[];
 };
@@ -91,16 +93,22 @@ export const creerUtilisateur = (donnees: {
   serviceIds?: string[];
 }) => appeler<{ id: string }>("/utilisateurs", { methode: "POST", corps: donnees });
 
-export const desactiverUtilisateur = (id: string) =>
-  appeler<void>(`/utilisateurs/${id}/desactiver`, { methode: "POST" });
+export const desactiverUtilisateur = (id: string, version: number) =>
+  appeler<void>(`/utilisateurs/${id}/desactiver`, {
+    methode: "POST", corps: { version },
+  });
 
-export const reactiverUtilisateur = (id: string) =>
-  appeler<void>(`/utilisateurs/${id}/reactiver`, { methode: "POST" });
+export const reactiverUtilisateur = (id: string, version: number) =>
+  appeler<void>(`/utilisateurs/${id}/reactiver`, {
+    methode: "POST", corps: { version },
+  });
 
 export const impactUtilisateur = (id: string) => appeler<Impact>(`/utilisateurs/${id}/impact`);
 
-export const supprimerUtilisateur = (id: string) =>
-  appeler<void>(`/utilisateurs/${id}`, { methode: "DELETE" });
+export const supprimerUtilisateur = (id: string, version: number) =>
+  appeler<void>(`/utilisateurs/${id}`, {
+    methode: "DELETE", corps: { confirmer: true, version },
+  });
 
 export const reinitialiserMotDePasse = (id: string, nouveau: string) =>
   appeler<void>(`/utilisateurs/${id}/mot-de-passe`, { methode: "POST", corps: { nouveau } });
@@ -175,6 +183,7 @@ export const suivi = (id: string, debut: string, fin: string) =>
 
 export type Service = {
   id: string;
+  version: number;
   nom: string;
   description: string | null;
   manager: Personne | null;
@@ -183,6 +192,7 @@ export type Service = {
 
 export type Departement = {
   id: string;
+  version: number;
   nom: string;
   description: string | null;
   creeLe: string;
@@ -193,6 +203,7 @@ export type Departement = {
 
 export type Direction = {
   id: string;
+  version: number;
   nom: string;
   description: string | null;
   responsable: Personne | null;
@@ -233,6 +244,11 @@ export const creerDirection = (donnees: {
 
 export const supprimerDirection = (id: string) =>
   appeler<void>(`/organisation/directions/${id}`, { methode: "DELETE" });
+
+export const impactDirection = (id: string) =>
+  appeler<{ nom: string; departements: string[]; supprimable: boolean }>(
+    `/organisation/directions/${id}/impact`,
+  );
 
 export const creerDepartement = (donnees: {
   nom: string;
@@ -281,12 +297,19 @@ export const supprimerService = (id: string) =>
 export const modifierNoeud = (
   niveau: "directions" | "departements" | "services",
   id: string,
-  donnees: { nom?: string; description?: string | null; responsableId?: string | null },
+  donnees: {
+    version: number;
+    nom?: string;
+    description?: string | null;
+    responsableId?: string | null;
+    directionId?: string | null;
+  },
 ) => appeler<{ id: string }>(`/organisation/${niveau}/${id}`, { methode: "PATCH", corps: donnees });
 
 // ── M19 — Paramétrage, vue 31 ───────────────────────────────────────────────
 
 export type JourFerie = {
+  version: number;
   id: string;
   date: string;
   libelle: string;
@@ -320,17 +343,26 @@ export const joursFeries = (annee: number) =>
     statistiques: { total: number; chomes: number; ouvres: number; legaux: number };
   }>(`/parametrage/feries${params({ annee: String(annee) })}`);
 
+/** RG-GEN-07 : chaque qualification conserve la version relue. */
+export const modifierFerie = (id: string, donnees: { version: number; ouvre?: boolean; recurrent?: boolean }) =>
+  appeler<JourFerie>(`/parametrage/feries/${id}`, { methode: "PATCH", corps: donnees });
+
 export const importerFeries = (annee: number) =>
   appeler<{ crees: number; existants: number }>("/parametrage/feries/importer", {
     methode: "POST",
     corps: { annee },
   });
 
-export const vacancesScolaires = (anneeScolaire?: string) =>
+export const importerVacances = (anneeScolaire: string, zone: string) =>
+  appeler<{ crees: number; existants: number }>("/parametrage/vacances/importer", {
+    methode: "POST", corps: { anneeScolaire, zone },
+  });
+
+export const vacancesScolaires = (anneeScolaire?: string, zone?: string) =>
   appeler<{
     vacances: Vacances[];
     statistiques: { total: number; importees: number; manuelles: number };
-  }>(`/parametrage/vacances${params(anneeScolaire ? { anneeScolaire } : {})}`);
+  }>(`/parametrage/vacances${params({ anneeScolaire, zone })}`);
 
 /**
  * `M19 § Jours fériés` — « Créer […] un jour ». `RG-PRM-01`, `RG-PRM-02`.
@@ -406,6 +438,12 @@ export type Matrice = {
 
 export const roles = () => appeler<Role[]>("/administration/roles");
 
+export const initialiserRoles = () =>
+  appeler<{ crees: number; existants: number; collisions: { code: string; roleId: string }[] }>("/administration/roles/initialiser", {
+    methode: "POST",
+    corps: { confirmer: true },
+  });
+
 export const catalogue = () =>
   appeler<{ permissions: string[]; modeles: { code: string; nom: string }[] }>(
     "/administration/catalogue",
@@ -432,8 +470,8 @@ export const statistiquesTeletravail = (userId: string, annee: number) =>
     `/teletravail/statistiques?userId=${userId}&annee=${annee}`,
   );
 
-export const supprimerRole = (id: string) =>
-  appeler<void>(`/administration/roles/${id}`, { methode: "DELETE" });
+export const supprimerRole = (id: string, version: number) =>
+  appeler<void>(`/administration/roles/${id}`, { methode: "DELETE", corps: { version } });
 
 /**
  * `EX-ADM-02` — « créer un rôle, éventuellement à partir d'un modèle ».
@@ -458,15 +496,15 @@ export const creerRole = (donnees: {
  * `role_systeme_non_renommable` ; le client désactive par courtoisie
  * (`RG-GEN-06`) et dit pourquoi, exactement comme pour la suppression.
  */
-export const renommerRole = (id: string, nom: string) =>
-  appeler<void>(`/administration/roles/${id}`, { methode: "PATCH", corps: { nom } });
+export const renommerRole = (id: string, nom: string, version: number) =>
+  appeler<void>(`/administration/roles/${id}`, { methode: "PATCH", corps: { nom, version } });
 
 export const matriceRole = (id: string) => appeler<Matrice>(`/administration/roles/${id}/matrice`);
 
-export const definirPermissions = (id: string, permissions: string[]) =>
+export const definirPermissions = (id: string, permissions: string[], version: number) =>
   appeler<void>(`/administration/roles/${id}/permissions`, {
     methode: "PUT",
-    corps: { permissions },
+    corps: { permissions, version },
   });
 
 export type EvenementAudit = {
@@ -540,6 +578,7 @@ export const cataloguePredefini = (inclureInactives = false) =>
 /** Ce qu'une tâche prédéfinie porte de modifiable — `EX-ACT-01`, `EX-ACT-02`. */
 export type SaisieTachePredefinie = {
   nom: string;
+  icone?: string | null;
   description?: string | null;
   couleur?: string | null;
   dureeParDefaut?: string;

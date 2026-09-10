@@ -1,3 +1,4 @@
+import { InvitationService, type CandidatAvecServices } from "./FenetreCreationTache.js";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -91,13 +92,20 @@ export function FicheTache({ tacheId }: { tacheId: string }) {
 
   /*
    * D'où l'on vient, quand on vient de quelque part. Le paramètre est lu sans
-   * schéma de route (`app/routeur.tsx` n'en déclare pas pour `/taches/$id`) :
-   * on le prend tel qu'il arrive et on ne s'en sert que s'il est une chaîne.
+   * schéma de route. Seules les adresses internes sont acceptées : le retour
+   * reste une navigation du routeur et ne peut pas devenir une redirection.
    */
+  const navigate = useNavigate();
   const recherche = useRouterState({ select: (e) => e.location.search }) as {
     projet?: unknown;
+    retour?: unknown;
   };
   const projetOrigine = typeof recherche.projet === "string" ? recherche.projet : null;
+  const retourOrigine = typeof recherche.retour === "string"
+    && recherche.retour.startsWith("/")
+    && !recherche.retour.startsWith("//")
+    ? recherche.retour
+    : null;
 
   const requete = useQuery({ queryKey: ["tache", tacheId], queryFn: () => api.fiche(tacheId) });
   const contexteTemps = useQuery({
@@ -179,7 +187,14 @@ export function FicheTache({ tacheId }: { tacheId: string }) {
         courante — ici `/taches`. Une classe que rien ne définit, donc invisible
         et inerte, et qui n'existe pas dans la maquette.
       */}
-      {projetOrigine ? (
+      {retourOrigine ? (
+        <Button
+          className="back-link"
+          onPress={() => void navigate({ href: retourOrigine })}
+        >
+          <span aria-hidden="true">←</span> <span>{t("fiche.retour")}</span>
+        </Button>
+      ) : projetOrigine ? (
         <Link
           to="/projets/$id/taches"
           params={{ id: projetOrigine }}
@@ -584,19 +599,26 @@ function RattachementProjet({
         <label htmlFor="fiche-projet">{t("liste.projet")}</label>
       </dt>
       <dd>
-        <select
-          className="mini-select"
-          id="fiche-projet"
-          value={tache.project?.id ?? ""}
-          onChange={(e) => surChangement(e.target.value === "" ? null : e.target.value)}
-        >
-          <option value="">{t("liste.aucunProjet")}</option>
-          {options.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.nom}
-            </option>
-          ))}
-        </select>
+        <span className="ligne-actions">
+          <select
+            className="mini-select"
+            id="fiche-projet"
+            value={tache.project?.id ?? ""}
+            onChange={(e) => surChangement(e.target.value === "" ? null : e.target.value)}
+          >
+            <option value="">{t("liste.aucunProjet")}</option>
+            {options.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.nom}
+              </option>
+            ))}
+          </select>
+          {tache.project ? (
+            <a className="dep-go" href={`/projets/${tache.project.id}`}>
+              {t("liste.ouvrirLeProjet", { nom: tache.project.nom })}
+            </a>
+          ) : null}
+        </span>
       </dd>
     </>
   );
@@ -991,11 +1013,45 @@ function Raci({ tache }: { tache: api.FicheTache }) {
   const libelle = useLibelle();
   const peut = usePeut();
   const client = useQueryClient();
+  const { session } = useSession();
+  const { t: tErreurs } = useTranslation("erreurs");
+  const annoncer = useMessages();
+  const [qui, setQui] = useState("");
+  const [role, setRole] = useState<string>(ROLES_RACI[0].code);
+  const [erreur, setErreur] = useState<string | null>(null);
+  const annuaire = useQuery({
+    queryKey: ["utilisateurs", "assignables"],
+    queryFn: () => appeler<Candidat[]>(CHEMIN_ANNUAIRE),
+    enabled: peut("tasks:manage_raci") && peut(PERMISSION_ANNUAIRE),
+  });
+  const candidats = peut(PERMISSION_ANNUAIRE) ? annuaire.data ?? [] : [session];
+  const attribution = useMutation({
+    mutationFn: () => api.attribuerRaci(tache.id, qui, role),
+    onSuccess: () => {
+      annoncer("ok", t("fiche.raciAttribue"));
+      setQui("");
+      return client.invalidateQueries({ queryKey: ["tache", tache.id] });
+    },
+    onError: e => setErreur(messageErreur(e, tErreurs, t("fiche.echecEnregistrement"))),
+  });
+  const attribuer = () => {
+    setErreur(null);
+    if (!qui) { setErreur(t("fiche.raciChoisir")); return; }
+    if (tache.raci.some(r => r.userId === qui && r.role === role)) {
+      setErreur(t("fiche.raciDoublon"));
+      return;
+    }
+    attribution.mutate();
+  };
 
   const retrait = useMutation({
     mutationFn: ({ userId, role }: { userId: string; role: string }) =>
       api.retirerRaci(tache.id, userId, role),
-    onSuccess: () => void client.invalidateQueries({ queryKey: ["tache", tache.id] }),
+    onSuccess: () => {
+      annoncer("ok", t("fiche.raciRetire"));
+      return client.invalidateQueries({ queryKey: ["tache", tache.id] });
+    },
+    onError: e => setErreur(messageErreur(e, tErreurs, t("fiche.echecEnregistrement"))),
   });
 
   return (
@@ -1004,6 +1060,27 @@ function Raci({ tache }: { tache: api.FicheTache }) {
         <span className="panel-title">{t("fiche.raci")}</span>
         <span className="eyebrow">{t("fiche.responsabilites")}</span>
       </div>
+      {erreur ? <div className="alert alert-error" role="alert">{erreur}</div> : null}
+      {peut("tasks:manage_raci") ? <div className="panel-body">
+        <div className="form-grid">
+          <div className="field-block">
+            <label className="field-label" htmlFor="raci-personne">{t("fiche.raciAgent")}</label>
+            <select className="field" id="raci-personne" value={qui} onChange={e => setQui(e.target.value)}>
+              <option value="">{t("fiche.raciChoisir")}</option>
+              {candidats.map(c => <option key={c.id} value={c.id}>{c.prenom} {c.nom}</option>)}
+            </select>
+            {!peut(PERMISSION_ANNUAIRE) ? <p className="field-hint">{t("fiche.raciAnnuaireRestreint")}</p> : null}
+            {annuaire.isError ? <p className="field-error" role="alert">{t("fiche.raciAnnuaireErreur")}</p> : null}
+          </div>
+          <div className="field-block">
+            <label className="field-label" htmlFor="raci-role">{t("fiche.raciRole")}</label>
+            <select className="field" id="raci-role" value={role} onChange={e => setRole(e.target.value)}>
+              {ROLES_RACI.map(r => <option key={r.code} value={r.code}>{libelle(r.code, ROLES_RACI)}</option>)}
+            </select>
+          </div>
+        </div>
+        <Button className="btn btn-secondary" isPending={attribution.isPending} onPress={attribuer}>{t("fiche.raciAttribuer")}</Button>
+      </div> : null}
       <div className="raci">
         {ROLES_RACI.map((role) => {
           const porteurs = tache.raci.filter((r) => r.role === role.code);
@@ -1648,7 +1725,7 @@ function FenetreAssignes({
   const annuaireLisible = peut(PERMISSION_ANNUAIRE);
   const tous = useQuery({
     queryKey: ["utilisateurs", "assignables"],
-    queryFn: () => appeler<Candidat[]>(CHEMIN_ANNUAIRE),
+    queryFn: () => appeler<CandidatAvecServices[]>(CHEMIN_ANNUAIRE),
     enabled: ouverte && annuaireLisible,
   });
 
@@ -1698,6 +1775,7 @@ function FenetreAssignes({
         </>
       }
     >
+      <InvitationService annuaire={tous.data ?? []} candidats={candidats} choisis={choisis} surChangement={setChoisis} />
       <div className="pickbox" role="group" aria-label={t("liste.assignes")}>
         <p className={`pick-hint${alerte ? " is-warn" : ""}`}>{t(`liste.${indice}`)}</p>
         {candidats.map((u) => (
@@ -2033,9 +2111,9 @@ function AssignerTiers({ tache }: { tache: api.FicheTache }) {
  * marquée par erreur restait donc invisible pour toujours à qui n'a pas la
  * permission de lecture confidentielle, y compris à celui qui l'avait marquée.
  *
- * `RG-JAL-03` : le jalon proposé est celui **du projet de la tâche**, et une
- * tâche hors projet n'en propose aucun (`RG-JAL-04`). Le sélecteur ne montre
- * donc jamais un choix que le serveur refuserait.
+ * `RG-JAL-03` : le jalon et l'épopée proposés sont ceux **du projet de la
+ * tâche**, et une tâche hors projet n'en propose aucun (`RG-JAL-04`). Les
+ * sélecteurs ne montrent donc jamais un choix que le serveur refuserait.
  */
 function FenetreModification({
   ouverte,
@@ -2057,6 +2135,7 @@ function FenetreModification({
   const [fin, setFin] = useState(tache.dateFin?.slice(0, 10) ?? "");
   const [estimation, setEstimation] = useState(tache.estimationHeures ?? "");
   const [jalon, setJalon] = useState(tache.milestone?.id ?? "");
+  const [epopee, setEpopee] = useState(tache.epic?.id ?? "");
   const [confidentielle, setConfidentielle] = useState(tache.confidentielle);
   const [datesInversees, setDatesInversees] = useState(false);
 
@@ -2075,15 +2154,21 @@ function FenetreModification({
     setFin(tache.dateFin?.slice(0, 10) ?? "");
     setEstimation(tache.estimationHeures ?? "");
     setJalon(tache.milestone?.id ?? "");
+    setEpopee(tache.epic?.id ?? "");
     setConfidentielle(tache.confidentielle);
     setDatesInversees(false);
   }
 
-  // `RG-JAL-04` — une tâche hors projet ne se rattache à aucun jalon : on ne
-  // demande même pas la feuille de route.
+  // `RG-JAL-04` — une tâche hors projet ne se rattache à aucun jalon ni aucune
+  // épopée : on ne demande même pas la feuille de route.
   const route = useQuery({
     queryKey: ["projet", tache.project?.id, "route"],
     queryFn: () => apiProjets.feuilleDeRoute(tache.project!.id),
+    enabled: ouverte && Boolean(tache.project),
+  });
+  const epopees = useQuery({
+    queryKey: ["projet", tache.project?.id, "epopees"],
+    queryFn: () => apiProjets.epopees(tache.project!.id),
     enabled: ouverte && Boolean(tache.project),
   });
 
@@ -2100,7 +2185,7 @@ function FenetreModification({
         // `Number("")` vaut zéro : le filtre porte sur la chaîne, jamais sur
         // sa conversion.
         estimationHeures: String(estimation).trim() === "" ? null : Number(estimation),
-        ...(tache.project ? { milestoneId: jalon || null } : {}),
+        ...(tache.project ? { milestoneId: jalon || null, epicId: epopee || null } : {}),
         confidentielle,
       }),
     onSuccess: () => {
@@ -2230,24 +2315,46 @@ function FenetreModification({
         </div>
 
         {tache.project ? (
-          <div className="field-block">
-            <label className="field-label" htmlFor="tm-jalon">
-              {t("fiche.jalon")}
-            </label>
-            <select
-              className="field"
-              id="tm-jalon"
-              value={jalon}
-              onChange={(e) => setJalon(e.target.value)}
-            >
-              <option value="">{t("fiche.aucunJalon")}</option>
-              {(route.data?.jalons ?? []).map((j) => (
-                <option key={j.id} value={j.id}>
-                  {j.nom}
-                </option>
-              ))}
-            </select>
-            <p className="field-hint">{t("fiche.jalonDuProjet")}</p>
+          <div className="form-grid">
+            <div className="field-block">
+              <label className="field-label" htmlFor="tm-jalon">
+                {t("fiche.jalon")}
+              </label>
+              <select
+                className="field"
+                id="tm-jalon"
+                value={jalon}
+                onChange={(e) => setJalon(e.target.value)}
+              >
+                <option value="">{t("fiche.aucunJalon")}</option>
+                {(route.data?.jalons ?? []).map((j) => (
+                  <option key={j.id} value={j.id}>
+                    {j.nom}
+                  </option>
+                ))}
+              </select>
+              <p className="field-hint">{t("fiche.jalonDuProjet")}</p>
+            </div>
+
+            <div className="field-block">
+              <label className="field-label" htmlFor="tm-epopee">
+                {t("fiche.epopee")}
+              </label>
+              <select
+                className="field"
+                id="tm-epopee"
+                value={epopee}
+                onChange={(e) => setEpopee(e.target.value)}
+              >
+                <option value="">{t("fiche.aucuneEpopee")}</option>
+                {(epopees.data ?? []).map((e) => (
+                  <option key={e.id} value={e.id}>
+                    {e.nom}
+                  </option>
+                ))}
+              </select>
+              <p className="field-hint">{t("fiche.epopeeDuProjet")}</p>
+            </div>
           </div>
         ) : null}
 

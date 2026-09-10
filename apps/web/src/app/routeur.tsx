@@ -20,11 +20,14 @@ import {
   type Session,
 } from "../session/session.js";
 import { Chargement, RouteIntrouvable } from "../composants/etats.js";
-import { deconnexion } from "../api/session.js";
+import { deconnexion, sessionCourante } from "../api/session.js";
+import { changerLangue } from "../i18n/index.js";
+import { definirTheme, THEMES } from "../theme/index.js";
+import { nomRole } from "../roles.js";
 import { appeler } from "../api/client.js";
 import { notifications as notificationsApi } from "../api/notifications.js";
 import { reglages as reglagesApi } from "../api/administration.js";
-import { appliquerReglages } from "../formats.js";
+import { appliquerReglages, formaterDate } from "../formats.js";
 import { CLE_NOTIFICATIONS } from "../coquille/Notifications.js";
 
 import { Connexion } from "../routes/connexion.js";
@@ -113,9 +116,12 @@ const routeConnexion = createRoute({
       <Connexion
         inscriptionOuverte={acces?.inscriptionAutonome ?? false}
         surSucces={(motDePasseAChanger) => {
-          void client.invalidateQueries({ queryKey: CLE_SESSION }).then(() =>
-            navigate({ to: motDePasseAChanger ? "/mot-de-passe-impose" : (suite ?? "/") }),
-          );
+          void client.invalidateQueries({ queryKey: CLE_SESSION }).then(async () => {
+            const compte = await client.fetchQuery({ queryKey: CLE_SESSION, queryFn: sessionCourante, staleTime: 0 });
+            await changerLangue(compte.langue === "en" ? "en" : "fr");
+            definirTheme(THEMES.find(mode => mode === compte.theme) ?? "auto");
+            await navigate({ to: motDePasseAChanger ? "/mot-de-passe-impose" : (suite ?? "/") });
+          });
         }}
       />
     );
@@ -205,6 +211,8 @@ const routeMotDePasseImpose = createRoute({
 
     return (
       <MotDePasseImpose
+        motif={session?.motifChangementMotDePasse === "administrateur" ? "admin" : "premiere"}
+        dateReinitialisation={formaterDate(session?.motDePasseReinitialiseLe)}
         {...(session
           ? {
               utilisateur: {
@@ -215,8 +223,10 @@ const routeMotDePasseImpose = createRoute({
             }
           : {})}
         surSucces={() => {
-          void client.invalidateQueries({ queryKey: CLE_SESSION });
-          void navigate({ to: "/" });
+          // RM-02 : la garde doit lire le booléen actualisé avant de naviguer.
+          void client.invalidateQueries({ queryKey: CLE_SESSION }).then(() =>
+            navigate({ to: "/" }),
+          );
         }}
         surDeconnexion={() => {
           void deconnexion().then(() => {
@@ -377,7 +387,9 @@ function CoquilleDeSession({ surDeconnexion }: { surDeconnexion: () => void }) {
         id: session.id,
         prenom: session.prenom,
         nom: session.nom,
-        role: session.role?.nom ?? "",
+        role: nomRole(session.role),
+        avatarUrl: session.avatarUrl ? `/api/auth/me/avatar?v=${session.version}` : undefined,
+        avatarPredefini: session.avatarPredefini,
       }}
       permissions={permissions}
       surDeconnexion={surDeconnexion}
@@ -406,6 +418,7 @@ const routeProfil = createRoute({
   getParentRoute: () => routeApplication,
   path: "/profil",
   component: function PageProfil() {
+    useTranslation("coquille");
     const { session } = useSession();
     return (
       <Profil
@@ -414,12 +427,14 @@ const routeProfil = createRoute({
           nom: session.nom,
           email: session.email,
           login: session.login,
-          role: session.role?.nom ?? "",
+          role: nomRole(session.role),
           roleCode: session.role?.code ?? "",
           derniereConnexion: session.derniereConnexion,
           departement: session.departement,
           services: session.services,
           membreDepuis: session.membreDepuis,
+          avatarUrl: session.avatarUrl,
+          avatarPredefini: session.avatarPredefini,
           version: session.version,
         }}
       />
@@ -489,15 +504,33 @@ const routeProjetTaches = createRoute({
   },
 });
 
+const rechercheListeTaches = z.object({
+  q: z.string().optional(),
+  projectId: z.string().optional(),
+  statut: z.string().optional(),
+  priorite: z.string().optional(),
+  horsProjet: z.literal(1).optional(),
+  retard: z.literal(1).optional(),
+  vue: z.enum(["liste", "kanban"]).optional(),
+  creer: z.literal(1).optional(),
+  date: z.string().optional(),
+  assigne: z.string().optional(),
+});
+
 const routeTaches = createRoute({
   getParentRoute: () => routeApplication,
   path: "/taches",
+  validateSearch: rechercheListeTaches,
   component: ListeTaches,
 });
 
 const routeTache = createRoute({
   getParentRoute: () => routeApplication,
   path: "/taches/$id",
+  validateSearch: z.object({
+    projet: z.string().optional(),
+    retour: z.string().optional(),
+  }),
   component: function PageTache() {
     const { id } = useParams({ from: "/application/taches/$id" });
     return <FicheTache tacheId={id} />;

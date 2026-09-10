@@ -382,7 +382,7 @@ test.describe("Vue 17 — fiche tâche", () => {
     await page.goto(`/taches/${FICHE.id}`);
 
     for (const role of ["Responsable", "Autorité", "Consulté", "Informé"]) {
-      await expect(page.getByText(role, { exact: true })).toBeVisible();
+      await expect(page.locator(".raci-n").getByText(role, { exact: true })).toBeVisible();
     }
     // Un rôle vide se dit ; il ne disparaît pas.
     await expect(page.getByText("Personne", { exact: true })).toHaveCount(2);

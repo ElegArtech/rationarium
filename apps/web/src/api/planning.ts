@@ -30,6 +30,7 @@ export type PersonnePlanning = {
 
 export type TachePlanning = {
   id: string;
+  version: number;
   titre: string;
   statut: string;
   priorite: string;
@@ -142,6 +143,7 @@ export const planning = (f: FiltresPlanning) =>
  */
 export const deplacerTache = (donnees: {
   taskId: string;
+  version: number;
   nouvelleDate?: string;
   nouvelAssigneId?: string;
   ancienAssigneId?: string;
@@ -152,23 +154,40 @@ export const deplacerTache = (donnees: {
   );
 
 /** `EX-PLN-09` — basculer le télétravail depuis la cellule. */
-export const basculerTeletravail = (donnees: { userId: string; date: string; etat: string }) =>
+export const basculerTeletravail = (donnees: { userId: string; date: string; etat: string; version: number }) =>
   appeler<{ id: string; etat: string }>("/planning/teletravail", {
     methode: "PATCH",
     corps: donnees,
   });
 
+export type ErreurImportIcs = { index: number; titre: string | null; motif: string };
+
+export type BilanImportIcs = {
+  crees: number;
+  existants: number;
+  ignores: number;
+  erreurs: ErreurImportIcs[];
+};
+
 export const importerIcs = (contenu: string) =>
-  appeler<{ crees: number; existants: number; ignores: number }>("/planning/ics", {
+  appeler<BilanImportIcs>("/planning/ics", {
     methode: "POST",
     corps: { contenu },
   });
 
+export type ApercuIcs = BilanImportIcs & {
+  evenements: { uid: string; titre: string; description: string | null; date: string; journeeEntiere: boolean; heureDebut: string | null; heureFin: string | null; statut: "a_importer" | "existant" }[];
+};
+export const previsualiserIcs = (contenu: string) => appeler<ApercuIcs>("/planning/ics/apercu", { methode: "POST", corps: { contenu } });
+
 /** L'adresse de l'export : ouverte par le navigateur, pas lue en mémoire. */
-export const adresseExportIcs = (f: FiltresPlanning) =>
+export const adresseExportIcs = (f: FiltresPlanning, langue: "fr" | "en" = "fr") =>
   `/api/planning/ics${params({
+    langue,
     debut: f.debut,
     fin: f.fin,
+    ...(f.departementId ? { departementId: f.departementId } : {}),
+    ...(f.ressourceId ? { ressourceId: f.ressourceId } : {}),
     ...(f.services?.length ? { services: f.services.join(",") } : {}),
     ...(f.monPerimetre ? { monPerimetre: true } : {}),
   })}`;
@@ -177,6 +196,7 @@ export const adresseExportIcs = (f: FiltresPlanning) =>
 
 export type GrilleActivite = {
   colonnes: {
+    actif: boolean;
     id: string;
     nom: string;
     couleur: string | null;
@@ -195,6 +215,7 @@ export type GrilleActivite = {
         /** `EX-ACT-06` — l'identifiant de l'assignation, pour déclarer sa
          *  réalisation sans une seconde requête. */
         assignationId: string;
+        version: number;
         periode: string;
         realisee: boolean;
         /** Le rattachement de l'agent — une personne peut relever de plusieurs
@@ -242,8 +263,8 @@ export const assignerPermanence = (donnees: {
 }) =>
   appeler<{ crees: number }>("/activite/assignations", { methode: "POST", corps: donnees });
 
-export const declarerRealisation = (assignationId: string, realisee: boolean) =>
+export const declarerRealisation = (assignationId: string, realisee: boolean, version: number) =>
   appeler<void>("/activite/assignations/realisation", {
     methode: "POST",
-    corps: { assignationId, realisee },
+    corps: { assignationId, realisee, version },
   });

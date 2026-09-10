@@ -1,3 +1,4 @@
+import { LIBELLES_ICS } from "./libelles.js";
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma.service.js";
 import { CalendrierService } from "../parametrage/calendrier.service.js";
@@ -135,7 +136,7 @@ export class PlanningService {
     return this.prisma.user.findMany({
       where: {
         actif: true,
-        ...(restreint ? { id: { in: [...perimetre.utilisateurs] } } : {}),
+        ...(restreint ? { AND: [{ id: { in: [...perimetre.utilisateurs] } }] } : {}),
         ...(filtres.ressourceId ? { id: filtres.ressourceId } : {}),
         ...(filtres.departementId ? { departementId: filtres.departementId } : {}),
         ...(filtres.services?.length
@@ -215,7 +216,7 @@ export class PlanningService {
           : { confidentielle: false }),
       },
       select: {
-        id: true, titre: true, statut: true, priorite: true, avancement: true,
+        id: true, version: true, titre: true, statut: true, priorite: true, avancement: true,
         dateDebut: true, dateFin: true, heureDebut: true, heureFin: true,
         interventionExterieure: true,
         project: { select: { id: true, nom: true, icone: true } },
@@ -348,59 +349,51 @@ export class PlanningService {
   /**
    * `EX-PLN-15` — le planning de la période, au format ICS.
    *
-   * Ce qui part : les événements auxquels les personnes du périmètre
-   * participent, et leurs congés approuvés. Pas les tâches — une tâche qui
-   * court sur trois semaines n'est pas un rendez-vous, et la déverser dans un
-   * agenda en ferait un bloc de trois semaines qui masque tout le reste.
+   * RM05 — mêmes occupations, droits et filtres que la grille agrégée.
+   * Les plages sont bornées à la fenêtre exportée et les attentes sont provisoires.
    *
    * `RG-SCOPE-01` — l'export respecte le périmètre. Un export est une copie
    * qui sort du produit : c'est le pire endroit où relâcher le cloisonnement.
    */
   async exporterIcs(
-    debut: Date,
-    fin: Date,
-    filtres: FiltresPlanning,
-    perimetre: Perimetre,
-    estampille: Date,
+    debut: Date, fin: Date, filtres: FiltresPlanning, perimetre: Perimetre,
+    estampille: Date, permissions: ReadonlySet<string> = new Set(), langue: "fr" | "en" = "fr",
   ): Promise<string> {
-    const personnes = await this.personnes(filtres, perimetre);
-    const ids = personnes.map((p) => p.id);
-    const noms = new Map(personnes.map((p) => [p.id, `${p.prenom} ${p.nom}`]));
-
-    const [evenements, conges] = await Promise.all([
-      this.evenements(debut, fin, ids),
-      this.conges(debut, fin, ids),
-    ]);
-
+    const grille = await this.agreger(debut, fin, filtres, perimetre, permissions);
+    const { evenements, conges, taches, teletravail, permanences } = grille.occupations;
+    const noms = new Map(grille.groupes.flatMap((g) => g.personnes.map((p) => [p.id, `${p.prenom} ${p.nom}`] as const)));
+    const libelles = LIBELLES_ICS[langue];
+    const borneDebut = jour(debut); const borneFin = jour(fin);
+    const borner = (a: string, b: string) => ({ date: a < borneDebut ? borneDebut : a, dateFin: b > borneFin ? borneFin : b });
     const entrees: EvenementIcs[] = [
-      ...evenements.map((e) => ({
-        uid: `evt-${e.id}@rationarium`,
-        titre: e.interventionExterieure ? `${e.titre} (intervention extérieure)` : e.titre,
-        description: e.project ? e.project.nom : null,
-        date: e.date,
-        dateFin: e.date,
-        journeeEntiere: e.journeeEntiere,
-        heureDebut: e.heureDebut,
-        heureFin: e.heureFin,
-        categorie: "Événement",
-      })),
-      // Un congé en attente n'est pas une absence : l'exporter le ferait
-      // apparaître comme acquis dans l'agenda de quelqu'un d'autre.
-      ...conges
-        .filter((c) => c.statut === "approved")
-        .map((c) => ({
-          uid: `cng-${c.id}@rationarium`,
-          titre: `${noms.get(c.userId) ?? ""} — ${c.type.nom}`.trim(),
-          description: null,
-          date: c.dateDebut,
-          dateFin: c.dateFin,
-          journeeEntiere: true,
-          heureDebut: null,
-          heureFin: null,
-          categorie: "Congé",
-        })),
+      ...evenements.map((e) => ({ uid: `evt-${e.id}@rationarium`, titre: e.interventionExterieure ? `${e.titre} (${libelles.externe})` : e.titre,
+        description: e.project?.nom ?? null, date: e.date, journeeEntiere: e.journeeEntiere,
+        heureDebut: e.heureDebut, heureFin: e.heureFin, categorie: libelles.evenement })),
+      ...conges.map((c) => {
+        const demiDebut = c.dateDebut >= borneDebut ? c.demiJourneeDebut : null;
+        const demiFin = c.dateFin <= borneFin ? c.demiJourneeFin : null;
+        const precisions = [demiDebut ? `${libelles.demiDebut} (${libelles[demiDebut]})` : null, demiFin ? `${libelles.demiFin} (${libelles[demiFin]})` : null].filter(Boolean).join(" / ");
+        return { uid: `cng-${c.id}@rationarium`, titre: `${noms.get(c.userId) ?? ""} — ${c.type.nom}${precisions ? ` (${precisions})` : ""}`.trim(),
+          ...borner(c.dateDebut, c.dateFin), journeeEntiere: true, categorie: libelles.conge,
+          description: precisions ? `${precisions}. ${libelles.sansHoraire}` : null,
+          transparent: Boolean(precisions),
+          proprietes: { "X-RATIONARIUM-HALF-DAY-START": demiDebut ?? "", "X-RATIONARIUM-HALF-DAY-END": demiFin ?? "" },
+          statut: c.statut === "pending" ? "TENTATIVE" as const : "CONFIRMED" as const };
+      }),
+      ...taches.map((t) => ({ uid: `tsk-${t.id}@rationarium`, titre: t.titre,
+        ...borner(t.dateDebut!, t.dateFin!), journeeEntiere: !t.heureDebut,
+        heureDebut: t.heureDebut, heureFin: t.heureFin, categorie: libelles.tache })),
+      ...teletravail.filter((t) => t.etat !== "undeclared").map((t) => ({ uid: `tlt-${t.id}@rationarium`,
+        titre: `${noms.get(t.userId) ?? ""} — ${libelles[t.etat]}`, date: t.date, journeeEntiere: true })),
+      ...(permanences ?? []).map((p) => {
+        const partielle = p.periode !== "full_day";
+        return { uid: `act-${p.id}@rationarium`, titre: `${p.predefinedTask.nom}${partielle ? ` — ${libelles[p.periode]}` : ""}`,
+          date: p.date, journeeEntiere: partielle || !p.predefinedTask.heureDebut,
+          description: partielle ? `${libelles[p.periode]}. ${libelles.sansHoraire}` : null,
+          transparent: partielle, proprietes: { "X-RATIONARIUM-PERIOD": p.periode },
+          heureDebut: partielle ? null : p.predefinedTask.heureDebut, heureFin: partielle ? null : p.predefinedTask.heureFin, categorie: libelles.permanence };
+      }),
     ];
-
     return genererIcs(entrees, estampille);
   }
 
@@ -415,47 +408,74 @@ export class PlanningService {
    * même calendrier ne duplique rien. C'est le seul usage de `RG-GEN-07` qui
    * vaille ici — il n'y a pas de version à comparer sur une donnée qui entre.
    */
-  async importerIcs(contenu: string, acteurId: string) {
-    const { evenements, ignores } = analyserIcs(contenu);
-
-    let crees = 0;
-    let existants = 0;
-
-    for (const e of evenements) {
-      const reference = e.uid ? `ics:${e.uid}` : null;
-      if (reference) {
-        const deja = await this.prisma.event.findFirst({
-          where: { description: { contains: reference } },
-          select: { id: true },
-        });
-        if (deja) {
-          existants += 1;
-          continue;
-        }
+  private async analyserImport(contenu: string) {
+    const analyse = analyserIcs(contenu);
+    const reglage = await this.prisma.setting.findUnique({ where: { cle: "events.horizonRecurrenceAnnees" } });
+    const horizon = Number(reglage?.valeur ?? 2);
+    analyse.evenements = analyse.evenements.filter((e, index) => {
+      const limite = new Date(`${e.date}T00:00:00Z`); limite.setUTCFullYear(limite.getUTCFullYear() + horizon);
+      if (e.recurrence && e.recurrence.jusqua > jour(limite)) {
+        analyse.ignores++; analyse.erreurs.push({ index: e.index ?? index + 1, titre: e.titre, motif: "horizon_depasse" }); return false;
       }
-
-      await this.prisma.event.create({
-        data: {
-          titre: e.titre,
-          // La référence d'origine est conservée dans la description : sans
-          // elle, le rejeu dupliquerait tout.
-          description: [e.description, reference].filter(Boolean).join("\n") || null,
-          date: new Date(`${e.date}T00:00:00.000Z`),
-          journeeEntiere: e.journeeEntiere,
-          heureDebut: e.heureDebut,
-          heureFin: e.heureFin,
-          participants: { create: [{ userId: acteurId }] },
-        },
-      });
-      crees += 1;
-    }
-
-    await this.audit.tracer({
-      action: "event.create", typeEntite: "Event", entiteId: "import-ics", acteurId,
-      detail: { source: "ics", crees, existants, ignores },
+      return true;
     });
-
-    return { crees, existants, ignores };
+    return analyse;
   }
 
+  async apercuIcs(contenu: string, acteurId: string) {
+    const { evenements, ignores, erreurs } = await this.analyserImport(contenu);
+    const stock = await this.prisma.event.findMany({
+      where: { participants: { some: { userId: acteurId } }, description: { contains: "ics:" } },
+      select: { description: true },
+    });
+    const connus = new Set(stock.flatMap((e) => (e.description ?? "").split("\n").filter((l) => l.startsWith("ics:"))));
+    const lignes = evenements.map((e) => {
+      const reference = e.uid ? `ics:${e.uid}` : null;
+      const statut = reference && connus.has(reference) ? "existant" as const : "a_importer" as const;
+      if (reference) connus.add(reference);
+      return { ...e, statut };
+    });
+    return { evenements: lignes, crees: lignes.filter((e) => e.statut === "a_importer").length,
+      existants: lignes.filter((e) => e.statut === "existant").length, ignores, erreurs };
+  }
+
+  async importerIcs(contenu: string, acteurId: string) {
+    const { evenements, ignores, erreurs } = await this.analyserImport(contenu);
+    // Un verrou par destinataire sérialise le rejeu sans ajouter de colonne au schéma.
+    const bilan = await this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${acteurId}), 505)`;
+      const stock = await tx.event.findMany({
+        where: { participants: { some: { userId: acteurId } }, description: { contains: "ics:" } }, select: { description: true },
+      });
+      const connus = new Set(stock.flatMap((e) => (e.description ?? "").split("\n").filter((l) => l.startsWith("ics:"))));
+      let crees = 0; let existants = 0;
+      for (const e of evenements) {
+        const reference = e.uid ? `ics:${e.uid}` : null;
+        if (reference && connus.has(reference)) { existants++; continue; }
+        const parent = await tx.event.create({ data: {
+          ...(e.recurrence ? { recurrenceFrequence: e.recurrence.frequenceSemaines, recurrenceJourSemaine: e.recurrence.jourSemaine, recurrenceFin: new Date(`${e.recurrence.jusqua}T00:00:00Z`) } : {}),
+          titre: e.titre, description: [e.description, reference].filter(Boolean).join("\n") || null,
+          date: new Date(`${e.date}T00:00:00.000Z`), journeeEntiere: e.journeeEntiere,
+          heureDebut: e.heureDebut, heureFin: e.heureFin,
+          participants: { create: [{ userId: acteurId }] },
+        } });
+        if (e.recurrence) {
+          const pas = e.recurrence.frequenceSemaines * 7 * 86_400_000;
+          for (let d = new Date(parent.date.getTime() + pas); jour(d) <= e.recurrence.jusqua; d = new Date(d.getTime() + pas)) {
+            await tx.event.create({ data: { titre: e.titre, description: e.description, date: d, parentId: parent.id,
+              journeeEntiere: e.journeeEntiere, heureDebut: e.heureDebut, heureFin: e.heureFin,
+              participants: { create: { userId: acteurId } } } });
+          }
+        }
+        if (reference) connus.add(reference);
+        crees++;
+      }
+      return { crees, existants, ignores, erreurs };
+    });
+    await this.audit.tracer({
+      action: "event.create", typeEntite: "Event", entiteId: "import-ics", acteurId,
+      detail: { source: "ics", ...bilan },
+    });
+    return bilan;
+  }
 }

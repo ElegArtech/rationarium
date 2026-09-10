@@ -90,6 +90,8 @@ export type VueEnsemble = {
   sante: SanteLigne[];
   tendance: {
     points: { date: string; progression: number }[];
+    /** Vrai quand des instantanés existent mais ne sont pas tous lisibles. */
+    accesRestreint: boolean;
     /** `RG-RPT-03` — sous le seuil, la courbe ne se dessine pas. */
     historiqueSuffisant: boolean;
     moyenne: number;
@@ -116,9 +118,9 @@ export type VueEnsemble = {
     enRetard: number;
     aVenir: number;
     echus: number;
-    /** Les jalons en retard, un à un, du plus ancien au plus récent. */
+    /** Tous les jalons en retard, du plus ancien au plus récent. */
     retards: JalonEnRetard[];
-    /** Ce que le plafond de lisibilité laisse hors de la liste. */
+    /** Ce que le plafond de lisibilité masque avant dépliage. */
     retardsNonListes: number;
   };
   repartitions: {
@@ -165,6 +167,6 @@ export const gantt = (f: FiltresRapport) =>
   appeler<{ lignes: LigneGantt[]; reference: string }>(`/rapports/gantt${query(f)}`);
 
 /** L'adresse d'export : ouverte par le navigateur, pas lue en mémoire. */
-export const adresseExport = (f: FiltresRapport, format: "csv" | "json") =>
+export const adresseExport = (f: FiltresRapport, format: "xlsx" | "json") =>
   `/api/rapports/export${query(f)}&format=${format}` +
   (f.langue ? `&langue=${encodeURIComponent(f.langue)}` : "");

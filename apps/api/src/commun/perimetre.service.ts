@@ -74,7 +74,8 @@ export class PerimetreService {
    */
   async resoudre(userId: string, permissions: ReadonlySet<string>): Promise<Perimetre> {
     const global = PERMISSIONS_GESTION_GLOBALE.some((p) => permissions.has(p));
-    const confidentiel = global || permissions.has("tasks:read_confidential");
+    // RG-SCOPE-04, RG-TSK-13 : la portée globale ne remplace pas ce droit explicite.
+    const confidentiel = permissions.has("tasks:read_confidential");
 
     const user = await this.prisma.user.findUnique({
       where: { id: userId },

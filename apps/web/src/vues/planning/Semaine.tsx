@@ -1,6 +1,6 @@
 import { useState, type CSSProperties, type DragEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { Button, Menu, MenuItem, MenuTrigger, Popover, SubmenuTrigger } from "react-aria-components";
+import { Button, Menu, MenuItem, MenuTrigger, Popover, SubmenuTrigger, Tooltip, TooltipTrigger } from "react-aria-components";
 import { Link } from "@tanstack/react-router";
 import { IconeProjet } from "../../composants/icones-projet.js";
 import { Fenetre } from "../../composants/fenetre.js";
@@ -414,7 +414,7 @@ function LignePersonne({
               <Link
                 className="cell-add"
                 to="/taches"
-                search={{ creer: "1", date: jour, assigne: personne.id }}
+                search={{ creer: 1, date: jour, assigne: personne.id }}
                 aria-label={t("actions.creerIci", {
                   nom: `${personne.prenom} ${personne.nom}`,
                   date: jour,
@@ -456,10 +456,13 @@ function Lieu({
 
   if (!modifiable) {
     return (
-      <span className={`pres is-locked${classe}`} title={t("teletravailLectureSeule")}>
-        <span className="pres-dot" aria-hidden="true" />
-        <span>{libelle}</span>
-      </span>
+      <TooltipTrigger delay={200}>
+        <Button className={`pres is-locked${classe}`} aria-disabled onPress={() => undefined}>
+          <span className="pres-dot" aria-hidden="true" />
+          <span>{libelle}</span>
+        </Button>
+        <Tooltip className="tooltip">{t("teletravailLectureSeule")}</Tooltip>
+      </TooltipTrigger>
     );
   }
 

@@ -480,7 +480,13 @@ export function FicheTiers({ tiersId }: { tiersId: string }) {
             </div>
             <div>
               {tiers.taches.map((x) => (
-                <div className="tsk-row" key={x.id}>
+                <Link
+                  className="tsk-row"
+                  key={x.id}
+                  to="/taches/$id"
+                  params={{ id: x.id }}
+                  search={{ retour: `/tiers/${tiers.id}` }}
+                >
                   <div style={{ minWidth: 0 }}>
                     <p className="lnk-n">{x.titre}</p>
                   </div>
@@ -512,7 +518,7 @@ export function FicheTiers({ tiersId }: { tiersId: string }) {
                       ? t("tiers.finLe", { date: formaterDate(x.dateFin) })
                       : t("tiers.sansEcheance")}
                   </span>
-                </div>
+                </Link>
               ))}
             </div>
             {tiers.taches.length === 0 ? (

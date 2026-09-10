@@ -1,3 +1,5 @@
+import { CiblesPlanning } from "../commun/planning-cible.garde.js";
+import { CibleRH } from "../commun/rh-cible.garde.js";
 import { Body, Controller, Get, Header, Patch, Post, Query } from "@nestjs/common";
 import { z } from "zod";
 import { PlanningService } from "./planning.service.js";
@@ -73,11 +75,13 @@ export class PlanningController {
    * contrôleur ne fait que transmettre.
    */
   @Patch("taches/deplacer")
+  @CiblesPlanning("deplacement")
   @RequiertPermission("tasks:update")
   async deplacer(@Body() corps: unknown, @Demande() d: ContexteDemande) {
     const donnees = valider(
       z.object({
         taskId: z.uuid(),
+        version: z.number().int().positive(),
         nouvelleDate: dateSchema.optional(),
         nouvelAssigneId: z.uuid().optional(),
         ancienAssigneId: z.uuid().optional(),
@@ -111,6 +115,7 @@ export class PlanningController {
    * (`RG-GEN-06`) : le client masque par courtoisie, le serveur refuse.
    */
   @Patch("teletravail")
+  @CibleRH({ source: "body", autrui: ["telework:manage_any"] })
   @RequiertPermission("telework:create")
   basculerTeletravail(@Body() corps: unknown, @Demande() d: ContexteDemande) {
     const donnees = valider(
@@ -118,6 +123,7 @@ export class PlanningController {
         userId: z.uuid(),
         date: dateSchema,
         etat: enumDe(ETATS_TELETRAVAIL),
+        version: z.number().int().min(0),
       }),
       corps,
     );
@@ -127,6 +133,7 @@ export class PlanningController {
       donnees.etat,
       d.userId,
       d.permissions,
+      donnees.version,
     );
   }
 
@@ -142,17 +149,28 @@ export class PlanningController {
   @Header("Content-Type", "text/calendar; charset=utf-8")
   @Header("Content-Disposition", 'attachment; filename="planning.ics"')
   async exporter(@Demande() d: ContexteDemande, @Query() requete: unknown) {
-    const q = valider(plage.extend(filtres.shape), requete);
+    const q = valider(plage.extend(filtres.shape).extend({ langue: z.enum(["fr", "en"]).optional() }), requete);
     return this.planning.exporterIcs(
       q.debut,
       q.fin,
       {
         ...(q.services ? { services: q.services.split(",").filter(Boolean) } : {}),
+        ...(q.departementId ? { departementId: q.departementId } : {}),
+        ...(q.ressourceId ? { ressourceId: q.ressourceId } : {}),
         ...(q.monPerimetre === undefined ? {} : { monPerimetre: q.monPerimetre }),
       },
       d.perimetre,
       new Date(),
+      d.permissions,
+      q.langue ?? "fr",
     );
+  }
+
+  @Post("ics/apercu")
+  @RequiertPermission("planning:import_ics")
+  apercu(@Body() corps: unknown, @Demande() d: ContexteDemande) {
+    const { contenu } = valider(z.object({ contenu: z.string().min(1).max(2_000_000) }), corps);
+    return this.planning.apercuIcs(contenu, d.userId);
   }
 
   /** `EX-PLN-15` — l'import ICS, qui rend compte de ce qu'il a fait. */

@@ -4,6 +4,7 @@ import { PrismaService } from "../prisma.service.js";
 import { PerimetreService, type Perimetre } from "../commun/perimetre.service.js";
 import { AuditService } from "../commun/audit.service.js";
 import { debutDuJour, echeanceDepassee } from "../commun/dates.js";
+import { creerXlsx } from "./xlsx.js";
 
 /**
  * M17 — rapports et analytics. Vues 15 et 30.
@@ -27,6 +28,18 @@ export type FiltresRapport = {
   periode: Periode;
   projets?: string[];
   responsables?: string[];
+};
+
+/** Contrat explicite du module tendance, y compris son état de confidentialité. */
+export type TendanceRapport = {
+  points: Array<{ date: string; progression: number }>;
+  historiqueSuffisant: boolean;
+  moyenne: number;
+  gain: number;
+  stagnation: boolean;
+  relevesHorsFenetre: number;
+  minimumRequis: number;
+  accesRestreint: boolean;
 };
 
 /** `RG-RPT-03` — sous ce nombre d'instantanés, la courbe ne veut rien dire. */
@@ -71,6 +84,7 @@ export const langueDe = (declaree: string | null | undefined): Langue =>
 const NOM_FICHIER: Record<Langue, string> = { fr: "rapport", en: "report" };
 
 const ENTETES_EXPORT: Record<Langue, string>[] = [
+  { fr: "Identifiant", en: "Identifier" },
   { fr: "Projet", en: "Project" },
   { fr: "Complétion", en: "Completion" },
   { fr: "Tâches restantes", en: "Remaining tasks" },
@@ -126,8 +140,12 @@ export class RapportsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly perimetres: PerimetreService,
-    private readonly audit: AuditService,
-  ) {}
+    // Conservé dans la signature d'injection du module ; la trace d'export est
+    // désormais exclusivement produite par l'intercepteur HTTP.
+    _audit: AuditService,
+  ) {
+    void _audit;
+  }
 
   /**
    * `EX-RPT-04` à `EX-RPT-12` — tous les modules d'analyse, en un appel.
@@ -146,6 +164,7 @@ export class RapportsService {
     const debut = debutDe(filtres.periode, reference);
     const projets = await this.projetsVisibles(filtres, perimetre, permissions);
     const ids = projets.map((p) => p.id);
+    const tacheIds = projets.flatMap((p) => p.taches.map((t) => t.id));
     const services = await this.nomsDeDepartements(projets);
 
     const [
@@ -166,13 +185,20 @@ export class RapportsService {
         !filtres.projets?.length && !filtres.responsables?.length,
       ),
       this.progressionProjets(projets, reference),
-      this.chargeParCollaborateur(ids),
+      this.chargeParCollaborateur(tacheIds),
       this.santeProjets(projets, reference, services),
-      this.tendance(ids, debut),
-      this.completionJalons(ids, reference),
-      this.repartitions(ids),
-      this.activiteRecente(ids, reference),
+      // Les instantanés ne conservent pas les contributions individuelles historiques.
+      // Seule une lecture intégrale peut les exploiter sans révéler une tâche masquée.
+      this.tendance(perimetre.global && perimetre.confidentiel ? ids : [], debut),
+      this.completionJalons(ids, tacheIds, reference),
+      this.repartitions(tacheIds),
+      this.activiteRecente(tacheIds, reference),
     ]);
+
+    const tendanceContractuelle: TendanceRapport = {
+      ...tendance,
+      accesRestreint: !perimetre.global || !perimetre.confidentiel,
+    };
 
     return {
       periode: { nature: filtres.periode, debut: jour(debut), fin: jour(reference) },
@@ -180,7 +206,7 @@ export class RapportsService {
       progression,
       charge,
       sante,
-      tendance,
+      tendance: tendanceContractuelle,
       jalons,
       repartitions,
       activite,
@@ -215,6 +241,7 @@ export class RapportsService {
         // résout en une passe, plus bas, plutôt qu'en une jointure par ligne.
         departementId: true,
         taches: {
+          where: this.perimetres.filtreTache(perimetre, permissions),
           select: { id: true, statut: true, priorite: true, avancement: true, dateFin: true },
         },
         jalons: { select: { id: true, dateEcheance: true } },
@@ -335,9 +362,9 @@ export class RapportsService {
    * absolu : dix tâches ne veut rien dire dans l'absolu, et tout dire quand
    * l'équipe en porte quatre en moyenne.
    */
-  private async chargeParCollaborateur(projetIds: string[]) {
+  private async chargeParCollaborateur(tacheIds: string[]) {
     const assignations = await this.prisma.taskAssignee.findMany({
-      where: { task: { projectId: { in: projetIds }, statut: { not: "done" } } },
+      where: { task: { id: { in: tacheIds }, statut: { not: "done" } } },
       select: { userId: true, user: { select: { prenom: true, nom: true } } },
     });
 
@@ -510,13 +537,13 @@ export class RapportsService {
    * plus ancien au plus récent : c'est dans cet ordre qu'ils se traitent, et
    * c'est là que se voit le projet qui concentre le retard.
    */
-  private async completionJalons(projetIds: string[], reference: Date) {
+  private async completionJalons(projetIds: string[], tacheIds: string[], reference: Date) {
     const jalons = await this.prisma.milestone.findMany({
       where: { projectId: { in: projetIds } },
       select: {
-        id: true, nom: true, dateEcheance: true,
+        id: true, nom: true, dateEcheance: true, statut: true,
         project: { select: { id: true, nom: true } },
-        taches: { select: { statut: true } },
+        taches: { where: { id: { in: tacheIds } }, select: { statut: true } },
       },
     });
 
@@ -528,7 +555,9 @@ export class RapportsService {
     }[] = [];
 
     for (const j of jalons) {
-      const termine = j.taches.length > 0 && j.taches.every((t) => t.statut === "done");
+      const termine = j.taches.length === 0
+        ? j.statut === "done"
+        : j.taches.every((t) => t.statut === "done");
       // Une échéance qui tombe AUJOURD'HUI n'est pas dépassée : c'est le seul
       // jour où le jalon peut encore être tenu. La comparaison est nommée dans
       // `commun/dates.ts` et ne se réécrit pas ici.
@@ -558,24 +587,25 @@ export class RapportsService {
       enRetard: retards.length,
       aVenir,
       echus: aTemps + retards.length,
-      // `RG-RPT-02` — la liste est bornée pour rester lisible, et ce qu'elle
-      // laisse de côté est compté plutôt que tu.
-      retards: retards.slice(0, PLAFOND_RETARDS),
+      // `RG-RPT-02` — le client borne d'abord la liste pour rester lisible,
+      // puis peut la déplier sans perdre le classement ni refaire un calcul à
+      // un autre instant. Ce qu'il masque initialement reste compté.
+      retards,
       retardsNonListes: Math.max(0, retards.length - PLAFOND_RETARDS),
     };
   }
 
   /** `EX-RPT-09` — la répartition des tâches actives, par priorité et statut. */
-  private async repartitions(projetIds: string[]) {
+  private async repartitions(tacheIds: string[]) {
     const [parPriorite, parStatut] = await Promise.all([
       this.prisma.task.groupBy({
         by: ["priorite"],
-        where: { projectId: { in: projetIds }, statut: { not: "done" } },
+        where: { id: { in: tacheIds }, statut: { not: "done" } },
         _count: true,
       }),
       this.prisma.task.groupBy({
         by: ["statut"],
-        where: { projectId: { in: projetIds } },
+        where: { id: { in: tacheIds } },
         _count: true,
       }),
     ]);
@@ -596,20 +626,20 @@ export class RapportsService {
    * jours. « Le backlog grossit » se comprend en une seconde, et c'est
    * exactement ce que la page doit permettre.
    */
-  private async activiteRecente(projetIds: string[], reference: Date) {
+  private async activiteRecente(tacheIds: string[], reference: Date) {
     const debut = new Date(reference);
     debut.setUTCDate(debut.getUTCDate() - 30);
 
     const [terminees, creees, enRetard] = await Promise.all([
       this.prisma.task.count({
-        where: { projectId: { in: projetIds }, statut: "done", modifieLe: { gte: debut } },
+        where: { id: { in: tacheIds }, statut: "done", modifieLe: { gte: debut } },
       }),
       this.prisma.task.count({
-        where: { projectId: { in: projetIds }, creeLe: { gte: debut } },
+        where: { id: { in: tacheIds }, creeLe: { gte: debut } },
       }),
       this.prisma.task.count({
         where: {
-          projectId: { in: projetIds },
+          id: { in: tacheIds },
           statut: { not: "done" },
           dateFin: { gte: debut, lt: reference },
         },
@@ -687,24 +717,8 @@ export class RapportsService {
   /**
    * `EX-RPT-03` — l'export.
    *
-   * ────────────────────────────────────────────────────────────────────────
-   * DÉCISION PRISE EN AUTONOMIE — 2026-08-16, réversible
-   *
-   * Le cadrage demande « PDF, Excel ou JSON ». Deux des trois posent une
-   * question que le cadrage ne tranche pas :
-   *
-   * - **Excel.** Un vrai classeur `.xlsx` exige une bibliothèque (`exceljs` ou
-   *   équivalent), donc un ADR au titre de `C1` et d'`ADR-0013`. Ce lot rend
-   *   du **CSV**, qu'Excel ouvre nativement, et le nomme comme tel dans
-   *   l'interface — plutôt que d'annoncer « Excel » et de livrer autre chose.
-   * - **PDF.** Le produit possède déjà des feuilles d'impression (vue 09), et
-   *   le lot L-27 porte l'impression et le PDF. Générer ici un second chemin
-   *   PDF côté serveur ferait diverger deux mises en page du même contenu.
-   *   L'export PDF passe donc par l'impression du navigateur.
-   *
-   * Les deux points remontent en question ; ils ne sont pas refermés en
-   * silence.
-   * ────────────────────────────────────────────────────────────────────────
+   * Le XLSX est produit en OOXML/ZIP natif, sans dépendance. Le PDF reste le
+   * chemin d'impression de la page afin de ne pas dupliquer sa mise en forme.
    */
   async exporter(
     format: "json" | "csv",
@@ -713,20 +727,50 @@ export class RapportsService {
     permissions: ReadonlySet<string>,
     reference: Date,
     acteurId: string,
+    langue?: Langue,
+  ): Promise<{ contenu: string; type: string; nom: string }>;
+  async exporter(
+    format: "xlsx",
+    filtres: FiltresRapport,
+    perimetre: Perimetre,
+    permissions: ReadonlySet<string>,
+    reference: Date,
+    acteurId: string,
+    langue?: Langue,
+  ): Promise<{ contenu: Buffer; type: string; nom: string }>;
+  async exporter(
+    format: "json" | "csv" | "xlsx",
+    filtres: FiltresRapport,
+    perimetre: Perimetre,
+    permissions: ReadonlySet<string>,
+    reference: Date,
+    acteurId: string,
+    langue?: Langue,
+  ): Promise<{ contenu: string | Buffer; type: string; nom: string }>;
+  async exporter(
+    format: "json" | "csv" | "xlsx",
+    filtres: FiltresRapport,
+    perimetre: Perimetre,
+    permissions: ReadonlySet<string>,
+    reference: Date,
+    _acteurId: string,
     langue: Langue = "fr",
-  ): Promise<{ contenu: string; type: string; nom: string }> {
+  ): Promise<{ contenu: string | Buffer; type: string; nom: string }> {
     const donnees = await this.vueEnsemble(filtres, perimetre, permissions, reference);
-
-    await this.audit.tracer({
-      action: "export.csv", typeEntite: "Report", entiteId: filtres.periode, acteurId,
-      detail: { format, projets: donnees.sante.length, langue },
-    });
 
     if (format === "json") {
       return {
         contenu: JSON.stringify(donnees, null, 2),
         type: "application/json; charset=utf-8",
         nom: `${NOM_FICHIER[langue]}-${donnees.periode.debut}.json`,
+      };
+    }
+
+    if (format === "xlsx") {
+      return {
+        contenu: creerXlsx(lignesSante(donnees.sante, langue), NOM_FICHIER[langue]),
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        nom: `${NOM_FICHIER[langue]}-${donnees.periode.debut}.xlsx`,
       };
     }
 
@@ -742,6 +786,7 @@ export class RapportsService {
 
 /** Une ligne du tableau de santé, telle que l'export la lit. */
 export type LigneSanteExport = {
+  id: string;
   nom: string;
   completion: number;
   restantes: number;
@@ -770,23 +815,26 @@ export function csvSante(lignes: readonly LigneSanteExport[], langue: Langue = "
     return /[",;\n]/.test(texte) ? `"${texte.replaceAll('"', '""')}"` : texte;
   };
 
-  const entetes = ENTETES_EXPORT.map((e) => e[langue]);
-
-  const corps = lignes.map((l) =>
-    [
-      l.nom, l.completion, l.restantes, l.enRetard, l.jalons, l.jalonsAVenir,
-      l.dateFin, l.chef ? `${l.chef.prenom} ${l.chef.nom}` : "", l.service ?? "",
-      // `EX-RPT-03` — **la colonne « santé » portait le CODE**, `critical`,
-      // `warning`, `good`, là où la vue écrit « Critique », « Attention »,
-      // « Bon ». Un compte rendu se lit ; un code d'énumération se programme.
-      // Le libellé est celui de la vue, dans la langue demandée.
-      SANTE_EXPORT[l.sante][langue],
-    ]
-      .map(echapper)
-      .join(","),
-  );
+  const [entetes = [], ...lignesCorps] = lignesSante(lignes, langue);
+  const corps = lignesCorps.map((ligne) => ligne.map(echapper).join(","));
 
   // Le BOM UTF-8 : sans lui, Excel lit le fichier en ANSI et « Complétion »
   // devient « ComplÃ©tion ». C'est le détail qui fait juger l'export cassé.
   return `\uFEFF${[entetes.join(","), ...corps].join("\r\n")}\r\n`;
+}
+
+/** Données communes aux sorties tableur CSV (compatibilité) et XLSX. */
+export function lignesSante(
+  lignes: readonly LigneSanteExport[],
+  langue: Langue = "fr",
+): Array<Array<string | number>> {
+  return [
+    ENTETES_EXPORT.map((entete) => entete[langue]),
+    ...lignes.map((ligne) => [
+      ligne.id, ligne.nom, ligne.completion, ligne.restantes, ligne.enRetard,
+      ligne.jalons, ligne.jalonsAVenir, ligne.dateFin,
+      ligne.chef ? `${ligne.chef.prenom} ${ligne.chef.nom}` : "",
+      ligne.service ?? "", SANTE_EXPORT[ligne.sante][langue],
+    ]),
+  ];
 }

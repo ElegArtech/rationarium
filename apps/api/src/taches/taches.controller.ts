@@ -1,3 +1,4 @@
+import { CiblesPlanning } from "../commun/planning-cible.garde.js";
 import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query } from "@nestjs/common";
 import { z } from "zod";
 import { enumDe, heure, STATUTS_TACHE, PRIORITES, ROLES_RACI } from "@rationarium/contracts";
@@ -386,6 +387,7 @@ export class TachesController {
    * être nommé : sans lui, on ne saurait pas lequel des trois a bougé.
    */
   @Post(":id/deplacer")
+  @CiblesPlanning("deplacement")
   @RequiertPermission("tasks:update")
   async deplacer(
     @Param("id") id: string,
@@ -394,6 +396,7 @@ export class TachesController {
   ) {
     const cible = valider(
       z.object({
+        version: z.number().int().positive(),
         nouvelleDate: dateSchema.optional(),
         nouvelAssigneId: z.uuid().optional(),
         ancienAssigneId: z.uuid().optional(),

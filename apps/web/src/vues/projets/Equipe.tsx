@@ -101,7 +101,7 @@ export function Equipe({ projetId }: { projetId: string }) {
           <h2 className="panel-title sous-titre-vue">{t("equipe.titre")}</h2>
           <p className="lede">{t("equipe.chapeau")}</p>
         </div>
-        {peut("projects:manage_members") ? (
+        {peut("projects:manage_members") || peut("third_parties:assign") || peut("clients:update") ? (
           <div className="pl-toolbar-fin">
             <Button className="btn btn-primary" onPress={() => setAjoutOuvert(true)}>
               {t("equipe.ajouter")}
@@ -689,7 +689,7 @@ function FenetreAjout({
   const annoncer = useMessages();
   const client = useQueryClient();
 
-  const [nature, setNature] = useState<"agent" | "tiers" | "client">("agent");
+  const [nature, setNature] = useState<"agent" | "tiers" | "client">(() => peut("projects:manage_members") ? "agent" : peut("third_parties:assign") ? "tiers" : "client");
   const [qui, setQui] = useState("");
   const [role, setRole] = useState<string>("membre");
   const libelleAjout = useLibelle();
@@ -800,7 +800,7 @@ function FenetreAjout({
    */
   const natures = (
     [
-      { cle: "agent", glyphe: "◍", classe: "mav", permise: true },
+      { cle: "agent", glyphe: "◍", classe: "mav", permise: peut("projects:manage_members") },
       { cle: "tiers", glyphe: "◇", classe: "mav is-ext", permise: peut("third_parties:assign") },
       { cle: "client", glyphe: "▣", classe: "mav is-client", permise: peut("clients:update") },
     ] as const

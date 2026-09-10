@@ -794,6 +794,12 @@ describe("RG-GEN-08 — le corps d'une notification voyage en paramètres", () =
      */
     const a = await agent();
     const b = await agent();
+    // La traduction est testée pour un destinataire habilité à ouvrir la tâche.
+    const role = await prisma.role.create({ data: {
+      code: `NOTIF_${uuid()}`, nom: "Lecture tâche",
+      permissions: { create: { permission: "tasks:read" } },
+    } });
+    await prisma.user.update({ where: { id: b }, data: { roleId: role.id } });
     await taches.creer({ titre: "À traduire", assigneIds: [b] }, a, CREER);
 
     const n = await prisma.notification.findFirstOrThrow({
@@ -856,7 +862,7 @@ describe("RG-SCOPE-04 — déplacer une tâche depuis le planning respecte le p�
 
     await expect(
       controleurPlanning().deplacer(
-        { taskId: t.id, nouvelleDate: "2026-08-20" },
+        { taskId: t.id, version: t.version, nouvelleDate: "2026-08-20" },
         await contexte(etranger, MODIFIER),
       ),
     ).rejects.toBeInstanceOf(ErreurTache);
@@ -876,7 +882,7 @@ describe("RG-SCOPE-04 — déplacer une tâche depuis le planning respecte le p�
     await expect(
       controleurTaches().deplacer(
         t.id,
-        { nouvelleDate: "2026-08-20" },
+        { version: t.version, nouvelleDate: "2026-08-20" },
         await contexte(etranger, MODIFIER),
       ),
     ).rejects.toBeInstanceOf(ErreurTache);
@@ -892,14 +898,14 @@ describe("RG-SCOPE-04 — déplacer une tâche depuis le planning respecte le p�
     const { proprietaire, t } = await tacheDAutrui();
     const d = await contexte(proprietaire, MODIFIER);
 
-    await controleurPlanning().deplacer({ taskId: t.id, nouvelleDate: "2026-08-20" }, d);
+    await controleurPlanning().deplacer({ taskId: t.id, version: t.version, nouvelleDate: "2026-08-20" }, d);
     expect(
       (await prisma.task.findUniqueOrThrow({ where: { id: t.id } })).dateFin
         ?.toISOString()
         .slice(0, 10),
     ).toBe("2026-08-20");
 
-    await controleurTaches().deplacer(t.id, { nouvelleDate: "2026-09-03" }, d);
+    await controleurTaches().deplacer(t.id, { version: t.version + 1, nouvelleDate: "2026-09-03" }, d);
     expect(
       (await prisma.task.findUniqueOrThrow({ where: { id: t.id } })).dateFin
         ?.toISOString()
@@ -924,7 +930,7 @@ describe("RG-SCOPE-04 — déplacer une tâche depuis le planning respecte le p�
 
     await expect(
       controleurPlanning().deplacer(
-        { taskId: t.id, nouvelleDate: "2026-08-20" },
+        { taskId: t.id, version: t.version, nouvelleDate: "2026-08-20" },
         await contexte(etranger, droits),
       ),
     ).rejects.toMatchObject({ code: "hors_perimetre" });

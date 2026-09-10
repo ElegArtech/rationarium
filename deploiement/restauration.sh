@@ -70,6 +70,19 @@ lire_env
 base="${POSTGRES_BASE:-rationarium}"
 utilisateur="${POSTGRES_UTILISATEUR:?POSTGRES_UTILISATEUR manquant}"
 roles="${archive%.dump}.roles.sql"
+documents="${archive%.dump}.documents.tar.gz"
+manifest="${archive%.dump}.sha256"
+# Refuser avant toute destruction un ensemble incomplet ou altéré.
+[ -r "$documents" ] && [ -r "$manifest" ] && [ -r "$roles" ] || { echo "Sauvegarde incomplète : base, rôles, documents et empreintes requis." >&2; exit 1; }
+# Le manifeste émis par sauvegarde.sh contient exactement ces trois entrées.
+# sha256sum --check seul accepte un manifeste tronqué ou des entrées ajoutées.
+if ! cmp -s "$manifest" <(cd "$(dirname "$archive")" && sha256sum "$(basename "$archive")" "$(basename "$roles")" "$(basename "$documents")"); then
+  echo "Manifeste incomplet ou non conforme : les trois pièces et leurs empreintes exactes sont requises." >&2
+  exit 1
+fi
+(cd "$(dirname "$archive")" && sha256sum --check "$(basename "$manifest")")
+tar -tzf "$documents" > /dev/null
+
 
 # ── Ce que l'archive contient, avant de détruire quoi que ce soit ────────────
 #
@@ -83,7 +96,10 @@ nettoyer() { docker compose exec -T base rm -f /tmp/rationarium-restauration.dum
 trap nettoyer EXIT
 
 echo "archive     : $archive"
-echo "objets      : $(docker compose exec -T base pg_restore --list /tmp/rationarium-restauration.dump | grep -c ';' || true) entrées"
+liste="$(docker compose exec -T base pg_restore --list /tmp/rationarium-restauration.dump)"
+entrees="$(printf '%s\n' "$liste" | awk '!/^;/ && NF {n++} END {print n+0}')"
+[ "$entrees" -gt 0 ] || { echo "Archive sans objet restaurable" >&2; exit 1; }
+echo "objets      : $entrees entrées"
 echo "base cible  : $base (elle sera DÉTRUITE puis recréée)"
 [ -r "$roles" ] && echo "rôles       : $roles" || echo "rôles       : ABSENT — les privilèges ne seront pas restaurés"
 
@@ -117,6 +133,13 @@ echo "── restauration des données ──"
 docker compose exec -T base \
   pg_restore --username "$utilisateur" --dbname "$base" --no-owner --exit-on-error \
   /tmp/rationarium-restauration.dump
+
+# Restaurer le magasin associé, y compris la suppression des contenus postérieurs.
+docker compose run --rm -T --no-deps --entrypoint node api -e \
+  'const fs=require("node:fs"); const p="/var/lib/rationarium/documents"; for (const n of fs.readdirSync(p)) fs.rmSync(p+"/"+n,{recursive:true,force:true});'
+docker compose run --rm -T --no-deps \
+  --volume "$(cd "$(dirname "$documents")" && pwd):/sauvegarde:ro" --entrypoint tar api \
+  -xzf "/sauvegarde/$(basename "$documents")" -C /var/lib/rationarium/documents --no-same-owner
 
 # ── 5. Vérification — la partie qu'on saute quand tout a l'air d'aller ──────
 echo "── vérification ──"

@@ -198,7 +198,7 @@ describe("EX-ORG-02 — les trois niveaux SE RENOMMENT", () => {
   it("une direction se renomme et change de responsable", async () => {
     const d = await orga.creerDirection({ nom: unique("Direction") }, acteur);
 
-    const apres = await orga.renommer("direction", d.id, { nom: unique("Renommée") }, acteur);
+    const apres = await orga.renommer("direction", d.id, { version: d.version, nom: unique("Renommée") }, acteur);
 
     expect(apres.id).toBe(d.id);
     expect(apres.nom).not.toBe(d.nom);
@@ -214,13 +214,13 @@ describe("EX-ORG-02 — les trois niveaux SE RENOMMENT", () => {
     const autre = await orga.creerDirection({ nom: unique("Autre") }, acteur);
 
     await expect(
-      orga.renommer("direction", autre.id, { nom }, acteur),
+      orga.renommer("direction", autre.id, { version: autre.version, nom }, acteur),
     ).rejects.toMatchObject({ code: "nom_deja_pris" });
   });
 
   it("un niveau inconnu est refusé, pas créé en douce", async () => {
     await expect(
-      orga.renommer("direction", "00000000-0000-4000-8000-000000000000", { nom: "X" }, acteur),
+      orga.renommer("direction", "00000000-0000-4000-8000-000000000000", { version: 1, nom: "X" }, acteur),
     ).rejects.toMatchObject({ code: "introuvable" });
   });
 });
@@ -258,7 +258,7 @@ describe("EX-ORG-01 — créer, modifier, supprimer une direction ; lui désigne
     const apres = await orga.renommer(
       "direction",
       d.id,
-      { nom: unique("Numérique"), responsableId: paul },
+      { version: d.version, nom: unique("Numérique"), responsableId: paul },
       acteur,
     );
     expect(apres.id).toBe(d.id);
@@ -280,7 +280,7 @@ describe("EX-ORG-01 — créer, modifier, supprimer une direction ; lui désigne
     const marie = await responsable("Marie");
     const d = await orga.creerDirection({ nom: unique("Détachable"), responsableId: marie }, acteur);
 
-    await orga.renommer("direction", d.id, { responsableId: null }, acteur);
+    await orga.renommer("direction", d.id, { version: d.version, responsableId: null }, acteur);
 
     expect(
       (await prisma.direction.findUniqueOrThrow({ where: { id: d.id } })).responsableId,
@@ -359,7 +359,7 @@ describe("EX-ORG-03 — créer, modifier un service ; le rattacher à un départ
     const apres = await orga.renommer(
       "service",
       svc.id,
-      { nom: "Accueil", description: null, responsableId: chef },
+      { version: svc.version, nom: "Accueil", description: null, responsableId: chef },
       acteur,
     );
 
@@ -386,7 +386,7 @@ describe("EX-ORG-03 — créer, modifier un service ; le rattacher à un départ
       acteur,
     );
 
-    await orga.renommer("service", svc.id, { responsableId: null }, acteur);
+    await orga.renommer("service", svc.id, { version: svc.version, responsableId: null }, acteur);
 
     expect(
       (await prisma.service.findUniqueOrThrow({ where: { id: svc.id } })).managerId,
@@ -408,7 +408,7 @@ describe("EX-ORG-03 — créer, modifier un service ; le rattacher à un départ
     });
     const dep = await orga.creerDepartement({ nom: unique("Dirigé") }, acteur);
 
-    await orga.renommer("departement", dep.id, { responsableId: chef }, acteur);
+    await orga.renommer("departement", dep.id, { version: dep.version, responsableId: chef }, acteur);
 
     expect(
       (await prisma.departement.findUniqueOrThrow({ where: { id: dep.id } })).responsableId,

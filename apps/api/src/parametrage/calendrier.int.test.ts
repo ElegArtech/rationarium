@@ -276,7 +276,7 @@ describe("Vacances scolaires et trame de fond", () => {
  * privés qui ne doivent pas fuir, une année jamais importée qui doit pourtant
  * montrer ses fériés récurrents, et un enregistrement qui doit être entier.
  */
-describe("EX-PRM-01 — les réglages globaux", () => {
+describe("M19 — persistance, filtrage et audit des réglages globaux", () => {
   beforeEach(async () => {
     await prisma.setting.deleteMany();
     await prisma.auditLog.deleteMany({ where: { action: "settings.update" } });
@@ -322,7 +322,7 @@ describe("EX-PRM-01 — les réglages globaux", () => {
   });
 });
 
-describe("EX-PRM-02 — la liste des fériés d'une année", () => {
+describe("M19, RG-PRM-01..03 — la liste des fériés d'une année", () => {
   it("RG-PRM-02 — une année JAMAIS IMPORTÉE montre quand même ses fériés récurrents", async () => {
     // Le décompte des congés, lui, les voit : les deux lectures doivent dire
     // la même chose, sinon c'est le paramétrage qui ment.
@@ -365,19 +365,20 @@ describe("EX-PRM-02 — la liste des fériés d'une année", () => {
   });
 });
 
-describe("EX-PRM-03 — les vacances scolaires", () => {
+describe("M19, RG-PRM-04 — les vacances scolaires", () => {
   beforeEach(async () => {
     await prisma.schoolVacation.deleteMany();
   });
 
   it("distingue ce qui vient d'un import de ce qui a été saisi à la main", async () => {
-    await cal.declarerVacances(
-      {
+    // L'origine importée est réservée au chemin officiel. Cette ligne prépare
+    // uniquement le contraste d'affichage sans contourner le contrat public.
+    await prisma.schoolVacation.create({
+      data: {
         libelle: "Toussaint", dateDebut: utc("2026-10-17"), dateFin: utc("2026-11-02"),
         zone: "B", anneeScolaire: "2026-2027", importee: true,
       },
-      acteur,
-    );
+    });
     await cal.declarerVacances(
       {
         libelle: "Pont local", dateDebut: utc("2027-05-13"), dateFin: utc("2027-05-16"),

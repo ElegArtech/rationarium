@@ -128,8 +128,8 @@ export class TiersController {
   /** `EX-TRS-02` — les tiers qu'on peut encore assigner à cette tâche. */
   @Get("taches/:taskId/candidats")
   @RequiertPermission("third_parties:assign")
-  candidatsPourTache(@Param("taskId") taskId: string) {
-    return this.tiers.candidatsPourTache(taskId);
+  candidatsPourTache(@Param("taskId") taskId: string, @Demande() d: ContexteDemande) {
+    return this.tiers.candidatsPourTache(taskId, d.perimetre, d.permissions);
   }
 
   @Post("taches/:taskId/assigner")
@@ -140,7 +140,9 @@ export class TiersController {
     @Demande() d: ContexteDemande,
   ) {
     const { thirdPartyId } = valider(z.object({ thirdPartyId: z.uuid() }), corps);
-    return this.tiers.assignerALaTache(taskId, thirdPartyId, d.userId);
+    return this.tiers.assignerALaTache(
+      taskId, thirdPartyId, d.userId, d.perimetre, d.permissions,
+    );
   }
 }
 

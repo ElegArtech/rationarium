@@ -66,7 +66,18 @@
     "categoriesIcone": "Catégories d'icônes",
     "toutesCategories": "Toutes",
     "bibliothequeIcones": "Bibliothèque d'icônes",
-    "aucuneIconeTrouvee": "Aucune icône trouvée"
+    "aucuneIconeTrouvee": "Aucune icône trouvée",
+    "archives": "Archives",
+    "chefId": "Chef de projet",
+    "sponsorId": "Sponsor",
+    "departementId": "Département",
+    "selectionConservee": "Sélection actuelle conservée",
+    "choixRestreint": "Vos droits ne permettent pas de choisir dans ce référentiel.",
+    "choixErreur": "Impossible de charger les choix. Fermez puis rouvrez le formulaire pour réessayer.",
+    "annulerUnProjet": "Annuler un projet",
+    "projetAAnnuler": "Projet à annuler",
+    "choisirProjet": "Sélectionner un projet…",
+    "annulationListe": "Choisissez un projet parmi les résultats affichés. Les projets déjà annulés ne sont pas proposés."
   },
   "fiche": {
     "leProjet": "le projet",
@@ -130,7 +141,9 @@
     "progressionAu": "Progression au {date}",
     "tachesFiniesSur": "{finies, number} terminées sur {total, number}",
     "historiqueVide": "Aucun instantané pour ce projet",
-    "historiqueVideExplication": "Un relevé est capturé automatiquement chaque nuit. Utilisez « Capturer un instantané » pour figer l'avancement d'aujourd'hui sans attendre."
+    "historiqueVideExplication": "Un relevé est capturé automatiquement chaque nuit. Utilisez « Capturer un instantané » pour figer l'avancement d'aujourd'hui sans attendre.",
+    "historiqueRestreint": "Les instantanés couvrent le projet entier. Votre périmètre ne permet pas de consulter cet historique global.",
+    "instantanePrisRestreint": "Instantané enregistré. Son contenu global est hors de votre périmètre de consultation."
   },
   "jalons": {
     "laFeuille": "la feuille de route",

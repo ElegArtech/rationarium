@@ -54,6 +54,16 @@
  */
 .profil-head{ align-items:center; margin-bottom:14px; }
 .avatar-xl{ width:56px; height:56px; font-size:17px; }
+.avatar-actions{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:16px; }
+.avatar-catalogue{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; margin-top:12px; }
+.avatar-option{ display:flex; align-items:center; gap:8px; min-width:0; padding:7px 8px;
+  border:1px solid var(--line-strong); border-radius:var(--r); color:var(--muted); cursor:pointer; }
+.avatar-option:hover{ border-color:var(--accent); color:var(--ink); }
+.avatar-option.is-selected{ border-color:var(--accent); background:var(--accent-soft); color:var(--ink); }
+.avatar-option[data-focus-visible]{ outline:2px solid var(--accent); outline-offset:2px; }
+.avatar-option-visuel{ width:28px; height:28px; font-size:18px; }
+.avatar-option > span:last-child{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:12px; }
+.avatar-retour{ margin-bottom:12px; }
 .nom-profil{ font-size:23px; }
 .blk-ic-propre{ background:var(--st-done); color:var(--on-status); }
 .blk-ic-admin{ background:var(--line-strong); color:var(--surface); }
@@ -61,3 +71,7 @@
 .actions-profil{ margin-top:6px; }
 .panel-body-separe{ border-top:1px solid var(--line); }
 .hint-securite{ margin-top:10px; }
+
+@media (max-width:900px){
+  .avatar-catalogue{ grid-template-columns:repeat(2,minmax(0,1fr)); }
+}

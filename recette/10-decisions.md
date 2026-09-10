@@ -58,3 +58,19 @@ Le cas n’était pas précisé par EX-EVT-04. L’invitation d’un service por
 ## D-RM-21 — catalogue local d’avatars prédéfinis
 
 `RG-AUTH-09` exige un visuel prédéfini sans en fixer le catalogue. Six motifs locaux et sans dépendance externe sont retenus : constellation, feuille, montagne, vagues, soleil et mosaïque. Leurs identifiants persistés restent stables et leurs noms sont traduits. Fichier personnel, visuel prédéfini et absence d’avatar sont trois états exclusifs ; chaque sélection remplace explicitement l’état précédent. Ce choix complète le cadrage avant la campagne et n’ajoute ni dépendance ni donnée distante.
+
+## D-RM-22 — langue publique avant session
+
+Le réglage global `display.locale`, présenté comme « Langue et région », fixe la langue des vues publiques lorsqu’aucune préférence explicite n’est mémorisée sur l’appareil. Les autres réglages publics de format sont eux aussi chargés avant le premier rendu. Une préférence locale volontaire reste prioritaire, puis la langue du compte prend la main après connexion. Motif : EX-PRM-03, RG-GEN-08/09 et parcours P-133 ; servir les paramètres sans les appliquer laisserait l’exigence sans effet.
+
+## D-RM-23 — témoin public du format de date
+
+Le pied des vues d’accès affiche la date du jour, libellée dans la langue de l’interface et rendue avec `display.dateFormat`. C’est un témoin utile, non une donnée privée : il rend observable avant session l’application effective du format public exigée par P-133, sans exposer les autres réglages. Motif : EX-PRM-03, RG-GEN-08/09 ; l’absence de toute date sur les vues d’accès rendait cette partie du contrat impossible à vérifier.
+
+## D-RM-24 — portée de la répartition de charge
+
+La mention « par service et par collaborateur » dans l’objectif narratif de P-114 ne crée pas un agrégat par service absent de son verdict. La recette oppose la répartition par collaborateur, les surcharges, les répartitions de tâches et le périmètre, conformément à `EX-RPT-05`, `EX-RPT-09`, `RG-RPT-01` et `RG-RPT-05`. L’attente de persona « charge par service » reste satisfaite par le périmètre organisationnel sur lequel ces collaborateurs sont agrégés ; une ventilation supplémentaire demanderait une exigence et un comportement de conception propres. Motif : le verdict observable et les exigences citées priment sur une reformulation d’objectif contradictoire ; aucun contrat serveur n’est inventé pendant la recette.
+
+## D-RM-25 — matérialité des trois refus de dépendance
+
+P-50 conserve les trois refus métier sur le point d’entrée unitaire public `POST /taches/:id/dependances`, avec méthode, statut, code et message exacts, puis relit le nombre de dépendances inchangé. La fenêtre de la vue 17 enregistre pour sa part un ensemble par `PUT` et écarte en amont les candidats déjà liés, cycliques ou d’un autre projet : elle ne peut donc produire honnêtement ces trois erreurs sans course artificielle ni injection d’état React. La preuve UI porte sur ce que le verdict lui attribue explicitement : l’autre projet n’est pas proposé ; la valeur forgée est refusée au serveur. Motif : EX-TSK-10 et RG-TSK-04/05/06 portent sur l’intégrité du graphe, pas sur l’exposition volontaire dans l’interface de choix que celle-ci sait déjà impossibles. Aucun contrat `PUT` hypothétique n’est ajouté au registre.

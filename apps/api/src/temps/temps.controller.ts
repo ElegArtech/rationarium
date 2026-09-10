@@ -1,3 +1,4 @@
+import { CibleRH } from "../commun/rh-cible.garde.js";
 import { Body, Controller, Delete, Get, Param, Post, Query } from "@nestjs/common";
 import { z } from "zod";
 import { enumDe, TYPES_ACTIVITE } from "@rationarium/contracts";
@@ -13,10 +14,12 @@ export class TempsController {
 
   @Get()
   @RequiertPermission("time_tracking:read")
+  @CibleRH({ source: "query", autrui: ["time_tracking:read_team", "time_tracking:readAll"], ressources: true })
   lister(@Demande() d: ContexteDemande, @Query() requete: unknown) {
     const filtres = valider(
       z.object({
         userId: z.uuid().optional(),
+        thirdPartyId: z.uuid().optional(),
         projectId: z.uuid().optional(),
         debut: dateSchema.optional(),
         fin: dateSchema.optional(),
@@ -38,7 +41,7 @@ export class TempsController {
       }),
       requete,
     );
-    return this.temps.rapport(d.perimetre, q.axe, { debut: q.debut, fin: q.fin });
+    return this.temps.rapport(d.perimetre, q.axe, { debut: q.debut, fin: q.fin }, d.permissions);
   }
 
   /** `EX-TMP-06` — les tâches terminées sans temps déclaré ni renoncement. */
@@ -57,12 +60,14 @@ export class TempsController {
    */
   @Get("contexte/:taskId")
   @RequiertPermission("time_tracking:read")
+  @CibleRH({ source: "body", autrui: [], ressources: true })
   contexte(@Param("taskId") taskId: string) {
     return this.temps.contexteSaisieRapide(taskId);
   }
 
   @Post()
   @RequiertPermission("time_tracking:create")
+  @CibleRH({ source: "body", autrui: ["time_tracking:declare_for_third_party"], ressources: true })
   saisir(@Body() corps: unknown, @Demande() d: ContexteDemande) {
     const donnees = valider(
       z.object({
@@ -85,6 +90,7 @@ export class TempsController {
 
   @Delete(":id")
   @RequiertPermission("time_tracking:delete")
+  @CibleRH({ source: "temps", autrui: ["users:manage_any"] })
   supprimer(@Param("id") id: string, @Demande() d: ContexteDemande) {
     return this.temps.supprimer(id, d.userId);
   }
@@ -99,6 +105,7 @@ export class TempsController {
    */
   @Post("renoncement/:taskId")
   @RequiertPermission("time_tracking:validate_without_entry")
+  @CibleRH({ source: "body", autrui: [], ressources: true })
   renoncer(@Param("taskId") taskId: string, @Demande() d: ContexteDemande) {
     return this.temps.validerSansDeclaration(taskId, d.userId, d.userId);
   }

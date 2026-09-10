@@ -213,10 +213,10 @@ describe("RG-GEN-09 — le séparateur décimal ne change pas d'une ligne à l'a
     );
   });
 
-  it("en session anglaise, le nombre est anglais MÊME si l'instance est réglée fr-FR", () => {
+  it("D-RM06 — la région globale gouverne les nombres même en session anglaise", () => {
     appliquerReglages({ "display.locale": "fr-FR" });
     enLangue("en", () => {
-      expect(formaterNombre(1234.5, 1)).toBe("1,234.5");
+      expect(formaterNombre(1234.5, 1)).toBe(new Intl.NumberFormat("fr-FR", { minimumFractionDigits: 1 }).format(1234.5));
     });
   });
 
@@ -235,15 +235,13 @@ describe("RG-GEN-09 — le séparateur décimal ne change pas d'une ligne à l'a
   });
 
   it("s'accorde avec le formateur d'ICU, quelle que soit la région réglée", () => {
-    // C'est l'invariant : deux nombres de la même page ne peuvent pas porter
-    // deux séparateurs décimaux. ICU formate sur `i18next.language` et ne sait
-    // pas faire autrement ; c'est donc `formaterNombre` qui s'aligne.
+    // D-RM06 : formaterNombre et le formateur ICU local suivent la région globale.
     for (const region of ["fr-FR", "en-US", ""]) {
       appliquerReglages({ "display.locale": region });
       for (const langue of ["fr", "en"]) {
         enLangue(langue, () => {
           expect(formaterNombre(1234.5, 1)).toBe(
-            new Intl.NumberFormat(langue, {
+            new Intl.NumberFormat(region || langue, {
               minimumFractionDigits: 1,
               maximumFractionDigits: 1,
             }).format(1234.5),
@@ -253,19 +251,11 @@ describe("RG-GEN-09 — le séparateur décimal ne change pas d'une ligne à l'a
     }
   });
 
-  /**
-   * Les DATES, elles, ne sont **pas** tranchées ici.
-   *
-   * Le réglage l'emporte aujourd'hui sur la langue de la session — lecture (a)
-   * de l'arbitrage écrit dans `formats.ts`. Ce contrôle fige ce comportement
-   * pour qu'un basculement vers la lecture (b) soit une DÉCISION, prise au
-   * cadrage et visible dans un diff, plutôt qu'un effet de bord. Il n'affirme
-   * pas que c'est juste : il affirme que c'est ce que le produit fait.
-   */
-  it("la DATE, elle, suit toujours le réglage d'instance — décision au cadrage", () => {
+    // D-RM06 remplace la lecture historique : les mots sont ceux de la langue UI.
+  it("D-RM06 — les mots de la date suivent la langue UI", () => {
     appliquerReglages({ "display.locale": "fr-FR" });
     enLangue("en", () => {
-      expect(formaterMois("2026-09-01")).toBe("Septembre 2026");
+      expect(formaterMois("2026-09-01")).toBe("September 2026");
     });
   });
 });

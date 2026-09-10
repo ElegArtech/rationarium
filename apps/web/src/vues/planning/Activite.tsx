@@ -13,7 +13,7 @@ import { Fenetre } from "../../composants/fenetre.js";
 import { formaterDate, formaterDateLongue, formaterHeure } from "../../formats.js";
 import { ajouterJours, decaler, initiales, iso, lundiDe, periodeDe } from "./grille.js";
 import { adressePlanning, lirePlanning } from "./adresse.js";
-import { SelecteurMode } from "./Planning.js";
+import { SelecteurMode, EchangesIcs } from "./Planning.js";
 import "../../composants/partages.css";
 import "./semaine.css";
 import "./activite.css";
@@ -166,6 +166,7 @@ export function Activite() {
         </span>
 
         <div className="ligne-actions-fin">
+          <EchangesIcs filtres={{...periode, services: etat.services, departementId: etat.departementId, monPerimetre: etat.monPerimetre}} />
           {/* La grille est affichée en salle de service : on y cherche « qui
               tient l'accueil chez nous », pas « qui le tient dans la ville ». */}
           <select
@@ -306,7 +307,7 @@ export function Activite() {
                           </span>
                         ) : null}
 
-                        {peut("predefined_tasks:assign") && tache ? (
+                        {peut("predefined_tasks:assign") && tache?.actif ? (
                           <Button
                             className="acell-add no-print"
                             onPress={() => setAjout({ tache, date: ligne.date })}
@@ -381,7 +382,7 @@ function LigneAgent({
   const client = useQueryClient();
 
   const realisation = useMutation({
-    mutationFn: (realisee: boolean) => api.declarerRealisation(agent.assignationId, realisee),
+    mutationFn: (realisee: boolean) => api.declarerRealisation(agent.assignationId, realisee, agent.version),
     onSuccess: async () => {
       annoncer("ok", t("activite.realisationEnregistree"));
       // `RG-PLN-05` — même promesse que la vue 07 : une relecture qui échoue

@@ -57,7 +57,6 @@
     "jourSemaine": "Day of the week",
     "memeJourQueLaDate": "Automatic (same day as the date)",
     "jusqua": "End date (optional)",
-    "sansFin": "with no end date",
     "apercuTitre": "What this recurrence will produce",
     "apercuRecurrence": "Every {n, plural, one {week} other {# weeks}}, on {jour}, until {fin}.",
     "serieRecurrente": "Recurring series",
@@ -114,7 +113,11 @@
     "echecParticipant": "Changing the participants failed.",
     "aucunParticipant": "No participants yet.",
     "ajouterParticipant": "Add",
-    "retirerParticipant": "Remove {nom}"
+    "retirerParticipant": "Remove {nom}",
+    "inviterServices": "Invite whole teams",
+    "arretDepuis": "Occurrences are deleted from {date}, today. Earlier occurrences are kept.",
+    "horizonConfigure": "the configured horizon",
+    "finParHorizon": "Without an end date, the series ends at its start date plus the configured recurrence horizon."
   },
   "conges": {
     "surtitre": "Human resources",
@@ -314,7 +317,13 @@
     "faute_limiteAnnuelle": "The annual cap must be between 0 and 366 days, or empty for an unlimited type.",
     "faute_ordre": "The display order must be a whole number between 0 and 9999.",
     "soldePropreAvecGlobal": "Allocation specific to this staff member: it overrides the global default, which is {n} d. It cannot be removed — only corrected.",
-    "soldePropreSansGlobal": "Allocation specific to this staff member. No global default for this type: this allocation cannot be removed, only corrected."
+    "soldePropreSansGlobal": "Allocation specific to this staff member. No global default for this type: this allocation cannot be removed, only corrected.",
+    "autruiApprouve": "This leave will be approved immediately and recorded under your name.",
+    "absencesConcomitantes": "Overlapping absences: {n}",
+    "deleguerValidation": "Delegate approval",
+    "deleguerA": "Delegate to",
+    "creerDelegation": "Create delegation",
+    "delegationCreee": "Delegation created."
   },
   "teletravail": {
     "surtitre": "Human resources",
@@ -386,7 +395,14 @@
     "generation": "Schedules generated: {crees, number} created, {ignores, number} skipped.",
     "echecGeneration": "Generation did not go through.",
     "plageMaximale": "The date range cannot exceed 366 days.",
-    "exception": "Exception"
+    "exception": "Exception",
+    "enConge": "On leave",
+    "nonOuvre": "Non-working day",
+    "statistiques": "Statistics",
+    "statistiquesAgent": "Statistics for {nom}",
+    "cumulMois": "Month {periode}: {n} days",
+    "cumulAnnee": "Year {annee}: {n} days",
+    "moyenneMensuelle": "Monthly average: {n} days"
   },
   "temps": {
     "surtitre": "Human resources",
@@ -463,7 +479,8 @@
     "saisirCourt": "Log",
     "supprimer": "Delete",
     "surTache": "· {titre}",
-    "supprimerLaSaisie": "Delete the entry of {date}"
+    "supprimerLaSaisie": "Delete the entry of {date}",
+    "acteur": "Actor"
   },
   "supprimer": "Delete",
   "enregistrer": "Save"

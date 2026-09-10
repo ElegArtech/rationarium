@@ -376,7 +376,7 @@ export function Jalons({ projetId }: { projetId: string }) {
           <span className="eyebrow">{t("onglets.taches")}</span>
           <p className="kpi-val">{indicateurs.taches}</p>
           <span className="kpi-sub">
-            {t("jalons.dontSansJalon", { n: projet.data.taches.total - indicateurs.taches })}
+            {t("jalons.dontSansJalon", { n: indicateurs.sansJalon })}
           </span>
         </div>
       </div>

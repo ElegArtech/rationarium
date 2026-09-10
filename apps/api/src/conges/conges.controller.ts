@@ -1,8 +1,9 @@
+import { CibleRH } from "../commun/rh-cible.garde.js";
 import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query } from "@nestjs/common";
 import { z } from "zod";
 import { enumDe, STATUTS_CONGE, typeCongeSchema } from "@rationarium/contracts";
 import { CongesService } from "./conges.service.js";
-import { Demande, RequiertPermission, type ContexteDemande } from "../commun/permissions.garde.js";
+import { Demande, RequiertPermission, RequiertUnePermissionParmi, type ContexteDemande } from "../commun/permissions.garde.js";
 import { valider, dateSchema } from "../commun/http.js";
 import {
   depotSchema,
@@ -35,6 +36,7 @@ export class CongesController {
 
   @Get()
   @RequiertPermission("leaves:read")
+  @CibleRH({ source: "query", autrui: ["leaves:read_team", "leaves:readAll", "leaves:approve", "leaves:manage_any"], limiterPersonnel: true })
   lister(@Demande() d: ContexteDemande, @Query() requete: unknown) {
     const filtres = valider(
       z.object({
@@ -48,6 +50,12 @@ export class CongesController {
     return this.conges.lister(d.perimetre, filtres, d.userId, d.permissions);
   }
 
+  @Get("candidats")
+  @RequiertUnePermissionParmi("leaves:declare_for_other", "leaves:manage_delegations")
+  candidats(@Demande() d: ContexteDemande) {
+    return this.conges.candidats(d.perimetre);
+  }
+
   /** `EX-CNG-16` — le catalogue des types de congé, avec leur usage. */
   @Get("types")
   @RequiertPermission("leaves:read")
@@ -58,6 +66,7 @@ export class CongesController {
   /** `EX-CNG-19` — les délégations données et reçues. */
   @Get("delegations")
   @RequiertPermission("leaves:read")
+  @CibleRH({ source: "query", autrui: ["leaves:read_team", "leaves:readAll", "leaves:declare_for_other", "leaves:manage_balances", "leaves:manage_delegations"] })
   delegations(@Demande() d: ContexteDemande, @Query("userId") userId?: string) {
     return this.conges.delegations(userId ?? d.userId);
   }
@@ -70,6 +79,7 @@ export class CongesController {
    */
   @Get("soldes")
   @RequiertPermission("leaves:read")
+  @CibleRH({ source: "query", autrui: ["leaves:read_team", "leaves:readAll", "leaves:declare_for_other", "leaves:manage_balances", "leaves:manage_delegations"] })
   soldes(@Demande() d: ContexteDemande, @Query() requete: unknown) {
     const q = valider(
       z.object({ userId: z.uuid().optional(), annee: z.coerce.number().int() }),
@@ -91,6 +101,7 @@ export class CongesController {
    */
   @Put("soldes")
   @RequiertPermission("leaves:manage_balances")
+  @CibleRH({ source: "body", autrui: ["leaves:manage_balances"] })
   attribuerSolde(@Body() corps: unknown, @Demande() d: ContexteDemande) {
     const donnees = valider(
       z.object({
@@ -117,6 +128,7 @@ export class CongesController {
    */
   @Get("solde")
   @RequiertPermission("leaves:read")
+  @CibleRH({ source: "query", autrui: ["leaves:read_team", "leaves:readAll", "leaves:declare_for_other", "leaves:manage_balances", "leaves:manage_delegations"] })
   solde(@Demande() d: ContexteDemande, @Query() requete: unknown) {
     const q = valider(
       z.object({
@@ -132,6 +144,7 @@ export class CongesController {
   /** `RG-CNG-08` — qui validera cette demande, à cette date. */
   @Get("validateur")
   @RequiertPermission("leaves:read")
+  @CibleRH({ source: "query", autrui: ["leaves:read_team", "leaves:readAll", "leaves:declare_for_other", "leaves:manage_balances", "leaves:manage_delegations"] })
   validateur(@Demande() d: ContexteDemande, @Query() requete: unknown) {
     const q = valider(
       z.object({ userId: z.uuid().optional(), date: dateSchema }),
@@ -144,6 +157,7 @@ export class CongesController {
 
   @Post()
   @RequiertPermission("leaves:create")
+  @CibleRH({ source: "body", autrui: ["leaves:declare_for_other"] })
   async deposer(@Body() corps: unknown, @Demande() d: ContexteDemande) {
     const donnees = valider(depotSchema, corps);
     const pour = donnees.userId ?? d.userId;
@@ -238,6 +252,7 @@ export class CongesController {
 
   @Post("delegations")
   @RequiertPermission("leaves:manage_delegations")
+  @CibleRH({ source: "body", champ: "delegantId", autrui: ["users:manage_any"] })
   creerDelegation(@Body() corps: unknown, @Demande() d: ContexteDemande) {
     const donnees = valider(
       z.object({
@@ -253,6 +268,7 @@ export class CongesController {
 
   @Delete("delegations/:id")
   @RequiertPermission("leaves:manage_delegations")
+  @CibleRH({ source: "delegation", autrui: ["users:manage_any"] })
   desactiverDelegation(@Param("id") id: string, @Demande() d: ContexteDemande) {
     return this.conges.desactiverDelegation(id, d.userId, d.permissions);
   }

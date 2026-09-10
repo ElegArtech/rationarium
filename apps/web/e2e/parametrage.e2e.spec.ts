@@ -300,8 +300,8 @@ test.describe("Vue 31 — paramètres", () => {
     await page.getByLabel("Libellé").fill("Vacances de printemps");
     await page.getByLabel("Début").fill("2027-04-26");
     await page.getByLabel("Fin").fill("2027-04-10");
-    await page.getByLabel("Zone").fill("B");
-    await page.getByLabel("Année scolaire").fill("2026-2027");
+    await page.getByLabel("Zone *", { exact: true }).fill("B");
+    await page.getByLabel("Année scolaire *", { exact: true }).fill("2026-2027");
 
     await expect(
       page.getByText("La date de fin doit être postérieure à la date de début."),
@@ -602,7 +602,7 @@ test.describe("Vue 32 — rôles et permissions", () => {
 
     await expect.poll(() => envoi).toEqual({
       chemin: "/api/administration/roles/r-agent",
-      corps: { nom: "Chef de projet" },
+      corps: { nom: "Chef de projet", version: 3 },
     });
   });
 

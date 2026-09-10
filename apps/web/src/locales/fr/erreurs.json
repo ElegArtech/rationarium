@@ -80,5 +80,6 @@
   "porteeSansSerie": "Cet événement n'appartient à aucune série : il n'y a pas de portée à choisir. Reprenez sans la préciser.",
   "dateNonPropageable": "La date distingue les occurrences les unes des autres : elle se change sur cette occurrence seulement, pas sur toute la série.",
   "epopeeEnDouble": "Une épopée porte déjà ce nom dans ce projet.",
-  "jalonCalcule": "Ce jalon porte des tâches : son statut se calcule à partir de leur avancement. Faites avancer ses tâches, ou détachez-les."
+  "jalonCalcule": "Ce jalon porte des tâches : son statut se calcule à partir de leur avancement. Faites avancer ses tâches, ou détachez-les.",
+  "calendrierScolaireIndisponible": "Aucune période officielle n’est disponible pour cette année scolaire et cette zone. Choisissez une combinaison disponible."
 }

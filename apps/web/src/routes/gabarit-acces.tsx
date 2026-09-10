@@ -6,6 +6,7 @@ import i18next from "i18next";
 import { useState } from "react";
 import { changerLangue, LANGUES } from "../i18n/index.js";
 import { definirTheme, themeCourant } from "../theme/index.js";
+import { formaterDate } from "../formats.js";
 import "./acces.css";
 
 /**
@@ -207,6 +208,8 @@ export function GabaritAcces({
   const { t: tCoquille } = useTranslation("coquille");
   const courante = i18next.language;
   const [theme, setTheme] = useState(themeCourant);
+  const aujourdHui = new Date();
+  const dateIso = aujourdHui.toISOString().slice(0, 10);
 
   // La bascule est binaire ici : avant connexion, il n'y a pas de vue de
   // paramètres pour choisir « auto ». Elle part de l'état effectif.
@@ -363,6 +366,9 @@ export function GabaritAcces({
           <footer className="form-foot">
             <span className="eyebrow">{t("pied.version")}</span>
             <span className="eyebrow">{t("pied.accessibilite")}</span>
+            <time className="eyebrow" dateTime={dateIso} data-testid="date-publique">
+              {t("pied.aujourdhui", { date: formaterDate(aujourdHui) })}
+            </time>
             {avecAide ? <span className="eyebrow">{t("pied.aide")}</span> : null}
           </footer>
         </main>

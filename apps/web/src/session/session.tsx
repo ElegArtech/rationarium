@@ -1,6 +1,7 @@
 import { createContext, useContext, useMemo, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { appeler, ErreurApi } from "../api/client.js";
+import type { VisuelAvatarPredefini } from "@rationarium/contracts";
 
 /**
  * La session courante, telle que **le serveur** la décrit.
@@ -23,7 +24,9 @@ export type Session = {
   email: string;
   login: string;
   avatarFichier: string | null;
-  avatarPredefini: string | null;
+  avatarPredefini: VisuelAvatarPredefini | null;
+  /** URL personnelle servie seulement quand un fichier d'avatar existe. */
+  avatarUrl: string | null;
   langue: string;
   theme: string;
   derniereConnexion: string | null;
@@ -31,9 +34,12 @@ export type Session = {
   departement: string | null;
   services: string[];
   membreDepuis: string;
-  role: { code: string; nom: string } | null;
+  role: { code: string; nom: string; systeme?: boolean } | null;
   permissions: string[];
   motDePasseAChanger: boolean;
+  /** Motif établi par le serveur depuis la dernière réinitialisation auditée. */
+  motifChangementMotDePasse?: "premiere" | "administrateur" | null;
+  motDePasseReinitialiseLe?: string | null;
   /** `RG-GEN-07` — la version lue, que toute écriture doit renvoyer. */
   version: number;
 };

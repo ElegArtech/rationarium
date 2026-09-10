@@ -399,13 +399,14 @@ describe("EX-PLN-15 — export et import ICS", () => {
     expect(ics).not.toContain("Chloe");
   });
 
-  it("un congé EN ATTENTE ne s'exporte pas — il paraîtrait acquis ailleurs", async () => {
+  it("EX-PLN-15 — le congé en attente est exporté explicitement provisoire", async () => {
     const ics = await planning.exporterIcs(
       utc("2026-03-02"), utc("2026-03-06"), {}, await perimetreDepartement(), utc("2026-08-16"),
     );
-    // Le congé approuvé de Bruno y est ; celui d'Ana, en attente, non.
-    expect(ics).toContain("Bruno Agent — Congés annuels");
-    expect(ics).not.toContain("Ana Agent — Congés annuels");
+    // RM05 : toutes les occupations visibles sont exportées, sans présenter une attente comme acquise.
+    const blocs = ics.split("BEGIN:VEVENT");
+    expect(blocs.find((b) => b.includes("Bruno Agent — Congés annuels"))).toContain("STATUS:CONFIRMED");
+    expect(blocs.find((b) => b.includes("Ana Agent — Congés annuels"))).toContain("STATUS:TENTATIVE");
   });
 
   it("l'import rend compte : créés, ignorés", async () => {
@@ -662,7 +663,7 @@ describe("EX-PLN-10 — le glisser-déposer change la DATE ou l'ASSIGNÉ", () =>
       },
     });
 
-    const r = await taches.deplacerDepuisPlanning(t.id, { nouvelleDate: utc("2026-07-13") }, ana);
+    const r = await taches.deplacerDepuisPlanning(t.id, { version: t.version, nouvelleDate: utc("2026-07-13") }, ana);
     expect(r).toMatchObject({ dateModifiee: true, assigneModifie: false });
 
     const apres = await planning.agreger(
@@ -691,7 +692,7 @@ describe("EX-PLN-10 — le glisser-déposer change la DATE ou l'ASSIGNÉ", () =>
     });
 
     const r = await taches.deplacerDepuisPlanning(
-      t.id, { nouvelAssigneId: bruno, ancienAssigneId: ana }, ana,
+      t.id, { version: t.version, nouvelAssigneId: bruno, ancienAssigneId: ana }, ana,
     );
     expect(r).toMatchObject({ dateModifiee: false, assigneModifie: true });
 
@@ -712,7 +713,7 @@ describe("EX-PLN-10 — le glisser-déposer change la DATE ou l'ASSIGNÉ", () =>
         assignes: { create: [{ userId: ana }] },
       },
     });
-    await taches.deplacerDepuisPlanning(t.id, { nouvelleDate: utc("2026-08-05") }, ana);
+    await taches.deplacerDepuisPlanning(t.id, { version: t.version, nouvelleDate: utc("2026-08-05") }, ana);
 
     const trace = await prisma.auditLog.findFirst({
       where: { action: "task.planning_move", entiteId: t.id },

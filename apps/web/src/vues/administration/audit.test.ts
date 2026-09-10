@@ -78,7 +78,7 @@ const ACTIONS_TRACEES = [
   "predefined_task.recurrence_update", "predefined_task.recurrence_toggle",
   "predefined_task.recurrence_delete", "project.update", "project.member_update",
   "service.update", "service.delete", "task.assignees_set", "telework.rule_update",
-  "telework.rule_delete", "third_party.update", "user.update",
+  "telework.rule_delete", "third_party.update", "user.update", "report.export",
   // Quelques-unes qui étaient déjà couvertes : le contrôle doit rester vrai
   // pour l'ensemble, pas seulement pour ce qu'on vient d'ajouter.
   "user.create", "project.create", "leave.approve", "auth.login_success",

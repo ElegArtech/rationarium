@@ -20,6 +20,10 @@ import { defineConfig, devices } from "@playwright/test";
  * message qui ne dit pas à qui.
  */
 const PORT = process.env.PORT_APERCU ?? "4173";
+if (!/^\d+$/.test(PORT)) throw new Error("PORT_APERCU doit être un port numérique");
+// Deux agents peuvent construire le même arbre : un aperçu ne doit jamais lire
+// le dist que l'autre vide puis remplace. Chaque port possède son lot immuable.
+const DIST = `.playwright/build-${PORT}`;
 
 export default defineConfig({
   testDir: "./e2e",
@@ -60,7 +64,7 @@ export default defineConfig({
    * une demi-heure de recherche au mauvais endroit.
    */
   webServer: {
-    command: `pnpm build && pnpm exec vite preview --port ${PORT} --strictPort`,
+    command: `pnpm build --outDir ${DIST} && pnpm exec vite preview --outDir ${DIST} --port ${PORT} --strictPort`,
     url: `http://localhost:${PORT}`,
     reuseExistingServer: false,
     timeout: 180_000,

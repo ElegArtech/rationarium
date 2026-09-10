@@ -19,6 +19,7 @@ export type EchecRole =
   | "permission_hors_catalogue"
   | "code_deja_pris"
   | "role_utilise"
+  | "conflit_de_version"
   | "introuvable";
 
 export class ErreurRole extends Error {
@@ -47,31 +48,61 @@ export class RolesService {
   async initialiserReferentiel(acteurId?: string) {
     let crees = 0;
     let existants = 0;
+    const collisions: { code: string; roleId: string }[] = [];
 
     for (const modele of MODELES_ROLES) {
       const existe = await this.prisma.role.findUnique({
         where: { code: modele.code },
-        select: { id: true, systeme: true },
+        select: { id: true, systeme: true, nom: true, description: true },
       });
 
       if (existe) {
-        existants++;
         // Un rôle système reste aligné sur son modèle : c'est ce qui le rend
-        // système. Un rôle personnalisé n'est jamais réécrit.
-        if (existe.systeme) await this.definirPermissions(existe.id, [...modele.permissions]);
+        // système. Un rôle personnalisé qui porte par hasard le code réservé
+        // n'est PAS un modèle existant : on le signale sans le réécrire et on
+        // poursuit l'initialisation des autres modèles.
+        const correspondAuModele =
+          existe.nom === modele.nom && existe.description === (modele.description ?? null);
+        if (!existe.systeme && !correspondAuModele) {
+          collisions.push({ code: modele.code, roleId: existe.id });
+          continue;
+        }
+        existants++;
+        if (existe.systeme) await this.alignerPermissionsSysteme(existe.id, [...modele.permissions]);
         continue;
       }
 
-      const role = await this.prisma.role.create({
-        data: {
-          code: modele.code,
-          nom: modele.nom,
-          description: modele.description,
-          systeme: modele.systeme,
-        },
-      });
-      await this.definirPermissions(role.id, [...modele.permissions]);
-      crees++;
+      try {
+        const role = await this.prisma.role.create({
+          data: {
+            code: modele.code,
+            nom: modele.nom,
+            description: modele.description,
+            systeme: modele.systeme,
+          },
+        });
+        await this.definirPermissions(role.id, [...modele.permissions]);
+        crees++;
+      } catch (erreur) {
+        if (codePrisma(erreur) !== "P2002") throw erreur;
+        // Une seconde initialisation a pu créer le rôle entre la lecture et
+        // l'écriture. On relit pour distinguer ce rejeu concurrent d'une
+        // collision avec un rôle personnalisé.
+        const concurrent = await this.prisma.role.findUniqueOrThrow({
+          where: { code: modele.code },
+          select: { id: true, systeme: true, nom: true, description: true },
+        });
+        const correspondAuModele =
+          concurrent.nom === modele.nom && concurrent.description === (modele.description ?? null);
+        if (concurrent.systeme || correspondAuModele) {
+          existants++;
+          if (concurrent.systeme) {
+            await this.alignerPermissionsSysteme(concurrent.id, [...modele.permissions]);
+          }
+        } else {
+          collisions.push({ code: modele.code, roleId: concurrent.id });
+        }
+      }
     }
 
     await this.audit.tracer({
@@ -79,9 +110,9 @@ export class RolesService {
       typeEntite: "Role",
       acteurId: acteurId ?? null,
       systeme: !acteurId,
-      detail: { crees, existants },
+      detail: { crees, existants, collisions },
     });
-    return { crees, existants };
+    return { crees, existants, collisions };
   }
 
   /** `EX-ADM-01` — lister les rôles avec leur nombre de permissions. */
@@ -170,7 +201,9 @@ export class RolesService {
       action: "role.create", typeEntite: "Role", entiteId: role.id, acteurId,
       detail: { code: donnees.code, depuisModele: donnees.depuisModele ?? null },
     });
-    return role;
+    return modele
+      ? this.prisma.role.findUniqueOrThrow({ where: { id: role.id } })
+      : role;
   }
 
   /**
@@ -180,23 +213,33 @@ export class RolesService {
    * le modèle. Sans cela, un administrateur pourrait vider `ADMIN` de ses
    * permissions et se verrouiller définitivement hors de l'administration.
    */
-  async renommer(id: string, nom: string, acteurId: string) {
+  async renommer(id: string, nom: string, acteurId: string, version: number) {
     const role = await this.prisma.role.findUnique({ where: { id } });
     if (!role) throw new ErreurRole("introuvable");
     if (role.systeme) throw new ErreurRole("role_systeme_non_renommable");
+    if (role.version !== version) throw new ErreurRole("conflit_de_version");
 
-    await this.prisma.role.update({ where: { id }, data: { nom } });
+    try {
+      await this.prisma.role.update({
+        where: { id, version },
+        data: { nom, version: { increment: 1 } },
+      });
+    } catch (erreur) {
+      if (codePrisma(erreur) === "P2025") throw new ErreurRole("conflit_de_version");
+      throw erreur;
+    }
     await this.audit.tracer({ action: "role.update", typeEntite: "Role", entiteId: id, acteurId });
   }
 
   /** `EX-ADM-03` — supprimer un rôle non système. */
-  async supprimer(id: string, acteurId: string) {
+  async supprimer(id: string, acteurId: string, version: number) {
     const role = await this.prisma.role.findUnique({
       where: { id },
       include: { _count: { select: { utilisateurs: true } } },
     });
     if (!role) throw new ErreurRole("introuvable");
     if (role.systeme) throw new ErreurRole("role_systeme_non_supprimable");
+    if (role.version !== version) throw new ErreurRole("conflit_de_version");
 
     // Supprimer un rôle porté par des comptes les laisserait sans permission
     // aucune, en silence. On refuse en chiffrant.
@@ -204,7 +247,12 @@ export class RolesService {
       throw new ErreurRole("role_utilise", { utilisateurs: role._count.utilisateurs });
     }
 
-    await this.prisma.role.delete({ where: { id } });
+    try {
+      await this.prisma.role.delete({ where: { id, version } });
+    } catch (erreur) {
+      if (codePrisma(erreur) === "P2025") throw new ErreurRole("conflit_de_version");
+      throw erreur;
+    }
     await this.audit.tracer({ action: "role.delete", typeEntite: "Role", entiteId: id, acteurId });
   }
 
@@ -230,28 +278,38 @@ export class RolesService {
    * appelle avec. Un rôle système se réaligne donc toujours sur son modèle, et
    * ne se modifie jamais à la demande.
    */
-  async definirPermissions(roleId: string, permissions: string[], acteurId?: string) {
-    if (acteurId) {
-      const role = await this.prisma.role.findUnique({
-        where: { id: roleId },
-        select: { systeme: true },
-      });
-      if (!role) throw new ErreurRole("introuvable");
-      if (role.systeme) throw new ErreurRole("role_systeme_non_modifiable");
-    }
-
+  async definirPermissions(roleId: string, permissions: string[], acteurId?: string, version?: number) {
     const hors = permissions.filter((p) => !estAuCatalogue(p));
     if (hors.length > 0) throw new ErreurRole("permission_hors_catalogue", { permissions: hors });
 
     const uniques = [...new Set(permissions)];
+    const role = await this.prisma.role.findUnique({
+      where: { id: roleId },
+      select: { systeme: true, version: true },
+    });
+    if (!role) throw new ErreurRole("introuvable");
+    if (acteurId && role.systeme) throw new ErreurRole("role_systeme_non_modifiable");
+    if (acteurId && version === undefined) throw new ErreurRole("conflit_de_version");
+    const attendue = version ?? role.version;
+    if (role.version !== attendue) throw new ErreurRole("conflit_de_version");
 
-    await this.prisma.$transaction([
-      this.prisma.rolePermission.deleteMany({ where: { roleId } }),
-      this.prisma.rolePermission.createMany({
-        data: uniques.map((permission) => ({ roleId, permission })),
-      }),
-      this.prisma.role.update({ where: { id: roleId }, data: { version: { increment: 1 } } }),
-    ]);
+    try {
+      await this.prisma.$transaction(async (tx) => {
+        // L'incrément est la première écriture : deux matrices parties de la
+        // même version ne peuvent jamais chacune remplacer les permissions.
+        await tx.role.update({
+          where: { id: roleId, version: attendue },
+          data: { version: { increment: 1 } },
+        });
+        await tx.rolePermission.deleteMany({ where: { roleId } });
+        await tx.rolePermission.createMany({
+          data: uniques.map((permission) => ({ roleId, permission })),
+        });
+      });
+    } catch (erreur) {
+      if (codePrisma(erreur) === "P2025") throw new ErreurRole("conflit_de_version");
+      throw erreur;
+    }
 
     if (acteurId) {
       await this.audit.tracer({
@@ -263,4 +321,21 @@ export class RolesService {
       });
     }
   }
+
+  /** Réaligne seulement si le modèle diffère, afin qu'un rejeu soit idempotent jusque dans sa version. */
+  private async alignerPermissionsSysteme(roleId: string, permissions: string[]) {
+    const [role, actuelles] = await Promise.all([
+      this.prisma.role.findUniqueOrThrow({ where: { id: roleId }, select: { version: true } }),
+      this.prisma.rolePermission.findMany({ where: { roleId }, select: { permission: true } }),
+    ]);
+    const attendues = [...new Set(permissions)].sort();
+    const presentes = actuelles.map((p) => p.permission).sort();
+    if (attendues.length === presentes.length && attendues.every((p, i) => p === presentes[i])) return;
+    await this.definirPermissions(roleId, attendues, undefined, role.version);
+  }
 }
+
+const codePrisma = (erreur: unknown): string | undefined =>
+  typeof erreur === "object" && erreur !== null && "code" in erreur
+    ? String((erreur as { code?: unknown }).code)
+    : undefined;
