@@ -1076,3 +1076,32 @@ Fenêtre : Mot de passe actuel\* · Nouveau\* · Confirmer\* · Indice « Au moi
 ---
 
 *Fin des briefs de conception.*
+
+## Précisions de remédiation du 10 septembre 2026
+
+Décisions D-RM-06 à D-RM-08 prises dans le cadre de la délégation explicite du commanditaire ; leur motivation et leur historique figurent dans `recette/10-decisions.md`.
+
+### Recherche de la coquille
+
+Le champ « Recherche globale » recherche les titres des tâches et les noms des projets lisibles par la session. Une validation affiche deux groupes, Projets et Tâches, avec des liens vers leurs fiches. La saisie vide ne lance pas de recherche. L’absence de résultat l’indique explicitement et permet de modifier la recherche. Les résultats, leur compteur et toute suggestion appliquent permission et périmètre au serveur ; une tâche confidentielle sans permission explicite n’y figure jamais. Le texte libre n’interroge ni les comptes, ni les congés, ni les documents. Ce périmètre borné rend le champ annoncé utilisable sans lui donner une portée privée implicite.
+
+### Filtres et retour depuis une fiche
+
+Les filtres de liste sont portés dans l’URL : texte recherché, projet, statut, ainsi que les filtres spécifiques déjà exposés par la liste. Les changements de vue Liste/Kanban et Semaine/Mois/Activité conservent les filtres communs. L’ancre et les services du planning sont conservés. Le retour depuis une fiche restitue l’URL locale de la liste source. Un accès direct sans source utilise le parent du tableau ci-dessous ; une source extérieure au produit n’est jamais une destination de retour.
+
+| Vue | Parent du fil d’Ariane et retour par défaut |
+| --- | --- |
+| 06 | Accueil, sans lien vers elle-même |
+| 07, 08, 09, 10, 16, 18, 19, 20, 21, 22, 23, 25, 27, 29, 30, 31, 32, 33, 34, 35 | 06, tableau de bord |
+| 11 | 10, portefeuille |
+| 12, 13, 14, 15 | 11, vue d’ensemble du projet concerné |
+| 17 | Liste source conservée ; à défaut 16, tâches |
+| 24 | 23, tiers |
+| 26 | 25, clients |
+| 28 | 27, utilisateurs |
+
+Un parent dont la permission de lecture manque est remplacé par l’accueil ; son lien ne provoque pas de lecture interdite. Les vues d’accès 01–05 restent hors coquille. Les fenêtres et menus ouverts ne constituent pas des filtres persistants.
+
+### Langue et formats
+
+Les noms des jours et des mois, ainsi que les noms des rôles système, suivent la langue de session. Les formats numériques de date/heure et séparateurs suivent les paramètres globaux de RG-GEN-09. Le nom libre d’un rôle personnalisé n’est pas traduit automatiquement.

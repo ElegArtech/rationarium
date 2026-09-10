@@ -108,6 +108,8 @@ Encadre douze agents. Attend : valider les congés en connaissant l'impact sur l
 **Hugo — responsable RH**
 Suit les congés et le télétravail à l'échelle de l'organisation. Attend : paramétrer les types de congés et les soldes, importer en masse, contrôler.
 
+Précision du 10 septembre 2026 (D-RM-03) : le rôle `HR_OFFICER` administre également le référentiel des compétences et la matrice, avec les permissions `skills:create/update/delete/manage_matrix/import/export`. Les cibles individuelles restent soumises au périmètre. `HR_OFFICER_LIGHT` conserve la consultation ; cette attribution ne donne ni gestion des rôles ni administration du calendrier, confiée à Karim.
+
 **Inès — direction**
 Ne se connecte qu'une fois par mois. Attend : la santé du portefeuille en une page, les jalons à risque, la charge par service.
 
@@ -627,6 +629,8 @@ Le module le plus riche en règles.
 - **RG-TLT-04** — Un jour issu d'une règle est signalé comme récurrent ; il peut être modifié ponctuellement, ce qui crée une exception.
 - **RG-TLT-05** — La génération rend compte du nombre de jours créés et ignorés.
 - **RG-TLT-06** — Une plage interrogée ne peut excéder 366 jours.
+Précision du 10 septembre 2026 (D-RM-12) : les comptes du socle personnel, dont Camille, peuvent gérer et générer leurs propres règles (`telework:manage_rules`, `telework:generate`). Ces permissions seules ne permettent aucune action sur les règles d’autrui ; la permission dédiée et le périmètre restent exigés. Les rôles explicitement observateurs restent en lecture seule.
+
 - **RG-TLT-07** — Agir sur le télétravail d'autrui exige une permission dédiée, distincte selon l'action (consulter, saisir, modifier, supprimer, gérer les règles).
 
 ---
