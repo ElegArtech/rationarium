@@ -22,3 +22,31 @@ D-RM-11 — Présence (RM-07) : l’affichage de présence consolide d’abord l
 D-RM-12 — Les jours fixes appartiennent au calendrier personnel : les permissions `telework:manage_rules` et `telework:generate` entrent dans le socle personnel pour exercer EX-TLT-04/06. Aucun `telework:manage_any` ajouté ; agir sur une autre personne reste refusé sans droit et périmètre dédiés (RG-TLT-07). Les modèles observateurs, composés seulement de permissions de lecture, restent inchangés. Le parcours P-31 conserve son objectif.
 
 D-RM-13 — Driss peut consulter l’annuaire (`users:read`) et les paramètres en lecture (`settings:read` du socle), sans gouverner les comptes ni modifier les réglages. P-72 doit tester l’absence des écritures et les refus de rôles/audit, pas interdire ces lectures utiles à la conduite de projet. Pour P-53 et P-113, les audits sont consultés par Karim, sans ouvrir audit:read aux personas métier. La suppression définitive projet (P-70) s’exerce par un acteur détenant projects:delete ; les acteurs sans ce droit vérifient son refus.
+
+## D-RM-14 — qualification indépendante de P-26 et P-41
+
+L’exploration des seules sources confirme EX-CNG-09 et le brief19 : les soldes personnels se consultent par type et année pendant la saisie ; le mot « Soldes » désigne l’onglet réservé à `leaves:manage_balances` (02 lignes626/657/659). P-26 retire donc ce titre de ses textes obligatoires pour Camille et affirme la zone personnelle. Aucun droit ajouté.
+
+Le brief29 ligne864 prescrit le refus « 🔒 Accès restreint — Cette page est réservée aux administrateurs et responsables ». L’état Restreint de design/etats conserve la coquille et remplace le contenu principal : P-41 garde le refus nommé et l’absence de données, sans imposer une page plein écran. Aucun assouplissement lié au comportement actuel. E9 reste inchangé ; corpus10 passe à version4, oracle à version3 avant campagne.
+
+## D-RM-15 — calendrier scolaire en réseau fermé
+
+ADR-0017 : l'import année/zone s'appuie sur un instantané officiel embarqué, avec date et empreinte. Aucune connexion externe en exploitation, aucune date future inventée ; année/zone absente refusée explicitement. Les événements ponctuels sans fin sont distingués des périodes de vacances. La référence officielle reste dans l'image de production : ce n'est pas un jeu de mesure.
+
+## D-RM-16 — messages du planning et des événements
+
+Le brief07 lignes339/340 prescrit deux messages différents pour le refus d’un changement de date et le changement d’assigné d’une tâche multi-assignée. P62 couvre désormais les deux gestes avec leurs textes propres, au lieu de réclamer le texte de refus après une réassignation réussie. Le brief18 lignes589/591 nomme la case événement « Toute la journée » ; P65 et son oracle reprennent ce titre, distinct de la période « Journée entière » du vocabulaire partagé. Les assertions de dates, assignés et participants sont conservées. Corpus version5, oracle version4 ; aucune modification E9.
+
+## D-RM-17 — échanges ICS et grille unifiée
+
+EX-PLN-15 porte l’export du planning : il comprend les occupations visibles de la grille, pas uniquement événements et congés. Période, population et confidentialité restent les mêmes que la lecture ; la permission d’export n’élargit aucun périmètre.
+
+À l’import, une représentation non supportée ne devient pas un événement tronqué. Elle porte un motif explicite parmi les lignes ignorées dans l’aperçu puis le bilan. Les récurrences représentables par le modèle existant sont à conserver ; les autres restent une limite déclarée de prise en charge, sans mutation cachée. Aucune modification de schéma implicite dans ce lot.
+
+## D-RM-18 — fin de récurrence facultative
+
+Le brief18 autorise une fin facultative ; RG-EVT-02 borne la génération par l’horizon configuré. L’absence de fin signifie une borne effective à la date de début augmentée de cet horizon, stockée et retournée par le serveur. Elle ne supprime pas silencieusement la récurrence et ne crée aucune série infinie. Le formulaire explique la borne appliquée ; une fin explicite supérieure à l’horizon reste refusée.
+
+## D-RM-19 — invitation collective et membres inactifs
+
+Le cas n’était pas précisé par EX-EVT-04. L’invitation d’un service porte les membres actifs autorisés, en cohérence avec les candidats individuels ; un compte inactif ne bloque pas l’ensemble et n’est pas invité. La désignation individuelle explicite d’un compte inactif reste refusée. Cette précision est portée au cadrage01 ; elle n’est pas attribuée artificiellement à RG-AUTH-05.

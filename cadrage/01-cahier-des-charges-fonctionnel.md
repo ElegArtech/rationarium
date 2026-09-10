@@ -527,6 +527,8 @@ Permanences, astreintes, accueil, gardes : activités qui reviennent, ne relève
 | EX-EVT-08 | Ajouter et retirer des participants |
 | EX-EVT-09 | Consulter les événements d'un agent, ou d'une plage de dates |
 
+**Précision du 10 septembre 2026 — invitation de service (`EX-EVT-04`).** Une invitation collective développe les membres actifs et autorisés du service au moment de la création. Les comptes inactifs restent dans l’historique mais ne sont pas de nouveaux candidats ; leur présence ne bloque pas l’invitation des membres actifs. Une invitation individuelle visant explicitement un compte inactif est refusée. Le service, les participants actifs et le projet restent contrôlés dans le périmètre de l’appelant.
+
 - **RG-EVT-01** — Un même utilisateur ne peut être participant deux fois.
 - **RG-EVT-02** — La date de fin de récurrence ne peut dépasser un horizon maximal paramétré (exprimé en années).
 - **RG-EVT-03** — Seul un événement parent d'une série peut voir sa récurrence arrêtée.
