@@ -255,6 +255,8 @@ Chaque exigence est identifiée `EX-<MODULE>-<n>`, chaque règle de gestion `RG-
 - **RG-AUTH-09** — L'avatar est soit un fichier téléversé (jpg, png, webp), soit un visuel prédéfini, soit rien.
 - **RG-AUTH-10** — Connexions réussies, échecs et verrouillages sont tracés dans le journal d'audit.
 
+**Catalogue du 10 septembre 2026 (D-RM-21).** Les visuels prédéfinis sont six motifs locaux, nommés et reconnaissables sans dépendre de leur couleur : constellation, feuille, montagne, vagues, soleil et mosaïque. Leurs identifiants techniques sont stables car ils sont persistés ; les libellés visibles sont traduits. Choisir un visuel efface le fichier personnel précédent, téléverser un fichier efface le visuel précédent, et supprimer l’avatar efface les deux.
+
 **Précision du 10 septembre 2026 — réinitialisation administrateur (D-RM-04).** Pour `EX-USR-07`, l’administrateur saisit un secret provisoire conforme à `RG-AUTH-06`, confirme l’action, puis le remet au titulaire par le canal interne de la collectivité. Le titulaire est contraint de le remplacer à sa prochaine connexion conformément à `EX-AUTH-07`. Le secret, sa valeur dérivée et son canal de remise ne figurent jamais dans le journal d’audit ; seul le fait de la réinitialisation y est tracé.
 
 ---

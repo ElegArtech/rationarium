@@ -15,7 +15,7 @@ Autorité : demande utilisateur du 10 septembre, exécution intégrale en autono
 | D-RM-09 | RM-00-v2 conserve tous incidents et distingue les refus HTTP précisément prévus avant action (méthode, chemin, statut, phase, nombre) des incidents inattendus. Bootstrap : un GET /api/auth/me 401 avant connexion est prévu. Aucun ERR_ABORTED exclu. | Contrat réseau explicite arrêté avant campagne ; un refus métier attendu ne devient pas une panne. Tests des excès et incidents inattendus requis. |
 | D-RM-10 | P-49 vérifie le refus de suppression d’une tâche prérequise, conformément à RG-TSK-07 ; P-164 conserve semaine/mois/trimestre/année (EX-RPT-01), sans inventer une fenêtre 30 jours depuis EX-RPT-10 relatif à l’activité récente. | Contradictions de scénarios ; nouvelles versions sourcées, anciens rouges conservés. |
 
-Les arbitrages D-RM-03 à D-RM-08, D-RM-11 à D-RM-13, D-RM-15 et D-RM-17 à D-RM-20 sont intégrés au cadrage fonctionnel, au brief ou aux ADR selon leur nature. Statut de livraison distinct dans le journal ; cette table ne donne aucun vert.
+Les arbitrages D-RM-03 à D-RM-08, D-RM-11 à D-RM-13, D-RM-15 et D-RM-17 à D-RM-21 sont intégrés au cadrage fonctionnel, au brief ou aux ADR selon leur nature. Statut de livraison distinct dans le journal ; cette table ne donne aucun vert.
 
 D-RM-11 — Présence (RM-07) : l’affichage de présence consolide d’abord les congés approuvés, puis les déclarations bureau/télétravail, puis le non-déclaré. Un congé n’est pas un quatrième état stocké de télétravail : c’est une occupation prioritaire dans la grille commune. Les comptes affichés dans 06 et 20 portent sur la même population et la même date ; le non-déclaré exclut les agents en congé. Les jours non ouvrés sont distingués et ne fabriquent pas des absences de déclaration. Les statistiques de télétravail comptent les journées réellement déclarées ou générées, selon les périodes explicitement affichées. Motif : principe directeur de grille temporelle unique, EX-TLT-07/08 et RG-TLT-02.
 
@@ -54,3 +54,7 @@ Le cas n’était pas précisé par EX-EVT-04. L’invitation d’un service por
 ## D-RM-20 — compatibilité CSV des rapports
 
 `EX-RPT-03` et l’interface restent normatifs sur PDF, Excel et JSON. Le format CSV déjà exposé par l’API est conservé comme compatibilité interne afin de ne pas casser les consommateurs existants ; il n’est pas ajouté aux commandes visibles. Il demeure soumis aux mêmes permission d’export, périmètre, confidentialité, langue et audit que les formats normatifs. Cette compatibilité est explicitée au cadrage plutôt que présentée comme une exigence nouvelle.
+
+## D-RM-21 — catalogue local d’avatars prédéfinis
+
+`RG-AUTH-09` exige un visuel prédéfini sans en fixer le catalogue. Six motifs locaux et sans dépendance externe sont retenus : constellation, feuille, montagne, vagues, soleil et mosaïque. Leurs identifiants persistés restent stables et leurs noms sont traduits. Fichier personnel, visuel prédéfini et absence d’avatar sont trois états exclusifs ; chaque sélection remplace explicitement l’état précédent. Ce choix complète le cadrage avant la campagne et n’ajoute ni dépendance ni donnée distante.
