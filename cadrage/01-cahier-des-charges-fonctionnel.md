@@ -102,6 +102,8 @@ Travaille sur deux ou trois projets, participe à des permanences. Attend du pro
 **Driss — chef de projet**
 Porte un projet transverse impliquant quatre services. Attend : structurer en jalons, savoir qui est disponible quand, repérer les tâches en retard et les dépendances qui glissent.
 
+Précision du 10 septembre 2026 (D-RM-13) : le modèle de chef de projet permet à Driss de consulter l’annuaire (`users:read`) et les paramètres publics ou globaux utiles en lecture (`settings:read`). Ces lectures n’emportent ni gestion des comptes ou des rôles, ni consultation de l’audit, ni écriture de paramétrage. Les contrôles serveur de permission et de périmètre restent appliqués à chaque ressource.
+
 **Fatou — manager de service**
 Encadre douze agents. Attend : valider les congés en connaissant l'impact sur le service, voir le taux de présence, repérer les surcharges, suivre un agent individuellement.
 
@@ -252,6 +254,8 @@ Chaque exigence est identifiée `EX-<MODULE>-<n>`, chaque règle de gestion `RG-
 - **RG-AUTH-08** — L'identifiant de connexion n'est jamais modifiable après création.
 - **RG-AUTH-09** — L'avatar est soit un fichier téléversé (jpg, png, webp), soit un visuel prédéfini, soit rien.
 - **RG-AUTH-10** — Connexions réussies, échecs et verrouillages sont tracés dans le journal d'audit.
+
+**Précision du 10 septembre 2026 — réinitialisation administrateur (D-RM-04).** Pour `EX-USR-07`, l’administrateur saisit un secret provisoire conforme à `RG-AUTH-06`, confirme l’action, puis le remet au titulaire par le canal interne de la collectivité. Le titulaire est contraint de le remplacer à sa prochaine connexion conformément à `EX-AUTH-07`. Le secret, sa valeur dérivée et son canal de remise ne figurent jamais dans le journal d’audit ; seul le fait de la réinitialisation y est tracé.
 
 ---
 
@@ -469,6 +473,8 @@ Trois niveaux : **Direction → Département → Service**.
 | EX-PLN-14 | Voir jours fériés et vacances scolaires en trame de fond |
 | EX-PLN-15 | Exporter le planning au format ICS et importer un calendrier ICS |
 
+**Précision du 10 septembre 2026 — échanges ICS (D-RM-17).** L’export reprend toutes les occupations visibles dans la grille pour la période, la population, les filtres et le périmètre du lecteur ; la permission d’export n’élargit ni la lecture ni la confidentialité. Lors de l’import, une représentation non prise en charge est conservée dans le bilan des lignes ignorées avec un motif explicite : elle n’est jamais transformée en événement tronqué. Les récurrences représentables par le modèle sont conservées ; les autres sont annoncées comme non prises en charge, sans mutation cachée.
+
 **Sections de légende** — Statuts de tâches · Type de tâche (projet / hors projet) · Présence (bureau, télétravail) · Absences (congé validé, congé en attente) · Événements (dont intervention extérieure).
 
 **Vue Activité** — grille **jours en lignes × tâches prédéfinies en colonnes**, dédiée au pilotage de l'activité récurrente. Chaque cellule liste les agents affectés, avec ajout direct. Vue imprimable.
@@ -531,6 +537,7 @@ Permanences, astreintes, accueil, gardes : activités qui reviennent, ne relève
 
 - **RG-EVT-01** — Un même utilisateur ne peut être participant deux fois.
 - **RG-EVT-02** — La date de fin de récurrence ne peut dépasser un horizon maximal paramétré (exprimé en années).
+- **Précision D-RM-18.** La fin de récurrence peut être omise. Le serveur applique alors comme borne effective la date de début augmentée de l’horizon configuré, la stocke et la retourne. Une fin explicite au-delà de cet horizon est refusée ; aucune série infinie ni suppression silencieuse de la récurrence n’est créée.
 - **RG-EVT-03** — Seul un événement parent d'une série peut voir sa récurrence arrêtée.
 - **RG-EVT-04** — L'arrêt de récurrence supprime les occurrences futures et conserve les passées ; l'action est confirmée.
 - **RG-EVT-05** — Les paramètres de début et de fin sont obligatoires pour interroger une plage.
@@ -627,6 +634,8 @@ Le module le plus riche en règles.
 
 - **RG-TLT-01** — Un seul enregistrement de télétravail par agent et par date.
 - **RG-TLT-02** — Trois états par jour : télétravail · bureau (déclaré) · non déclaré. Le week-end est distingué.
+
+**Précision du 10 septembre 2026 — présence consolidée (D-RM-11).** Pour une même population et une même date, toutes les vues de présence appliquent la même priorité : congé approuvé ou demande d’annulation en cours, puis déclaration bureau ou télétravail, puis non déclaré. Le congé demeure une occupation de la grille commune, pas un quatrième état de télétravail. Les jours non ouvrés sont distingués et ne fabriquent pas de non-déclaration ; les statistiques comptent les journées de télétravail réellement déclarées ou générées sur la période affichée.
 - **RG-TLT-03** — Une règle récurrente est unique pour un couple jour de semaine × date de début.
 - **RG-TLT-04** — Un jour issu d'une règle est signalé comme récurrent ; il peut être modifié ponctuellement, ce qui crée une exception.
 - **RG-TLT-05** — La génération rend compte du nombre de jours créés et ignorés.
@@ -754,6 +763,8 @@ Trois onglets : **Vue d'ensemble** · **Analytics avancés** · **Gantt portefeu
 | EX-RPT-01 | Choisir une période : semaine, mois, trimestre, année |
 | EX-RPT-02 | Filtrer par projet et par responsable |
 | EX-RPT-03 | Exporter en PDF, Excel ou JSON |
+
+**Compatibilité du 10 septembre 2026 (D-RM-20).** L’interface ne propose que les trois formats normatifs ci-dessus. Le point d’entrée d’export accepte encore `csv` pour les consommateurs internes antérieurs ; cette compatibilité applique strictement les mêmes permission, périmètre, confidentialité, langue et audit, et ne constitue pas un quatrième format annoncé par l’interface.
 | EX-RPT-04 | Consulter la progression des projets |
 | EX-RPT-05 | Consulter la répartition de charge par collaborateur et les surcharges |
 | EX-RPT-06 | Consulter la santé des projets |
@@ -780,6 +791,7 @@ Trois onglets : **Vue d'ensemble** · **Analytics avancés** · **Gantt portefeu
 - **RG-RPT-01** — Les indicateurs respectent le périmètre de l'utilisateur : on ne voit d'agrégat que sur ce qu'on a le droit de voir.
 - **RG-RPT-02** — Au-delà de dix projets, l'affichage graphique est limité pour rester lisible, et le troncage est signalé. **L'avancement réel et attendu fait exception : il montre tous les projets du périmètre.** C'est le graphique qu'on ouvre pour savoir où en est le portefeuille ; en masquer une part fait conclure qu'il n'y en a pas d'autre, et le pied de panneau qui annonçait le troncage ne se lisait qu'après avoir déjà tiré cette conclusion. L'ordre reste celui du retard, du plus en retard au moins : ce qui appelle une décision arrive en premier.
 - **RG-RPT-03** — La tendance de progression s'appuie sur les instantanés historiques. Tant que l'historique est court, l'interface l'indique plutôt que d'afficher une courbe trompeuse.
+- **Précision D-RM-05.** Lorsqu’un instantané historique global ne permet pas de séparer les contributions appartenant au périmètre courant, il est masqué aux lecteurs restreints et l’indisponibilité est expliquée. Une moyenne globale ne sert jamais à fabriquer une courbe filtrée ou une série à zéro.
 - **RG-RPT-04** — Une stagnation de progression est détectée et signalée.
 - **RG-RPT-05** — Une surcharge est détectée par écart à la moyenne de l'équipe.
 - **RG-RPT-06** — Chaque graphique dispose d'un état vide explicite plutôt que d'une zone blanche.

@@ -15,7 +15,7 @@ Autorité : demande utilisateur du 10 septembre, exécution intégrale en autono
 | D-RM-09 | RM-00-v2 conserve tous incidents et distingue les refus HTTP précisément prévus avant action (méthode, chemin, statut, phase, nombre) des incidents inattendus. Bootstrap : un GET /api/auth/me 401 avant connexion est prévu. Aucun ERR_ABORTED exclu. | Contrat réseau explicite arrêté avant campagne ; un refus métier attendu ne devient pas une panne. Tests des excès et incidents inattendus requis. |
 | D-RM-10 | P-49 vérifie le refus de suppression d’une tâche prérequise, conformément à RG-TSK-07 ; P-164 conserve semaine/mois/trimestre/année (EX-RPT-01), sans inventer une fenêtre 30 jours depuis EX-RPT-10 relatif à l’activité récente. | Contradictions de scénarios ; nouvelles versions sourcées, anciens rouges conservés. |
 
-Les arbitrages sont à intégrer au cadrage avec leur motivation avant campagne finale. Statut de livraison distinct dans le journal ; cette table ne donne aucun vert.
+Les arbitrages D-RM-03 à D-RM-08, D-RM-11 à D-RM-13, D-RM-15 et D-RM-17 à D-RM-20 sont intégrés au cadrage fonctionnel, au brief ou aux ADR selon leur nature. Statut de livraison distinct dans le journal ; cette table ne donne aucun vert.
 
 D-RM-11 — Présence (RM-07) : l’affichage de présence consolide d’abord les congés approuvés, puis les déclarations bureau/télétravail, puis le non-déclaré. Un congé n’est pas un quatrième état stocké de télétravail : c’est une occupation prioritaire dans la grille commune. Les comptes affichés dans 06 et 20 portent sur la même population et la même date ; le non-déclaré exclut les agents en congé. Les jours non ouvrés sont distingués et ne fabriquent pas des absences de déclaration. Les statistiques de télétravail comptent les journées réellement déclarées ou générées, selon les périodes explicitement affichées. Motif : principe directeur de grille temporelle unique, EX-TLT-07/08 et RG-TLT-02.
 
@@ -50,3 +50,7 @@ Le brief18 autorise une fin facultative ; RG-EVT-02 borne la génération par l�
 ## D-RM-19 — invitation collective et membres inactifs
 
 Le cas n’était pas précisé par EX-EVT-04. L’invitation d’un service porte les membres actifs autorisés, en cohérence avec les candidats individuels ; un compte inactif ne bloque pas l’ensemble et n’est pas invité. La désignation individuelle explicite d’un compte inactif reste refusée. Cette précision est portée au cadrage01 ; elle n’est pas attribuée artificiellement à RG-AUTH-05.
+
+## D-RM-20 — compatibilité CSV des rapports
+
+`EX-RPT-03` et l’interface restent normatifs sur PDF, Excel et JSON. Le format CSV déjà exposé par l’API est conservé comme compatibilité interne afin de ne pas casser les consommateurs existants ; il n’est pas ajouté aux commandes visibles. Il demeure soumis aux mêmes permission d’export, périmètre, confidentialité, langue et audit que les formats normatifs. Cette compatibilité est explicitée au cadrage plutôt que présentée comme une exigence nouvelle.
