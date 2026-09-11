@@ -74,11 +74,11 @@
   height: 1.5em;
   margin-right: -0.1em;
   transform: translateY(0.3em);
-  background: url("/logo.png") center / contain no-repeat;
+  background: url("/logo.png?v=20260911") center / contain no-repeat;
 }
 
 html.dark .side-logo {
-  background-image: url("/logo-sombre.png");
+  background-image: url("/logo-sombre.png?v=20260911");
 }
 
 /* Repliée, le logo devient le bouton : il grandit, et le chevron s'efface. */
