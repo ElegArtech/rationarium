@@ -55,30 +55,27 @@
   font-weight: 600;
   letter-spacing: -0.01em;
   display: inline-flex;
-  align-items: baseline;
+  align-items: center;
+  gap: 8px;
 }
 
 /*
- * Le logo tient la place du R. Il est en fond plutôt qu'en `<img>` : le thème
+ * Le monogramme précède le nom. Il est en fond plutôt qu'en `<img>` : le thème
  * est une classe sur `html`, pas une préférence système, donc c'est le CSS qui
  * doit trancher — un `src` en dur obligerait le composant à s'abonner au thème
  * pour un dessin. Le corps du R est en bleu nuit, illisible sur `--surface`
  * sombre (#161922) : la variante claire du fichier n'est pas une coquetterie.
- *
- * `1ch` de retrait à droite : le R dessiné est plus large que le pas de la
- * police, sans quoi « ationarium » paraît décollé.
  */
 .side-logo {
   display: inline-block;
-  width: 1.5em;
-  height: 1.5em;
-  margin-right: -0.1em;
-  transform: translateY(0.3em);
-  background: url("/logo.png?v=20260911") center / contain no-repeat;
+  flex: none;
+  width: 24px;
+  height: 24px;
+  background: url("/logo.png?v=20260911b") center / contain no-repeat;
 }
 
 html.dark .side-logo {
-  background-image: url("/logo-sombre.png?v=20260911");
+  background-image: url("/logo-sombre.png?v=20260911b");
 }
 
 /* Repliée, le logo devient le bouton : il grandit, et le chevron s'efface. */

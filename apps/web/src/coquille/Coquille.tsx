@@ -187,17 +187,14 @@ export function Coquille({
         {/* ══════════ Barre latérale ══════════ */}
         <aside className="side">
           <div className="side-head">
-            {/* Le logo EST le R : c'est un R stylisé, il tient donc la place de
-                l'initiale plutôt que de s'ajouter à côté d'elle. L'ensemble
-                s'annonce « Rationarium » d'un seul tenant — un `role="img"`
-                porte le nom, et le dessin comme le reste du mot sont masqués
-                aux technologies d'assistance, sans quoi on entendrait « R »
-                puis « ationarium ». */}
+            {/* Le monogramme et le nom forment un seul repère de marque. Le
+                `role="img"` porte son nom accessible ; les deux éléments
+                graphiques sont masqués pour éviter une double annonce. */}
             <span className="side-mark" role="img" aria-label="Rationarium">
               <span className="side-logo" aria-hidden="true" />
-              <span aria-hidden="true">ationarium</span>
+              <span aria-hidden="true">Rationarium</span>
             </span>
-            {/* Repliée, la barre n'a plus de place pour deux repères : le logo
+            {/* Repliée, la barre n'a plus de place pour deux repères : le monogramme
                 devient lui-même le bouton qui déplie. Déployée, il redevient
                 l'initiale et le chevron reprend son rôle. */}
             <Button

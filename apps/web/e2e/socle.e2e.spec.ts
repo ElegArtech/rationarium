@@ -144,9 +144,8 @@ test.describe("Le socle démarre", () => {
   });
 
   /**
-   * Le logo tient la place du R. L'ensemble doit rester UN nom accessible :
-   * dessin puis « ationarium » séparés donneraient « R » puis « ationarium »,
-   * ou pire, le seul « ationarium » si le dessin n'est pas nommé.
+   * Le monogramme et le nom visible restent UN nom accessible : annoncer le
+   * dessin séparément ferait entendre deux fois la marque.
    */
   test("le repère de marque s'annonce « Rationarium », logo compris", async ({ page }) => {
     await serveur(page, { statut: 200, corps: SESSION });
