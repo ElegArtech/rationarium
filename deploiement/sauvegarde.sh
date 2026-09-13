@@ -1,136 +1,38 @@
 #!/usr/bin/env bash
-# ════════════════════════════════════════════════════════════════════════════
-# Sauvegarde de Rationarium — L-29.
-#
-# Une sauvegarde qu'on n'a jamais restaurée n'est pas une sauvegarde : c'est une
-# intention. Le cycle complet est rejoué par
-# `apps/api/src/exploitation/sauvegarde.int.test.ts`, à chaque boucle.
-#
-# Ce script fait trois choses, et la troisième est celle qu'on oublie :
-#
-#   1. Le `pg_dump` en format personnalisé — compressé, restaurable
-#      sélectivement, et dont `pg_restore` sait rejouer l'ordre des dépendances.
-#   2. Le **contrôle de relisibilité** immédiat : un fichier de sauvegarde
-#      illisible se découvre normalement le jour de la panne. `pg_restore
-#      --list` le lit sans rien restaurer, et coûte une seconde.
-#   3. Les **rôles**, sauvegardés à part. `CREATE ROLE` est global à l'instance
-#      et non au schéma : `pg_dump` ne l'emporte pas. Une restauration sur une
-#      instance neuve rendrait une base correcte à laquelle l'application ne
-#      pourrait pas se connecter, et dont le journal d'audit serait modifiable.
-#
-# Emploi :
-#   ./sauvegarde.sh                 # dans le répertoire deploiement/, avec .env
-#
-# Depuis cron, une fois par nuit :
-#   30 2 * * * cd /opt/rationarium/deploiement && ./sauvegarde.sh >> /var/log/rationarium-sauvegarde.log 2>&1
-# ════════════════════════════════════════════════════════════════════════════
-
+# Capture cohérente : base, rôles, pièces jointes, configuration et autorité HTTPS.
 set -euo pipefail
-
-racine="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$racine"
-
-# Le `.env` se LIT, il ne se SOURCE pas.
-#
-# Compose n'interprète pas ce fichier par un shell : `RATIONARIUM_HOTE` y porte
-# une liste séparée par des virgules, sans guillemets, ce qui est parfaitement
-# licite pour lui. Un `. ./.env` en fait une commande — « 10.88.0.1: command
-# not found » — et la sauvegarde s'arrêtait là, sur une ligne qui ne la
-# concerne pas. Un script d'exploitation doit lire le fichier de l'exploitation
-# tel qu'il est, pas tel qu'un shell l'aimerait.
-lire_env() {
-  [ -f .env ] || return 0
-  while IFS= read -r ligne || [ -n "$ligne" ]; do
-    case "$ligne" in "" | "#"*) continue ;; esac
-    cle="${ligne%%=*}"
-    [ "$cle" = "$ligne" ] && continue
-    case "$cle" in *[!A-Za-z0-9_]*) continue ;; esac
-    valeur="${ligne#*=}"
-    # Compose retire les guillemets encadrants : on fait de même, sinon une
-    # valeur citée arriverait ici avec ses guillemets et pas là-bas.
-    case "$valeur" in
-      \"*\") valeur="${valeur#\"}"; valeur="${valeur%\"}" ;;
-      "'"*"'") valeur="${valeur#\'}"; valeur="${valeur%\'}" ;;
-    esac
-    export "$cle=$valeur"
-  done < .env
-}
-lire_env
-
-destination="${RATIONARIUM_SAUVEGARDES:-/var/sauvegardes/rationarium}"
-retention="${RATIONARIUM_RETENTION:-30}"
-base="${POSTGRES_BASE:-rationarium}"
-utilisateur="${POSTGRES_UTILISATEUR:?POSTGRES_UTILISATEUR manquant}"
-horodatage="$(date -u +%Y%m%dT%H%M%SZ)"
-
+source "$(dirname -- "${BASH_SOURCE[0]}")/commun.sh"
+destination=${1:-$destination}
+[[ "$retention" =~ ^[0-9]+$ ]] || { echo 'RATIONARIUM_RETENTION doit être un nombre de jours, ou 0.' >&2; exit 1; }
 mkdir -p "$destination"
-destination="$(cd "$destination" && pwd)"
-
-archive="$destination/rationarium-$horodatage.dump"
-roles="$destination/rationarium-$horodatage.roles.sql"
-documents="$destination/rationarium-$horodatage.documents.tar.gz"
-
-# Un même instant logique pour les métadonnées et leurs contenus.
-services_actifs="$(docker compose ps --status running --services | grep -E '^(api|web)$' || true)"
+destination=$(cd "$destination" && pwd)
+prefixe="rationarium-$(date -u +%Y%m%dT%H%M%S%NZ)"
+services_actifs=()
+while IFS= read -r service; do
+  case "$service" in api|web) services_actifs+=("$service") ;; esac
+done <<< "$(docker compose ps --status running --services)"
 reprendre() {
-  if [ -n "$services_actifs" ]; then
-    # Les noms viennent de la liste fermée api|web ci-dessus.
-    docker compose start $services_actifs
-  fi
+  if (( ${#services_actifs[@]} )); then docker compose start "${services_actifs[@]}"; fi
 }
 trap reprendre EXIT
 docker compose stop api web
 
-echo "── sauvegarde $horodatage ──"
-
-# 1. Les données et la structure.
-#
-# L'archive est écrite DANS le conteneur, relue là, puis copiée. Le trajet par
-# un tube — `docker compose exec … > archive.dump` — produit bien un fichier
-# valide, mais le trajet inverse ne fonctionne pas : `pg_restore --list` lu sur
-# `/dev/stdin` d'un `exec` rend « did not find magic string in file header »
-# sur une archive parfaitement saine. Un contrôle qui échoue sur du bon crie au
-# loup, et un contrôle auquel on ne croit plus ne sert à rien.
-docker compose exec -T base \
-  pg_dump --username "$utilisateur" --dbname "$base" --format=custom --compress=9 \
-  --file=/tmp/rationarium-sauvegarde.dump
-
-# 2. La relecture immédiate, à la source. `--list` échoue sur une archive
-#    tronquée ou corrompue, ce qui est le mode de défaillance le plus courant :
-#    un disque plein rend un fichier de taille plausible.
-liste="$(docker compose exec -T base pg_restore --list /tmp/rationarium-sauvegarde.dump)"
-entrees="$(printf '%s\n' "$liste" | awk '!/^;/ && NF {n++} END {print n+0}')"
-[ "$entrees" -gt 0 ] || { echo "Archive sans objet restaurable" >&2; exit 1; }
-
-# 3. La sortie du conteneur, puis les rôles — hors de portée de pg_dump.
-docker compose cp base:/tmp/rationarium-sauvegarde.dump "$archive"
+docker compose exec -T base pg_dump -U "$utilisateur" -d "$base" --format=custom --file=/tmp/rationarium-sauvegarde.dump
+docker compose exec -T base pg_restore --list /tmp/rationarium-sauvegarde.dump > /dev/null
+docker compose cp base:/tmp/rationarium-sauvegarde.dump "$destination/$prefixe.dump"
 docker compose exec -T base rm -f /tmp/rationarium-sauvegarde.dump
-
-docker compose exec -T base \
-  pg_dumpall --username "$utilisateur" --roles-only \
-  > "$roles"
-
-# Le volume est lu pendant que toute écriture applicative est arrêtée.
-docker compose run --rm -T --no-deps --user "$(id -u):$(id -g)" \
-  --volume "$destination:/sauvegarde" --entrypoint tar api \
-  -czf "/sauvegarde/$(basename "$documents")" -C /var/lib/rationarium/documents .
-tar -tzf "$documents" > /dev/null
-(cd "$destination" && sha256sum "$(basename "$archive")" "$(basename "$roles")" "$(basename "$documents")" > "rationarium-$horodatage.sha256")
-
-taille="$(du -h "$archive" | cut -f1)"
-echo "archive : $archive ($taille) — relue sans erreur, $entrees entrées"
-echo "rôles   : $roles"
-echo "documents : $documents"
-
-# 4. La rétention. `-mtime +N` ne supprime que les fichiers de sauvegarde de ce
-#    répertoire : le motif est nommé, jamais un `*`.
-supprimes="$(find "$destination" -maxdepth 1 -name 'rationarium-*.dump' -mtime "+$retention" -print -delete | wc -l)"
-find "$destination" -maxdepth 1 -name 'rationarium-*.roles.sql' -mtime "+$retention" -delete
-find "$destination" -maxdepth 1 -name 'rationarium-*.documents.tar.gz' -mtime "+$retention" -delete
-find "$destination" -maxdepth 1 -name 'rationarium-*.sha256' -mtime "+$retention" -delete
-echo "rétention $retention jours : $supprimes archive(s) supprimée(s)"
-
-# 5. Ce que ce script NE fait pas, et qui doit être décidé (`cadrage/03 § 8.3`) :
-#    la copie hors machine. Une sauvegarde qui vit sur le disque qu'elle protège
-#    ne protège de rien d'autre que d'une erreur humaine.
-echo "rappel : la copie hors machine reste à la charge de l'exploitant."
+docker compose exec -T base pg_dumpall -U "$utilisateur" --roles-only --no-role-passwords > "$destination/$prefixe.roles.sql"
+docker run --rm --pull never --network none --mount "type=volume,src=$volume_documents,dst=/source,readonly" --entrypoint tar "$image_api" -C /source -czf - . > "$destination/$prefixe.documents.tar.gz"
+docker run --rm --pull never --network none --user 0:0 --mount "type=volume,src=$volume_caddy,dst=/source,readonly" --entrypoint tar "$image_api" -C /source -czf - . > "$destination/$prefixe.caddy.tar.gz"
+tar -czf "$destination/$prefixe.configuration.tar.gz" .env compose.yaml Caddyfile certificats
+for suffixe in documents caddy configuration; do tar -tzf "$destination/$prefixe.$suffixe.tar.gz" > /dev/null; done
+(cd "$destination" && sha256sum "$prefixe.dump" "$prefixe.roles.sql" "$prefixe.documents.tar.gz" "$prefixe.configuration.tar.gz" "$prefixe.caddy.tar.gz" > "$prefixe.sha256")
+chmod 600 "$destination/$prefixe".*
+# Une rétention n'est appliquée que si elle a été explicitement configurée.
+if (( 10#$retention > 0 )); then
+  while IFS= read -r -d '' manifeste; do
+    ancien=${manifeste%.sha256}
+    rm -f -- "$ancien.dump" "$ancien.roles.sql" "$ancien.documents.tar.gz" "$ancien.configuration.tar.gz" "$ancien.caddy.tar.gz" "$manifeste"
+  done < <(find "$destination" -maxdepth 1 -name 'rationarium-*.sha256' -mtime "+$retention" -print0)
+fi
+printf 'Sauvegarde terminée : %s/%s.dump\n' "$destination" "$prefixe"

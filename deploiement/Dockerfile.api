@@ -1,35 +1,10 @@
-# ════════════════════════════════════════════════════════════════════════════
-# Image du serveur applicatif — L-29.
-#
-# Trois contraintes portées par `ADR-0006`, et elles sont opposables :
-#
-#   1. **`node:24-bookworm`, jamais `-slim`.** Sans OpenSSL 3, Prisma se trompe
-#      de plateforme, se rabat sur `debian-openssl-1.1.x`, ignore le binaire
-#      embarqué et tente de le télécharger. En réseau fermé, la migration
-#      échoue — et elle échoue au déploiement, pas à la construction.
-#   2. **Le moteur de schéma est embarqué et épinglé** par
-#      `PRISMA_SCHEMA_ENGINE_BINARY`. On ne compte jamais sur la détection
-#      automatique : c'est elle qui déclenche le téléchargement.
-#   3. **`DATABASE_URL` est nécessaire à la CONSTRUCTION.** En Prisma 7, l'URL
-#      vit dans `prisma.config.ts`, et le fichier de configuration est chargé
-#      par *toute* commande `prisma`, y compris `generate`, qui ne s'en sert
-#      pas. Une valeur fictive suffit et ne sort jamais de l'étape de
-#      construction.
-# ════════════════════════════════════════════════════════════════════════════
-
-FROM node:24-bookworm AS base
+FROM node:24.19.0-bookworm AS base
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
-# `CI=true` : pnpm 11 refuse de purger un `node_modules` incohérent sans
-# terminal, et s'arrête. Dans une image, il n'y a jamais de terminal.
 ENV CI=true
 RUN corepack enable && corepack prepare pnpm@11.22.0 --activate
 WORKDIR /rationarium
 
-# ── Dépendances ─────────────────────────────────────────────────────────────
-# Les manifestes d'abord : tant qu'ils ne changent pas, la couche d'install est
-# réutilisée. Copier tout le dépôt ici referait l'installation à chaque ligne
-# de code modifiée.
 FROM base AS dependances
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/api/package.json apps/api/
@@ -38,7 +13,6 @@ COPY packages/db/package.json packages/db/
 COPY packages/contracts/package.json packages/contracts/
 RUN pnpm install --frozen-lockfile
 
-# ── Construction ────────────────────────────────────────────────────────────
 FROM dependances AS construction
 COPY . .
 ENV DATABASE_URL=postgres://construction:construction@127.0.0.1:5432/construction
@@ -47,17 +21,15 @@ RUN pnpm --filter @rationarium/contracts build \
  && pnpm --filter @rationarium/db build \
  && pnpm --filter @rationarium/api build
 
-# Les jeux et contrôles compilés ne font pas partie du lot livré.
 RUN find apps/api/dist packages/db/dist packages/contracts/dist -type f \( -name '*.test.*' -o -name '*.spec.*' -o -name '*.map' \) -delete \
  && rm -f packages/db/dist/maquette* packages/db/dist/volumetrie* packages/db/dist/mesure* packages/db/dist/purge-volumetrie* \
  && rm -rf apps/api/dist/perf
 
-# ── Exécution ───────────────────────────────────────────────────────────────
 FROM base AS execution
+LABEL org.opencontainers.image.source="https://github.com/ElegArtech/rationarium" \
+      org.opencontainers.image.licenses="MIT" \
+      org.opencontainers.image.title="Rationarium API"
 
-# Le binaire de moteur de schéma, sorti de la réserve pnpm et posé à un chemin
-# stable. Il est de 22 Mo et spécifique à la plateforme : le laisser dans
-# `node_modules/.pnpm` le rendrait dépendant d'un chemin haché.
 COPY --from=dependances \
   /rationarium/node_modules/.pnpm/@prisma+engines@7.9.1/node_modules/@prisma/engines/schema-engine-debian-openssl-3.0.x \
   /usr/local/lib/prisma/schema-engine
@@ -77,10 +49,12 @@ COPY --from=construction /rationarium/apps/api/dist /rationarium/apps/api/dist
 COPY --from=construction /rationarium/apps/api/node_modules /rationarium/apps/api/node_modules
 COPY --from=construction /rationarium/apps/api/package.json /rationarium/apps/api/package.json
 
-# Le conteneur ne tourne pas en `root`. Voir aussi le piège de propriété des
-# fichiers montés, consigné dans `CLAUDE.md`.
 RUN mkdir -p /var/lib/rationarium/documents && chown node:node /var/lib/rationarium/documents
 USER node
+
+COPY LICENSE THIRD_PARTY_NOTICES.md /rationarium/
+COPY deploiement/lancer.mjs deploiement/roles-restauration.mjs /rationarium/deploiement/
+ENTRYPOINT ["node", "/rationarium/deploiement/lancer.mjs"]
 
 ENV NODE_ENV=production
 ENV PORT=3000

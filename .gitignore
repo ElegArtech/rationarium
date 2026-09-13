@@ -1,62 +1,35 @@
-# OS
-.DS_Store
-Thumbs.db
-desktop.ini
-*~
-
-# Éditeurs
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# Dépendances / build
+# Dépendances et constructions.
 node_modules/
 dist/
 build/
 .cache/
 .turbo/
 *.tsbuildinfo
-
-# Artefacts engendrés — jamais versionnés, toujours reproductibles
 packages/db/src/generated/
-apps/web/playwright-report/
-apps/web/test-results/
-apps/web/.playwright/
 
-# Contenus des pièces jointes — le magasin local de `EX-DOC-01`/`EX-DOC-02`.
-# Racine par défaut quand `RATIONARIUM_DOCUMENTS` n'est pas renseignée ; les
-# suites qui joignent un document y écrivent leurs octets. Ce sont des données
-# d'exploitation, jamais du dépôt.
+# Données, secrets et sauvegardes locales.
+.env
+.env.*
+!.env.example
+.local/
+*.log
 apps/api/var/
 var/documents/
+deploiement/sauvegardes/
+deploiement/certificats/*
+!deploiement/certificats/.gitkeep
 
-# Environnement
-.env
-.env.local
-*.log
-
-# Sorties de la boucle de conformité de rendu — régénérables par
-# `pnpm conformite`. Elles changent à chaque passage : versionnées, elles
-# entrent en conflit dès que deux vues sont portées en parallèle, et le conflit
-# ne porte sur rien. Les RELEVÉS de référence, eux, restent versionnés
-# (`design/references/`) : un relevé qui change sans que la maquette ait changé
-# est un signal de dérive.
-design/conformite.json
-design/captures/
-
-# Arbres de travail des agents — jamais versionnés.
-.claude/worktrees/
-
-# Recette par persona.
-# Les VERDICTS sont versionnés — ils disent ce qui est passé, et le rapport
-# s'y adosse. Les traces lourdes (vidéo, trace Playwright, captures) et les
-# scripts d'exécutant restent sur le disque : elles se régénèrent en rejouant.
-recette/preuves/**/*.png
-recette/preuves/**/*.zip
-recette/preuves/**/video/
-recette/travail/
-recette/harnais/instantane.sql
-
-# Magasins de recette : recréés depuis les fichiers de démonstration.
-recette/harnais/magasins/
+# Sorties des tests et configuration personnelle.
+**/test-results/
+**/playwright-report/
+**/.playwright/
+.claude/
+.agents/
+.codex/
+AGENTS.md
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+*.swo

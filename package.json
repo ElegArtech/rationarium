@@ -1,6 +1,6 @@
 {
   "name": "rationarium",
-  "version": "0.0.0",
+  "version": "1.0.0-rc.1",
   "private": true,
   "description": "Rationarium — plateforme de pilotage des projets et des ressources humaines",
   "type": "module",
@@ -19,10 +19,8 @@
     "e2e": "turbo run e2e",
     "a11y": "turbo run a11y",
     "i18n:check": "node scripts/i18n-check.mjs",
-    "ui:diff": "node scripts/ui-diff.mjs",
     "perf": "turbo run perf",
     "verif": "pnpm typecheck && pnpm lint && pnpm stylelint && pnpm i18n:check && pnpm inoperant:check && pnpm tracabilite:check && pnpm test",
-    "conformite": "node scripts/ui-conformite.mjs toutes",
     "inoperant:check": "node scripts/inoperant-check.mjs",
     "tracabilite:check": "node scripts/tracabilite-check.mjs"
   },
@@ -36,5 +34,11 @@
     "turbo": "2.10.10",
     "typescript": "6.0.3",
     "typescript-eslint": "8.67.0"
+  },
+  "license": "MIT",
+  "author": "Alexandre Bergé",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ElegArtech/rationarium.git"
   }
 }

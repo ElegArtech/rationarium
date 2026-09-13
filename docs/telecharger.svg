@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="308" height="48" viewBox="0 0 308 48" role="img" aria-label="Télécharger Rationarium">
+  <rect x="1" y="1" width="306" height="46" rx="7" fill="Canvas" stroke="CanvasText"/>
+  <path d="M25 12v19m-7-7 7 7 7-7M15 31v7h20v-7" fill="none" stroke="CanvasText" stroke-width="2"/>
+  <text x="48" y="30" fill="CanvasText" font-family="sans-serif" font-size="16" font-weight="700">Télécharger Rationarium</text>
+</svg>

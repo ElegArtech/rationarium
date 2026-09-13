@@ -5,11 +5,11 @@
  * CLAUDE.md pose cette règle depuis l'origine ; rien ne la tenait. Ce contrôle
  * la tient dans les deux sens :
  *
- *   1. Toute exigence ou règle DÉCLARÉE au cadrage est citée par un test,
- *      ou inscrite dans design/tracabilite.json — en dette (`aTester`) ou
+ *   1. Toute exigence ou règle DÉCLARÉE dans la référence est citée par un test,
+ *      ou inscrite dans tests/references/tracabilite.json — en dette (`aTester`) ou
  *      en impossibilité motivée (`nonTestable`).
  *   2. Toute citation trouvée dans un test correspond à un identifiant qui
- *      EXISTE au cadrage. Le versant symétrique : un test qui cite
+ *      EXISTE dans la référence. Le versant symétrique : un test qui cite
  *      « RG-ADM-09 » quand le cadrage dit « EX-ADM-09 » ne prouve rien et
  *      fait croire qu'il prouve quelque chose.
  *
@@ -43,8 +43,8 @@ import path from "node:path";
 import { readdirSync } from "node:fs";
 
 const RACINE = path.resolve(import.meta.dirname, "..");
-const CADRAGE = path.join(RACINE, "cadrage/01-cahier-des-charges-fonctionnel.md");
-const DECLARATION = path.join(RACINE, "design/tracabilite.json");
+const CADRAGE = path.join(RACINE, "docs/reference-fonctionnelle.md");
+const DECLARATION = path.join(RACINE, "tests/references/tracabilite.json");
 
 /** Plancher d'inventaire : en dessous, l'extraction est cassée, pas le dépôt. */
 const PLANCHER_DECLARES = 300;
@@ -54,7 +54,7 @@ const PLANCHER_CITES = 200;
 const ID = /\b(?:EX|RG)-[A-Z]+-\d+\b/g;
 
 /* ------------------------------------------------------------------ *
- * 1. Les identifiants DÉCLARÉS au cadrage                            *
+ * 1. Les identifiants DÉCLARÉS dans la référence                            *
  * ------------------------------------------------------------------ */
 
 /**
@@ -209,7 +209,7 @@ const { cites, plagesIgnorees } = citations(fichiers);
 const inventaire = [];
 if (declares.size < PLANCHER_DECLARES) {
   inventaire.push(
-    `${declares.size} identifiant(s) déclaré(s) au cadrage, plancher ${PLANCHER_DECLARES}.`,
+    `${declares.size} identifiant(s) déclaré(s) dans la référence, plancher ${PLANCHER_DECLARES}.`,
   );
 }
 if (fichiers.length < PLANCHER_FICHIERS) {
@@ -237,13 +237,13 @@ const orphelinsDeclares = new Map(decl.citationsOrphelines.map((e) => [e.id, e])
 
 const ecarts = [];
 
-// (a) Déclaré au cadrage, ni cité ni inscrit.
+// (a) Déclaré dans la référence, ni cité ni inscrit.
 const nonCouverts = [...declares.keys()].filter(
   (id) => !cites.has(id) && !enDette.has(id) && !nonTestable.has(id),
 );
 for (const id of nonCouverts) {
   ecarts.push(
-    `${id} — déclaré au cadrage (ligne ${declares.get(id)}), aucun test ne le cite, ` +
+    `${id} — déclaré dans la référence (ligne ${declares.get(id)}), aucun test ne le cite, ` +
       "et il n'est inscrit ni en dette (`aTester`) ni en impossibilité (`nonTestable`).",
   );
 }
@@ -296,7 +296,7 @@ const couvertsParTest = citesConnus.length;
 const dettesRestantes = [...enDette.keys()].filter((id) => !cites.has(id)).length;
 
 console.log("traçabilité — « une EX-…/RG-… = un test nommé qui la cite »\n");
-console.log(`  identifiants déclarés au cadrage   : ${declares.size}`);
+console.log(`  identifiants déclarés dans la référence   : ${declares.size}`);
 console.log(`  fichiers de test lus               : ${fichiers.length}`);
 console.log(`  cités par un test nommé            : ${couvertsParTest}`);
 console.log(`  en dette (aTester)                 : ${dettesRestantes}`);
@@ -323,5 +323,5 @@ echouer([
   "",
   ...ecarts.map((e) => "· " + e),
   "",
-  "Écrire le test, ou inscrire l'identifiant dans design/tracabilite.json avec le lot qui s'en charge.",
+  "Écrire le test, ou inscrire l'identifiant dans tests/references/tracabilite.json avec le lot qui s'en charge.",
 ]);

@@ -93,6 +93,7 @@
     "present": "Au bureau",
     "conge": "En congé",
     "teletravail": "Télétravail",
+    "non_ouvre": "Jour non ouvré",
     "non_declare": "Non déclaré",
     "vide": "Aucun agent dans votre périmètre",
     "videAide": "La présence du jour se remplit dès qu'un agent vous est rattaché."

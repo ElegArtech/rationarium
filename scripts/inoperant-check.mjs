@@ -9,7 +9,7 @@
  * vestige d'un commentaire périmé. Quatre l'étaient : leurs motifs affirmaient
  * qu'aucune route serveur n'existait, et les quatre routes existaient. Une
  * commande peut rester inerte ; elle ne peut pas le rester **en silence**.
- * Chaque occurrence doit donc être déclarée dans `design/inoperants.json`, avec
+ * Chaque occurrence doit donc être déclarée dans `tests/references/inoperants.json`, avec
  * son motif et la règle qui la porte.
  *
  * **(b) Les champs gouvernés.** `PATCH /utilisateurs/:id`, gardé par
@@ -38,7 +38,7 @@ import path from "node:path";
 const RACINE = process.cwd();
 const VUES = path.join(RACINE, "apps/web/src");
 const API = path.join(RACINE, "apps/api/src");
-const DECLARATION = path.join(RACINE, "design/inoperants.json");
+const DECLARATION = path.join(RACINE, "tests/references/inoperants.json");
 const CHAMPS_GOUVERNES = path.join(API, "commun/champs-gouvernes.ts");
 const CONTRATS = path.join(RACINE, "packages/contracts/src/schemas.ts");
 
@@ -724,7 +724,7 @@ for (const o of commandes.trouvees) {
   if (!declarees.has(cleCommande(o)))
     ecarts.push(
       `commande inerte non déclarée : ${o.fichier}:${o.ligne} — <${o.balise} … désactivé> ` +
-        `(repère « ${o.repere} »). Déclarez-la dans design/inoperants.json avec son motif et sa ` +
+        `(repère « ${o.repere} »). Déclarez-la dans tests/references/inoperants.json avec son motif et sa ` +
         `règle, ou rendez-la agissante.`,
     );
 }

@@ -1,0 +1,28 @@
+name: Publier les images Docker
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publier:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Construire et publier
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          REGISTRE="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}"
+          printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          docker build -f deploiement/Dockerfile.api --label "org.opencontainers.image.revision=$GITHUB_SHA" -t "$REGISTRE/rationarium-api:$VERSION" .
+          docker build -f deploiement/Dockerfile.web --label "org.opencontainers.image.revision=$GITHUB_SHA" -t "$REGISTRE/rationarium-web:$VERSION" .
+          docker push "$REGISTRE/rationarium-api:$VERSION"
+          docker push "$REGISTRE/rationarium-web:$VERSION"
+          docker logout ghcr.io

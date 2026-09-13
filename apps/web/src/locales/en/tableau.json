@@ -93,6 +93,7 @@
     "present": "In the office",
     "conge": "On leave",
     "teletravail": "Remote",
+    "non_ouvre": "Non-working day",
     "non_declare": "Not declared",
     "vide": "No one in your scope",
     "videAide": "Today's attendance fills in as soon as someone is attached to you."

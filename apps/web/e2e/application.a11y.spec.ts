@@ -28,7 +28,7 @@ import AxeBuilder from "@axe-core/playwright";
  * qui se tait sur ce qu'il ne regarde pas.
  *
  * La couverture est désormais **dérivée de l'inventaire gelé**
- * (`design/etats.json`, 35 vues) et vérifiée par un test dédié. Ajouter une
+ * (`tests/references/etats.json`, 35 vues) et vérifiée par un test dédié. Ajouter une
  * vue sans l'auditer fait échouer la suite ; c'est la seule façon qu'un audit
  * reste exhaustif après le jour où il a été écrit.
  * ────────────────────────────────────────────────────────────────────────────
@@ -37,7 +37,7 @@ import AxeBuilder from "@axe-core/playwright";
 /** L'inventaire gelé des vues — la source, jamais une copie. */
 const INVENTAIRE: Record<string, { titre: string }> = JSON.parse(
   readFileSync(
-    fileURLToPath(new URL("../../../design/etats.json", import.meta.url)),
+    fileURLToPath(new URL("../../../tests/references/etats.json", import.meta.url)),
     "utf8",
   ),
 ) as Record<string, { titre: string }>;

@@ -1,163 +1,38 @@
 #!/usr/bin/env bash
-# ════════════════════════════════════════════════════════════════════════════
-# Restauration de Rationarium — L-29.
-#
-# **Cette procédure détruit la base en place.** Elle est écrite pour être
-# exécutée un jour de panne, par quelqu'un qui ne l'a pas écrite, sous
-# pression. D'où trois partis pris :
-#
-#   - Elle **nomme ce qu'elle va détruire** et demande confirmation (`RG-GEN-01`
-#     vaut aussi pour l'exploitation). `--sans-confirmation` existe pour les
-#     bascules programmées, et il faut l'écrire en toutes lettres.
-#   - Elle **arrête l'application avant**, la redémarre après. Restaurer sous
-#     une application qui écrit donne une base à moitié restaurée.
-#   - Elle **restaure les rôles avant les données**, sinon les `GRANT` de la
-#     sauvegarde échouent, et le journal d'audit revient modifiable — sans que
-#     rien ne le signale.
-#
-# Emploi :
-#   ./restauration.sh /var/sauvegardes/rationarium/rationarium-20260816T023000Z.dump
-#
-# L'épreuve du cycle complet — sauvegarde, destruction, restauration,
-# vérification des garde-fous — est rejouée à chaque boucle par
-# `apps/api/src/exploitation/sauvegarde.int.test.ts`.
-# ════════════════════════════════════════════════════════════════════════════
-
+# Remplace la base, les pièces jointes et l'autorité Caddy par une sauvegarde complète.
 set -euo pipefail
-
-racine="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$racine"
-
-archive="${1:-}"
-confirmation="${2:-}"
-
-if [ -z "$archive" ]; then
-  echo "emploi : ./restauration.sh <archive.dump> [--sans-confirmation]" >&2
-  exit 2
-fi
-if [ ! -r "$archive" ]; then
-  echo "archive illisible : $archive" >&2
-  exit 2
-fi
-
-# Le `.env` se LIT, il ne se SOURCE pas.
-#
-# Compose n'interprète pas ce fichier par un shell : `RATIONARIUM_HOTE` y porte
-# une liste séparée par des virgules, sans guillemets, ce qui est parfaitement
-# licite pour lui. Un `. ./.env` en fait une commande — « 10.88.0.1: command
-# not found » — et la sauvegarde s'arrêtait là, sur une ligne qui ne la
-# concerne pas. Un script d'exploitation doit lire le fichier de l'exploitation
-# tel qu'il est, pas tel qu'un shell l'aimerait.
-lire_env() {
-  [ -f .env ] || return 0
-  while IFS= read -r ligne || [ -n "$ligne" ]; do
-    case "$ligne" in "" | "#"*) continue ;; esac
-    cle="${ligne%%=*}"
-    [ "$cle" = "$ligne" ] && continue
-    case "$cle" in *[!A-Za-z0-9_]*) continue ;; esac
-    valeur="${ligne#*=}"
-    # Compose retire les guillemets encadrants : on fait de même, sinon une
-    # valeur citée arriverait ici avec ses guillemets et pas là-bas.
-    case "$valeur" in
-      \"*\") valeur="${valeur#\"}"; valeur="${valeur%\"}" ;;
-      "'"*"'") valeur="${valeur#\'}"; valeur="${valeur%\'}" ;;
-    esac
-    export "$cle=$valeur"
-  done < .env
-}
-lire_env
-
-base="${POSTGRES_BASE:-rationarium}"
-utilisateur="${POSTGRES_UTILISATEUR:?POSTGRES_UTILISATEUR manquant}"
-roles="${archive%.dump}.roles.sql"
-documents="${archive%.dump}.documents.tar.gz"
-manifest="${archive%.dump}.sha256"
-# Refuser avant toute destruction un ensemble incomplet ou altéré.
-[ -r "$documents" ] && [ -r "$manifest" ] && [ -r "$roles" ] || { echo "Sauvegarde incomplète : base, rôles, documents et empreintes requis." >&2; exit 1; }
-# Le manifeste émis par sauvegarde.sh contient exactement ces trois entrées.
-# sha256sum --check seul accepte un manifeste tronqué ou des entrées ajoutées.
-if ! cmp -s "$manifest" <(cd "$(dirname "$archive")" && sha256sum "$(basename "$archive")" "$(basename "$roles")" "$(basename "$documents")"); then
-  echo "Manifeste incomplet ou non conforme : les trois pièces et leurs empreintes exactes sont requises." >&2
-  exit 1
-fi
-(cd "$(dirname "$archive")" && sha256sum --check "$(basename "$manifest")")
-tar -tzf "$documents" > /dev/null
-
-
-# ── Ce que l'archive contient, avant de détruire quoi que ce soit ────────────
-#
-# L'archive est copiée DANS le conteneur avant d'être lue. `pg_restore` sur le
-# `/dev/stdin` d'un `docker compose exec` rend « did not find magic string in
-# file header » sur une archive saine : le tube d'entrée n'arrive pas intact.
-# Le découvrir un jour de panne coûterait une heure — et donnerait à croire que
-# la sauvegarde est perdue.
+archive=${1:-}
+confirmation=${2:-}
+[[ -r "$archive" && "$archive" == *.dump ]] || { echo 'Usage : restauration.sh /chemin/archive.dump [--sans-confirmation]' >&2; exit 1; }
+archive=$(cd "$(dirname "$archive")" && pwd)/$(basename "$archive")
+source "$(dirname -- "${BASH_SOURCE[0]}")/commun.sh"
+prefixe=${archive%.dump}
+for suffixe in dump roles.sql documents.tar.gz configuration.tar.gz caddy.tar.gz sha256; do
+  [[ -r "$prefixe.$suffixe" ]] || { echo "Sauvegarde incomplète : $suffixe manquant." >&2; exit 1; }
+done
+attendu=$(cd "$(dirname "$archive")" && sha256sum "$(basename "$prefixe").dump" "$(basename "$prefixe").roles.sql" "$(basename "$prefixe").documents.tar.gz" "$(basename "$prefixe").configuration.tar.gz" "$(basename "$prefixe").caddy.tar.gz")
+[[ $(cat "$prefixe.sha256") == "$attendu" ]] || { echo 'Empreintes de la sauvegarde non conformes.' >&2; exit 1; }
+for suffixe in documents caddy configuration; do tar -tzf "$prefixe.$suffixe.tar.gz" > /dev/null; done
 docker compose cp "$archive" base:/tmp/rationarium-restauration.dump
-nettoyer() { docker compose exec -T base rm -f /tmp/rationarium-restauration.dump >/dev/null 2>&1 || true; }
-trap nettoyer EXIT
-
-echo "archive     : $archive"
-liste="$(docker compose exec -T base pg_restore --list /tmp/rationarium-restauration.dump)"
-entrees="$(printf '%s\n' "$liste" | awk '!/^;/ && NF {n++} END {print n+0}')"
-[ "$entrees" -gt 0 ] || { echo "Archive sans objet restaurable" >&2; exit 1; }
-echo "objets      : $entrees entrées"
-echo "base cible  : $base (elle sera DÉTRUITE puis recréée)"
-[ -r "$roles" ] && echo "rôles       : $roles" || echo "rôles       : ABSENT — les privilèges ne seront pas restaurés"
-
-if [ "$confirmation" != "--sans-confirmation" ]; then
-  printf 'Taper le nom de la base pour confirmer la destruction : '
-  read -r reponse
-  [ "$reponse" = "$base" ] || { echo "abandon."; exit 1; }
+trap 'docker compose exec -T base rm -f /tmp/rationarium-restauration.dump >/dev/null 2>&1 || true' EXIT
+docker compose exec -T base pg_restore --list /tmp/rationarium-restauration.dump > /dev/null
+printf 'La restauration remplace la base %s, les pièces jointes et l’autorité HTTPS.\n' "$base"
+if [[ "$confirmation" != --sans-confirmation ]]; then
+  read -r -p 'Taper le nom de la base pour confirmer : ' reponse
+  [[ "$reponse" == "$base" ]] || { echo 'Restauration annulée.' >&2; exit 1; }
 fi
-
-# ── 1. Arrêter ce qui écrit ─────────────────────────────────────────────────
-echo "── arrêt de l'application ──"
+# En cas d'échec après cet arrêt, les services restent arrêtés pour permettre la reprise.
 docker compose stop api web
-
-# ── 2. Les rôles d'abord ────────────────────────────────────────────────────
-# `CREATE ROLE` est global à l'instance : sur une instance neuve, le rôle
-# applicatif n'existe pas, et les `GRANT` de l'archive échoueraient en silence
-# — laissant `rationarium_app` sans restriction sur le journal d'audit.
-if [ -r "$roles" ]; then
-  echo "── restauration des rôles ──"
-  docker compose exec -T base psql --username "$utilisateur" --dbname postgres < "$roles" > /dev/null
-fi
-
-# ── 3. Base neuve ───────────────────────────────────────────────────────────
-echo "── recréation de la base ──"
-docker compose exec -T base psql --username "$utilisateur" --dbname postgres \
-  -c "DROP DATABASE IF EXISTS \"$base\" WITH (FORCE)" \
-  -c "CREATE DATABASE \"$base\" OWNER \"$utilisateur\""
-
-# ── 4. Restauration ─────────────────────────────────────────────────────────
-echo "── restauration des données ──"
-docker compose exec -T base \
-  pg_restore --username "$utilisateur" --dbname "$base" --no-owner --exit-on-error \
-  /tmp/rationarium-restauration.dump
-
-# Restaurer le magasin associé, y compris la suppression des contenus postérieurs.
-docker compose run --rm -T --no-deps --entrypoint node api -e \
-  'const fs=require("node:fs"); const p="/var/lib/rationarium/documents"; for (const n of fs.readdirSync(p)) fs.rmSync(p+"/"+n,{recursive:true,force:true});'
-docker compose run --rm -T --no-deps \
-  --volume "$(cd "$(dirname "$documents")" && pwd):/sauvegarde:ro" --entrypoint tar api \
-  -xzf "/sauvegarde/$(basename "$documents")" -C /var/lib/rationarium/documents --no-same-owner
-
-# ── 5. Vérification — la partie qu'on saute quand tout a l'air d'aller ──────
-echo "── vérification ──"
-docker compose exec -T base psql --username "$utilisateur" --dbname "$base" --tuples-only <<'SQL'
-\echo 'utilisateurs :'
-SELECT count(*) FROM users;
-\echo 'contraintes d''exclusion (RG-CNG-25, doit être > 0) :'
-SELECT count(*) FROM pg_constraint WHERE contype = 'x';
-\echo 'droits de rationarium_app sur audit_log (attendu : INSERT et SELECT, RIEN d''autre) :'
-SELECT string_agg(privilege_type, ', ' ORDER BY privilege_type)
-FROM information_schema.table_privileges
-WHERE grantee = 'rationarium_app' AND table_name = 'audit_log';
-SQL
-
-# ── 6. Redémarrage ──────────────────────────────────────────────────────────
-echo "── redémarrage ──"
-docker compose up -d api web
-
-echo
-echo "Restauration terminée. Contrôler la sonde de disponibilité :"
-echo "  docker compose exec api node -e \"fetch('http://127.0.0.1:3000/api/sante/pret').then(r=>r.json()).then(console.log)\""
+docker run --rm -i --pull never --network none --entrypoint node "$image_api" /rationarium/deploiement/roles-restauration.mjs < "$prefixe.roles.sql" | docker compose exec -T base psql -X -v ON_ERROR_STOP=1 -U "$utilisateur" -d postgres > /dev/null
+docker compose exec -T base dropdb -U "$utilisateur" --if-exists --force "$base"
+docker compose exec -T base createdb -U "$utilisateur" --owner "$utilisateur" "$base"
+docker compose exec -T base pg_restore -U "$utilisateur" -d "$base" --no-owner --exit-on-error /tmp/rationarium-restauration.dump
+restaurer_volume() {
+  docker run --rm -i --pull never --network none --user "$3" --mount "type=volume,src=$1,dst=/cible" --entrypoint sh "$image_api" -c 'find /cible -mindepth 1 -delete && tar -C /cible -xzf - --no-same-owner' < "$2"
+}
+restaurer_volume "$volume_documents" "$prefixe.documents.tar.gz" 1000:1000
+restaurer_volume "$volume_caddy" "$prefixe.caddy.tar.gz" 0:0
+docker compose exec -T base psql -X -v ON_ERROR_STOP=1 -U "$utilisateur" -d "$base" -c 'SELECT count(*) AS utilisateurs_restaures FROM users;'
+docker compose start api web
+printf 'Restauration terminée. Vérifier la connexion, les pièces jointes et le planning.\n'
+printf 'La configuration .env et les certificats fournis restent ceux de cette installation.\n'

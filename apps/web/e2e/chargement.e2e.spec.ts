@@ -16,7 +16,7 @@ import path from "node:path";
  * branche de comparaison sortait en 0, la suite d'accessibilité sur une liste de
  * vues tenue à la main, et `ui:diff` de nouveau. La suite d'accessibilité a été
  * corrigée en **dérivant** sa couverture de l'inventaire gelé ; celle-ci fait
- * pareil : elle lit `design/routes.json` et échoue si l'inventaire maigrit.
+ * pareil : elle lit `tests/references/routes.json` et échoue si l'inventaire maigrit.
  *
  * **La méthode.** Toute réponse d'API est retenue indéfiniment, sauf la session
  * — sans elle la coquille ne rend rien. Chaque vue de données doit alors montrer
@@ -25,7 +25,7 @@ import path from "node:path";
  */
 
 const ROUTES: Record<string, string> = JSON.parse(
-  readFileSync(path.resolve(import.meta.dirname, "../../../design/routes.json"), "utf8"),
+  readFileSync(path.resolve(import.meta.dirname, "../../../tests/references/routes.json"), "utf8"),
 );
 
 /**

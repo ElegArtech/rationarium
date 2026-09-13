@@ -1,124 +1,65 @@
 # Rationarium
 
-Plateforme de pilotage des projets et des ressources humaines, pour une
-collectivité territoriale organisée en **Directions → Départements → Services**.
+**Le planning partagé des projets, des équipes et des disponibilités.**
 
-Principe directeur : *une seule grille temporelle réconcilie tout ce qui occupe
-une personne* — congé, télétravail, tâche de projet, tâche hors projet,
-permanence, réunion.
+Rationarium réunit les projets, les tâches, les congés, le télétravail et les événements dans
+une application web auto-hébergée. Une même grille permet de suivre ce qui occupe chaque personne
+et de rapprocher la charge des projets des disponibilités de l’équipe.
 
-Outil interne, **réseau fermé**, bilingue FR/EN, conforme RGAA.
+## Fonctionnalités
 
----
+- Organisation en directions, départements et services ; annuaire et référentiel des compétences.
+- Projets, équipes, tâches, jalons, tableaux Kanban et feuilles de route.
+- Planning unifié, activités récurrentes, événements, congés et télétravail.
+- Saisie du temps, tableaux de bord et rapports.
+- Pièces jointes, commentaires, notifications et journal des actions.
+- Rôles et permissions, périmètres organisationnels, imports CSV et exports en formats ouverts.
+- Interface en français et en anglais, thèmes clair et sombre.
 
-## Lancer en local
+Une instance neuve contient le référentiel des rôles et le premier administrateur. Elle ne contient
+aucun projet, agent ou planning de démonstration. L’organisation et les utilisateurs se créent depuis
+l’application.
 
-Trois commandes, dans trois terminaux, et une quatrième une seule fois.
+## Installer
 
-**Prérequis** : Node 24, pnpm 11, Docker.
+Prérequis : **Docker Engine et Docker Compose v2.24 ou ultérieur**, accessibles à votre compte.
+Les images fournies ciblent **Linux x86-64**. Node.js et PostgreSQL sont embarqués dans les images.
 
-```bash
-pnpm install
+[![Télécharger Rationarium](docs/telecharger.svg)](https://github.com/ElegArtech/rationarium/releases/download/v1.0.0-rc.1/rationarium-1.0.0-rc.1-compose.tar.gz)
 
-# 1. La base — la seule dépendance conteneurisée.
-docker compose -f deploiement/compose.dev.yaml up -d
+Le kit contient Compose, la configuration, l’assistant et les outils d’exploitation.
+Docker télécharge les images publiées, sans compilation sur le serveur ni compte GitHub.
 
-# 2. Le schéma.
-export DATABASE_URL='postgres://rationarium:rationarium@localhost:55432/rationarium'
-pnpm --filter @rationarium/db exec prisma migrate deploy
+**Installation guidée en une commande :**
 
-# 3. L'amorçage — UNE SEULE FOIS, et il est rejouable sans risque.
-pnpm build
-pnpm --filter @rationarium/api amorcer
-#   → affiche l'identifiant et le mot de passe du premier administrateur.
-#     Le mot de passe n'est montré qu'une fois ; il est à changer à la
-#     première connexion.
-
-# 4. Le serveur, puis le client, dans deux terminaux.
-COOKIE_SECRET=dev pnpm --filter @rationarium/api dev     # http://localhost:3000
-pnpm --filter @rationarium/web dev                       # http://localhost:5173
+```sh
+curl -fL https://github.com/ElegArtech/rationarium/releases/download/v1.0.0-rc.1/installer-rationarium.sh -o installer-rationarium.sh && bash installer-rationarium.sh
 ```
 
-Puis <http://localhost:5173>, et la connexion avec les identifiants affichés à
-l'étape 3.
+L’assistant demande l’adresse du site et le premier compte administrateur, génère les secrets
+techniques et démarre les services. Le premier accès impose de changer le mot de passe temporaire.
+L’installation occupe un nouveau dossier `rationarium/`.
 
-**Pourquoi l'amorçage est indispensable.** Une base migrée est *vide* : aucun
-rôle, aucun compte. Et le produit ne permet pas d'en sortir seul — la création
-de compte autonome est désactivée par défaut, et l'initialisation du
-référentiel exige une session qui exige un rôle qui n'existe pas encore. Sans
-l'étape 3, l'application démarre et personne ne peut entrer.
+Pour configurer le kit manuellement : extraire l’archive, copier `.env.example` en `.env`, renseigner
+les variables, puis exécuter `docker compose up -d --wait`.
 
-**Le client passe par un relais.** Vite relaie `/api` vers le port 3000 : même
-origine, pas de CORS, un seul cookie de session — exactement ce que fait Caddy
-en production. Le serveur doit donc tourner pour que le client serve à quelque
-chose.
+- **[Installation](docs/installation.md)** : configuration, HTTPS, messagerie et construction depuis les sources.
+- **[Installation hors ligne](docs/hors-ligne.md)** : [paquet complet avec les images](https://github.com/ElegArtech/rationarium/releases/download/v1.0.0-rc.1/rationarium-1.0.0-rc.1-linux-amd64.tar.gz) pour un serveur sans Internet.
+- **[Utilisation](docs/utilisation.md)** : premiers pas et organisation du travail.
+- **[Exploitation](docs/exploitation.md)** : sauvegardes, restauration, mises à jour et diagnostic.
+- **[Architecture](docs/architecture.md)** : composants, données et développement local.
 
-### Repartir de zéro
+## État de la version
 
-```bash
-docker compose -f deploiement/compose.dev.yaml down -v
-```
+`1.0.0-rc.1` est une préversion de la première version stable. Elle permet d’évaluer l’installation
+et les usages avant une mise en production. Le déploiement fourni vise une machine unique.
 
-### Jeu de données de volumétrie
+Les ressources de l’interface sont servies localement. Un relais SMTP est nécessaire pour recevoir
+les messages par courriel, notamment les liens de réinitialisation de mot de passe. Les notifications
+dans l’application restent disponibles sans SMTP.
 
-Pour travailler sur des écrans réellement peuplés — 500 utilisateurs,
-200 projets, 20 000 tâches, cinq ans d'historique :
+## Auteur et licence
 
-```bash
-node -e "
-  const { creerClient, peupler, CIBLE } = await import('@rationarium/db');
-  const p = creerClient(process.env.DATABASE_URL);
-  await peupler(p, CIBLE);
-  await p.\$disconnect();
-" --input-type=module
-```
-
-C'est le jeu qui porte les budgets de performance de L-26.
-
----
-
-## Les boucles de vérification
-
-```bash
-pnpm verif          # la passe rapide : typecheck + lint + stylelint + i18n + test
-pnpm test:int       # intégration, PostgreSQL réel (Testcontainers) — exige Docker
-pnpm e2e            # bout en bout (Playwright)
-pnpm a11y           # axe-core sur chaque vue, deux thèmes
-pnpm perf           # budgets de performance, seuils bloquants
-pnpm ui:diff <vue>  # conformité de rendu contre la maquette gelée
-```
-
-`pnpm verif` doit être vert avant toute demande de revue.
-
-**Playwright se lance depuis `apps/web`** : depuis la racine, `testDir` et
-`baseURL` ne s'appliquent pas et tous les contrôles échouent sur une URL
-invalide — un symptôme qui ne ressemble pas à sa cause.
-
----
-
-## Le dépôt
-
-| Chemin | Contenu |
-| --- | --- |
-| `apps/web` | Application monopage React — 35 vues |
-| `apps/api` | Serveur NestJS sur Fastify |
-| `packages/contracts` | Schémas Zod, 152 permissions, 26 modèles de rôles, vocabulaires |
-| `packages/db` | Schéma Prisma, migrations, jeu de volumétrie, export de réversibilité |
-| `deploiement/` | Compose, images, sauvegarde, restauration — voir son README |
-| `cadrage/` | Les sources de vérité. **Ne se modifient pas** |
-| `mockups/` | Les 35 maquettes gelées. **Ne se modifient pas** |
-| `docs/adr/` | Décisions d'architecture |
-| `docs/dag.md` | Le plan de réalisation, lot par lot, avec son état |
-| `docs/audits/` | Ce que chaque audit a trouvé |
-
-`CLAUDE.md` porte le contrat permanent : sources de vérité, interdits
-structurels, définition de terminé, et la liste des pièges déjà payés une fois.
-
----
-
-## Mise en production
-
-Voir **`deploiement/README.md`** : une machine, Docker Compose, Caddy en
-façade. Installation, sauvegarde, restauration éprouvée, export de
-réversibilité, et ce que la question B5 — cible de déploiement — laisse encore
-ouvert.
+Rationarium est un projet d’[Alexandre Bergé — ElegArtech](https://github.com/ElegArtech).
+Le code est distribué sous [licence MIT](LICENSE). Les dépendances et ressources tierces
+conservent leurs [licences respectives](THIRD_PARTY_NOTICES.md).

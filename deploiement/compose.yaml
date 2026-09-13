@@ -1,116 +1,72 @@
-# ════════════════════════════════════════════════════════════════════════════
-# Déploiement sur site — une machine, Docker Compose.
-#
-# **Portée.** `cadrage/03 § 8.2` laisse ouverte la cible de déploiement
-# (question B5 du DAG) : machine unique, ou orchestrateur existant de la
-# collectivité. Ce fichier couvre la première hypothèse, qui est celle que
-# `cadrage/03 § 3.1` retient par défaut. Ce que la seconde ajouterait est
-# énuméré dans `README.md § 6` — ce n'est pas une variante de ce fichier, c'est
-# une décision à prendre puis à éprouver.
-#
-# Base, serveur et façade ; migrations et amorçage ponctuels. Base et magasin
-# documentaire sont sauvegardés ensemble. C'est `C1` appliqué —
-# chaque service supplémentaire est une pièce à installer, sauvegarder,
-# superviser et redémarrer (`cadrage/03 § 231`).
-# ════════════════════════════════════════════════════════════════════════════
+# Installation depuis les images publiées. Pour construire : compose.construction.yaml.
+name: ${NOM_PROJET:-rationarium}
 
-name: rationarium
+x-base: &base
+  PGHOST: base
+  PGPORT: '5432'
+  PGUSER: ${POSTGRES_UTILISATEUR:-rationarium}
+  PGPASSWORD: ${POSTGRES_MOTDEPASSE:?renseigner POSTGRES_MOTDEPASSE dans .env}
+  PGDATABASE: ${POSTGRES_BASE:-rationarium}
 
 services:
   base:
     image: postgres:18.6-bookworm
+    pull_policy: ${MODE_IMAGES:-missing}
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_UTILISATEUR:?utilisateur de base requis}
-      POSTGRES_PASSWORD: ${POSTGRES_MOTDEPASSE:?mot de passe de base requis}
+      POSTGRES_USER: ${POSTGRES_UTILISATEUR:-rationarium}
+      POSTGRES_PASSWORD: ${POSTGRES_MOTDEPASSE:?renseigner POSTGRES_MOTDEPASSE dans .env}
       POSTGRES_DB: ${POSTGRES_BASE:-rationarium}
-      # Les dates métier n'ont ni heure ni fuseau (ADR-0010), mais les
-      # horodatages d'audit en ont un : il est fixé, pas hérité de l'hôte.
       TZ: ${RATIONARIUM_FUSEAU:-Europe/Paris}
     volumes:
-      # `/var/lib/postgresql`, PAS `/var/lib/postgresql/data`. Depuis
-      # PostgreSQL 18, l'image officielle range les données dans un
-      # sous-répertoire par version majeure, pour rendre `pg_upgrade --link`
-      # possible sans franchir une limite de point de montage. Un volume monté
-      # à l'ancien emplacement fait REFUSER le démarrage : le conteneur voit
-      # des données à un endroit qu'il n'utilise plus et s'arrête plutôt que de
-      # les ignorer — ce qui est le bon comportement, et une panne au premier
-      # déploiement pour qui recopie un fichier Compose écrit pour la 17.
       - donnees:/var/lib/postgresql
     healthcheck:
-      # `pg_isready` sur la base nommée, pas sur le port : un port ouvert
-      # pendant la reprise après incident dirait « prêt » à tort.
-      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
-      interval: 10s
+      test: ['CMD-SHELL', 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 5s
       timeout: 5s
       retries: 12
-      start_period: 30s
+    networks: [interne]
 
-  # Les migrations sont un service à part, exécuté une fois et attendu.
-  # Les faire au démarrage du serveur ferait migrer autant de fois qu'il y a
-  # d'exemplaires, en concurrence — et c'est exactement ce que B5 rendrait
-  # possible sans qu'on y pense.
   migrations:
-    build:
-      context: ..
-      dockerfile: deploiement/Dockerfile.api
-    restart: "no"
+    image: ${REGISTRE_RATIONARIUM:-ghcr.io/elegartech}/rationarium-api:${VERSION_RATIONARIUM:-1.0.0-rc.1}
+    pull_policy: ${MODE_IMAGES:-missing}
+    restart: 'no'
     depends_on:
       base:
         condition: service_healthy
-    environment:
-      DATABASE_URL: postgres://${POSTGRES_UTILISATEUR}:${POSTGRES_MOTDEPASSE}@base:5432/${POSTGRES_BASE:-rationarium}
+    environment: *base
     working_dir: /rationarium/packages/db
-    # Le chemin du binaire est celui de l'espace de travail `@rationarium/db`, pas
-    # celui de la racine : pnpm n'installe le lien que là où la dépendance est
-    # déclarée. Un `pnpm exec` conviendrait aussi, mais il relance une
-    # vérification de cohérence des dépendances au démarrage — inutile ici, et
-    # une raison d'échouer de plus le jour du déploiement.
-    command: ["/rationarium/packages/db/node_modules/.bin/prisma", "migrate", "deploy"]
+    command: ['/rationarium/packages/db/node_modules/.bin/prisma', 'migrate', 'deploy']
+    networks: [interne]
 
-  # L'amorçage : le référentiel des 26 rôles, et le premier administrateur.
-  #
-  # Sans lui, une instance fraîchement déployée démarre, répond, passe sa sonde
-  # de disponibilité — et personne ne peut y entrer. La base migrée est vide, et
-  # le produit ne permet pas d'en sortir seul : la création de compte autonome
-  # est désactivée, et l'initialisation du référentiel exige une session qui
-  # exige un rôle qui n'existe pas encore.
-  #
-  # Rejoué à chaque `up`, et sans effet dès qu'un compte existe : ni mot de
-  # passe réinitialisé, ni rôle personnalisé réécrit.
   amorcage:
-    build:
-      context: ..
-      dockerfile: deploiement/Dockerfile.api
-    restart: "no"
+    image: ${REGISTRE_RATIONARIUM:-ghcr.io/elegartech}/rationarium-api:${VERSION_RATIONARIUM:-1.0.0-rc.1}
+    pull_policy: ${MODE_IMAGES:-missing}
+    restart: 'no'
     depends_on:
       migrations:
         condition: service_completed_successfully
     environment:
-      DATABASE_URL: postgres://${POSTGRES_UTILISATEUR}:${POSTGRES_MOTDEPASSE}@base:5432/${POSTGRES_BASE:-rationarium}
-      COOKIE_SECRET: ${COOKIE_SECRET}
+      <<: *base
+      COOKIE_SECRET: ${COOKIE_SECRET:?renseigner COOKIE_SECRET dans .env}
       RATIONARIUM_ADMIN_LOGIN: ${RATIONARIUM_ADMIN_LOGIN:-admin}
       RATIONARIUM_ADMIN_EMAIL: ${RATIONARIUM_ADMIN_EMAIL:-admin@localhost}
-      # Absent : un mot de passe est engendré et affiché une fois dans le
-      # journal du service. `docker compose logs amorcage` pour le relire.
       RATIONARIUM_ADMIN_MOTDEPASSE: ${RATIONARIUM_ADMIN_MOTDEPASSE:-}
-    command: ["node", "dist/exploitation/amorcage.js"]
+    command: ['node', 'dist/exploitation/amorcage.js']
+    networks: [interne]
 
   api:
-    build:
-      context: ..
-      dockerfile: deploiement/Dockerfile.api
+    image: ${REGISTRE_RATIONARIUM:-ghcr.io/elegartech}/rationarium-api:${VERSION_RATIONARIUM:-1.0.0-rc.1}
+    pull_policy: ${MODE_IMAGES:-missing}
     restart: unless-stopped
     depends_on:
-      base:
-        condition: service_healthy
-      migrations:
-        condition: service_completed_successfully
       amorcage:
         condition: service_completed_successfully
     environment:
-      DATABASE_URL: postgres://${POSTGRES_UTILISATEUR}:${POSTGRES_MOTDEPASSE}@base:5432/${POSTGRES_BASE:-rationarium}
-      COOKIE_SECRET: ${COOKIE_SECRET:?secret de session requis}
+      <<: *base
+      COOKIE_SECRET: ${COOKIE_SECRET:?renseigner COOKIE_SECRET dans .env}
+      RATIONARIUM_URL_PUBLIQUE: ${RATIONARIUM_URL_PUBLIQUE:-http://localhost:8080}
+      RATIONARIUM_HOTE: ${RATIONARIUM_HOTE:-http://localhost}
       RATIONARIUM_DOCUMENTS: /var/lib/rationarium/documents
       RATIONARIUM_FUSEAU: ${RATIONARIUM_FUSEAU:-Europe/Paris}
       RATIONARIUM_CRON_ALERTES: ${RATIONARIUM_CRON_ALERTES:-0 7 * * *}
@@ -119,40 +75,51 @@ services:
       SMTP_TLS: ${SMTP_TLS:-false}
       SMTP_UTILISATEUR: ${SMTP_UTILISATEUR:-}
       SMTP_MOTDEPASSE: ${SMTP_MOTDEPASSE:-}
+      SMTP_EXPEDITEUR: ${SMTP_EXPEDITEUR:-rationarium@localhost}
     volumes:
       - documents:/var/lib/rationarium/documents
     healthcheck:
-      # La sonde de DISPONIBILITÉ, pas celle de vivacité : Compose s'en sert
-      # pour savoir quand relayer le trafic. Voir `sante.controller.ts`, où la
-      # distinction entre les deux est motivée.
-      test:
-        - CMD-SHELL
-        - "node -e \"fetch('http://127.0.0.1:3000/api/sante/pret').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""
-      interval: 15s
+      test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:3000/api/sante/pret').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
       timeout: 5s
       retries: 6
       start_period: 30s
+    networks: [interne]
 
   web:
-    build:
-      context: ..
-      dockerfile: deploiement/Dockerfile.web
+    image: ${REGISTRE_RATIONARIUM:-ghcr.io/elegartech}/rationarium-web:${VERSION_RATIONARIUM:-1.0.0-rc.1}
+    pull_policy: ${MODE_IMAGES:-missing}
     restart: unless-stopped
     depends_on:
       api:
         condition: service_healthy
     environment:
-      RATIONARIUM_HOTE: ${RATIONARIUM_HOTE:-localhost}
+      RATIONARIUM_HOTE: ${RATIONARIUM_HOTE:-http://localhost}
       RATIONARIUM_API: api:3000
+      DIRECTIVE_TLS: ${DIRECTIVE_TLS:-}
+      DIRECTIVE_COURRIEL_ACME: ${COURRIEL_ACME:+email ${COURRIEL_ACME:-}}
     ports:
-      - "${RATIONARIUM_PORT_HTTP:-80}:80"
-      - "${RATIONARIUM_PORT_HTTPS:-443}:443"
+      - '${RATIONARIUM_PORT_HTTP:-8080}:80'
+      - '${RATIONARIUM_PORT_HTTPS:-8443}:443'
     volumes:
-      # L'autorité locale de Caddy : sans persistance, chaque redémarrage
-      # régénère la racine, et tous les postes revoient un avertissement.
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./certificats:/etc/rationarium/certificats:ro
       - caddy:/data
+      - caddy_config:/config
+    healthcheck:
+      test: ['CMD', 'wget', '--quiet', '--spider', 'http://127.0.0.1/_sante']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks: [interne, acces]
+
+networks:
+  interne:
+    internal: ${RESEAU_INTERNE:-false}
+  acces:
 
 volumes:
   documents:
   donnees:
   caddy:
+  caddy_config:

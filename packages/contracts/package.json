@@ -1,6 +1,6 @@
 {
   "name": "@rationarium/contracts",
-  "version": "0.0.0",
+  "version": "1.0.0-rc.1",
   "private": true,
   "type": "module",
   "description": "Contrat partagé client / serveur : schémas Zod, catalogue de permissions, vocabulaires du § 4.1",
@@ -24,5 +24,11 @@
   "devDependencies": {
     "typescript": "6.0.3",
     "vitest": "4.1.10"
+  },
+  "license": "MIT",
+  "author": "Alexandre Bergé",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ElegArtech/rationarium.git"
   }
 }

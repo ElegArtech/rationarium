@@ -1,6 +1,6 @@
 {
   "name": "@rationarium/api",
-  "version": "0.0.0",
+  "version": "1.0.0-rc.1",
   "private": true,
   "type": "module",
   "description": "Serveur applicatif : NestJS sur adaptateur Fastify",
@@ -43,5 +43,11 @@
     "@types/nodemailer": "^8.0.1",
     "typescript": "6.0.3",
     "vitest": "4.1.10"
+  },
+  "license": "MIT",
+  "author": "Alexandre Bergé",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ElegArtech/rationarium.git"
   }
 }

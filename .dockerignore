@@ -1,53 +1,33 @@
-# Ce que la construction d'image ne doit jamais recevoir — L-29.
-#
-# Sans ce fichier, `COPY . .` recopie le `node_modules` de la machine de
-# développement PAR-DESSUS celui que l'image vient d'installer. Les deux ne
-# sont pas interchangeables : liens symboliques absolus, binaires compilés pour
-# une autre plateforme, et une réserve pnpm que l'image ne connaît pas. Le
-# symptôme observé est trompeur — pnpm détecte l'incohérence et veut
-# réinstaller, ce qui échoue faute de terminal.
-
-node_modules
+# Seuls les fichiers nécessaires à la construction entrent dans le contexte.
+**
+!package.json
+!pnpm-lock.yaml
+!pnpm-workspace.yaml
+!tsconfig.base.json
+!apps/
+!apps/**
+!packages/
+!packages/**
+!deploiement/
+!deploiement/Dockerfile.api
+!deploiement/Dockerfile.web
+!deploiement/Caddyfile
+!deploiement/lancer.mjs
+!deploiement/roles-restauration.mjs
+!docs/
+!docs/references/
+!docs/references/calendrier/
+!docs/references/calendrier/periodes-metropole.json
+!LICENSE
+!THIRD_PARTY_NOTICES.md
 **/node_modules
-
-# Produits de construction : ils sont refaits dans l'image, et ceux de l'hôte
-# viendraient d'une autre version de TypeScript ou d'un autre système.
-dist
 **/dist
-packages/db/src/generated
-
-# Historique, outillage local, sorties de contrôle.
-.git
-.gitignore
-.claude
-test-results
+**/*.tsbuildinfo
+**/.turbo
 **/test-results
-playwright-report
 **/playwright-report
 **/.playwright
-**/.turbo
-**/*.tsbuildinfo
-
-# Secrets : jamais dans une couche d'image.
-.env
+packages/db/src/generated
+apps/api/var
 **/.env
-deploiement/.env
-
-# Documentation et références : elles n'entrent dans aucune image.
-cadrage
-mockups
-# ADR-0017 : une seule référence fonctionnelle entre dans le contexte. Le
-# reste de la documentation demeure exclu, comme les jeux et preuves RM-08.
-docs/*
-!docs/references/
-docs/references/*
-!docs/references/calendrier/
-docs/references/calendrier/*
-!docs/references/calendrier/periodes-metropole.json
-guide
-design
-
-# RM-08 : ni harnais, ni preuves, ni configuration des agents.
-recette
-.agents
-.codex
+**/.env.*
