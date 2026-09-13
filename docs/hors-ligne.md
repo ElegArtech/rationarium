@@ -42,20 +42,27 @@ organisation. Le réseau Docker `internal` interdit aussi les connexions sortant
 
 ## Préparer un paquet personnalisé
 
-Sur une machine connectée de la même architecture, depuis les sources de la version voulue :
+Sur une machine connectée avec Docker, Compose et Python 3, depuis les sources de la version voulue :
 
 ```sh
 bash deploiement/preparer-hors-ligne.sh
 ```
 
 Le script récupère les images publiées et produit `dist/rationarium-1.0.0-rc.1/`. Il ne copie aucun
-secret ni donnée de l’instance locale. `IMAGES.txt` indique les identifiants et l’architecture des images.
+secret ni donnée de l’instance locale. `IMAGES.txt` indique les archives, références et architecture des images.
+La préparation utilise une image Skopeo épinglée, téléchargée depuis `quay.io`, pour copier toutes les
+couches depuis les registres. Chaque couche est vérifiée avant de produire le paquet. Python et
+Skopeo servent uniquement à cette préparation ; ils ne sont pas requis sur le serveur cible.
 
 Pour construire vos propres images avant l’export :
 
 ```sh
 bash deploiement/preparer-hors-ligne.sh --construire
 ```
+
+Les images construites localement sont exportées par Docker, puis vérifiées. Si le magasin
+containerd de Docker produit un export incomplet, la préparation s’arrête ; utiliser un magasin
+Docker classique ou publier les images dans un registre et suivre le parcours précédent.
 
 Un dossier de sortie neuf peut être ajouté en dernier argument. Prévoir l’espace pour les images
 Docker et leur archive, qui coexistent pendant la préparation. Si la machine connectée utilise un
