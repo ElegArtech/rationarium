@@ -133,6 +133,30 @@ test.describe("Vue 06 — tableau de bord", () => {
     await expect(page.getByText("4,5 h déjà déclarées")).toBeVisible();
   });
 
+  test("la note de temps ne décale pas le statut par rapport au champ d'heures", async ({
+    page,
+  }) => {
+    await horlogeFixe(page);
+    await serveur(page, { session: SESSION_TABLEAU, reponses });
+    await page.goto("/");
+
+    // La première tâche porte une note sur une seconde ligne. Quand les
+    // cellules de la grille étaient centrées séparément, cette hauteur
+    // supplémentaire remontait le champ d'heures et descendait le statut.
+    // On l'exerce dans le gabarit large, puis après le passage du tableau de
+    // bord à une seule colonne : le défaut ne doit pas dépendre de la largeur.
+    for (const width of [1600, 900]) {
+      await page.setViewportSize({ width, height: 1000 });
+      const ligne = page.locator(".trow", { hasText: "Rédiger la note de cadrage" });
+      const statut = await ligne.locator(".mini-select").boundingBox();
+      const heures = await ligne.locator(".hours input").boundingBox();
+
+      expect(statut).not.toBeNull();
+      expect(heures).not.toBeNull();
+      expect(Math.abs((statut?.y ?? 0) - (heures?.y ?? 0))).toBeLessThanOrEqual(1);
+    }
+  });
+
   test("EX-DSH-06 — clore une tâche sans déclaration, depuis l'onglet dédié", async ({ page }) => {
     await horlogeFixe(page);
     await serveur(page, {

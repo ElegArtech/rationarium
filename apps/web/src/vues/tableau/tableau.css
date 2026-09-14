@@ -202,7 +202,12 @@ a.tchip:hover {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto;
   gap: 12px;
-  align-items: center;
+  /* La note de temps appartient au champ d'heures et peut ajouter une seconde
+     ligne. Centrer chaque cellule sur la hauteur totale décalait alors le
+     sélecteur de statut vers le bas, tandis que le champ d'heures remontait :
+     deux contrôles d'une même ligne ne partageaient plus leur bord supérieur.
+     Le départ commun reste stable avec ou sans note, et avec un libellé long. */
+  align-items: start;
   padding: 10px 14px;
   border-bottom: 1px solid var(--line);
 }
