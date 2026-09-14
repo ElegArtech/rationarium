@@ -340,6 +340,23 @@ a.tchip:hover {
   display: block;
 }
 
+/* La mention déjà déclarée décrit le champ, mais ne doit pas dimensionner sa
+   colonne : chaque `.trow` est une grille indépendante et une note longue
+   repoussait sinon statut ET saisie vers la gauche sur cette seule ligne.
+   Absolue sous le champ, elle conserve son ancrage à droite sans participer à
+   la largeur intrinsèque. La cellule de titre donne déjà à la ligne la hauteur
+   nécessaire au libellé secondaire. */
+.trow-hours {
+  position: relative;
+}
+
+.trow-hours .hours-note {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  white-space: nowrap;
+}
+
 /* ── To-do ──────────────────────────────────────────────────────────────── */
 
 .todo-add {
@@ -511,5 +528,12 @@ a.tchip:hover {
   .trow {
     grid-template-columns: 1fr;
     align-items: start;
+  }
+
+  /* Les commandes sont empilées : la note reprend sa place dans le flux pour
+     ne pas empiéter sur la bordure de la ligne suivante. */
+  .trow-hours .hours-note {
+    position: static;
+    white-space: normal;
   }
 }

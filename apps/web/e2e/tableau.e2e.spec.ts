@@ -133,27 +133,34 @@ test.describe("Vue 06 — tableau de bord", () => {
     await expect(page.getByText("4,5 h déjà déclarées")).toBeVisible();
   });
 
-  test("la note de temps ne décale pas le statut par rapport au champ d'heures", async ({
+  test("la note de temps ne décale ni le statut ni le champ d'heures", async ({
     page,
   }) => {
     await horlogeFixe(page);
     await serveur(page, { session: SESSION_TABLEAU, reponses });
     await page.goto("/");
 
-    // La première tâche porte une note sur une seconde ligne. Quand les
-    // cellules de la grille étaient centrées séparément, cette hauteur
-    // supplémentaire remontait le champ d'heures et descendait le statut.
+    // La première tâche porte une note sur une seconde ligne, la seconde non.
+    // Chaque ligne étant sa propre grille, la note longue élargissait sa
+    // troisième colonne et repoussait ses deux commandes vers la gauche.
     // On l'exerce dans le gabarit large, puis après le passage du tableau de
     // bord à une seule colonne : le défaut ne doit pas dépendre de la largeur.
     for (const width of [1600, 900]) {
       await page.setViewportSize({ width, height: 1000 });
-      const ligne = page.locator(".trow", { hasText: "Rédiger la note de cadrage" });
-      const statut = await ligne.locator(".mini-select").boundingBox();
-      const heures = await ligne.locator(".hours input").boundingBox();
+      const avecNote = page.locator(".trow", { hasText: "Rédiger la note de cadrage" });
+      const sansNote = page.locator(".trow", { hasText: "Reprendre le cahier de recette" });
+      const statutAvec = await avecNote.locator(".mini-select").boundingBox();
+      const heuresAvec = await avecNote.locator(".hours input").boundingBox();
+      const statutSans = await sansNote.locator(".mini-select").boundingBox();
+      const heuresSans = await sansNote.locator(".hours input").boundingBox();
 
-      expect(statut).not.toBeNull();
-      expect(heures).not.toBeNull();
-      expect(Math.abs((statut?.y ?? 0) - (heures?.y ?? 0))).toBeLessThanOrEqual(1);
+      expect(statutAvec).not.toBeNull();
+      expect(heuresAvec).not.toBeNull();
+      expect(statutSans).not.toBeNull();
+      expect(heuresSans).not.toBeNull();
+      expect(Math.abs((statutAvec?.x ?? 0) - (statutSans?.x ?? 0))).toBeLessThanOrEqual(1);
+      expect(Math.abs((heuresAvec?.x ?? 0) - (heuresSans?.x ?? 0))).toBeLessThanOrEqual(1);
+      expect(Math.abs((statutAvec?.y ?? 0) - (heuresAvec?.y ?? 0))).toBeLessThanOrEqual(1);
     }
   });
 

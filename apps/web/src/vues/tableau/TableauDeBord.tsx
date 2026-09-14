@@ -678,7 +678,7 @@ function LigneTache({ tache }: { tache: api.TacheAVenir }) {
         ))}
       </select>
 
-      <div>
+      <div className="trow-hours">
         <ChampHeures
           libelle={t("taches.heuresSur", { titre: tache.titre })}
           surValidation={(valeur) => saisie.mutate(valeur)}
