@@ -31,6 +31,11 @@ async function horlogeFixe(page: Page) {
 
 const reponses = { "/api/tableau-de-bord": { corps: TABLEAU } };
 
+const SESSION_TABLEAU_CREATION = {
+  ...SESSION_TABLEAU,
+  permissions: [...SESSION_TABLEAU.permissions, "tasks:create", "events:create"],
+};
+
 test.describe("Vue 06 — tableau de bord", () => {
   test("EX-DSH-01 — l'accueil est nominatif, et c'est la page d'accueil", async ({ page }) => {
     await horlogeFixe(page);
@@ -39,6 +44,49 @@ test.describe("Vue 06 — tableau de bord", () => {
 
     await expect(page.getByRole("heading", { name: "Bonjour Camille", level: 1 })).toBeVisible();
     await expect(page.getByText("Voici un aperçu de votre activité.")).toBeVisible();
+  });
+
+  test("le raccourci Créer est aligné sur le bonjour et propose tâche ou événement", async ({
+    page,
+  }) => {
+    await horlogeFixe(page);
+    await serveur(page, { session: SESSION_TABLEAU_CREATION, reponses });
+    await page.goto("/");
+
+    const titre = page.getByRole("heading", { name: "Bonjour Camille", level: 1 });
+    const creer = page.getByRole("button", { name: "Créer", exact: true });
+    await expect(creer).toBeVisible();
+
+    const boiteTitre = await titre.boundingBox();
+    const boiteCreer = await creer.boundingBox();
+    expect(boiteTitre).not.toBeNull();
+    expect(boiteCreer).not.toBeNull();
+    expect(
+      Math.abs(
+        (boiteTitre?.y ?? 0) + (boiteTitre?.height ?? 0) / 2 -
+          ((boiteCreer?.y ?? 0) + (boiteCreer?.height ?? 0) / 2),
+      ),
+    ).toBeLessThanOrEqual(2);
+
+    await creer.click();
+    await expect(page.getByRole("menuitem", { name: "Tâche", exact: true })).toBeVisible();
+    await expect(page.getByRole("menuitem", { name: "Événement", exact: true })).toBeVisible();
+
+    await page.getByRole("menuitem", { name: "Tâche", exact: true }).click();
+    await expect(page).toHaveURL(/\/taches\?creer=1$/);
+
+    await page.goto("/");
+    await creer.click();
+    await page.getByRole("menuitem", { name: "Événement", exact: true }).click();
+    await expect(page).toHaveURL(/\/evenements$/);
+  });
+
+  test("RG-GEN-06 — sans droit de création, le raccourci n'est pas proposé", async ({ page }) => {
+    await horlogeFixe(page);
+    await serveur(page, { session: SESSION_TABLEAU, reponses });
+    await page.goto("/");
+
+    await expect(page.getByRole("button", { name: "Créer", exact: true })).toHaveCount(0);
   });
 
   test("EX-DSH-02 — CHAQUE INDICATEUR PORTE SON DÉNOMINATEUR", async ({ page }) => {

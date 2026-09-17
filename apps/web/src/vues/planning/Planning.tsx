@@ -27,6 +27,7 @@ import { adressePlanning, lirePlanning } from "./adresse.js";
 import { GrilleSemaine } from "./Semaine.js";
 import { GrilleMois } from "./Mois.js";
 import { PanneauDetail, type Selection } from "./Detail.js";
+import { MenuCreationOccupation } from "../../composants/menu-creation-occupation.js";
 import "../../composants/partages.css";
 import "./semaine.css";
 import "./mois.css";
@@ -619,10 +620,6 @@ function BarreOutils({
   recherche: Record<string, string>;
 }) {
   const { t } = useTranslation("planning");
-  const peut = usePeut();
-  const navigate = useNavigate();
-  /* Deux droits, pas un — voir le commentaire de `Planning`. */
-  const peutCreerUneTache = peut("tasks:create") || peut("tasks:create_standalone");
 
   return (
     <div className="pl-toolbar">
@@ -669,39 +666,7 @@ function BarreOutils({
           {t("actions.imprimer")}
         </Button>
         <EchangesIcs filtres={filtresExport} />
-        {peutCreerUneTache || peut("events:create") ? (
-          <MenuTrigger>
-            <Button className="btn btn-primary">{t("actions.creer")}</Button>
-            <Popover>
-              <Menu className="pop pop-sm">
-                {/*
-                  **`onAction`, et non `href`.** Un `MenuItem` porteur d'un
-                  `href` rend une ancre, et sans le `RouterProvider` de
-                  react-aria cette ancre est brute : créer depuis la barre
-                  d'outils RECHARGEAIT l'application entière.
-                */}
-                {peutCreerUneTache ? (
-                  <MenuItem
-                    className="pop-action"
-                    id="tache"
-                    onAction={() => void navigate({ to: "/taches", search: { creer: 1 } })}
-                  >
-                    {t("actions.creerTache")}
-                  </MenuItem>
-                ) : null}
-                {peut("events:create") ? (
-                  <MenuItem
-                    className="pop-action"
-                    id="evenement"
-                    onAction={() => void navigate({ to: "/evenements" })}
-                  >
-                    {t("actions.creerEvenement")}
-                  </MenuItem>
-                ) : null}
-              </Menu>
-            </Popover>
-          </MenuTrigger>
-        ) : null}
+        <MenuCreationOccupation />
       </div>
     </div>
   );

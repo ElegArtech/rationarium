@@ -40,6 +40,12 @@
   margin: 6px 0 4px;
 }
 
+/* Le raccourci de création partage la ligne du bonjour. Le retour à la ligne
+   reste possible avec un prénom long ou en anglais, sans comprimer le titre. */
+.greet .ligne-actions {
+  flex-wrap: wrap;
+}
+
 /* Deux colonnes sous le planning, qui lui prend la largeur entière. La
    gauche est la plus large : elle porte ce qui demande un geste — tâches,
    projets. `gap` fait seul l'espacement, d'où la neutralisation de la marge

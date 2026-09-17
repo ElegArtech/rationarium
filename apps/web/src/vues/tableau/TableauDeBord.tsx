@@ -15,6 +15,7 @@ import { useSession, usePeut } from "../../session/session.js";
 import { Chargement, ErreurDeChargement, AccesRefuse } from "../../composants/etats.js";
 import { useMessages } from "../../composants/messages.js";
 import { AvatarAgent, useLibelle } from "../../composants/pastilles.js";
+import { MenuCreationOccupation } from "../../composants/menu-creation-occupation.js";
 import { formaterDate, formaterDateAvecJour } from "../../formats.js";
 import {
   CELLULE_VIDE,
@@ -92,7 +93,12 @@ export function TableauDeBord() {
         <span className="eyebrow">
           {formaterDateAvecJour(new Date().toISOString().slice(0, 10))}
         </span>
-        <h1 className="h1">{t("bonjour", { prenom: session.prenom })}</h1>
+        <div className="ligne-actions">
+          <h1 className="h1">{t("bonjour", { prenom: session.prenom })}</h1>
+          <div className="ligne-actions-fin">
+            <MenuCreationOccupation />
+          </div>
+        </div>
         <p className="lede">{t("apercu")}</p>
       </div>
 
