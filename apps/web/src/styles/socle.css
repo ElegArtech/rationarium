@@ -470,6 +470,11 @@ a.chip-btn,a.ms-toggle{ text-decoration:none; }
 .kpi-sub{ font-size:11.5px; color:var(--muted); }
 .kpi.is-alert .kpi-val{ color:var(--st-blocked); }
 .kpi.is-alert .kpi-sub{ color:var(--st-blocked); }
+/* Un indicateur peut être la porte d'entrée de son détail. Le lien garde la
+   géométrie de la carte, et le survol annonce le geste sans ajouter une
+   couleur étrangère au socle. */
+a.kpi{ text-decoration:none; cursor:pointer; }
+a.kpi:hover{ border-color:var(--line-strong); background:var(--surface-2); }
 
 .check{ display:flex; align-items:center; gap:7px; font-size:12.5px; color:var(--muted); white-space:nowrap; }
 .check input{ accent-color:var(--accent); width:15px; height:15px; }

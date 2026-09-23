@@ -101,6 +101,39 @@ test.describe("Vue 06 — tableau de bord", () => {
     await expect(page.getByText("Échéance dépassée")).toBeVisible();
   });
 
+  test("EX-DSH-02 — la carte des retards ouvre uniquement MES tâches en retard", async ({
+    page,
+  }) => {
+    await horlogeFixe(page);
+    await serveur(page, {
+      session: SESSION_TABLEAU,
+      reponses: {
+        ...reponses,
+        "/api/taches?enRetard=true&assigneId=u-moi": { corps: [] },
+        "/api/projets": { corps: { projets: [], affiches: 0, total: 0 } },
+      },
+    });
+    await page.goto("/");
+
+    const carte = page.getByRole("link", { name: /Tâches en retard/ });
+    await expect(carte).toHaveAttribute("href", /\/taches\?.*retard=1.*assigne=u-moi/);
+
+    const demande = page.waitForRequest((requete) => {
+      const url = new URL(requete.url());
+      return url.pathname === "/api/taches";
+    });
+    await carte.click();
+
+    const urlApi = new URL((await demande).url());
+    expect(urlApi.searchParams.get("enRetard")).toBe("true");
+    expect(urlApi.searchParams.get("assigneId")).toBe(SESSION_TABLEAU.id);
+    await expect(page).toHaveURL(/\/taches\?.*retard=1.*assigne=u-moi/);
+    await expect(page.getByRole("button", { name: "En retard" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
+
   test("LA VUE RESTE DIGNE QUAND TOUT EST À ZÉRO", async ({ page }) => {
     await horlogeFixe(page);
     await serveur(page, {
@@ -297,6 +330,7 @@ test.describe("Vue 06 — tableau de bord", () => {
 
     await expect(page.getByText("Rédiger la note de cadrage").first()).toBeVisible();
     await expect(page.locator(".week a.tchip")).toHaveCount(0);
+    await expect(page.getByRole("link", { name: /Tâches en retard/ })).toHaveCount(0);
   });
 
   /*

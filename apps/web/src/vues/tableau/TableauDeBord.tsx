@@ -131,7 +131,17 @@ export function TableauDeBord() {
  */
 function Indicateurs({ indicateurs }: { indicateurs: api.TableauDeBord["indicateurs"] }) {
   const { t } = useTranslation("tableau");
+  const { session, peut } = useSession();
   const { projets, tachesEnCours, tachesTerminees, tachesEnRetard } = indicateurs;
+  const contenuRetards = (
+    <>
+      <span className="eyebrow">{t("kpi.tachesEnRetard")}</span>
+      <p className="kpi-val">{tachesEnRetard}</p>
+      <span className="kpi-sub">
+        {tachesEnRetard > 0 ? t("kpi.echeanceDepassee") : t("kpi.aucunRetard")}
+      </span>
+    </>
+  );
 
   return (
     <div className="kpi-grid">
@@ -155,14 +165,28 @@ function Indicateurs({ indicateurs }: { indicateurs: api.TableauDeBord["indicate
         </span>
       </div>
       {/* Le seul indicateur qui alerte. Les trois autres informent — les
-          teinter tous ferait perdre le seul qui demande une action. */}
-      <div className={`kpi${tachesEnRetard > 0 ? " is-alert" : ""}`}>
-        <span className="eyebrow">{t("kpi.tachesEnRetard")}</span>
-        <p className="kpi-val">{tachesEnRetard}</p>
-        <span className="kpi-sub">
-          {tachesEnRetard > 0 ? t("kpi.echeanceDepassee") : t("kpi.aucunRetard")}
-        </span>
-      </div>
+          teinter tous ferait perdre le seul qui demande une action.
+
+          Le compte est personnel : sa suite doit l'être aussi. Le lien porte
+          donc À LA FOIS le retard et l'identifiant de la session vers la vue
+          globale des tâches. Il ne passe pas par le panneau « Mes tâches »,
+          volontairement limité aux gestes rapides du tableau de bord.
+
+          `RG-GEN-06` — sans lecture des tâches, la carte reste informative :
+          aucun lien ne promet une destination que le serveur refuserait. */}
+      {peut("tasks:read") ? (
+        <Link
+          className={`kpi${tachesEnRetard > 0 ? " is-alert" : ""}`}
+          to="/taches"
+          search={{ retard: 1, assigne: session.id }}
+        >
+          {contenuRetards}
+        </Link>
+      ) : (
+        <div className={`kpi${tachesEnRetard > 0 ? " is-alert" : ""}`}>
+          {contenuRetards}
+        </div>
+      )}
     </div>
   );
 }
