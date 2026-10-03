@@ -1,6 +1,6 @@
 # Bilan de stabilisation de Rationarium 1.0.0
 
-3 octobre 2026. Branche : `codex/stabilisation-1-0-0`. Base des preuves locales : `db7ad5717364f82013a0b503c0502f5ee58446dc`, complétée par le découpage des tests Gantt et les corrections CI portant ce bilan. Aucun code métier n’a changé après cette base.
+3 octobre 2026. Branche : `codex/stabilisation-1-0-0`. Base des preuves locales : `db7ad5717364f82013a0b503c0502f5ee58446dc`, complétée par le découpage des tests Gantt, le ciblage du bouton de création de projet et les corrections CI portant ce bilan. Les images finales portent le commit `9029bbe4f0283f9632447af818896a86531f3e7b`. Aucun code métier n’a changé après cette base.
 
 ## Verdict
 
@@ -27,7 +27,8 @@ Les blocages liés aux dépendances npm de production, au contenu de l'image API
 - `TURBO_FORCE=true pnpm verif` : typage, lint, styles, i18n, contrôles d'inopérance et de traçabilité, **591 tests unitaires**, **9 tests des garde-fous** et cohérence de livraison.
 - Intégration PostgreSQL : **1 236 tests** (1 202 API, 34 base), dont 10 budgets de performance.
 - Construction : quatre espaces de travail réussis.
-- Playwright : première passe complète de **772 tests**, puis **50 tests RM-11** après correction du découpage ; zéro échec local. Deux grands tests ont été remplacés par 32 cas indépendants, ce qui porte la suite à **802 cas** (689 fonctionnels, 113 accessibilité), sans retrait de contrôle.
+- Playwright : première passe complète de **772 tests**, puis **50 tests RM-11** après correction du découpage et **22 tests RM-06** après correction du sélecteur ; zéro échec local. Deux grands tests ont été remplacés par 32 cas indépendants, ce qui porte la suite à **802 cas** (689 fonctionnels, 113 accessibilité), sans retrait de contrôle.
+- Les six commandes Vitest refusent désormais une suite vide ; les deux témoins locaux, unitaire et intégration, sortent effectivement en code 1.
 - Témoins négatifs supplémentaires : image exécutée sous root refusée, image contenant un faux paquet Stylelint refusée, contrôle d'archive sans argument refusé.
 - Syntaxe de tous les scripts shell et du workflow YAML vérifiée ; `git diff --check` réussi.
 
@@ -43,7 +44,7 @@ HTTPS a été vérifié avec le certificat racine de l'autorité locale via curl
 
 Le tableau de bord et le planning ont été ouverts et regardés dans les deux thèmes, à 1 600 et 1 024 pixels : huit captures inspectées, sans vue nue ni débordement manifeste. Les huit états ont également été analysés avec axe, sans violation. Cette observation porte sur une installation neuve ; elle ne constitue pas une revue visuelle exhaustive des états métier ou une certification RGAA.
 
-Un premier essai de recette a échoué sur une hypothèse incorrecte de la commande `docker compose port` ; le contrôle examine désormais les liaisons réelles du conteneur. Une exécution de migration a été interrompue par une modification de son script pendant son exécution ; elle a été rejouée intégralement avec le script figé. Les verdicts retenus sont ceux de `recette-neuve-validee`, `recette-archive` et `recette-migration-validee`, tous sortis en code 0.
+Un premier essai de recette a échoué sur une hypothèse incorrecte de la commande `docker compose port` ; le contrôle examine désormais les liaisons réelles du conteneur. Une exécution de migration a été interrompue par une modification de son script pendant son exécution ; elle a été rejouée intégralement avec le script figé. Les verdicts retenus sont ceux de `recette-neuve-validee`, `recette-archive-finale` et `recette-migration-finale`, tous sortis en code 0.
 
 ## Sécurité résiduelle
 
@@ -61,16 +62,16 @@ Les 118 occurrences HIGH/CRITICAL PostgreSQL correspondent à 54 avis distincts.
 
 ## Artefacts locaux
 
-Dans `.local/stabilisation-1.0.0/livraison/` :
+Dans `.local/stabilisation-1.0.0/livraison-finale/` :
 
 | Fichier | Taille | SHA-256 |
 | --- | --- | --- |
-| `rationarium-1.0.0-compose.tar.gz` | 88 121 octets | `21de1b44f390a70fe05c7343e56b5c5e8c734d72d47e263fa1e198917470b3ef` |
-| `rationarium-1.0.0-linux-amd64.tar.gz` | 364 152 887 octets | `c3c44f1d9ea718d931aff8bae6955e4d7a1ec723b9de0993242e85f1aa5e878e` |
+| `rationarium-1.0.0-compose.tar.gz` | 88 118 octets | `99d28b4da1c69185772f7a271a91dc2cff10bdcb478526dec6a09eb6b4675748` |
+| `rationarium-1.0.0-linux-amd64.tar.gz` | 364 157 198 octets | `fbe8e18c41cf228ba57efcf39610162177d64831f1b3656be0a5200a30fb0433` |
 
 S'y ajoutent l'installateur, les manifestes SHA-256 et l'inventaire de chaque archive. Les trois archives d'images ont été contrôlées couche par couche, rechargées et utilisées pour la recette. Aucun `.env` privé, sauvegarde ou `node_modules` du poste n'est inclus dans les kits.
 
-Les images locales examinées sont identifiées dans `images-final/images.txt` et `synthese-preuves.json`. Les tailles de `docker image ls` sont des tailles d'occupation affichées par Docker, distinctes des tailles compressées des archives.
+Les images locales examinées sont identifiées dans `images-livraison/images.txt` et `synthese-preuves.json`. Les tailles de `docker image ls` sont des tailles d'occupation affichées par Docker, distinctes des tailles compressées des archives.
 
 ## Validation GitHub
 
@@ -78,7 +79,7 @@ Les images locales examinées sont identifiées dans `images-final/images.txt` e
 
 La CI exécute la vérification rapide, l'intégration sur base réelle, la construction, les 802 cas navigateur, puis la construction des trois images, leurs scans et la recette depuis l'archive. Elle interdit la publication depuis une branche ou un lancement manuel ; un tag neuf doit franchir toutes ces étapes. Les exécutions historiques échouées ou annulées ne sont pas des preuves de succès.
 
-Le premier passage a révélé l'absence de construction préalable de l'API et de LibreOffice Calc : corrigé. Un passage suivant a validé le code et l'intégration, puis réussi 770 tests navigateur sur 772 ; les deux autres ont dépassé 30 secondes car chacun regroupait seize analyses axe et captures. Ils sont désormais 32 cas indépendants, avec le même délai par cas et toutes les assertions conservées. Les mesures de graduation portent également sur chaque largeur. Ubuntu 24.04 est explicite et l'action d'archivage utilise Node 24, avec une révision épinglée.
+Le premier passage a révélé l'absence de construction préalable de l'API et de LibreOffice Calc : corrigé. Un passage suivant a validé le code et l'intégration, puis réussi 770 tests navigateur sur 772 ; les deux autres ont dépassé 30 secondes car chacun regroupait seize analyses axe et captures. Ils sont désormais 32 cas indépendants, avec le même délai par cas et toutes les assertions conservées. Les mesures de graduation portent également sur chaque largeur. Le passage suivant a réussi 801 cas sur 802 : un bouton de création de projet pouvait être ciblé deux fois une fois l’état vide chargé. Le test attend maintenant les deux actions, puis vise celle de la barre d’actions. Le témoin reproduit l’échec dans les deux langues avant correction. Ubuntu 24.04 est explicite et l'action d'archivage utilise Node 24, avec une révision épinglée.
 
 Le lien du workflow donne le résultat distant effectif associé à chaque commit. Sur la branche, l’étape de push au registre est ignorée par condition : son exécution ne fait pas partie des preuves. Les rapports bruts et archives sont joints à l'exécution réussie ; aucune publication stable n'est déclarée par le simple numéro des manifestes.
 

@@ -19,24 +19,24 @@
   },
   "images": {
     "api": {
-      "id": "sha256:5b6574992c581627c2a4cacfbdbea6791ff5a44c6e369d6f093fe51d6306cd06",
-      "scan": "2026-10-03T11:50:41.313943587+02:00",
+      "id": "sha256:e48ecb8f22fdb5b337724de132d3c5e315cf1053c979a49c9b00d0f1c14f9ed0",
+      "scan": "2026-10-03T12:33:26.23304101+02:00",
       "alertesParGravite": {},
       "avisUniques": 0,
-      "sha256Rapport": "2cb11754029df010b4b2d5816f06d3460cd3ea09abeaa263f6bda4189eca6b8a"
+      "sha256Rapport": "4891cb5593f21d534281b146cd264c42af21353c5b5fbb126f629cbffd401328"
     },
     "web": {
-      "id": "sha256:9bf43360f37b8f646fba2957360e3259e240069a75195546b5f33b144e2d3a8e",
-      "scan": "2026-10-03T11:50:41.842669828+02:00",
+      "id": "sha256:798e320a968a7da13ec10338ebd8b521e7261fe3047d4f6533827c8626eb6bd3",
+      "scan": "2026-10-03T12:33:26.415916225+02:00",
       "alertesParGravite": {
         "UNKNOWN": 1
       },
       "avisUniques": 1,
-      "sha256Rapport": "3e1c0c3dfb585e26131feb456620d5be44aedc074981f889d1e430e5ddf2e800"
+      "sha256Rapport": "eff601e68c75601ec38e4f19f20cc7dcfeb3dee281d83c034fbd3e048bc685fc"
     },
     "base": {
-      "id": "sha256:33b344c43eaf5e47440bb99183842abbd99100753a974cc30de1a00aea362029",
-      "scan": "2026-10-03T11:50:43.717716412+02:00",
+      "id": "sha256:2c9215100c2421e282c004aee34c7421371e0332925a20cc6ea6c33539937756",
+      "scan": "2026-10-03T12:33:26.610260568+02:00",
       "alertesParGravite": {
         "LOW": 155,
         "HIGH": 102,
@@ -45,28 +45,34 @@
         "UNKNOWN": 5
       },
       "avisUniques": 196,
-      "sha256Rapport": "76f84520e092bd8a4a5b3cffd76b4f27299c75ff701ac431df8a1f4eb398c851"
+      "sha256Rapport": "c24c0723adeba8f68d7307e9d70237580fb569fe1d2ab01523aba929f94b3d69"
     }
   },
   "archives": {
     "rationarium-1.0.0-compose.tar.gz": {
-      "octets": 88121,
-      "sha256": "21de1b44f390a70fe05c7343e56b5c5e8c734d72d47e263fa1e198917470b3ef"
+      "octets": 88118,
+      "sha256": "99d28b4da1c69185772f7a271a91dc2cff10bdcb478526dec6a09eb6b4675748"
     },
     "rationarium-1.0.0-linux-amd64.tar.gz": {
-      "octets": 364152887,
-      "sha256": "c3c44f1d9ea718d931aff8bae6955e4d7a1ec723b9de0993242e85f1aa5e878e"
+      "octets": 364157198,
+      "sha256": "fbe8e18c41cf228ba57efcf39610162177d64831f1b3656be0a5200a30fb0433"
     }
   },
   "commitBaseTestsLocaux": "db7ad5717364f82013a0b503c0502f5ee58446dc",
   "executionsNavigateurs": {
     "passeCompleteInitiale": 772,
     "rejeuRM11": 50,
-    "remplacement": "2 tests combinés remplacés par 32 cas indépendants, toutes les combinaisons conservées"
+    "remplacement": "2 tests combinés remplacés par 32 cas indépendants, toutes les combinaisons conservées",
+    "rejeuRM06": 22
   },
   "recettesValidees": [
     "installation-neuve",
     "archive-hors-ligne",
     "mise-a-jour-rc.1"
-  ]
+  ],
+  "commitImages": "9029bbe4f0283f9632447af818896a86531f3e7b",
+  "suitesVides": {
+    "unitaire": "refusée (code 1)",
+    "integration": "refusée (code 1)"
+  }
 }
