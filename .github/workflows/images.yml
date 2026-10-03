@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   validation:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -42,17 +42,24 @@ jobs:
         working-directory: apps/web
       - run: pnpm exec playwright test --workers=2
         working-directory: apps/web
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         if: always()
         with:
           name: audits-dependances
           path: .local/preuves/*.json
           if-no-files-found: error
           include-hidden-files: true
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        if: failure()
+        with:
+          name: diagnostic-navigateur
+          path: apps/web/test-results/
+          if-no-files-found: ignore
+
 
   images:
     needs: validation
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     permissions:
       contents: read
@@ -82,7 +89,7 @@ jobs:
       - run: bash deploiement/preparer-livraison.sh dist/livraison
       - name: Installer depuis l’archive réellement livrée
         run: bash scripts/recette-livraison.sh "$REGISTRE_RATIONARIUM" "$VERSION_RATIONARIUM" .local/recette --kit "dist/livraison/rationarium-$VERSION_RATIONARIUM-linux-amd64.tar.gz"
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: rationarium-livraison
           compression-level: 0

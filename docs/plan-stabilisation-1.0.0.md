@@ -125,4 +125,5 @@ Un échec déclenche une correction et la reprise des contrôles affectés. Une 
 ## Suivi d'exécution
 
 - S0 : branche dédiée créée ; état initial conservé.
-- S1 à S7 : en cours d'exécution. Les résultats finaux seront consignés dans un bilan distinct pour conserver ce plan et l'audit initial lisibles.
+- S1 à S6 : corrections, images, archives et recettes locales réalisées.
+- S7 : [bilan et preuves](bilan-stabilisation-1.0.0.md) rédigés. Le résultat distant effectif est celui du workflow lié dans le bilan ; aucun résultat CI n’est déduit des seuls contrôles locaux.
