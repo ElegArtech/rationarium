@@ -5,7 +5,10 @@ racine=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 cd "$racine"
 command -v python3 > /dev/null || { echo 'La préparation du paquet requiert Python 3.' >&2; exit 1; }
 construire=false
+locales=false
 if [[ ${1:-} == --construire ]]; then construire=true; shift; fi
+if [[ ${1:-} == --local ]]; then locales=true; shift; fi
+if [[ "$construire" == true ]]; then locales=true; fi
 version=$(sed -n 's/.*"version": "\([^"]*\)".*/\1/p' package.json)
 sortie=${1:-"$racine/dist/rationarium-$version"}
 [[ ! -e "$sortie/compose.yaml" && ! -e "$sortie/images" && ! -e "$sortie/.env" ]] || { echo 'Choisir un dossier neuf.' >&2; exit 1; }
@@ -14,8 +17,7 @@ export POSTGRES_MOTDEPASSE=construction-sans-donnees
 export COOKIE_SECRET=construction-sans-donnees
 compose=(docker compose --env-file deploiement/.env.example -f deploiement/compose.yaml)
 if [[ "$construire" == true ]]; then
-  "${compose[@]}" -f deploiement/compose.construction.yaml build api web
-  "${compose[@]}" pull --policy always base
+  "${compose[@]}" -f deploiement/compose.construction.yaml build base api web
 fi
 images_texte=$("${compose[@]}" config --images)
 mapfile -t images < <(printf '%s\n' "$images_texte" | sort -u)
@@ -26,12 +28,12 @@ printf '\n# Aucune image ne doit être téléchargée sur le serveur cible.\nMOD
 # Copier depuis le registre évite les exports partiels du magasin containerd
 # lorsque plusieurs images locales partagent des couches recompressées.
 skopeo=quay.io/skopeo/stable@sha256:545723edab7793112a5c8fc36963f5cad43c6f27c0bda63c5fbc8b5d4d336036
-if [[ "$construire" == false ]]; then docker pull "$skopeo"; fi
+if [[ "$locales" == false ]]; then docker pull "$skopeo"; fi
 numero=0
 for image in "${images[@]}"; do
   numero=$((numero + 1))
   fichier="images/$numero.tar"
-  if [[ "$construire" == true ]]; then
+  if [[ "$locales" == true ]]; then
     docker image save --output "$sortie/$fichier" "$image"
   else
     docker run --rm --user "$(id -u):$(id -g)" --env HOME=/tmp \

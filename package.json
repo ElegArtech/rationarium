@@ -1,6 +1,6 @@
 {
   "name": "rationarium",
-  "version": "1.0.0-rc.1",
+  "version": "1.0.0",
   "private": true,
   "description": "Rationarium — plateforme de pilotage des projets et des ressources humaines",
   "type": "module",
@@ -20,9 +20,11 @@
     "a11y": "turbo run a11y",
     "i18n:check": "node scripts/i18n-check.mjs",
     "perf": "turbo run perf",
-    "verif": "pnpm typecheck && pnpm lint && pnpm stylelint && pnpm i18n:check && pnpm inoperant:check && pnpm tracabilite:check && pnpm test",
+    "verif": "pnpm typecheck && pnpm lint && pnpm stylelint && pnpm i18n:check && pnpm inoperant:check && pnpm tracabilite:check && pnpm test && pnpm test:livraison && pnpm livraison:check",
     "inoperant:check": "node scripts/inoperant-check.mjs",
-    "tracabilite:check": "node scripts/tracabilite-check.mjs"
+    "tracabilite:check": "node scripts/tracabilite-check.mjs",
+    "livraison:check": "node scripts/livraison-check.mjs --stable",
+    "test:livraison": "node --test scripts/*.test.mjs"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

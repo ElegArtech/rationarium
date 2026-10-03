@@ -1,0 +1,1221 @@
+{
+  "date": "2026-10-03",
+  "commande": "pnpm audit --prod --json",
+  "commit": "0c9d7e0",
+  "bilan": {
+    "info": 0,
+    "low": 0,
+    "moderate": 16,
+    "high": 20,
+    "critical": 0
+  },
+  "avisDistincts": 30,
+  "alertes": [
+    {
+      "paquet": "js-yaml",
+      "gravite": "high",
+      "avis": "GHSA-pm4m-ph32-ghv5",
+      "url": "https://github.com/advisories/GHSA-pm4m-ph32-ghv5",
+      "versionsInstallees": [
+        "5.2.1"
+      ],
+      "versionsCorrigees": ">=5.2.2",
+      "chemins": [
+        "apps__api>@nestjs/swagger>js-yaml",
+        "apps__api>nestjs-zod>@nestjs/swagger>js-yaml"
+      ]
+    },
+    {
+      "paquet": "deepmerge-ts",
+      "gravite": "high",
+      "avis": "GHSA-ggr8-5vv4-36mx",
+      "url": "https://github.com/advisories/GHSA-ggr8-5vv4-36mx",
+      "versionsInstallees": [
+        "7.1.5"
+      ],
+      "versionsCorrigees": ">=8.0.0",
+      "chemins": [
+        "packages__db>@prisma/client>prisma>@prisma/config>deepmerge-ts"
+      ]
+    },
+    {
+      "paquet": "mysql2",
+      "gravite": "high",
+      "avis": "GHSA-3f6p-5ww8-9rcr",
+      "url": "https://github.com/advisories/GHSA-3f6p-5ww8-9rcr",
+      "versionsInstallees": [
+        "3.15.3"
+      ],
+      "versionsCorrigees": ">=3.22.0",
+      "chemins": [
+        "packages__db>@prisma/client>prisma>mysql2"
+      ]
+    },
+    {
+      "paquet": "fastify",
+      "gravite": "moderate",
+      "avis": "GHSA-w2qp-rph6-63g4",
+      "url": "https://github.com/advisories/GHSA-w2qp-rph6-63g4",
+      "versionsInstallees": [
+        "5.11.3",
+        "5.12.0"
+      ],
+      "versionsCorrigees": ">=5.12.1",
+      "chemins": [
+        "apps__api>@nestjs/platform-fastify>fastify",
+        "apps__api>fastify"
+      ]
+    },
+    {
+      "paquet": "fastify",
+      "gravite": "moderate",
+      "avis": "GHSA-3m5p-2c4r-xxw2",
+      "url": "https://github.com/advisories/GHSA-3m5p-2c4r-xxw2",
+      "versionsInstallees": [
+        "5.11.3",
+        "5.12.0"
+      ],
+      "versionsCorrigees": ">=5.12.1",
+      "chemins": [
+        "apps__api>@nestjs/platform-fastify>fastify",
+        "apps__api>fastify"
+      ]
+    },
+    {
+      "paquet": "fast-uri",
+      "gravite": "high",
+      "avis": "GHSA-5jgf-p345-68v8",
+      "url": "https://github.com/advisories/GHSA-5jgf-p345-68v8",
+      "versionsInstallees": [
+        "4.1.2"
+      ],
+      "versionsCorrigees": ">=4.1.3",
+      "chemins": [
+        "apps__api>@nestjs/platform-fastify>fastify>@fastify/ajv-compiler>fast-uri",
+        "apps__api>@nestjs/platform-fastify>fastify>@fastify/fast-json-stringify-compiler>fast-json-stringify>fast-uri",
+        "apps__api>@nestjs/platform-fastify>fastify>fast-json-stringify>fast-uri",
+        "apps__api>fastify>@fastify/ajv-compiler>fast-uri",
+        "apps__api>fastify>@fastify/fast-json-stringify-compiler>fast-json-stringify>fast-uri",
+        "apps__api>fastify>fast-json-stringify>fast-uri"
+      ]
+    },
+    {
+      "paquet": "fast-uri",
+      "gravite": "high",
+      "avis": "GHSA-5jgf-p345-68v8",
+      "url": "https://github.com/advisories/GHSA-5jgf-p345-68v8",
+      "versionsInstallees": [
+        "3.1.5"
+      ],
+      "versionsCorrigees": ">=3.1.6",
+      "chemins": [
+        "apps__api>@nestjs/platform-fastify>fastify>@fastify/ajv-compiler>ajv>fast-uri",
+        "apps__api>@nestjs/platform-fastify>fastify>@fastify/ajv-compiler>ajv-formats>ajv>fast-uri",
+        "apps__api>@nestjs/platform-fastify>fastify>@fastify/fast-json-stringify-compiler>fast-json-stringify>ajv>fast-uri",
+        "apps__api>@nestjs/platform-fastify>fastify>@fastify/fast-json-stringify-compiler>fast-json-stringify>ajv-formats>ajv>fast-uri",
+        "apps__api>@nestjs/platform-fastify>fastify>fast-json-stringify>ajv>fast-uri",
+        "apps__api>@nestjs/platform-fastify>fastify>fast-json-stringify>ajv-formats>ajv>fast-uri",
+        "apps__api>fastify>@fastify/ajv-compiler>ajv>fast-uri",
+        "apps__api>fastify>@fastify/ajv-compiler>ajv-formats>ajv>fast-uri",
+        "apps__api>fastify>@fastify/fast-json-stringify-compiler>fast-json-stringify>ajv>fast-uri",
+        "apps__api>fastify>@fastify/fast-json-stringify-compiler>fast-json-stringify>ajv-formats>ajv>fast-uri",
+        "apps__api>fastify>fast-json-stringify>ajv>fast-uri",
+        "apps__api>fastify>fast-json-stringify>ajv-formats>ajv>fast-uri",
+        "packages__db>@prisma/client>prisma>@prisma/dev>@prisma/streams-local>ajv>fast-uri"
+      ]
+    },
+    {
+      "paquet": "fast-uri",
+      "gravite": "high",
+      "avis": "GHSA-f65p-4m7j-42xc",
+      "url": "https://github.com/advisories/GHSA-f65p-4m7j-42xc",
+      "versionsInstallees": [
+        "4.1.2"
+      ],
+      "versionsCorrigees": ">=4.1.3",
+      "chemins": [
+        "apps__api>@nestjs/platform-fastify>fastify>@fastify/ajv-compiler>fast-uri",
+        "apps__api>@nestjs/platform-fastify>fastify>@fastify/fast-json-stringify-compiler>fast-json-stringify>fast-uri",
+        "apps__api>@nestjs/platform-fastify>fastify>fast-json-stringify>fast-uri",
+        "apps__api>fastify>@fastify/ajv-compiler>fast-uri",
+        "apps__api>fastify>@fastify/fast-json-stringify-compiler>fast-json-stringify>fast-uri",
+        "apps__api>fastify>fast-json-stringify>fast-uri"
+      ]
+    },
+    {
+      "paquet": "fast-uri",
+      "gravite": "high",
+      "avis": "GHSA-f65p-4m7j-42xc",
+      "url": "https://github.com/advisories/GHSA-f65p-4m7j-42xc",
+      "versionsInstallees": [
+        "3.1.5"
+      ],
+      "versionsCorrigees": ">=3.1.6",
+      "chemins": [
+        "apps__api>@nestjs/platform-fastify>fastify>@fastify/ajv-compiler>ajv>fast-uri",
+        "apps__api>@nestjs/platform-fastify>fastify>@fastify/ajv-compiler>ajv-formats>ajv>fast-uri",
+        "apps__api>@nestjs/platform-fastify>fastify>@fastify/fast-json-stringify-compiler>fast-json-stringify>ajv>fast-uri",
+        "apps__api>@nestjs/platform-fastify>fastify>@fastify/fast-json-stringify-compiler>fast-json-stringify>ajv-formats>ajv>fast-uri",
+        "apps__api>@nestjs/platform-fastify>fastify>fast-json-stringify>ajv>fast-uri",
+        "apps__api>@nestjs/platform-fastify>fastify>fast-json-stringify>ajv-formats>ajv>fast-uri",
+        "apps__api>fastify>@fastify/ajv-compiler>ajv>fast-uri",
+        "apps__api>fastify>@fastify/ajv-compiler>ajv-formats>ajv>fast-uri",
+        "apps__api>fastify>@fastify/fast-json-stringify-compiler>fast-json-stringify>ajv>fast-uri",
+        "apps__api>fastify>@fastify/fast-json-stringify-compiler>fast-json-stringify>ajv-formats>ajv>fast-uri",
+        "apps__api>fastify>fast-json-stringify>ajv>fast-uri",
+        "apps__api>fastify>fast-json-stringify>ajv-formats>ajv>fast-uri",
+        "packages__db>@prisma/client>prisma>@prisma/dev>@prisma/streams-local>ajv>fast-uri"
+      ]
+    },
+    {
+      "paquet": "fast-uri",
+      "gravite": "high",
+      "avis": "GHSA-fph4-wmhf-6fwf",
+      "url": "https://github.com/advisories/GHSA-fph4-wmhf-6fwf",
+      "versionsInstallees": [
+        "4.1.2"
+      ],
+      "versionsCorrigees": ">=4.1.3",
+      "chemins": [
+        "apps__api>@nestjs/platform-fastify>fastify>@fastify/ajv-compiler>fast-uri",
+        "apps__api>@nestjs/platform-fastify>fastify>@fastify/fast-json-stringify-compiler>fast-json-stringify>fast-uri",
+        "apps__api>@nestjs/platform-fastify>fastify>fast-json-stringify>fast-uri",
+        "apps__api>fastify>@fastify/ajv-compiler>fast-uri",
+        "apps__api>fastify>@fastify/fast-json-stringify-compiler>fast-json-stringify>fast-uri",
+        "apps__api>fastify>fast-json-stringify>fast-uri"
+      ]
+    },
+    {
+      "paquet": "fast-uri",
+      "gravite": "high",
+      "avis": "GHSA-fph4-wmhf-6fwf",
+      "url": "https://github.com/advisories/GHSA-fph4-wmhf-6fwf",
+      "versionsInstallees": [
+        "3.1.5"
+      ],
+      "versionsCorrigees": ">=3.1.6",
+      "chemins": [
+        "apps__api>@nestjs/platform-fastify>fastify>@fastify/ajv-compiler>ajv>fast-uri",
+        "apps__api>@nestjs/platform-fastify>fastify>@fastify/ajv-compiler>ajv-formats>ajv>fast-uri",
+        "apps__api>@nestjs/platform-fastify>fastify>@fastify/fast-json-stringify-compiler>fast-json-stringify>ajv>fast-uri",
+        "apps__api>@nestjs/platform-fastify>fastify>@fastify/fast-json-stringify-compiler>fast-json-stringify>ajv-formats>ajv>fast-uri",
+        "apps__api>@nestjs/platform-fastify>fastify>fast-json-stringify>ajv>fast-uri",
+        "apps__api>@nestjs/platform-fastify>fastify>fast-json-stringify>ajv-formats>ajv>fast-uri",
+        "apps__api>fastify>@fastify/ajv-compiler>ajv>fast-uri",
+        "apps__api>fastify>@fastify/ajv-compiler>ajv-formats>ajv>fast-uri",
+        "apps__api>fastify>@fastify/fast-json-stringify-compiler>fast-json-stringify>ajv>fast-uri",
+        "apps__api>fastify>@fastify/fast-json-stringify-compiler>fast-json-stringify>ajv-formats>ajv>fast-uri",
+        "apps__api>fastify>fast-json-stringify>ajv>fast-uri",
+        "apps__api>fastify>fast-json-stringify>ajv-formats>ajv>fast-uri",
+        "packages__db>@prisma/client>prisma>@prisma/dev>@prisma/streams-local>ajv>fast-uri"
+      ]
+    },
+    {
+      "paquet": "fast-uri",
+      "gravite": "high",
+      "avis": "GHSA-jqff-g426-hqxp",
+      "url": "https://github.com/advisories/GHSA-jqff-g426-hqxp",
+      "versionsInstallees": [
+        "4.1.2"
+      ],
+      "versionsCorrigees": ">=4.1.3",
+      "chemins": [
+        "apps__api>@nestjs/platform-fastify>fastify>@fastify/ajv-compiler>fast-uri",
+        "apps__api>@nestjs/platform-fastify>fastify>@fastify/fast-json-stringify-compiler>fast-json-stringify>fast-uri",
+        "apps__api>@nestjs/platform-fastify>fastify>fast-json-stringify>fast-uri",
+        "apps__api>fastify>@fastify/ajv-compiler>fast-uri",
+        "apps__api>fastify>@fastify/fast-json-stringify-compiler>fast-json-stringify>fast-uri",
+        "apps__api>fastify>fast-json-stringify>fast-uri"
+      ]
+    },
+    {
+      "paquet": "fast-uri",
+      "gravite": "high",
+      "avis": "GHSA-jqff-g426-hqxp",
+      "url": "https://github.com/advisories/GHSA-jqff-g426-hqxp",
+      "versionsInstallees": [
+        "3.1.5"
+      ],
+      "versionsCorrigees": ">=3.1.6",
+      "chemins": [
+        "apps__api>@nestjs/platform-fastify>fastify>@fastify/ajv-compiler>ajv>fast-uri",
+        "apps__api>@nestjs/platform-fastify>fastify>@fastify/ajv-compiler>ajv-formats>ajv>fast-uri",
+        "apps__api>@nestjs/platform-fastify>fastify>@fastify/fast-json-stringify-compiler>fast-json-stringify>ajv>fast-uri",
+        "apps__api>@nestjs/platform-fastify>fastify>@fastify/fast-json-stringify-compiler>fast-json-stringify>ajv-formats>ajv>fast-uri",
+        "apps__api>@nestjs/platform-fastify>fastify>fast-json-stringify>ajv>fast-uri",
+        "apps__api>@nestjs/platform-fastify>fastify>fast-json-stringify>ajv-formats>ajv>fast-uri",
+        "apps__api>fastify>@fastify/ajv-compiler>ajv>fast-uri",
+        "apps__api>fastify>@fastify/ajv-compiler>ajv-formats>ajv>fast-uri",
+        "apps__api>fastify>@fastify/fast-json-stringify-compiler>fast-json-stringify>ajv>fast-uri",
+        "apps__api>fastify>@fastify/fast-json-stringify-compiler>fast-json-stringify>ajv-formats>ajv>fast-uri",
+        "apps__api>fastify>fast-json-stringify>ajv>fast-uri",
+        "apps__api>fastify>fast-json-stringify>ajv-formats>ajv>fast-uri",
+        "packages__db>@prisma/client>prisma>@prisma/dev>@prisma/streams-local>ajv>fast-uri"
+      ]
+    },
+    {
+      "paquet": "mysql2",
+      "gravite": "moderate",
+      "avis": "GHSA-rgwj-5xj2-c3m3",
+      "url": "https://github.com/advisories/GHSA-rgwj-5xj2-c3m3",
+      "versionsInstallees": [
+        "3.15.3"
+      ],
+      "versionsCorrigees": ">=3.23.1",
+      "chemins": [
+        "packages__db>@prisma/client>prisma>mysql2"
+      ]
+    },
+    {
+      "paquet": "nodemailer",
+      "gravite": "moderate",
+      "avis": "GHSA-8m3c-c648-2xjj",
+      "url": "https://github.com/advisories/GHSA-8m3c-c648-2xjj",
+      "versionsInstallees": [
+        "9.0.5"
+      ],
+      "versionsCorrigees": ">=9.1.1",
+      "chemins": [
+        "apps__api>nodemailer"
+      ]
+    },
+    {
+      "paquet": "nodemailer",
+      "gravite": "moderate",
+      "avis": "GHSA-wmmp-3585-3rmp",
+      "url": "https://github.com/advisories/GHSA-wmmp-3585-3rmp",
+      "versionsInstallees": [
+        "9.0.5"
+      ],
+      "versionsCorrigees": ">=9.1.0",
+      "chemins": [
+        "apps__api>nodemailer"
+      ]
+    },
+    {
+      "paquet": "nodemailer",
+      "gravite": "high",
+      "avis": "GHSA-2x7j-588g-ccc2",
+      "url": "https://github.com/advisories/GHSA-2x7j-588g-ccc2",
+      "versionsInstallees": [
+        "9.0.5"
+      ],
+      "versionsCorrigees": ">=9.1.0",
+      "chemins": [
+        "apps__api>nodemailer"
+      ]
+    },
+    {
+      "paquet": "nodemailer",
+      "gravite": "moderate",
+      "avis": "GHSA-cc9r-2j5m-2m83",
+      "url": "https://github.com/advisories/GHSA-cc9r-2j5m-2m83",
+      "versionsInstallees": [
+        "9.0.5"
+      ],
+      "versionsCorrigees": ">=9.1.0",
+      "chemins": [
+        "apps__api>nodemailer"
+      ]
+    },
+    {
+      "paquet": "nodemailer",
+      "gravite": "moderate",
+      "avis": "GHSA-6vj9-mwq6-2f5v",
+      "url": "https://github.com/advisories/GHSA-6vj9-mwq6-2f5v",
+      "versionsInstallees": [
+        "9.0.5"
+      ],
+      "versionsCorrigees": ">=10.0.2",
+      "chemins": [
+        "apps__api>nodemailer"
+      ]
+    },
+    {
+      "paquet": "fast-uri",
+      "gravite": "high",
+      "avis": "GHSA-qw65-cvwx-89v3",
+      "url": "https://github.com/advisories/GHSA-qw65-cvwx-89v3",
+      "versionsInstallees": [
+        "4.1.2"
+      ],
+      "versionsCorrigees": ">=4.1.4",
+      "chemins": [
+        "apps__api>@nestjs/platform-fastify>fastify>@fastify/ajv-compiler>fast-uri",
+        "apps__api>@nestjs/platform-fastify>fastify>@fastify/fast-json-stringify-compiler>fast-json-stringify>fast-uri",
+        "apps__api>@nestjs/platform-fastify>fastify>fast-json-stringify>fast-uri",
+        "apps__api>fastify>@fastify/ajv-compiler>fast-uri",
+        "apps__api>fastify>@fastify/fast-json-stringify-compiler>fast-json-stringify>fast-uri",
+        "apps__api>fastify>fast-json-stringify>fast-uri"
+      ]
+    },
+    {
+      "paquet": "fast-uri",
+      "gravite": "high",
+      "avis": "GHSA-qw65-cvwx-89v3",
+      "url": "https://github.com/advisories/GHSA-qw65-cvwx-89v3",
+      "versionsInstallees": [
+        "3.1.5"
+      ],
+      "versionsCorrigees": ">=3.1.7",
+      "chemins": [
+        "apps__api>@nestjs/platform-fastify>fastify>@fastify/ajv-compiler>ajv>fast-uri",
+        "apps__api>@nestjs/platform-fastify>fastify>@fastify/ajv-compiler>ajv-formats>ajv>fast-uri",
+        "apps__api>@nestjs/platform-fastify>fastify>@fastify/fast-json-stringify-compiler>fast-json-stringify>ajv>fast-uri",
+        "apps__api>@nestjs/platform-fastify>fastify>@fastify/fast-json-stringify-compiler>fast-json-stringify>ajv-formats>ajv>fast-uri",
+        "apps__api>@nestjs/platform-fastify>fastify>fast-json-stringify>ajv>fast-uri",
+        "apps__api>@nestjs/platform-fastify>fastify>fast-json-stringify>ajv-formats>ajv>fast-uri",
+        "apps__api>fastify>@fastify/ajv-compiler>ajv>fast-uri",
+        "apps__api>fastify>@fastify/ajv-compiler>ajv-formats>ajv>fast-uri",
+        "apps__api>fastify>@fastify/fast-json-stringify-compiler>fast-json-stringify>ajv>fast-uri",
+        "apps__api>fastify>@fastify/fast-json-stringify-compiler>fast-json-stringify>ajv-formats>ajv>fast-uri",
+        "apps__api>fastify>fast-json-stringify>ajv>fast-uri",
+        "apps__api>fastify>fast-json-stringify>ajv-formats>ajv>fast-uri",
+        "packages__db>@prisma/client>prisma>@prisma/dev>@prisma/streams-local>ajv>fast-uri"
+      ]
+    },
+    {
+      "paquet": "ip-address",
+      "gravite": "moderate",
+      "avis": "GHSA-rpw4-54j3-4h4q",
+      "url": "https://github.com/advisories/GHSA-rpw4-54j3-4h4q",
+      "versionsInstallees": [
+        "10.5.0"
+      ],
+      "versionsCorrigees": ">=10.5.1",
+      "chemins": [
+        "apps__api>@fastify/rate-limit>ip-address"
+      ]
+    },
+    {
+      "paquet": "ip-address",
+      "gravite": "moderate",
+      "avis": "GHSA-2vr4-cq9g-pvrc",
+      "url": "https://github.com/advisories/GHSA-2vr4-cq9g-pvrc",
+      "versionsInstallees": [
+        "10.5.0"
+      ],
+      "versionsCorrigees": ">=10.5.1",
+      "chemins": [
+        "apps__api>@fastify/rate-limit>ip-address"
+      ]
+    },
+    {
+      "paquet": "js-yaml",
+      "gravite": "moderate",
+      "avis": "GHSA-r3ph-w7gj-g6xm",
+      "url": "https://github.com/advisories/GHSA-r3ph-w7gj-g6xm",
+      "versionsInstallees": [
+        "5.2.1"
+      ],
+      "versionsCorrigees": ">=5.4.1",
+      "chemins": [
+        "apps__api>@nestjs/swagger>js-yaml",
+        "apps__api>nestjs-zod>@nestjs/swagger>js-yaml"
+      ]
+    },
+    {
+      "paquet": "nodemailer",
+      "gravite": "moderate",
+      "avis": "GHSA-8vvx-rff5-p5rq",
+      "url": "https://github.com/advisories/GHSA-8vvx-rff5-p5rq",
+      "versionsInstallees": [
+        "9.0.5"
+      ],
+      "versionsCorrigees": ">=10.0.2",
+      "chemins": [
+        "apps__api>nodemailer"
+      ]
+    },
+    {
+      "paquet": "fast-uri",
+      "gravite": "moderate",
+      "avis": "GHSA-hrr3-gc8f-f4qj",
+      "url": "https://github.com/advisories/GHSA-hrr3-gc8f-f4qj",
+      "versionsInstallees": [
+        "4.1.2"
+      ],
+      "versionsCorrigees": ">=4.1.5",
+      "chemins": [
+        "apps__api>@nestjs/platform-fastify>fastify>@fastify/ajv-compiler>fast-uri",
+        "apps__api>@nestjs/platform-fastify>fastify>@fastify/fast-json-stringify-compiler>fast-json-stringify>fast-uri",
+        "apps__api>@nestjs/platform-fastify>fastify>fast-json-stringify>fast-uri",
+        "apps__api>fastify>@fastify/ajv-compiler>fast-uri",
+        "apps__api>fastify>@fastify/fast-json-stringify-compiler>fast-json-stringify>fast-uri",
+        "apps__api>fastify>fast-json-stringify>fast-uri"
+      ]
+    },
+    {
+      "paquet": "fast-uri",
+      "gravite": "moderate",
+      "avis": "GHSA-hrr3-gc8f-f4qj",
+      "url": "https://github.com/advisories/GHSA-hrr3-gc8f-f4qj",
+      "versionsInstallees": [
+        "3.1.5"
+      ],
+      "versionsCorrigees": ">=3.1.8",
+      "chemins": [
+        "apps__api>@nestjs/platform-fastify>fastify>@fastify/ajv-compiler>ajv>fast-uri",
+        "apps__api>@nestjs/platform-fastify>fastify>@fastify/ajv-compiler>ajv-formats>ajv>fast-uri",
+        "apps__api>@nestjs/platform-fastify>fastify>@fastify/fast-json-stringify-compiler>fast-json-stringify>ajv>fast-uri",
+        "apps__api>@nestjs/platform-fastify>fastify>@fastify/fast-json-stringify-compiler>fast-json-stringify>ajv-formats>ajv>fast-uri",
+        "apps__api>@nestjs/platform-fastify>fastify>fast-json-stringify>ajv>fast-uri",
+        "apps__api>@nestjs/platform-fastify>fastify>fast-json-stringify>ajv-formats>ajv>fast-uri",
+        "apps__api>fastify>@fastify/ajv-compiler>ajv>fast-uri",
+        "apps__api>fastify>@fastify/ajv-compiler>ajv-formats>ajv>fast-uri",
+        "apps__api>fastify>@fastify/fast-json-stringify-compiler>fast-json-stringify>ajv>fast-uri",
+        "apps__api>fastify>@fastify/fast-json-stringify-compiler>fast-json-stringify>ajv-formats>ajv>fast-uri",
+        "apps__api>fastify>fast-json-stringify>ajv>fast-uri",
+        "apps__api>fastify>fast-json-stringify>ajv-formats>ajv>fast-uri",
+        "packages__db>@prisma/client>prisma>@prisma/dev>@prisma/streams-local>ajv>fast-uri"
+      ]
+    },
+    {
+      "paquet": "ip-address",
+      "gravite": "moderate",
+      "avis": "GHSA-j6r3-76f7-8jcv",
+      "url": "https://github.com/advisories/GHSA-j6r3-76f7-8jcv",
+      "versionsInstallees": [
+        "10.5.0"
+      ],
+      "versionsCorrigees": ">=10.7.1",
+      "chemins": [
+        "apps__api>@fastify/rate-limit>ip-address"
+      ]
+    },
+    {
+      "paquet": "ip-address",
+      "gravite": "moderate",
+      "avis": "GHSA-h3mg-xc3c-68pw",
+      "url": "https://github.com/advisories/GHSA-h3mg-xc3c-68pw",
+      "versionsInstallees": [
+        "10.5.0"
+      ],
+      "versionsCorrigees": ">=10.7.1",
+      "chemins": [
+        "apps__api>@fastify/rate-limit>ip-address"
+      ]
+    },
+    {
+      "paquet": "nodemailer",
+      "gravite": "high",
+      "avis": "GHSA-v53p-9fqp-m79j",
+      "url": "https://github.com/advisories/GHSA-v53p-9fqp-m79j",
+      "versionsInstallees": [
+        "9.0.5"
+      ],
+      "versionsCorrigees": ">=10.0.6",
+      "chemins": [
+        "apps__api>nodemailer"
+      ]
+    },
+    {
+      "paquet": "@nestjs/platform-fastify",
+      "gravite": "high",
+      "avis": "GHSA-9c5c-9qcx-q35q",
+      "url": "https://github.com/advisories/GHSA-9c5c-9qcx-q35q",
+      "versionsInstallees": [
+        "11.2.1"
+      ],
+      "versionsCorrigees": ">=11.2.4",
+      "chemins": [
+        "apps__api>@nestjs/platform-fastify"
+      ]
+    },
+    {
+      "paquet": "fastify",
+      "gravite": "moderate",
+      "avis": "GHSA-4mh8-r7rc-xpvc",
+      "url": "https://github.com/advisories/GHSA-4mh8-r7rc-xpvc",
+      "versionsInstallees": [
+        "5.11.3",
+        "5.12.0"
+      ],
+      "versionsCorrigees": ">=5.12.5",
+      "chemins": [
+        "apps__api>@nestjs/platform-fastify>fastify",
+        "apps__api>fastify"
+      ]
+    },
+    {
+      "paquet": "fastify",
+      "gravite": "high",
+      "avis": "GHSA-667r-xxjv-c9mm",
+      "url": "https://github.com/advisories/GHSA-667r-xxjv-c9mm",
+      "versionsInstallees": [
+        "5.11.3",
+        "5.12.0"
+      ],
+      "versionsCorrigees": ">=5.12.2",
+      "chemins": [
+        "apps__api>@nestjs/platform-fastify>fastify",
+        "apps__api>fastify"
+      ]
+    },
+    {
+      "paquet": "fastify",
+      "gravite": "high",
+      "avis": "GHSA-p68q-wchp-6fh7",
+      "url": "https://github.com/advisories/GHSA-p68q-wchp-6fh7",
+      "versionsInstallees": [
+        "5.11.3",
+        "5.12.0"
+      ],
+      "versionsCorrigees": ">=5.12.2",
+      "chemins": [
+        "apps__api>@nestjs/platform-fastify>fastify",
+        "apps__api>fastify"
+      ]
+    },
+    {
+      "paquet": "fastify",
+      "gravite": "high",
+      "avis": "GHSA-hwr6-493r-vm6h",
+      "url": "https://github.com/advisories/GHSA-hwr6-493r-vm6h",
+      "versionsInstallees": [
+        "5.11.3",
+        "5.12.0"
+      ],
+      "versionsCorrigees": ">=5.12.2",
+      "chemins": [
+        "apps__api>@nestjs/platform-fastify>fastify",
+        "apps__api>fastify"
+      ]
+    },
+    {
+      "paquet": "fastify",
+      "gravite": "high",
+      "avis": "GHSA-9q9j-q6p8-xq58",
+      "url": "https://github.com/advisories/GHSA-9q9j-q6p8-xq58",
+      "versionsInstallees": [
+        "5.11.3",
+        "5.12.0"
+      ],
+      "versionsCorrigees": ">=5.12.2",
+      "chemins": [
+        "apps__api>@nestjs/platform-fastify>fastify",
+        "apps__api>fastify"
+      ]
+    }
+  ],
+  "auditAvecOutillage": {
+    "commande": "pnpm audit --json",
+    "bilan": {
+      "info": 0,
+      "low": 4,
+      "moderate": 26,
+      "high": 30,
+      "critical": 0
+    },
+    "avisDistincts": 50,
+    "alertes": [
+      {
+        "paquet": "js-yaml",
+        "gravite": "high",
+        "avis": "GHSA-pm4m-ph32-ghv5",
+        "url": "https://github.com/advisories/GHSA-pm4m-ph32-ghv5",
+        "versionsInstallees": [
+          "5.2.1"
+        ],
+        "versionsCorrigees": ">=5.2.2"
+      },
+      {
+        "paquet": "deepmerge-ts",
+        "gravite": "high",
+        "avis": "GHSA-ggr8-5vv4-36mx",
+        "url": "https://github.com/advisories/GHSA-ggr8-5vv4-36mx",
+        "versionsInstallees": [
+          "7.1.5"
+        ],
+        "versionsCorrigees": ">=8.0.0"
+      },
+      {
+        "paquet": "mysql2",
+        "gravite": "high",
+        "avis": "GHSA-3f6p-5ww8-9rcr",
+        "url": "https://github.com/advisories/GHSA-3f6p-5ww8-9rcr",
+        "versionsInstallees": [
+          "3.15.3"
+        ],
+        "versionsCorrigees": ">=3.22.0"
+      },
+      {
+        "paquet": "fastify",
+        "gravite": "moderate",
+        "avis": "GHSA-w2qp-rph6-63g4",
+        "url": "https://github.com/advisories/GHSA-w2qp-rph6-63g4",
+        "versionsInstallees": [
+          "5.11.3",
+          "5.12.0"
+        ],
+        "versionsCorrigees": ">=5.12.1"
+      },
+      {
+        "paquet": "fastify",
+        "gravite": "moderate",
+        "avis": "GHSA-3m5p-2c4r-xxw2",
+        "url": "https://github.com/advisories/GHSA-3m5p-2c4r-xxw2",
+        "versionsInstallees": [
+          "5.11.3",
+          "5.12.0"
+        ],
+        "versionsCorrigees": ">=5.12.1"
+      },
+      {
+        "paquet": "fast-uri",
+        "gravite": "high",
+        "avis": "GHSA-5jgf-p345-68v8",
+        "url": "https://github.com/advisories/GHSA-5jgf-p345-68v8",
+        "versionsInstallees": [
+          "4.1.2"
+        ],
+        "versionsCorrigees": ">=4.1.3"
+      },
+      {
+        "paquet": "fast-uri",
+        "gravite": "high",
+        "avis": "GHSA-5jgf-p345-68v8",
+        "url": "https://github.com/advisories/GHSA-5jgf-p345-68v8",
+        "versionsInstallees": [
+          "3.1.5"
+        ],
+        "versionsCorrigees": ">=3.1.6"
+      },
+      {
+        "paquet": "fast-uri",
+        "gravite": "high",
+        "avis": "GHSA-f65p-4m7j-42xc",
+        "url": "https://github.com/advisories/GHSA-f65p-4m7j-42xc",
+        "versionsInstallees": [
+          "4.1.2"
+        ],
+        "versionsCorrigees": ">=4.1.3"
+      },
+      {
+        "paquet": "fast-uri",
+        "gravite": "high",
+        "avis": "GHSA-f65p-4m7j-42xc",
+        "url": "https://github.com/advisories/GHSA-f65p-4m7j-42xc",
+        "versionsInstallees": [
+          "3.1.5"
+        ],
+        "versionsCorrigees": ">=3.1.6"
+      },
+      {
+        "paquet": "fast-uri",
+        "gravite": "high",
+        "avis": "GHSA-fph4-wmhf-6fwf",
+        "url": "https://github.com/advisories/GHSA-fph4-wmhf-6fwf",
+        "versionsInstallees": [
+          "4.1.2"
+        ],
+        "versionsCorrigees": ">=4.1.3"
+      },
+      {
+        "paquet": "fast-uri",
+        "gravite": "high",
+        "avis": "GHSA-fph4-wmhf-6fwf",
+        "url": "https://github.com/advisories/GHSA-fph4-wmhf-6fwf",
+        "versionsInstallees": [
+          "3.1.5"
+        ],
+        "versionsCorrigees": ">=3.1.6"
+      },
+      {
+        "paquet": "fast-uri",
+        "gravite": "high",
+        "avis": "GHSA-jqff-g426-hqxp",
+        "url": "https://github.com/advisories/GHSA-jqff-g426-hqxp",
+        "versionsInstallees": [
+          "4.1.2"
+        ],
+        "versionsCorrigees": ">=4.1.3"
+      },
+      {
+        "paquet": "fast-uri",
+        "gravite": "high",
+        "avis": "GHSA-jqff-g426-hqxp",
+        "url": "https://github.com/advisories/GHSA-jqff-g426-hqxp",
+        "versionsInstallees": [
+          "3.1.5"
+        ],
+        "versionsCorrigees": ">=3.1.6"
+      },
+      {
+        "paquet": "mysql2",
+        "gravite": "moderate",
+        "avis": "GHSA-rgwj-5xj2-c3m3",
+        "url": "https://github.com/advisories/GHSA-rgwj-5xj2-c3m3",
+        "versionsInstallees": [
+          "3.15.3"
+        ],
+        "versionsCorrigees": ">=3.23.1"
+      },
+      {
+        "paquet": "colord",
+        "gravite": "moderate",
+        "avis": "GHSA-2wm5-q62r-hmrv",
+        "url": "https://github.com/advisories/GHSA-2wm5-q62r-hmrv",
+        "versionsInstallees": [
+          "2.9.3"
+        ],
+        "versionsCorrigees": ">=2.9.4"
+      },
+      {
+        "paquet": "vitest",
+        "gravite": "moderate",
+        "avis": "GHSA-82fw-gwwq-j7x9",
+        "url": "https://github.com/advisories/GHSA-82fw-gwwq-j7x9",
+        "versionsInstallees": [
+          "4.1.10"
+        ],
+        "versionsCorrigees": ">=4.1.11"
+      },
+      {
+        "paquet": "@vitest/mocker",
+        "gravite": "moderate",
+        "avis": "GHSA-82fw-gwwq-j7x9",
+        "url": "https://github.com/advisories/GHSA-82fw-gwwq-j7x9",
+        "versionsInstallees": [
+          "4.1.10"
+        ],
+        "versionsCorrigees": ">=4.1.11"
+      },
+      {
+        "paquet": "js-yaml",
+        "gravite": "high",
+        "avis": "GHSA-2883-xcg3-v3hh",
+        "url": "https://github.com/advisories/GHSA-2883-xcg3-v3hh",
+        "versionsInstallees": [
+          "4.3.1"
+        ],
+        "versionsCorrigees": ">=4.3.2"
+      },
+      {
+        "paquet": "nodemailer",
+        "gravite": "moderate",
+        "avis": "GHSA-8m3c-c648-2xjj",
+        "url": "https://github.com/advisories/GHSA-8m3c-c648-2xjj",
+        "versionsInstallees": [
+          "9.0.5"
+        ],
+        "versionsCorrigees": ">=9.1.1"
+      },
+      {
+        "paquet": "nodemailer",
+        "gravite": "moderate",
+        "avis": "GHSA-wmmp-3585-3rmp",
+        "url": "https://github.com/advisories/GHSA-wmmp-3585-3rmp",
+        "versionsInstallees": [
+          "9.0.5"
+        ],
+        "versionsCorrigees": ">=9.1.0"
+      },
+      {
+        "paquet": "nodemailer",
+        "gravite": "high",
+        "avis": "GHSA-2x7j-588g-ccc2",
+        "url": "https://github.com/advisories/GHSA-2x7j-588g-ccc2",
+        "versionsInstallees": [
+          "9.0.5"
+        ],
+        "versionsCorrigees": ">=9.1.0"
+      },
+      {
+        "paquet": "nodemailer",
+        "gravite": "moderate",
+        "avis": "GHSA-cc9r-2j5m-2m83",
+        "url": "https://github.com/advisories/GHSA-cc9r-2j5m-2m83",
+        "versionsInstallees": [
+          "9.0.5"
+        ],
+        "versionsCorrigees": ">=9.1.0"
+      },
+      {
+        "paquet": "nodemailer",
+        "gravite": "moderate",
+        "avis": "GHSA-6vj9-mwq6-2f5v",
+        "url": "https://github.com/advisories/GHSA-6vj9-mwq6-2f5v",
+        "versionsInstallees": [
+          "9.0.5"
+        ],
+        "versionsCorrigees": ">=10.0.2"
+      },
+      {
+        "paquet": "undici",
+        "gravite": "moderate",
+        "avis": "GHSA-3wwx-pv8p-q78v",
+        "url": "https://github.com/advisories/GHSA-3wwx-pv8p-q78v",
+        "versionsInstallees": [
+          "8.10.0"
+        ],
+        "versionsCorrigees": ">=8.10.2"
+      },
+      {
+        "paquet": "fast-uri",
+        "gravite": "high",
+        "avis": "GHSA-qw65-cvwx-89v3",
+        "url": "https://github.com/advisories/GHSA-qw65-cvwx-89v3",
+        "versionsInstallees": [
+          "4.1.2"
+        ],
+        "versionsCorrigees": ">=4.1.4"
+      },
+      {
+        "paquet": "fast-uri",
+        "gravite": "high",
+        "avis": "GHSA-qw65-cvwx-89v3",
+        "url": "https://github.com/advisories/GHSA-qw65-cvwx-89v3",
+        "versionsInstallees": [
+          "3.1.5"
+        ],
+        "versionsCorrigees": ">=3.1.7"
+      },
+      {
+        "paquet": "ip-address",
+        "gravite": "moderate",
+        "avis": "GHSA-rpw4-54j3-4h4q",
+        "url": "https://github.com/advisories/GHSA-rpw4-54j3-4h4q",
+        "versionsInstallees": [
+          "10.5.0"
+        ],
+        "versionsCorrigees": ">=10.5.1"
+      },
+      {
+        "paquet": "ip-address",
+        "gravite": "moderate",
+        "avis": "GHSA-2vr4-cq9g-pvrc",
+        "url": "https://github.com/advisories/GHSA-2vr4-cq9g-pvrc",
+        "versionsInstallees": [
+          "10.5.0"
+        ],
+        "versionsCorrigees": ">=10.5.1"
+      },
+      {
+        "paquet": "js-yaml",
+        "gravite": "moderate",
+        "avis": "GHSA-r3ph-w7gj-g6xm",
+        "url": "https://github.com/advisories/GHSA-r3ph-w7gj-g6xm",
+        "versionsInstallees": [
+          "5.2.1"
+        ],
+        "versionsCorrigees": ">=5.4.1"
+      },
+      {
+        "paquet": "nodemailer",
+        "gravite": "moderate",
+        "avis": "GHSA-8vvx-rff5-p5rq",
+        "url": "https://github.com/advisories/GHSA-8vvx-rff5-p5rq",
+        "versionsInstallees": [
+          "9.0.5"
+        ],
+        "versionsCorrigees": ">=10.0.2"
+      },
+      {
+        "paquet": "undici",
+        "gravite": "moderate",
+        "avis": "GHSA-pmjh-fq2x-6v4x",
+        "url": "https://github.com/advisories/GHSA-pmjh-fq2x-6v4x",
+        "versionsInstallees": [
+          "8.10.0"
+        ],
+        "versionsCorrigees": ">=8.10.2"
+      },
+      {
+        "paquet": "undici",
+        "gravite": "low",
+        "avis": "GHSA-r53p-7pc4-xj5r",
+        "url": "https://github.com/advisories/GHSA-r53p-7pc4-xj5r",
+        "versionsInstallees": [
+          "8.10.0"
+        ],
+        "versionsCorrigees": ">=8.10.2"
+      },
+      {
+        "paquet": "undici",
+        "gravite": "high",
+        "avis": "GHSA-rfgv-xxqx-mfg5",
+        "url": "https://github.com/advisories/GHSA-rfgv-xxqx-mfg5",
+        "versionsInstallees": [
+          "8.10.0"
+        ],
+        "versionsCorrigees": ">=8.10.2"
+      },
+      {
+        "paquet": "undici",
+        "gravite": "moderate",
+        "avis": "GHSA-3xpg-4rpp-hhhm",
+        "url": "https://github.com/advisories/GHSA-3xpg-4rpp-hhhm",
+        "versionsInstallees": [
+          "8.10.0"
+        ],
+        "versionsCorrigees": ">=8.10.2"
+      },
+      {
+        "paquet": "undici",
+        "gravite": "moderate",
+        "avis": "GHSA-2jfj-6hjv-fm6j",
+        "url": "https://github.com/advisories/GHSA-2jfj-6hjv-fm6j",
+        "versionsInstallees": [
+          "8.10.0"
+        ],
+        "versionsCorrigees": ">=8.10.2"
+      },
+      {
+        "paquet": "undici",
+        "gravite": "low",
+        "avis": "GHSA-2gqq-gqf2-x968",
+        "url": "https://github.com/advisories/GHSA-2gqq-gqf2-x968",
+        "versionsInstallees": [
+          "8.10.0"
+        ],
+        "versionsCorrigees": ">=8.10.2"
+      },
+      {
+        "paquet": "undici",
+        "gravite": "high",
+        "avis": "GHSA-w293-vg96-wgc3",
+        "url": "https://github.com/advisories/GHSA-w293-vg96-wgc3",
+        "versionsInstallees": [
+          "8.10.0"
+        ],
+        "versionsCorrigees": ">=8.10.2"
+      },
+      {
+        "paquet": "undici",
+        "gravite": "low",
+        "avis": "GHSA-8436-99hf-9mmv",
+        "url": "https://github.com/advisories/GHSA-8436-99hf-9mmv",
+        "versionsInstallees": [
+          "8.10.0"
+        ],
+        "versionsCorrigees": ">=8.10.2"
+      },
+      {
+        "paquet": "undici",
+        "gravite": "high",
+        "avis": "GHSA-vp8m-p9jh-q5pm",
+        "url": "https://github.com/advisories/GHSA-vp8m-p9jh-q5pm",
+        "versionsInstallees": [
+          "8.10.0"
+        ],
+        "versionsCorrigees": ">=8.10.2"
+      },
+      {
+        "paquet": "undici",
+        "gravite": "moderate",
+        "avis": "GHSA-rx4f-c7p8-82vq",
+        "url": "https://github.com/advisories/GHSA-rx4f-c7p8-82vq",
+        "versionsInstallees": [
+          "8.10.0"
+        ],
+        "versionsCorrigees": ">=8.10.2"
+      },
+      {
+        "paquet": "fast-uri",
+        "gravite": "moderate",
+        "avis": "GHSA-hrr3-gc8f-f4qj",
+        "url": "https://github.com/advisories/GHSA-hrr3-gc8f-f4qj",
+        "versionsInstallees": [
+          "4.1.2"
+        ],
+        "versionsCorrigees": ">=4.1.5"
+      },
+      {
+        "paquet": "fast-uri",
+        "gravite": "moderate",
+        "avis": "GHSA-hrr3-gc8f-f4qj",
+        "url": "https://github.com/advisories/GHSA-hrr3-gc8f-f4qj",
+        "versionsInstallees": [
+          "3.1.5"
+        ],
+        "versionsCorrigees": ">=3.1.8"
+      },
+      {
+        "paquet": "ip-address",
+        "gravite": "moderate",
+        "avis": "GHSA-j6r3-76f7-8jcv",
+        "url": "https://github.com/advisories/GHSA-j6r3-76f7-8jcv",
+        "versionsInstallees": [
+          "10.5.0"
+        ],
+        "versionsCorrigees": ">=10.7.1"
+      },
+      {
+        "paquet": "ip-address",
+        "gravite": "moderate",
+        "avis": "GHSA-h3mg-xc3c-68pw",
+        "url": "https://github.com/advisories/GHSA-h3mg-xc3c-68pw",
+        "versionsInstallees": [
+          "10.5.0"
+        ],
+        "versionsCorrigees": ">=10.7.1"
+      },
+      {
+        "paquet": "brace-expansion",
+        "gravite": "moderate",
+        "avis": "GHSA-q2hr-2g5m-vwhr",
+        "url": "https://github.com/advisories/GHSA-q2hr-2g5m-vwhr",
+        "versionsInstallees": [
+          "2.1.4"
+        ],
+        "versionsCorrigees": ">=2.1.7"
+      },
+      {
+        "paquet": "brace-expansion",
+        "gravite": "moderate",
+        "avis": "GHSA-q2hr-2g5m-vwhr",
+        "url": "https://github.com/advisories/GHSA-q2hr-2g5m-vwhr",
+        "versionsInstallees": [
+          "5.0.9"
+        ],
+        "versionsCorrigees": ">=5.0.12"
+      },
+      {
+        "paquet": "brace-expansion",
+        "gravite": "high",
+        "avis": "GHSA-qhr7-859c-m2p7",
+        "url": "https://github.com/advisories/GHSA-qhr7-859c-m2p7",
+        "versionsInstallees": [
+          "2.1.4"
+        ],
+        "versionsCorrigees": ">=2.1.6"
+      },
+      {
+        "paquet": "brace-expansion",
+        "gravite": "high",
+        "avis": "GHSA-qhr7-859c-m2p7",
+        "url": "https://github.com/advisories/GHSA-qhr7-859c-m2p7",
+        "versionsInstallees": [
+          "5.0.9"
+        ],
+        "versionsCorrigees": ">=5.0.11"
+      },
+      {
+        "paquet": "brace-expansion",
+        "gravite": "high",
+        "avis": "GHSA-6j4f-fj2g-mc7p",
+        "url": "https://github.com/advisories/GHSA-6j4f-fj2g-mc7p",
+        "versionsInstallees": [
+          "2.1.4"
+        ],
+        "versionsCorrigees": ">=2.1.5"
+      },
+      {
+        "paquet": "brace-expansion",
+        "gravite": "high",
+        "avis": "GHSA-6j4f-fj2g-mc7p",
+        "url": "https://github.com/advisories/GHSA-6j4f-fj2g-mc7p",
+        "versionsInstallees": [
+          "5.0.9"
+        ],
+        "versionsCorrigees": ">=5.0.10"
+      },
+      {
+        "paquet": "nodemailer",
+        "gravite": "high",
+        "avis": "GHSA-v53p-9fqp-m79j",
+        "url": "https://github.com/advisories/GHSA-v53p-9fqp-m79j",
+        "versionsInstallees": [
+          "9.0.5"
+        ],
+        "versionsCorrigees": ">=10.0.6"
+      },
+      {
+        "paquet": "@nestjs/platform-fastify",
+        "gravite": "high",
+        "avis": "GHSA-9c5c-9qcx-q35q",
+        "url": "https://github.com/advisories/GHSA-9c5c-9qcx-q35q",
+        "versionsInstallees": [
+          "11.2.1"
+        ],
+        "versionsCorrigees": ">=11.2.4"
+      },
+      {
+        "paquet": "@grpc/grpc-js",
+        "gravite": "high",
+        "avis": "GHSA-m9gg-hp2v-232j",
+        "url": "https://github.com/advisories/GHSA-m9gg-hp2v-232j",
+        "versionsInstallees": [
+          "1.14.4"
+        ],
+        "versionsCorrigees": ">=1.14.5"
+      },
+      {
+        "paquet": "@grpc/grpc-js",
+        "gravite": "low",
+        "avis": "GHSA-f596-whhp-79r4",
+        "url": "https://github.com/advisories/GHSA-f596-whhp-79r4",
+        "versionsInstallees": [
+          "1.14.4"
+        ],
+        "versionsCorrigees": ">=1.14.5"
+      },
+      {
+        "paquet": "fastify",
+        "gravite": "moderate",
+        "avis": "GHSA-4mh8-r7rc-xpvc",
+        "url": "https://github.com/advisories/GHSA-4mh8-r7rc-xpvc",
+        "versionsInstallees": [
+          "5.11.3",
+          "5.12.0"
+        ],
+        "versionsCorrigees": ">=5.12.5"
+      },
+      {
+        "paquet": "fastify",
+        "gravite": "high",
+        "avis": "GHSA-667r-xxjv-c9mm",
+        "url": "https://github.com/advisories/GHSA-667r-xxjv-c9mm",
+        "versionsInstallees": [
+          "5.11.3",
+          "5.12.0"
+        ],
+        "versionsCorrigees": ">=5.12.2"
+      },
+      {
+        "paquet": "fastify",
+        "gravite": "high",
+        "avis": "GHSA-p68q-wchp-6fh7",
+        "url": "https://github.com/advisories/GHSA-p68q-wchp-6fh7",
+        "versionsInstallees": [
+          "5.11.3",
+          "5.12.0"
+        ],
+        "versionsCorrigees": ">=5.12.2"
+      },
+      {
+        "paquet": "fastify",
+        "gravite": "high",
+        "avis": "GHSA-hwr6-493r-vm6h",
+        "url": "https://github.com/advisories/GHSA-hwr6-493r-vm6h",
+        "versionsInstallees": [
+          "5.11.3",
+          "5.12.0"
+        ],
+        "versionsCorrigees": ">=5.12.2"
+      },
+      {
+        "paquet": "fastify",
+        "gravite": "high",
+        "avis": "GHSA-9q9j-q6p8-xq58",
+        "url": "https://github.com/advisories/GHSA-9q9j-q6p8-xq58",
+        "versionsInstallees": [
+          "5.11.3",
+          "5.12.0"
+        ],
+        "versionsCorrigees": ">=5.12.2"
+      },
+      {
+        "paquet": "braces",
+        "gravite": "high",
+        "avis": "GHSA-vfj7-8cjw-p6xm",
+        "url": "https://github.com/advisories/GHSA-vfj7-8cjw-p6xm",
+        "versionsInstallees": [
+          "3.0.3"
+        ],
+        "versionsCorrigees": ">=3.0.4"
+      }
+    ]
+  }
+}

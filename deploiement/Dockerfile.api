@@ -1,4 +1,5 @@
-FROM node:24.19.0-bookworm AS base
+FROM node:24.21.0-alpine3.24@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1 AS base
+RUN apk add --no-cache openssl ca-certificates tar
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
 ENV CI=true
@@ -20,45 +21,48 @@ RUN pnpm --filter @rationarium/contracts build \
  && pnpm --filter @rationarium/db exec prisma generate \
  && pnpm --filter @rationarium/db build \
  && pnpm --filter @rationarium/api build
-
 RUN find apps/api/dist packages/db/dist packages/contracts/dist -type f \( -name '*.test.*' -o -name '*.spec.*' -o -name '*.map' \) -delete \
  && rm -f packages/db/dist/maquette* packages/db/dist/volumetrie* packages/db/dist/mesure* packages/db/dist/purge-volumetrie* \
  && rm -rf apps/api/dist/perf
 
-FROM base AS execution
+# Installation neuve : un prune du graphe de construction conserverait des
+# outils transitifs. Prisma est une dépendance explicite du paquet db.
+FROM base AS production
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/api/package.json apps/api/
+COPY apps/web/package.json apps/web/
+COPY packages/db/package.json packages/db/
+COPY packages/contracts/package.json packages/contracts/
+RUN pnpm --filter @rationarium/api... install --prod --frozen-lockfile
+
+FROM node:24.21.0-alpine3.24@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1 AS execution
+RUN apk add --no-cache openssl ca-certificates tar
+RUN rm -rf /usr/local/lib/node_modules /opt/yarn* \
+ && rm -f /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack /usr/local/bin/yarn /usr/local/bin/yarnpkg
 LABEL org.opencontainers.image.source="https://github.com/ElegArtech/rationarium" \
       org.opencontainers.image.licenses="MIT" \
       org.opencontainers.image.title="Rationarium API"
-
-COPY --from=dependances \
-  /rationarium/node_modules/.pnpm/@prisma+engines@7.9.1/node_modules/@prisma/engines/schema-engine-debian-openssl-3.0.x \
+WORKDIR /rationarium
+COPY --from=production /rationarium/node_modules /rationarium/node_modules
+COPY --from=production /rationarium/packages /rationarium/packages
+COPY --from=production /rationarium/apps/api /rationarium/apps/api
+COPY --from=construction /rationarium/package.json /rationarium/pnpm-workspace.yaml ./
+COPY --from=production \
+  /rationarium/node_modules/.pnpm/@prisma+engines@7.9.1/node_modules/@prisma/engines/schema-engine-linux-musl-openssl-3.0.x \
   /usr/local/lib/prisma/schema-engine
 ENV PRISMA_SCHEMA_ENGINE_BINARY=/usr/local/lib/prisma/schema-engine
-
-COPY --from=construction /rationarium/node_modules /rationarium/node_modules
-COPY --from=construction /rationarium/package.json /rationarium/pnpm-workspace.yaml ./
 COPY --from=construction /rationarium/packages/contracts/dist /rationarium/packages/contracts/dist
-COPY --from=construction /rationarium/packages/contracts/node_modules /rationarium/packages/contracts/node_modules
-COPY --from=construction /rationarium/packages/contracts/package.json /rationarium/packages/contracts/package.json
 COPY --from=construction /rationarium/packages/db/dist /rationarium/packages/db/dist
-COPY --from=construction /rationarium/packages/db/node_modules /rationarium/packages/db/node_modules
-COPY --from=construction /rationarium/packages/db/package.json /rationarium/packages/db/package.json
 COPY --from=construction /rationarium/packages/db/prisma /rationarium/packages/db/prisma
 COPY --from=construction /rationarium/packages/db/prisma.config.ts /rationarium/packages/db/prisma.config.ts
 COPY --from=construction /rationarium/apps/api/dist /rationarium/apps/api/dist
-COPY --from=construction /rationarium/apps/api/node_modules /rationarium/apps/api/node_modules
-COPY --from=construction /rationarium/apps/api/package.json /rationarium/apps/api/package.json
-
 RUN mkdir -p /var/lib/rationarium/documents && chown node:node /var/lib/rationarium/documents
 USER node
-
 COPY LICENSE THIRD_PARTY_NOTICES.md /rationarium/
 COPY deploiement/lancer.mjs deploiement/roles-restauration.mjs /rationarium/deploiement/
 ENTRYPOINT ["node", "/rationarium/deploiement/lancer.mjs"]
-
 ENV NODE_ENV=production
 ENV PORT=3000
 EXPOSE 3000
-
 WORKDIR /rationarium/apps/api
 CMD ["node", "dist/main.js"]

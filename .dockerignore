@@ -11,6 +11,7 @@
 !deploiement/
 !deploiement/Dockerfile.api
 !deploiement/Dockerfile.web
+!deploiement/Dockerfile.base
 !deploiement/Caddyfile
 !deploiement/lancer.mjs
 !deploiement/roles-restauration.mjs

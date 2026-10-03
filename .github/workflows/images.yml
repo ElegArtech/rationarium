@@ -1,28 +1,113 @@
-name: Publier les images Docker
+name: Valider et préparer la livraison
 
 on:
   push:
+    branches: [main, 'codex/**']
     tags: ['v*']
+  pull_request:
   workflow_dispatch:
 
 permissions:
   contents: read
-  packages: write
+concurrency:
+  group: livraison-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-  publier:
+  validation:
     runs-on: ubuntu-latest
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
-      - name: Construire et publier
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24.21.0'
+      - run: corepack enable && corepack prepare pnpm@11.22.0 --activate
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @rationarium/db exec prisma generate
+        env:
+          DATABASE_URL: postgresql://generation:generation@localhost:5432/generation
+      - name: Contrôler le tag
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          VERSION_TAG: ${{ github.ref_name }}
+        run: node scripts/livraison-check.mjs --stable --tag "$VERSION_TAG"
+      - run: bash scripts/auditer-npm.sh .local/preuves
+      - run: pnpm verif && pnpm test:int && pnpm build
+        env:
+          TURBO_FORCE: 'true'
+      - run: pnpm exec playwright install --with-deps chromium
+        working-directory: apps/web
+      - run: pnpm exec playwright test --workers=2
+        working-directory: apps/web
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: audits-dependances
+          path: .local/preuves/*.json
+          if-no-files-found: error
+          include-hidden-files: true
+
+  images:
+    needs: validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24.21.0'
+      - name: Préparer les paramètres
+        run: |
+          echo "VERSION_RATIONARIUM=$(node -p "require('./package.json').version")" >> "$GITHUB_ENV"
+          echo "REGISTRE_RATIONARIUM=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_ENV"
+      - name: Construire les trois images
+        run: |
+          for composant in base api web; do
+            docker build -f "deploiement/Dockerfile.$composant" --label "org.opencontainers.image.revision=$GITHUB_SHA" -t "$REGISTRE_RATIONARIUM/rationarium-$composant:$VERSION_RATIONARIUM" .
+          done
+      - run: bash scripts/installer-trivy.sh .local/outils
+      - name: Analyser les images et leur contenu
+        env:
+          TRIVY_BIN: .local/outils/trivy
+        run: bash scripts/scanner-images.sh "$REGISTRE_RATIONARIUM" "$VERSION_RATIONARIUM" .local/preuves-images
+      - run: corepack enable && corepack prepare pnpm@11.22.0 --activate && pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+        working-directory: apps/web
+      - name: Exercer une installation réelle
+        run: bash scripts/recette-livraison.sh "$REGISTRE_RATIONARIUM" "$VERSION_RATIONARIUM" .local/recette
+      - run: bash deploiement/preparer-livraison.sh dist/livraison
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: rationarium-livraison
+          compression-level: 0
+          include-hidden-files: true
+          if-no-files-found: error
+          path: |
+            dist/livraison/*.tar.gz
+            dist/livraison/*.sha256
+            dist/livraison/SHA256SUMS
+            dist/livraison/installer-rationarium.sh
+            .local/preuves-images/*.json
+            .local/preuves-images/images.txt
+      - name: Publier les images contrôlées sur un tag neuf
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          VERSION=$(node -p "require('./package.json').version")
-          REGISTRE="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}"
           printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
-          docker build -f deploiement/Dockerfile.api --label "org.opencontainers.image.revision=$GITHUB_SHA" -t "$REGISTRE/rationarium-api:$VERSION" .
-          docker build -f deploiement/Dockerfile.web --label "org.opencontainers.image.revision=$GITHUB_SHA" -t "$REGISTRE/rationarium-web:$VERSION" .
-          docker push "$REGISTRE/rationarium-api:$VERSION"
-          docker push "$REGISTRE/rationarium-web:$VERSION"
-          docker logout ghcr.io
+          trap 'docker logout ghcr.io' EXIT
+          for composant in base api web; do
+            image="$REGISTRE_RATIONARIUM/rationarium-$composant:$VERSION_RATIONARIUM"
+            if docker manifest inspect "$image" > /tmp/manifeste 2>/tmp/erreur; then
+              echo "Refus de remplacer une version existante : $image" >&2; exit 1
+            elif ! grep -Eqi 'no such manifest|manifest unknown|MANIFEST_UNKNOWN' /tmp/erreur; then
+              cat /tmp/erreur >&2; exit 1
+            fi
+          done
+          for composant in base api web; do
+            docker push "$REGISTRE_RATIONARIUM/rationarium-$composant:$VERSION_RATIONARIUM"
+          done

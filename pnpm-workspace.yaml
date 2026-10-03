@@ -12,3 +12,11 @@ allowBuilds:
   protobufjs: false
 
   "@scarf/scarf": false
+
+# Correctifs des versions transitives épinglées par NestJS, Swagger et Prisma.
+# Décision et contrôles : docs/adr/ADR-20261003-stabilisation.md.
+overrides:
+  '@nestjs/platform-fastify@11.2.7>fastify': '5.12.5'
+  '@nestjs/swagger@11.4.6>js-yaml': '5.4.2'
+  '@prisma/config@7.9.1>deepmerge-ts': '8.0.2'
+  'prisma@7.9.1>mysql2': '3.24.5'
