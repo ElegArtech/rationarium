@@ -127,3 +127,7 @@ Un échec déclenche une correction et la reprise des contrôles affectés. Une 
 - S0 : branche dédiée créée ; état initial conservé.
 - S1 à S6 : corrections, images, archives et recettes locales réalisées.
 - S7 : [bilan et preuves](bilan-stabilisation-1.0.0.md) rédigés. Le résultat distant effectif est celui du workflow lié dans le bilan ; aucun résultat CI n’est déduit des seuls contrôles locaux.
+
+## S8 — correction effective des alertes PostgreSQL
+
+À la demande du 3 octobre, remplacer la qualification des risques par leur correction : comparer les distributions disponibles, supprimer les composants vulnérables remplaçables, refuser tout avis PostgreSQL, livrer une migration logique avec volume source conservé et retour éprouvé. Critères : scan nul toutes gravités, refus d'un volume Debian sous Alpine, empreintes de tables identiques après restauration, retour à rc.1 puis retour à la candidate, nouvelle installation et recette de l'archive livrée, vérification rapide et CI complètes. Le [bilan dédié](bilan-remediation-postgresql.md) porte les preuves finales.

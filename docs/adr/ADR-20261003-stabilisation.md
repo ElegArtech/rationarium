@@ -10,6 +10,8 @@ Quatre surcharges ciblent les parents et versions exacts : Fastify sous NestJS, 
 
 Prisma CLI devient une dépendance de production de `@rationarium/db` : la livraison exécute `migrate deploy` sur le serveur fermé. Le moteur est embarqué et son chemin déclaré. TypeScript reste dans le graphe de production comme pair optionnel de Prisma ; les outils de tests, style et développement sont exclus et contrôlés.
 
+> Complément : la conservation de Bookworm et ses qualifications système décrites ci-dessous sont remplacées par [ADR PostgreSQL Alpine](ADR-20261003-postgresql-alpine.md). Ces paragraphes retracent la décision initiale.
+
 ## Images
 
 L'API utilise Node 24 sur Alpine 3.24, avec OpenSSL et le moteur Prisma musl. Une étape séparée installe seulement le graphe de production API ; les gestionnaires de paquets sont retirés de l'image finale. Le frontal utilise Caddy 2.11.6, dernière image Docker disponible vérifiée pendant cette préparation. Les bases sont épinglées par digest.

@@ -1,5 +1,8 @@
 # Installation sans accès à Internet
 
+> **Mise à jour depuis rc.1 :** la base passe de Debian à Alpine. Suivre d’abord la [migration PostgreSQL](migration-postgresql.md), avec sauvegarde et volume neuf. Un simple remplacement des images ne suffit pas.
+
+
 Docker Engine, Docker Compose v2.24 ou ultérieur, Bash, tar et `sha256sum` doivent déjà être
 installés sur le serveur Linux x86-64. Les autres composants sont livrés dans les images.
 

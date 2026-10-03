@@ -88,7 +88,7 @@ L’image `rationarium-web` contient les fichiers construits et Caddy. Les polic
 sont servies localement. Le fichier Compose d’installation référence uniquement des images ; les
 instructions de construction sont dans `compose.construction.yaml`.
 
-Le workflow GitHub Actions valide le code, les dépendances, les trois images et une installation réelle avant de publier sur un tag neuf. L’image `rationarium-base` conserve PostgreSQL 18 et Debian Bookworm ; elle reçoit les mises à jour système. Les bases des Dockerfiles sont épinglées par digest. Les scripts
+Le workflow GitHub Actions valide le code, les dépendances, les trois images et une installation réelle avant de publier sur un tag neuf. L’image `rationarium-base` conserve PostgreSQL 18 et passe sur Alpine 3.24 ; elle reçoit les mises à jour système. Le passage depuis Debian emploie une restauration logique dans un volume neuf, avec conservation de la source. Les bases des Dockerfiles sont épinglées par digest. Les scripts
 `deploiement/preparer-compose.sh` et `deploiement/preparer-hors-ligne.sh` produisent les kits.
 Le paquet hors ligne exporte les mêmes images que celles du registre public.
 
@@ -96,4 +96,4 @@ Le paquet hors ligne exporte les mêmes images que celles du registre public.
 
 `pnpm verif` comprend le contrôle des références de version et les tests négatifs des garde-fous. `pnpm test:int` reste une boucle séparée sur PostgreSQL réel. `scripts/auditer-npm.sh` contrôle les deux graphes de dépendances ; `scripts/scanner-images.sh` analyse les trois images et vérifie le contenu API. `scripts/recette-livraison.sh` crée puis détruit uniquement son projet de test.
 
-Les rapports bruts de sécurité accompagnent la livraison. Les qualifications temporaires sont nominatives dans `deploiement/securite-exceptions.json` et expirent ; elles ne corrigent pas les composants concernés. Voir [la décision technique](adr/ADR-20261003-stabilisation.md) et [les notes de version](versions/1.0.0.md).
+Les rapports bruts de sécurité accompagnent la livraison. Les qualifications temporaires sont nominatives dans `deploiement/securite-exceptions.json` et expirent ; elles ne corrigent pas les composants concernés. La base exige zéro avis de toute gravité, sans exception. Voir [la décision PostgreSQL](adr/ADR-20261003-postgresql-alpine.md), [la décision de stabilisation](adr/ADR-20261003-stabilisation.md) et [les notes de version](versions/1.0.0.md).

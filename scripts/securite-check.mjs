@@ -46,6 +46,11 @@ export function verifierImage(rapport, image, exceptions = [], maintenant = new 
   for (const r of rapport.Results) {
     for (const v of r.Vulnerabilities ?? []) {
       total++;
+      // La base doit être corrigée : aucune gravité ni exception n'est admise.
+      if (image === 'base') {
+        refus.push(`${v.VulnerabilityID} ${v.PkgName}@${v.InstalledVersion} (${r.Target})`);
+        continue;
+      }
       if (!['HIGH', 'CRITICAL'].includes(v.Severity)) continue;
       if (justifiee(exceptions, {
         image, avis: v.VulnerabilityID, paquet: v.PkgName, version: v.InstalledVersion, cible: r.Class === 'os-pkgs' ? (r.Type ?? r.Target) : r.Target,

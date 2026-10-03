@@ -121,5 +121,6 @@ networks:
 volumes:
   documents:
   donnees:
+    name: ${VOLUME_POSTGRES:-${NOM_PROJET:-rationarium}_donnees}
   caddy:
   caddy_config:

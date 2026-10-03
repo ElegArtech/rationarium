@@ -12,7 +12,7 @@ mode=${4:-}
 [[ -z "$mode" || "$mode" == --depuis-rc || "$mode" == --kit ]] || { echo 'Mode de recette inconnu.' >&2; exit 1; }
 # Une configuration exportée par l'appelant ne doit jamais détourner la recette
 # vers ses ports, ses secrets, son projet ou ses volumes existants.
-unset NOM_PROJET COMPOSE_PROJECT_NAME COMPOSE_FILE COMPOSE_ENV_FILES
+unset NOM_PROJET COMPOSE_PROJECT_NAME COMPOSE_FILE COMPOSE_ENV_FILES VOLUME_POSTGRES
 unset REGISTRE_RATIONARIUM VERSION_RATIONARIUM MODE_IMAGES RESEAU_INTERNE
 unset POSTGRES_UTILISATEUR POSTGRES_BASE POSTGRES_MOTDEPASSE COOKIE_SECRET
 unset RATIONARIUM_ADMIN_LOGIN RATIONARIUM_ADMIN_EMAIL RATIONARIUM_ADMIN_MOTDEPASSE
@@ -46,11 +46,13 @@ Path(os.environ['RECETTE_SORTIE']+'/kit/.env').write_text(''.join(k+'='+v+'\n' f
 PY
 compose=(docker compose --project-directory "$sortie/kit")
 smtp=''
+volume_ancien=''
 nettoyer() {
   resultat=$?
   "${compose[@]}" logs --no-color > "$sortie/services.log" 2>&1 || true
   if [[ -n "$smtp" ]]; then docker rm -f "$smtp" > /dev/null 2>&1 || true; fi
   "${compose[@]}" down --volumes --remove-orphans > "$sortie/nettoyage.log" 2>&1 || true
+  if [[ -n "$volume_ancien" ]]; then docker volume rm "$volume_ancien" > /dev/null 2>&1 || true; fi
   exit "$resultat"
 }
 trap nettoyer EXIT
@@ -64,8 +66,36 @@ node scripts/recette-navigateur.mjs "$sortie" initiale
 "${compose[@]}" exec -T api sh -c 'printf temoin-initial > /var/lib/rationarium/documents/recette-migration.txt'
 if [[ "$mode" == --depuis-rc ]]; then
   bash "$sortie/kit/sauvegarde.sh" "$sortie/sauvegardes-rc"
+  volume_ancien=$(docker inspect "$("${compose[@]}" ps -q base)" --format '{{range .Mounts}}{{if eq .Destination "/var/lib/postgresql"}}{{.Name}}{{end}}{{end}}')
+  "${compose[@]}" exec -T base psql -U rationarium -d rationarium -v ON_ERROR_STOP=1 -c "CREATE TABLE temoin_collation (texte text PRIMARY KEY); INSERT INTO temoin_collation VALUES ('Élodie'), ('élodie'), ('eleve'), ('élève'), ('œuvre'), ('東京'); CREATE ROLE temoin_migration LOGIN PASSWORD 'Recette-role-uniquement!'; GRANT SELECT ON temoin_collation TO temoin_migration;"
+  if docker run --rm --network none --mount "type=volume,src=$volume_ancien,dst=/var/lib/postgresql,readonly" "$registre/rationarium-base:$version" postgres > "$sortie/refus-volume.log" 2>&1; then
+    echo 'Le démarrage sur le volume Debian aurait dû être refusé.' >&2; exit 1
+  fi
+  grep -q 'Ancienne base détectée' "$sortie/refus-volume.log"
   cp "$sortie/candidate.env" "$sortie/kit/.env"
   rm "$sortie/kit/compose.override.yaml"
+  mkdir "$sortie/kit/.migration-postgresql.lock"
+  if bash "$sortie/kit/migrer-postgresql.sh" "$sortie/refus-concurrent" > "$sortie/refus-concurrent.log" 2>&1; then
+    echo 'Une migration concurrente aurait dû être refusée.' >&2; exit 1
+  fi
+  grep -q 'Migration déjà en cours' "$sortie/refus-concurrent.log"
+  rmdir "$sortie/kit/.migration-postgresql.lock"
+  "${compose[@]}" exec -T base createdb -U rationarium temoin_exterieur
+  if bash "$sortie/kit/migrer-postgresql.sh" "$sortie/refus-autre-base" > "$sortie/refus-autre-base.log" 2>&1; then
+    echo 'Une autre base aurait dû empêcher la migration partielle.' >&2; exit 1
+  fi
+  grep -q 'Autres bases présentes' "$sortie/refus-autre-base.log"
+  [[ ! -e "$sortie/kit/.migration-postgresql.lock" ]]
+  "${compose[@]}" exec -T base dropdb -U rationarium temoin_exterieur
+  bash "$sortie/kit/migrer-postgresql.sh" "$sortie/migration-logique"
+  [[ ! -e "$sortie/kit/.migration-postgresql.lock" ]]
+  node scripts/recette-navigateur.mjs "$sortie" migration
+  "${compose[@]}" exec -T -e PGPASSWORD=Recette-role-uniquement! base psql -h 127.0.0.1 -U temoin_migration -d rationarium -At -v ON_ERROR_STOP=1 -c 'SELECT count(*) FROM temoin_collation' | grep -qx 6
+  # Exercer réellement le retour aux anciennes images et à l'ancien volume.
+  bash "$sortie/migration-logique/retour.sh" --avant-reouverture
+  node scripts/recette-navigateur.mjs "$sortie" migration
+  [[ $("${compose[@]}" exec -T base psql -U rationarium -d rationarium -At -c 'SELECT count(*) FROM temoin_collation') == 6 ]]
+  cp "$sortie/migration-logique/env-cible" "$sortie/kit/.env"
   "${compose[@]}" up -d --wait --wait-timeout 180
   node scripts/recette-navigateur.mjs "$sortie" migration
   [[ $("${compose[@]}" exec -T api cat /var/lib/rationarium/documents/recette-migration.txt) == temoin-initial ]]

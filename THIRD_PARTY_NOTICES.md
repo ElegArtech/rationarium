@@ -21,3 +21,5 @@ avec l’adresse de provenance, la date de collecte et l’empreinte du fichier 
 
 Les images PostgreSQL, Node.js, Debian et Caddy contiennent leurs propres composants et
 notices. La licence MIT de Rationarium ne remplace pas les licences de ces composants.
+
+L’image PostgreSQL Alpine emploie [su-exec](https://github.com/ncopa/su-exec), sous licence MIT, pour démarrer PostgreSQL sous son utilisateur dédié.

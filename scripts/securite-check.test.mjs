@@ -33,3 +33,12 @@ test('une CVE élevée inconnue, une autre version ou une autre image est refus�
   assert.equal(verifierImage(r, 'api', [e], maintenant).alertesEleveesQualifiees, 1);
   for (const modif of [{ version: '2' }, { image: 'base' }, { expiration: '2026-10-01' }]) assert.throws(() => verifierImage(r, 'api', [{ ...e, ...modif }], maintenant));
 });
+test('PostgreSQL refuse tout avis, même faible ou couvert par une ancienne exception', () => {
+  for (const Severity of ['UNKNOWN', 'LOW', 'MEDIUM', 'HIGH', 'CRITICAL']) {
+    const r = structuredClone(image);
+    r.Results[0].Vulnerabilities.push({ Severity, VulnerabilityID: 'CVE-test', PkgName: 'lib', InstalledVersion: '1' });
+    const e = { image: 'base', avis: 'CVE-test', paquet: 'lib', version: '1', cible: 'test', raison: 'Ancienne qualification conservée pour vérifier le refus sans dérogation.', source: 'https://example.org/advisory', expiration: '2026-11-03' };
+    assert.throws(() => verifierImage(r, 'base', [e], maintenant));
+  }
+  assert.equal(verifierImage(image, 'base', [], maintenant).alertes, 0);
+});

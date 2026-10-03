@@ -1,9 +1,16 @@
-# Même majeure PostgreSQL et même libc que rc.1 : les volumes et leurs
-# collations restent compatibles. Les correctifs Debian sont intégrés au lot.
-FROM postgres:18.6-bookworm@sha256:3725f4e2499eef5134592b3b4ab79a543ed7f8e533b05b5b637af926630f6650
-RUN apt-get update \
- && apt-get upgrade -y \
- && rm -rf /var/lib/apt/lists/*
+FROM postgres:18.6-alpine3.24@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873
+RUN apk upgrade --no-cache \
+ && apk add --no-cache su-exec=0.3-r0 \
+ && test "$(grep -c 'exec gosu postgres' /usr/local/bin/docker-entrypoint.sh)" = 1 \
+ && sed -i 's/exec gosu postgres/exec su-exec postgres/' /usr/local/bin/docker-entrypoint.sh \
+ && rm /usr/local/bin/gosu \
+ && test "$(su-exec postgres id -u)" = 70
+# Un stockage distinct empêche toute réutilisation implicite d'une base glibc.
+ENV PGDATA=/var/lib/postgresql/18/rationarium-alpine
+COPY deploiement/licences/su-exec.txt /usr/share/licenses/su-exec/LICENSE
+COPY deploiement/entree-postgresql.sh /usr/local/bin/entree-rationarium.sh
+ENTRYPOINT ["bash", "/usr/local/bin/entree-rationarium.sh"]
+CMD ["postgres"]
 LABEL org.opencontainers.image.source="https://github.com/ElegArtech/rationarium" \
-      org.opencontainers.image.licenses="PostgreSQL" \
+      org.opencontainers.image.licenses="PostgreSQL AND MIT" \
       org.opencontainers.image.title="Rationarium PostgreSQL"

@@ -19,11 +19,5 @@ done
 docker run --rm --network none \
   --mount "type=bind,src=$racine/scripts/verifier-image-api.mjs,dst=/controle-image.mjs,readonly" \
   --entrypoint node "$registre/rationarium-api:$version" /controle-image.mjs
-# Conditions matérielles des qualifications de l'image PostgreSQL.
-docker run --rm --network none --entrypoint sh "$registre/rationarium-base:$version" -ec '
-  test ! -x /usr/lib/systemd/systemd-homed
-  test ! -e /usr/lib/postgresql/18/lib/plperl.so
-  ! ldconfig -p | grep -q libminizip
-  ! grep -Eq "^[^#].*(users|X-mount)" /etc/fstab
-  test "$(getconf LONG_BIT)" = 64
-'
+# Inventaire et témoins positifs/négatifs du démarrage sécurisé.
+bash scripts/verifier-image-base.sh "$registre/rationarium-base:$version"

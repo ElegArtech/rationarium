@@ -2,6 +2,8 @@
 
 3 octobre 2026. Branche : `codex/stabilisation-1-0-0`. Base des preuves locales : `db7ad5717364f82013a0b503c0502f5ee58446dc`, complétée par le découpage des tests Gantt, le ciblage du bouton de création de projet et les corrections CI portant ce bilan. Les images finales portent le commit `9029bbe4f0283f9632447af818896a86531f3e7b`. Aucun code métier n’a changé après cette base.
 
+> **Mise à jour :** les résultats PostgreSQL Bookworm ci-dessous sont historiques. La reprise des alertes et le remplacement par Alpine sont décrits dans [le bilan de remédiation PostgreSQL](bilan-remediation-postgresql.md). Les anciennes archives ne sont plus les candidates à livrer.
+
 ## Verdict
 
 La candidate 1.0.0 passe tous les contrôles locaux prévus, y compris l'installation depuis son archive hors ligne et la mise à jour depuis la version publique 1.0.0-rc.1. Le résultat distant se consulte dans le workflow de la branche lié ci-dessous ; les preuves détaillées ici sont les essais locaux. La version publique n'a pas été changée : aucun tag stable, aucune image publique remplacée, aucune installation d'exploitation modifiée.
