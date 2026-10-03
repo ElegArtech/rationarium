@@ -33,6 +33,8 @@ jobs:
           VERSION_TAG: ${{ github.ref_name }}
         run: node scripts/livraison-check.mjs --stable --tag "$VERSION_TAG"
       - run: bash scripts/auditer-npm.sh .local/preuves
+      - name: Installer les outils de contrôle des exports
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libreoffice-calc unzip
       - run: pnpm verif && pnpm test:int && pnpm build
         env:
           TURBO_FORCE: 'true'

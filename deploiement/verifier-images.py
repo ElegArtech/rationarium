@@ -6,6 +6,9 @@ import json
 import sys
 import tarfile
 
+if len(sys.argv) < 2:
+    raise SystemExit("Usage : verifier-images.py archive.tar [archive.tar ...]")
+
 
 def empreinte(flux):
     hache = hashlib.sha256()

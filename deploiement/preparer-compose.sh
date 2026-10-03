@@ -10,6 +10,7 @@ mkdir -p "$sortie/docs/adr" "$sortie/docs/versions" "$sortie/docs" "$sortie/cert
 cp deploiement/{compose.yaml,Caddyfile,.env.example,configurer.sh,commun.sh,sauvegarde.sh,restauration.sh,charger-images.sh} "$sortie/"
 cp deploiement/securite-exceptions.json "$sortie/"
 cp docs/adr/ADR-20261003-stabilisation.md "$sortie/docs/adr/"
+cp docs/securite-livraison.md "$sortie/docs/"
 cp docs/versions/1.0.0.md "$sortie/docs/versions/"
 cp README.md LICENSE THIRD_PARTY_NOTICES.md "$sortie/"
 cp docs/{installation,hors-ligne,exploitation,utilisation,architecture,reference-fonctionnelle}.md docs/telecharger.svg "$sortie/docs/"

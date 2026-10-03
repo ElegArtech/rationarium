@@ -24,6 +24,12 @@ try {
     await page.getByRole('button', { name: 'Changer le mot de passe', exact: true }).click();
   }
   await expect(page.getByRole('heading', { name: 'Bonjour Administration', exact: true })).toBeVisible({ timeout: 20000 });
+  if (phase === 'initiale') {
+    await page.getByRole('textbox', { name: 'Nouvelle to-do', exact: true }).fill('Témoin installation');
+    await page.getByRole('button', { name: 'Ajouter la to-do', exact: true }).click();
+    await page.reload();
+  }
+  await expect(page.getByText('Témoin installation', { exact: true })).toBeVisible();
   if (phase === 'https') {
     const cookie = (await context.cookies()).find(c => c.name === 'rationarium_session');
     assert.ok(cookie?.secure && cookie.httpOnly && cookie.sameSite === 'Lax');

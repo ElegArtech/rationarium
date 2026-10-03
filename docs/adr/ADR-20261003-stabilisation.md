@@ -30,3 +30,7 @@ Les vérifications automatiques contrôlent notamment l'absence de systemd-homed
 - [Avis braces](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm).
 - [Politique de sécurité gosu](https://github.com/tianon/gosu/blob/master/SECURITY.md).
 - Les autres sources primaires figurent dans chaque exception nominative.
+
+## Prérequis des tests en environnement neuf
+
+Le premier passage GitHub a révélé deux prérequis auparavant fournis par le poste local : le binaire API construit utilisé par les tests d’amorçage, et LibreOffice Calc utilisé pour ouvrir réellement les exports XLSX. `test:int` dépend désormais de son propre `build` dans Turborepo ; la CI installe LibreOffice Calc et unzip comme outils de vérification, sans les ajouter aux images du produit.

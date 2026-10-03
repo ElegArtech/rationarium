@@ -38,7 +38,7 @@
     },
     "test:int": {
       "dependsOn": [
-        "^build"
+        "build"
       ],
       "cache": false
     },

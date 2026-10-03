@@ -8,6 +8,15 @@ registre=${1:?Usage : recette-livraison.sh registre version dossier-neuf [--depu
 version=${2:?Version manquante}
 sortie=${3:?Dossier manquant}
 mode=${4:-}
+# Une configuration exportée par l'appelant ne doit jamais détourner la recette
+# vers ses ports, ses secrets, son projet ou ses volumes existants.
+unset NOM_PROJET COMPOSE_PROJECT_NAME COMPOSE_FILE COMPOSE_ENV_FILES
+unset REGISTRE_RATIONARIUM VERSION_RATIONARIUM MODE_IMAGES RESEAU_INTERNE
+unset POSTGRES_UTILISATEUR POSTGRES_BASE POSTGRES_MOTDEPASSE COOKIE_SECRET
+unset RATIONARIUM_ADMIN_LOGIN RATIONARIUM_ADMIN_EMAIL RATIONARIUM_ADMIN_MOTDEPASSE
+unset RATIONARIUM_HOTE RATIONARIUM_PORT_HTTP RATIONARIUM_PORT_HTTPS RATIONARIUM_URL_PUBLIQUE
+unset DIRECTIVE_TLS COURRIEL_ACME SMTP_HOTE SMTP_PORT SMTP_TLS SMTP_UTILISATEUR SMTP_MOTDEPASSE
+unset RATIONARIUM_SAUVEGARDES RATIONARIUM_RETENTION
 [[ ! -e "$sortie" ]] || { echo 'La recette exige un dossier neuf.' >&2; exit 1; }
 mkdir -p "$sortie"
 sortie=$(cd "$sortie" && pwd)
@@ -40,12 +49,14 @@ if [[ "$mode" == --depuis-rc ]]; then
 fi
 "${compose[@]}" up -d --wait --wait-timeout 180
 node scripts/recette-navigateur.mjs "$sortie" initiale
+"${compose[@]}" exec -T api sh -c 'printf temoin-initial > /var/lib/rationarium/documents/recette-migration.txt'
 if [[ "$mode" == --depuis-rc ]]; then
   bash "$sortie/kit/sauvegarde.sh" "$sortie/sauvegardes-rc"
   cp "$sortie/candidate.env" "$sortie/kit/.env"
   rm "$sortie/kit/compose.override.yaml"
   "${compose[@]}" up -d --wait --wait-timeout 180
   node scripts/recette-navigateur.mjs "$sortie" migration
+  [[ $("${compose[@]}" exec -T api cat /var/lib/rationarium/documents/recette-migration.txt) == temoin-initial ]]
 fi
 reseau=$(docker inspect "$("${compose[@]}" ps -q base)" --format '{{range $k,$v := .NetworkSettings.Networks}}{{$k}}{{end}}')
 smtp=$(docker run -d --rm --network "$reseau" --network-alias smtp-recette --user "$(id -u):$(id -g)" --mount "type=bind,src=$sortie,dst=/recette" --mount "type=bind,src=$racine/scripts/recette-smtp.cjs,dst=/smtp.cjs,readonly" --entrypoint node "$registre/rationarium-api:$version" /smtp.cjs)
