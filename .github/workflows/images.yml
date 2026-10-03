@@ -84,6 +84,13 @@ jobs:
           TRIVY_BIN: .local/outils/trivy
         run: bash scripts/scanner-images.sh "$REGISTRE_RATIONARIUM" "$VERSION_RATIONARIUM" .local/preuves-images
       - run: corepack enable && corepack prepare pnpm@11.22.0 --activate && pnpm install --frozen-lockfile
+      - name: Mesurer les budgets sur l’image PostgreSQL livrée
+        env:
+          DATABASE_URL: postgresql://generation:generation@localhost:5432/generation
+        run: |
+          pnpm --filter @rationarium/db exec prisma generate
+          pnpm build
+          RATIONARIUM_IMAGE_POSTGRES="$REGISTRE_RATIONARIUM/rationarium-base:$VERSION_RATIONARIUM" pnpm --filter @rationarium/api perf
       - run: pnpm exec playwright install --with-deps chromium
         working-directory: apps/web
       - run: bash deploiement/preparer-livraison.sh dist/livraison

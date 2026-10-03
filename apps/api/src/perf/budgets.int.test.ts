@@ -94,7 +94,7 @@ async function mesurer(nom: string, appel: () => Promise<unknown>): Promise<numb
 }
 
 beforeAll(async () => {
-  pg = await new PostgreSqlContainer("postgres:18-alpine").start();
+  pg = await new PostgreSqlContainer(process.env["RATIONARIUM_IMAGE_POSTGRES"] ?? "postgres:18-alpine").start();
   execFileSync("pnpm", ["exec", "prisma", "migrate", "deploy"], {
     cwd: RACINE_DB,
     env: { ...process.env, DATABASE_URL: pg.getConnectionUri() },

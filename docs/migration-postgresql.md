@@ -2,6 +2,8 @@
 
 La candidate 1.0.0 remplace PostgreSQL 18.6 Bookworm par PostgreSQL 18.6 Alpine corrigé. **Ne pas lancer simplement `docker compose up` sur une installation rc.1.** Un volume Debian exige une restauration logique dans un volume neuf. Le démarrage direct est refusé avant l'ouverture de la base.
 
+La nouvelle image ne fournit plus XML/XSLT, LLVM/JIT ni les langages SQL optionnels Perl/Python/Tcl, que le produit n’utilise pas. Une installation enrichie manuellement avec ces fonctions demande une analyse spécifique ; la restauration échouera plutôt que d’ignorer un objet incompatible. Les dix budgets de performance sont vérifiés sur l’image livrée sans JIT.
+
 ## Préparation
 
 1. Réserver une fenêtre de maintenance et bloquer les accès utilisateurs. Disposer de place pour l'ancien volume, le nouveau et la sauvegarde complète.

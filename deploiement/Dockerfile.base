@@ -1,14 +1,60 @@
-FROM postgres:18.6-alpine3.24@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873
+# Le démarrage officiel reste épinglé ; PostgreSQL est reconstruit sans les
+# fonctions XML/XSLT et LLVM inutilisées par le produit. LLVM réintroduisait
+# libxml2 2.13 malgré un scan Alpine nul (voir ADR PostgreSQL).
+FROM postgres:18.6-alpine3.24@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873 AS construction
 RUN apk upgrade --no-cache \
- && apk add --no-cache su-exec=0.3-r0 \
- && test "$(grep -c 'exec gosu postgres' /usr/local/bin/docker-entrypoint.sh)" = 1 \
+ && apk add --no-cache build-base bison flex perl icu-dev krb5-dev readline-dev \
+      openldap-dev openssl-dev util-linux-dev zlib-dev lz4-dev zstd-dev \
+      curl-dev liburing-dev linux-headers
+RUN set -eux; \
+    wget -O /tmp/postgresql.tar.bz2 https://ftp.postgresql.org/pub/source/v18.6/postgresql-18.6.tar.bz2; \
+    echo '555610c24d53e4316da5b7d3fc25c279d96856d5e0e23ee308c328c5fa881d9f  /tmp/postgresql.tar.bz2' | sha256sum -c -; \
+    mkdir /src; tar -xjf /tmp/postgresql.tar.bz2 -C /src --strip-components=1; \
+    cd /src; \
+    sed -i 's|#define DEFAULT_PGSOCKET_DIR  "/tmp"|#define DEFAULT_PGSOCKET_DIR  "/var/run/postgresql"|' src/include/pg_config_manual.h; \
+    grep -F '"/var/run/postgresql"' src/include/pg_config_manual.h; \
+    ./configure --enable-option-checking=fatal --disable-rpath \
+      --prefix=/usr/local --with-system-tzdata=/usr/share/zoneinfo \
+      --with-uuid=e2fs --with-gssapi --with-icu --with-ldap \
+      --with-libcurl --with-liburing --with-lz4 --with-openssl --with-zstd \
+      --without-libxml --without-libxslt --without-llvm \
+      --without-perl --without-python --without-tcl; \
+    make -j 2 world-bin; \
+    make DESTDIR=/sortie install-world-bin; \
+    make -C contrib DESTDIR=/sortie install; \
+    mkdir -p /sortie/usr/share/licenses/postgresql; \
+    cp COPYRIGHT /sortie/usr/share/licenses/postgresql/LICENSE; \
+    rm -rf /sortie/usr/local/share/doc /sortie/usr/local/share/man /sortie/usr/local/include; \
+    scanelf --needed --nobanner --format '%n#p' --recursive /sortie/usr/local \
+      | tr ',' '\n' | sort -u \
+      | awk 'NF && system("[ -e /sortie/usr/local/lib/" $1 " ]") != 0 { print "so:" $1 }' > /rundeps
+
+FROM alpine:3.24@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6
+COPY --from=construction /rundeps /tmp/rundeps
+RUN apk upgrade --no-cache \
+ && apk add --no-cache $(cat /tmp/rundeps) bash tzdata zstd icu-data-full nss_wrapper su-exec=0.3-r0 \
+ && rm /tmp/rundeps \
+ && addgroup -g 70 -S postgres \
+ && adduser -u 70 -S -D -G postgres -H -h /var/lib/postgresql -s /bin/sh postgres \
+ && mkdir -p /var/lib/postgresql /var/run/postgresql /docker-entrypoint-initdb.d \
+ && chown postgres:postgres /var/lib/postgresql /var/run/postgresql \
+ && chmod 1777 /var/lib/postgresql \
+ && chmod 3777 /var/run/postgresql
+COPY --from=construction /sortie/ /
+COPY --from=construction /usr/local/bin/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN test "$(grep -c 'exec gosu postgres' /usr/local/bin/docker-entrypoint.sh)" = 1 \
  && sed -i 's/exec gosu postgres/exec su-exec postgres/' /usr/local/bin/docker-entrypoint.sh \
- && rm /usr/local/bin/gosu \
- && test "$(su-exec postgres id -u)" = 70
-# Un stockage distinct empêche toute réutilisation implicite d'une base glibc.
-ENV PGDATA=/var/lib/postgresql/18/rationarium-alpine
+ && sed -i "s/^#listen_addresses = 'localhost'/listen_addresses = '*'/" /usr/local/share/postgresql/postgresql.conf.sample \
+ && grep -F "listen_addresses = '*'" /usr/local/share/postgresql/postgresql.conf.sample \
+ && test "$(su-exec postgres id -u)" = 70 \
+ && postgres --version \
+ && for paquet in libxml2 libxslt llvm21-libs; do ! apk info -e "$paquet"; done
+ENV LANG=en_US.utf8 PG_MAJOR=18 PG_VERSION=18.6 PGDATA=/var/lib/postgresql/18/rationarium-alpine
 COPY deploiement/licences/su-exec.txt /usr/share/licenses/su-exec/LICENSE
 COPY deploiement/entree-postgresql.sh /usr/local/bin/entree-rationarium.sh
+VOLUME /var/lib/postgresql
+STOPSIGNAL SIGINT
+EXPOSE 5432
 ENTRYPOINT ["bash", "/usr/local/bin/entree-rationarium.sh"]
 CMD ["postgres"]
 LABEL org.opencontainers.image.source="https://github.com/ElegArtech/rationarium" \

@@ -7,14 +7,10 @@
     "avisElevesDistincts": 54
   },
   "apres": {
-    "imageId": "sha256:b184cb140fc0bff37174cbbeb2e7f5787bae721bd9d136601ad31648cfb73007",
-    "scanDate": "2026-10-03T13:24:22.031415641+02:00",
+    "imageId": "sha256:0aa04efe247600ca6fa14e24071184cecab3f0997a782a74c418a3f5f1268160",
+    "scanDate": "2026-10-03T13:58:11.93445144+02:00",
     "occurrences": 0,
     "paquets": [
-      {
-        "nom": ".postgresql-rundeps",
-        "version": "20260917.212948"
-      },
       {
         "nom": "alpine-baselayout",
         "version": "3.7.2-r1"
@@ -100,14 +96,6 @@
         "version": "8.22.0-r0"
       },
       {
-        "nom": "libedit",
-        "version": "20260508.3.1-r1"
-      },
-      {
-        "nom": "libffi",
-        "version": "3.5.2-r1"
-      },
-      {
         "nom": "libgcc",
         "version": "15.2.0-r5"
       },
@@ -156,18 +144,6 @@
         "version": "0.3.2-r2"
       },
       {
-        "nom": "libxml2",
-        "version": "2.13.9-r2"
-      },
-      {
-        "nom": "libxslt",
-        "version": "1.1.43-r3"
-      },
-      {
-        "nom": "llvm21-libs",
-        "version": "21.1.8-r1"
-      },
-      {
         "nom": "lz4-libs",
         "version": "1.10.0-r1"
       },
@@ -212,10 +188,6 @@
         "version": "2026d-r0"
       },
       {
-        "nom": "xz-libs",
-        "version": "5.8.4-r0"
-      },
-      {
         "nom": "zlib",
         "version": "1.3.2-r0"
       },
@@ -236,7 +208,7 @@
       "paquetsAvant": [
         "libldap-2.5-0@2.5.13+dfsg-5"
       ],
-      "traitement": "Composants Debian remplacés par la distribution Alpine 3.24 mise à jour",
+      "traitement": "OpenLDAP 2.6.15-r0, postérieur aux correctifs amont",
       "source": "https://avd.aquasec.com/nvd/cve-2023-2953",
       "presentApres": false
     },
@@ -246,7 +218,7 @@
       "paquetsAvant": [
         "zlib1g@1:1.2.13.dfsg-1"
       ],
-      "traitement": "Composants Debian remplacés par la distribution Alpine 3.24 mise à jour",
+      "traitement": "zlib 1.3.2-r0 ; MiniZip absent",
       "source": "https://avd.aquasec.com/nvd/cve-2023-45853",
       "presentApres": false
     },
@@ -256,7 +228,7 @@
       "paquetsAvant": [
         "stdlib@v1.24.6"
       ],
-      "traitement": "Binaire gosu retiré, remplacement par su-exec 0.3-r0",
+      "traitement": "Binaire gosu supprimé ; su-exec 0.3-r0",
       "source": "https://avd.aquasec.com/nvd/cve-2025-61726",
       "presentApres": false
     },
@@ -266,7 +238,7 @@
       "paquetsAvant": [
         "stdlib@v1.24.6"
       ],
-      "traitement": "Binaire gosu retiré, remplacement par su-exec 0.3-r0",
+      "traitement": "Binaire gosu supprimé ; su-exec 0.3-r0",
       "source": "https://avd.aquasec.com/nvd/cve-2025-61729",
       "presentApres": false
     },
@@ -276,7 +248,7 @@
       "paquetsAvant": [
         "stdlib@v1.24.6"
       ],
-      "traitement": "Binaire gosu retiré, remplacement par su-exec 0.3-r0",
+      "traitement": "Binaire gosu supprimé ; su-exec 0.3-r0",
       "source": "https://avd.aquasec.com/nvd/cve-2025-68121",
       "presentApres": false
     },
@@ -289,7 +261,7 @@
         "ncurses-base@6.4-4",
         "ncurses-bin@6.4-4"
       ],
-      "traitement": "Composants Debian remplacés par la distribution Alpine 3.24 mise à jour",
+      "traitement": "ncurses 6.6_p20260516-r0, après le correctif du 13 décembre 2025",
       "source": "https://avd.aquasec.com/nvd/cve-2025-69720",
       "presentApres": false
     },
@@ -299,7 +271,7 @@
       "paquetsAvant": [
         "libsqlite3-0@3.40.1-2+deb12u2"
       ],
-      "traitement": "Composants Debian remplacés par la distribution Alpine 3.24 mise à jour",
+      "traitement": "SQLite absent de l’image finale",
       "source": "https://avd.aquasec.com/nvd/cve-2025-7458",
       "presentApres": false
     },
@@ -309,7 +281,7 @@
       "paquetsAvant": [
         "libpcre2-8-0@10.42-1+deb12u1"
       ],
-      "traitement": "Composants Debian remplacés par la distribution Alpine 3.24 mise à jour",
+      "traitement": "PCRE2 absent de l’image finale",
       "source": "https://avd.aquasec.com/nvd/cve-2026-103111",
       "presentApres": false
     },
@@ -319,7 +291,7 @@
       "paquetsAvant": [
         "libsqlite3-0@3.40.1-2+deb12u2"
       ],
-      "traitement": "Composants Debian remplacés par la distribution Alpine 3.24 mise à jour",
+      "traitement": "SQLite absent de l’image finale",
       "source": "https://avd.aquasec.com/nvd/cve-2026-11822",
       "presentApres": false
     },
@@ -329,7 +301,7 @@
       "paquetsAvant": [
         "libsqlite3-0@3.40.1-2+deb12u2"
       ],
-      "traitement": "Composants Debian remplacés par la distribution Alpine 3.24 mise à jour",
+      "traitement": "SQLite absent de l’image finale",
       "source": "https://avd.aquasec.com/nvd/cve-2026-11824",
       "presentApres": false
     },
@@ -342,7 +314,7 @@
         "perl-modules-5.36@5.36.0-7+deb12u3",
         "perl@5.36.0-7+deb12u3"
       ],
-      "traitement": "Composants Debian remplacés par la distribution Alpine 3.24 mise à jour",
+      "traitement": "Perl et bibliothèques Perl absents de l’image finale",
       "source": "https://avd.aquasec.com/nvd/cve-2026-13221",
       "presentApres": false
     },
@@ -353,7 +325,7 @@
         "libsystemd0@252.39-1~deb12u2",
         "libudev1@252.39-1~deb12u2"
       ],
-      "traitement": "Composants Debian remplacés par la distribution Alpine 3.24 mise à jour",
+      "traitement": "systemd et udev absents de l’image finale",
       "source": "https://avd.aquasec.com/nvd/cve-2026-16742",
       "presentApres": false
     },
@@ -363,7 +335,7 @@
       "paquetsAvant": [
         "stdlib@v1.24.6"
       ],
-      "traitement": "Binaire gosu retiré, remplacement par su-exec 0.3-r0",
+      "traitement": "Binaire gosu supprimé ; su-exec 0.3-r0",
       "source": "https://avd.aquasec.com/nvd/cve-2026-25679",
       "presentApres": false
     },
@@ -373,7 +345,7 @@
       "paquetsAvant": [
         "stdlib@v1.24.6"
       ],
-      "traitement": "Binaire gosu retiré, remplacement par su-exec 0.3-r0",
+      "traitement": "Binaire gosu supprimé ; su-exec 0.3-r0",
       "source": "https://avd.aquasec.com/nvd/cve-2026-27145",
       "presentApres": false
     },
@@ -383,7 +355,7 @@
       "paquetsAvant": [
         "stdlib@v1.24.6"
       ],
-      "traitement": "Binaire gosu retiré, remplacement par su-exec 0.3-r0",
+      "traitement": "Binaire gosu supprimé ; su-exec 0.3-r0",
       "source": "https://avd.aquasec.com/nvd/cve-2026-32280",
       "presentApres": false
     },
@@ -393,7 +365,7 @@
       "paquetsAvant": [
         "stdlib@v1.24.6"
       ],
-      "traitement": "Binaire gosu retiré, remplacement par su-exec 0.3-r0",
+      "traitement": "Binaire gosu supprimé ; su-exec 0.3-r0",
       "source": "https://avd.aquasec.com/nvd/cve-2026-32281",
       "presentApres": false
     },
@@ -403,7 +375,7 @@
       "paquetsAvant": [
         "stdlib@v1.24.6"
       ],
-      "traitement": "Binaire gosu retiré, remplacement par su-exec 0.3-r0",
+      "traitement": "Binaire gosu supprimé ; su-exec 0.3-r0",
       "source": "https://avd.aquasec.com/nvd/cve-2026-32283",
       "presentApres": false
     },
@@ -413,7 +385,7 @@
       "paquetsAvant": [
         "stdlib@v1.24.6"
       ],
-      "traitement": "Binaire gosu retiré, remplacement par su-exec 0.3-r0",
+      "traitement": "Binaire gosu supprimé ; su-exec 0.3-r0",
       "source": "https://avd.aquasec.com/nvd/cve-2026-33811",
       "presentApres": false
     },
@@ -423,7 +395,7 @@
       "paquetsAvant": [
         "stdlib@v1.24.6"
       ],
-      "traitement": "Binaire gosu retiré, remplacement par su-exec 0.3-r0",
+      "traitement": "Binaire gosu supprimé ; su-exec 0.3-r0",
       "source": "https://avd.aquasec.com/nvd/cve-2026-33814",
       "presentApres": false
     },
@@ -433,7 +405,7 @@
       "paquetsAvant": [
         "stdlib@v1.24.6"
       ],
-      "traitement": "Binaire gosu retiré, remplacement par su-exec 0.3-r0",
+      "traitement": "Binaire gosu supprimé ; su-exec 0.3-r0",
       "source": "https://avd.aquasec.com/nvd/cve-2026-33818",
       "presentApres": false
     },
@@ -443,7 +415,7 @@
       "paquetsAvant": [
         "stdlib@v1.24.6"
       ],
-      "traitement": "Binaire gosu retiré, remplacement par su-exec 0.3-r0",
+      "traitement": "Binaire gosu supprimé ; su-exec 0.3-r0",
       "source": "https://avd.aquasec.com/nvd/cve-2026-39820",
       "presentApres": false
     },
@@ -453,7 +425,7 @@
       "paquetsAvant": [
         "stdlib@v1.24.6"
       ],
-      "traitement": "Binaire gosu retiré, remplacement par su-exec 0.3-r0",
+      "traitement": "Binaire gosu supprimé ; su-exec 0.3-r0",
       "source": "https://avd.aquasec.com/nvd/cve-2026-39821",
       "presentApres": false
     },
@@ -463,7 +435,7 @@
       "paquetsAvant": [
         "stdlib@v1.24.6"
       ],
-      "traitement": "Binaire gosu retiré, remplacement par su-exec 0.3-r0",
+      "traitement": "Binaire gosu supprimé ; su-exec 0.3-r0",
       "source": "https://avd.aquasec.com/nvd/cve-2026-39822",
       "presentApres": false
     },
@@ -473,7 +445,7 @@
       "paquetsAvant": [
         "stdlib@v1.24.6"
       ],
-      "traitement": "Binaire gosu retiré, remplacement par su-exec 0.3-r0",
+      "traitement": "Binaire gosu supprimé ; su-exec 0.3-r0",
       "source": "https://avd.aquasec.com/nvd/cve-2026-39836",
       "presentApres": false
     },
@@ -483,7 +455,7 @@
       "paquetsAvant": [
         "gzip@1.12-1"
       ],
-      "traitement": "Composants Debian remplacés par la distribution Alpine 3.24 mise à jour",
+      "traitement": "GNU gzip absent ; outils BusyBox conservés",
       "source": "https://avd.aquasec.com/nvd/cve-2026-41992",
       "presentApres": false
     },
@@ -496,7 +468,7 @@
         "perl-modules-5.36@5.36.0-7+deb12u3",
         "perl@5.36.0-7+deb12u3"
       ],
-      "traitement": "Composants Debian remplacés par la distribution Alpine 3.24 mise à jour",
+      "traitement": "Perl et bibliothèques Perl absents de l’image finale",
       "source": "https://avd.aquasec.com/nvd/cve-2026-42496",
       "presentApres": false
     },
@@ -509,7 +481,7 @@
         "perl-modules-5.36@5.36.0-7+deb12u3",
         "perl@5.36.0-7+deb12u3"
       ],
-      "traitement": "Composants Debian remplacés par la distribution Alpine 3.24 mise à jour",
+      "traitement": "Perl et bibliothèques Perl absents de l’image finale",
       "source": "https://avd.aquasec.com/nvd/cve-2026-42497",
       "presentApres": false
     },
@@ -519,7 +491,7 @@
       "paquetsAvant": [
         "stdlib@v1.24.6"
       ],
-      "traitement": "Binaire gosu retiré, remplacement par su-exec 0.3-r0",
+      "traitement": "Binaire gosu supprimé ; su-exec 0.3-r0",
       "source": "https://avd.aquasec.com/nvd/cve-2026-42499",
       "presentApres": false
     },
@@ -529,7 +501,7 @@
       "paquetsAvant": [
         "stdlib@v1.24.6"
       ],
-      "traitement": "Binaire gosu retiré, remplacement par su-exec 0.3-r0",
+      "traitement": "Binaire gosu supprimé ; su-exec 0.3-r0",
       "source": "https://avd.aquasec.com/nvd/cve-2026-42504",
       "presentApres": false
     },
@@ -542,7 +514,7 @@
         "perl-modules-5.36@5.36.0-7+deb12u3",
         "perl@5.36.0-7+deb12u3"
       ],
-      "traitement": "Composants Debian remplacés par la distribution Alpine 3.24 mise à jour",
+      "traitement": "Perl et bibliothèques Perl absents de l’image finale",
       "source": "https://avd.aquasec.com/nvd/cve-2026-48962",
       "presentApres": false
     },
@@ -559,7 +531,7 @@
         "util-linux-extra@2.38.1-5+deb12u3",
         "util-linux@2.38.1-5+deb12u3"
       ],
-      "traitement": "Composants Debian remplacés par la distribution Alpine 3.24 mise à jour",
+      "traitement": "libuuid 2.42.3-r1 corrigée ; autres outils util-linux concernés absents",
       "source": "https://avd.aquasec.com/nvd/cve-2026-53613",
       "presentApres": false
     },
@@ -569,7 +541,7 @@
       "paquetsAvant": [
         "libacl1@2.3.1-3"
       ],
-      "traitement": "Composants Debian remplacés par la distribution Alpine 3.24 mise à jour",
+      "traitement": "Bibliothèque ACL absente de l’image finale",
       "source": "https://avd.aquasec.com/nvd/cve-2026-54369",
       "presentApres": false
     },
@@ -579,7 +551,7 @@
       "paquetsAvant": [
         "stdlib@v1.24.6"
       ],
-      "traitement": "Binaire gosu retiré, remplacement par su-exec 0.3-r0",
+      "traitement": "Binaire gosu supprimé ; su-exec 0.3-r0",
       "source": "https://avd.aquasec.com/nvd/cve-2026-56853",
       "presentApres": false
     },
@@ -589,7 +561,7 @@
       "paquetsAvant": [
         "stdlib@v1.24.6"
       ],
-      "traitement": "Binaire gosu retiré, remplacement par su-exec 0.3-r0",
+      "traitement": "Binaire gosu supprimé ; su-exec 0.3-r0",
       "source": "https://avd.aquasec.com/nvd/cve-2026-56858",
       "presentApres": false
     },
@@ -599,7 +571,7 @@
       "paquetsAvant": [
         "stdlib@v1.24.6"
       ],
-      "traitement": "Binaire gosu retiré, remplacement par su-exec 0.3-r0",
+      "traitement": "Binaire gosu supprimé ; su-exec 0.3-r0",
       "source": "https://avd.aquasec.com/nvd/cve-2026-56859",
       "presentApres": false
     },
@@ -609,7 +581,7 @@
       "paquetsAvant": [
         "stdlib@v1.24.6"
       ],
-      "traitement": "Binaire gosu retiré, remplacement par su-exec 0.3-r0",
+      "traitement": "Binaire gosu supprimé ; su-exec 0.3-r0",
       "source": "https://avd.aquasec.com/nvd/cve-2026-56860",
       "presentApres": false
     },
@@ -619,7 +591,7 @@
       "paquetsAvant": [
         "stdlib@v1.24.6"
       ],
-      "traitement": "Binaire gosu retiré, remplacement par su-exec 0.3-r0",
+      "traitement": "Binaire gosu supprimé ; su-exec 0.3-r0",
       "source": "https://avd.aquasec.com/nvd/cve-2026-56862",
       "presentApres": false
     },
@@ -632,7 +604,7 @@
         "perl-modules-5.36@5.36.0-7+deb12u3",
         "perl@5.36.0-7+deb12u3"
       ],
-      "traitement": "Composants Debian remplacés par la distribution Alpine 3.24 mise à jour",
+      "traitement": "Perl et bibliothèques Perl absents de l’image finale",
       "source": "https://avd.aquasec.com/nvd/cve-2026-57432",
       "presentApres": false
     },
@@ -645,7 +617,7 @@
         "perl-modules-5.36@5.36.0-7+deb12u3",
         "perl@5.36.0-7+deb12u3"
       ],
-      "traitement": "Composants Debian remplacés par la distribution Alpine 3.24 mise à jour",
+      "traitement": "Perl et bibliothèques Perl absents de l’image finale",
       "source": "https://avd.aquasec.com/nvd/cve-2026-57433",
       "presentApres": false
     },
@@ -655,7 +627,7 @@
       "paquetsAvant": [
         "libxml2@2.9.14+dfsg-1.3~deb12u6"
       ],
-      "traitement": "Composants Debian remplacés par la distribution Alpine 3.24 mise à jour",
+      "traitement": "libxml2 supprimée ; PostgreSQL reconstruit sans XML/XSLT/LLVM",
       "source": "https://avd.aquasec.com/nvd/cve-2026-6653",
       "presentApres": false
     },
@@ -665,7 +637,7 @@
       "paquetsAvant": [
         "libxml2@2.9.14+dfsg-1.3~deb12u6"
       ],
-      "traitement": "Composants Debian remplacés par la distribution Alpine 3.24 mise à jour",
+      "traitement": "libxml2 supprimée ; PostgreSQL reconstruit sans XML/XSLT/LLVM",
       "source": "https://avd.aquasec.com/nvd/cve-2026-74860",
       "presentApres": false
     },
@@ -682,7 +654,7 @@
         "util-linux-extra@2.38.1-5+deb12u3",
         "util-linux@2.38.1-5+deb12u3"
       ],
-      "traitement": "Composants Debian remplacés par la distribution Alpine 3.24 mise à jour",
+      "traitement": "libuuid 2.42.3-r1 corrigée ; autres outils util-linux concernés absents",
       "source": "https://avd.aquasec.com/nvd/cve-2026-76642",
       "presentApres": false
     },
@@ -699,7 +671,7 @@
         "util-linux-extra@2.38.1-5+deb12u3",
         "util-linux@2.38.1-5+deb12u3"
       ],
-      "traitement": "Composants Debian remplacés par la distribution Alpine 3.24 mise à jour",
+      "traitement": "libuuid 2.42.3-r1 corrigée ; autres outils util-linux concernés absents",
       "source": "https://avd.aquasec.com/nvd/cve-2026-78408",
       "presentApres": false
     },
@@ -716,7 +688,7 @@
         "util-linux-extra@2.38.1-5+deb12u3",
         "util-linux@2.38.1-5+deb12u3"
       ],
-      "traitement": "Composants Debian remplacés par la distribution Alpine 3.24 mise à jour",
+      "traitement": "libuuid 2.42.3-r1 corrigée ; autres outils util-linux concernés absents",
       "source": "https://avd.aquasec.com/nvd/cve-2026-78409",
       "presentApres": false
     },
@@ -733,7 +705,7 @@
         "util-linux-extra@2.38.1-5+deb12u3",
         "util-linux@2.38.1-5+deb12u3"
       ],
-      "traitement": "Composants Debian remplacés par la distribution Alpine 3.24 mise à jour",
+      "traitement": "libuuid 2.42.3-r1 corrigée ; autres outils util-linux concernés absents",
       "source": "https://avd.aquasec.com/nvd/cve-2026-78410",
       "presentApres": false
     },
@@ -746,7 +718,7 @@
         "perl-modules-5.36@5.36.0-7+deb12u3",
         "perl@5.36.0-7+deb12u3"
       ],
-      "traitement": "Composants Debian remplacés par la distribution Alpine 3.24 mise à jour",
+      "traitement": "Perl et bibliothèques Perl absents de l’image finale",
       "source": "https://avd.aquasec.com/nvd/cve-2026-8376",
       "presentApres": false
     },
@@ -757,7 +729,7 @@
         "libssl3@3.0.22-1~deb12u1",
         "openssl@3.0.22-1~deb12u1"
       ],
-      "traitement": "Composants Debian remplacés par la distribution Alpine 3.24 mise à jour",
+      "traitement": "OpenSSL 3.5.9-r0, correctif amont du 29 septembre 2026",
       "source": "https://avd.aquasec.com/nvd/cve-2026-84782",
       "presentApres": false
     },
@@ -767,7 +739,7 @@
       "paquetsAvant": [
         "libxml2@2.9.14+dfsg-1.3~deb12u6"
       ],
-      "traitement": "Composants Debian remplacés par la distribution Alpine 3.24 mise à jour",
+      "traitement": "libxml2 supprimée ; PostgreSQL reconstruit sans XML/XSLT/LLVM",
       "source": "https://avd.aquasec.com/nvd/cve-2026-86138",
       "presentApres": false
     },
@@ -777,7 +749,7 @@
       "paquetsAvant": [
         "libxml2@2.9.14+dfsg-1.3~deb12u6"
       ],
-      "traitement": "Composants Debian remplacés par la distribution Alpine 3.24 mise à jour",
+      "traitement": "libxml2 supprimée ; PostgreSQL reconstruit sans XML/XSLT/LLVM",
       "source": "https://avd.aquasec.com/nvd/cve-2026-86139",
       "presentApres": false
     },
@@ -787,7 +759,7 @@
       "paquetsAvant": [
         "libxml2@2.9.14+dfsg-1.3~deb12u6"
       ],
-      "traitement": "Composants Debian remplacés par la distribution Alpine 3.24 mise à jour",
+      "traitement": "libxml2 supprimée ; PostgreSQL reconstruit sans XML/XSLT/LLVM",
       "source": "https://avd.aquasec.com/nvd/cve-2026-86140",
       "presentApres": false
     },
@@ -797,7 +769,7 @@
       "paquetsAvant": [
         "libxml2@2.9.14+dfsg-1.3~deb12u6"
       ],
-      "traitement": "Composants Debian remplacés par la distribution Alpine 3.24 mise à jour",
+      "traitement": "libxml2 supprimée ; PostgreSQL reconstruit sans XML/XSLT/LLVM",
       "source": "https://avd.aquasec.com/nvd/cve-2026-86142",
       "presentApres": false
     },
@@ -807,7 +779,7 @@
       "paquetsAvant": [
         "libxml2@2.9.14+dfsg-1.3~deb12u6"
       ],
-      "traitement": "Composants Debian remplacés par la distribution Alpine 3.24 mise à jour",
+      "traitement": "libxml2 supprimée ; PostgreSQL reconstruit sans XML/XSLT/LLVM",
       "source": "https://avd.aquasec.com/nvd/cve-2026-86143",
       "presentApres": false
     },
@@ -817,7 +789,7 @@
       "paquetsAvant": [
         "libxml2@2.9.14+dfsg-1.3~deb12u6"
       ],
-      "traitement": "Composants Debian remplacés par la distribution Alpine 3.24 mise à jour",
+      "traitement": "libxml2 supprimée ; PostgreSQL reconstruit sans XML/XSLT/LLVM",
       "source": "https://avd.aquasec.com/nvd/cve-2026-86144",
       "presentApres": false
     },
@@ -830,9 +802,16 @@
         "perl-modules-5.36@5.36.0-7+deb12u3",
         "perl@5.36.0-7+deb12u3"
       ],
-      "traitement": "Composants Debian remplacés par la distribution Alpine 3.24 mise à jour",
+      "traitement": "Perl et bibliothèques Perl absents de l’image finale",
       "source": "https://avd.aquasec.com/nvd/cve-2026-9538",
       "presentApres": false
     }
-  ]
+  ],
+  "controleComplementaire": {
+    "script": "scripts/verifier-image-base.sh",
+    "prototypeAlpineZeroRefuse": true,
+    "XML_XSLT_LLVM_absents": true,
+    "sourcesCorrectifs": "docs/adr/ADR-20261003-postgresql-alpine.md",
+    "performanceImageLivree": "10 tests réussis"
+  }
 }

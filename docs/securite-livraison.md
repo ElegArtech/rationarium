@@ -11,7 +11,7 @@
 
 ## Correction PostgreSQL
 
-L'image Bookworm conservait 487 occurrences, dont 118 HIGH/CRITICAL correspondant à 54 avis distincts. Leur qualification comme fonctions inutilisées a été abandonnée. L'image officielle PostgreSQL 18.6 Alpine 3.24, mise à jour, remplace les composants système concernés ; su-exec remplace effectivement le binaire gosu compilé avec une ancienne bibliothèque Go. Les 118 exceptions PostgreSQL sont supprimées du fichier de politique. Le scan de la nouvelle image mesure zéro avis de toute gravité.
+L'image Bookworm conservait 487 occurrences, dont 118 HIGH/CRITICAL correspondant à 54 avis distincts. Leur qualification comme fonctions inutilisées a été abandonnée. PostgreSQL 18.6 est reconstruit depuis les sources officielles vérifiées, sans XML/XSLT/LLVM ; l’étape finale Alpine ne contient ni libxml2 ni gosu, et le démarrage emploie su-exec. Les 118 exceptions PostgreSQL sont supprimées du fichier de politique. Le scan de la nouvelle image mesure zéro avis de toute gravité. Il est complété par le contrôle des versions corrigées et de l’absence matérielle des composants retirés : le premier prototype Alpine, pourtant scanné à zéro, est refusé car il gardait libxml2 2.13.
 
 La migration est logique, vers un volume neuf. Le démarrage d'un ancien volume Debian est refusé. L'ancien volume est conservé pour un retour arrière avant réouverture ; les données et les index sont vérifiés après restauration. Voir [la décision technique](adr/ADR-20261003-postgresql-alpine.md) et [la procédure de migration](migration-postgresql.md).
 
