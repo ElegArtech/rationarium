@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Recette destructive uniquement sur un projet neuf, créé ici puis supprimé.
-set -euo pipefail
+set -Eeuo pipefail
+trap 'printf "Recette interrompue à la ligne %s.\n" "$LINENO" >&2' ERR
 umask 077
 racine=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 cd "$racine"
@@ -8,6 +9,7 @@ registre=${1:?Usage : recette-livraison.sh registre version dossier-neuf [--depu
 version=${2:?Version manquante}
 sortie=${3:?Dossier manquant}
 mode=${4:-}
+[[ -z "$mode" || "$mode" == --depuis-rc || "$mode" == --kit ]] || { echo 'Mode de recette inconnu.' >&2; exit 1; }
 # Une configuration exportée par l'appelant ne doit jamais détourner la recette
 # vers ses ports, ses secrets, son projet ou ses volumes existants.
 unset NOM_PROJET COMPOSE_PROJECT_NAME COMPOSE_FILE COMPOSE_ENV_FILES
@@ -20,7 +22,17 @@ unset RATIONARIUM_SAUVEGARDES RATIONARIUM_RETENTION
 [[ ! -e "$sortie" ]] || { echo 'La recette exige un dossier neuf.' >&2; exit 1; }
 mkdir -p "$sortie"
 sortie=$(cd "$sortie" && pwd)
-bash deploiement/preparer-compose.sh "$sortie/kit"
+if [[ "$mode" == --kit ]]; then
+  archive=${5:?Le mode --kit exige une archive hors ligne}
+  mkdir "$sortie/extraction"
+  tar -xzf "$archive" -C "$sortie/extraction"
+  mapfile -t kits < <(find "$sortie/extraction" -mindepth 1 -maxdepth 1 -type d)
+  [[ ${#kits[@]} == 1 && -f "${kits[0]}/charger-images.sh" ]]
+  mv "${kits[0]}" "$sortie/kit"
+  bash "$sortie/kit/charger-images.sh"
+else
+  bash deploiement/preparer-compose.sh "$sortie/kit"
+fi
 export RECETTE_REGISTRE="$registre" RECETTE_VERSION="$version" RECETTE_SORTIE="$sortie"
 python3 - <<'PY'
 import os,secrets,socket
@@ -67,7 +79,10 @@ node scripts/recette-droits.cjs "$sortie"
 "${compose[@]}" exec -T base psql -U rationarium -d rationarium -At -v ON_ERROR_STOP=1 -c "SELECT current_setting('ssl'); SELECT extname FROM pg_extension; SELECT auth_method FROM pg_hba_file_rules WHERE auth_method = 'ldap';" > "$sortie/postgresql-contexte.txt"
 [[ $(head -n 1 "$sortie/postgresql-contexte.txt") == off ]]
 ! grep -Eq '^(ldap|plperl)$' "$sortie/postgresql-contexte.txt"
-[[ -z $("${compose[@]}" port base 5432 2>/dev/null || true) ]]
+docker inspect "$("${compose[@]}" ps -q base)" --format '{{json .NetworkSettings.Ports}}' | node -e '
+  const ports = JSON.parse(require("node:fs").readFileSync(0, "utf8"));
+  if (Object.values(ports).some(bindings => bindings?.length)) throw Error("La base publie un port hôte.");
+'
 "${compose[@]}" exec -T api sh -c 'printf recette-document > /var/lib/rationarium/documents/recette.txt'
 bash "$sortie/kit/sauvegarde.sh" "$sortie/sauvegardes"
 "${compose[@]}" exec -T base psql -U rationarium -d rationarium -v ON_ERROR_STOP=1 -c "UPDATE users SET prenom = 'Corrompu' WHERE login = 'admin';"

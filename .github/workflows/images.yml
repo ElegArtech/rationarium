@@ -79,9 +79,9 @@ jobs:
       - run: corepack enable && corepack prepare pnpm@11.22.0 --activate && pnpm install --frozen-lockfile
       - run: pnpm exec playwright install --with-deps chromium
         working-directory: apps/web
-      - name: Exercer une installation réelle
-        run: bash scripts/recette-livraison.sh "$REGISTRE_RATIONARIUM" "$VERSION_RATIONARIUM" .local/recette
       - run: bash deploiement/preparer-livraison.sh dist/livraison
+      - name: Installer depuis l’archive réellement livrée
+        run: bash scripts/recette-livraison.sh "$REGISTRE_RATIONARIUM" "$VERSION_RATIONARIUM" .local/recette --kit "dist/livraison/rationarium-$VERSION_RATIONARIUM-linux-amd64.tar.gz"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: rationarium-livraison

@@ -52,7 +52,7 @@ les variables, puis exécuter `docker compose up -d --wait`.
 ## État de la version
 
 `1.0.0` est le candidat à la première version stable. Le déploiement fourni vise une machine unique.
-Les preuves et les conditions de livraison sont décrites dans le [plan de stabilisation](docs/plan-stabilisation-1.0.0.md).
+Les changements et les conditions de livraison sont décrits dans les [notes de version](docs/versions/1.0.0.md).
 
 Les ressources de l’interface sont servies localement. Un relais SMTP est nécessaire pour recevoir
 les messages par courriel, notamment les liens de réinitialisation de mot de passe. Les notifications

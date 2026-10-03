@@ -15,6 +15,6 @@ await page.getByRole('button',{name:'Changer le mot de passe',exact:true}).click
 const statuses=await page.evaluate(async()=>{const out={};for(const path of ['/api/projets','/api/utilisateurs','/api/administration/audit'])out[path]=(await fetch(path)).status;out['POST /api/utilisateurs']=(await fetch('/api/utilisateurs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prenom:'Interdit',nom:'Interdit',email:'interdit@example.invalid',login:'interdit',motDePasse:'Interdit-123!',roleId:null})})).status;return out;});
 if(Object.values(statuses).some(x=>x!==403))throw Error(JSON.stringify(statuses));
 await page.screenshot({path:path.join(dossier,'sans-droits.png'),fullPage:true});
-fs.writeFileSync(path.join(dossier,'droits.json'),JSON.stringify({creation:result.status,statuses},null,2));console.log('Compte sans rôle : connexion réelle et trois refus serveur 403 vérifiés.');
+fs.writeFileSync(path.join(dossier,'droits.json'),JSON.stringify({creation:result.status,statuses},null,2));console.log('Compte sans rôle : connexion réelle, trois lectures et une écriture refusées par le serveur (403).');
 await browser.close();
 })().catch(e=>{console.error(e);process.exit(1)});

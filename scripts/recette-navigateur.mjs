@@ -26,7 +26,11 @@ try {
   await expect(page.getByRole('heading', { name: 'Bonjour Administration', exact: true })).toBeVisible({ timeout: 20000 });
   if (phase === 'initiale') {
     await page.getByRole('textbox', { name: 'Nouvelle to-do', exact: true }).fill('Témoin installation');
-    await page.getByRole('button', { name: 'Ajouter la to-do', exact: true }).click();
+    const [creation] = await Promise.all([
+      page.waitForResponse(r => r.url().endsWith('/api/tableau-de-bord/todos') && r.request().method() === 'POST'),
+      page.getByRole('button', { name: 'Ajouter la to-do', exact: true }).click(),
+    ]);
+    assert.equal(creation.status(), 201);
     await page.reload();
   }
   await expect(page.getByText('Témoin installation', { exact: true })).toBeVisible();

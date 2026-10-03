@@ -39,6 +39,7 @@ for(const width of [1600,1024])for(const theme of ['clair','sombre']){
 }
 await page.getByRole('button',{name:'EN',exact:true}).click();
 await expect(page.getByRole('navigation',{name:'Main navigation',exact:true})).toBeVisible();
+await page.getByRole('button',{name:'FR',exact:true}).click();
 fs.writeFileSync(path.join(dossier,'parcours.json'),JSON.stringify({results,errors,responses,english:true},null,2));
 if(errors.length||responses.length)throw Error(JSON.stringify({errors,responses}));
 console.log(JSON.stringify({routes:routes.length,errors,responses}));
