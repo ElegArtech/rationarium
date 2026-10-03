@@ -32,6 +32,9 @@ Un essai a révélé une protection au démarrage trop large, qui confondait les
 - Recette `recette-migration-validee` réussie : migration, comparaison des tables et rôles, retour rc.1, retour candidate, 21 routes FR/EN, droits serveur, SMTP, sauvegarde/corruption/restauration et HTTPS.
 - Témoins du point d'entrée : ancien stockage standard/personnalisé refusé, stockage Alpine accepté avec ses fichiers internes ; ancienne image Bookworm refusée par le scan strict.
 
+- Installation locale de l'archive hors ligne réussie, y compris restauration et HTTPS.
+- Résolution réelle de la configuration Compose testée : NOM_PROJET, option `-p` et volume explicite de migration. Le nom du volume par défaut suit le projet effectif, pour éviter le partage involontaire entre installations.
+
 ## Livraison et preuves
 
 Les recettes et rapports locaux sont sous `.local/remediation-postgresql/`. Ils restent privés : configurations, mots de passe de test, sessions et sauvegardes ne sont pas joints aux artefacts publics. Les archives et rapports de scan de la CI sont publiés comme artefacts de validation, sans publication de version stable.

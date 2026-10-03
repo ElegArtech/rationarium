@@ -4,6 +4,7 @@ set -euo pipefail
 racine=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 cd "$racine"
 node scripts/livraison-check.mjs --stable
+node scripts/verifier-volumes.mjs
 version=$(node -p "require('./package.json').version")
 sortie=${1:-"$racine/dist/livraison-$version"}
 [[ ! -e "$sortie" ]] || { echo 'Choisir un dossier neuf.' >&2; exit 1; }
