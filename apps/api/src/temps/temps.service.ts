@@ -393,18 +393,29 @@ export class TempsService {
    * saisie rapide compte « tous contributeurs confondus », ce qui n'a de sens
    * que si le reste du module compte, lui, par personne. Le « none » se borne
    * donc à `userId`.
+   *
+   * `RG-SCOPE-04` — être assigné ne rend pas lisible une tâche
+   * confidentielle. La liste nommait pourtant toutes les tâches assignées,
+   * sur la vue 06 comme ici : le titre d'une tâche que sa fiche refuse
+   * d'ouvrir s'affichait sur la page d'accueil. Elle passe donc par
+   * `filtreTache`, le même prédicat que la fiche.
    */
-  async tachesNonDeclarees(userId: string) {
+  async tachesNonDeclarees(userId: string, perimetre: Perimetre, permissions: ReadonlySet<string>) {
     const validees = await this.prisma.taskTimeWaiver.findMany({
       where: { userId },
       select: { taskId: true },
     });
     return this.prisma.task.findMany({
       where: {
-        statut: "done",
-        assignes: { some: { userId } },
-        saisiesTemps: { none: { userId } },
-        id: { notIn: validees.map((v) => v.taskId) },
+        AND: [
+          this.perimetres.filtreTache(perimetre, permissions),
+          {
+            statut: "done",
+            assignes: { some: { userId } },
+            saisiesTemps: { none: { userId } },
+            id: { notIn: validees.map((v) => v.taskId) },
+          },
+        ],
       },
       orderBy: { dateFin: "desc" },
       select: { id: true, titre: true, dateFin: true, project: { select: { nom: true } } },

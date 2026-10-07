@@ -245,7 +245,7 @@ describe("EX-TMP-06, RG-TMP-06 — consulter les tâches terminées sans temps d
     const t = await prisma.task.create({
       data: { titre: "Terminée", projectId: projet, statut: "done", assignes: { create: { userId: u } } },
     });
-    const liste = await temps.tachesNonDeclarees(u);
+    const liste = await temps.tachesNonDeclarees(u, await perimetres.resoudre(u, new Set()), new Set());
     expect(liste.map((x) => x.id)).toContain(t.id);
   });
 
@@ -257,7 +257,7 @@ describe("EX-TMP-06, RG-TMP-06 — consulter les tâches terminées sans temps d
     await temps.validerSansDeclaration(t.id, u, u);
 
     // Sans cette trace, la liste ressortirait indéfiniment et finirait ignorée.
-    const liste = await temps.tachesNonDeclarees(u);
+    const liste = await temps.tachesNonDeclarees(u, await perimetres.resoudre(u, new Set()), new Set());
     expect(liste.map((x) => x.id)).not.toContain(t.id);
   });
 

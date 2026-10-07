@@ -48,7 +48,7 @@ export class TempsController {
   @Get("non-declarees")
   @RequiertPermission("time_tracking:read")
   nonDeclarees(@Demande() d: ContexteDemande) {
-    return this.temps.tachesNonDeclarees(d.userId);
+    return this.temps.tachesNonDeclarees(d.userId, d.perimetre, d.permissions);
   }
 
   /**

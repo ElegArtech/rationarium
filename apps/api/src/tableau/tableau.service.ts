@@ -96,9 +96,9 @@ export class TableauService {
     finSemaine.setUTCDate(finSemaine.getUTCDate() + 6);
 
     const [indicateurs, aVenir, nonDeclarees, todos, projets, extrait] = await Promise.all([
-      this.indicateurs(userId, aujourdhui),
-      this.tachesAVenir(userId, aujourdhui),
-      this.tachesNonDeclarees(userId),
+      this.indicateurs(userId, aujourdhui, this.perimetres.filtreTache(perimetre, permissions)),
+      this.tachesAVenir(userId, aujourdhui, this.perimetres.filtreTache(perimetre, permissions)),
+      this.tachesNonDeclarees(userId, perimetre, permissions),
       this.todos(userId),
       this.projets(userId),
       // `EX-DSH-03` — l'extrait de planning est celui de la personne : le
@@ -123,14 +123,16 @@ export class TableauService {
    * sous-titres : « sur {n} projets », « sur {n} tâches », « {n} % complétées »,
    * « Échéance dépassée ».
    */
-  private async indicateurs(userId: string, aujourdhui: Date) {
+  private async indicateurs(userId: string, aujourdhui: Date, lisibles: Record<string, unknown>) {
     const [projetsTotal, projetsActifs, taches] = await Promise.all([
       this.prisma.project.count({ where: this.mesProjets(userId) }),
       this.prisma.project.count({
         where: { AND: [{ archive: false, statut: "active" }, this.mesProjets(userId)] },
       }),
+      // `RG-SCOPE-04` — ses tâches LISIBLES : être assigné ne suffit pas à
+      // lire une tâche confidentielle, ni donc à la compter.
       this.prisma.task.findMany({
-        where: { assignes: { some: { userId } } },
+        where: { AND: [lisibles, { assignes: { some: { userId } } }] },
         select: { statut: true, dateFin: true },
       }),
     ]);
@@ -162,9 +164,10 @@ export class TableauService {
   }
 
   /** `EX-DSH-05` — ses tâches à venir, avec de quoi agir sans changer de page. */
-  private async tachesAVenir(userId: string, aujourdhui: Date) {
+  private async tachesAVenir(userId: string, aujourdhui: Date, lisibles: Record<string, unknown>) {
     const taches = await this.prisma.task.findMany({
-      where: { assignes: { some: { userId } }, statut: { not: "done" } },
+      // `RG-SCOPE-04` — la liste ne nomme pas une tâche que sa fiche refuse d'ouvrir.
+      where: { AND: [lisibles, { assignes: { some: { userId } }, statut: { not: "done" } }] },
       select: {
         id: true, titre: true, statut: true, priorite: true,
         dateDebut: true, dateFin: true, estimationHeures: true, version: true,
@@ -205,8 +208,8 @@ export class TableauService {
    * oublierait la moitié, et les deux listes divergeraient au premier
    * correctif.
    */
-  private async tachesNonDeclarees(userId: string) {
-    const taches = await this.temps.tachesNonDeclarees(userId);
+  private async tachesNonDeclarees(userId: string, perimetre: Perimetre, permissions: ReadonlySet<string>) {
+    const taches = await this.temps.tachesNonDeclarees(userId, perimetre, permissions);
 
     /*
      * ══════════════════════════════════════════════════════════════════════
