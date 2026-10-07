@@ -143,6 +143,7 @@ Chaque exigence est identifiée `EX-<MODULE>-<n>`, chaque règle de gestion `RG-
 - **RG-AUTH-12** — Ni le message ni le seuil de verrouillage ne permettent de savoir si un compte existe : un identifiant inconnu est « verrouillé » au même seuil et pour la même durée qu'un compte réel. La connexion et la demande de réinitialisation sont limitées en débit par adresse IP.
 - **RG-AUTH-13** — Chaque usage d'une session repousse son expiration de la durée paramétrée (`EX-AUTH-02`). L'écriture se fait au plus une fois toutes les cinq minutes par session.
 - **RG-AUTH-14** — Le haché d'un mot de passe ne sort jamais du serveur, sur aucune route.
+- **RG-AUTH-15** — Sans session, la lecture des réglages publics (`GET /parametrage`) ne rend aucun réglage `auth.*` : seuil et durée de verrouillage, durée de session et domaines autorisés ne se lisent qu'une fois connecté.
 
 Les visuels prédéfinis sont six motifs locaux, nommés et reconnaissables sans dépendre de leur couleur : constellation, feuille, montagne, vagues, soleil et mosaïque. Leurs identifiants techniques sont stables car ils sont persistés ; les libellés visibles sont traduits. Choisir un visuel efface le fichier personnel précédent, téléverser un fichier efface le visuel précédent, et supprimer l’avatar efface les deux.
 

@@ -1,6 +1,8 @@
-import { Body, Controller, Get, Param, Patch, Post, Put, Query, UseInterceptors } from "@nestjs/common";
+import { Body, Controller, Get, Param, Patch, Post, Put, Query, Req, UseInterceptors } from "@nestjs/common";
+import type { FastifyRequest } from "fastify";
 import { z } from "zod";
 import { CalendrierService } from "./calendrier.service.js";
+import { AuthService } from "../auth/auth.service.js";
 import { Demande, Public, RequiertPermission, type ContexteDemande } from "../commun/permissions.garde.js";
 import { valider, dateSchema } from "../commun/http.js";
 import {
@@ -20,13 +22,26 @@ const plage = z.object({ debut: dateSchema, fin: dateSchema });
 
 @Controller("parametrage")
 export class ParametrageController {
-  constructor(private readonly calendrier: CalendrierService) {}
+  constructor(
+    private readonly calendrier: CalendrierService,
+    private readonly auth: AuthService,
+  ) {}
 
-  /** EX-PRM-03 — lecture anonyme des seuls réglages marqués publics. */
+  /**
+   * EX-PRM-03 — lecture des réglages marqués publics.
+   *
+   * `RG-AUTH-15` — sans session, les réglages `auth.*` sont retirés : seuil de
+   * verrouillage, durée de session et domaines autorisés n'ont pas à être lus
+   * avant la connexion. La page de connexion n'a besoin que de l'inscription
+   * autonome, que `GET /auth/acces` lui donne.
+   */
   @Get()
   @Public()
-  reglages() {
-    return this.calendrier.reglages();
+  async reglages(@Req() requete: FastifyRequest) {
+    const reglages = await this.calendrier.reglages();
+    const jeton = requete.cookies?.["rationarium_session"];
+    if (jeton && (await this.auth.resoudreSession(jeton))) return reglages;
+    return Object.fromEntries(Object.entries(reglages).filter(([cle]) => !cle.startsWith("auth.")));
   }
 
   /**

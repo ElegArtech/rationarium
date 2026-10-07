@@ -285,3 +285,27 @@ describe("D08 — taille des corps de requête", () => {
     expect(r.statusCode).toBe(422);
   });
 });
+
+describe("RG-AUTH-15 — les réglages d'authentification ne se lisent pas sans session", () => {
+  it("anonyme : les réglages d'affichage oui, les réglages auth.* non ; avec une session : tous", async () => {
+    const ecriture = await appel("PUT", "/api/parametrage", {
+      jeton: jetonAdmin,
+      corps: {
+        reglages: {
+          "auth.tentativesAvantVerrouillage": "7",
+          "auth.domainesAutorises": "exemple.fr",
+          "display.locale": "fr-FR",
+        },
+      },
+    });
+    expect(ecriture.statusCode).toBe(200);
+
+    const anonyme = (await appel("GET", "/api/parametrage")).json() as Record<string, string>;
+    expect(anonyme["display.locale"]).toBe("fr-FR");
+    expect(Object.keys(anonyme).filter((cle) => cle.startsWith("auth."))).toEqual([]);
+
+    const connecte = (await appel("GET", "/api/parametrage", { jeton: jetonAdmin })).json() as Record<string, string>;
+    expect(connecte["auth.tentativesAvantVerrouillage"]).toBe("7");
+    expect(connecte["auth.domainesAutorises"]).toBe("exemple.fr");
+  });
+});
