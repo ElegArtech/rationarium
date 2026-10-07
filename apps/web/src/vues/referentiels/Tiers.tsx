@@ -629,8 +629,7 @@ export function FicheTiers({ tiersId }: { tiersId: string }) {
               {/*
                * Le SIRET reste absent : le modèle ne le porte pas. Un libellé
                * suivi d'un « non renseigné » que rien ne peut jamais remplir
-               * vaut moins qu'une absence assumée. Voir
-               * `docs/audits/conformite-maquettes.md § 3`.
+               * vaut moins qu'une absence assumée.
                */}
             </dl>
           </section>

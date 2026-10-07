@@ -17,7 +17,7 @@ import "./kanban.css";
  *
  * **Les colonnes « À faire » et « Terminé » ne peuvent jamais être masquées**
  * (brief de la vue 12). Elles ne sont donc pas paramétrables ici : la liste
- * des colonnes est le vocabulaire de `cadrage/01 § 4.1`, dans son ordre.
+ * des colonnes est le vocabulaire de `docs/reference-fonctionnelle.md § 4.1`, dans son ordre.
  *
  * **Le glisser-déposer est toujours doublé d'une action explicite au clavier**
  * (`C6`). Le menu « Déplacer vers… » n'est pas un repli dégradé : c'est le
@@ -25,7 +25,7 @@ import "./kanban.css";
  * et testable — ce qu'une traînée simulée n'est pas.
  *
  * **En cas d'échec, la carte revient à sa place d'origine** — état nommé par
- * `design/etats.json`. C'est l'invalidation de la requête qui s'en charge : on
+ * la spécification des états. C'est l'invalidation de la requête qui s'en charge : on
  * ne parie jamais sur le succès d'une écriture.
  */
 

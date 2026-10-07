@@ -9,7 +9,7 @@
  * La colonne d'actions passe de 146 à 236 px : la rangée en porte trois depuis
  * que `EX-ADM-03` a rendu le renommage possible, et à 146 px la troisième
  * débordait sur la pastille d'origine. Un libellé anglais reste 30 % plus long
- * que son français (`cadrage/02 § D.7`) : la largeur est prise sur « Rename »
+ * que son français : la largeur est prise sur « Rename »
  * et « Delete » réunis, pas sur le seul français.
  */
 /*

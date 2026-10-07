@@ -27,7 +27,7 @@ import "./rapports.css";
  * blanche se prend pour un défaut de chargement, et on la signale au support
  * au lieu d'en tirer la conclusion — qu'il n'y a rien à voir.
  *
- * Aucune bibliothèque de graphiques (`cadrage/03 § 4, D12`). Les barres sont
+ * Aucune bibliothèque de graphiques. Les barres sont
  * des `<div>` en pourcentage, la courbe un `<svg>` calculé.
  */
 

@@ -89,7 +89,7 @@ export function VueEnsemble({ projetId }: { projetId: string }) {
    * pour ne pas recalculer.
    *
    * **Cette commande est aujourd'hui le SEUL producteur d'instantanés du
-   * produit.** `cadrage/03 § 5.4` confie la capture à un travail `pg-boss`
+   * produit.** La conception confie la capture à un travail `pg-boss`
    * périodique ; ce travail n'existe pas. Sans elle, `dernierInstantane` de la
    * fiche et la courbe de tendance de la vue 30 restent vides à jamais.
    *
@@ -401,7 +401,7 @@ export function VueEnsemble({ projetId }: { projetId: string }) {
 
         Il est ici, sous la commande qui le produit, et non dans l'onglet
         Gantt : le Gantt répond à « quand », l'historique à « où en étions-nous
-        le 12 mars ». Décision portée dans `cadrage/02`, vue 11.
+        le 12 mars ». Décision portée dans la spécification de la vue 11.
       */}
       {peut("reports:read") ? (
         <section className="panel">

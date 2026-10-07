@@ -12,7 +12,7 @@ import { describe, it, expect } from "vitest";
  *
  * Le commentaire qui tenait cette ligne disait « `RG-ADM-03` — l'accès refusé
  * est tracé côté serveur », douze caractères au-dessus de ce qui garantissait
- * le contraire. Famille déjà consignée dans `CLAUDE.md` : *écrire le motif
+ * le contraire. Famille déjà rencontrée : *écrire le motif
  * d'un contrôle n'est pas l'écrire.*
  *
  * **Ce contrôle lit la source, pas le rendu.** Rien d'autre ne pouvait le

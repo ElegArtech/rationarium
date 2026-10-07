@@ -1,5 +1,5 @@
 /**
- * Thème — `cadrage/01 § 7` : clair, sombre et **automatique**.
+ * Thème — `docs/reference-fonctionnelle.md § 7` : clair, sombre et **automatique**.
  *
  * Le mode automatique suit la préférence du système et doit y réagir en
  * direct : un utilisateur dont le poste bascule à la tombée du jour n'a pas à

@@ -4,10 +4,10 @@ import { Button } from "react-aria-components";
 import { CATEGORIES_ICONE_PROJET, ICONES_PROJET } from "@rationarium/contracts";
 
 /**
- * Les cinquante symboles de projet — `mockups/10`, bibliothèque d'icônes.
+ * Les cinquante symboles de projet — maquette 10, bibliothèque d'icônes.
  *
- * **Aucune dépendance**, comme pour les icônes d'interface : `cadrage/03 § 4,
- * D12` écarte les bibliothèques au rendu non pilotable, et `C1` interdit la
+ * **Aucune dépendance**, comme pour les icônes d'interface : on
+ * écarte les bibliothèques au rendu non pilotable, et `C1` interdit la
  * requête sortante d'une police d'icônes.
  *
  * Le produit rangeait jusqu'ici un CARACTÈRE dans `icone` et l'affichait tel

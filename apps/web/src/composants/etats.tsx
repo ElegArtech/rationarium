@@ -10,7 +10,7 @@ import "./etats.css";
  * Les états transverses d'une vue de données : **vide, chargement, erreur,
  * accès refusé**.
  *
- * `cadrage/02 § D` les exige sur toute vue de données, et `.claude/rules/ui.md`
+ * La spécification d'interface les exige sur toute vue de données, et `.claude/rules/ui.md`
  * les rappelle. Les écrire une fois ici plutôt qu'à chaque vue n'est pas une
  * économie de frappe : c'est la seule façon d'obtenir la **même** formulation
  * partout. Vingt états vides rédigés vingt fois divergent en vingt tons.

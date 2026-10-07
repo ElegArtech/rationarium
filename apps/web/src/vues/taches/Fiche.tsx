@@ -1942,7 +1942,7 @@ function FenetreDependances({
     },
     onError: (e) => {
       /*
-       * `cadrage/02:566` — le texte du bandeau est celui du brief, à la lettre.
+       * Le texte du bandeau est celui du brief, à la lettre.
        * Il ne se déclenche en pratique que sur une course : le serveur écarte
        * les candidats cycliques de la liste, donc seul un lien posé ailleurs
        * entre le chargement et l'enregistrement peut refermer une boucle.
@@ -2013,7 +2013,7 @@ function FenetreDependances({
           <p className="ilib-none">{t("fiche.chargementCandidats")}</p>
         ) : filtrees.length === 0 ? (
           /*
-           * `cadrage/02:571` — DEUX états vides, pas un. « Aucune tâche
+           * DEUX états vides, pas un. « Aucune tâche
            * disponible » dit qu'il n'y a rien à lier ; « Aucune tâche trouvée »
            * dit que la recherche est trop étroite. Les confondre laisserait
            * croire à un projet vide devant une faute de frappe.

@@ -1,7 +1,7 @@
 import type { Permission } from "@rationarium/contracts";
 
 /**
- * Structure de la barre latérale — `cadrage/02 § B`.
+ * Structure de la barre latérale.
  *
  * Chaque entrée porte la permission qui la rend visible. **Les entrées
  * auxquelles l'utilisateur n'a pas droit ne sont pas affichées** — pas

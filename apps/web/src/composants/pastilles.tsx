@@ -13,7 +13,7 @@ import "./partages.css";
  * Pastilles de vocabulaire, barre de progression, avatar, marqueur de calcul.
  *
  * **Le libellé vient du vocabulaire, jamais d'une table locale.** Les
- * vocabulaires de `cadrage/01 § 4.1` portent déjà `fr` et `en` ; les recopier
+ * vocabulaires de `docs/reference-fonctionnelle.md § 4.1` portent déjà `fr` et `en` ; les recopier
  * dans un catalogue i18n créerait une seconde source de vérité, et la première
  * divergence passerait inaperçue.
  *
@@ -23,7 +23,7 @@ import "./partages.css";
  */
 
 const JETON: Record<string, string> = {
-  // Statuts de tâche et de jalon — cadrage/01 § 4.1
+  // Statuts de tâche et de jalon — docs/reference-fonctionnelle.md § 4.1
   todo: "var(--st-todo)",
   doing: "var(--st-doing)",
   review: "var(--st-review)",
@@ -200,7 +200,7 @@ export function AvatarUtilisateur({
 /**
  * Le marqueur « Calculé ».
  *
- * `cadrage/02` insiste, vues 11 et 13 : la progression, le budget consommé et
+ * La spécification insiste, vues 11 et 13 : la progression, le budget consommé et
  * le statut d'un jalon sont **calculés, jamais saisis**. C'est contre-intuitif,
  * donc dit à l'écran plutôt qu'en aide contextuelle. L'explication est portée
  * par `title` **et** par `aria-description` : une infobulle au survol n'existe

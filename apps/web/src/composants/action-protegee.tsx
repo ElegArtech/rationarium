@@ -18,7 +18,7 @@ import { Button, Tooltip, TooltipTrigger, type ButtonProps } from "react-aria-co
  *   sinon il conclut à un défaut du produit.
  *
  * **Ce n'est pas un contrôle.** Le contrôle est au serveur, permission puis
- * périmètre (`cadrage/03 § 5.4`). C'est une courtoisie : on ne propose pas ce
+ * périmètre. C'est une courtoisie : on ne propose pas ce
  * qui sera refusé. Un composant qui laisserait croire le contraire serait
  * dangereux, d'où ce commentaire.
  */
@@ -27,7 +27,7 @@ import { Button, Tooltip, TooltipTrigger, type ButtonProps } from "react-aria-co
  *
  * Extraite volontairement : c'est elle qui porte `RG-GEN-06`, et elle se
  * vérifie sans monter de DOM. Le rendu, lui, est exercé par Storybook et par
- * les parcours Playwright — `cadrage/03 § 3.5` désigne ce banc-là, pas un
+ * les parcours Playwright — c'est ce banc-là qui compte, pas un
  * simulacre de navigateur.
  */
 export type Decision = "autorisee" | "masquee" | "desactivee";

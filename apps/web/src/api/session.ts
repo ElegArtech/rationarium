@@ -55,7 +55,7 @@ export const changerMotDePasse = (actuel: string, nouveau: string, confirmation:
  *
  * `PATCH /auth/me`, marquée `@Personnel()` côté serveur : session exigée,
  * aucune permission. Modifier son nom ne relève d'aucun des vingt-quatre
- * domaines de `cadrage/01 § 3.2`, et le catalogue est fermé.
+ * domaines de `docs/reference-fonctionnelle.md § 3.2`, et le catalogue est fermé.
  *
  * `version` est obligatoire (`RG-GEN-07`) : c'est elle qui manquait au profil
  * rendu, et c'est pour cela que la vue 35 est restée en lecture seule.

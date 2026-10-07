@@ -219,7 +219,7 @@ test.describe("Vue 12 — kanban", () => {
    *
    * **La règle tient par construction, et c'est ce qu'il faut prouver.** Le
    * produit n'offre AUCUN masquage de colonne : la liste vient du vocabulaire
-   * de `cadrage/01 § 4.1`, dans son ordre, et rien ne la filtre. Un test qui
+   * de `docs/reference-fonctionnelle.md § 4.1`, dans son ordre, et rien ne la filtre. Un test qui
    * exercerait un masquage n'aurait rien à exercer.
    *
    * Ce qu'on éprouve donc, c'est l'invariant : quoi qu'il arrive à l'écran —
@@ -655,7 +655,7 @@ test.describe("Vue 17 — modifier les dépendances", () => {
   });
 
   /**
-   * `cadrage/02:571` — **deux états vides, pas un.** « Aucune tâche
+   * **Deux états vides, pas un.** « Aucune tâche
    * disponible » dit qu'il n'y a rien à lier ; « Aucune tâche trouvée » dit que
    * la recherche est trop étroite. Les confondre laisserait croire à un projet
    * vide devant une faute de frappe.
@@ -709,7 +709,7 @@ test.describe("Vue 17 — modifier les dépendances", () => {
    * `RG-TSK-04` — le bandeau ne se déclenche que sur une COURSE : le serveur
    * écarte les candidats cycliques de la liste, donc seul un lien posé ailleurs
    * entre le chargement et l'enregistrement peut refermer une boucle. Le texte
-   * est celui de `cadrage/02:566`, à la lettre.
+   * est celui du brief, à la lettre.
    */
   test("RG-TSK-04 — un cycle refusé au serveur s'affiche dans la fenêtre", async ({ page }) => {
     await serveur(page, { session: SESSION_TACHES, reponses: reponsesDeps });

@@ -87,7 +87,7 @@ export function vueCourante(disponibles: Vue[], demandee: Vue): Vue {
  * propriété de compétence, qui ordonne le RÉFÉRENTIEL ; « par compétence » ne
  * veut rien dire d'autre que « par niveau sur une compétence choisie », et
  * cela n'ordonne que la MATRICE, dont les lignes sont des agents. Tranché, et
- * porté dans `cadrage/01 § M13`.
+ * porté dans `docs/reference-fonctionnelle.md § M13`.
  */
 type TriMatrice = "nom" | "nombre" | "competence";
 type TriReferentiel = "nom" | "couverture";

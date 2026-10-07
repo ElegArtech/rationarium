@@ -15,7 +15,7 @@ import { GabaritAcces, LienAcces } from "./gabarit-acces.js";
  * cette vue n'interprète pas le code d'erreur du serveur : elle affiche ce
  * qu'il envoie, et le serveur envoie le même texte dans les deux situations.
  *
- * États couverts (`design/etats.json`) : nominal · soumission · identifiants
+ * États couverts : nominal · soumission · identifiants
  * invalides · compte verrouillé · champs vides · succès.
  *
  * Le balisage suit la maquette : `.form-intro`, `.alert`, `.field-block`,

@@ -672,7 +672,7 @@ test.describe("Vue 06 — EX-USR-09, la présence du jour", () => {
     await serveur(page, { session: SESSION_TABLEAU, reponses: avecPresence });
     await page.goto("/");
 
-    // `cadrage/01 § 2`, Fatou : « voir le taux de présence ». Compter les
+    // Fatou, manager : « voir le taux de présence ». Compter les
     // lignes à l'œil n'est pas voir un taux.
     await expect(page.getByText("1 au bureau · 1 en congé · 1 en télétravail")).toBeVisible();
   });
@@ -773,7 +773,7 @@ test.describe("Vue 06 — EX-USR-09, la présence du jour", () => {
  * jour pour dire ce qui est fait et ce qui manque.
  *
  * `RG-PRJ-09` n'est pas cité non plus : la règle veut une capture
- * **périodique**, confiée à `pg-boss` par `cadrage/03 § 5.4`, et ce travail
+ * **périodique**, confiée à `pg-boss`, et ce travail
  * de fond n'existe pas. Ce bouton est aujourd'hui le seul producteur
  * d'instantanés du produit — ce qui rend la capture nécessaire, pas la règle
  * satisfaite.
@@ -792,8 +792,8 @@ test.describe("Vue 11 — capturer un instantané d'avancement", () => {
 
   test("LA CAPTURE PART AVEC LA DATE DU JOUR, jamais avec l'heure", async ({ page }) => {
     /*
-     * `RG-PRJ-09` confie la capture à un travail périodique (`cadrage/03
-     * § 5.4`) — qui n'existe pas. Cette commande est donc aujourd'hui le seul
+     * `RG-PRJ-09` confie la capture à un travail périodique
+     * — qui n'existe pas. Cette commande est donc aujourd'hui le seul
      * producteur d'instantanés du produit : sans elle, `dernierInstantane` et
      * la courbe de tendance de la vue 30 restent vides à jamais.
      *
@@ -853,7 +853,7 @@ test.describe("Vue 11 — capturer un instantané d'avancement", () => {
 
   test("un projet annulé est figé : aucune capture", async ({ page }) => {
     /*
-     * `cadrage/02`, vue 11 : « Ce projet est annulé […] toute modification
+     * Vue 11 : « Ce projet est annulé […] toute modification
      * bloquée ». Un instantané est une écriture.
      */
     await horlogeFixe(page);

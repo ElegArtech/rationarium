@@ -4,7 +4,7 @@ import { memo } from "react";
  * La bibliothèque d'icônes d'interface — 23 symboles, reprise à l'identique des
  * maquettes (section « Bibliothèque d'icônes »).
  *
- * **Aucune dépendance.** `cadrage/03 § 4, D12` écarte les bibliothèques dont le
+ * **Aucune dépendance.** On écarte les bibliothèques dont le
  * rendu n'est pas pilotable ; une police d'icônes en serait une, et elle
  * apporterait en plus une requête sortante que `C1` interdit. Les symboles sont
  * déclarés une fois dans le document et référencés par `<use href="#i-…">`.

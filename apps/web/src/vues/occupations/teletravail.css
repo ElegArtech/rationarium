@@ -32,7 +32,7 @@
  * Le week-end reste distingué par le FOND de la case, qui ne porte aucun
  * texte : la distinction survit sans coûter de lisibilité.
  *
- * Troisième occurrence de la même famille (écart 5 de `mockups/GEL.md`) : la
+ * Troisième occurrence de la même famille (écart 5 du gel des maquettes) : la
  * maquette est la référence de forme, le socle celle du contraste.
  */
 .tt-cell.is-today .tt-n{ color:var(--accent); font-weight:700; }

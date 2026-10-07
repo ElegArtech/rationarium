@@ -30,7 +30,7 @@ import "./gantt.css";
  * les dépendances » de la maquette lève la restriction, et **dit alors ce qu'on
  * y perd** plutôt que de laisser découvrir l'illisibilité.
  *
- * Aucune bibliothèque de Gantt (`cadrage/03 § 4, D12`). Les barres sont
+ * Aucune bibliothèque de Gantt. Les barres sont
  * positionnées en pixels par jour, les flèches sont un `<svg>` superposé. Les
  * jetons portent les couleurs : les deux thèmes suivent.
  *

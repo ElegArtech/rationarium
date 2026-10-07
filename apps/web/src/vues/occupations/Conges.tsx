@@ -77,7 +77,7 @@ export const ongletCourant = (existants: readonly Onglet[], choisi: string): Ong
  * vide sur toute saisie qu'il juge invalide — « 2,5 » comprise : le geste le
  * plus naturel du monde privait un agent de tous ses congés.
  *
- * Cinquième occurrence de la famille consignée dans `CLAUDE.md` — le filtre des
+ * Cinquième occurrence de la famille déjà rencontrée — le filtre des
  * jours de la vue 31, l'amorçage, l'import, la variable Compose vide.
  * **Le contrat se lit sur la chaîne, jamais sur le nombre** : `Number` ne
  * distingue pas « rien » de « zéro », et c'est cette distinction-là qui porte
@@ -343,12 +343,12 @@ export function Conges() {
     /*
      * `EX-CNG-10`, `RG-CNG-24` — le sixième onglet, réservé à qui attribue.
      *
-     * `cadrage/02` se contredisait : son énumération « Structure » fermait la
+     * La spécification de la vue se contredisait : son énumération « Structure » fermait la
      * liste à six entrées dont deux pour les délégations, sa ligne « Variantes »
      * disait « Hugo voit tout, plus les types ET LES SOLDES ». C'est la ligne
      * Variantes qui l'emporte — seule des deux à parler d'un détenteur de
      * `leaves:manage_balances`, quand l'énumération décrit ce que voit un agent
-     * ordinaire. L'arbitrage est écrit dans `cadrage/02`, § vue 19.
+     * ordinaire. L'arbitrage est écrit dans la spécification de la vue 19.
      */
     if (peut("leaves:manage_balances")) {
       liste.push({ cle: "soldes", libelle: t("conges.ongletSoldes") });
@@ -365,7 +365,7 @@ export function Conges() {
    * pas où elle disait — `/conges#soldes` affichait « Mes demandes » —, et le
    * bouton Précédent ne défaisait pas le changement d'onglet. Une adresse qui
    * s'affiche sans s'appliquer est le pendant exact du réglage qui s'enregistre
-   * sans agir, consigné trois fois dans `CLAUDE.md`.
+   * sans agir, déjà rencontré trois fois.
    *
    * Le fragment porte l'onglet parce qu'il est ce que la maquette écrit, et
    * parce qu'il ne demande pas de `validateSearch` sur la route — `routeur.tsx`
@@ -584,7 +584,7 @@ function CycleDeVie() {
    * Les cinq états viennent de `STATUTS_CONGE`, **pas d'un jeu de clés
    * parallèle**. Le catalogue en portait un — `statut_pending`,
    * `statut_approved`, `statut_cancelling`… —, c'est-à-dire une seconde
-   * définition d'un vocabulaire de `cadrage/01 § 4.1`, ce que le contrat
+   * définition d'un vocabulaire de `docs/reference-fonctionnelle.md § 4.1`, ce que le contrat
    * interdit. Et elle avait déjà divergé : le schéma dit
    * `cancellation_requested`, ce double disait `cancelling`.
    */
@@ -1060,7 +1060,7 @@ function AValider() {
 /**
  * `EX-CNG-05` — l'onglet de contrôle : **toutes** les demandes du périmètre.
  *
- * `cadrage/02 § Vue 19` l'écrit en toutes lettres : « Filtre "Tous les
+ * La spécification de la vue 19 l'écrit en toutes lettres : « Filtre "Tous les
  * utilisateurs", mêmes données, vue de contrôle. » Le produit n'offrait que le
  * statut, et rendait ses lignes **sans aucune action, pour tout profil** —
  * administrateur compris. Une vue de contrôle sans filtre par agent oblige à
@@ -1318,7 +1318,7 @@ function TypesDeConge() {
    * disait « aucune route serveur ne réactive un type de congé ». C'était vrai
    * quand il a été écrit ; `PATCH /conges/types/:id` le rend maintenant, et un
    * commentaire qui affirme l'absence d'une route est exactement ce que
-   * `CLAUDE.md` recense comme la famille de défauts la plus coûteuse.
+   * l'on tient pour la famille de défauts la plus coûteuse.
    *
    * Un type **système** désactivé reste sans retour : `RG-CNG-30` ferme
    * `actif` sur lui. C'est une limite du serveur, pas de l'écran — elle est
@@ -1893,7 +1893,7 @@ function FenetreTypeDeConge({
  * conséquences pour l'interface :
  *
  *   1. la confirmation annonce **laquelle des deux** va se produire, avec le
- *      nombre de congés concernés — `cadrage/02` en donne le texte ;
+ *      nombre de congés concernés — la spécification en donne le texte ;
  *   2. le message de retour relit **la réponse du serveur**, jamais la
  *      prévision faite à l'écran. Un type peut avoir gagné un congé entre
  *      l'affichage de la liste et le clic : annoncer « supprimé » sur la foi
@@ -2129,7 +2129,7 @@ function FenetreDemande({
    * La maquette le nomme (« Votre demande sera soumise à validation par Fatou
    * Berthier »), le produit ne le nommait pas : la mention retombait sur
    * « votre responsable », c'est-à-dire sur la formule générique de
-   * `cadrage/02` § vue 19. Le validateur n'est pourtant pas devinable — trois
+   * la spécification de la vue 19. Le validateur n'est pourtant pas devinable — trois
    * branches le déterminent (manager du service, responsable du département,
    * défaut), et une délégation active (`RG-CNG-10`) peut y substituer
    * quelqu'un d'autre **selon la date**. Seul le serveur le sait.

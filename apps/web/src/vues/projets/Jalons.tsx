@@ -96,7 +96,7 @@ function Charge({ tache }: { tache: api.TacheDeJalon }) {
  *
  * **Le statut de la tâche se saisit ici, à la différence de celui du jalon.**
  * La maquette pose l'opposition dans le même écran : `select.mini-select` sur
- * la tâche, `pill` + `calc-tag` sur le jalon. `cadrage/02` la reprend — « Chaque
+ * la tâche, `pill` + `calc-tag` sur le jalon. La spécification la reprend — « Chaque
  * tâche affiche titre, statut modifiable en ligne, assignés, estimation ». Une
  * pastille figée aurait rendu la même image et perdu le geste.
  *
@@ -175,7 +175,7 @@ function LigneTache({
 /**
  * La fenêtre d'import des jalons — action « Importer CSV » de la maquette 13.
  *
- * Les colonnes sont celles que `cadrage/01 § M21` impose pour « Jalons d'un
+ * Les colonnes sont celles que `docs/reference-fonctionnelle.md § M21` impose pour « Jalons d'un
  * projet » : `name*`, `description`, `dueDate*`. Ce sont exactement celles que
  * l'export de la vue produit, donc le fichier exporté se réimporte tel quel.
  *
@@ -316,7 +316,7 @@ export function Jalons({ projetId }: { projetId: string }) {
               {tImports("exporterJalons")}
             </a>
           ) : null}
-          {/* `cadrage/02`, vue 13 — « Importer CSV » ferme la boucle de
+          {/* Vue 13 — « Importer CSV » ferme la boucle de
               l'export ci-dessus : mêmes colonnes, même fichier.
 
               `RG-GEN-06` — **la garde du client est celle de la route.**
@@ -333,7 +333,7 @@ export function Jalons({ projetId }: { projetId: string }) {
               {tImports("importerCsv")}
             </Button>
           ) : null}
-          {/* `cadrage/02`, vue 13 — la barre d'actions porte « + Nouveau jalon,
+          {/* Vue 13 — la barre d'actions porte « + Nouveau jalon,
               + Nouvelle tâche, Importer CSV ». La création de tâche emploie la
               fenêtre des vues 12 et 16, projet imposé : trois formulaires de
               création divergeraient à la première correction. */}

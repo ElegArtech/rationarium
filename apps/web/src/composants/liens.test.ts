@@ -3,7 +3,7 @@ import { describe, it, expect } from "vitest";
 /**
  * **Une ancre brute dans une application à routeur RECHARGE tout le document.**
  *
- * Le piège est consigné dans `CLAUDE.md`, mesuré sur la barre latérale et
+ * Le piège est connu, mesuré sur la barre latérale et
  * corrigé là, puis dans la coquille et les vues d'accès (`coquille/liens.test.ts`,
  * qui garde ce périmètre-là). **Il était resté dans les composants partagés** :
  * les deux sorties de `etats.tsx` — « retour à l'accueil » d'un accès refusé et

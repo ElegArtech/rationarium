@@ -194,7 +194,7 @@ test.describe("Le socle est bilingue et bithématique", () => {
      * La bascule de l'en-tête est celle de la maquette : UN bouton, étiqueté
      * par sa cible. Le menu à trois entrées qui la remplaçait ne figure dans
      * aucune maquette ; les trois états — dont « automatique », qu'exige
-     * `cadrage/01 § 7` — vivent au profil, dans le groupe segmenté de la
+     * `docs/reference-fonctionnelle.md § 7` — vivent au profil, dans le groupe segmenté de la
      * maquette 35.
      */
     await page.locator(".topbar").getByRole("button", { name: "Thème sombre" }).click();
@@ -277,7 +277,7 @@ test.describe("Vue 35 — modifier son profil", () => {
  * l'invariant structurel derrière — que le fournisseur de messages est **monté
  * dans l'arbre**, avec ses deux régions d'annonce.
  *
- * Et c'est le contrôle qui manquait. `CLAUDE.md` le consigne : « un fournisseur
+ * Et c'est le contrôle qui manquait. Le piège est connu : « un fournisseur
  * React non monté ne casse rien — il se tait. `FournisseurMessages` est resté
  * SIX LOTS hors de l'arbre : `useMessages` ne lève pas hors contexte, donc
  * aucune confirmation d'action ne s'affichait, et aucune boucle ne s'en

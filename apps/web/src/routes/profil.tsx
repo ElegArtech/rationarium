@@ -564,7 +564,7 @@ function Informations({
           leur verrou et le service qui les tient — c'est ce qui répond
           réellement à la question « comment fait-on corriger ça ? ».
 
-          Décision portée dans `cadrage/02` § vue 35 pour qu'elle ne revienne
+          Décision portée dans la spécification de la vue 35 pour qu'elle ne revienne
           pas par la maquette.
         */}
       </section>

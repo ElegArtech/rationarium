@@ -189,7 +189,7 @@ export function Activite() {
       </div>
 
       {/*
-        `cadrage/02 § vue 09` — « L'inversion des axes est délibérée mais
+        Vue 09 — « L'inversion des axes est délibérée mais
         désorientante. » La cellule d'angle la porte une fois la grille
         peuplée ; ce bandeau la porte TOUJOURS, y compris sur l'état vide,
         qui est précisément le moment où l'on cherche à comprendre la vue.

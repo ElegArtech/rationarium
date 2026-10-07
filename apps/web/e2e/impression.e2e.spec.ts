@@ -6,7 +6,7 @@ import { SESSION_RAPPORTS, VUE_ENSEMBLE, GANTT } from "./fixtures/rapports.js";
 /**
  * L-27 — l'impression et le PDF.
  *
- * `cadrage/01 § 7` : « le planning et la grille d'activité disposent d'une mise
+ * `docs/reference-fonctionnelle.md § 7` : « le planning et la grille d'activité disposent d'une mise
  * en page imprimable ». `EX-RPT-03` demande un export PDF des rapports — que le
  * produit obtient **par l'impression du navigateur**, décidé au L-22 et refermé
  * ici : générer un second chemin de mise en page ferait diverger deux rendus du

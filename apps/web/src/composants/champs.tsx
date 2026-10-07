@@ -10,13 +10,13 @@ import { useId, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
 /**
- * Champs de formulaire — React Aria Components, `ADR-0003`.
+ * Champs de formulaire — React Aria Components.
  *
  * On achète le comportement et l'accessibilité, on apporte le style.
  *
  * **Le vocabulaire de classes est celui des maquettes, pas un vocabulaire
  * parallèle.** `.field-block`, `.field-label`, `.field-head`, `.field-wrap`,
- * `.pw-toggle`, `.policy` : ces noms viennent de `mockups/01` à `05`, et le
+ * `.pw-toggle`, `.policy` : ces noms viennent des maquettes 01 à 05, et le
  * socle les définit déjà. Les versions précédentes de ce fichier employaient
  * `.label`, `.field-avec-action`, `.politique` — des noms inventés, que rien
  * ne stylait. Le rendu était donc celui d'un formulaire nu, et **aucune boucle
@@ -186,7 +186,7 @@ export function ChampMotDePasse({
 /**
  * Indicateur de politique de mot de passe — vues 02, 04, 05.
  *
- * `cadrage/02` exige que **chaque critère soit validé au fil de la frappe**.
+ * La spécification exige que **chaque critère soit validé au fil de la frappe**.
  * D'où quatre lignes distinctes plutôt qu'un message global : l'utilisateur
  * doit voir lequel manque, pas qu'il en manque un.
  *

@@ -518,7 +518,7 @@ test.describe("Vue 28 — suivi individuel", () => {
    * `EX-TLT-08` — « consulter le télétravail **et les statistiques** d'un agent ».
    *
    * L'onglet ne rendait qu'une liste de dates. Le brief réclame quatre
-   * indicateurs (`cadrage/02:821`), dont « moyenne mensuelle », que `GET /suivi`
+   * indicateurs, dont « moyenne mensuelle », que `GET /suivi`
    * ne porte pas : ils viennent de `GET /teletravail/statistiques`, calculée
    * depuis L-16 et qu'aucun écran n'appelait. La maquette 28 les a dessinés.
    */

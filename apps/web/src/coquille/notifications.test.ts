@@ -148,7 +148,7 @@ describe("RG-GEN-08 — le panneau compose ses phrases dans la langue de la sess
   ) => ({ type, cle, params, ...repli });
 
   /**
-   * Les six types de `cadrage/01 § M18` avec les paramètres que les émetteurs
+   * Les six types de `docs/reference-fonctionnelle.md § M18` avec les paramètres que les émetteurs
    * envoient RÉELLEMENT — `taches.service.ts`, `conges.service.ts`,
    * `projets.service.ts` et le travail quotidien de `notifications.service.ts`.
    * Un jeu d'essai se calque sur la signature du service, jamais sur ce que le

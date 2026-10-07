@@ -3,7 +3,7 @@
  *
  * Le cookie de session est `HttpOnly` : le client ne le lit jamais, il se
  * contente de le laisser voyager (`credentials: "include"`). C'est le point
- * d'ADR-0008 — un jeton lisible par JavaScript est un jeton exfiltrable.
+ * essentiel — un jeton lisible par JavaScript est un jeton exfiltrable.
  */
 
 export class ErreurApi extends Error {

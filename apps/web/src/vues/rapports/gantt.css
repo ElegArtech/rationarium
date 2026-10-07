@@ -5,7 +5,7 @@
  * tâches** — le brief le dit. Elles ne s'affichent donc qu'à la sélection : la
  * grille reste lisible par défaut, et le détail se demande.
  *
- * Aucune bibliothèque de Gantt (`cadrage/03 § 4, D12`) : HTML, CSS et SVG,
+ * Aucune bibliothèque de Gantt : HTML, CSS et SVG,
  * pilotés par les jetons. Les barres sont positionnées en pourcentage de la
  * plage temporelle, ce qui les rend indépendantes de la largeur du conteneur.
  */

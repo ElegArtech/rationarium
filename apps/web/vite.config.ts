@@ -5,7 +5,7 @@ export default defineConfig({
   plugins: [react()],
   css: {
     // Lightning CSS est intégré à Vite : imbrication, préfixes, minification.
-    // Aucun préprocesseur. Voir cadrage/03 § 3.2.
+    // Aucun préprocesseur.
     transformer: "lightningcss",
   },
   build: {
@@ -17,7 +17,7 @@ export default defineConfig({
     /*
      * En développement, le client et le serveur sont sur deux ports. Le client
      * appelle `/api` en chemin relatif — même origine, pas de CORS, un seul
-     * cookie de session (`ADR-0008`) —, et c'est aussi ce que fait Caddy en
+     * cookie de session —, et c'est aussi ce que fait Caddy en
      * production. Sans ce relais, `/api/...` arrive sur Vite, qui rend
      * `index.html` : le client reçoit du HTML là où il attend du JSON, et
      * l'erreur ne parle de rien.

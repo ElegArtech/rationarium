@@ -285,7 +285,7 @@ export function Planning({ mode }: { mode: Mode }) {
   return (
     <div className="page">
       {/*
-        `cadrage/01 § 7` — le planning dispose d'une mise en page imprimable.
+        `docs/reference-fonctionnelle.md § 7` — le planning dispose d'une mise en page imprimable.
         L'en-tête n'existe qu'à l'impression : à l'écran, la barre d'outils dit
         déjà la période. Sur papier, une feuille sans date ni périmètre est
         inexploitable dès qu'elle a quitté la main de qui l'a imprimée.

@@ -102,7 +102,7 @@ export const decouperLien = (lien: string): { to: string; hash?: string } => {
  * i18n-familles: coquille:notifications.type_, coquille:notifications.corps_
  */
 
-/** `cadrage/01 § M18` — l'intitulé se déduit du TYPE. La liste est fermée. */
+/** `docs/reference-fonctionnelle.md § M18` — l'intitulé se déduit du TYPE. La liste est fermée. */
 export const cleTitre = (type: string): string => `notifications.type_${type}`;
 
 /**

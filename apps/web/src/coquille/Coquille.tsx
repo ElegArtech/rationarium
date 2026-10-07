@@ -25,7 +25,7 @@ import * as apiRecherche from "../api/recherche.js";
 import "./coquille.css";
 
 /**
- * Coquille applicative — `cadrage/02 § B`, section 2 des maquettes.
+ * Coquille applicative — section 2 des maquettes.
  *
  * Le cadre permanent dans lequel s'affiche chaque vue : barre latérale
  * repliable, en-tête, zone de contenu.
@@ -381,7 +381,7 @@ export function Coquille({
                 CIBLE — « Thème sombre » quand on est en clair. C'est ce que
                 l'utilisateur va obtenir, pas l'état où il se trouve.
 
-                `cadrage/01 § 7` exige pourtant TROIS thèmes — clair, sombre et
+                `docs/reference-fonctionnelle.md § 7` exige pourtant TROIS thèmes — clair, sombre et
                 automatique — que la maquette n'offre nulle part, ni ici, ni en
                 vue 31, ni en vue 35. Le troisième vit donc au profil, dans le
                 groupe segmenté que la maquette 35 y dessine : une bascule ne

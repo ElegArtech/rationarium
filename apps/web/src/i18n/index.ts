@@ -34,7 +34,7 @@ import rapportsEn from "../locales/en/rapports.json";
 import importsEn from "../locales/en/imports.json";
 
 /**
- * Internationalisation — RG-GEN-08, ADR-0011.
+ * Internationalisation — RG-GEN-08.
  *
  * Format ICU pour les pluriels et les formats : le produit affiche en
  * permanence des « {n} jour(s) » et des « {n} tâche(s) sur {total} ».
