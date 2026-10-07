@@ -195,6 +195,7 @@
     "deplacementDeTache": "Déplacement de tâche",
     "tacheDecaleeDe": "Cette tâche va être décalée de {jours} jour(s).",
     "decalerAussi": "Décaler aussi {n} tâche(s) dépendante(s) ?",
+    "tacheMasquee": "Tâche non visible",
     "neRienDecaler": "Ne rien décaler",
     "decalerNTaches": "Décaler {n} tâche(s)",
     "mentionCascade": "Rien n'est enregistré tant que vous n'avez pas choisi",

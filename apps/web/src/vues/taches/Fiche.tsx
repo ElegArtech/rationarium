@@ -228,7 +228,11 @@ export function FicheTache({ tacheId }: { tacheId: string }) {
                     <span className="conf-k">
                       {x.prerequis.dateFin ? formaterDate(x.prerequis.dateFin) : "—"}
                     </span>
-                    <span>{t("fiche.incoherenceDetail", { titre: x.prerequis.titre })}</span>
+                    <span>
+                      {t("fiche.incoherenceDetail", {
+                        titre: x.prerequis.titre ?? t("fiche.dependanceMasquee"),
+                      })}
+                    </span>
                   </li>
                 ))}
               </ul>

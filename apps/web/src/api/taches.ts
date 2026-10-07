@@ -81,9 +81,10 @@ export type FicheTache = LigneTache & {
    * complet et le nombre de jours de recouvrement. La vue affichait donc une
    * liste dont elle ne pouvait pas lire les champs.
    */
+  /** `RG-SCOPE-04` — un prérequis illisible reste compté, sans titre ni date. */
   incoherences: {
-    prerequis: { id: string; titre: string; dateFin: string | null };
-    jours: number;
+    prerequis: { id: string; titre: string | null; dateFin: string | null; lisible: boolean };
+    jours: number | null;
   }[];
 };
 
@@ -242,7 +243,7 @@ export const candidatsDependance = (id: string) =>
  * minutes ne dit plus l'état du graphe.
  */
 export const incoherences = (id: string) =>
-  appeler<{ prerequis: { id: string; titre: string; dateFin: string | null }; jours: number }[]>(
+  appeler<{ prerequis: { id: string; titre: string | null; dateFin: string | null; lisible: boolean }; jours: number | null }[]>(
     `/taches/${id}/incoherences`,
   );
 
@@ -261,6 +262,9 @@ export const definirDependances = (id: string, version: number, prerequisIds: st
     { methode: "PUT", corps: { version, prerequisIds } },
   );
 
+/** `RG-SCOPE-04` — une dépendante illisible est comptée, jamais nommée. */
+export type TacheTouchee = { id: string; titre: string | null; lisible: boolean };
+
 /**
  * `EX-TSK-13` — l'aperçu du décalage en cascade, **avant** de l'exécuter.
  *
@@ -268,13 +272,13 @@ export const definirDependances = (id: string, version: number, prerequisIds: st
  * la question ne peut se poser qu'avec le nombre en main.
  */
 export const apercuCascade = (id: string, jours: number) =>
-  appeler<{ id: string; titre: string }[]>(
+  appeler<TacheTouchee[]>(
     `/taches/${id}/cascade${params({ jours: String(jours) })}`,
   );
 
 /** Décale la tâche **et** ses dépendantes, en une seule transaction serveur. */
 export const decalerEnCascade = (id: string, jours: number) =>
-  appeler<{ decalees: number; touchees: { id: string; titre: string }[] }>(
+  appeler<{ decalees: number; touchees: TacheTouchee[] }>(
     `/taches/${id}/cascade`,
     { methode: "POST", corps: { jours } },
   );

@@ -508,7 +508,7 @@ export class TachesService {
 
     const [liens, incoherences] = await Promise.all([
       this.dependances(taskId, perimetre, permissions),
-      this.incoherences(taskId),
+      this.incoherences(taskId, { perimetre, permissions }),
     ]);
 
     /*
@@ -1297,7 +1297,10 @@ export class TachesService {
    * Le produit **signale** au lieu d'interdire : le cadrage propose un
    * décalage en cascade, il n'impose pas la contrainte.
    */
-  async incoherences(taskId: string) {
+  async incoherences(
+    taskId: string,
+    lecteur?: { perimetre: Perimetre; permissions: ReadonlySet<string> },
+  ) {
     const tache = await this.prisma.task.findUnique({
       where: { id: taskId },
       select: { dateDebut: true },
@@ -1309,14 +1312,60 @@ export class TachesService {
       include: { prerequis: { select: { id: true, titre: true, dateFin: true } } },
     });
 
-    return liens
+    const incoherents = liens
       .filter((l) => l.prerequis.dateFin !== null && l.prerequis.dateFin > tache.dateDebut!)
       .map((l) => ({
-        prerequis: l.prerequis,
+        prerequis: { ...l.prerequis, lisible: true as boolean },
         jours: Math.ceil(
           (l.prerequis.dateFin!.getTime() - tache.dateDebut!.getTime()) / 86_400_000,
-        ),
+        ) as number | null,
       }));
+    if (!lecteur) return incoherents;
+
+    /*
+     * `RG-SCOPE-04` — **la tâche lue ne rend pas lisibles ses prérequis.**
+     * L'entrée HTTP vérifiait que la tâche de l'URL se lit, puis nommait ses
+     * prérequis sans les filtrer : le titre et l'échéance d'une tâche
+     * confidentielle sortaient par l'alerte d'incohérence, sur la fiche comme
+     * sur `GET :id/incoherences`. L'entrée reste — l'incohérence existe —,
+     * mais anonyme, comme dans `dependances` : ni titre, ni date, ni écart.
+     */
+    const nommables = await this.tachesNommables(
+      incoherents.map((i) => i.prerequis.id),
+      lecteur.perimetre,
+      lecteur.permissions,
+    );
+    return incoherents.map((i) =>
+      nommables.has(i.prerequis.id)
+        ? i
+        : { prerequis: { id: i.prerequis.id, titre: null, dateFin: null, lisible: false }, jours: null },
+    );
+  }
+
+  /** Les tâches, parmi `ids`, que le lecteur peut nommer (`RG-SCOPE-04`). */
+  private async tachesNommables(
+    ids: string[],
+    perimetre: Perimetre,
+    permissions: ReadonlySet<string>,
+  ): Promise<Set<string>> {
+    if (ids.length === 0) return new Set();
+    const lignes = await this.prisma.task.findMany({
+      where: { AND: [{ id: { in: ids } }, this.perimetres.filtreTache(perimetre, permissions)] },
+      select: { id: true },
+    });
+    return new Set(lignes.map((t) => t.id));
+  }
+
+  /** `RG-SCOPE-04` — les tâches touchées par une cascade, anonymes quand illisibles. */
+  async masquerTouchees(
+    touchees: { id: string; titre: string }[],
+    perimetre: Perimetre,
+    permissions: ReadonlySet<string>,
+  ): Promise<{ id: string; titre: string | null; lisible: boolean }[]> {
+    const nommables = await this.tachesNommables(touchees.map((t) => t.id), perimetre, permissions);
+    return touchees.map((t) =>
+      nommables.has(t.id) ? { ...t, lisible: true } : { id: t.id, titre: null, lisible: false },
+    );
   }
 
   /**
@@ -1356,6 +1405,21 @@ export class TachesService {
     const touchees = await this.apercuCascade(taskId, jours);
     const ids = [taskId, ...touchees.map((t) => t.id)];
 
+    /*
+     * `RG-TSK-09` — « le décalage en cascade touchant d'autres tâches du
+     * projet exige d'en être membre ou de détenir la gestion globale. » Seule
+     * la lecture de la tâche pilote était contrôlée : un porteur de
+     * `tasks:readAll` — un manager qui n'a rien à voir avec le projet —
+     * décalait d'un geste toute la chaîne de ses dépendantes.
+     */
+    if (touchees.length > 0) {
+      const pilote = await this.prisma.task.findUnique({
+        where: { id: taskId },
+        select: { projectId: true },
+      });
+      if (pilote?.projectId) await this.exigerAppartenance(pilote.projectId, acteurId, permissions);
+    }
+
     const taches = await this.prisma.task.findMany({
       where: { id: { in: ids } },
       select: { id: true, dateDebut: true, dateFin: true },
@@ -1378,7 +1442,8 @@ export class TachesService {
       action: "task.cascade_shift", typeEntite: "Task", entiteId: taskId, acteurId,
       detail: { jours, tachesTouchees: touchees.length },
     });
-    return { decalees: ids.length, touchees };
+    const perimetre = await this.perimetres.resoudre(acteurId, permissions);
+    return { decalees: ids.length, touchees: await this.masquerTouchees(touchees, perimetre, permissions) };
   }
 
   /**
