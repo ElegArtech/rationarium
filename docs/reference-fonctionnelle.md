@@ -805,9 +805,14 @@ références à des objets existants, pas des énumérations.
 - **RG-IMP-05** — Dans l'import projet complet, l'ordre des lignes est indifférent : les jalons sont créés avant les tâches. Une tâche peut référencer un jalon existant ou une ligne du même fichier.
 - **RG-IMP-06** — Le mode Remplacer est tout-ou-rien : une seule ligne en erreur annule l'ensemble et ne supprime rien.
 
+L'import d'un projet — Remplacer, Ajouter, tâches seules, jalons seuls — et le décompte des volumes qui le précède suivent `RG-PRJ-13`.
+
 #### Exports
 
 Planning au format **ICS** (et import ICS avec prévisualisation) · Tâches et jalons d'un projet en CSV · Matrice de compétences en CSV · Rapports en PDF, Excel et JSON.
+
+- **RG-IMP-07** — Un export ne contient que ce que l'exportateur peut lire : projet visible (`RG-SCOPE-02`) et tâches filtrées par `RG-SCOPE-04`. Un projet hors périmètre est refusé en 403 `erreurs:horsPerimetre`.
+- **RG-IMP-08** — Toute cellule texte exportée en CSV qui commence par `=`, `+`, `-`, `@`, tabulation ou retour chariot est préfixée d'une apostrophe ; une cellule qui commence par une ou plusieurs apostrophes suivies d'un de ces caractères l'est aussi. L'import retire cette apostrophe quand elle précède un de ces caractères, ou une apostrophe qui les précède : l'aller-retour reste exact. Les colonnes numériques ne sont pas concernées. L'export XLSX non plus : ses textes sont écrits en cellules de texte, jamais en formule.
 
 ---
 

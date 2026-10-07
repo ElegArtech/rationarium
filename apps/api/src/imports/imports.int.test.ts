@@ -48,6 +48,14 @@ const perimetreGlobal = (): Perimetre => ({
   confidentiel: true,
 });
 
+/**
+ * `RG-PRJ-13`, `RG-IMP-07` — l'import et l'export d'un projet contrôlent le
+ * rattachement et la lecture. Ces suites éprouvent l'import, pas le
+ * cloisonnement : elles passent la permission de domaine qui le lève. Le
+ * cloisonnement a sa propre suite, par HTTP : `export-perimetre.int.test.ts`.
+ */
+const GESTION_PROJETS: ReadonlySet<string> = new Set(["projects:manage_any"]);
+
 const perimetreDe = (utilisateurs: string[]): Perimetre => ({
   userId: acteur,
   global: false,
@@ -254,7 +262,7 @@ describe("RG-IMP-05 — L'ORDRE DES LIGNES EST INDIFFÉRENT", () => {
       "TASK;;;Rédiger la note;;todo;normal;;Lancement;8;2026-09-01;2026-09-15;\n" +
       "MILESTONE;Lancement;2026-09-30;;;;;;;;;;\n";
 
-    const rendu = await imports.importerProjet(projet, fichier, "ajouter", acteur);
+    const rendu = await imports.importerProjet(projet, fichier, "ajouter", acteur, GESTION_PROJETS);
     expect(rendu.importes).toBe(2);
 
     const tache = await prisma.task.findFirstOrThrow({
@@ -273,7 +281,7 @@ describe("RG-IMP-05 — L'ORDRE DES LIGNES EST INDIFFÉRENT", () => {
       "rowType;name;dueDate;title;description;status;priority;assigneeEmail;milestoneName;estimatedHours;startDate;endDate;subtasks\n" +
       "TASK;;;Recetter;;todo;normal;;Recette;;;;\n";
 
-    await imports.importerProjet(projet, fichier, "ajouter", acteur);
+    await imports.importerProjet(projet, fichier, "ajouter", acteur, GESTION_PROJETS);
     const tache = await prisma.task.findFirstOrThrow({ include: { milestone: true } });
     expect(tache.milestone?.nom).toBe("Recette");
   });
@@ -283,7 +291,7 @@ describe("RG-IMP-05 — L'ORDRE DES LIGNES EST INDIFFÉRENT", () => {
       "rowType,name,dueDate,title,description,status,priority,assigneeEmail,milestoneName,estimatedHours,startDate,endDate,subtasks\n" +
       'TASK,,,Préparer,,todo,normal,,,,,,"Réserver la salle;Écrire l\'ordre du jour"\n';
 
-    await imports.importerProjet(projet, fichier, "ajouter", acteur);
+    await imports.importerProjet(projet, fichier, "ajouter", acteur, GESTION_PROJETS);
     const sousTaches = await prisma.subtask.findMany({ orderBy: { ordre: "asc" } });
     expect(sousTaches.map((s) => s.libelle)).toEqual([
       "Réserver la salle",
@@ -299,7 +307,7 @@ describe("RG-IMP-05 — L'ORDRE DES LIGNES EST INDIFFÉRENT", () => {
       "rowType;name;dueDate;title;description;status;priority;assigneeEmail;milestoneName;estimatedHours;startDate;endDate;subtasks\n" +
       "MILESTONE;Lancement;2026-09-30;;;;;;;;;;\n";
 
-    const rendu = await imports.importerProjet(projet, fichier, "ajouter", acteur);
+    const rendu = await imports.importerProjet(projet, fichier, "ajouter", acteur, GESTION_PROJETS);
     expect(rendu).toMatchObject({ importes: 0, ignores: 1 });
     expect(await prisma.milestone.count({ where: { projectId: projet } })).toBe(1);
   });
@@ -323,7 +331,7 @@ describe("RG-IMP-06 — le mode Remplacer est TOUT-OU-RIEN", () => {
       "MILESTONE;Nouveau;2026-10-30;;;;;;;;;;\n" +
       ";;;;;;;;;;;;\n";
 
-    const rendu = await imports.importerProjet(projet, fichier, "remplacer", acteur);
+    const rendu = await imports.importerProjet(projet, fichier, "remplacer", acteur, GESTION_PROJETS);
 
     expect(rendu.importes).toBe(0);
     expect(rendu.erreurs).toHaveLength(1);
@@ -338,7 +346,7 @@ describe("RG-IMP-06 — le mode Remplacer est TOUT-OU-RIEN", () => {
       "MILESTONE;Nouveau;2026-10-30;;;;;;;;;;\n" +
       "TASK;;;Nouvelle tâche;;todo;normal;;Nouveau;;;;\n";
 
-    const rendu = await imports.importerProjet(projet, fichier, "remplacer", acteur);
+    const rendu = await imports.importerProjet(projet, fichier, "remplacer", acteur, GESTION_PROJETS);
     expect(rendu.importes).toBe(2);
 
     const jalons = await prisma.milestone.findMany({ where: { projectId: projet } });
@@ -352,7 +360,7 @@ describe("RG-IMP-06 — le mode Remplacer est TOUT-OU-RIEN", () => {
       "rowType;name;dueDate;title;description;status;priority;assigneeEmail;milestoneName;estimatedHours;startDate;endDate;subtasks\n" +
       "MILESTONE;Nouveau;2026-10-30;;;;;;;;;;\n";
 
-    await imports.importerProjet(projet, fichier, "ajouter", acteur);
+    await imports.importerProjet(projet, fichier, "ajouter", acteur, GESTION_PROJETS);
     expect(await prisma.milestone.count({ where: { projectId: projet } })).toBe(2);
     expect(await prisma.task.count({ where: { projectId: projet } })).toBe(1);
   });
@@ -367,7 +375,7 @@ describe("RG-IMP-06 — le mode Remplacer est TOUT-OU-RIEN", () => {
     });
 
     // Un « êtes-vous sûr ? » sans chiffres ne permet pas de décider.
-    expect(await imports.volumesRemplacement(projet)).toEqual({
+    expect(await imports.volumesRemplacement(projet, acteur, GESTION_PROJETS)).toEqual({
       jalons: 1,
       taches: 1,
       sousTaches: 1,
@@ -388,7 +396,7 @@ describe("Les exports CSV — la réversibilité, pas la capture d'écran", () =
       },
     });
 
-    const csv = await imports.exporterTaches(projet);
+    const csv = await imports.exporterTaches(projet, perimetreGlobal(), GESTION_PROJETS);
 
     // Un export qui ne se réimporte pas n'est pas de la réversibilité.
     const apercu = imports.analyser("taches", csv);
@@ -405,13 +413,13 @@ describe("Les exports CSV — la réversibilité, pas la capture d'écran", () =
     await prisma.milestone.create({
       data: { nom: "Recette", projectId: projet, dateEcheance: utc("2026-11-30") },
     });
-    const apercu = imports.analyser("jalons", await imports.exporterJalons(projet));
+    const apercu = imports.analyser("jalons", await imports.exporterJalons(projet, perimetreGlobal(), GESTION_PROJETS));
     expect(apercu.erreurs).toEqual([]);
     expect(apercu.lignes[0]).toMatchObject({ name: "Recette", dueDate: "2026-11-30" });
   });
 
   it("un projet vide s'exporte quand même, avec ses seuls en-têtes", async () => {
-    const csv = await imports.exporterTaches(projet);
+    const csv = await imports.exporterTaches(projet, perimetreGlobal(), GESTION_PROJETS);
     // Un fichier vide serait pris pour un échec d'export.
     expect(csv).toContain("title;description;status");
     expect(imports.analyser("taches", csv).total).toBe(0);
@@ -429,7 +437,7 @@ describe("Les exports CSV — la réversibilité, pas la capture d'écran", () =
     await prisma.task.create({
       data: { titre: "Refonte ; phase 2", projectId: projet, statut: "todo" },
     });
-    const apercu = imports.analyser("taches", await imports.exporterTaches(projet));
+    const apercu = imports.analyser("taches", await imports.exporterTaches(projet, perimetreGlobal(), GESTION_PROJETS));
     // Sans échappement, la ligne se décalerait et le fichier paraîtrait valide.
     expect(apercu.lignes[0]?.["title"]).toBe("Refonte ; phase 2");
   });
@@ -1023,12 +1031,12 @@ describe("EX-TSK-18, EX-JAL-06 — importer les tâches ou les jalons seuls", ()
   it("EX-JAL-06 — un fichier de jalons entre, et le rejeu n'en crée pas un second", async () => {
     const fichier = "name;description;dueDate\nLancement;;2026-09-30\nRecette;;2026-11-15\n";
 
-    const premier = await imports.importerJalonsProjet(projet, fichier, acteur);
+    const premier = await imports.importerJalonsProjet(projet, fichier, acteur, GESTION_PROJETS);
     expect(premier).toMatchObject({ importes: 2, ignores: 0 });
 
     // `RG-IMP-04` — rejouer un fichier est un usage normal : les doublons sont
     // ignorés, jamais dupliqués ni comptés en erreur.
-    const second = await imports.importerJalonsProjet(projet, fichier, acteur);
+    const second = await imports.importerJalonsProjet(projet, fichier, acteur, GESTION_PROJETS);
     expect(second).toMatchObject({ importes: 0, ignores: 2 });
 
     expect(await prisma.milestone.count({ where: { projectId: projet } })).toBe(2);
@@ -1041,13 +1049,13 @@ describe("EX-TSK-18, EX-JAL-06 — importer les tâches ou les jalons seuls", ()
      * fabriquerait des jalons au passage ferait diverger deux chemins qui
      * doivent poser la même chose.
      */
-    await imports.importerJalonsProjet(projet, "name;description;dueDate\nLancement;;2026-09-30\n", acteur);
+    await imports.importerJalonsProjet(projet, "name;description;dueDate\nLancement;;2026-09-30\n", acteur, GESTION_PROJETS);
 
     const fichier =
       "title;description;status;priority;assigneeEmail;milestoneName;estimatedHours;startDate;endDate;subtasks\n" +
       "Rédiger la note;;todo;normal;;Lancement;8;2026-09-01;2026-09-15;\n";
 
-    const rendu = await imports.importerTachesProjet(projet, fichier, acteur);
+    const rendu = await imports.importerTachesProjet(projet, fichier, acteur, GESTION_PROJETS);
     expect(rendu).toMatchObject({ importes: 1, ignores: 0 });
 
     const tache = await prisma.task.findFirstOrThrow({
@@ -1063,7 +1071,7 @@ describe("EX-TSK-18, EX-JAL-06 — importer les tâches ou les jalons seuls", ()
       "title;description;status;priority;assigneeEmail;milestoneName;estimatedHours;startDate;endDate;subtasks\n" +
       "Tâche orpheline;;todo;normal;;Jalon qui n'existe pas;;;;\n";
 
-    await imports.importerTachesProjet(projet, fichier, acteur);
+    await imports.importerTachesProjet(projet, fichier, acteur, GESTION_PROJETS);
 
     const tache = await prisma.task.findFirstOrThrow({
       where: { projectId: projet, titre: "Tâche orpheline" },
@@ -1082,6 +1090,7 @@ describe("EX-TSK-18, EX-JAL-06 — importer les tâches ou les jalons seuls", ()
       projet,
       "name;description;dueDate\nSansDate;;\n",
       acteur,
+      GESTION_PROJETS,
     );
     expect(rendu.importes).toBe(0);
     expect(rendu.erreurs.length).toBeGreaterThan(0);
@@ -1090,7 +1099,7 @@ describe("EX-TSK-18, EX-JAL-06 — importer les tâches ou les jalons seuls", ()
   });
 
   it("M20 — chaque import est porté au journal d'audit, avec son objet", async () => {
-    await imports.importerJalonsProjet(projet, "name;description;dueDate\nJ;;2026-10-01\n", acteur);
+    await imports.importerJalonsProjet(projet, "name;description;dueDate\nJ;;2026-10-01\n", acteur, GESTION_PROJETS);
     const trace = await prisma.auditLog.findFirst({
       where: { action: "milestone.create", entiteId: projet },
       orderBy: { horodatage: "desc" },
@@ -1154,7 +1163,7 @@ describe("EX-TSK-08 — l'import porte l'avancement, et l'export le rend", () =>
      * fichier : `RG-PRJ-07` moyenne ce champ.
      */
     const fichier = ENTETE_TACHES + "Reprise de l'historique;;done;normal;;;8;;;100\n";
-    const rendu = await imports.importerTachesProjet(projet, fichier, acteur);
+    const rendu = await imports.importerTachesProjet(projet, fichier, acteur, GESTION_PROJETS);
     expect(rendu.importes).toBe(1);
 
     const t = await prisma.task.findFirstOrThrow({
@@ -1167,7 +1176,7 @@ describe("EX-TSK-08 — l'import porte l'avancement, et l'export le rend", () =>
     // `Number("")` vaut zéro, mais `Number(" ")` aussi et `Number("x")` non :
     // le filtre porte sur la chaîne, jamais sur sa conversion.
     const fichier = ENTETE_TACHES + "Sans avancement;;todo;normal;;;;;;\n";
-    await imports.importerTachesProjet(projet, fichier, acteur);
+    await imports.importerTachesProjet(projet, fichier, acteur, GESTION_PROJETS);
     const t = await prisma.task.findFirstOrThrow({
       where: { projectId: projet, titre: "Sans avancement" },
     });
@@ -1197,7 +1206,7 @@ describe("EX-TSK-08 — l'import porte l'avancement, et l'export le rend", () =>
      * zéro pour cent dès le premier import.
      */
     const fichier = ENTETE_TACHES + "Close sans pourcentage;;done;normal;;;;;;\n";
-    await imports.importerTachesProjet(projet, fichier, acteur);
+    await imports.importerTachesProjet(projet, fichier, acteur, GESTION_PROJETS);
     const t = await prisma.task.findFirstOrThrow({
       where: { projectId: projet, titre: "Close sans pourcentage" },
     });
@@ -1231,9 +1240,9 @@ describe("EX-TSK-08 — l'import porte l'avancement, et l'export le rend", () =>
      * export qui ne se réimporte pas n'est pas de la réversibilité.
      */
     const fichier = ENTETE_TACHES + "À exporter;;doing;normal;;;;;;42\n";
-    await imports.importerTachesProjet(projet, fichier, acteur);
+    await imports.importerTachesProjet(projet, fichier, acteur, GESTION_PROJETS);
 
-    const csv = await imports.exporterTaches(projet);
+    const csv = await imports.exporterTaches(projet, perimetreGlobal(), GESTION_PROJETS);
     expect(csv.split("\n")[0]).toContain("progress");
     const ligne = csv.split("\n").find((l) => l.startsWith("À exporter"));
     expect(ligne).toContain(";42");
@@ -1375,12 +1384,12 @@ describe("RG-IMP-04, RG-GEN-03 — le mode Ajouter écarte les lignes en erreur"
   it("RG-GEN-03 — L'IMPORT N'EXPLOSE PLUS : il rend un compte rendu, pas une panne", async () => {
     // Le contrôle porte sur l'absence d'exception autant que sur le contenu :
     // c'est un 500 sans compte rendu qui était rendu à l'utilisateur.
-    const rendu = await imports.importerProjet(projet, FICHIER_P60, "ajouter", acteur);
+    const rendu = await imports.importerProjet(projet, FICHIER_P60, "ajouter", acteur, GESTION_PROJETS);
     expect(rendu.erreurs.map((e) => e.ligne)).toEqual([2, 3]);
   });
 
   it("RG-IMP-04 — LA LIGNE SAINE ENTRE SEULE, les deux fautives restent dehors", async () => {
-    const rendu = await imports.importerProjet(projet, FICHIER_P60, "ajouter", acteur);
+    const rendu = await imports.importerProjet(projet, FICHIER_P60, "ajouter", acteur, GESTION_PROJETS);
 
     expect(rendu.importes).toBe(1);
     const taches = await prisma.task.findMany({ where: { projectId: projet } });
@@ -1388,7 +1397,7 @@ describe("RG-IMP-04, RG-GEN-03 — le mode Ajouter écarte les lignes en erreur"
   });
 
   it("RG-IMP-04 — chaque erreur porte sa CAUSE, pas un message technique de base", async () => {
-    const rendu = await imports.importerProjet(projet, FICHIER_P60, "ajouter", acteur);
+    const rendu = await imports.importerProjet(projet, FICHIER_P60, "ajouter", acteur, GESTION_PROJETS);
     expect(rendu.erreurs[0]?.cle).toBe("imports:motifs.valeurInconnue");
     expect(rendu.erreurs[0]?.params).toMatchObject({ colonne: "status", valeur: "En cours" });
     expect(rendu.erreurs[1]?.cle).toBe("imports:motifs.nombreHorsBornes");
@@ -1412,7 +1421,7 @@ describe("RG-IMP-04, RG-GEN-03 — le mode Ajouter écarte les lignes en erreur"
       ENTETE_PROJET +
       "MILESTONE;Jalon signalé;2026-09-30;;;En cours;;;;;;;;\n" +
       "TASK;;;Tâche du fichier;;doing;normal;;;;;;10;\n";
-    const rendu = await imports.importerProjet(projet, fichier, "ajouter", acteur);
+    const rendu = await imports.importerProjet(projet, fichier, "ajouter", acteur, GESTION_PROJETS);
 
     expect(rendu.erreurs.map((e) => e.ligne)).toEqual([2]);
     expect(rendu.importes).toBe(1);
@@ -1440,6 +1449,7 @@ describe("RG-IMP-04 — le compte rendu ne peut pas se contredire", () => {
         projet,
         "name;description;dueDate\nLancement;;2026-09-30\nLancement;;2026-09-30\n",
         acteur,
+        GESTION_PROJETS,
       ),
       await imports.importerCompetences(
         "name;category;description;requiredCount\nPostgreSQL;technical;;2\nPostgreSQL;technical;;2\n",
@@ -1454,8 +1464,8 @@ describe("RG-IMP-04 — le compte rendu ne peut pas se contredire", () => {
 
   it("RG-IMP-04 — un jalon déjà présent est ignoré AVEC son nom et sa ligne", async () => {
     const fichier = "name;description;dueDate\nLancement;;2026-09-30\n";
-    await imports.importerJalonsProjet(projet, fichier, acteur);
-    const second = await imports.importerJalonsProjet(projet, fichier, acteur);
+    await imports.importerJalonsProjet(projet, fichier, acteur, GESTION_PROJETS);
+    const second = await imports.importerJalonsProjet(projet, fichier, acteur, GESTION_PROJETS);
 
     expect(second.ignorees).toEqual([
       {

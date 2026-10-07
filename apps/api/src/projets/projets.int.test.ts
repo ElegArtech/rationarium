@@ -1121,7 +1121,7 @@ describe("EX-PRJ-11 — importer jalons et tâches depuis un CSV UNIQUE", () => 
       "MILESTONE;Cadrage;2026-04-30;;;;;;;;;;",
     ].join("\n");
 
-    const rendu = await imports.importerProjet(p.id, csv, "ajouter", chef);
+    const rendu = await imports.importerProjet(p.id, csv, "ajouter", chef, toutes);
 
     expect(rendu.erreurs).toEqual([]);
     expect(rendu.importes).toBe(2);
@@ -1147,7 +1147,7 @@ describe("EX-PRJ-11 — importer jalons et tâches depuis un CSV UNIQUE", () => 
     const dejaLa = await projets.creerJalon({ nom: "Existant", projectId: p.id }, chef, toutes);
     const csv = [enTete, "MILESTONE;Existant;2026-05-31;;;;;;;;;;", "MILESTONE;Nouveau;2026-06-30;;;;;;;;;;"].join("\n");
 
-    const rendu = await imports.importerProjet(p.id, csv, "ajouter", chef);
+    const rendu = await imports.importerProjet(p.id, csv, "ajouter", chef, toutes);
 
     expect(rendu.importes).toBe(1);
     expect(rendu.ignores).toBe(1);
@@ -1165,6 +1165,7 @@ describe("EX-PRJ-11 — importer jalons et tâches depuis un CSV UNIQUE", () => 
       [enTete, "MILESTONE;Isolé;2026-07-31;;;;;;;;;;"].join("\n"),
       "ajouter",
       chef,
+      toutes,
     );
     expect(await prisma.milestone.count({ where: { projectId: voisin.id } })).toBe(0);
   });
@@ -1187,7 +1188,7 @@ describe("RG-PRJ-11 — les deux modes de l'import projet ; le blocage sur donn�
       ],
     });
 
-    expect(await imports.volumesRemplacement(p.id)).toEqual({ jalons: 1, taches: 1, sousTaches: 2 });
+    expect(await imports.volumesRemplacement(p.id, chef, toutes)).toEqual({ jalons: 1, taches: 1, sousTaches: 2 });
   });
 
   it("« Remplacer » supprime jalons, tâches ET sous-tâches, puis pose le contenu du fichier", async () => {
@@ -1203,6 +1204,7 @@ describe("RG-PRJ-11 — les deux modes de l'import projet ; le blocage sur donn�
       [enTete, "MILESTONE;Neuf;2026-09-30;;;;;;;;;;"].join("\n"),
       "remplacer",
       chef,
+      toutes,
     );
 
     expect((await prisma.milestone.findMany({ where: { projectId: p.id } })).map((j) => j.nom)).toEqual([
@@ -1223,7 +1225,7 @@ describe("RG-PRJ-11 — les deux modes de l'import projet ; le blocage sur donn�
     // `rowType` est obligatoire : la seconde ligne est en erreur.
     const csv = [enTete, "MILESTONE;Bon;2026-09-30;;;;;;;;;;", ";;;;;;;;;;;;"].join("\n");
 
-    const rendu = await imports.importerProjet(p.id, csv, "remplacer", chef);
+    const rendu = await imports.importerProjet(p.id, csv, "remplacer", chef, toutes);
 
     expect(rendu.erreurs.length).toBeGreaterThan(0);
     expect(rendu.importes).toBe(0);
@@ -1235,7 +1237,7 @@ describe("RG-PRJ-11 — les deux modes de l'import projet ; le blocage sur donn�
     const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
     const csv = [enTete, "MILESTONE;Bon;2026-09-30;;;;;;;;;;", ";;;;;;;;;;;;"].join("\n");
 
-    const rendu = await imports.importerProjet(p.id, csv, "remplacer", chef);
+    const rendu = await imports.importerProjet(p.id, csv, "remplacer", chef, toutes);
 
     // Ligne 3 du fichier : en-tête, première donnée, puis la fautive.
     expect(rendu.erreurs.map((e) => e.ligne)).toEqual([3]);
@@ -1295,6 +1297,7 @@ describe("RG-PRJ-11 — les deux modes de l'import projet ; le blocage sur donn�
           [enTete, "MILESTONE;Neuf;2026-09-30;;;;;;;;;;"].join("\n"),
           "remplacer",
           chef,
+          toutes,
         )
         .catch((e: unknown) => e);
 
@@ -1331,6 +1334,7 @@ describe("RG-PRJ-11 — les deux modes de l'import projet ; le blocage sur donn�
           [enTete, "MILESTONE;Neuf;2026-09-30;;;;;;;;;;"].join("\n"),
           "remplacer",
           chef,
+          toutes,
         )
         .catch((e: unknown) => e);
 
@@ -1361,6 +1365,7 @@ describe("RG-PRJ-11 — les deux modes de l'import projet ; le blocage sur donn�
       [enTete, "MILESTONE;Neuf;2026-09-30;;;;;;;;;;"].join("\n"),
       "remplacer",
       chef,
+      toutes,
     );
     expect(rendu.importes).toBe(1);
     expect(await prisma.task.count({ where: { projectId: p.id } })).toBe(0);
@@ -1393,7 +1398,7 @@ describe("EX-PRJ-12 — exporter le contenu du projet", () => {
       },
     });
 
-    const csv = await imports.exporterTaches(p.id);
+    const csv = await imports.exporterTaches(p.id, await global(), toutes);
     const lignes = csv.trim().split("\n");
 
 // `EX-TSK-08` — `progress` a rejoint les colonnes le 2026-09-01 : l'export
@@ -1413,7 +1418,7 @@ describe("EX-PRJ-12 — exporter le contenu du projet", () => {
     await projets.creerJalon({ nom: "Second", dateEcheance: utc("2026-08-31"), projectId: p.id }, chef, toutes);
     await projets.creerJalon({ nom: "Premier", dateEcheance: utc("2026-04-30"), projectId: p.id }, chef, toutes);
 
-    const lignes = (await imports.exporterJalons(p.id)).trim().split("\n");
+    const lignes = (await imports.exporterJalons(p.id, await global(), toutes)).trim().split("\n");
 
     expect(lignes[0]!.replace(/^\uFEFF/g, "")).toBe("name;description;dueDate");
     expect(lignes[1]).toContain("Premier");
@@ -1426,7 +1431,7 @@ describe("EX-PRJ-12 — exporter le contenu du projet", () => {
      * téléchargement, et il n'est pas réimportable.
      */
     const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
-    const csv = (await imports.exporterTaches(p.id)).trim();
+    const csv = (await imports.exporterTaches(p.id, await global(), toutes)).trim();
     expect(csv.replace(/^\uFEFF/g, "")).toBe(
       "title;description;status;priority;assigneeEmail;milestoneName;estimatedHours;startDate;endDate;progress",
     );
@@ -1437,7 +1442,7 @@ describe("EX-PRJ-12 — exporter le contenu du projet", () => {
     await prisma.task.create({
       data: { titre: 'Refonte; "urgente"', projectId: p.id },
     });
-    const csv = await imports.exporterTaches(p.id);
+    const csv = await imports.exporterTaches(p.id, await global(), toutes);
     const donnees = csv.trim().split("\n")[1]!;
     // Le point-virgule du titre ne doit pas fabriquer une colonne de plus.
     expect(donnees.startsWith('"Refonte; ""urgente"""')).toBe(true);

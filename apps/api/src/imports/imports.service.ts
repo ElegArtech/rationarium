@@ -13,7 +13,13 @@ import {
 import { PrismaService } from "../prisma.service.js";
 import { AuditService } from "../commun/audit.service.js";
 import { CongesService, ErreurConge } from "../conges/conges.service.js";
-import type { Perimetre } from "../commun/perimetre.service.js";
+import { PerimetreService, type Perimetre } from "../commun/perimetre.service.js";
+import { neutraliserFormule, restaurerFormule } from "../commun/import-csv.js";
+import {
+  exigerPorteurDuProjet,
+  exigerProjetVisible,
+  exigerRattacheAuProjet,
+} from "../projets/projets.service.js";
 import { hacherMotDePasse } from "../auth/mots-de-passe.js";
 import { permissionsIncluses } from "../utilisateurs/utilisateurs.service.js";
 import { MOTIFS, type LigneRendu, type Motif } from "./motifs.js";
@@ -344,6 +350,13 @@ export class ImportsService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly conges: CongesService,
+    /*
+     * `RG-PRJ-13`, `RG-IMP-07` — l'import et l'export d'un projet lisent le
+     * même périmètre que le projet lui-même. Global au conteneur (`CommunModule`),
+     * donc injecté par Nest ; la valeur par défaut sert les suites qui
+     * construisent le service à la main et n'éprouvent pas le projet.
+     */
+    private readonly perimetres: PerimetreService = new PerimetreService(prisma),
   ) {}
 
   /**
@@ -413,6 +426,9 @@ export class ImportsService {
         trim: true,
         bom: true,
         delimiter: detecterSeparateur(contenu),
+        // `RG-IMP-08` — l'apostrophe que l'export pose devant une formule est
+        // retirée ici, avant tout contrôle : l'aller-retour reste exact.
+        cast: (valeur) => restaurerFormule(valeur),
       }) as Record<string, string>[];
     } catch (e) {
       throw new ErreurImport("fichier_illisible", { detail: String(e) });
@@ -705,7 +721,19 @@ export class ImportsService {
     contenu: string,
     mode: "ajouter" | "remplacer",
     acteurId: string,
+    permissions: ReadonlySet<string>,
   ): Promise<CompteRendu> {
+    /*
+     * `RG-PRJ-13` — Remplacer efface les jalons, les tâches et les sous-tâches
+     * du projet : c'est un geste de PORTEUR, comme la suppression. Ajouter
+     * structure la feuille de route : il suffit d'être rattaché. Les deux
+     * contrôles passent avant l'analyse, donc avant toute écriture.
+     */
+    if (mode === "remplacer") {
+      await exigerPorteurDuProjet(this.prisma, projectId, acteurId, permissions);
+    } else {
+      await exigerRattacheAuProjet(this.prisma, this.perimetres, projectId, acteurId, permissions);
+    }
     const apercu = this.analyser("projet", contenu);
 
     // `RG-IMP-06` — le contrôle est fait AVANT toute écriture. Découvrir
@@ -937,7 +965,10 @@ export class ImportsService {
     projectId: string,
     contenu: string,
     acteurId: string,
+    permissions: ReadonlySet<string>,
   ): Promise<CompteRendu> {
+    // `RG-PRJ-13` — ajouter des tâches structure le projet : être rattaché.
+    await exigerRattacheAuProjet(this.prisma, this.perimetres, projectId, acteurId, permissions);
     const apercu = this.analyser("taches", contenu);
     const rendu = new Rendu(apercu.erreurs);
     const lignes = this.lignesSaines(apercu);
@@ -964,7 +995,10 @@ export class ImportsService {
     projectId: string,
     contenu: string,
     acteurId: string,
+    permissions: ReadonlySet<string>,
   ): Promise<CompteRendu> {
+    // `RG-PRJ-13` — même cercle que la création unitaire d'un jalon.
+    await exigerRattacheAuProjet(this.prisma, this.perimetres, projectId, acteurId, permissions);
     const apercu = this.analyser("jalons", contenu);
     const rendu = new Rendu(apercu.erreurs);
     const lignes = this.lignesSaines(apercu);
@@ -988,7 +1022,18 @@ export class ImportsService {
    * {n} tâche(s) et {n} sous-tâche(s) seront supprimés ». Un « êtes-vous
    * sûr ? » sans chiffres ne permet pas de décider.
    */
-  async volumesRemplacement(projectId: string) {
+  async volumesRemplacement(
+    projectId: string,
+    acteurId: string,
+    permissions: ReadonlySet<string>,
+  ) {
+    /*
+     * `RG-PRJ-13` — le décompte se lit à l'ouverture de la fenêtre d'import,
+     * quel que soit le mode choisi ensuite : il suit donc le cercle de
+     * l'import (être rattaché), pas celui du seul Remplacer — sans quoi un
+     * membre ne pourrait plus ouvrir la fenêtre pour un simple Ajouter.
+     */
+    await exigerRattacheAuProjet(this.prisma, this.perimetres, projectId, acteurId, permissions);
     const [jalons, taches, sousTaches] = await Promise.all([
       this.prisma.milestone.count({ where: { projectId } }),
       this.prisma.task.count({ where: { projectId } }),
@@ -1000,9 +1045,21 @@ export class ImportsService {
   // ── Exports CSV ──────────────────────────────────────────────────────────
 
   /** `EX-IMP` — les tâches d'un projet, en CSV réimportable. */
-  async exporterTaches(projectId: string): Promise<string> {
+  async exporterTaches(
+    projectId: string,
+    perimetre: Perimetre,
+    permissions: ReadonlySet<string>,
+  ): Promise<string> {
+    /*
+     * `RG-IMP-07` — un export ne contient que ce que l'exportateur peut lire.
+     * Il ne contrôlait ni l'un ni l'autre : le projet d'autrui sortait entier,
+     * et une tâche confidentielle (`RG-SCOPE-04`) partait dans le fichier de
+     * qui ne pouvait pas l'ouvrir à l'écran. Le projet d'abord, comme sa
+     * fiche ; les tâches ensuite, par le MÊME prédicat que leur liste.
+     */
+    await exigerProjetVisible(this.prisma, this.perimetres, projectId, perimetre, permissions);
     const taches = await this.prisma.task.findMany({
-      where: { projectId },
+      where: { AND: [{ projectId }, this.perimetres.filtreTache(perimetre, permissions)] },
       orderBy: { creeLe: "asc" },
       select: {
         titre: true, description: true, statut: true, priorite: true,
@@ -1016,12 +1073,14 @@ export class ImportsService {
     // n'est pas de la réversibilité, c'est une capture d'écran en texte.
     return stringify(
       taches.map((t) => ({
-        title: t.titre,
-        description: t.description ?? "",
+        // `RG-IMP-08` — chaque cellule TEXTE est neutralisée ; les colonnes
+        // numériques et les dates, non.
+        title: neutraliserFormule(t.titre),
+        description: neutraliserFormule(t.description ?? ""),
         status: t.statut,
         priority: t.priorite,
-        assigneeEmail: t.assignes[0]?.user.email ?? "",
-        milestoneName: t.milestone?.nom ?? "",
+        assigneeEmail: neutraliserFormule(t.assignes[0]?.user.email ?? ""),
+        milestoneName: neutraliserFormule(t.milestone?.nom ?? ""),
         estimatedHours: t.estimationHeures ? String(t.estimationHeures) : "",
         startDate: t.dateDebut ? t.dateDebut.toISOString().slice(0, 10) : "",
         endDate: t.dateFin ? t.dateFin.toISOString().slice(0, 10) : "",
@@ -1035,7 +1094,13 @@ export class ImportsService {
   }
 
   /** Les jalons d'un projet, en CSV réimportable. */
-  async exporterJalons(projectId: string): Promise<string> {
+  async exporterJalons(
+    projectId: string,
+    perimetre: Perimetre,
+    permissions: ReadonlySet<string>,
+  ): Promise<string> {
+    // `RG-IMP-07` — la feuille de route d'un projet se lit comme sa fiche.
+    await exigerProjetVisible(this.prisma, this.perimetres, projectId, perimetre, permissions);
     const jalons = await this.prisma.milestone.findMany({
       where: { projectId },
       orderBy: { dateEcheance: "asc" },
@@ -1044,8 +1109,8 @@ export class ImportsService {
 
     return stringify(
       jalons.map((j) => ({
-        name: j.nom,
-        description: j.description ?? "",
+        name: neutraliserFormule(j.nom),
+        description: neutraliserFormule(j.description ?? ""),
         dueDate: j.dateEcheance ? j.dateEcheance.toISOString().slice(0, 10) : "",
       })),
       { header: true, columns: COLONNES.jalons.map((c) => c.nom), delimiter: ";", bom: true },
@@ -1061,9 +1126,10 @@ export class ImportsService {
 
     return stringify(
       competences.map((c) => ({
-        name: c.nom,
+        // `RG-IMP-08` — le référentiel s'ouvre dans un tableur comme le reste.
+        name: neutraliserFormule(c.nom),
         category: c.categorie,
-        description: c.description ?? "",
+        description: neutraliserFormule(c.description ?? ""),
         requiredCount: String(c.effectifRequis),
       })),
       { header: true, columns: COLONNES.competences.map((c) => c.nom), delimiter: ";", bom: true },
