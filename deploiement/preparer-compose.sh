@@ -11,7 +11,7 @@ cp deploiement/{compose.yaml,Caddyfile,.env.example,configurer.sh,commun.sh,sauv
 cp deploiement/securite-exceptions.json "$sortie/"
 cp docs/adr/ADR-20261003-stabilisation.md docs/adr/ADR-20261003-postgresql-alpine.md "$sortie/docs/adr/"
 cp docs/securite-livraison.md docs/migration-postgresql.md "$sortie/docs/"
-cp docs/versions/1.0.0.md "$sortie/docs/versions/"
+cp docs/versions/*.md "$sortie/docs/versions/"
 cp README.md LICENSE THIRD_PARTY_NOTICES.md "$sortie/"
 cp docs/{installation,hors-ligne,exploitation,utilisation,architecture,reference-fonctionnelle}.md docs/telecharger.svg "$sortie/docs/"
 cp apps/web/public/licences/tierces.txt "$sortie/apps/web/public/licences/"

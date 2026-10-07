@@ -25,7 +25,7 @@ l’application.
 Prérequis : **Docker Engine et Docker Compose v2.24 ou ultérieur**, accessibles à votre compte.
 Les images fournies ciblent **Linux x86-64**. Node.js et PostgreSQL sont embarqués dans les images.
 
-[![Télécharger Rationarium](docs/telecharger.svg)](https://github.com/ElegArtech/rationarium/releases/download/v1.0.0/rationarium-1.0.0-compose.tar.gz)
+[![Télécharger Rationarium](docs/telecharger.svg)](https://github.com/ElegArtech/rationarium/releases/download/v1.0.1/rationarium-1.0.1-compose.tar.gz)
 
 Le kit contient Compose, la configuration, l’assistant et les outils d’exploitation.
 Docker télécharge les images publiées, sans compilation sur le serveur ni compte GitHub.
@@ -33,7 +33,7 @@ Docker télécharge les images publiées, sans compilation sur le serveur ni com
 **Installation guidée en une commande :**
 
 ```sh
-curl -fL https://github.com/ElegArtech/rationarium/releases/download/v1.0.0/installer-rationarium.sh -o installer-rationarium.sh && bash installer-rationarium.sh
+curl -fL https://github.com/ElegArtech/rationarium/releases/download/v1.0.1/installer-rationarium.sh -o installer-rationarium.sh && bash installer-rationarium.sh
 ```
 
 L’assistant demande l’adresse du site et le premier compte administrateur, génère les secrets
@@ -44,15 +44,15 @@ Pour configurer le kit manuellement : extraire l’archive, copier `.env.example
 les variables, puis exécuter `docker compose up -d --wait`.
 
 - **[Installation](docs/installation.md)** : configuration, HTTPS, messagerie et construction depuis les sources.
-- **[Installation hors ligne](docs/hors-ligne.md)** : [paquet complet avec les images](https://github.com/ElegArtech/rationarium/releases/download/v1.0.0/rationarium-1.0.0-linux-amd64.tar.gz) pour un serveur sans Internet.
+- **[Installation hors ligne](docs/hors-ligne.md)** : [paquet complet avec les images](https://github.com/ElegArtech/rationarium/releases/download/v1.0.1/rationarium-1.0.1-linux-amd64.tar.gz) pour un serveur sans Internet.
 - **[Utilisation](docs/utilisation.md)** : premiers pas et organisation du travail.
 - **[Exploitation](docs/exploitation.md)** : sauvegardes, restauration, mises à jour et diagnostic.
 - **[Architecture](docs/architecture.md)** : composants, données et développement local.
 
 ## État de la version
 
-`1.0.0` est la première version stable. Elle corrige des failles de sécurité de `1.0.0-rc.1` : mettez à jour. Le déploiement fourni vise une machine unique.
-Les changements et les conditions de livraison sont décrits dans les [notes de version](docs/versions/1.0.0.md).
+`1.0.1` est la version stable courante. Les versions antérieures à `1.0.0` contiennent des failles de sécurité corrigées depuis : mettez à jour. Le déploiement fourni vise une machine unique.
+Les changements et les conditions de livraison sont décrits dans les [notes de version](docs/versions/1.0.1.md).
 
 Les ressources de l’interface sont servies localement. Un relais SMTP est nécessaire pour recevoir
 les messages par courriel, notamment les liens de réinitialisation de mot de passe. Les notifications

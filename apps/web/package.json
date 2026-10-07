@@ -1,6 +1,6 @@
 {
   "name": "@rationarium/web",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "type": "module",
   "description": "Application monopage : React, Vite, TanStack, React Aria Components",

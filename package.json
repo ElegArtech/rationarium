@@ -1,6 +1,6 @@
 {
   "name": "rationarium",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "description": "Rationarium — plateforme de pilotage des projets et des ressources humaines",
   "type": "module",
