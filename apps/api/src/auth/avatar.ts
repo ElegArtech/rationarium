@@ -3,6 +3,14 @@ import { ecrireContenu, lireContenu } from "../documents/stockage.js";
 
 export type TypeAvatar = "image/jpeg" | "image/png" | "image/webp";
 
+/**
+ * D08 — un avatar pèse au plus 2 Mio. Le plafond est propre à l'avatar :
+ * le corps de requête est désormais assez large pour une pièce jointe, et
+ * sans borne ici, une image de profil de trente mégaoctets serait acceptée,
+ * stockée, puis servie à chaque affichage de la coquille.
+ */
+export const TAILLE_MAX_AVATAR = 2 * 1024 * 1024;
+
 const estPng = (contenu: Buffer): boolean =>
   contenu.length >= 8 && contenu.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
 

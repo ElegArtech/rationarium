@@ -90,6 +90,15 @@ export const MESSAGES: Record<EchecAuth, { statut: number; cle: string; message:
     cle: "auth:erreurs.avatarVide",
     message: "Choisissez une image jpg, png ou webp non vide, puis réessayez.",
   },
+  /*
+   * D08 — la clé est celle de toute pièce trop lourde du produit (`RG-DOC-04`),
+   * pas une clé propre à l'avatar ; le plafond voyage dans `detail.maxOctets`.
+   */
+  avatar_trop_volumineux: {
+    statut: 413,
+    cle: "erreurs:fichierTropVolumineux",
+    message: "Cette image est trop volumineuse. Choisissez une image de 2 Mo au plus.",
+  },
   avatar_introuvable: {
     statut: 404,
     cle: "auth:erreurs.avatarIntrouvable",

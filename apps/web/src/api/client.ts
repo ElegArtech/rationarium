@@ -98,6 +98,31 @@ const signalerSessionExpiree = (): void => {
   window.location.assign(`/connexion?suite=${encodeURIComponent(suite)}`);
 };
 
+/** La vue 05 — `EX-AUTH-07`. */
+const VUE_CHANGEMENT_IMPOSE = "/mot-de-passe-impose";
+
+/**
+ * `RG-AUTH-11` — le serveur refuse toute requête tant qu'un changement de mot
+ * de passe est imposé, avec cette clé.
+ */
+const CLE_CHANGEMENT_IMPOSE = "auth:erreurs.changementMotDePasseRequis";
+
+/**
+ * `RG-AUTH-11` — **un refus pour changement imposé ramène à la vue 05.**
+ *
+ * Même mécanisme que l'expiration : un rechargement délibéré du document, une
+ * seule fois quel que soit le nombre de requêtes refusées, et jamais depuis la
+ * vue 05 elle-même — elle n'appelle que ce que le serveur lui laisse, et
+ * repartir d'où l'on est ferait boucler la page.
+ */
+const signalerChangementImpose = (): void => {
+  if (sortieEnCours) return;
+  if (typeof window === "undefined") return;
+  if (window.location.pathname.startsWith(VUE_CHANGEMENT_IMPOSE)) return;
+  sortieEnCours = true;
+  window.location.assign(VUE_CHANGEMENT_IMPOSE);
+};
+
 export async function appeler<T>(
   chemin: string,
   options: { methode?: string; corps?: unknown } = {},
@@ -123,6 +148,7 @@ export async function appeler<T>(
 
   const charge = await reponse.json().catch(() => ({}));
   if (!reponse.ok) {
+    if (reponse.status === 403 && charge.cle === CLE_CHANGEMENT_IMPOSE) signalerChangementImpose();
     throw new ErreurApi(
       reponse.status,
       charge.cle,

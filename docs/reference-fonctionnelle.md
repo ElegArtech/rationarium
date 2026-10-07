@@ -139,6 +139,10 @@ Chaque exigence est identifiée `EX-<MODULE>-<n>`, chaque règle de gestion `RG-
 - **RG-AUTH-08** — L'identifiant de connexion n'est jamais modifiable après création.
 - **RG-AUTH-09** — L'avatar est soit un fichier téléversé (jpg, png, webp), soit un visuel prédéfini, soit rien.
 - **RG-AUTH-10** — Connexions réussies, échecs et verrouillages sont tracés dans le journal d'audit.
+- **RG-AUTH-11** — Tant qu'un changement de mot de passe est imposé (`EX-AUTH-07`), le serveur refuse toute requête authentifiée sauf `GET /auth/me`, `POST /auth/change-password` et `POST /auth/logout` : 403 `auth:erreurs.changementMotDePasseRequis`.
+- **RG-AUTH-12** — Ni le message ni le seuil de verrouillage ne permettent de savoir si un compte existe : un identifiant inconnu est « verrouillé » au même seuil et pour la même durée qu'un compte réel. La connexion et la demande de réinitialisation sont limitées en débit par adresse IP.
+- **RG-AUTH-13** — Chaque usage d'une session repousse son expiration de la durée paramétrée (`EX-AUTH-02`). L'écriture se fait au plus une fois toutes les cinq minutes par session.
+- **RG-AUTH-14** — Le haché d'un mot de passe ne sort jamais du serveur, sur aucune route.
 
 Les visuels prédéfinis sont six motifs locaux, nommés et reconnaissables sans dépendre de leur couleur : constellation, feuille, montagne, vagues, soleil et mosaïque. Leurs identifiants techniques sont stables car ils sont persistés ; les libellés visibles sont traduits. Choisir un visuel efface le fichier personnel précédent, téléverser un fichier efface le visuel précédent, et supprimer l’avatar efface les deux.
 
