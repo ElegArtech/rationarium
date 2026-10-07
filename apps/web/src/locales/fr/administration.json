@@ -356,7 +356,7 @@
     "libelleExemple": "Ex : Fête patronale",
     "dateObligatoire": "La date est obligatoire",
     "libelleObligatoire": "Le libellé est obligatoire",
-    "typeAide": "« Légal » est réservé au calendrier national ; un jour propre à la collectivité est « local ».",
+    "typeAide": "« Légal » est réservé au calendrier national ; un jour propre à l'organisation est « local ».",
     "jourOuvreAide": "Si activé, ce jour compte comme un jour travaillé.",
     "consequenceTitre": "Conséquence sur le décompte des congés",
     "consequenceTexte": "Ce jour restera décompté comme travaillé : un congé qui l'enjambe consommera un jour de plus, et le planning ne le grisera pas.",

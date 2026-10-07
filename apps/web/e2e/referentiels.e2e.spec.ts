@@ -557,7 +557,7 @@ test.describe("Vues 25 et 26 — clients", () => {
     });
     await page.goto("/clients");
 
-    await expect(page.getByText("Direction de la relation citoyen")).toBeVisible();
+    await expect(page.getByText("Direction des opérations")).toBeVisible();
     await expect(page.getByText("1 projet")).toBeVisible();
 
     /*
@@ -583,7 +583,7 @@ test.describe("Vues 25 et 26 — clients", () => {
     await page.goto(`/clients/${FICHE_CLIENT.id}`);
 
     await expect(
-      page.getByRole("heading", { name: "Direction de la relation citoyen", level: 1 }),
+      page.getByRole("heading", { name: "Direction des opérations", level: 1 }),
     ).toBeVisible();
     await expect(page.getByText("Guichet unique")).toBeVisible();
   });

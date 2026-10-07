@@ -356,7 +356,7 @@
     "libelleExemple": "e.g. Patron saint's day",
     "dateObligatoire": "The date is required",
     "libelleObligatoire": "The label is required",
-    "typeAide": "“Statutory” is reserved for the national calendar; a day specific to the authority is “local”.",
+    "typeAide": "“Statutory” is reserved for the national calendar; a day specific to the organization is “local”.",
     "jourOuvreAide": "If enabled, this day counts as a working day.",
     "consequenceTitre": "Effect on leave counting",
     "consequenceTexte": "This day stays counted as worked: leave spanning it will consume one more day, and the schedule will not shade it.",

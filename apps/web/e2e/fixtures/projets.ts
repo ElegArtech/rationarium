@@ -137,7 +137,7 @@ export const PROJET = {
   equipe: { agents: 6, tiers: 2, clients: 1 },
   jalons: 4,
   epopees: 3,
-  clients: [{ id: "cl1", nom: "Direction de la relation citoyen" }],
+  clients: [{ id: "cl1", nom: "Direction des opérations" }],
   dernierInstantane: { date: "2026-08-11", progression: 61 },
 };
 
@@ -298,7 +298,7 @@ export const EQUIPE = {
       tachesAssignees: 0,
     },
   ],
-  clients: [{ id: "cl1", nom: "Direction de la relation citoyen", contactNom: null }],
+  clients: [{ id: "cl1", nom: "Direction des opérations", contactNom: null }],
   allocationCumulee: 60,
 };
 
@@ -325,7 +325,7 @@ export const REPERTOIRE_TIERS = [
 /** Le répertoire des clients. `cl1` est déjà rattaché dans `EQUIPE`. */
 export const REPERTOIRE_CLIENTS = [
   {
-    id: "cl1", nom: "Direction de la relation citoyen", contactNom: null,
+    id: "cl1", nom: "Direction des opérations", contactNom: null,
     contactEmail: null, contactTelephone: null, adresse: null, notes: null,
     actif: true, _count: { projets: 1 },
   },

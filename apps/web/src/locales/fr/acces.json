@@ -1,6 +1,6 @@
 {
   "panneau": {
-    "organisation": "Ville de Bellecombe",
+    "organisation": "Exemple d'équipe",
     "signature": "Projets, ressources et temps sur une seule grille.",
     "portefeuille": "Portefeuille · 3 projets actifs",
     "colonnes": "Progression · prochain jalon · santé",
@@ -26,7 +26,7 @@
     },
     "projets": {
       "portail": {
-        "nom": "Refonte du site municipal",
+        "nom": "Refonte du site web",
         "jalon": "Recette · 28 nov."
       },
       "sirh": {
@@ -57,7 +57,7 @@
       "reprise": "Reprise des données",
       "astreinte": "Astreinte",
       "noteCadrage": "Note de cadrage",
-      "bureau": "Bureau municipal",
+      "bureau": "Réunion de coordination",
       "reunion": "Réunion de service"
     }
   },

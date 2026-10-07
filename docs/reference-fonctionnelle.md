@@ -147,7 +147,7 @@ Chaque exigence est identifiée `EX-<MODULE>-<n>`, chaque règle de gestion `RG-
 
 Les visuels prédéfinis sont six motifs locaux, nommés et reconnaissables sans dépendre de leur couleur : constellation, feuille, montagne, vagues, soleil et mosaïque. Leurs identifiants techniques sont stables car ils sont persistés ; les libellés visibles sont traduits. Choisir un visuel efface le fichier personnel précédent, téléverser un fichier efface le visuel précédent, et supprimer l’avatar efface les deux.
 
-**Réinitialisation administrateur.** Pour `EX-USR-07`, l’administrateur saisit un secret provisoire conforme à `RG-AUTH-06`, confirme l’action, puis le remet au titulaire par le canal interne de la collectivité. Le titulaire est contraint de le remplacer à sa prochaine connexion conformément à `EX-AUTH-07`. Le secret, sa valeur dérivée et son canal de remise ne figurent jamais dans le journal d’audit ; seul le fait de la réinitialisation y est tracé.
+**Réinitialisation administrateur.** Pour `EX-USR-07`, l’administrateur saisit un secret provisoire conforme à `RG-AUTH-06`, confirme l’action, puis le remet au titulaire par le canal interne de l’organisation. Le titulaire est contraint de le remplacer à sa prochaine connexion conformément à `EX-AUTH-07`. Le secret, sa valeur dérivée et son canal de remise ne figurent jamais dans le journal d’audit ; seul le fait de la réinitialisation y est tracé.
 
 ---
 

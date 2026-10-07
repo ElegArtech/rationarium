@@ -977,7 +977,7 @@ test.describe("Vue 14 — équipe", () => {
     await serveur(page, { reponses });
     await page.goto(`${CHEMIN_PROJET}/equipe`);
 
-    await expect(page.getByText("Agents de la collectivité")).toBeVisible();
+    await expect(page.getByText("Équipe interne", { exact: true })).toBeVisible();
     await expect(page.getByText("Intervenants extérieurs", { exact: true })).toBeVisible();
     await expect(page.getByText("Bénéficiaires", { exact: true })).toBeVisible();
     // La distinction n'est pas que graphique : elle est écrite.
@@ -1236,7 +1236,7 @@ test.describe("Vue 14 — équipe", () => {
 
     await page.goto(`${CHEMIN_PROJET}/equipe`);
     await page
-      .getByRole("button", { name: "Détacher Direction de la relation citoyen du projet" })
+      .getByRole("button", { name: "Détacher Direction des opérations du projet" })
       .click();
     // Un client n'est jamais assigné à une tâche : la fenêtre ne promet rien.
     await expect(page.getByText("Aucune tâche de ce projet ne lui est assignée.")).toBeVisible();
@@ -1258,7 +1258,7 @@ test.describe("Vue 14 — équipe", () => {
     await expect(page.getByRole("button", { name: /Retirer Driss Amrani/ })).toBeVisible();
     await expect(page.getByRole("button", { name: /Détacher Presta SA/ })).toHaveCount(0);
     await expect(
-      page.getByRole("button", { name: /Détacher Direction de la relation citoyen/ }),
+      page.getByRole("button", { name: /Détacher Direction des opérations/ }),
     ).toHaveCount(0);
   });
 });

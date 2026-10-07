@@ -210,7 +210,7 @@ export const FICHE_TIERS_VIDE = {
 export const CLIENTS = [
   {
     id: "c1",
-    nom: "Direction de la relation citoyen",
+    nom: "Direction des opérations",
     contactNom: "Fatou Berthier",
     contactEmail: "f.berthier@exemple.fr",
     contactTelephone: null,
@@ -236,7 +236,7 @@ export const CLIENTS = [
 
 export const FICHE_CLIENT = {
   id: "c1",
-  nom: "Direction de la relation citoyen",
+  nom: "Direction des opérations",
   contactNom: "Fatou Berthier",
   contactEmail: "f.berthier@exemple.fr",
   contactTelephone: null,

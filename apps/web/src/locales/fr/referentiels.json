@@ -242,7 +242,7 @@
     "supprime": "Client supprimé.",
     "echecSuppression": "Le client n'a pas pu être supprimé.",
     "nomRequis": "Le nom est requis.",
-    "nomExemple": "Ex : Direction de la relation citoyen",
+    "nomExemple": "Ex : Direction des opérations",
     "cree": "Client créé.",
     "echecCreation": "Le client n'a pas pu être créé.",
     "categorie": "Client",

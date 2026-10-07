@@ -242,7 +242,7 @@
     "supprime": "Client deleted.",
     "echecSuppression": "The client could not be deleted.",
     "nomRequis": "The name is required.",
-    "nomExemple": "e.g. Citizen Relations Department",
+    "nomExemple": "e.g. Operations department",
     "cree": "Client created.",
     "echecCreation": "The client could not be created.",
     "categorie": "Client",
