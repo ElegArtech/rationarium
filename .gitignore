@@ -21,6 +21,8 @@ deploiement/certificats/*
 
 # Sorties des tests et configuration personnelle.
 **/test-results/
+# Captures écrites par les suites e2e rm-* (apps/web/e2e).
+recette/
 **/playwright-report/
 **/.playwright/
 .claude/
