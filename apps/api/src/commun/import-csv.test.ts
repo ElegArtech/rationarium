@@ -1,5 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { detecterSeparateur, analyserCsv, executerImport, modeleCsv } from "./import-csv.js";
+import {
+  detecterSeparateur,
+  analyserCsv,
+  executerImport,
+  modeleCsv,
+  neutraliserFormule,
+  restaurerFormule,
+} from "./import-csv.js";
 
 /**
  * Le socle des six imports. Une règle, un test qui la cite.
@@ -145,5 +152,44 @@ describe("robustesse des fichiers réels", () => {
     });
     expect(a.resume.valides).toBe(1);
     expect(a.lignes[0]?.valeur?.email).toBe("a@x.fr");
+  });
+});
+
+/**
+ * `RG-IMP-08` — **une cellule exportée ne s'exécute pas à l'ouverture.**
+ *
+ * Un titre de tâche saisi `=HYPERLINK("http://…";"Cliquer")` partait tel quel
+ * dans le CSV : le tableur l'ouvrait comme une FORMULE, avec un lien que
+ * l'exportateur n'avait jamais écrit. L'apostrophe initiale fait lire la
+ * cellule comme du texte ; l'import la retire, et l'aller-retour reste exact.
+ */
+describe("RG-IMP-08 — neutralisation des formules dans les exports CSV", () => {
+  it("RG-IMP-08 — chaque caractère déclencheur est préfixé d'une apostrophe", () => {
+    expect(neutraliserFormule('=HYPERLINK("http://x";"y")')).toBe(`'=HYPERLINK("http://x";"y")`);
+    expect(neutraliserFormule("+33 1 23")).toBe("'+33 1 23");
+    expect(neutraliserFormule("-2+3")).toBe("'-2+3");
+    expect(neutraliserFormule("@SUM(A1)")).toBe("'@SUM(A1)");
+    expect(neutraliserFormule("\tcache")).toBe("'\tcache");
+    expect(neutraliserFormule("\rcache")).toBe("'\rcache");
+  });
+
+  it("RG-IMP-08 — un texte ordinaire n'est pas touché", () => {
+    expect(neutraliserFormule("Rédiger la note")).toBe("Rédiger la note");
+    expect(neutraliserFormule("")).toBe("");
+    expect(neutraliserFormule("a=b")).toBe("a=b");
+  });
+
+  it("RG-IMP-08 — l'import retire l'apostrophe posée par l'export, et elle seule", () => {
+    for (const brut of ['=HYPERLINK("x")', "+1", "-1", "@x", "\tx", "\rx", "texte", "l'apostrophe"]) {
+      expect(restaurerFormule(neutraliserFormule(brut))).toBe(brut);
+    }
+    // Une apostrophe qui ne précède pas un déclencheur est une donnée.
+    expect(restaurerFormule("'texte")).toBe("'texte");
+  });
+
+  it("RG-IMP-08 — un texte qui COMMENÇAIT déjà par l'apostrophe revient intact", () => {
+    // Sans cela, « '=x » saisi tel quel ressortait « =x » au réimport.
+    expect(neutraliserFormule("'=x")).toBe("''=x");
+    expect(restaurerFormule(neutraliserFormule("'=x"))).toBe("'=x");
   });
 });

@@ -83,3 +83,15 @@ describe("EX-RPT-03 — l'export du rapport", () => {
     expect(langueDe("de")).toBe("fr");
   });
 });
+
+describe("RG-IMP-08 — l'export du rapport neutralise les formules", () => {
+  it("RG-IMP-08 — un nom de projet en formule ressort préfixé d'une apostrophe", () => {
+    const csv = csvSante([{ ...LIGNE, nom: "=1+1" }], "fr");
+    expect(lignes(csv)[1]!.split(",")[1]).toBe("'=1+1");
+  });
+
+  it("RG-IMP-08 — un nombre négatif dans une colonne numérique n'est pas touché", () => {
+    const csv = csvSante([{ ...LIGNE, enRetard: -3 }], "fr");
+    expect(lignes(csv)[1]!.split(",")[4]).toBe("-3");
+  });
+});

@@ -4,6 +4,7 @@ import { PrismaService } from "../prisma.service.js";
 import { PerimetreService, type Perimetre } from "../commun/perimetre.service.js";
 import { AuditService } from "../commun/audit.service.js";
 import { debutDuJour, echeanceDepassee } from "../commun/dates.js";
+import { neutraliserFormule } from "../commun/import-csv.js";
 import { creerXlsx } from "./xlsx.js";
 
 /**
@@ -811,7 +812,10 @@ export type LigneSanteExport = {
  */
 export function csvSante(lignes: readonly LigneSanteExport[], langue: Langue = "fr"): string {
   const echapper = (v: unknown): string => {
-    const texte = String(v ?? "");
+    // `RG-IMP-08` — une cellule TEXTE ne s'exécute pas à l'ouverture ; un
+    // nombre reste un nombre, négatif compris. Le XLSX n'est pas concerné :
+    // `creerXlsx` écrit ses textes en `inlineStr`, jamais en formule.
+    const texte = typeof v === "string" ? neutraliserFormule(v) : String(v ?? "");
     return /[",;\n]/.test(texte) ? `"${texte.replaceAll('"', '""')}"` : texte;
   };
 
