@@ -147,6 +147,7 @@
     "MANAGER": "Manager de service",
     "PROJECT_LEAD": "Chef de projet",
     "PROJECT_CONTRIBUTOR": "Contributeur projet",
+    "BASIC_USER": "Utilisateur de base",
     "HR_OFFICER": "Responsable RH",
     "descriptions": {
       "ADMIN": "Accès complet : comptes, rôles, calendrier de l'organisation, journal d'audit.",

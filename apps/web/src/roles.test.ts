@@ -12,3 +12,13 @@ it("RM-12 D-RM06 — traduit les rôles système et préserve le nom libre même
   await i18next.changeLanguage("fr");
   expect(nomRole({ code: "ADMIN", nom: "Administrator", systeme: true })).toBe("Administrateur");
 });
+
+it("RG-GEN-08 — chaque rôle système porte son nom dans les deux langues", async () => {
+  const { MODELES_ROLES } = await import("@rationarium/contracts");
+  const manquants = MODELES_ROLES.filter((m) => m.systeme)
+    .flatMap((m) => [
+      ...(typeof (fr.rolesSysteme as Record<string, unknown>)[m.code] === "string" ? [] : [`fr:${m.code}`]),
+      ...(typeof (en.rolesSysteme as Record<string, unknown>)[m.code] === "string" ? [] : [`en:${m.code}`]),
+    ]);
+  expect(manquants).toEqual([]);
+});

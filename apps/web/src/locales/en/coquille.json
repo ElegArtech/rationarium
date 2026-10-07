@@ -147,6 +147,7 @@
     "MANAGER": "Service manager",
     "PROJECT_LEAD": "Project lead",
     "PROJECT_CONTRIBUTOR": "Project contributor",
+    "BASIC_USER": "Basic user",
     "HR_OFFICER": "HR officer",
     "descriptions": {
       "ADMIN": "Full access: accounts, roles, organisation calendar, audit log.",
