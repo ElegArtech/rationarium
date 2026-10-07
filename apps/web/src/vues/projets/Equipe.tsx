@@ -69,7 +69,7 @@ type Equipe = {
 };
 
 /*
- * La liste des rôles vit dans `@rationarium/contracts` : `cadrage/01 § M4` l'énumère,
+ * La liste des rôles vit dans `@rationarium/contracts` : `docs/reference-fonctionnelle.md § M4` l'énumère,
  * ce n'est donc pas une liste locale. Elle en était une ici — dix-sept chaînes
  * recopiées avec leurs propres clés de traduction, à côté d'un contrat qui
  * acceptait n'importe quelle chaîne.
@@ -238,7 +238,7 @@ function Section({
  *
  * **Le type vient de `TYPES_TIERS`, pas d'une clé i18n locale.** Il en venait :
  * `equipe.type_${x.type}` cherchait `type_organization` quand le vocabulaire de
- * `cadrage/01 § 4.1` code `organisation` — la clé ne résolvait pas et **le
+ * `docs/reference-fonctionnelle.md § 4.1` code `organisation` — la clé ne résolvait pas et **le
  * produit affichait `equipe.type_organisation` à l'écran**. Une énumération
  * locale doublant un vocabulaire du cadrage est un interdit structurel ; ici
  * elle avait en plus divergé, et rien ne pouvait le dire.

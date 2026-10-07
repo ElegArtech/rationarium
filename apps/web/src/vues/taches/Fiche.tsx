@@ -228,7 +228,11 @@ export function FicheTache({ tacheId }: { tacheId: string }) {
                     <span className="conf-k">
                       {x.prerequis.dateFin ? formaterDate(x.prerequis.dateFin) : "—"}
                     </span>
-                    <span>{t("fiche.incoherenceDetail", { titre: x.prerequis.titre })}</span>
+                    <span>
+                      {t("fiche.incoherenceDetail", {
+                        titre: x.prerequis.titre ?? t("fiche.dependanceMasquee"),
+                      })}
+                    </span>
                   </li>
                 ))}
               </ul>
@@ -1128,8 +1132,10 @@ function Raci({ tache }: { tache: api.FicheTache }) {
 
 function Commentaires({ tache }: { tache: api.FicheTache }) {
   const { t } = useTranslation("taches");
+  const { t: tErreurs } = useTranslation("erreurs");
   const peut = usePeut();
   const { session } = useSession();
+  const annoncer = useMessages();
   const client = useQueryClient();
   const [contenu, setContenu] = useState("");
   const [edite, setEdite] = useState<string | null>(null);
@@ -1137,12 +1143,19 @@ function Commentaires({ tache }: { tache: api.FicheTache }) {
 
   const rafraichir = () => client.invalidateQueries({ queryKey: ["tache", tache.id] });
 
+  /*
+   * `RG-DOC-06`, `RG-GEN-07` — la version LUE du commentaire part avec la
+   * correction, et le refus en conflit se dit : un 409 tu laisserait croire
+   * que la correction est enregistrée.
+   */
   const edition = useMutation({
-    mutationFn: (id: string) => api.modifierCommentaire(id, brouillon.trim()),
+    mutationFn: (c: { id: string; version: number }) =>
+      api.modifierCommentaire(c.id, brouillon.trim(), c.version),
     onSuccess: () => {
       setEdite(null);
       void rafraichir();
     },
+    onError: (e) => annoncer("err", messageErreur(e, tErreurs, t("fiche.echecEnregistrement"))),
   });
 
   const retrait = useMutation({
@@ -1224,7 +1237,7 @@ function Commentaires({ tache }: { tache: api.FicheTache }) {
                     <Button
                       className="btn btn-primary"
                       isDisabled={!brouillon.trim() || edition.isPending}
-                      onPress={() => edition.mutate(c.id)}
+                      onPress={() => edition.mutate({ id: c.id, version: c.version })}
                     >
                       {t("fiche.enregistrerCommentaire")}
                     </Button>
@@ -1265,6 +1278,9 @@ function Commentaires({ tache }: { tache: api.FicheTache }) {
     </section>
   );
 }
+
+/** `RG-DOC-04` — une pièce jointe pèse au plus 20 Mio. */
+const TAILLE_MAX_PIECE_JOINTE = 20 * 1024 * 1024;
 
 function Documents({ tache }: { tache: api.FicheTache }) {
   const { t } = useTranslation("taches");
@@ -1369,8 +1385,20 @@ function Documents({ tache }: { tache: api.FicheTache }) {
             disabled={depot.isPending}
             onChange={(e) => {
               const fichier = e.target.files?.[0];
-              if (fichier) depot.mutate(fichier);
               e.target.value = "";
+              if (!fichier) return;
+              /* D22 — `RG-DOC-04` : au-delà de 20 Mio, le serveur refuse en
+                 413. On le dit AVANT d'encoder et d'envoyer, en nommant la
+                 limite : un refus après une minute d'envoi, ou un « échec du
+                 dépôt » sans cause, laissait chercher. */
+              if (fichier.size > TAILLE_MAX_PIECE_JOINTE) {
+                annoncer(
+                  "err",
+                  tErreurs("fichierTropVolumineux_detail", { maxOctets: TAILLE_MAX_PIECE_JOINTE }),
+                );
+                return;
+              }
+              depot.mutate(fichier);
             }}
           />
         </label>
@@ -1448,7 +1476,8 @@ function FenetreDocument({
   };
 
   const renommage = useMutation({
-    mutationFn: () => api.renommerDocument(document!.id, nom.trim()),
+    // `RG-DOC-06` — la version est celle que la consultation a rendue.
+    mutationFn: () => api.renommerDocument(document!.id, nom.trim(), detail.data!.version),
     onSuccess: () => {
       annoncer("ok", t("fiche.documentRenomme"));
       rafraichir();
@@ -1510,7 +1539,9 @@ function FenetreDocument({
           {renommable ? (
             <Button
               className="btn btn-primary"
-              isDisabled={!nom.trim() || nom.trim() === detail.data?.nom || renommage.isPending}
+              isDisabled={
+                !detail.data || !nom.trim() || nom.trim() === detail.data.nom || renommage.isPending
+              }
               onPress={() => renommage.mutate()}
             >
               {t("fiche.renommerDocument")}
@@ -1911,7 +1942,7 @@ function FenetreDependances({
     },
     onError: (e) => {
       /*
-       * `cadrage/02:566` — le texte du bandeau est celui du brief, à la lettre.
+       * Le texte du bandeau est celui du brief, à la lettre.
        * Il ne se déclenche en pratique que sur une course : le serveur écarte
        * les candidats cycliques de la liste, donc seul un lien posé ailleurs
        * entre le chargement et l'enregistrement peut refermer une boucle.
@@ -1982,7 +2013,7 @@ function FenetreDependances({
           <p className="ilib-none">{t("fiche.chargementCandidats")}</p>
         ) : filtrees.length === 0 ? (
           /*
-           * `cadrage/02:571` — DEUX états vides, pas un. « Aucune tâche
+           * DEUX états vides, pas un. « Aucune tâche
            * disponible » dit qu'il n'y a rien à lier ; « Aucune tâche trouvée »
            * dit que la recherche est trop étroite. Les confondre laisserait
            * croire à un projet vide devant une faute de frappe.
@@ -2128,6 +2159,7 @@ function FenetreModification({
   const { t: tErreurs } = useTranslation("erreurs");
   const annoncer = useMessages();
   const client = useQueryClient();
+  const peut = usePeut();
 
   const [description, setDescription] = useState(tache.description ?? "");
   const [priorite, setPriorite] = useState(tache.priorite);
@@ -2358,17 +2390,21 @@ function FenetreModification({
           </div>
         ) : null}
 
-        <div className="field-block">
-          <label className="check">
-            <input
-              type="checkbox"
-              checked={confidentielle}
-              onChange={(e) => setConfidentielle(e.target.checked)}
-            />
-            <span>{t("fiche.confidentielle")}</span>
-          </label>
-          <p className="field-hint">{t("fiche.confidentielleAide")}</p>
-        </div>
+        {/* RG-TSK-19 — marquer confidentiel exige de pouvoir lire le confidentiel :
+            sans ce droit, la case n'est pas proposée (le serveur refuse de toute façon). */}
+        {peut("tasks:read_confidential") ? (
+          <div className="field-block">
+            <label className="check">
+              <input
+                type="checkbox"
+                checked={confidentielle}
+                onChange={(e) => setConfidentielle(e.target.checked)}
+              />
+              <span>{t("fiche.confidentielle")}</span>
+            </label>
+            <p className="field-hint">{t("fiche.confidentielleAide")}</p>
+          </div>
+        ) : null}
       </form>
     </Fenetre>
   );

@@ -65,7 +65,7 @@ export class AdministrationController {
       }),
       corps,
     );
-    return this.roles.creer(donnees, d.userId);
+    return this.roles.creer(donnees, d.userId, d.permissions);
   }
 
   @Patch("roles/:id")
@@ -107,7 +107,7 @@ export class AdministrationController {
       }).strict(),
       corps,
     );
-    return this.roles.definirPermissions(id, permissions, d.userId, version);
+    return this.roles.definirPermissions(id, permissions, d.userId, version, d.permissions);
   }
 
   // ── Journal d'audit — vue 33 ─────────────────────────────────────────────

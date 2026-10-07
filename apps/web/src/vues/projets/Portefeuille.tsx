@@ -25,7 +25,7 @@ import "./portefeuille.css";
  * ne correspond à votre recherche » appellent des sorties opposées : créer
  * dans un cas, réinitialiser les filtres dans l'autre. Les confondre laisse
  * l'utilisateur devant un bouton qui ne répond pas à sa situation
- * (`RG-GEN-04`, et note explicite de `design/etats.json`).
+ * (`RG-GEN-04`, et note explicite de la spécification des états).
  *
  * **Le filtrage est fait au serveur**, pas sur un tableau déjà chargé : le
  * périmètre s'applique à la requête, et le compteur « {n} sur {total} » n'a de

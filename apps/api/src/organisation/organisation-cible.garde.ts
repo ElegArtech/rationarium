@@ -47,6 +47,22 @@ export class GardeCibleOrganisation implements CanActivate {
       where: { id, departements: { some: { id: { in: departements } } } },
       select: { id: true },
     }));
+    /*
+     * `RG-ORG-06` — une direction ADRESSÉE (modifiée, supprimée, mesurée) doit
+     * être tout entière dans le périmètre. Un seul département suffisait, or le
+     * responsable d'une direction voit toute la direction (`RG-SCOPE-01`) : se
+     * désigner responsable d'une direction partagée annexait les départements
+     * voisins. Rattacher à une direction (création, déplacement) reste permis
+     * dès qu'un de ses départements est visible : cela n'étend que le périmètre
+     * de son responsable, pas celui de l'acteur.
+     */
+    const directionEntiere = async (id: string) => Boolean(await this.prisma.direction.findFirst({
+      where: {
+        id,
+        departements: { some: { id: { in: departements } }, every: { id: { in: departements } } },
+      },
+      select: { id: true },
+    }));
 
     if (regle.niveau) {
       const id = uuid(requete.params?.id);
@@ -57,7 +73,7 @@ export class GardeCibleOrganisation implements CanActivate {
         niveau = resultat.data;
       }
       const visible = niveau === "direction"
-        ? await directionVisible(id)
+        ? await directionEntiere(id)
         : niveau === "departement"
           ? d.perimetre.departements.has(id)
           : Boolean(await this.prisma.service.findFirst({

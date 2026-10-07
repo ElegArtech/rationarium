@@ -2,7 +2,7 @@ import { Injectable, Logger, type OnModuleDestroy, type OnModuleInit } from "@ne
 import { PgBoss, type Job } from "pg-boss";
 
 /**
- * La file de travaux — `ADR-0007`, `cadrage/03 § 5`.
+ * La file de travaux — voir `docs/architecture.md`.
  *
  * **`RG-NTF-04` — l'indisponibilité de la messagerie n'empêche jamais l'action
  * métier d'aboutir.** C'est la raison d'être de ce service, et elle dicte tout :

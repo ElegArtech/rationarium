@@ -153,7 +153,7 @@ describe("La couche HTTP formule ce que le service nomme", () => {
     expect(r.statusCode).toBe(400);
     const charge = r.json() as { cle: string; details: { champ: string }[] };
     expect(charge.cle).toBe("erreurs:donneesInvalides");
-    // Le champ fautif est nommé : cadrage/02 affiche l'erreur sous le champ.
+    // Le champ fautif est nommé : l'interface affiche l'erreur sous le champ.
     expect(charge.details.map((d) => d.champ).sort()).toEqual(["dateDebut", "nom"]);
   });
 

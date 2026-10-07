@@ -4,6 +4,7 @@ import { PrismaService } from "../prisma.service.js";
 import { PerimetreService, type Perimetre } from "../commun/perimetre.service.js";
 import { AuditService } from "../commun/audit.service.js";
 import { debutDuJour, echeanceDepassee } from "../commun/dates.js";
+import { neutraliserFormule } from "../commun/import-csv.js";
 import { creerXlsx } from "./xlsx.js";
 
 /**
@@ -397,7 +398,7 @@ export class RapportsService {
   /**
    * `EX-RPT-06` — la santé des projets.
    *
-   * Trois niveaux, **calculés** et non saisis (`cadrage/01 § M17`) : tâches
+   * Trois niveaux, **calculés** et non saisis (`docs/reference-fonctionnelle.md § M17`) : tâches
    * restantes, tâches en retard, jalons à venir. Une santé saisie à la main
    * dirait ce que le chef de projet veut bien en dire ; celle-ci dit ce que
    * les données montrent.
@@ -641,7 +642,10 @@ export class RapportsService {
         where: {
           id: { in: tacheIds },
           statut: { not: "done" },
-          dateFin: { gte: debut, lt: reference },
+          // `RG-TSK-12` — `dateFin` est une colonne `@db.Date` : on la borne
+          // par des débuts de jour. `lt: reference` comptait « passée en
+          // retard » toute tâche due AUJOURD'HUI dès la première seconde.
+          dateFin: { gte: debutDuJour(debut), lt: debutDuJour(reference) },
         },
       }),
     ]);
@@ -679,14 +683,21 @@ export class RapportsService {
       const total = p.taches.length;
       const finies = p.taches.filter((t) => t.statut === "done").length;
       const progression = total === 0 ? 0 : Math.round((finies / total) * 100);
+      /*
+       * `RG-TSK-12` — les trois dates comparées ici sont des colonnes
+       * `@db.Date`, revenues à minuit. Comparées à l'INSTANT de référence,
+       * une tâche ou un projet dû aujourd'hui passait « en retard » dès la
+       * première seconde — le piège que `commun/dates.ts` nomme, et que la
+       * santé des projets avait déjà quitté. On compare des jours.
+       */
       const enRetard = p.taches.filter(
-        (t) => t.statut !== "done" && t.dateFin !== null && t.dateFin < reference,
+        (t) => t.statut !== "done" && echeanceDepassee(t.dateFin, reference),
       ).length;
 
       let rag: EtatRag;
       if (p.statut === "done" || (total > 0 && finies === total)) rag = "done";
-      else if (p.dateDebut > reference) rag = "upcoming";
-      else if (p.dateFin < reference) rag = "late";
+      else if (p.dateDebut.getTime() > debutDuJour(reference).getTime()) rag = "upcoming";
+      else if (echeanceDepassee(p.dateFin, reference)) rag = "late";
       else if (enRetard > 0) rag = "at_risk";
       else rag = "on_track";
 
@@ -811,7 +822,10 @@ export type LigneSanteExport = {
  */
 export function csvSante(lignes: readonly LigneSanteExport[], langue: Langue = "fr"): string {
   const echapper = (v: unknown): string => {
-    const texte = String(v ?? "");
+    // `RG-IMP-08` — une cellule TEXTE ne s'exécute pas à l'ouverture ; un
+    // nombre reste un nombre, négatif compris. Le XLSX n'est pas concerné :
+    // `creerXlsx` écrit ses textes en `inlineStr`, jamais en formule.
+    const texte = typeof v === "string" ? neutraliserFormule(v) : String(v ?? "");
     return /[",;\n]/.test(texte) ? `"${texte.replaceAll('"', '""')}"` : texte;
   };
 

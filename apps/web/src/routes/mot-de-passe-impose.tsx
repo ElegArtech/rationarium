@@ -49,7 +49,7 @@ export function MotDePasseImpose({
   /**
    * Le motif du blocage.
    *
-   * `design/etats.json` en déclare deux ; `/auth/me` les distingue depuis
+   * La spécification des états en déclare deux ; `/auth/me` les distingue depuis
    * la dernière réinitialisation administrative auditée (RM-02).
    */
   motif?: MotifBlocage;

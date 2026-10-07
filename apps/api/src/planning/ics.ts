@@ -1,7 +1,7 @@
 /**
  * `EX-PLN-15` — export et import ICS, écrits ici plutôt qu'empruntés.
  *
- * `C1` et `ADR-0013` : une dépendance se justifie, elle ne s'ajoute pas par
+ * Une dépendance se justifie, elle ne s'ajoute pas par
  * commodité. Le sous-ensemble d'iCalendar dont ce produit a besoin — des
  * `VEVENT` de journée entière ou horodatés, sans fuseau, sans pièce jointe,
  * sans alarme — tient en deux fonctions. Une bibliothèque complète apporterait

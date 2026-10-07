@@ -42,6 +42,7 @@ export type EchecTache =
   | "suppression_reservee_aux_assignes"
   | "introuvable"
   | "hors_perimetre"
+  | "champ_hors_permission"
   | "conflit_de_version";
 
 export class ErreurTache extends Error {
@@ -186,7 +187,7 @@ export class TachesService {
    * confidentialité elle-même figure parmi les champs modifiables : une
    * requête forgée pouvait DÉMASQUER une tâche secrète. Autour, les
    * sous-tâches, les dépendances, le RACI, la cascade et la liste des assignés
-   * offraient la même prise. C'est la famille déjà consignée dans `CLAUDE.md`
+   * offraient la même prise. C'est la famille déjà rencontrée
    * — « la LISTE filtre, l'adresse directe non » —, cette fois du côté des
    * écritures.
    *
@@ -210,6 +211,55 @@ export class TachesService {
       select: { id: true },
     });
     if (!lisible) throw new ErreurTache("hors_perimetre");
+  }
+
+  /**
+   * `RG-TSK-18` — **la porte de toute ÉCRITURE sur une tâche.**
+   *
+   * Lire et modifier ne sont pas le même droit. `exigerLisible` gardait les
+   * deux, si bien qu'une permission de lecture élargie — `tasks:readAll`, ou la
+   * portée globale de `users:readAll` — ouvrait l'écriture sur toute
+   * l'instance. Le prédicat d'écriture (`filtreTacheEcriture`) s'ajoute à celui
+   * de lecture, il ne le remplace pas : on ne modifie jamais ce qu'on ne peut
+   * pas lire, confidentialité comprise.
+   *
+   * Même refus que `exigerLisible` — « hors périmètre », qui ne renseigne pas
+   * sur l'existence de la ligne.
+   */
+  async exigerModifiable(taskId: string, acteurId: string, permissions: ReadonlySet<string>) {
+    const perimetre = await this.perimetres.resoudre(acteurId, permissions);
+    const modifiable = await this.prisma.task.findFirst({
+      where: {
+        AND: [
+          { id: taskId },
+          this.perimetres.filtreTache(perimetre, permissions),
+          this.perimetres.filtreTacheEcriture(perimetre, permissions),
+        ],
+      },
+      select: { id: true },
+    });
+    if (!modifiable) throw new ErreurTache("hors_perimetre");
+  }
+
+  /**
+   * `RG-TSK-19` — **poser la confidentialité exige de pouvoir la lire.**
+   *
+   * Marquer une tâche confidentielle sans `tasks:read_confidential`, c'est la
+   * faire disparaître de sa propre vue — et de celle de ses assignés — sans
+   * pouvoir ensuite la retrouver ni défaire le geste. Le refus nomme le champ
+   * et la permission, comme tout champ gouverné (`RG-DROITS-03`). Seul `true`
+   * est gouverné : `false` sur une tâche qu'on peut modifier ne cache rien.
+   */
+  private exigerDroitDeConfidentialite(
+    confidentielle: boolean | undefined,
+    permissions: ReadonlySet<string>,
+  ) {
+    if (confidentielle === true && !permissions.has("tasks:read_confidential")) {
+      throw new ErreurTache("champ_hors_permission", {
+        champ: "confidentielle",
+        permission: "tasks:read_confidential",
+      });
+    }
   }
 
   /**
@@ -294,6 +344,9 @@ export class TachesService {
       await this.exigerAppartenance(donnees.projectId, acteurId, permissions);
     }
 
+    // `RG-TSK-19` — on ne crée pas confidentiel ce qu'on ne pourra pas relire.
+    this.exigerDroitDeConfidentialite(donnees.confidentielle, permissions);
+
     if (donnees.dateDebut && donnees.dateFin && donnees.dateFin < donnees.dateDebut) {
       throw new ErreurTache("dates_incoherentes");
     }
@@ -361,7 +414,7 @@ export class TachesService {
      * une tâche sans attache.
      *
      * Deux corrections possibles. Ajouter `Task.createurId` est la bonne, et
-     * elle relève d'une **tâche de schéma dédiée** (`cadrage/04 § 5.3`) : elle
+     * elle relève d'une **tâche de schéma dédiée** : elle
      * n'est pas écrite ici. Celle qui l'est : quand la tâche naît **hors
      * projet** et **sans aucun assigné**, l'acteur en devient l'assigné — donc
      * le porteur, puisqu'il est premier de la liste.
@@ -425,7 +478,7 @@ export class TachesService {
     });
 
     /*
-     * `cadrage/01 § M18` — « Nouvelle tâche assignée ». On ne se notifie pas
+     * `docs/reference-fonctionnelle.md § M18` — « Nouvelle tâche assignée ». On ne se notifie pas
      * soi-même : celui qui crée la tâche vient de la voir.
      *
      * `RG-GEN-08` — le corps voyage en **paramètres**, pas en phrase. Une
@@ -508,7 +561,7 @@ export class TachesService {
 
     const [liens, incoherences] = await Promise.all([
       this.dependances(taskId, perimetre, permissions),
-      this.incoherences(taskId),
+      this.incoherences(taskId, { perimetre, permissions }),
     ]);
 
     /*
@@ -595,8 +648,12 @@ export class TachesService {
      * par identifiant deviné, et `confidentielle` étant elle-même modifiable,
      * on pouvait la démasquer. La feuille de route ne l'offre plus depuis la
      * vague 1 ; la requête forgée, elle, passait toujours.
+     *
+     * `RG-TSK-18` — et lisible ne suffit plus : il faut pouvoir la MODIFIER.
      */
-    await this.exigerLisible(taskId, acteurId, permissions);
+    await this.exigerModifiable(taskId, acteurId, permissions);
+    // `RG-TSK-19` — marquer confidentiel exige de pouvoir lire le confidentiel.
+    this.exigerDroitDeConfidentialite(donnees.confidentielle, permissions);
 
     const { version, ...champs } = donnees;
     const avant = await this.prisma.task.findUnique({
@@ -723,7 +780,7 @@ export class TachesService {
     permissions: ReadonlySet<string>,
   ) {
     // `RG-SCOPE-04` — on n'ajoute pas de sous-tâche à ce qu'on ne peut pas lire.
-    await this.exigerLisible(taskId, acteurId, permissions);
+    await this.exigerModifiable(taskId, acteurId, permissions);
     const dernier = await this.prisma.subtask.aggregate({
       where: { taskId },
       _max: { ordre: true },
@@ -749,16 +806,16 @@ export class TachesService {
     acteurId: string,
     permissions: ReadonlySet<string>,
   ) {
-    await this.exigerLisibleParSousTache(id, acteurId, permissions);
+    await this.exigerModifiableParSousTache(id, acteurId, permissions);
     return this.prisma.subtask.update({ where: { id }, data: { fait } });
   }
 
   async supprimerSousTache(id: string, acteurId: string, permissions: ReadonlySet<string>) {
-    await this.exigerLisibleParSousTache(id, acteurId, permissions);
+    await this.exigerModifiableParSousTache(id, acteurId, permissions);
     await this.prisma.subtask.delete({ where: { id } });
   }
 
-  private async exigerLisibleParSousTache(
+  private async exigerModifiableParSousTache(
     id: string,
     acteurId: string,
     permissions: ReadonlySet<string>,
@@ -768,7 +825,7 @@ export class TachesService {
       select: { taskId: true },
     });
     if (!sousTache) throw new ErreurTache("introuvable");
-    await this.exigerLisible(sousTache.taskId, acteurId, permissions);
+    await this.exigerModifiable(sousTache.taskId, acteurId, permissions);
   }
 
   /**
@@ -790,7 +847,7 @@ export class TachesService {
     acteurId: string,
     permissions: ReadonlySet<string>,
   ) {
-    await this.exigerLisible(taskId, acteurId, permissions);
+    await this.exigerModifiable(taskId, acteurId, permissions);
     const tache = await this.prisma.task.findUnique({
       where: { id: taskId },
       select: { version: true },
@@ -829,7 +886,7 @@ export class TachesService {
     acteurId: string,
     permissions: ReadonlySet<string>,
   ) {
-    await this.exigerLisible(taskId, acteurId, permissions);
+    await this.exigerModifiable(taskId, acteurId, permissions);
     await this.prisma.taskDependency.delete({
       where: { taskId_prerequisId: { taskId, prerequisId } },
     });
@@ -847,7 +904,7 @@ export class TachesService {
     acteurId: string,
     permissions: ReadonlySet<string>,
   ) {
-    await this.exigerLisible(taskId, acteurId, permissions);
+    await this.exigerModifiable(taskId, acteurId, permissions);
     await this.prisma.taskRaci.delete({
       where: { taskId_userId_role: { taskId, userId, role } },
     });
@@ -1057,11 +1114,9 @@ export class TachesService {
     });
     if (!tache) throw new ErreurTache("introuvable");
 
-    const lisible = await this.prisma.task.findFirst({
-      where: { AND: [{ id: taskId }, visible] },
-      select: { id: true },
-    });
-    if (!lisible) throw new ErreurTache("hors_perimetre");
+    // `RG-TSK-18` — la tâche dont on pose les prérequis est MODIFIÉE ; les
+    // prérequis, eux, n'ont qu'à être nommables (`visible`, plus bas).
+    await this.exigerModifiable(taskId, acteurId, permissions);
 
     if (tache.version !== version) {
       throw new ErreurTache("conflit_de_version", { attendue: tache.version, recue: version });
@@ -1164,7 +1219,7 @@ export class TachesService {
     }
 
     /*
-     * `cadrage/01 § M20` — le journal garde le vocabulaire des gestes unitaires
+     * `docs/reference-fonctionnelle.md § M20` — le journal garde le vocabulaire des gestes unitaires
      * (`task.dependency_add` / `_remove`). Une action « ensemble défini » ne
      * dirait pas ce qui a bougé, et c'est ce qu'on relit dans un journal.
      */
@@ -1199,7 +1254,7 @@ export class TachesService {
      * proposait déjà que des tâches du périmètre, et cette route-ci acceptait
      * n'importe quel identifiant deviné.
      */
-    await this.exigerLisible(taskId, acteurId, permissions);
+    await this.exigerModifiable(taskId, acteurId, permissions);
     await this.exigerLisible(prerequisId, acteurId, permissions);
 
     const [tache, prerequis] = await Promise.all([
@@ -1297,7 +1352,10 @@ export class TachesService {
    * Le produit **signale** au lieu d'interdire : le cadrage propose un
    * décalage en cascade, il n'impose pas la contrainte.
    */
-  async incoherences(taskId: string) {
+  async incoherences(
+    taskId: string,
+    lecteur?: { perimetre: Perimetre; permissions: ReadonlySet<string> },
+  ) {
     const tache = await this.prisma.task.findUnique({
       where: { id: taskId },
       select: { dateDebut: true },
@@ -1309,14 +1367,60 @@ export class TachesService {
       include: { prerequis: { select: { id: true, titre: true, dateFin: true } } },
     });
 
-    return liens
+    const incoherents = liens
       .filter((l) => l.prerequis.dateFin !== null && l.prerequis.dateFin > tache.dateDebut!)
       .map((l) => ({
-        prerequis: l.prerequis,
+        prerequis: { ...l.prerequis, lisible: true as boolean },
         jours: Math.ceil(
           (l.prerequis.dateFin!.getTime() - tache.dateDebut!.getTime()) / 86_400_000,
-        ),
+        ) as number | null,
       }));
+    if (!lecteur) return incoherents;
+
+    /*
+     * `RG-SCOPE-04` — **la tâche lue ne rend pas lisibles ses prérequis.**
+     * L'entrée HTTP vérifiait que la tâche de l'URL se lit, puis nommait ses
+     * prérequis sans les filtrer : le titre et l'échéance d'une tâche
+     * confidentielle sortaient par l'alerte d'incohérence, sur la fiche comme
+     * sur `GET :id/incoherences`. L'entrée reste — l'incohérence existe —,
+     * mais anonyme, comme dans `dependances` : ni titre, ni date, ni écart.
+     */
+    const nommables = await this.tachesNommables(
+      incoherents.map((i) => i.prerequis.id),
+      lecteur.perimetre,
+      lecteur.permissions,
+    );
+    return incoherents.map((i) =>
+      nommables.has(i.prerequis.id)
+        ? i
+        : { prerequis: { id: i.prerequis.id, titre: null, dateFin: null, lisible: false }, jours: null },
+    );
+  }
+
+  /** Les tâches, parmi `ids`, que le lecteur peut nommer (`RG-SCOPE-04`). */
+  private async tachesNommables(
+    ids: string[],
+    perimetre: Perimetre,
+    permissions: ReadonlySet<string>,
+  ): Promise<Set<string>> {
+    if (ids.length === 0) return new Set();
+    const lignes = await this.prisma.task.findMany({
+      where: { AND: [{ id: { in: ids } }, this.perimetres.filtreTache(perimetre, permissions)] },
+      select: { id: true },
+    });
+    return new Set(lignes.map((t) => t.id));
+  }
+
+  /** `RG-SCOPE-04` — les tâches touchées par une cascade, anonymes quand illisibles. */
+  async masquerTouchees(
+    touchees: { id: string; titre: string }[],
+    perimetre: Perimetre,
+    permissions: ReadonlySet<string>,
+  ): Promise<{ id: string; titre: string | null; lisible: boolean }[]> {
+    const nommables = await this.tachesNommables(touchees.map((t) => t.id), perimetre, permissions);
+    return touchees.map((t) =>
+      nommables.has(t.id) ? { ...t, lisible: true } : { id: t.id, titre: null, lisible: false },
+    );
   }
 
   /**
@@ -1352,9 +1456,24 @@ export class TachesService {
     acteurId: string,
     permissions: ReadonlySet<string>,
   ) {
-    await this.exigerLisible(taskId, acteurId, permissions);
+    await this.exigerModifiable(taskId, acteurId, permissions);
     const touchees = await this.apercuCascade(taskId, jours);
     const ids = [taskId, ...touchees.map((t) => t.id)];
+
+    /*
+     * `RG-TSK-09` — « le décalage en cascade touchant d'autres tâches du
+     * projet exige d'en être membre ou de détenir la gestion globale. » Seule
+     * la lecture de la tâche pilote était contrôlée : un porteur de
+     * `tasks:readAll` — un manager qui n'a rien à voir avec le projet —
+     * décalait d'un geste toute la chaîne de ses dépendantes.
+     */
+    if (touchees.length > 0) {
+      const pilote = await this.prisma.task.findUnique({
+        where: { id: taskId },
+        select: { projectId: true },
+      });
+      if (pilote?.projectId) await this.exigerAppartenance(pilote.projectId, acteurId, permissions);
+    }
 
     const taches = await this.prisma.task.findMany({
       where: { id: { in: ids } },
@@ -1378,7 +1497,8 @@ export class TachesService {
       action: "task.cascade_shift", typeEntite: "Task", entiteId: taskId, acteurId,
       detail: { jours, tachesTouchees: touchees.length },
     });
-    return { decalees: ids.length, touchees };
+    const perimetre = await this.perimetres.resoudre(acteurId, permissions);
+    return { decalees: ids.length, touchees: await this.masquerTouchees(touchees, perimetre, permissions) };
   }
 
   /**
@@ -1447,7 +1567,7 @@ export class TachesService {
     acteurId: string,
     permissions: ReadonlySet<string>,
   ) {
-    await this.exigerLisible(taskId, acteurId, permissions);
+    await this.exigerModifiable(taskId, acteurId, permissions);
     const existe = await this.prisma.taskRaci.findUnique({
       where: { taskId_userId_role: { taskId, userId, role } },
     });
@@ -1495,7 +1615,7 @@ export class TachesService {
     acteurId: string,
     permissions: ReadonlySet<string>,
   ): Promise<{ assignes: string[]; version: number }> {
-    await this.exigerLisible(taskId, acteurId, permissions);
+    await this.exigerModifiable(taskId, acteurId, permissions);
     const tache = await this.prisma.task.findUnique({
       where: { id: taskId },
       select: { id: true, titre: true, version: true },
@@ -1557,7 +1677,7 @@ export class TachesService {
     });
 
     /*
-     * `cadrage/01 § M18` — on ne prévient que les ARRIVANTS, et jamais
+     * `docs/reference-fonctionnelle.md § M18` — on ne prévient que les ARRIVANTS, et jamais
      * soi-même. Renotifier ceux qui étaient déjà là ferait du bruit à chaque
      * réordonnancement, et le bruit finit par masquer le signal.
      */

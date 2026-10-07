@@ -17,7 +17,7 @@ for (const langue of ["fr", "en"] as const) {
       "/api/organisation": { corps: { departements: [{ id: "d1", nom: "Numérique" }] } },
     } });
     await page.goto("/projets");
-    await page.getByRole("button", { name: langue === "fr" ? "Créer un projet" : "New project", exact: true }).click();
+    await page.locator(".pl-toolbar").getByRole("button", { name: langue === "fr" ? "Créer un projet" : "New project", exact: true }).click();
     const modal = page.getByRole("dialog");
     await expect(modal.locator("#pf-chefId")).toBeVisible();
     await expect(modal.locator("#pf-sponsorId")).toBeVisible();
@@ -45,7 +45,8 @@ for (const langue of ["fr", "en"] as const) {
       else await route.fallback();
     });
     await page.goto("/projets");
-    await page.getByRole("button", { name: langue === "fr" ? "Créer un projet" : "New project", exact: true }).click();
+    await expect(page.getByRole("button", { name: langue === "fr" ? "Créer un projet" : "New project", exact: true })).toHaveCount(2);
+    await page.locator(".pl-toolbar").getByRole("button", { name: langue === "fr" ? "Créer un projet" : "New project", exact: true }).click();
     await page.locator("#pf-nom").fill("Projet dates");
     await page.locator('input[type="date"]').nth(0).fill("2026-10-20");
     await page.locator('input[type="date"]').nth(1).fill("2026-10-19");

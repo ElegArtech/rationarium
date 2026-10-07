@@ -128,7 +128,11 @@ describe("EX-TRS-02, RG-TRS-02, RG-TRS-04 — rattacher au projet, assigner à l
 
   it("une tâche hors projet ne réclame aucun rattachement préalable", async () => {
     const t = await tiers.creerTiers({ type: "individual", contactNom: "Libre" }, acteur);
-    const tache = await prisma.task.create({ data: { titre: "Hors projet" } });
+    // `RG-TSK-18` — une tâche hors projet ne se modifie que par un lien direct :
+    // l'acteur y est assigné, `projects:manage_any` ne couvre que les projets.
+    const tache = await prisma.task.create({
+      data: { titre: "Hors projet", assignes: { create: [{ userId: acteur }] } },
+    });
     await expect(tiers.assignerALaTache(tache.id, t.id, acteur, await globalP(), droitsProjet)).resolves.toBeUndefined();
   });
 });
@@ -819,7 +823,7 @@ describe("EX-TRS-03 — consulter la fiche d'un tiers et ses rattachements", () 
       ],
     });
 
-    const fiche = await tiers.ficheTiers(t.id);
+    const fiche = await tiers.ficheTiers(t.id, await globalP(), new Set(["users:manage_any", "tasks:read_confidential"]));
 
     expect(fiche.projets.map((x) => x.id)).toEqual([p]);
     expect(fiche.taches.map((x) => x.id)).toEqual([tache.id]);
@@ -846,7 +850,7 @@ describe("EX-TRS-03 — consulter la fiche d'un tiers et ses rattachements", () 
       })),
     });
 
-    const fiche = await tiers.ficheTiers(t.id);
+    const fiche = await tiers.ficheTiers(t.id, await globalP(), new Set(["users:manage_any", "tasks:read_confidential"]));
 
     // Un panneau latéral qui déverserait tout l'historique cesserait d'être
     // lisible au premier tiers actif.
@@ -858,7 +862,7 @@ describe("EX-TRS-03 — consulter la fiche d'un tiers et ses rattachements", () 
 
   it("un tiers sans aucun rattachement rend des listes vides et des dates nulles, jamais une erreur", async () => {
     const t = await tiers.creerTiers({ type: "individual", contactNom: "Solitaire" }, acteur);
-    const fiche = await tiers.ficheTiers(t.id);
+    const fiche = await tiers.ficheTiers(t.id, await globalP(), new Set(["users:manage_any", "tasks:read_confidential"]));
     expect(fiche.projets).toEqual([]);
     expect(fiche.taches).toEqual([]);
     expect(fiche.heuresDeclarees).toBe(0);
@@ -868,7 +872,7 @@ describe("EX-TRS-03 — consulter la fiche d'un tiers et ses rattachements", () 
 
   it("un tiers inconnu est refusé, pas rendu vide", async () => {
     await expect(
-      tiers.ficheTiers("00000000-0000-4000-8000-000000000000"),
+      tiers.ficheTiers("00000000-0000-4000-8000-000000000000", await globalP(), new Set(["users:manage_any", "tasks:read_confidential"])),
     ).rejects.toMatchObject({ code: "introuvable" });
   });
 });

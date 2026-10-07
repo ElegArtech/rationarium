@@ -195,6 +195,7 @@
     "deplacementDeTache": "Task move",
     "tacheDecaleeDe": "This task will move by {jours} day(s).",
     "decalerAussi": "Move {n} dependent task(s) too?",
+    "tacheMasquee": "Task not visible",
     "neRienDecaler": "Move nothing else",
     "decalerNTaches": "Move {n} task(s)",
     "mentionCascade": "Nothing is saved until you choose",

@@ -22,7 +22,7 @@ import { PerimetreService } from "../commun/perimetre.service.js";
  *
  * `RG-TMP-03` écrit « l'acteur d'une saisie (agent **ou** tiers) » : les deux
  * sont des sortes d'acteur. « Déclarer pour un tiers » couvre donc aussi bien un
- * collègue qu'un intervenant extérieur — précision portée dans `cadrage/01`.
+ * collègue qu'un intervenant extérieur — précision portée dans `docs/reference-fonctionnelle.md`.
  */
 
 const RACINE_DB = path.resolve(import.meta.dirname, "../../../../packages/db");
@@ -181,7 +181,7 @@ describe("RG-TMP-07 — le non-déclaré se compte par personne, pas par tâche"
       AGENT,
     );
 
-    const mienne = await temps.tachesNonDeclarees(moi);
+    const mienne = await temps.tachesNonDeclarees(moi, await perimetres.resoudre(moi, new Set()), new Set());
     expect(mienne.map((x) => x.id)).toContain(tache.id);
   });
 
@@ -206,7 +206,7 @@ describe("RG-TMP-07 — le non-déclaré se compte par personne, pas par tâche"
       AGENT,
     );
 
-    const sienne = await temps.tachesNonDeclarees(collegue);
+    const sienne = await temps.tachesNonDeclarees(collegue, await perimetres.resoudre(collegue, new Set()), new Set());
     expect(sienne.map((x) => x.id)).not.toContain(tache.id);
   });
 });

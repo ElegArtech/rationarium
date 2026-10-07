@@ -134,3 +134,47 @@ describe("un refus qui n'est pas un 401 ne fait rien", () => {
     expect(parti).toEqual([]);
   });
 });
+
+describe("RG-AUTH-11 — un changement de mot de passe imposé ramène à la vue 05", () => {
+  const repondreChangementImpose = () =>
+    vi.stubGlobal("fetch", () =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({ cle: "auth:erreurs.changementMotDePasseRequis", message: "Changement requis" }),
+          { status: 403, headers: { "content-type": "application/json" } },
+        ),
+      ),
+    );
+
+  it("le 403 portant la clé renvoie vers /mot-de-passe-impose, une seule fois", async () => {
+    const { parti } = fenetre("/planning");
+    repondreChangementImpose();
+    const { appeler } = await clientNeuf();
+
+    await Promise.all(
+      Array.from({ length: 3 }, () => appeler("/planning").catch(() => undefined)),
+    );
+
+    expect(parti).toEqual(["/mot-de-passe-impose"]);
+  });
+
+  it("déjà sur la vue 05, on n'en repart pas", async () => {
+    const { parti } = fenetre("/mot-de-passe-impose");
+    repondreChangementImpose();
+    const { appeler } = await clientNeuf();
+
+    await appeler("/notifications").catch(() => undefined);
+
+    expect(parti).toEqual([]);
+  });
+
+  it("l'erreur est levée quand même, avec sa clé", async () => {
+    fenetre("/planning");
+    repondreChangementImpose();
+    const { appeler, ErreurApi } = await clientNeuf();
+
+    const echec = await appeler("/planning").catch((e: unknown) => e);
+    expect(echec).toBeInstanceOf(ErreurApi);
+    expect((echec as InstanceType<typeof ErreurApi>).cle).toBe("auth:erreurs.changementMotDePasseRequis");
+  });
+});

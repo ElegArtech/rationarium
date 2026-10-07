@@ -268,7 +268,7 @@ test.describe("Vue 19 — congés : trois publics, un écran", () => {
     await serveur(page, { session: HUGO, reponses: reponsesSoldes });
     await page.goto("/conges");
 
-    /* « Camille en voit un, Hugo en voit six » — `cadrage/02` § vue 19. Le
+    /* « Camille en voit un, Hugo en voit six » — vue 19. Le
        sixième est « Soldes » depuis l'arbitrage du 2026-08-31 : la vue rend les
        deux listes de délégations dans un seul onglet, là où l'énumération de la
        section en comptait deux. */
@@ -587,7 +587,7 @@ test.describe("Vue 19 — congés : trois publics, un écran", () => {
     }).click();
     await page.getByRole("button", { name: "Désactiver Congés annuels" }).click();
 
-    // `cadrage/02`, état « Suppression d'un type utilisé » : le chiffre est
+    // État « Suppression d'un type utilisé » : le chiffre est
     // dans la question, pas seulement dans la réponse.
     await expect(
       page.getByText(
@@ -964,7 +964,7 @@ test.describe("Vue 19 — congés : trois publics, un écran", () => {
    *
    * `PUT /conges/soldes` existait, gardée et testée, et aucun écran ne
    * l'appelait : sur une instance neuve tous les soldes valaient zéro, donc
-   * `RG-CNG-20` refusait toute demande. `cadrage/02` § vue 19 se contredisait,
+   * `RG-CNG-20` refusait toute demande. La spécification de la vue 19 se contredisait,
    * et l'arbitrage y est désormais écrit — c'est la ligne « Variantes » qui
    * l'emporte, seule des deux à décrire ce que voit un détenteur de
    * `leaves:manage_balances`.

@@ -4,7 +4,7 @@ import { AuditService } from "../commun/audit.service.js";
 import { PerimetreService, type Perimetre } from "../commun/perimetre.service.js";
 
 /**
- * Structure organisationnelle — M2, `cadrage/01 § M2`.
+ * Structure organisationnelle — M2, `docs/reference-fonctionnelle.md § M2`.
  *
  * Trois niveaux : Direction → Département → Service.
  */

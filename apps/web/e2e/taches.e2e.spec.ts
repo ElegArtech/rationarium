@@ -76,7 +76,8 @@ async function survoler(page: Page, cible: Locator) {
 const SESSION_TACHES = {
   ...SESSION,
   permissions: [...SESSION.permissions, "tasks:create", "tasks:update", "tasks:delete",
-    "tasks:manage_any", "tasks:manage_dependencies", "tasks:manage_raci", "comments:create"],
+    "tasks:manage_any", "tasks:manage_dependencies", "tasks:manage_raci", "comments:create",
+    "tasks:read_confidential"],
 };
 
 /** `RG-TSK-14` — le geste, sans la portée élargie : ses tâches, et elles seules. */
@@ -218,7 +219,7 @@ test.describe("Vue 12 — kanban", () => {
    *
    * **La règle tient par construction, et c'est ce qu'il faut prouver.** Le
    * produit n'offre AUCUN masquage de colonne : la liste vient du vocabulaire
-   * de `cadrage/01 § 4.1`, dans son ordre, et rien ne la filtre. Un test qui
+   * de `docs/reference-fonctionnelle.md § 4.1`, dans son ordre, et rien ne la filtre. Un test qui
    * exercerait un masquage n'aurait rien à exercer.
    *
    * Ce qu'on éprouve donc, c'est l'invariant : quoi qu'il arrive à l'écran —
@@ -654,7 +655,7 @@ test.describe("Vue 17 — modifier les dépendances", () => {
   });
 
   /**
-   * `cadrage/02:571` — **deux états vides, pas un.** « Aucune tâche
+   * **Deux états vides, pas un.** « Aucune tâche
    * disponible » dit qu'il n'y a rien à lier ; « Aucune tâche trouvée » dit que
    * la recherche est trop étroite. Les confondre laisserait croire à un projet
    * vide devant une faute de frappe.
@@ -708,7 +709,7 @@ test.describe("Vue 17 — modifier les dépendances", () => {
    * `RG-TSK-04` — le bandeau ne se déclenche que sur une COURSE : le serveur
    * écarte les candidats cycliques de la liste, donc seul un lien posé ailleurs
    * entre le chargement et l'enregistrement peut refermer une boucle. Le texte
-   * est celui de `cadrage/02:566`, à la lettre.
+   * est celui du brief, à la lettre.
    */
   test("RG-TSK-04 — un cycle refusé au serveur s'affiche dans la fenêtre", async ({ page }) => {
     await serveur(page, { session: SESSION_TACHES, reponses: reponsesDeps });
@@ -802,6 +803,43 @@ test.describe("Vue 17 — trois gestes que la fiche n'offrait pas", () => {
     expect(Buffer.from(String(recu!["contenuBase64"]), "base64").toString()).toBe("bonjour");
   });
 
+  /**
+   * D22, `RG-DOC-04` — au-delà de 20 Mio, le serveur refuse en 413. La fiche
+   * le disait par « échec du dépôt » après avoir encodé et envoyé : le refus
+   * se dit désormais AVANT, avec la limite, et rien ne part.
+   */
+  test("D22 — une pièce jointe de plus de 20 Mio est refusée avant l'envoi, limite nommée", async ({
+    page,
+  }) => {
+    let envois = 0;
+    await serveur(page, {
+      session: SESSION_DOC,
+      reponses: { [`/api/taches/${FICHE.id}`]: { corps: FICHE } },
+    });
+    await page.route(
+      (url) => url.pathname === "/api/documents",
+      (route) => {
+        if (route.request().method() !== "POST") return route.fallback();
+        envois++;
+        return route.fulfill({ status: 201, contentType: "application/json", body: '{"id":"d1"}' });
+      },
+    );
+    await page.goto(`/taches/${FICHE.id}`);
+
+    await page
+      .getByLabel("Déposez un fichier ici, ou cliquez pour parcourir.")
+      .setInputFiles({
+        name: "archive.zip",
+        mimeType: "application/zip",
+        buffer: Buffer.alloc(20 * 1024 * 1024 + 1),
+      });
+
+    await expect(
+      page.getByText("Ce fichier est trop volumineux : la taille maximale est de 20 Mio."),
+    ).toBeVisible();
+    expect(envois).toBe(0);
+  });
+
   test("RG-GEN-06 — sans documents:create, la zone de dépôt n'est pas proposée", async ({
     page,
   }) => {
@@ -832,12 +870,14 @@ test.describe("Vue 17 — trois gestes que la fiche n'offrait pas", () => {
         {
           id: "c-moi",
           contenu: "À moi",
+          version: 3,
           creeLe: "2026-08-10T09:15:00.000Z",
           auteur: { id: mien.id, prenom: "Camille", nom: "Roussel" },
         },
         {
           id: "c-autre",
           contenu: "À quelqu'un d'autre",
+          version: 1,
           creeLe: "2026-08-10T10:00:00.000Z",
           auteur: { id: "a1", prenom: "Driss", nom: "Amrani" },
         },
@@ -866,7 +906,8 @@ test.describe("Vue 17 — trois gestes que la fiche n'offrait pas", () => {
     await page.getByRole("button", { name: "Enregistrer", exact: true }).click();
 
     await expect.poll(() => patch).not.toBeNull();
-    expect(patch).toMatchObject({ contenu: "Corrigé" });
+    // `RG-DOC-06` — la version LUE du commentaire part avec la correction.
+    expect(patch).toEqual({ contenu: "Corrigé", version: 3 });
   });
 });
 
@@ -985,7 +1026,11 @@ test.describe("Vue 17 — les trois verbes du document que rien n'appelait", () 
     await fenetre.getByRole("button", { name: "Renommer" }).click();
 
     await expect.poll(() => journal.filter((a) => a.verbe === "PATCH")).toHaveLength(1);
-    expect(journal.find((a) => a.verbe === "PATCH")!.corps).toEqual({ nom: "cadrage-v3.pdf" });
+    // `RG-DOC-06` — avec la version que la consultation a rendue.
+    expect(journal.find((a) => a.verbe === "PATCH")!.corps).toEqual({
+      nom: "cadrage-v3.pdf",
+      version: DOCUMENT_MIEN.version,
+    });
     await expect(page.getByText("Document renommé.")).toBeVisible();
   });
 
@@ -1588,6 +1633,20 @@ test.describe("Vue 17 — le formulaire complet de modification", () => {
 
     await expect.poll(() => envois.length).toBe(1);
     expect(envois[0]).toMatchObject({ confidentielle: true });
+  });
+
+  test("RG-TSK-19 — sans tasks:read_confidential, la case « Confidentielle » n'est pas proposée", async ({
+    page,
+  }) => {
+    const session = {
+      ...SESSION_TACHES,
+      permissions: SESSION_TACHES.permissions.filter((p) => p !== "tasks:read_confidential"),
+    };
+    await serveur(page, { session, reponses });
+    await ouvrir(page);
+
+    await expect(page.getByLabel("Date de fin")).toBeVisible();
+    await expect(page.getByLabel("Confidentielle", { exact: true })).toHaveCount(0);
   });
 
   test("RG-JAL-03 — le sélecteur ne propose que les jalons DU PROJET de la tâche", async ({

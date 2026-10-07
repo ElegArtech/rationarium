@@ -18,7 +18,7 @@ import path from "node:path";
  * deux fichiers homonymes ne s'écrasent pas, et un nom hostile ne peut pas
  * s'échapper du volume. Le nom d'origine est une métadonnée d'affichage.
  *
- * La racine est **paramétrée**, jamais devinée. `cadrage/03 § 6` laisse
+ * La racine est **paramétrée**, jamais devinée. Reste
  * ouverte la question du magasin définitif (volume sauvegardé avec la base,
  * ou magasin objet compatible S3) : ce module tient la première branche, la
  * plus simple, et l'isole derrière trois fonctions pour que la seconde ne

@@ -1,15 +1,15 @@
 /* ==========================================================================
    RATIONARIUM — SOCLE GRAPHIQUE
    Contrat de style de l'application. Repris des maquettes SANS RÉINTERPRÉTATION.
-   Source : mockups/ (gel du 2026-08-16). Voir docs/design/DESIGN.md.
+   Source : les maquettes (gel du 2026-08-16). Voir docs/design/DESIGN.md.
 
-   Jetons issus du groupe conforme RGAA (voir mockups/GEL.md, écart 5) :
+   Jetons issus du groupe conforme RGAA (écart 5 du gel des maquettes) :
    9 des 35 maquettes portaient une correction de contraste non rétro-propagée.
    Ce sont ces valeurs-là qui font foi.
 
    Ce fichier ne contient QUE le socle : jetons, base, typographie,
    formulaires, boutons, alertes, passe d'accessibilité. Tout le reste vit en
-   modules CSS portés par les composants. Voir cadrage/03 § 3.2.
+   modules CSS portés par les composants.
    ========================================================================== */
 
 /* ── 1. TOKENS ───────────────────────────────────────────────────────── */
@@ -442,7 +442,7 @@ a.chip-btn,a.ms-toggle{ text-decoration:none; }
 /* ── 9. PRIMITIVES PARTAGÉES PAR LES VUES ──────────────────────────────────
  *
  * Panneau, indicateurs, barre de progression, case à cocher, état vide,
- * pastille de projet. Portées de `mockups/06`, employées par 8 à 30 vues.
+ * pastille de projet. Portées de la maquette 06, employées par 8 à 30 vues.
  *
  * **Elles ont failli disparaître.** Elles vivaient dans `coquille/coquille.css`,
  * qui servait à la fois de feuille de coquille et de feuille du tableau de

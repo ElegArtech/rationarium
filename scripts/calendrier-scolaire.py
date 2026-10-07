@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""ADR-0017 : régénérer le relevé local depuis l'export officiel archivé.
+"""Régénérer le relevé local depuis l'export officiel archivé.
 
 Aucun accès réseau. Python 3.9+ (zoneinfo de la bibliothèque standard).
 Usage : python3 scripts/calendrier-scolaire.py

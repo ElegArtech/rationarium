@@ -11,6 +11,10 @@
 !deploiement/
 !deploiement/Dockerfile.api
 !deploiement/Dockerfile.web
+!deploiement/Dockerfile.base
+!deploiement/entree-postgresql.sh
+!deploiement/licences/
+!deploiement/licences/su-exec.txt
 !deploiement/Caddyfile
 !deploiement/lancer.mjs
 !deploiement/roles-restauration.mjs

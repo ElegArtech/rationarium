@@ -189,21 +189,21 @@ describe("RG-PRJ-08 — le budget consommé inclut le temps des TÂCHES", () => 
 describe("RG-PRJ-02, RG-PRJ-04 — suppression logique et restauration", () => {
   it("annuler passe au statut Annulé, sans effacer", async () => {
     const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
-    await projets.annuler(p.id, chef);
+    await projets.annuler(p.id, chef, toutes);
     const apres = await prisma.project.findUniqueOrThrow({ where: { id: p.id } });
     expect(apres.statut).toBe("cancelled");
   });
 
   it("un projet annulé refuse toute modification jusqu'à restauration", async () => {
     const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
-    await projets.annuler(p.id, chef);
+    await projets.annuler(p.id, chef, toutes);
 
     const membre = await agent();
     await expect(
       projets.ajouterMembre(p.id, { userId: membre, roleProjet: "Membre" }, chef, await global(), toutes),
     ).rejects.toMatchObject({ code: "projet_annule" });
 
-    await projets.restaurer(p.id, chef);
+    await projets.restaurer(p.id, chef, toutes);
     await expect(
       projets.ajouterMembre(p.id, { userId: membre, roleProjet: "Membre" }, chef, await global(), toutes),
     ).resolves.toBeTruthy();
@@ -213,15 +213,15 @@ describe("RG-PRJ-02, RG-PRJ-04 — suppression logique et restauration", () => {
 describe("RG-PRJ-05 — archivage, deux refus DISTINCTS", () => {
   it("archiver deux fois est refusé, et le refus dit lequel des deux cas", async () => {
     const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
-    await projets.archiver(p.id, true, chef);
-    await expect(projets.archiver(p.id, true, chef)).rejects.toMatchObject({
+    await projets.archiver(p.id, true, chef, toutes);
+    await expect(projets.archiver(p.id, true, chef, toutes)).rejects.toMatchObject({
       code: "deja_archive",
     });
   });
 
   it("désarchiver un projet non archivé est refusé, avec l'autre code", async () => {
     const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
-    await expect(projets.archiver(p.id, false, chef)).rejects.toMatchObject({
+    await expect(projets.archiver(p.id, false, chef, toutes)).rejects.toMatchObject({
       code: "pas_archive",
     });
   });
@@ -239,7 +239,7 @@ describe("RG-PRJ-03 — la suppression définitive PROPOSE une alternative", () 
     // Un refus sans alternative pousse à contourner.
     expect(impact.alternative).toBe("archiver");
 
-    const erreur = await projets.supprimerDefinitivement(p.id, chef).catch((e: ErreurProjet) => e);
+    const erreur = await projets.supprimerDefinitivement(p.id, chef, toutes).catch((e: ErreurProjet) => e);
     expect((erreur as ErreurProjet).detail?.alternative).toBe("archiver");
   });
 
@@ -249,7 +249,7 @@ describe("RG-PRJ-03 — la suppression définitive PROPOSE une alternative", () 
     const impact = await projets.impactSuppression(p.id, await global(), toutes);
     expect(impact.blocages).toEqual([]);
     expect(impact.effacements).toContainEqual({ objet: "tâches", nombre: 1 });
-    await expect(projets.supprimerDefinitivement(p.id, chef)).resolves.toBeUndefined();
+    await expect(projets.supprimerDefinitivement(p.id, chef, toutes)).resolves.toBeUndefined();
   });
 });
 
@@ -345,6 +345,7 @@ describe("RG-JAL-05 — la feuille de route NOMME les tâches sans jalon", () =>
     const j = await projets.creerJalon(
       { nom: "Jalon", dateEcheance: utc("2026-06-30"), projectId: p.id },
       chef,
+      toutes,
     );
     await prisma.task.createMany({
       data: [
@@ -368,6 +369,7 @@ describe("RG-JAL-05 — la feuille de route NOMME les tâches sans jalon", () =>
     const j = await projets.creerJalon(
       { nom: "Jalon", dateEcheance: utc("2026-06-30"), projectId: p.id },
       chef,
+      toutes,
     );
     const membre = await agent();
     const t = await prisma.task.create({
@@ -387,13 +389,13 @@ describe("RG-JAL-05 — la feuille de route NOMME les tâches sans jalon", () =>
 describe("RG-JAL-01 — le statut d'un jalon est CALCULÉ", () => {
   it("sans tâche : En attente", async () => {
     const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
-    const j = await projets.creerJalon({ nom: "J1", dateEcheance: utc("2026-06-30"), projectId: p.id }, chef);
+    const j = await projets.creerJalon({ nom: "J1", dateEcheance: utc("2026-06-30"), projectId: p.id }, chef, toutes);
     expect(await projets.statutJalon(j.id)).toBe("pending");
   });
 
   it("toutes à faire : En attente", async () => {
     const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
-    const j = await projets.creerJalon({ nom: "J", dateEcheance: utc("2026-06-30"), projectId: p.id }, chef);
+    const j = await projets.creerJalon({ nom: "J", dateEcheance: utc("2026-06-30"), projectId: p.id }, chef, toutes);
     await prisma.task.createMany({
       data: [
         { titre: "A", projectId: p.id, milestoneId: j.id, statut: "todo" },
@@ -405,7 +407,7 @@ describe("RG-JAL-01 — le statut d'un jalon est CALCULÉ", () => {
 
   it("une seule en cours suffit : En cours", async () => {
     const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
-    const j = await projets.creerJalon({ nom: "J", dateEcheance: utc("2026-06-30"), projectId: p.id }, chef);
+    const j = await projets.creerJalon({ nom: "J", dateEcheance: utc("2026-06-30"), projectId: p.id }, chef, toutes);
     await prisma.task.createMany({
       data: [
         { titre: "A", projectId: p.id, milestoneId: j.id, statut: "todo" },
@@ -417,7 +419,7 @@ describe("RG-JAL-01 — le statut d'un jalon est CALCULÉ", () => {
 
   it("toutes terminées : Terminé", async () => {
     const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
-    const j = await projets.creerJalon({ nom: "J", dateEcheance: utc("2026-06-30"), projectId: p.id }, chef);
+    const j = await projets.creerJalon({ nom: "J", dateEcheance: utc("2026-06-30"), projectId: p.id }, chef, toutes);
     await prisma.task.createMany({
       data: [
         { titre: "A", projectId: p.id, milestoneId: j.id, statut: "done" },
@@ -429,7 +431,7 @@ describe("RG-JAL-01 — le statut d'un jalon est CALCULÉ", () => {
 
   it("il n'est PAS stocké : changer une tâche change le statut, sans rafraîchissement", async () => {
     const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
-    const j = await projets.creerJalon({ nom: "J", dateEcheance: utc("2026-06-30"), projectId: p.id }, chef);
+    const j = await projets.creerJalon({ nom: "J", dateEcheance: utc("2026-06-30"), projectId: p.id }, chef, toutes);
     const t = await prisma.task.create({
       data: { titre: "A", projectId: p.id, milestoneId: j.id, statut: "todo" },
     });
@@ -443,12 +445,12 @@ describe("RG-JAL-01 — le statut d'un jalon est CALCULÉ", () => {
 describe("RG-JAL-05 — supprimer un jalon DÉTACHE ses tâches", () => {
   it("les tâches survivent, sans jalon", async () => {
     const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
-    const j = await projets.creerJalon({ nom: "J", dateEcheance: utc("2026-06-30"), projectId: p.id }, chef);
+    const j = await projets.creerJalon({ nom: "J", dateEcheance: utc("2026-06-30"), projectId: p.id }, chef, toutes);
     const t = await prisma.task.create({
       data: { titre: "Survivante", projectId: p.id, milestoneId: j.id },
     });
 
-    const r = await projets.supprimerJalon(j.id, chef);
+    const r = await projets.supprimerJalon(j.id, chef, toutes);
     expect(r.tachesDetachees).toBe(1);
 
     const apres = await prisma.task.findUniqueOrThrow({ where: { id: t.id } });
@@ -474,7 +476,7 @@ describe("EX-PRJ-01 — portefeuille : compteur ET compteur filtré", () => {
   it("les projets archivés sont hors du portefeuille par défaut", async () => {
     const p = await global();
     const archive = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
-    await projets.archiver(archive.id, true, chef);
+    await projets.archiver(archive.id, true, chef, toutes);
 
     const actifs = await projets.portefeuille(p, toutes);
     expect(actifs.projets.map((x) => x.id)).not.toContain(archive.id);
@@ -535,8 +537,8 @@ describe("RG-PRJ-09 — instantanés d'avancement", () => {
     const vivant = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
     const archive = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
     const annule = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
-    await projets.archiver(archive.id, true, chef);
-    await projets.annuler(annule.id, chef);
+    await projets.archiver(archive.id, true, chef, toutes);
+    await projets.annuler(annule.id, chef, toutes);
 
     const jour = utc("2026-05-14");
     const bilan = await projets.capturerInstantanesDuJour(jour);
@@ -827,7 +829,7 @@ describe("EX-PRJ-05 — modifier un projet", () => {
 
   it("RG-PRJ-04 — REFUSE de modifier un projet annulé, mais laisse le RESTAURER", async () => {
     const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
-    await projets.annuler(p.id, chef);
+    await projets.annuler(p.id, chef, toutes);
     const annule = await prisma.project.findUniqueOrThrow({ where: { id: p.id } });
 
     await expect(
@@ -1001,7 +1003,7 @@ describe("EX-PRJ-06 — archiver / désarchiver un projet", () => {
     const p = await projets.creer(nouveauProjet({ statut: "active" }), chef, TOUS_DROITS_PROJET);
     await prisma.task.create({ data: { titre: "Un reste", projectId: p.id } });
 
-    await projets.archiver(p.id, true, chef);
+    await projets.archiver(p.id, true, chef, toutes);
 
     const range = await prisma.project.findUniqueOrThrow({ where: { id: p.id } });
     expect(range.archive).toBe(true);
@@ -1011,7 +1013,7 @@ describe("EX-PRJ-06 — archiver / désarchiver un projet", () => {
     const portefeuille = await projets.portefeuille(await global(), toutes, {});
     expect(portefeuille.projets.map((x) => x.id)).not.toContain(p.id);
 
-    await projets.archiver(p.id, false, chef);
+    await projets.archiver(p.id, false, chef, toutes);
 
     expect((await prisma.project.findUniqueOrThrow({ where: { id: p.id } })).archive).toBe(false);
     const revenu = await projets.portefeuille(await global(), toutes, {});
@@ -1020,7 +1022,7 @@ describe("EX-PRJ-06 — archiver / désarchiver un projet", () => {
 
   it("les archivés RESTENT DEMANDABLES — masquer sans moyen de retrouver ferait croire à une suppression", async () => {
     const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
-    await projets.archiver(p.id, true, chef);
+    await projets.archiver(p.id, true, chef, toutes);
 
     const archives = await projets.portefeuille(await global(), toutes, { archive: true });
 
@@ -1031,8 +1033,8 @@ describe("EX-PRJ-06 — archiver / désarchiver un projet", () => {
 
   it("les deux gestes sont tracés SOUS DES ACTIONS DISTINCTES", async () => {
     const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
-    await projets.archiver(p.id, true, chef);
-    await projets.archiver(p.id, false, chef);
+    await projets.archiver(p.id, true, chef, toutes);
+    await projets.archiver(p.id, false, chef, toutes);
 
     const actions = (
       await prisma.auditLog.findMany({ where: { entiteId: p.id }, select: { action: true } })
@@ -1043,7 +1045,7 @@ describe("EX-PRJ-06 — archiver / désarchiver un projet", () => {
 
   it("un projet inconnu est refusé, il n'est pas archivé en silence", async () => {
     await expect(
-      projets.archiver("00000000-0000-4000-8000-000000000000", true, chef),
+      projets.archiver("00000000-0000-4000-8000-000000000000", true, chef, toutes),
     ).rejects.toMatchObject({ code: "introuvable" });
   });
 });
@@ -1119,7 +1121,7 @@ describe("EX-PRJ-11 — importer jalons et tâches depuis un CSV UNIQUE", () => 
       "MILESTONE;Cadrage;2026-04-30;;;;;;;;;;",
     ].join("\n");
 
-    const rendu = await imports.importerProjet(p.id, csv, "ajouter", chef);
+    const rendu = await imports.importerProjet(p.id, csv, "ajouter", chef, toutes);
 
     expect(rendu.erreurs).toEqual([]);
     expect(rendu.importes).toBe(2);
@@ -1142,10 +1144,10 @@ describe("EX-PRJ-11 — importer jalons et tâches depuis un CSV UNIQUE", () => 
      * doublons dans les erreurs ferait paniquer sur un fichier rejoué.
      */
     const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
-    const dejaLa = await projets.creerJalon({ nom: "Existant", projectId: p.id }, chef);
+    const dejaLa = await projets.creerJalon({ nom: "Existant", projectId: p.id }, chef, toutes);
     const csv = [enTete, "MILESTONE;Existant;2026-05-31;;;;;;;;;;", "MILESTONE;Nouveau;2026-06-30;;;;;;;;;;"].join("\n");
 
-    const rendu = await imports.importerProjet(p.id, csv, "ajouter", chef);
+    const rendu = await imports.importerProjet(p.id, csv, "ajouter", chef, toutes);
 
     expect(rendu.importes).toBe(1);
     expect(rendu.ignores).toBe(1);
@@ -1163,6 +1165,7 @@ describe("EX-PRJ-11 — importer jalons et tâches depuis un CSV UNIQUE", () => 
       [enTete, "MILESTONE;Isolé;2026-07-31;;;;;;;;;;"].join("\n"),
       "ajouter",
       chef,
+      toutes,
     );
     expect(await prisma.milestone.count({ where: { projectId: voisin.id } })).toBe(0);
   });
@@ -1174,7 +1177,7 @@ describe("RG-PRJ-11 — les deux modes de l'import projet ; le blocage sur donn�
 
   it("les VOLUMES sont chiffrés avant la confirmation — « êtes-vous sûr ? » sans chiffres ne permet pas de décider", async () => {
     const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
-    const jalon = await projets.creerJalon({ nom: "À remplacer", projectId: p.id }, chef);
+    const jalon = await projets.creerJalon({ nom: "À remplacer", projectId: p.id }, chef, toutes);
     const tache = await prisma.task.create({
       data: { titre: "À remplacer", projectId: p.id, milestoneId: jalon.id },
     });
@@ -1185,12 +1188,12 @@ describe("RG-PRJ-11 — les deux modes de l'import projet ; le blocage sur donn�
       ],
     });
 
-    expect(await imports.volumesRemplacement(p.id)).toEqual({ jalons: 1, taches: 1, sousTaches: 2 });
+    expect(await imports.volumesRemplacement(p.id, chef, toutes)).toEqual({ jalons: 1, taches: 1, sousTaches: 2 });
   });
 
   it("« Remplacer » supprime jalons, tâches ET sous-tâches, puis pose le contenu du fichier", async () => {
     const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
-    const ancien = await projets.creerJalon({ nom: "Ancien", projectId: p.id }, chef);
+    const ancien = await projets.creerJalon({ nom: "Ancien", projectId: p.id }, chef, toutes);
     const ancienne = await prisma.task.create({
       data: { titre: "Ancienne", projectId: p.id, milestoneId: ancien.id },
     });
@@ -1201,6 +1204,7 @@ describe("RG-PRJ-11 — les deux modes de l'import projet ; le blocage sur donn�
       [enTete, "MILESTONE;Neuf;2026-09-30;;;;;;;;;;"].join("\n"),
       "remplacer",
       chef,
+      toutes,
     );
 
     expect((await prisma.milestone.findMany({ where: { projectId: p.id } })).map((j) => j.nom)).toEqual([
@@ -1217,11 +1221,11 @@ describe("RG-PRJ-11 — les deux modes de l'import projet ; le blocage sur donn�
      * après la suppression est exactement ce qu'elle interdit.
      */
     const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
-    const survivant = await projets.creerJalon({ nom: "Survivant", projectId: p.id }, chef);
+    const survivant = await projets.creerJalon({ nom: "Survivant", projectId: p.id }, chef, toutes);
     // `rowType` est obligatoire : la seconde ligne est en erreur.
     const csv = [enTete, "MILESTONE;Bon;2026-09-30;;;;;;;;;;", ";;;;;;;;;;;;"].join("\n");
 
-    const rendu = await imports.importerProjet(p.id, csv, "remplacer", chef);
+    const rendu = await imports.importerProjet(p.id, csv, "remplacer", chef, toutes);
 
     expect(rendu.erreurs.length).toBeGreaterThan(0);
     expect(rendu.importes).toBe(0);
@@ -1233,7 +1237,7 @@ describe("RG-PRJ-11 — les deux modes de l'import projet ; le blocage sur donn�
     const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
     const csv = [enTete, "MILESTONE;Bon;2026-09-30;;;;;;;;;;", ";;;;;;;;;;;;"].join("\n");
 
-    const rendu = await imports.importerProjet(p.id, csv, "remplacer", chef);
+    const rendu = await imports.importerProjet(p.id, csv, "remplacer", chef, toutes);
 
     // Ligne 3 du fichier : en-tête, première donnée, puis la fautive.
     expect(rendu.erreurs.map((e) => e.ligne)).toEqual([3]);
@@ -1270,14 +1274,14 @@ describe("RG-PRJ-11 — les deux modes de l'import projet ; le blocage sur donn�
    *     effacement, un seul le refuse.
    *
    * Les deux contrôles ci-dessous énoncent la règle, pas le comportement
-   * observé. `RG-PRJ-11` reste en dette dans `design/tracabilite.json`.
+   * observé. `RG-PRJ-11` reste en dette.
    * ────────────────────────────────────────────────────────────────────────
    */
   it(
     "RG-PRJ-11 — « BLOQUÉ SI DES DONNÉES RATTACHÉES L'EMPÊCHENT », par un code métier",
     async () => {
       const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
-      const jalon = await projets.creerJalon({ nom: "Avec heures", projectId: p.id }, chef);
+      const jalon = await projets.creerJalon({ nom: "Avec heures", projectId: p.id }, chef, toutes);
       const tache = await prisma.task.create({
         data: { titre: "Déclarée", projectId: p.id, milestoneId: jalon.id },
       });
@@ -1293,6 +1297,7 @@ describe("RG-PRJ-11 — les deux modes de l'import projet ; le blocage sur donn�
           [enTete, "MILESTONE;Neuf;2026-09-30;;;;;;;;;;"].join("\n"),
           "remplacer",
           chef,
+          toutes,
         )
         .catch((e: unknown) => e);
 
@@ -1329,6 +1334,7 @@ describe("RG-PRJ-11 — les deux modes de l'import projet ; le blocage sur donn�
           [enTete, "MILESTONE;Neuf;2026-09-30;;;;;;;;;;"].join("\n"),
           "remplacer",
           chef,
+          toutes,
         )
         .catch((e: unknown) => e);
 
@@ -1359,6 +1365,7 @@ describe("RG-PRJ-11 — les deux modes de l'import projet ; le blocage sur donn�
       [enTete, "MILESTONE;Neuf;2026-09-30;;;;;;;;;;"].join("\n"),
       "remplacer",
       chef,
+      toutes,
     );
     expect(rendu.importes).toBe(1);
     expect(await prisma.task.count({ where: { projectId: p.id } })).toBe(0);
@@ -1373,7 +1380,7 @@ describe("EX-PRJ-12 — exporter le contenu du projet", () => {
      * d'entrée, pas les libellés de l'interface.
      */
     const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
-    const jalon = await projets.creerJalon({ nom: "Cadrage", projectId: p.id }, chef);
+    const jalon = await projets.creerJalon({ nom: "Cadrage", projectId: p.id }, chef, toutes);
     const porteur = await agent("Porteur");
     const email = (await prisma.user.findUniqueOrThrow({ where: { id: porteur } })).email;
     await prisma.task.create({
@@ -1391,7 +1398,7 @@ describe("EX-PRJ-12 — exporter le contenu du projet", () => {
       },
     });
 
-    const csv = await imports.exporterTaches(p.id);
+    const csv = await imports.exporterTaches(p.id, await global(), toutes);
     const lignes = csv.trim().split("\n");
 
 // `EX-TSK-08` — `progress` a rejoint les colonnes le 2026-09-01 : l'export
@@ -1408,10 +1415,10 @@ describe("EX-PRJ-12 — exporter le contenu du projet", () => {
 
   it("l'export des jalons porte les siennes, ordonnées par échéance", async () => {
     const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
-    await projets.creerJalon({ nom: "Second", dateEcheance: utc("2026-08-31"), projectId: p.id }, chef);
-    await projets.creerJalon({ nom: "Premier", dateEcheance: utc("2026-04-30"), projectId: p.id }, chef);
+    await projets.creerJalon({ nom: "Second", dateEcheance: utc("2026-08-31"), projectId: p.id }, chef, toutes);
+    await projets.creerJalon({ nom: "Premier", dateEcheance: utc("2026-04-30"), projectId: p.id }, chef, toutes);
 
-    const lignes = (await imports.exporterJalons(p.id)).trim().split("\n");
+    const lignes = (await imports.exporterJalons(p.id, await global(), toutes)).trim().split("\n");
 
     expect(lignes[0]!.replace(/^\uFEFF/g, "")).toBe("name;description;dueDate");
     expect(lignes[1]).toContain("Premier");
@@ -1424,7 +1431,7 @@ describe("EX-PRJ-12 — exporter le contenu du projet", () => {
      * téléchargement, et il n'est pas réimportable.
      */
     const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
-    const csv = (await imports.exporterTaches(p.id)).trim();
+    const csv = (await imports.exporterTaches(p.id, await global(), toutes)).trim();
     expect(csv.replace(/^\uFEFF/g, "")).toBe(
       "title;description;status;priority;assigneeEmail;milestoneName;estimatedHours;startDate;endDate;progress",
     );
@@ -1435,7 +1442,7 @@ describe("EX-PRJ-12 — exporter le contenu du projet", () => {
     await prisma.task.create({
       data: { titre: 'Refonte; "urgente"', projectId: p.id },
     });
-    const csv = await imports.exporterTaches(p.id);
+    const csv = await imports.exporterTaches(p.id, await global(), toutes);
     const donnees = csv.trim().split("\n")[1]!;
     // Le point-virgule du titre ne doit pas fabriquer une colonne de plus.
     expect(donnees.startsWith('"Refonte; ""urgente"""')).toBe(true);
@@ -1445,9 +1452,9 @@ describe("EX-PRJ-12 — exporter le contenu du projet", () => {
 describe("EX-JAL-03, EX-JAL-04 — la feuille de route chronologique et ses indicateurs", () => {
   it("les jalons sortent DANS L'ORDRE DES ÉCHÉANCES, pas dans celui de la création", async () => {
     const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
-    await projets.creerJalon({ nom: "Livraison", dateEcheance: utc("2026-11-30"), projectId: p.id }, chef);
-    await projets.creerJalon({ nom: "Cadrage", dateEcheance: utc("2026-03-31"), projectId: p.id }, chef);
-    await projets.creerJalon({ nom: "Recette", dateEcheance: utc("2026-09-30"), projectId: p.id }, chef);
+    await projets.creerJalon({ nom: "Livraison", dateEcheance: utc("2026-11-30"), projectId: p.id }, chef, toutes);
+    await projets.creerJalon({ nom: "Cadrage", dateEcheance: utc("2026-03-31"), projectId: p.id }, chef, toutes);
+    await projets.creerJalon({ nom: "Recette", dateEcheance: utc("2026-09-30"), projectId: p.id }, chef, toutes);
 
     const route = await projets.feuilleDeRoute(p.id, await global(), toutes);
 
@@ -1456,9 +1463,9 @@ describe("EX-JAL-03, EX-JAL-04 — la feuille de route chronologique et ses indi
 
   it("les quatre indicateurs comptent ce qu'ils annoncent : total, terminés, en cours, tâches", async () => {
     const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
-    const fini = await projets.creerJalon({ nom: "Fini", dateEcheance: utc("2026-03-31"), projectId: p.id }, chef);
-    const enCours = await projets.creerJalon({ nom: "En cours", dateEcheance: utc("2026-06-30"), projectId: p.id }, chef);
-    await projets.creerJalon({ nom: "À venir", dateEcheance: utc("2026-09-30"), projectId: p.id }, chef);
+    const fini = await projets.creerJalon({ nom: "Fini", dateEcheance: utc("2026-03-31"), projectId: p.id }, chef, toutes);
+    const enCours = await projets.creerJalon({ nom: "En cours", dateEcheance: utc("2026-06-30"), projectId: p.id }, chef, toutes);
+    await projets.creerJalon({ nom: "À venir", dateEcheance: utc("2026-09-30"), projectId: p.id }, chef, toutes);
     await prisma.task.createMany({
       data: [
         { titre: "T1", projectId: p.id, milestoneId: fini.id, statut: "done" },
@@ -1488,8 +1495,8 @@ describe("EX-JAL-03, EX-JAL-04 — la feuille de route chronologique et ses indi
 
   it("un jalon SANS échéance ne disparaît pas de la feuille — il passe en fin de chronologie", async () => {
     const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
-    await projets.creerJalon({ nom: "Daté", dateEcheance: utc("2026-05-31"), projectId: p.id }, chef);
-    await projets.creerJalon({ nom: "Sans date", projectId: p.id }, chef);
+    await projets.creerJalon({ nom: "Daté", dateEcheance: utc("2026-05-31"), projectId: p.id }, chef, toutes);
+    await projets.creerJalon({ nom: "Sans date", projectId: p.id }, chef, toutes);
 
     const route = await projets.feuilleDeRoute(p.id, await global(), toutes);
 
@@ -1503,7 +1510,7 @@ describe("RG-JAL-02 — un jalon appartient à un et un seul projet", () => {
     const a = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
     const b = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
 
-    const jalon = await projets.creerJalon({ nom: "Exclusif", projectId: a.id }, chef);
+    const jalon = await projets.creerJalon({ nom: "Exclusif", projectId: a.id }, chef, toutes);
 
     expect(jalon.projectId).toBe(a.id);
     expect((await projets.feuilleDeRoute(a.id, await global(), toutes)).jalons.map((j) => j.id)).toEqual([jalon.id]);
@@ -1528,19 +1535,19 @@ describe("RG-JAL-02 — un jalon appartient à un et un seul projet", () => {
     const a = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
     const b = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
 
-    await projets.creerJalon({ nom: "Cadrage", projectId: a.id }, chef);
-    await expect(projets.creerJalon({ nom: "Cadrage", projectId: b.id }, chef)).resolves.toBeTruthy();
+    await projets.creerJalon({ nom: "Cadrage", projectId: a.id }, chef, toutes);
+    await expect(projets.creerJalon({ nom: "Cadrage", projectId: b.id }, chef, toutes)).resolves.toBeTruthy();
     // Mais pas deux fois dans le même.
-    await expect(projets.creerJalon({ nom: "Cadrage", projectId: a.id }, chef)).rejects.toThrow();
+    await expect(projets.creerJalon({ nom: "Cadrage", projectId: a.id }, chef, toutes)).rejects.toThrow();
   });
 
   it("supprimer un projet emporte SES jalons, et eux seuls", async () => {
     const a = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
     const b = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
-    const sien = await projets.creerJalon({ nom: "Le sien", projectId: a.id }, chef);
-    const autre = await projets.creerJalon({ nom: "L'autre", projectId: b.id }, chef);
+    const sien = await projets.creerJalon({ nom: "Le sien", projectId: a.id }, chef, toutes);
+    const autre = await projets.creerJalon({ nom: "L'autre", projectId: b.id }, chef, toutes);
 
-    await projets.supprimerDefinitivement(a.id, chef);
+    await projets.supprimerDefinitivement(a.id, chef, toutes);
 
     expect(await prisma.milestone.findUnique({ where: { id: sien.id } })).toBeNull();
     expect(await prisma.milestone.findUnique({ where: { id: autre.id } })).not.toBeNull();
@@ -1645,6 +1652,7 @@ describe("RG-SCOPE-04, RG-TSK-13 — la confidentialité tient sur la FICHE et l
     const j = await projets.creerJalon(
       { nom: "Jalon", dateEcheance: utc("2026-06-30"), projectId: p.id },
       chef,
+      toutes,
     );
     await prisma.task.createMany({
       data: [

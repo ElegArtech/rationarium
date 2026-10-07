@@ -20,7 +20,7 @@ import { PERMISSIONS_GESTION_GLOBALE } from "@rationarium/contracts";
  *     de requête. Un ensemble se teste ; un fragment se relit.
  * ════════════════════════════════════════════════════════════════════════════
  *
- * Rappel de l'ordre imposé par `cadrage/03 § 5.4` : la **permission** d'abord,
+ * Rappel de l'ordre imposé : la **permission** d'abord,
  * le **périmètre** ensuite. Ce service ne traite que le second. Un point
  * d'entrée qui l'emploierait sans garde de permission serait ouvert à tous.
  */
@@ -240,6 +240,52 @@ export class PerimetreService {
           { project: this.filtreMesProjets(p.userId) },
         ],
       });
+    }
+
+    if (!p.confidentiel) clauses.push({ confidentielle: false });
+
+    return clauses.length === 0 ? {} : clauses.length === 1 ? clauses[0]! : { AND: clauses };
+  }
+
+  /**
+   * `RG-TSK-18` — **les tâches qu'on peut MODIFIER**, qui ne sont pas celles
+   * qu'on peut lire.
+   *
+   * ──────────────────────────────────────────────────────────────────────────
+   * Trouvé à l'audit du 2026-10-07. `TachesService.exigerLisible` servait aux
+   * écritures comme aux lectures : `tasks:readAll` (référent fonctionnel,
+   * responsable technique, contrôleur…) ou la portée globale de
+   * `users:readAll` (support informatique, RH…) donnaient donc la main sur
+   * TOUTES les tâches de l'instance. Une permission de lecture élargie
+   * élargissait l'écriture — exactement ce que `RG-PRJ-13` refuse déjà pour
+   * les projets.
+   *
+   * Modifier une tâche exige l'un de ces liens :
+   *   - `tasks:manage_any`, la gestion de domaine ;
+   *   - y être assigné ;
+   *   - être rattaché à son projet, au sens de `filtreMesProjets` — ou
+   *     détenir `projects:manage_any` pour une tâche de projet ;
+   *   - qu'un de ses assignés soit dans le périmètre ORGANISATIONNEL de
+   *     l'acteur (`perimetre.utilisateurs`, renseigné même quand `global`
+   *     est vrai). C'est ce qui garde au manager la main sur le travail de
+   *     son équipe sans la lui donner sur celui des autres directions.
+   *
+   * `global` n'entre pas ici : il élargit la LECTURE (`RG-SCOPE-03`), pas
+   * l'écriture. La confidentialité (`RG-SCOPE-04`) reste par-dessus, comme
+   * dans `filtreTache`.
+   * ──────────────────────────────────────────────────────────────────────────
+   */
+  filtreTacheEcriture(p: Perimetre, permissions: ReadonlySet<string>): Record<string, unknown> {
+    const clauses: Record<string, unknown>[] = [];
+
+    if (!permissions.has("tasks:manage_any")) {
+      const liens: Record<string, unknown>[] = [
+        { assignes: { some: { userId: p.userId } } },
+        { project: this.filtreMesProjets(p.userId) },
+        { assignes: { some: { userId: { in: [...p.utilisateurs] } } } },
+      ];
+      if (permissions.has("projects:manage_any")) liens.push({ projectId: { not: null } });
+      clauses.push({ OR: liens });
     }
 
     if (!p.confidentiel) clauses.push({ confidentielle: false });

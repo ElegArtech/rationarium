@@ -29,6 +29,13 @@ export type Utilisateur = {
   role: { id: string; code: string; nom: string; systeme?: boolean } | null;
   departement: { id: string; nom: string } | null;
   services: { service: { id: string; nom: string } }[];
+  /**
+   * `RG-USR-09` — vrai quand ce compte détient une permission que le lecteur
+   * n'a pas : ses actions de gestion lui seraient refusées. Facultatif tant que
+   * le serveur ne le rend pas partout ; absent vaut faux, et le serveur refuse
+   * de toute façon.
+   */
+  actionsRestreintes?: boolean;
 };
 
 export type Impact = {
@@ -460,7 +467,7 @@ export const catalogue = () =>
 /**
  * `EX-TLT-08` — « consulter le télétravail **et les statistiques** d'un agent ».
  *
- * Le brief est plus précis encore (`cadrage/02:821`) : « Ce mois · Cette année ·
+ * Le brief est plus précis encore : « Ce mois · Cette année ·
  * Total jours · **Moyenne mensuelle** · Calendrier ». `GET /suivi` rend
  * `joursTeletravail` et ni `parMois` ni `moyenneMensuelle` — ces deux-là sont
  * calculés par `GET /teletravail/statistiques`, que personne n'appelait.

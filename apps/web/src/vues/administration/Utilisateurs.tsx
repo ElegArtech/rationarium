@@ -273,6 +273,38 @@ function jetonRole(code: string | undefined): string {
   return "var(--st-doing)";
 }
 
+/** Pourquoi un geste de gestion est refusé sur une ligne ; `null` : il est permis. */
+export type Refus = "soiMeme" | "plusPrivilegie" | null;
+
+/**
+ * Les gestes de gestion d'une ligne, et le motif de leur refus.
+ *
+ * `RG-USR-04` — on ne se retire pas l'accès à soi-même : réinitialiser,
+ * désactiver, supprimer sont refusés sur sa propre ligne ; modifier son propre
+ * compte, non.
+ *
+ * `RG-USR-09` — nul n'agit sur un compte plus privilégié que soi. Le serveur le
+ * dit par `actionsRestreintes` et refuse de toute façon en 403 ; le client, par
+ * courtoisie (`RG-GEN-06`), garde les quatre gestes LISIBLES et inertes, avec
+ * leur motif. Le motif de soi-même passe en premier : il est plus précis, et un
+ * compte n'a jamais plus de droits que lui-même.
+ */
+export const refusGestion = (
+  utilisateur: { id: string; actionsRestreintes?: boolean },
+  sessionId: string,
+): { modifier: Refus; reinitialiser: Refus; desactiver: Refus; supprimer: Refus } => {
+  const soiMeme = utilisateur.id === sessionId;
+  const plusPrivilegie = utilisateur.actionsRestreintes === true;
+  const refus = (interditSurSoi: boolean): Refus =>
+    soiMeme && interditSurSoi ? "soiMeme" : plusPrivilegie ? "plusPrivilegie" : null;
+  return {
+    modifier: refus(false),
+    reinitialiser: refus(true),
+    desactiver: refus(true),
+    supprimer: refus(true),
+  };
+};
+
 function LigneUtilisateur({ utilisateur }: { utilisateur: api.Utilisateur }) {
   const { t } = useTranslation("administration");
   const { t: tErreurs } = useTranslation("erreurs");
@@ -288,6 +320,8 @@ function LigneUtilisateur({ utilisateur }: { utilisateur: api.Utilisateur }) {
   /** `RG-USR-04` — soi-même est le cas qu'on n'a pas le droit de traiter. */
   const soiMeme = utilisateur.id === session.id;
   const nomComplet = `${utilisateur.prenom} ${utilisateur.nom}`;
+
+  const refus = refusGestion(utilisateur, session.id);
 
   const cycle = useMutation({
     mutationFn: (geste: "desactiver" | "reactiver") =>
@@ -386,31 +420,47 @@ function LigneUtilisateur({ utilisateur }: { utilisateur: api.Utilisateur }) {
               {/* `EX-USR-04`. Contrairement aux trois gestes suivants,
                   modifier son propre compte est légitime : la restriction de
                   `RG-USR-04` porte sur ce qui vous retirerait l'accès, pas sur
-                  votre nom. */}
+                  votre nom. `RG-USR-09`, elle, le couvre. */}
               {peut("users:update") ? (
-                <MenuItem className="pop-action" onAction={() => setModificationOuverte(true)}>
+                <MenuItem
+                  className="pop-action"
+                  data-disabled={refus.modifier ? true : undefined}
+                  aria-disabled={refus.modifier !== null}
+                  /* React Aria retire `aria-disabled` d'un MenuItem qui ne porte
+                     pas `isDisabled`, mais `isDisabled` le retire aussi de la
+                     navigation clavier — donc son motif. On pose la sémantique
+                     sur le nœud rendu ; le gestionnaire neutralise le geste. */
+                  ref={(element) => {
+                    element?.setAttribute("aria-disabled", String(refus.modifier !== null));
+                  }}
+                  onAction={() => {
+                    if (refus.modifier === null) setModificationOuverte(true);
+                  }}
+                >
                   {t("utilisateurs.modifier")}
+                  {refus.modifier ? (
+                    <span className="pop-why">{t("utilisateurs.comptePlusPrivilegie")}</span>
+                  ) : null}
                 </MenuItem>
               ) : null}
 
               {peut("users:reset_password") ? (
                 <MenuItem
                   className="pop-action"
-                  data-disabled={soiMeme || undefined}
-                  aria-disabled={soiMeme}
-                  /* React Aria retire `aria-disabled` d'un MenuItem qui ne porte
-                     pas `isDisabled`, mais `isDisabled` le retire aussi de la
-                     navigation clavier. On pose donc la sémantique sur le nœud
-                     rendu et le gestionnaire neutralise réellement le geste. */
+                  data-disabled={refus.reinitialiser ? true : undefined}
+                  aria-disabled={refus.reinitialiser !== null}
                   ref={(element) => {
-                    if (soiMeme) element?.setAttribute("aria-disabled", "true");
+                    element?.setAttribute("aria-disabled", String(refus.reinitialiser !== null));
                   }}
                   onAction={() => {
-                    if (!soiMeme) setReinitialisationOuverte(true);
+                    if (refus.reinitialiser === null) setReinitialisationOuverte(true);
                   }}
                 >
                   {t("utilisateurs.reinitialiserMotDePasse")}
-                  {soiMeme ? (
+                  {refus.reinitialiser === "plusPrivilegie" ? (
+                    <span className="pop-why">{t("utilisateurs.comptePlusPrivilegie")}</span>
+                  ) : null}
+                  {refus.reinitialiser === "soiMeme" ? (
                     <span className="pop-why">{t("utilisateurs.pasSoiMemeMotDePasse")}</span>
                   ) : null}
                 </MenuItem>
@@ -419,19 +469,24 @@ function LigneUtilisateur({ utilisateur }: { utilisateur: api.Utilisateur }) {
               {peut("users:deactivate") ? (
                 <MenuItem
                   className="pop-action"
-                  data-disabled={soiMeme || undefined}
-                  aria-disabled={soiMeme}
+                  data-disabled={refus.desactiver ? true : undefined}
+                  aria-disabled={refus.desactiver !== null}
                   ref={(element) => {
-                    if (soiMeme) element?.setAttribute("aria-disabled", "true");
+                    element?.setAttribute("aria-disabled", String(refus.desactiver !== null));
                   }}
                   onAction={() => {
-                    if (!soiMeme) setCycleDemande(utilisateur.actif ? "desactiver" : "reactiver");
+                    if (refus.desactiver === null) {
+                      setCycleDemande(utilisateur.actif ? "desactiver" : "reactiver");
+                    }
                   }}
                 >
                   {utilisateur.actif ? t("utilisateurs.desactiver") : t("utilisateurs.reactiver")}
                   {/* La raison accompagne l'interdit : désactiver sans dire
                       pourquoi laisserait chercher. */}
-                  {soiMeme ? (
+                  {refus.desactiver === "plusPrivilegie" ? (
+                    <span className="pop-why">{t("utilisateurs.comptePlusPrivilegie")}</span>
+                  ) : null}
+                  {refus.desactiver === "soiMeme" ? (
                     <span className="pop-why">{t("utilisateurs.pasSoiMemeDesactiver")}</span>
                   ) : null}
                 </MenuItem>
@@ -440,17 +495,20 @@ function LigneUtilisateur({ utilisateur }: { utilisateur: api.Utilisateur }) {
               {peut("users:delete_permanently") ? (
                 <MenuItem
                   className="pop-action is-danger menu-sep"
-                  data-disabled={soiMeme || undefined}
-                  aria-disabled={soiMeme}
+                  data-disabled={refus.supprimer ? true : undefined}
+                  aria-disabled={refus.supprimer !== null}
                   ref={(element) => {
-                    if (soiMeme) element?.setAttribute("aria-disabled", "true");
+                    element?.setAttribute("aria-disabled", String(refus.supprimer !== null));
                   }}
                   onAction={() => {
-                    if (!soiMeme) setSuppressionOuverte(true);
+                    if (refus.supprimer === null) setSuppressionOuverte(true);
                   }}
                 >
                   {t("utilisateurs.supprimerDefinitivement")}
-                  {soiMeme ? (
+                  {refus.supprimer === "plusPrivilegie" ? (
+                    <span className="pop-why">{t("utilisateurs.comptePlusPrivilegie")}</span>
+                  ) : null}
+                  {refus.supprimer === "soiMeme" ? (
                     <span className="pop-why">{t("utilisateurs.pasSoiMemeSupprimer")}</span>
                   ) : null}
                 </MenuItem>

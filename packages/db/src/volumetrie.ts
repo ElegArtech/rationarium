@@ -1,12 +1,12 @@
 import type { PrismaClient } from "./index.js";
 
 /**
- * Le jeu de données de **volumétrie cible** — `cadrage/01 § 7`.
+ * Le jeu de données de **volumétrie cible** — `docs/reference-fonctionnelle.md § 7`.
  *
  *   500 utilisateurs · 200 projets actifs · 20 000 tâches · 5 ans d'historique
  *
  * Il n'existait pas avant L-26, alors que la définition de terminé d'une tâche
- * de schéma l'exige (`cadrage/04 § 5.3`) : « jeu de données de volumétrie mis à
+ * de schéma l'exige : « jeu de données de volumétrie mis à
  * jour · mesure de performance rejouée ». Sans lui, tous les contrôles
  * d'intégration tournaient sur une poignée de lignes — c'est-à-dire sur une
  * base où **aucun plan d'exécution ne ressemble à celui de production**.

@@ -1,5 +1,5 @@
 /**
- * Modèles de rôles — `cadrage/01 § 3.2`.
+ * Modèles de rôles — `docs/reference-fonctionnelle.md § 3.2`.
  *
  * ────────────────────────────────────────────────────────────────────────────
  * DÉCISION PRISE EN AUTONOMIE — 2026-08-16, réversible
@@ -9,7 +9,7 @@
  * spécification, relevé au montage du plan.
  *
  * Les compositions ci-dessous sont dérivées des personas de `§ 3.1` et des
- * variantes par rôle décrites dans les briefs de `cadrage/02`. Chaque modèle
+ * variantes par rôle décrites dans les briefs des vues. Chaque modèle
  * porte le raisonnement qui l'a produit.
  *
  * `RG-DROITS-01` — un modèle est un point de départ, pas une contrainte : un
@@ -38,7 +38,7 @@ const lecture = (...d: Domaine[]) => d.map((x) => `${x}:read`);
 /**
  * Socle commun à tout compte actif. C'est ce que Camille, agent contributeur,
  * doit avoir pour que sa journée fonctionne — et sa barre latérale tient en
- * huit entrées (`cadrage/02 § B`).
+ * huit entrées.
  */
 const SOCLE = [
   "planning:read",
@@ -171,7 +171,7 @@ export const MODELES_ROLES: readonly ModeleRole[] = [
     nom: "Administrateur",
     famille: "Administration",
     systeme: true,
-    description: "Accès complet. Karim : comptes, rôles, calendrier, audit.",
+    description: "Accès complet : comptes, rôles, calendrier de l'organisation, journal d'audit.",
     permissions: [...PERMISSIONS],
   },
   {
@@ -180,7 +180,7 @@ export const MODELES_ROLES: readonly ModeleRole[] = [
     famille: "Administration",
     systeme: true,
     description:
-      "Administration courante sans la gouvernance des droits ni le journal d'audit — la séparation qui empêche un délégué de s'octroyer des permissions.",
+      "Administration courante, sans la gouvernance des droits ni le journal d'audit : un délégué ne peut pas s'octroyer de permissions.",
     permissions: dedoublonne(
       PERMISSIONS.filter(
         (p) =>
@@ -198,7 +198,7 @@ export const MODELES_ROLES: readonly ModeleRole[] = [
     nom: "Responsable de portefeuille",
     famille: "Management",
     systeme: true,
-    description: "Inès : la santé du portefeuille en une page, les jalons à risque, la charge par service.",
+    description: "Santé du portefeuille en une page, jalons à risque, charge par service.",
     permissions: dedoublonne([
       ...SOCLE,
       ...ENCADREMENT,
@@ -219,7 +219,7 @@ export const MODELES_ROLES: readonly ModeleRole[] = [
     nom: "Manager de service",
     famille: "Management",
     systeme: true,
-    description: "Fatou : valider les congés en connaissant l'impact, repérer les surcharges, suivre un agent.",
+    description: "Valider les congés en connaissant leur impact, repérer les surcharges, suivre un agent.",
     permissions: dedoublonne([...SOCLE, ...CONTRIBUTION_PROJET, ...ENCADREMENT]),
   },
   {
@@ -260,7 +260,7 @@ export const MODELES_ROLES: readonly ModeleRole[] = [
     nom: "Chef de projet",
     famille: "Conduite de projet",
     systeme: true,
-    description: "Driss : structurer en jalons, savoir qui est disponible, repérer retards et dépendances.",
+    description: "Structurer un projet en jalons, savoir qui est disponible, repérer retards et dépendances.",
     permissions: dedoublonne([...SOCLE, ...CONDUITE_PROJET, "planning:read_team", "users:read"]),
   },
   {
@@ -301,7 +301,7 @@ export const MODELES_ROLES: readonly ModeleRole[] = [
     nom: "Contributeur projet",
     famille: "Contribution",
     systeme: true,
-    description: "Camille : ses tâches du jour, ses congés, son télétravail, son temps. N'ouvrira jamais un rapport.",
+    description: "Contribution aux projets dont on est membre : ses tâches, ses congés, son télétravail, son temps.",
     permissions: dedoublonne([...SOCLE, ...CONTRIBUTION_PROJET]),
   },
   {
@@ -338,7 +338,7 @@ export const MODELES_ROLES: readonly ModeleRole[] = [
     nom: "Responsable RH",
     famille: "RH",
     systeme: true,
-    description: "Hugo : paramétrer types de congés et soldes, importer en masse, contrôler.",
+    description: "Types de congés et soldes, imports en masse, contrôle, référentiel des compétences.",
     // D-RM-03 : référentiel et matrice RH ; le rôle léger conserve RH seul.
     permissions: dedoublonne([...SOCLE, ...RH, ...tout("skills")]),
   },
@@ -430,7 +430,7 @@ export const MODELES_ROLES: readonly ModeleRole[] = [
     famille: "Informatique",
     systeme: false,
     description:
-      "Assistance aux comptes : réinitialiser un mot de passe, corriger un rattachement. **Pas de gestion des rôles** — c'est la limite qui sépare le support de l'administration.",
+      "Assistance aux comptes : réinitialiser un mot de passe, corriger un rattachement. Pas de gestion des rôles : c'est la limite entre le support et l'administration.",
     permissions: dedoublonne([
       ...SOCLE,
       "users:read",
@@ -511,7 +511,7 @@ export const MODELES_ROLES: readonly ModeleRole[] = [
     famille: "Restreints",
     systeme: false,
     description:
-      "Intervenant extérieur : ses tâches et son temps, rien d'autre. **Ni congés, ni télétravail, ni annuaire** — il n'est pas agent de l'organisation.",
+      "Intervenant extérieur : ses tâches et son temps, rien d'autre. Ni congés, ni télétravail, ni annuaire : il n'est pas agent de l'organisation.",
     permissions: dedoublonne([
       "planning:read",
       "projects:read",
@@ -562,3 +562,24 @@ export const NOMBRE_MODELES = MODELES_ROLES.length;
 
 export const modeleParCode = (code: string): ModeleRole | undefined =>
   MODELES_ROLES.find((m) => m.code === code);
+
+/**
+ * Descriptions publiées par les versions antérieures, par code de modèle.
+ *
+ * Jusqu'à 1.0.0-rc.1, plusieurs descriptions nommaient des personas de
+ * conception. Une instance déjà installée les porte en base : l'amorçage les
+ * reconnaît ici comme « le modèle tel qu'il était » et les remplace par le
+ * texte courant, au lieu de les compter comme des rôles personnalisés en
+ * collision.
+ */
+export const DESCRIPTIONS_ANTERIEURES: Readonly<Record<string, readonly string[]>> = {
+  ADMIN: ["Accès complet. Karim : comptes, rôles, calendrier, audit."],
+  ADMIN_DELEGATED: ["Administration courante sans la gouvernance des droits ni le journal d'audit — la séparation qui empêche un délégué de s'octroyer des permissions."],
+  PORTFOLIO_MANAGER: ["Inès : la santé du portefeuille en une page, les jalons à risque, la charge par service."],
+  MANAGER: ["Fatou : valider les congés en connaissant l'impact, repérer les surcharges, suivre un agent."],
+  PROJECT_LEAD: ["Driss : structurer en jalons, savoir qui est disponible, repérer retards et dépendances."],
+  PROJECT_CONTRIBUTOR: ["Camille : ses tâches du jour, ses congés, son télétravail, son temps. N'ouvrira jamais un rapport."],
+  HR_OFFICER: ["Hugo : paramétrer types de congés et soldes, importer en masse, contrôler."],
+  IT_SUPPORT: ["Assistance aux comptes : réinitialiser un mot de passe, corriger un rattachement. **Pas de gestion des rôles** — c'est la limite qui sépare le support de l'administration."],
+  EXTERNAL_PRESTATAIRE: ["Intervenant extérieur : ses tâches et son temps, rien d'autre. **Ni congés, ni télétravail, ni annuaire** — il n'est pas agent de l'organisation."],
+};

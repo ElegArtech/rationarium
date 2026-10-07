@@ -281,7 +281,7 @@ export class TachesController {
      * déjà bornée ; c'est donc l'entrée HTTP qui pose la borne, une fois.
      */
     await this.taches.exigerLisible(id, d.userId, d.permissions);
-    return this.taches.incoherences(id);
+    return this.taches.incoherences(id, { perimetre: d.perimetre, permissions: d.permissions });
   }
 
   /**
@@ -334,7 +334,9 @@ export class TachesController {
   ) {
     // Même motif que `incoherences` : l'aperçu nomme les tâches dépendantes.
     await this.taches.exigerLisible(id, d.userId, d.permissions);
-    return this.taches.apercuCascade(id, valider(z.coerce.number().int(), jours));
+    // `RG-SCOPE-04` — l'aperçu garde le compte entier, mais ne nomme que le lisible.
+    const touchees = await this.taches.apercuCascade(id, valider(z.coerce.number().int(), jours));
+    return this.taches.masquerTouchees(touchees, d.perimetre, d.permissions);
   }
 
   @Post(":id/cascade")
@@ -412,7 +414,8 @@ export class TachesController {
      * compare les deux routes plutôt que de les vérifier séparément — c'est
      * la divergence qui coûte, pas l'absence.
      */
-    await this.taches.exigerLisible(id, d.userId, d.permissions);
+    // `RG-TSK-18` — déplacer est une écriture : lisible ne suffit pas.
+    await this.taches.exigerModifiable(id, d.userId, d.permissions);
     return this.taches.deplacerDepuisPlanning(id, cible, d.userId);
   }
 }

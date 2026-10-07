@@ -19,7 +19,12 @@
    statut le dit en mots. */
 .us-row.is-off{ background:var(--surface-2); }
 .us-row.is-me{ background:color-mix(in srgb, var(--accent) 4%, var(--surface)); }
-.us-row > .us-who{ position:sticky; left:0; z-index:1; background:var(--surface); }
+/* La colonne collée couvre TOUTE la hauteur de la rangée, marge intérieure
+   comprise : centrée, elle laissait dépasser au-dessus et au-dessous d'elle
+   l'adresse et le rôle qui défilaient dessous, dès que la liste défilait en
+   largeur — le cas ordinaire à 800 px. */
+.us-row > .us-who{ position:sticky; left:0; z-index:1; background:var(--surface);
+  align-self:stretch; margin:-10px 0 -10px -14px; padding:10px 0 10px 14px; }
 .us-row:hover > .us-who,
 .us-row.is-off > .us-who{ background:var(--surface-2); }
 .us-row.is-me > .us-who{ background:color-mix(in srgb, var(--accent) 4%, var(--surface)); }

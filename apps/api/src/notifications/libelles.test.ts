@@ -10,7 +10,7 @@ import { encoderCorps, langueDe, rendreCorps, titreNotification } from "./libell
  * Ce que ces contrôles auraient vu (P-18, P-19, P-20) : des notifications
  * écrites en dur, en français, à l'émission — donc un panneau rendant un cadre
  * traduit et un contenu français en session anglaise —, et des titres hors du
- * vocabulaire fermé de `cadrage/01 § M18`.
+ * vocabulaire fermé de `docs/reference-fonctionnelle.md § M18`.
  */
 
 /** Les six intitulés de M18, à la lettre. */
@@ -23,7 +23,7 @@ const M18 = {
   ajout_projet: "Ajout à un projet",
 } as const;
 
-describe("cadrage/01 § M18 — le vocabulaire des notifications est FERMÉ", () => {
+describe("le vocabulaire des notifications est FERMÉ", () => {
   it("les six types portent l'intitulé de M18, mot pour mot", () => {
     for (const type of TYPES_NOTIFICATION) {
       expect(titreNotification(type, "fr"), type).toBe(M18[type]);

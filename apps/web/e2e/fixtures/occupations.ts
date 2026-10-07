@@ -4,8 +4,8 @@ import { SESSION } from "./projets.js";
  * Jeux de données des vues 18 à 21.
  *
  * Les trois sessions reproduisent les trois publics de la vue 19, tels que
- * `cadrage/02` les nomme : Camille demande, Fatou valide, Hugo administre.
- * Le test « 1 onglet, 4 onglets, 6 onglets » de `design/etats.json` porte
+ * la spécification les nomme : Camille demande, Fatou valide, Hugo administre.
+ * Le test « 1 onglet, 4 onglets, 6 onglets » de la spécification des états porte
  * exactement sur cette différence.
  */
 

@@ -46,6 +46,11 @@ const DROITS_TACHE = new Set([
   "tasks:create_standalone",
   "tasks:manage_any",
 ]) as ReadonlySet<string>;
+/** `RG-TSK-19` — créer une tâche confidentielle exige de pouvoir la lire. */
+const DROITS_TACHE_CONFIDENTIELLE = new Set([
+  ...DROITS_TACHE,
+  "tasks:read_confidential",
+]) as ReadonlySet<string>;
 let perimetres: PerimetreService;
 
 let agent: string;
@@ -184,7 +189,7 @@ describe("RG-NTF-04 — la messagerie ne bloque JAMAIS le métier", () => {
   });
 });
 
-describe("cadrage/01 § M18 — les six déclencheurs", () => {
+describe("les six déclencheurs", () => {
   it("une demande de congé prévient SON validateur, et personne d'autre", async () => {
     await conges.deposer(
       {
@@ -227,7 +232,7 @@ describe("cadrage/01 § M18 — les six déclencheurs", () => {
 
     const recues = await notifsDe(agent);
     expect(recues.map((n) => n.type)).toEqual(["conge_decide"]);
-    // `cadrage/01 § M18` — le vocabulaire des titres est FERMÉ : « Décision
+    // `docs/reference-fonctionnelle.md § M18` — le vocabulaire des titres est FERMÉ : « Décision
     // sur votre demande de congé ». Ce que la décision fut se lit au corps.
     expect(recues[0]?.titre).toBe("Décision sur votre demande de congé");
 
@@ -557,7 +562,7 @@ describe("RG-NTF-02 — le traitement planifié est protégé contre les exécut
 });
 
 /**
- * `RG-GEN-08`, `cadrage/01 § M18` — la notification se lit dans la langue de
+ * `RG-GEN-08`, `docs/reference-fonctionnelle.md § M18` — la notification se lit dans la langue de
  * SON LECTEUR.
  *
  * DÉFAUT TROUVÉ EN RECETTE (P-18, P-19, P-20) : les phrases étaient écrites en
@@ -599,7 +604,7 @@ describe("RG-GEN-08 — une notification émise en français se lit en anglais",
     );
   });
 
-  it("cadrage/01 § M18 — le titre stocké ne porte plus la formulation écartée", async () => {
+  it("le titre stocké ne porte plus la formulation écartée", async () => {
     const porteur = await creerAgent("Théo");
     await prisma.task.create({
       data: {
@@ -643,7 +648,7 @@ describe("RM-04 — confidentialité du destinataire", () => {
     const role = await prisma.role.create({ data: { code: `GLOBAL_${uuid()}`, nom: "Lecture globale", permissions: { create: [{ permission: "users:readAll" }, { permission: "tasks:read" }] } } });
     await prisma.user.update({ where: { id: dest }, data: { roleId: role.id } });
     const publier = vi.spyOn(file, "publier").mockResolvedValue(null);
-    await taches.creer({ titre: "Secret RH", confidentielle: true, assigneIds: [dest], dateFin: utc("2026-08-01") }, validateur, DROITS_TACHE);
+    await taches.creer({ titre: "Secret RH", confidentielle: true, assigneIds: [dest], dateFin: utc("2026-08-01") }, validateur, DROITS_TACHE_CONFIDENTIELLE);
     expect(await notifsDe(dest)).toEqual([]);
     expect(await notifications.alertesEcheance(utc("2026-08-11"))).toMatchObject({ emises: 0 });
     expect(await notifsDe(dest)).toEqual([]);
@@ -656,7 +661,7 @@ describe("RM-04 — confidentialité du destinataire", () => {
     const dest = await creerAgent("Autorisé");
     const role = await prisma.role.create({ data: { code: `CONF_${uuid()}`, nom: "Confidentiel", permissions: { create: [{ permission: "tasks:read_confidential" }, { permission: "tasks:read" }] } } });
     await prisma.user.update({ where: { id: dest }, data: { roleId: role.id } });
-    await taches.creer({ titre: "Secret RH", confidentielle: true, assigneIds: [dest], dateFin: utc("2026-08-01") }, validateur, DROITS_TACHE);
+    await taches.creer({ titre: "Secret RH", confidentielle: true, assigneIds: [dest], dateFin: utc("2026-08-01") }, validateur, DROITS_TACHE_CONFIDENTIELLE);
     expect((await notifsDe(dest)).map((n) => n.type)).toEqual(["tache_assignee"]);
     await notifications.alertesEcheance(utc("2026-08-11"));
     expect((await notifsDe(dest)).map((n) => n.type)).toEqual(["tache_assignee", "tache_en_retard"]);

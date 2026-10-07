@@ -622,7 +622,7 @@
             "libelle": "Hugo"
           }
         ],
-        "note": "1 onglet, 3 onglets, 6 onglets. Le sixième onglet de Hugo est « Soldes », que seul `leaves:manage_balances` ouvre : la maquette compte deux onglets de délégations là où la vue n'en rend qu'un, à deux listes. Arbitrage écrit dans `cadrage/02` § vue 19 le 2026-08-31."
+        "note": "1 onglet, 3 onglets, 6 onglets. Le sixième onglet de Hugo est « Soldes », que seul `leaves:manage_balances` ouvre : la maquette compte deux onglets de délégations là où la vue n'en rend qu'un, à deux listes. Arbitrage écrit dans la spécification de la vue 19 le 2026-08-31."
       },
       {
         "axe": "Cas de la demande",

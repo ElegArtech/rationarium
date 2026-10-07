@@ -1,5 +1,8 @@
 # Installation
 
+> **Mise à jour depuis rc.1 :** la base passe de Debian à Alpine. Suivre d’abord la [migration PostgreSQL](migration-postgresql.md), avec sauvegarde et volume neuf. Un simple remplacement des images ne suffit pas.
+
+
 ## Prérequis
 
 Un hôte Linux x86-64 avec Docker Engine et Docker Compose v2.24 ou ultérieur, Bash, curl, tar et
@@ -13,7 +16,7 @@ Pour un serveur isolé, utiliser le [paquet hors ligne](hors-ligne.md).
 ## Installation guidée
 
 ```sh
-curl -fL https://github.com/ElegArtech/rationarium/releases/download/v1.0.0-rc.1/installer-rationarium.sh -o installer-rationarium.sh && bash installer-rationarium.sh
+curl -fL https://github.com/ElegArtech/rationarium/releases/download/v1.0.0/installer-rationarium.sh -o installer-rationarium.sh && bash installer-rationarium.sh
 ```
 
 Le script télécharge le kit de cette version, vérifie son empreinte SHA-256, puis l’extrait dans
@@ -24,11 +27,11 @@ générés localement. Le mot de passe saisi n’est pas affiché.
 Le script refuse d’écraser une installation existante. Un autre dossier peut être donné :
 `bash installer-rationarium.sh /chemin/vers/rationarium`.
 
-Pour partir du [kit téléchargé](https://github.com/ElegArtech/rationarium/releases/download/v1.0.0-rc.1/rationarium-1.0.0-rc.1-compose.tar.gz) :
+Pour partir du [kit téléchargé](https://github.com/ElegArtech/rationarium/releases/download/v1.0.0/rationarium-1.0.0-compose.tar.gz) :
 
 ```sh
-tar -xzf rationarium-1.0.0-rc.1-compose.tar.gz
-cd rationarium-1.0.0-rc.1-compose
+tar -xzf rationarium-1.0.0-compose.tar.gz
+cd rationarium-1.0.0-compose
 bash configurer.sh
 ```
 

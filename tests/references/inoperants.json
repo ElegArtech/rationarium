@@ -11,7 +11,7 @@
     "(b) `champsAdmis` — chaque couple (route d'écriture, champ sensible) qu'aucune déclaration",
     "    de apps/api/src/commun/champs-gouvernes.ts ne requestionne. Certains sont légitimes :",
     "    la garde de la route EST la gouvernance du champ. D'autres sont des écarts ouverts en",
-    "    tâches distinctes ; ils portent « ouvert — voir docs/audits/V7-diff-retour.md ».",
+    "    tâches distinctes ; ils portent « ouvert — écart suivi en tâche distincte ».",
     "",
     "Le repère d'une commande est la dernière clé i18next de son élément, sinon son `id`,",
     "sinon le nom de sa balise — jamais un numéro de ligne, qui serait faux à la première",
@@ -53,6 +53,12 @@
       "repere": "utilisateurs.pasSoiMemeSupprimer",
       "raison": "RG-USR-04 — la suppression définitive de son propre compte est interdite. L'action reste focalisable afin que son explication soit accessible, tandis que le gestionnaire et le serveur neutralisent le geste.",
       "regles": ["RG-USR-04", "RG-GEN-06"]
+    },
+    {
+      "fichier": "apps/web/src/vues/administration/Utilisateurs.tsx",
+      "repere": "utilisateurs.comptePlusPrivilegie",
+      "raison": "RG-USR-09 — nul ne modifie un compte qui détient une permission qu'il n'a pas. Le serveur marque la ligne actionsRestreintes et refuse en 403 ; l'entrée « Modifier » reste focalisable avec son motif, et le gestionnaire neutralise le geste. Réinitialiser, désactiver et supprimer suivent la même règle sous leurs entrées propres.",
+      "regles": ["RG-USR-09", "RG-GEN-06"]
     },
     {
       "fichier": "apps/web/src/vues/planning/Semaine.tsx",
@@ -129,7 +135,7 @@
     {
       "route": "POST /teletravail",
       "champ": "userId",
-      "raison": "ouvert — voir docs/audits/V7-diff-retour.md",
+      "raison": "ouvert — écart suivi en tâche distincte",
       "regles": [
         "RG-TLT-07"
       ]
@@ -137,7 +143,7 @@
     {
       "route": "PATCH /planning/teletravail",
       "champ": "userId",
-      "raison": "ouvert — voir docs/audits/V7-diff-retour.md. L'audit nomme la fonction `teletravail.basculer`, qui reçoit la cible et l'acteur sans jamais les comparer ; ce balayage montre qu'elle est atteinte par DEUX points d'entrée, celui-ci comme `POST /teletravail`. La correction devra fermer les deux.",
+      "raison": "ouvert — écart suivi en tâche distincte. L'audit nomme la fonction `teletravail.basculer`, qui reçoit la cible et l'acteur sans jamais les comparer ; ce balayage montre qu'elle est atteinte par DEUX points d'entrée, celui-ci comme `POST /teletravail`. La correction devra fermer les deux.",
       "regles": [
         "RG-TLT-07"
       ]
@@ -145,7 +151,7 @@
     {
       "route": "POST /teletravail/generer",
       "champ": "userId",
-      "raison": "ouvert — voir docs/audits/V7-diff-retour.md. Troisième facette de la même absence : générer les plannings d'un tiers depuis ses règles est bien « agir sur le télétravail d'autrui », et `telework:generate` ne dit rien de la personne visée. Non nommée par l'audit, qui raisonnait sur la fonction et non sur les routes.",
+      "raison": "ouvert — écart suivi en tâche distincte. Troisième facette de la même absence : générer les plannings d'un tiers depuis ses règles est bien « agir sur le télétravail d'autrui », et `telework:generate` ne dit rien de la personne visée. Non nommée par l'audit, qui raisonnait sur la fonction et non sur les routes.",
       "regles": [
         "RG-TLT-07"
       ]

@@ -91,6 +91,61 @@ test.describe("Vue 27 — utilisateurs", () => {
   });
 
   /**
+   * `RG-USR-09` — nul n'agit sur un compte plus privilégié que soi. Le serveur
+   * marque la ligne `actionsRestreintes` et refuse en 403 ; la vue garde les
+   * gestes lisibles, inertes, et dit pourquoi — au clavier comme à la souris.
+   */
+  test("RG-GEN-06 — les gestes sur un compte plus privilégié sont inertes, avec leur motif", async ({
+    page,
+  }) => {
+    const ecritures: string[] = [];
+    const admin = {
+      ...UTILISATEURS[1]!,
+      id: "u-admin",
+      prenom: "Karim",
+      nom: "Benali",
+      email: "karim.benali@exemple.fr",
+      login: "karim.benali",
+      role: { id: "r-admin", code: "ADMIN", nom: "Administrateur", systeme: true },
+      actionsRestreintes: true,
+    };
+    await serveur(page, {
+      session: { ...SESSION_ADMIN, permissions: [...SESSION_ADMIN.permissions, "users:reset_password"] },
+      reponses: { "/api/utilisateurs": { corps: [...UTILISATEURS, admin] } },
+    });
+    page.on("request", (r) => {
+      if (r.method() !== "GET" && r.url().includes("/api/utilisateurs")) ecritures.push(r.url());
+    });
+    await page.goto("/utilisateurs");
+    await page.getByRole("button", { name: "Actions pour Karim Benali" }).click();
+
+    for (const nom of [
+      "Modifier",
+      "Réinitialiser le mot de passe",
+      "Désactiver le compte",
+      "Supprimer définitivement",
+    ]) {
+      const geste = page.getByRole("menuitem", { name: new RegExp(`^${nom}`) });
+      await expect(geste, nom).toHaveAttribute("aria-disabled", "true");
+      await expect(geste.locator(".pop-why"), nom).toHaveText(
+        "Ce compte a des droits que vous n'avez pas",
+      );
+    }
+    // Le geste est neutralisé : ni fenêtre, ni écriture. `force` : Playwright refuse
+    // de cliquer un élément aria-disabled, alors que la souris, elle, le peut.
+    await page.getByRole("menuitem", { name: /^Désactiver le compte/ }).click({ force: true });
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    expect(ecritures).toEqual([]);
+  });
+
+  test("RG-GEN-06 — une ligne sans actionsRestreintes garde ses gestes", async ({ page }) => {
+    await serveur(page, { session: SESSION_ADMIN, reponses });
+    await page.goto("/utilisateurs");
+    await page.getByRole("button", { name: "Actions pour Camille Roussel" }).click();
+    await expect(page.getByText("Ce compte a des droits que vous n'avez pas")).toHaveCount(0);
+  });
+
+  /**
    * `EX-USR-04` — modifier un compte, rôle et rattachements compris.
    *
    * L'action a manqué à la vue pendant tout le projet, derrière un commentaire
@@ -463,7 +518,7 @@ test.describe("Vue 28 — suivi individuel", () => {
    * `EX-TLT-08` — « consulter le télétravail **et les statistiques** d'un agent ».
    *
    * L'onglet ne rendait qu'une liste de dates. Le brief réclame quatre
-   * indicateurs (`cadrage/02:821`), dont « moyenne mensuelle », que `GET /suivi`
+   * indicateurs, dont « moyenne mensuelle », que `GET /suivi`
    * ne porte pas : ils viennent de `GET /teletravail/statistiques`, calculée
    * depuis L-16 et qu'aucun écran n'appelait. La maquette 28 les a dessinés.
    */

@@ -30,7 +30,7 @@ import "./gantt.css";
  * les dépendances » de la maquette lève la restriction, et **dit alors ce qu'on
  * y perd** plutôt que de laisser découvrir l'illisibilité.
  *
- * Aucune bibliothèque de Gantt (`cadrage/03 § 4, D12`). Les barres sont
+ * Aucune bibliothèque de Gantt. Les barres sont
  * positionnées en pixels par jour, les flèches sont un `<svg>` superposé. Les
  * jetons portent les couleurs : les deux thèmes suivent.
  *
@@ -88,7 +88,7 @@ export function GanttProjet({ projetId }: { projetId: string }) {
   const [cascade, setCascade] = useState<{
     tache: apiTaches.LigneTache;
     jours: number;
-    touchees: { id: string; titre: string }[];
+    touchees: apiTaches.TacheTouchee[];
   } | null>(null);
 
   const projet = useQuery({ queryKey: ["projet", projetId], queryFn: () => apiProjets.fiche(projetId) });
@@ -1062,7 +1062,7 @@ function FenetreCascade({
   cascade: {
     tache: apiTaches.LigneTache;
     jours: number;
-    touchees: { id: string; titre: string }[];
+    touchees: apiTaches.TacheTouchee[];
   } | null;
   /** Les tâches de la frise : elles portent les dates que l'aperçu n'a pas. */
   datesConnues: apiTaches.LigneTache[];
@@ -1101,7 +1101,7 @@ function FenetreCascade({
         {touchees.map((x) => (
           <li key={x.id}>
             <span className="conf-k">{formaterDate(debutDe(x.id))}</span>
-            <span>{x.titre}</span>
+            <span>{x.titre ?? t("ganttProjet.tacheMasquee")}</span>
           </li>
         ))}
       </ul>

@@ -2,7 +2,7 @@ import { hash, verify } from "@node-rs/argon2";
 import { randomBytes, createHash, timingSafeEqual } from "node:crypto";
 
 /**
- * Hachage des mots de passe — Argon2id, ADR-0008.
+ * Hachage des mots de passe — Argon2id.
  *
  * Paramètres : ceux recommandés par l'OWASP pour Argon2id, choisis pour tenir
  * sur le matériel d'une collectivité sans dégrader le temps de connexion.

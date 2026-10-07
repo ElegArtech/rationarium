@@ -33,6 +33,11 @@ const DROITS_CREATION = new Set([
   "tasks:create_standalone",
   "tasks:manage_any",
 ]) as ReadonlySet<string>;
+/** `RG-TSK-19` — marquer une tâche confidentielle exige de pouvoir la lire. */
+const DROITS_CONFIDENTIELS = new Set([
+  ...DROITS_CREATION,
+  "tasks:read_confidential",
+]) as ReadonlySet<string>;
 const DROITS_SUPPRESSION = new Set([
   "tasks:delete",
   "tasks:manage_any",
@@ -555,14 +560,13 @@ describe("RG-SCOPE-04 — la confidentialité se change APRÈS COUP", () => {
     const a = await agent();
     const t = await creerTache([a]);
 
-    const apres = await taches.modifier(t, { version: 1, confidentielle: true }, a, DROITS_CREATION);
+    const apres = await taches.modifier(t, { version: 1, confidentielle: true }, a, DROITS_CONFIDENTIELS);
     expect(apres.confidentielle).toBe(true);
 
     // RG-SCOPE-04 — manage_any ne dispense jamais de lire le confidentiel.
     await expect(taches.modifier(t, { version: apres.version, confidentielle: false }, a, DROITS_CREATION))
       .rejects.toMatchObject({ code: "hors_perimetre" });
-    const droitsConfidentiels = new Set([...DROITS_CREATION, "tasks:read_confidential"]);
-    const rendue = await taches.modifier(t, { version: apres.version, confidentielle: false }, a, droitsConfidentiels);
+    const rendue = await taches.modifier(t, { version: apres.version, confidentielle: false }, a, DROITS_CONFIDENTIELS);
     expect(rendue.confidentielle).toBe(false);
   });
 });
@@ -587,7 +591,7 @@ describe("RG-SCOPE-04 — la fiche et les dépendances sont bornées au périmè
   it("REFUSE la fiche d'une tâche confidentielle à qui n'y est qu'assigné", async () => {
     const a = await agent();
     const t = await creerTache([a]);
-    await taches.modifier(t, { version: 1, confidentielle: true }, a, DROITS_CREATION);
+    await taches.modifier(t, { version: 1, confidentielle: true }, a, DROITS_CONFIDENTIELS);
 
     // L'intuition dit qu'un assigné voit sa tâche. `RG-SCOPE-04` dit non.
     await expect(taches.fiche(t, lecteur(a), LECTURE)).rejects.toMatchObject({
@@ -598,7 +602,7 @@ describe("RG-SCOPE-04 — la fiche et les dépendances sont bornées au périmè
   it("la rend à qui détient la permission explicite", async () => {
     const a = await agent();
     const t = await creerTache([a]);
-    await taches.modifier(t, { version: 1, confidentielle: true }, a, DROITS_CREATION);
+    await taches.modifier(t, { version: 1, confidentielle: true }, a, DROITS_CONFIDENTIELS);
 
     const habilite = { userId: a, global: false, confidentiel: true } as never;
     await expect(taches.fiche(t, habilite, LECTURE)).resolves.toBeTruthy();
@@ -614,7 +618,7 @@ describe("RG-SCOPE-04 — la fiche et les dépendances sont bornées au périmè
     const amont = await creerTache([a]);
     const aval = await creerTache([a]);
     await taches.ajouterDependance(aval, amont, a, DROITS_CREATION);
-    await taches.modifier(amont, { version: 1, confidentielle: true }, a, DROITS_CREATION);
+    await taches.modifier(amont, { version: 1, confidentielle: true }, a, DROITS_CONFIDENTIELS);
 
     const g = await taches.dependances(aval, lecteur(a), LECTURE);
     expect(g.dependDe).toHaveLength(1);
@@ -754,7 +758,7 @@ describe("EX-TSK-10 — les candidats à une dépendance", () => {
       { titre: "Secrète", projectId: p, assigneIds: [a] },
       acteur, DROITS_CREATION
     );
-    await taches.modifier(secrete.id, { version: 1, confidentielle: true }, acteur, DROITS_CREATION);
+    await taches.modifier(secrete.id, { version: 1, confidentielle: true }, acteur, DROITS_CONFIDENTIELS);
 
     const lecteur = { userId: a, global: false, confidentiel: false } as never;
     const liste = await taches.candidatsDependance(depuis.id, lecteur, new Set(["tasks:read"]));
@@ -775,7 +779,7 @@ describe("EX-TSK-10 — les candidats à une dépendance", () => {
   it("RG-SCOPE-04 — et la liste elle-même est refusée sur une tâche hors périmètre", async () => {
     const a = await agent();
     const t = await creerTache([a]);
-    await taches.modifier(t, { version: 1, confidentielle: true }, a, DROITS_CREATION);
+    await taches.modifier(t, { version: 1, confidentielle: true }, a, DROITS_CONFIDENTIELS);
 
     await expect(
       taches.candidatsDependance(
@@ -1032,7 +1036,7 @@ describe("EX-TSK-10 — la pose d'un ensemble de dépendances", () => {
       { titre: "Secrète", projectId: p, assigneIds: [a] },
       acteur, DROITS_CREATION
     );
-    await taches.modifier(secrete.id, { version: 1, confidentielle: true }, acteur, DROITS_CREATION);
+    await taches.modifier(secrete.id, { version: 1, confidentielle: true }, acteur, DROITS_CONFIDENTIELS);
 
     const lecteur = { userId: a, global: false, confidentiel: false } as never;
     await expect(
@@ -1061,7 +1065,7 @@ describe("EX-TSK-10 — la pose d'un ensemble de dépendances", () => {
       acteur, DROITS_CREATION
     );
     await taches.ajouterDependance(cible.id, secrete.id, acteur, DROITS_CREATION);
-    await taches.modifier(secrete.id, { version: 1, confidentielle: true }, acteur, DROITS_CREATION);
+    await taches.modifier(secrete.id, { version: 1, confidentielle: true }, acteur, DROITS_CONFIDENTIELS);
 
     const lecteur = { userId: a, global: false, confidentiel: false } as never;
     const avant = await prisma.task.findUniqueOrThrow({ where: { id: cible.id } });
@@ -1242,7 +1246,7 @@ describe("EX-TSK-03 — les quatre filtres, chacun avec son témoin exclu", () =
 
 describe("EX-TSK-07 — modifier depuis la FICHE : ce que la fiche rend compose la requête", () => {
   /*
-   * Le piège consigné au CLAUDE.md, dans sa forme exacte : deux moitiés justes
+   * Le piège déjà rencontré, dans sa forme exacte : deux moitiés justes
    * qui ne se raccordent pas. `profil()` ne rendait pas `version`, que le
    * schéma de modification exige au titre de `RG-GEN-07` — la route existait,
    * aucune requête n'était composable, et le diagnostic tiré fut « la route

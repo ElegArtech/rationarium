@@ -1,5 +1,5 @@
 /**
- * La bibliothèque d'icônes de projet — `cadrage/02`, vue 10.
+ * La bibliothèque d'icônes de projet — vue 10.
  *
  * **Cinquante icônes, onze catégories, et la liste est FERMÉE.** Le brief de la
  * vue 10 décrit un sélecteur avec sa recherche, ses catégories et son état
@@ -104,7 +104,7 @@ export const estIconeProjet = (code: string): boolean =>
  *
  * `EX-PRJ-04` dit « choisir une icône *dans une bibliothèque* » : c'est un
  * vocabulaire fermé, au même titre que les statuts et les priorités de
- * `cadrage/01 § 4.1`. Le contrôleur acceptait pourtant `z.string().max(20)` et
+ * `docs/reference-fonctionnelle.md § 4.1`. Le contrôleur acceptait pourtant `z.string().max(20)` et
  * n'a jamais appelé `estIconeProjet` : n'importe quelle chaîne entrait en base,
  * et la pastille rendait alors un `<use href="#nimportequoi">` que rien ne
  * définit — une boîte vide, sans erreur, sans avertissement. Le membre de la

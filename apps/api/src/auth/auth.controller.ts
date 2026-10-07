@@ -11,6 +11,7 @@ import {
   Res,
   StreamableFile,
 } from "@nestjs/common";
+import { RouteConfig } from "@nestjs/platform-fastify";
 import type { FastifyReply, FastifyRequest } from "fastify";
 import {
   connexionSchema,
@@ -21,12 +22,18 @@ import {
 } from "@rationarium/contracts";
 import { z } from "zod";
 import { AuthService, ErreurAuth } from "./auth.service.js";
-import { Public, Personnel, Demande, type ContexteDemande } from "../commun/permissions.garde.js";
+import {
+  Public,
+  Personnel,
+  PendantChangementImpose,
+  Demande,
+  type ContexteDemande,
+} from "../commun/permissions.garde.js";
 import { MESSAGES } from "./messages.js";
 
 const COOKIE = "rationarium_session";
 
-/** Le cookie de session : `HttpOnly`, `SameSite=Lax`, `Secure`. ADR-0008. */
+/** Le cookie de session : `HttpOnly`, `SameSite=Lax`, `Secure`. */
 const optionsCookie = (jours: number) => ({
   httpOnly: true,
   sameSite: "lax" as const,
@@ -75,10 +82,36 @@ const erreurChangementMotDePasse = (erreur: z.ZodError<z.infer<typeof changement
   );
 };
 
+/**
+ * `RG-AUTH-12` — **limite de débit par adresse IP**, propre à une route.
+ *
+ * La limite globale de `main.ts` (300 par minute) protège le serveur, pas la
+ * connexion : trois cents essais de mot de passe par minute et par adresse,
+ * c'est un dictionnaire. Le verrouillage par compte ne suffit pas non plus —
+ * il protège un compte, pas l'instance contre un essai réparti sur tous.
+ *
+ * `@fastify/rate-limit` lit `config.rateLimit` à l'enregistrement de chaque
+ * route ; `RouteConfig` est la façon dont Nest la lui transmet. Le refus porte
+ * une clé traduisible, comme toute erreur du produit (`RG-GEN-08`) — et c'est
+ * une `HttpException`, parce que le refus traverse le filtre global : un
+ * objet nu y devenait « erreur interne », en 500.
+ */
+const LimiteDeDebit = (max: number, cle: string, message: string) =>
+  RouteConfig({
+    rateLimit: {
+      max,
+      timeWindow: "1 minute",
+      errorResponseBuilder: () => new HttpException({ cle, message }, 429),
+    },
+  });
+
 const traduire = (e: unknown): never => {
   if (e instanceof ErreurAuth) {
     const m = MESSAGES[e.code];
-    throw new HttpException({ cle: m.cle, message: m.message }, m.statut);
+    throw new HttpException(
+      { cle: m.cle, message: m.message, ...(e.detail ? { detail: e.detail } : {}) },
+      m.statut,
+    );
   }
   throw e;
 };
@@ -90,7 +123,7 @@ export class AuthController {
   /**
    * Ce que la page de connexion doit savoir **avant** toute session.
    *
-   * `design/etats.json` déclare pour la vue 01 un axe « Inscription autonome :
+   * La spécification des états déclare pour la vue 01 un axe « Inscription autonome :
    * activée · désactivée ». Sans ce point d'entrée, le client ne pouvait pas
    * connaître le réglage : il passait `false` en dur, et la variante activée
    * était **inatteignable** — un état spécifié, maquetté, et impossible à
@@ -107,6 +140,13 @@ export class AuthController {
 
   /** EX-AUTH-01 — se connecter par identifiant ou email. */
   @Public()
+  @LimiteDeDebit(
+    10,
+    // Le même message que le verrouillage : un refus de débit ne doit rien
+    // apprendre de plus qu'un compte verrouillé (RG-AUTH-12).
+    "auth:erreurs.compteVerrouille",
+    "Trop de tentatives de connexion. Réessayez plus tard.",
+  )
   @Post("login")
   @HttpCode(200)
   async login(
@@ -144,6 +184,7 @@ export class AuthController {
 
   /** EX-AUTH-04 — créer un compte en autonomie, quand l'organisation l'autorise. */
   @Public()
+  @LimiteDeDebit(5, "auth:erreurs.tropDeDemandes", "Trop de demandes. Réessayez dans une minute.")
   @Post("signup")
   @HttpCode(201)
   async signup(@Body() corps: unknown) {
@@ -163,6 +204,7 @@ export class AuthController {
    * existe ou non. La vue 03 l'exige explicitement.
    */
   @Public()
+  @LimiteDeDebit(5, "auth:erreurs.tropDeDemandes", "Trop de demandes. Réessayez dans une minute.")
   @Post("forgot-password")
   @HttpCode(202)
   async forgotPassword(@Body() corps: unknown) {
@@ -217,6 +259,7 @@ export class AuthController {
 
   /** EX-AUTH-08 — changer son mot de passe depuis son profil. */
   @Personnel()
+  @PendantChangementImpose()
   @Post("change-password")
   @HttpCode(200)
   async changePassword(@Body() corps: unknown, @Req() req: FastifyRequest) {
@@ -243,6 +286,7 @@ export class AuthController {
 
   /** EX-AUTH-09, EX-AUTH-10 — qui suis-je, et quand me suis-je connecté ? */
   @Personnel()
+  @PendantChangementImpose()
   @Get("me")
   async me(@Demande() demande: ContexteDemande) {
     const profil = await this.auth.profil(demande.userId);
@@ -261,7 +305,7 @@ export class AuthController {
    * la colonne l'attendait en base.
    *
    * `@Personnel()` et non `@Public()` : le catalogue des vingt-quatre domaines
-   * est FERMÉ par `cadrage/01 § 3.2` et modifier son propre profil n'y trouve
+   * est FERMÉ par `docs/reference-fonctionnelle.md § 3.2` et modifier son propre profil n'y trouve
    * pas de domaine — en inventer un serait ajouter au catalogue par
    * initiative. Mais `@Public()` signifie « AVANT la session », et cette route
    * en exige une. `surface-http.test.ts` l'a refusée sur-le-champ : sa liste

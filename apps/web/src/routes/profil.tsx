@@ -170,6 +170,9 @@ export function Profil({
 }
 
 /** Les deux blocs : ce qui m'appartient, ce qui engage l'organisation. */
+/** `RG-DOC-04` — un avatar pèse au plus 2 Mio. */
+const TAILLE_MAX_AVATAR = 2 * 1024 * 1024;
+
 function Informations({
   utilisateur,
 }: {
@@ -237,6 +240,8 @@ function Informations({
       if (!types.includes(fichier.type as (typeof types)[number])) {
         throw new Error("avatar-format");
       }
+      // D22 — `RG-DOC-04` : refusé AVANT l'envoi, limite nommée.
+      if (fichier.size > TAILLE_MAX_AVATAR) throw new Error("avatar-taille");
       const octets = new Uint8Array(await fichier.arrayBuffer());
       let binaire = "";
       for (const octet of octets) binaire += String.fromCharCode(octet);
@@ -254,7 +259,9 @@ function Informations({
     onError: (e) => {
       const texte = e instanceof Error && e.message === "avatar-format"
         ? tAuth("erreurs.avatarFormatInvalide")
-        : messageErreur(e, tAuth, t("profil.avatarEchec"));
+        : e instanceof Error && e.message === "avatar-taille"
+          ? tErreurs("fichierTropVolumineux_detail", { maxOctets: TAILLE_MAX_AVATAR })
+          : messageErreur(e, tAuth, t("profil.avatarEchec"));
       setRetourAvatar({ type: "erreur", texte });
       if (saisieAvatar.current) saisieAvatar.current.value = "";
     },
@@ -557,7 +564,7 @@ function Informations({
           leur verrou et le service qui les tient — c'est ce qui répond
           réellement à la question « comment fait-on corriger ça ? ».
 
-          Décision portée dans `cadrage/02` § vue 35 pour qu'elle ne revienne
+          Décision portée dans la spécification de la vue 35 pour qu'elle ne revienne
           pas par la maquette.
         */}
       </section>

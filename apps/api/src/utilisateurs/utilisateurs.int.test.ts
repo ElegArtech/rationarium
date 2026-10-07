@@ -187,7 +187,7 @@ describe("EX-USR-05 — désactivation réversible", () => {
 describe("RG-USR-03 — contrôle de dépendances avant suppression définitive", () => {
   it("un compte vierge se supprime", async () => {
     const u = await users.creer(nouveau(), karim, TOUS_DROITS_UTILISATEUR);
-    const impact = await users.impactSuppression(u.id);
+    const impact = await users.impactSuppression(u.id, karim);
     expect(impact.blocages).toEqual([]);
     await expect(users.supprimerDefinitivement(u.id, karim, u.version)).resolves.toBeUndefined();
     expect(await prisma.user.findUnique({ where: { id: u.id } })).toBeNull();
@@ -206,7 +206,7 @@ describe("RG-USR-03 — contrôle de dépendances avant suppression définitive"
       data: { userId: u.id, projectId: projet, date: new Date("2026-03-02"), heures: 4 },
     });
 
-    const impact = await users.impactSuppression(u.id);
+    const impact = await users.impactSuppression(u.id, karim);
     expect(impact.blocages).toContainEqual({ objet: "temps", nombre: 1 });
 
     const erreur = await users
@@ -222,7 +222,7 @@ describe("RG-USR-03 — contrôle de dépendances avant suppression définitive"
     const u = await users.creer(nouveau(), karim, TOUS_DROITS_UTILISATEUR);
     await prisma.todo.create({ data: { userId: u.id, libelle: "Penser à" } });
 
-    const impact = await users.impactSuppression(u.id);
+    const impact = await users.impactSuppression(u.id, karim);
     expect(impact.blocages).toEqual([]);
     expect(impact.effacements).toContainEqual({ objet: "todos", nombre: 1 });
     await expect(users.supprimerDefinitivement(u.id, karim, u.version)).resolves.toBeUndefined();
@@ -230,7 +230,7 @@ describe("RG-USR-03 — contrôle de dépendances avant suppression définitive"
 
   it("le contrôle est REJOUÉ à l'exécution, pas seulement à l'affichage", async () => {
     const u = await users.creer(nouveau(), karim, TOUS_DROITS_UTILISATEUR);
-    const impact = await users.impactSuppression(u.id);
+    const impact = await users.impactSuppression(u.id, karim);
     expect(impact.blocages).toEqual([]);
 
     // Entre la confirmation et l'exécution, une saisie apparaît.
@@ -658,7 +658,7 @@ describe("EX-USR-06 — supprimer définitivement un compte APRÈS contrôle de 
       data: { userId: u.id, type: "tache_assignee", titre: "T", contenu: "C" },
     });
 
-    const impact = await users.impactSuppression(u.id);
+    const impact = await users.impactSuppression(u.id, karim);
     expect(impact.effacements).toContainEqual({ objet: "todos", nombre: 1 });
     expect(impact.effacements).toContainEqual({ objet: "notifications", nombre: 1 });
     expect(impact.nom).toContain(u.nom);
@@ -674,7 +674,7 @@ describe("EX-USR-06 — supprimer définitivement un compte APRÈS contrôle de 
 
   it("un compte inconnu est refusé, il n'est pas « déjà supprimé »", async () => {
     const inconnu = "00000000-0000-4000-8000-000000000000";
-    await expect(users.impactSuppression(inconnu)).rejects.toMatchObject({ code: "introuvable" });
+    await expect(users.impactSuppression(inconnu, karim)).rejects.toMatchObject({ code: "introuvable" });
     await expect(users.supprimerDefinitivement(inconnu, karim, 1)).rejects.toMatchObject({
       code: "introuvable",
     });
@@ -740,7 +740,7 @@ describe("EX-USR-08, RG-USR-06 — importer des comptes depuis un CSV", () => {
       `grace-${s}@x.fr;grace-${s};Motdepasse1!;Grace;Hopper;;;`,
     ].join("\n");
 
-    const rendu = await imports.importerUtilisateurs(csv, karim);
+    const rendu = await imports.importerUtilisateurs(csv, karim, new Set(), await globalP());
     expect(rendu).toMatchObject({ importes: 3, ignores: 0 });
     expect(rendu.erreurs).toEqual([]);
 
@@ -807,7 +807,7 @@ describe("EX-USR-08, RG-USR-06 — importer des comptes depuis un CSV", () => {
       `neuf2-${s}@x.fr;neuf2-${s};Motdepasse1!;Neuf;Deux;;;`,
     ].join("\n");
 
-    const rendu = await imports.importerUtilisateurs(csv, karim);
+    const rendu = await imports.importerUtilisateurs(csv, karim, new Set(), await globalP());
 
     expect(rendu.importes).toBe(2);
     // Un compte déjà présent est IGNORÉ. S'il basculait en erreur, ce nombre
@@ -843,7 +843,7 @@ describe("EX-USR-08, RG-USR-06 — importer des comptes depuis un CSV", () => {
     expect(apercu.erreurs.map((e) => e.ligne)).toEqual([3]);
     expect(apercu.erreurs[0]?.message).toContain("login");
 
-    const rendu = await imports.importerUtilisateurs(csv, karim);
+    const rendu = await imports.importerUtilisateurs(csv, karim, new Set(), await globalP());
     expect(rendu.erreurs.map((e) => e.ligne)).toEqual(apercu.erreurs.map((e) => e.ligne));
     expect(rendu.importes).toBe(1);
   });

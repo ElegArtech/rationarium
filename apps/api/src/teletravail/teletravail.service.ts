@@ -51,7 +51,7 @@ export class TeletravailService {
    * agent, pouvait poser du télétravail sur le calendrier de n'importe qui.
    *
    * **La granularité retenue**, et c'est une décision : le catalogue est fermé
-   * (`cadrage/01 § 3.2`) et ne porte pas une permission « pour autrui » par
+   * (`docs/reference-fonctionnelle.md § 3.2`) et ne porte pas une permission « pour autrui » par
    * action. « Distincte selon l'action » se lit donc en deux temps — la
    * permission de l'action garde la route (`create`, `generate`,
    * `manage_rules`, `read`), et une seconde permission autorise à viser

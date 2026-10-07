@@ -16,7 +16,6 @@ export default defineConfig({
     hookTimeout: 180_000,
     // Une seule instance : les conteneurs ne se partagent pas entre processus.
     pool: "forks",
-    maxForks: 1,
-    minForks: 1,
+    maxWorkers: 1,
   },
 });

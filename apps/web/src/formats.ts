@@ -7,7 +7,7 @@ import i18next from "i18next";
  * produit une date française lisible par un lecteur anglais comme un mois de
  * trente et un. Le format suit la langue courante, et `Intl` s'en charge.
  *
- * Les dates métier arrivent en `AAAA-MM-JJ` (ADR-0010) : sans heure ni fuseau.
+ * Les dates métier arrivent en `AAAA-MM-JJ` : sans heure ni fuseau.
  * Elles sont interprétées **en UTC** pour la même raison qui les a fait choisir
  * ainsi — `new Date("2026-09-01")` lu à Paris en heure d'été reste le 1er
  * septembre, mais `new Date("2026-09-01T00:00:00")` lu à Tahiti devient le 31

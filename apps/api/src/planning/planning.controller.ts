@@ -104,7 +104,8 @@ export class PlanningController {
      * service est aussi appelé de l'intérieur par des chemins déjà bornés, et
      * la doubler y coûterait une requête pour rien.
      */
-    await this.taches.exigerLisible(taskId, d.userId, d.permissions);
+    // `RG-TSK-18` — déplacer est une écriture : lisible ne suffit pas.
+    await this.taches.exigerModifiable(taskId, d.userId, d.permissions);
     return this.taches.deplacerDepuisPlanning(taskId, cible, d.userId);
   }
 

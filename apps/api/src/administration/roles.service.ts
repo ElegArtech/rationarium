@@ -1,10 +1,18 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma.service.js";
 import { AuditService } from "../commun/audit.service.js";
-import { MODELES_ROLES, PERMISSIONS, DOMAINES, estAuCatalogue } from "@rationarium/contracts";
+import {
+  DESCRIPTIONS_ANTERIEURES,
+  MODELES_ROLES,
+  PERMISSIONS,
+  DOMAINES,
+  estAuCatalogue,
+  type ModeleRole,
+} from "@rationarium/contracts";
+import { permissionsIncluses } from "../utilisateurs/utilisateurs.service.js";
 
 /**
- * Rôles et permissions — M20, `cadrage/01 § M20`, vue 32.
+ * Rôles et permissions — M20, `docs/reference-fonctionnelle.md § M20`, vue 32.
  *
  * `RG-DROITS-01` — un modèle de rôle est un **point de départ**, pas une
  * contrainte : un administrateur compose un rôle sur mesure en cochant les
@@ -16,6 +24,7 @@ export type EchecRole =
   | "role_systeme_non_supprimable"
   | "role_systeme_non_renommable"
   | "role_systeme_non_modifiable"
+  | "role_plus_privilegie"
   | "permission_hors_catalogue"
   | "code_deja_pris"
   | "role_utilise"
@@ -61,13 +70,12 @@ export class RolesService {
         // système. Un rôle personnalisé qui porte par hasard le code réservé
         // n'est PAS un modèle existant : on le signale sans le réécrire et on
         // poursuit l'initialisation des autres modèles.
-        const correspondAuModele =
-          existe.nom === modele.nom && existe.description === (modele.description ?? null);
-        if (!existe.systeme && !correspondAuModele) {
+        if (!existe.systeme && !correspondAuModele(existe, modele)) {
           collisions.push({ code: modele.code, roleId: existe.id });
           continue;
         }
         existants++;
+        await this.actualiserDescription(existe, modele);
         if (existe.systeme) await this.alignerPermissionsSysteme(existe.id, [...modele.permissions]);
         continue;
       }
@@ -92,10 +100,9 @@ export class RolesService {
           where: { code: modele.code },
           select: { id: true, systeme: true, nom: true, description: true },
         });
-        const correspondAuModele =
-          concurrent.nom === modele.nom && concurrent.description === (modele.description ?? null);
-        if (concurrent.systeme || correspondAuModele) {
+        if (concurrent.systeme || correspondAuModele(concurrent, modele)) {
           existants++;
+          await this.actualiserDescription(concurrent, modele);
           if (concurrent.systeme) {
             await this.alignerPermissionsSysteme(concurrent.id, [...modele.permissions]);
           }
@@ -113,6 +120,22 @@ export class RolesService {
       detail: { crees, existants, collisions },
     });
     return { crees, existants, collisions };
+  }
+
+  /**
+   * Remplace une description de modèle publiée par une version antérieure par
+   * le texte courant. Une description modifiée par l'organisation n'est ni
+   * courante ni antérieure : elle reste telle quelle.
+   */
+  private async actualiserDescription(
+    role: { id: string; description: string | null },
+    modele: ModeleRole,
+  ) {
+    if (!DESCRIPTIONS_ANTERIEURES[modele.code]?.includes(role.description ?? "")) return;
+    await this.prisma.role.update({
+      where: { id: role.id },
+      data: { description: modele.description, version: { increment: 1 } },
+    });
   }
 
   /** `EX-ADM-01` — lister les rôles avec leur nombre de permissions. */
@@ -170,10 +193,17 @@ export class RolesService {
     };
   }
 
-  /** `EX-ADM-02` — créer un rôle, éventuellement à partir d'un modèle. */
+  /**
+   * `EX-ADM-02` — créer un rôle, éventuellement à partir d'un modèle.
+   *
+   * `RG-USR-09` — dupliquer un modèle, c'est composer un rôle portant ses
+   * permissions : l'acteur doit toutes les détenir. `permissionsActeur` est
+   * fourni par la route HTTP ; l'amorçage et les appels internes l'omettent.
+   */
   async creer(
     donnees: { code: string; nom: string; description?: string; depuisModele?: string },
     acteurId: string,
+    permissionsActeur?: ReadonlySet<string>,
   ) {
     if (await this.prisma.role.findUnique({ where: { code: donnees.code }, select: { id: true } })) {
       throw new ErreurRole("code_deja_pris");
@@ -182,6 +212,7 @@ export class RolesService {
     const modele = donnees.depuisModele
       ? MODELES_ROLES.find((m) => m.code === donnees.depuisModele)
       : undefined;
+    if (modele) exigerRoleCouvert(modele.permissions, permissionsActeur);
 
     const role = await this.prisma.role.create({
       data: {
@@ -277,18 +308,32 @@ export class RolesService {
    * référentiel (`initialiserReferentiel`) appelle sans acteur, la route HTTP
    * appelle avec. Un rôle système se réaligne donc toujours sur son modèle, et
    * ne se modifie jamais à la demande.
+   *
+   * `RG-USR-09` — **nul ne compose un rôle plus large que soi.** Le contrôle
+   * d'attribution ne suffisait pas : un porteur de `users:manage_permissions`
+   * ajoutait à son PROPRE rôle ce qu'il n'avait pas, sans rien attribuer. Les
+   * permissions écrites ET celles que le rôle porte déjà doivent toutes être
+   * détenues par l'acteur — retirer des droits à un rôle plus privilégié, c'est
+   * agir sur lui. `permissionsActeur` est fourni par la route HTTP.
    */
-  async definirPermissions(roleId: string, permissions: string[], acteurId?: string, version?: number) {
+  async definirPermissions(
+    roleId: string,
+    permissions: string[],
+    acteurId?: string,
+    version?: number,
+    permissionsActeur?: ReadonlySet<string>,
+  ) {
     const hors = permissions.filter((p) => !estAuCatalogue(p));
     if (hors.length > 0) throw new ErreurRole("permission_hors_catalogue", { permissions: hors });
 
     const uniques = [...new Set(permissions)];
     const role = await this.prisma.role.findUnique({
       where: { id: roleId },
-      select: { systeme: true, version: true },
+      select: { systeme: true, version: true, permissions: { select: { permission: true } } },
     });
     if (!role) throw new ErreurRole("introuvable");
     if (acteurId && role.systeme) throw new ErreurRole("role_systeme_non_modifiable");
+    exigerRoleCouvert([...uniques, ...role.permissions.map((p) => p.permission)], permissionsActeur);
     if (acteurId && version === undefined) throw new ErreurRole("conflit_de_version");
     const attendue = version ?? role.version;
     if (role.version !== attendue) throw new ErreurRole("conflit_de_version");
@@ -335,7 +380,29 @@ export class RolesService {
   }
 }
 
+/** `RG-USR-09` — refuse un rôle dont l'acteur ne détient pas toutes les permissions. */
+const exigerRoleCouvert = (
+  permissions: Iterable<string>,
+  permissionsActeur: ReadonlySet<string> | undefined,
+) => {
+  if (permissionsActeur && !permissionsIncluses(permissions, permissionsActeur)) {
+    throw new ErreurRole("role_plus_privilegie");
+  }
+};
+
 const codePrisma = (erreur: unknown): string | undefined =>
   typeof erreur === "object" && erreur !== null && "code" in erreur
     ? String((erreur as { code?: unknown }).code)
     : undefined;
+
+/**
+ * Un rôle non système correspond à son modèle quand il en porte le nom et la
+ * description — courante, ou publiée par une version antérieure.
+ */
+const correspondAuModele = (
+  role: { nom: string; description: string | null },
+  modele: ModeleRole,
+): boolean =>
+  role.nom === modele.nom &&
+  (role.description === (modele.description ?? null) ||
+    (DESCRIPTIONS_ANTERIEURES[modele.code] ?? []).includes(role.description ?? ""));

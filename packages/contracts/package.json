@@ -1,6 +1,6 @@
 {
   "name": "@rationarium/contracts",
-  "version": "1.0.0-rc.1",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "description": "Contrat partagé client / serveur : schémas Zod, catalogue de permissions, vocabulaires du § 4.1",
@@ -16,14 +16,14 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint src",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run"
   },
   "dependencies": {
     "zod": "4.4.3"
   },
   "devDependencies": {
     "typescript": "6.0.3",
-    "vitest": "4.1.10"
+    "vitest": "4.1.11"
   },
   "license": "MIT",
   "author": "Alexandre Bergé",

@@ -10,7 +10,7 @@ import { ongletSuivi } from "./Suivi.js";
  * L'adresse affichée au survol ne menait nulle part — `/parametres#feries`
  * rendait « Affichage » —, le bouton Précédent ne défaisait pas le changement
  * de section, et revenir dans la vue perdait l'onglet. C'est le pendant exact
- * du réglage qui s'enregistre sans agir, consigné trois fois dans `CLAUDE.md`.
+ * du réglage qui s'enregistre sans agir, déjà rencontré trois fois.
  *
  * La vue 19 avait déjà reçu le remède (`ongletCourant`, `Conges.tsx`) : on
  * reprend sa forme plutôt que d'en inventer une seconde — deux

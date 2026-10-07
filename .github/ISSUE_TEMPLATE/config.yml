@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Signaler une faille de sécurité / Report a vulnerability
+    url: https://github.com/ElegArtech/rationarium/security/advisories/new
+    about: Signalement privé. Ne jamais publier une faille dans une issue.

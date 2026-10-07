@@ -15,7 +15,7 @@ import {
 /**
  * `EX-RPT-11` — le Gantt portefeuille.
  *
- * **Aucune bibliothèque de Gantt** (`cadrage/03 § 4, D12`) : une barre est un
+ * **Aucune bibliothèque de Gantt** : une barre est un
  * `<div>` positionné en pourcentage de la plage temporelle. Ce n'est pas une
  * privation — c'est ce qui permet aux jetons de porter les couleurs, donc aux
  * deux thèmes de suivre sans traitement particulier, et à l'impression de

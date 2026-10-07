@@ -26,7 +26,8 @@ export class UtilisateursController {
       }),
       requete,
     );
-    return this.utilisateurs.lister(d.perimetre, filtres);
+    // RG-USR-09 — chaque ligne dit si elle est hors d'atteinte du lecteur.
+    return this.utilisateurs.lister(d.perimetre, filtres, d.permissions);
   }
 
   /** `EX-USR-06` — qui est là aujourd'hui : présent, en congé, en télétravail. */
@@ -126,8 +127,8 @@ export class UtilisateursController {
   @Get(":id/impact")
   @RequiertPermission("users:delete_permanently")
   @CibleUtilisateur({ cible: true })
-  impact(@Param("id") id: string) {
-    return this.utilisateurs.impactSuppression(id);
+  impact(@Param("id") id: string, @Demande() d: ContexteDemande) {
+    return this.utilisateurs.impactSuppression(id, d.userId);
   }
 
   @Delete(":id")

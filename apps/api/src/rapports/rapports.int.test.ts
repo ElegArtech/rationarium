@@ -505,6 +505,32 @@ describe("EX-RPT-11 — le Gantt portefeuille et son RAG", () => {
     expect(parId.get(sain.id)).toBe("on_track");
   });
 
+  it("RG-TSK-12 — UNE TÂCHE OU UN PROJET DÛ AUJOURD'HUI N'EST PAS EN RETARD, à toute heure de travail", async () => {
+    // Le projet finit aujourd'hui ; sa seule tâche ouverte aussi.
+    const p = await projet({ nom: "Échéance du jour", chefId: chef, dateFin: "2026-08-11" });
+    await prisma.task.create({
+      data: { titre: "Dernière ligne droite", projectId: p.id, statut: "doing", dateFin: utc("2026-08-11") },
+    });
+
+    /*
+      Même piège que celui des jalons, plus haut : les dates sont des colonnes
+      `@db.Date`, revenues à minuit. À minuit pile, la comparaison fautive à
+      l'instant donne la bonne réponse — l'horloge est donc posée à trois
+      heures de travail, jamais à minuit.
+    */
+    for (const heure of ["08:30", "14:00", "18:45"]) {
+      const instant = new Date(`2026-08-11T${heure}:00.000Z`);
+      const g = await rapports.gantt({ periode: "mois" }, await global(), PERMISSIONS, instant);
+      const ligne = g.lignes.find((l) => l.id === p.id);
+      expect(ligne?.enRetard, `à ${heure}`).toBe(0);
+      expect(ligne?.rag, `à ${heure}`).toBe("on_track");
+
+      // L'activité récente lit la même échéance : « passée en retard » non plus.
+      const vue = await rapports.vueEnsemble({ periode: "mois" }, await global(), PERMISSIONS, instant);
+      expect(vue.activite.passeesEnRetard, `à ${heure}`).toBe(0);
+    }
+  });
+
   it("la progression du Gantt compte les tâches finies, pas leur avancement moyen", async () => {
     const p = await projet({ nom: "Mesuré", chefId: chef });
     await prisma.task.createMany({

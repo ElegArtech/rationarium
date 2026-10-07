@@ -19,10 +19,10 @@ import { PerimetreService } from "../commun/perimetre.service.js";
 /**
  * L-26 — **l'audit de performance, à la volumétrie cible.**
  *
- * `ADR-0015` a déplacé la cible de cet audit, et c'est le point de départ :
+ * Une décision antérieure a déplacé la cible de cet audit, et c'est le point de départ :
  * le prototype de la vague 0 a montré que la vue Mois n'est **pas** un problème
  * de rendu — 52 ms pour 500 ressources × 31 jours, 297 ms sur matériel bridé
- * six fois. Le budget de `cadrage/01 § 7` se dépense donc **côté serveur**,
+ * six fois. Le budget de `docs/reference-fonctionnelle.md § 7` se dépense donc **côté serveur**,
  * dans l'agrégat de `RG-PLN-01`. La mesure porte sur la requête, pas sur la
  * peinture.
  *
@@ -31,14 +31,14 @@ import { PerimetreService } from "../commun/perimetre.service.js";
  * aucun plan d'exécution n'y ressemble à celui de production.
  *
  * ────────────────────────────────────────────────────────────────────────────
- * SUR LES SEUILS. `cadrage/01 § 7` donne des budgets de **bout en bout** :
+ * SUR LES SEUILS. `docs/reference-fonctionnelle.md § 7` donne des budgets de **bout en bout** :
  * planning d'un service sur une semaine en moins de 2 s, tableau de bord en
  * moins de 1 s. Le seuil retenu ici en alloue **80 % à la requête**, le reste
- * couvrant le transport en réseau fermé et un rendu que l'ADR-0015 mesure à
+ * couvrant le transport en réseau fermé et un rendu mesuré à
  * quelques dizaines de millisecondes. C'est un choix, il est écrit, et il est
  * conservateur : si la requête seule dépasse ce seuil, le budget est perdu.
  *
- * Ces seuils sont **bloquants** (`cadrage/04 § 5`). Une mesure qui avertit sans
+ * Ces seuils sont **bloquants**. Une mesure qui avertit sans
  * bloquer se contourne par l'habitude en trois semaines.
  * ────────────────────────────────────────────────────────────────────────────
  */
@@ -46,7 +46,7 @@ import { PerimetreService } from "../commun/perimetre.service.js";
 const RACINE_DB = path.resolve(import.meta.dirname, "../../../../packages/db");
 const utc = (s: string) => new Date(`${s}T00:00:00.000Z`);
 
-/** 80 % du budget de bout en bout de `cadrage/01 § 7`. */
+/** 80 % du budget de bout en bout de `docs/reference-fonctionnelle.md § 7`. */
 const BUDGET_PLANNING = 1_600;
 const BUDGET_TABLEAU = 800;
 /** Les vues d'analyse n'ont pas de budget au cadrage : celui-ci est le nôtre. */
@@ -94,7 +94,7 @@ async function mesurer(nom: string, appel: () => Promise<unknown>): Promise<numb
 }
 
 beforeAll(async () => {
-  pg = await new PostgreSqlContainer("postgres:18-alpine").start();
+  pg = await new PostgreSqlContainer(process.env["RATIONARIUM_IMAGE_POSTGRES"] ?? "postgres:18-alpine").start();
   execFileSync("pnpm", ["exec", "prisma", "migrate", "deploy"], {
     cwd: RACINE_DB,
     env: { ...process.env, DATABASE_URL: pg.getConnectionUri() },
@@ -139,7 +139,7 @@ afterAll(async () => {
 
 // ════════════════════════════════════════════════════════════════════════════
 
-describe("cadrage/01 § 7 — les budgets, à la volumétrie cible", () => {
+describe("les budgets, à la volumétrie cible", () => {
   it("le jeu de données est bien à la cible — sinon la mesure ne vaut rien", async () => {
     const [users, projets, taches, conges, saisies] = await Promise.all([
       prisma.user.count(),

@@ -6,6 +6,7 @@
   "autoValidationInterdite": "Vous ne pouvez pas valider votre propre demande.",
   "avancementIncoherent": "Une tâche terminée est à 100 % d'avancement. Changez d'abord son statut pour saisir un autre pourcentage.",
   "chevauchement": "Vous avez déjà une absence sur cette période.",
+  "champHorsPermission": "Ce champ demande une permission que vous n'avez pas. Le reste de votre modification n'a pas été enregistré.",
   "clientInactif": "Ce client est inactif : il ne peut plus être rattaché.",
   "codeDejaPris": "Ce code est déjà utilisé. Choisissez-en un autre.",
   "collaborateurInactif": "Ce compte est désactivé.",
@@ -59,6 +60,7 @@
   "regleEnDouble": "Une règle récurrente couvre déjà ce jour.",
   "roleSystemeNonRenommable": "Le code d'un rôle fourni avec le produit ne peut pas être modifié.",
   "roleSystemeNonSupprimable": "Ce rôle est fourni avec le produit : il ne peut pas être supprimé. Dupliquez-le pour en créer une variante.",
+  "roleSystemeNonModifiable": "Ce rôle est fourni avec le produit : ses permissions ne peuvent pas être modifiées. Dupliquez-le pour en créer une variante.",
   "roleUtilise": "Ce rôle est encore attribué à des comptes. Réattribuez-les avant de le supprimer.",
   "serviceHorsDepartement": "Ce service n'appartient pas au département choisi.",
   "soiMemeInterdit": "Vous ne pouvez pas effectuer cette action sur votre propre compte.",
@@ -81,5 +83,9 @@
   "dateNonPropageable": "La date distingue les occurrences les unes des autres : elle se change sur cette occurrence seulement, pas sur toute la série.",
   "epopeeEnDouble": "Une épopée porte déjà ce nom dans ce projet.",
   "jalonCalcule": "Ce jalon porte des tâches : son statut se calcule à partir de leur avancement. Faites avancer ses tâches, ou détachez-les.",
-  "calendrierScolaireIndisponible": "Aucune période officielle n’est disponible pour cette année scolaire et cette zone. Choisissez une combinaison disponible."
+  "calendrierScolaireIndisponible": "Aucune période officielle n’est disponible pour cette année scolaire et cette zone. Choisissez une combinaison disponible.",
+  "comptePlusPrivilegie": "Ce compte a plus de droits que vous : vous ne pouvez pas agir sur lui.",
+  "rolePlusPrivilegie": "Ce rôle porterait des permissions que vous n'avez pas : vous ne pouvez pas le composer.",
+  "fichierTropVolumineux": "Ce fichier est trop volumineux.",
+  "fichierTropVolumineux_detail": "Ce fichier est trop volumineux : la taille maximale est de {maxOctets, number, ::scale/0.00000095367431640625 .#} Mio."
 }

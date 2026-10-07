@@ -196,6 +196,18 @@ for (const langue of ["fr", "en"] as const) test.describe(langue, () => {
         : "!Unsupported format. Use jpg, png or webp.",
     );
     expect(appels).toHaveLength(nombreAvantRefus);
+    // D22, `RG-DOC-04` — au-delà de 2 Mio, refusé avant l'envoi, limite nommée.
+    await fichier.setInputFiles({
+      name: "portrait-lourd.png",
+      mimeType: "image/png",
+      buffer: Buffer.alloc(2 * 1024 * 1024 + 1),
+    });
+    await expect(page.locator(".avatar-retour").getByRole("alert")).toContainText(
+      langue === "fr"
+        ? "Ce fichier est trop volumineux : la taille maximale est de 2 Mio."
+        : "This file is too large: the maximum size is 2 MiB.",
+    );
+    expect(appels).toHaveLength(nombreAvantRefus);
 
     for (const [name, mimeType] of [
       ["portrait.jpg", "image/jpeg"],

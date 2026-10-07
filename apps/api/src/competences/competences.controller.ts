@@ -114,6 +114,7 @@ export class CompetencesController {
     @Demande() d: ContexteDemande,
   ) {
     const { niveau } = valider(z.object({ niveau: enumDe(NIVEAUX_COMPETENCE) }), corps);
+    this.competences.exigerAgentDansPerimetre(userId, d.perimetre);
     return this.competences.definirNiveau(userId, skillId, niveau, d.userId);
   }
 
@@ -124,6 +125,7 @@ export class CompetencesController {
     @Param("skillId") skillId: string,
     @Demande() d: ContexteDemande,
   ) {
+    this.competences.exigerAgentDansPerimetre(userId, d.perimetre);
     return this.competences.retirerCompetence(userId, skillId, d.userId);
   }
 }

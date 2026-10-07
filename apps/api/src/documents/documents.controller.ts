@@ -13,9 +13,12 @@ import { z } from "zod";
 import { DocumentsService } from "./documents.service.js";
 import { dispositionPieceJointe } from "./stockage.js";
 import { Demande, RequiertPermission, type ContexteDemande } from "../commun/permissions.garde.js";
-import { valider } from "../commun/http.js";
+import { fichierTropVolumineux, valider } from "../commun/http.js";
 
 /** M15 — documents et commentaires, avec traçage des accès. */
+
+/** `RG-DOC-04` — une pièce jointe pèse au plus 20 Mio. */
+const TAILLE_MAX_PIECE_JOINTE = 20 * 1024 * 1024;
 
 const cible = z
   .object({ projectId: z.uuid().optional(), taskId: z.uuid().optional() })
@@ -36,11 +39,17 @@ export class DocumentsController {
    */
   @Post()
   @RequiertPermission("documents:create")
-  joindre(@Body() corps: unknown, @Demande() d: ContexteDemande) {
+  async joindre(@Body() corps: unknown, @Demande() d: ContexteDemande) {
     const donnees = valider(
       z.object({
         nom: z.string().min(1).max(255),
-        contenuBase64: z.base64().max(30_000_000),
+        /*
+         * Pas de `max` ici : un plafond sur la longueur du base64 rendait un
+         * 400 « données invalides » pour un fichier un peu trop gros, là où
+         * `RG-DOC-04` promet un 413 qui dit le plafond. La borne dure reste
+         * la limite de corps du transport.
+         */
+        contenuBase64: z.base64(),
         typeMime: z.string().min(1).max(120),
         projectId: z.uuid().nullish(),
         taskId: z.uuid().nullish(),
@@ -48,6 +57,12 @@ export class DocumentsController {
       corps,
     );
     const { contenuBase64, ...reste } = donnees;
+    // `RG-DOC-04` — mesuré sur le contenu DÉCODÉ, avant de le décoder.
+    if (Buffer.byteLength(contenuBase64, "base64") > TAILLE_MAX_PIECE_JOINTE) {
+      throw fichierTropVolumineux(TAILLE_MAX_PIECE_JOINTE);
+    }
+    // `RG-DOC-03` — avant d'écrire le moindre octet.
+    await this.documents.exigerPorteursVisibles(reste, d.perimetre, d.permissions);
     return this.documents.joindre(
       { ...reste, contenu: Buffer.from(contenuBase64, "base64") },
       d.userId,
@@ -86,23 +101,26 @@ export class DocumentsController {
 
   @Patch(":id")
   @RequiertPermission("documents:update")
-  renommer(@Param("id") id: string, @Body() corps: unknown, @Demande() d: ContexteDemande) {
+  async renommer(@Param("id") id: string, @Body() corps: unknown, @Demande() d: ContexteDemande) {
     /*
-     * `version` est FACULTATIVE, et c'est une décision : le client de la vague 7
-     * ne la porte pas encore, et l'exiger d'emblée casserait le renommage à
-     * l'instant. Quand elle est fournie, elle est confrontée (`RG-GEN-07`) ;
-     * son passage à obligatoire est une tâche de vue, tracée au journal.
+     * `RG-DOC-06`, `RG-GEN-07` — la version lue est OBLIGATOIRE. Elle a été
+     * facultative tant que le client ne la portait pas ; facultative, elle ne
+     * protégeait que les appelants qui voulaient bien l'être, et un renommage
+     * sans version écrasait en silence celui d'une autre fenêtre.
      */
     const { nom, version } = valider(
-      z.object({ nom: z.string().min(1).max(255), version: z.number().int().positive().optional() }),
+      z.object({ nom: z.string().min(1).max(255), version: z.number().int().positive() }),
       corps,
     );
+    // `RG-DOC-05` — la pièce d'autrui : permission dédiée, puis porteur lisible.
+    await this.documents.exigerPorteurSiAutrui("document", id, d.userId, d.perimetre, d.permissions);
     return this.documents.renommer(id, nom, d.userId, d.permissions, version);
   }
 
   @Delete(":id")
   @RequiertPermission("documents:delete")
-  supprimer(@Param("id") id: string, @Demande() d: ContexteDemande) {
+  async supprimer(@Param("id") id: string, @Demande() d: ContexteDemande) {
+    await this.documents.exigerPorteurSiAutrui("document", id, d.userId, d.perimetre, d.permissions);
     return this.documents.supprimer(id, d.userId, d.permissions);
   }
 
@@ -110,13 +128,16 @@ export class DocumentsController {
 
   @Get("commentaires/fil")
   @RequiertPermission("comments:read")
-  fil(@Query() requete: unknown) {
-    return this.documents.fil(valider(cible, requete));
+  async fil(@Query() requete: unknown, @Demande() d: ContexteDemande) {
+    const fil = valider(cible, requete);
+    // `RG-DOC-03` — le fil se lit si le porteur se lit, confidentialité comprise.
+    await this.documents.exigerPorteursVisibles(fil, d.perimetre, d.permissions);
+    return this.documents.fil(fil);
   }
 
   @Post("commentaires")
   @RequiertPermission("comments:create")
-  commenter(@Body() corps: unknown, @Demande() d: ContexteDemande) {
+  async commenter(@Body() corps: unknown, @Demande() d: ContexteDemande) {
     const donnees = valider(
       z.object({
         contenu: z.string().min(1).max(10_000),
@@ -125,24 +146,31 @@ export class DocumentsController {
       }),
       corps,
     );
+    await this.documents.exigerPorteursVisibles(donnees, d.perimetre, d.permissions);
     return this.documents.commenter(donnees, d.userId);
   }
 
   /** `RG-DOC-01` — on modifie ses propres contributions, pas celles d'autrui. */
   @Patch("commentaires/:id")
   @RequiertPermission("comments:update")
-  modifierCommentaire(
+  async modifierCommentaire(
     @Param("id") id: string,
     @Body() corps: unknown,
     @Demande() d: ContexteDemande,
   ) {
-    const { contenu } = valider(z.object({ contenu: z.string().min(1).max(10_000) }), corps);
-    return this.documents.modifierCommentaire(id, contenu, d.userId, d.permissions);
+    // `RG-DOC-06`, `RG-GEN-07` — la version lue accompagne la modification.
+    const { contenu, version } = valider(
+      z.object({ contenu: z.string().min(1).max(10_000), version: z.number().int().positive() }),
+      corps,
+    );
+    await this.documents.exigerPorteurSiAutrui("commentaire", id, d.userId, d.perimetre, d.permissions);
+    return this.documents.modifierCommentaire(id, contenu, version, d.userId, d.permissions);
   }
 
   @Delete("commentaires/:id")
   @RequiertPermission("comments:delete")
-  supprimerCommentaire(@Param("id") id: string, @Demande() d: ContexteDemande) {
+  async supprimerCommentaire(@Param("id") id: string, @Demande() d: ContexteDemande) {
+    await this.documents.exigerPorteurSiAutrui("commentaire", id, d.userId, d.perimetre, d.permissions);
     return this.documents.supprimerCommentaire(id, d.userId, d.permissions);
   }
 }

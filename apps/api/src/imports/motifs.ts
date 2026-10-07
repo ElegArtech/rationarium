@@ -76,7 +76,7 @@ export const MOTIFS = {
       `colonne « progress » : une tâche « done » est à ${attendu}`,
     ),
 
-  /** `cadrage/01 § M21` — une colonne d'énumération porte le CODE, pas le libellé. */
+  /** `docs/reference-fonctionnelle.md § M21` — une colonne d'énumération porte le CODE, pas le libellé. */
   valeurInconnue: (colonne: string, valeur: string, attendues: string): Motif =>
     motif(
       "valeurInconnue",
@@ -103,6 +103,52 @@ export const MOTIFS = {
       "loginDejaPris",
       { login },
       `un compte porte déjà l'identifiant « ${login} » : ligne ignorée.`,
+    ),
+
+  // ── Utilisateurs — RG-USR-10, RG-USR-09 ────────────────────────────────
+  //
+  // Les refus de la création unitaire, rendus ligne à ligne. Chacun dit ce
+  // qu'il faut changer dans le fichier : vider la colonne, choisir un autre
+  // rôle, un autre rattachement.
+
+  /** `RG-USR-10` — la colonne `role` exige la gestion des rôles. */
+  roleSansPermission: (role: string): Motif =>
+    motif(
+      "roleSansPermission",
+      { colonne: "role", role },
+      `colonne « role » : attribuer le rôle « ${role} » demande la gestion des rôles, ` +
+        `que vous ne détenez pas. Videz la colonne.`,
+    ),
+
+  /** `RG-USR-09` — on n'attribue que les rôles dont on détient tous les droits. */
+  rolePlusPrivilegie: (role: string): Motif =>
+    motif(
+      "rolePlusPrivilegie",
+      { role },
+      `le rôle « ${role} » porte des droits que vous ne détenez pas : ` +
+        `vous ne pouvez pas l'attribuer. Choisissez un autre rôle.`,
+    ),
+
+  departementHorsPerimetre: (departement: string): Motif =>
+    motif(
+      "departementHorsPerimetre",
+      { departement },
+      `le département « ${departement} » est hors de votre périmètre : ` +
+        `choisissez un département dont vous gérez les comptes.`,
+    ),
+
+  serviceHorsPerimetre: (service: string): Motif =>
+    motif(
+      "serviceHorsPerimetre",
+      { service },
+      `le service « ${service} » est hors de votre périmètre : retirez-le de la ligne.`,
+    ),
+
+  rattachementRequis: (): Motif =>
+    motif(
+      "rattachementRequis",
+      { colonne: "departmentName" },
+      `colonne « departmentName » vide : rattachez le compte à un département de votre périmètre.`,
     ),
 
   // ── Compétences — EX-CMP-09, RG-CMP-05 ─────────────────────────────────

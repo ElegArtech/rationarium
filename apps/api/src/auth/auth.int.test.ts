@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi } from "vitest";
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
 import { execFileSync } from "node:child_process";
 import path from "node:path";
@@ -168,6 +168,130 @@ describe("RG-AUTH-01 — verrouillage après tentatives infructueuses", () => {
       data: { verrouilleJusqua: new Date(Date.now() - 1000) },
     });
     await expect(auth.connecter(c.login, MDP)).resolves.toMatchObject({ userId: c.id });
+  });
+});
+
+describe("RG-AUTH-12 — le verrouillage ne révèle pas si un compte existe", () => {
+  afterEach(() => vi.useRealTimers());
+
+  /** Les codes successifs de `n` échecs sur un identifiant. */
+  const codes = async (identifiant: string, n: number) => {
+    const vus: string[] = [];
+    for (let i = 0; i < n; i++) {
+      vus.push(
+        await auth.connecter(identifiant, "Faux1234!").then(
+          () => "connecte",
+          (e: ErreurAuth) => e.code,
+        ),
+      );
+    }
+    return vus;
+  };
+
+  it("un identifiant inconnu est « verrouillé » au même seuil qu'un compte réel", async () => {
+    await reglage("auth.tentativesAvantVerrouillage", "3");
+    const c = await poserUnCompte();
+    const inconnu = `fantome-${uuid().slice(0, 8)}`;
+
+    const reel = await codes(c.login, 4);
+    const fictif = await codes(inconnu, 4);
+
+    expect(reel).toEqual([
+      "identifiants_invalides",
+      "identifiants_invalides",
+      "compte_verrouille",
+      "compte_verrouille",
+    ]);
+    expect(fictif).toEqual(reel);
+  });
+
+  it("le seuil est le paramètre : un seuil de 2 verrouille l'inconnu au 2e échec", async () => {
+    await reglage("auth.tentativesAvantVerrouillage", "2");
+    const fictif = await codes(`fantome-${uuid().slice(0, 8)}`, 2);
+    expect(fictif).toEqual(["identifiants_invalides", "compte_verrouille"]);
+  });
+
+  it("l'identifiant inconnu est normalisé : la casse ne remet pas le compteur à zéro", async () => {
+    await reglage("auth.tentativesAvantVerrouillage", "2");
+    const inconnu = `Fantome-${uuid().slice(0, 8)}`;
+    await codes(inconnu, 1);
+    expect(await codes(inconnu.toUpperCase(), 1)).toEqual(["compte_verrouille"]);
+  });
+
+  it("le verrouillage d'un inconnu dure et expire comme celui d'un compte réel", async () => {
+    await reglage("auth.tentativesAvantVerrouillage", "2");
+    await reglage("auth.dureeVerrouillageMinutes", "15");
+    const inconnu = `fantome-${uuid().slice(0, 8)}`;
+    vi.useFakeTimers({ toFake: ["Date"] });
+    const depart = new Date();
+    vi.setSystemTime(depart);
+
+    expect(await codes(inconnu, 3)).toEqual([
+      "identifiants_invalides",
+      "compte_verrouille",
+      "compte_verrouille",
+    ]);
+    vi.setSystemTime(new Date(depart.getTime() + 14 * 60_000));
+    expect(await codes(inconnu, 1)).toEqual(["compte_verrouille"]);
+    vi.setSystemTime(new Date(depart.getTime() + 16 * 60_000));
+    expect(await codes(inconnu, 1)).toEqual(["identifiants_invalides"]);
+  });
+});
+
+describe("RG-AUTH-13 — la session glisse avec l'usage", () => {
+  afterEach(() => vi.useRealTimers());
+  const JOUR = 86_400_000;
+
+  it("utilisée à J+15, une session de 30 jours est encore valide à J+31", async () => {
+    await reglage("auth.dureeSessionJours", "30");
+    const c = await poserUnCompte();
+    vi.useFakeTimers({ toFake: ["Date"] });
+    const depart = new Date();
+    vi.setSystemTime(depart);
+    const { jeton } = await auth.connecter(c.login, MDP);
+
+    vi.setSystemTime(new Date(depart.getTime() + 15 * JOUR));
+    await expect(auth.resoudreSession(jeton)).resolves.toMatchObject({ userId: c.id });
+
+    vi.setSystemTime(new Date(depart.getTime() + 31 * JOUR));
+    await expect(auth.resoudreSession(jeton)).resolves.toMatchObject({ userId: c.id });
+  });
+
+  it("sans usage, la même session est expirée à J+31", async () => {
+    await reglage("auth.dureeSessionJours", "30");
+    const c = await poserUnCompte();
+    vi.useFakeTimers({ toFake: ["Date"] });
+    const depart = new Date();
+    vi.setSystemTime(depart);
+    const { jeton } = await auth.connecter(c.login, MDP);
+
+    vi.setSystemTime(new Date(depart.getTime() + 31 * JOUR));
+    await expect(auth.resoudreSession(jeton)).resolves.toBeNull();
+  });
+
+  it("deux usages à moins de cinq minutes n'écrivent qu'une fois", async () => {
+    const c = await poserUnCompte();
+    vi.useFakeTimers({ toFake: ["Date"] });
+    const depart = new Date();
+    vi.setSystemTime(depart);
+    const { jeton } = await auth.connecter(c.login, MDP);
+    const lire = () => prisma.session.findFirstOrThrow({ where: { userId: c.id } });
+
+    vi.setSystemTime(new Date(depart.getTime() + 10 * 60_000));
+    await auth.resoudreSession(jeton);
+    const premiere = await lire();
+
+    vi.setSystemTime(new Date(depart.getTime() + 12 * 60_000));
+    await auth.resoudreSession(jeton);
+    const seconde = await lire();
+    expect(seconde.derniereActivite.getTime()).toBe(premiere.derniereActivite.getTime());
+    expect(seconde.expireLe.getTime()).toBe(premiere.expireLe.getTime());
+
+    vi.setSystemTime(new Date(depart.getTime() + 16 * 60_000));
+    await auth.resoudreSession(jeton);
+    const troisieme = await lire();
+    expect(troisieme.derniereActivite.getTime()).toBeGreaterThan(premiere.derniereActivite.getTime());
+    expect(troisieme.expireLe.getTime()).toBeGreaterThan(premiere.expireLe.getTime());
   });
 });
 

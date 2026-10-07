@@ -13,7 +13,7 @@ import {
 /**
  * M18 — les notifications.
  *
- * Six déclencheurs, énumérés par `cadrage/01 § M18` : la liste est **fermée**.
+ * Six déclencheurs, énumérés par `docs/reference-fonctionnelle.md § M18` : la liste est **fermée**.
  * Y ajouter un type est une décision, pas une initiative — c'est le même
  * principe que pour les actions du journal d'audit.
  *
@@ -24,7 +24,7 @@ import {
  * échouer l'approbation de congé qui l'a déclenché.
  */
 
-/** Les six types de `cadrage/01 § M18`. La liste est fermée. */
+/** Les six types de `docs/reference-fonctionnelle.md § M18`. La liste est fermée. */
 export const TYPES_NOTIFICATION = [
   "tache_assignee",
   "conge_a_valider",
@@ -89,7 +89,7 @@ export class NotificationsService {
      */
     params?: Record<string, string>;
     /**
-     * Ignoré. Le titre se déduit du TYPE (`cadrage/01 § M18`) : la liste des
+     * Ignoré. Le titre se déduit du TYPE (`docs/reference-fonctionnelle.md § M18`) : la liste des
      * six déclencheurs est fermée, leurs intitulés aussi. Le paramètre reste
      * accepté pour ne pas casser les appelants ; il ne décide plus de rien.
      */

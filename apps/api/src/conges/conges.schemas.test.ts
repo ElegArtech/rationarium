@@ -137,7 +137,7 @@ describe("PATCH /conges/types/:id — RG-CNG-30, cinq champs et pas un de plus",
    * le schéma d'après le type qu'il vient de lire ; c'est ce qui permet au
    * refus de se poser **sous le champ fautif** plutôt que de rendre un
    * « certaines informations sont mal formées » qui oblige à chercher lequel
-   * des dix est en cause (`RG-GEN-03`, `cadrage/02`).
+   * des dix est en cause (`RG-GEN-03`).
    */
   const cinqOuverts = {
     nom: "Congés payés",

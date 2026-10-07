@@ -53,31 +53,56 @@ export class EvenementsService {
   ) {}
 
   /**
-   * Le prédicat de périmètre des événements — **une seule définition**, celle
-   * que la lecture et l'écriture partagent.
+   * Le prédicat de LECTURE des événements.
    *
-   * Le dépôt a déjà payé deux fonctions qui lisaient la même table avec deux
-   * prédicats différents (`joursFeries` / `joursChomes`) : chacune avait ses
-   * tests, tous verts, et elles se contredisaient. Ici l'enjeu est pire qu'un
-   * affichage — un périmètre d'écriture plus large que le périmètre de lecture
-   * laisserait modifier ce qu'on n'a pas le droit de voir. D'où le partage.
+   * Un périmètre d'écriture plus large que le périmètre de lecture laisserait
+   * modifier ce qu'on n'a pas le droit de voir : la lecture contient donc
+   * toujours l'écriture (`clauseEcriture`) — participer, ou
+   * `events:manage_any`. L'inverse n'est pas vrai, et c'est `RG-EVT-08` : lire
+   * au-delà de soi ne donne pas le droit d'écrire.
    *
-   * Rend `null` quand rien ne borne : périmètre global (`RG-SCOPE-03`) ou
-   * lecture élargie. Sinon, la participation est la seule attache d'un
-   * événement à une personne — la table n'a pas de colonne de créateur.
+   * Rend `null` quand rien ne borne : périmètre global (`RG-SCOPE-03`),
+   * lecture élargie ou gestion de tous les événements. Sinon, la participation
+   * est la seule attache d'un événement à une personne — la table n'a pas de
+   * colonne de créateur.
    */
   private clauseVisibilite(
     perimetre: Perimetre,
     permissions: ReadonlySet<string>,
   ): Record<string, unknown> | null {
-    if (perimetre.global || permissions.has("events:readAll")) return null;
+    if (
+      perimetre.global ||
+      permissions.has("events:readAll") ||
+      permissions.has("events:manage_any")
+    ) return null;
     return { participants: { some: { userId: perimetre.userId } } };
   }
 
   /**
-   * Charge un événement **après** l'avoir confronté au périmètre.
+   * `RG-EVT-08` — le prédicat d'ÉCRITURE : participer, ou détenir
+   * `events:manage_any`.
    *
-   * `cadrage/03 § 5.4` — permission d'abord (la garde de la route l'a déjà
+   * Il partageait jusqu'ici celui de la lecture, si bien qu'une permission de
+   * lecture (`events:readAll`, ou `users:readAll` qui rend le périmètre
+   * global) ouvrait la modification et la suppression de tous les événements.
+   * Le catalogue dit autrement (§ 3.2) : `:readAll` lit au-delà de soi,
+   * `:manage_any` modifie ce dont on n'est pas propriétaire. Ce prédicat reste
+   * inclus dans celui de la lecture pour qui participe ; `events:manage_any`
+   * écrit sans participer, comme son nom l'annonce.
+   */
+  private clauseEcriture(
+    perimetre: Perimetre,
+    permissions: ReadonlySet<string>,
+  ): Record<string, unknown> | null {
+    if (permissions.has("events:manage_any")) return null;
+    return { participants: { some: { userId: perimetre.userId } } };
+  }
+
+  /**
+   * Charge un événement **après** l'avoir confronté au périmètre d'écriture —
+   * tous ses appelants écrivent (`RG-EVT-08`).
+   *
+   * Permission d'abord (la garde de la route l'a déjà
    * exigée), périmètre ensuite. « Introuvable » et « hors périmètre » sont
    * distingués : les confondre priverait l'utilisateur de l'information qui lui
    * dit à qui s'adresser.
@@ -97,7 +122,7 @@ export class EvenementsService {
     });
     if (!evenement) throw new ErreurEvenement("introuvable");
 
-    const clause = this.clauseVisibilite(perimetre, permissions);
+    const clause = this.clauseEcriture(perimetre, permissions);
     if (clause) {
       const visible = await this.prisma.event.findFirst({
         where: { AND: [{ id: eventId }, clause] },

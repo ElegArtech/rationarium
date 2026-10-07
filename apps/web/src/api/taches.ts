@@ -62,6 +62,8 @@ export type FicheTache = LigneTache & {
   commentaires?: {
     id: string;
     contenu: string;
+    /** `RG-DOC-06` — la version lue, renvoyée à la modification. */
+    version: number;
     creeLe: string;
     auteur: Personne;
   }[];
@@ -81,9 +83,10 @@ export type FicheTache = LigneTache & {
    * complet et le nombre de jours de recouvrement. La vue affichait donc une
    * liste dont elle ne pouvait pas lire les champs.
    */
+  /** `RG-SCOPE-04` — un prérequis illisible reste compté, sans titre ni date. */
   incoherences: {
-    prerequis: { id: string; titre: string; dateFin: string | null };
-    jours: number;
+    prerequis: { id: string; titre: string | null; dateFin: string | null; lisible: boolean };
+    jours: number | null;
   }[];
 };
 
@@ -242,7 +245,7 @@ export const candidatsDependance = (id: string) =>
  * minutes ne dit plus l'état du graphe.
  */
 export const incoherences = (id: string) =>
-  appeler<{ prerequis: { id: string; titre: string; dateFin: string | null }; jours: number }[]>(
+  appeler<{ prerequis: { id: string; titre: string | null; dateFin: string | null; lisible: boolean }; jours: number | null }[]>(
     `/taches/${id}/incoherences`,
   );
 
@@ -261,6 +264,9 @@ export const definirDependances = (id: string, version: number, prerequisIds: st
     { methode: "PUT", corps: { version, prerequisIds } },
   );
 
+/** `RG-SCOPE-04` — une dépendante illisible est comptée, jamais nommée. */
+export type TacheTouchee = { id: string; titre: string | null; lisible: boolean };
+
 /**
  * `EX-TSK-13` — l'aperçu du décalage en cascade, **avant** de l'exécuter.
  *
@@ -268,13 +274,13 @@ export const definirDependances = (id: string, version: number, prerequisIds: st
  * la question ne peut se poser qu'avec le nombre en main.
  */
 export const apercuCascade = (id: string, jours: number) =>
-  appeler<{ id: string; titre: string }[]>(
+  appeler<TacheTouchee[]>(
     `/taches/${id}/cascade${params({ jours: String(jours) })}`,
   );
 
 /** Décale la tâche **et** ses dépendantes, en une seule transaction serveur. */
 export const decalerEnCascade = (id: string, jours: number) =>
-  appeler<{ decalees: number; touchees: { id: string; titre: string }[] }>(
+  appeler<{ decalees: number; touchees: TacheTouchee[] }>(
     `/taches/${id}/cascade`,
     { methode: "POST", corps: { jours } },
   );
@@ -298,8 +304,12 @@ export const retirerRaci = (id: string, userId: string, role: string) =>
  * l'auteur** — c'est le client qui masque par courtoisie ; le refus
  * `pas_son_contenu` reste au serveur.
  */
-export const modifierCommentaire = (id: string, contenu: string) =>
-  appeler<void>(`/documents/commentaires/${id}`, { methode: "PATCH", corps: { contenu } });
+export const modifierCommentaire = (id: string, contenu: string, version: number) =>
+  // `RG-DOC-06`, `RG-GEN-07` — la version lue part avec la correction.
+  appeler<void>(`/documents/commentaires/${id}`, {
+    methode: "PATCH",
+    corps: { contenu, version },
+  });
 
 export const supprimerCommentaire = (id: string) =>
   appeler<void>(`/documents/commentaires/${id}`, { methode: "DELETE" });
@@ -365,13 +375,12 @@ export const consulterDocument = (id: string) => appeler<DocumentConsulte>(`/doc
 /**
  * `EX-DOC-02` — renommer. Le nom est une métadonnée : le contenu ne bouge pas.
  *
- * La route n'accepte **pas** de version — le serveur incrémente la sienne sans
- * jamais la confronter à celle qu'on a lue. C'est un écart à `RG-GEN-07`, il
- * est au serveur, et ce lot ne touche pas au serveur : il est consigné en fin
- * de `docs/audits/V7-diff-retour.md`.
+ * `RG-DOC-06`, `RG-GEN-07` — la version lue est obligatoire : c'est celle que
+ * rend la consultation (`DocumentConsulte.version`), et le serveur refuse en
+ * conflit un renommage parti d'une lecture périmée.
  */
-export const renommerDocument = (id: string, nom: string) =>
-  appeler<void>(`/documents/${id}`, { methode: "PATCH", corps: { nom } });
+export const renommerDocument = (id: string, nom: string, version: number) =>
+  appeler<void>(`/documents/${id}`, { methode: "PATCH", corps: { nom, version } });
 
 /** `EX-DOC-02`, `RG-DOC-01` — supprimer. Le serveur refuse le document d'autrui. */
 export const supprimerDocument = (id: string) =>

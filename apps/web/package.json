@@ -1,6 +1,6 @@
 {
   "name": "@rationarium/web",
-  "version": "1.0.0-rc.1",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "description": "Application monopage : React, Vite, TanStack, React Aria Components",
@@ -8,7 +8,7 @@
     "build": "vite build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint src",
-    "test": "vitest run --passWithNoTests",
+    "test": "vitest run",
     "e2e": "playwright test",
     "a11y": "playwright test --project=a11y",
     "dev": "vite"
@@ -43,7 +43,7 @@
     "@vitejs/plugin-react": "6.0.5",
     "typescript": "6.0.3",
     "vite": "8.2.1",
-    "vitest": "4.1.10"
+    "vitest": "4.1.11"
   },
   "license": "MIT",
   "author": "Alexandre Bergé",

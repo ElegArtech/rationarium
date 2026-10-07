@@ -1,6 +1,6 @@
 {
   "name": "@rationarium/db",
-  "version": "1.0.0-rc.1",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "description": "Schéma Prisma, migrations et client typé",
@@ -20,8 +20,8 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint src",
-    "test": "vitest run --passWithNoTests",
-    "test:int": "vitest run --config vitest.int.config.ts --passWithNoTests",
+    "test": "vitest run",
+    "test:int": "vitest run --config vitest.int.config.ts",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
@@ -30,18 +30,18 @@
     "db:purge-volumetrie": "node dist/purge-volumetrie-cli.js"
   },
   "dependencies": {
-    "@prisma/adapter-pg": "^7.9.1",
+    "@prisma/adapter-pg": "^7.10.0",
     "@prisma/client": "7.9.1",
-    "@rationarium/contracts": "workspace:*"
+    "@rationarium/contracts": "workspace:*",
+    "prisma": "7.9.1"
   },
   "devDependencies": {
     "@testcontainers/postgresql": "12.1.0",
-    "@types/pg": "^8.21.0",
+    "@types/pg": "^8.23.1",
     "pg": "8.16.3",
-    "prisma": "7.9.1",
     "testcontainers": "12.1.0",
     "typescript": "6.0.3",
-    "vitest": "4.1.10"
+    "vitest": "4.1.11"
   },
   "license": "MIT",
   "author": "Alexandre Bergé",

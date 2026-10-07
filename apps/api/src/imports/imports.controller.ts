@@ -84,7 +84,7 @@ export class ImportsController {
   /**
    * La permission du type demandé, contrôlée après celle de la route.
    *
-   * `cadrage/03 § 5.4` — permission puis périmètre, et ici permission de
+   * Permission puis périmètre, et ici permission de
    * route puis permission de type. Il n'y a rien à cloisonner en dessous :
    * ni le modèle ni l'aperçu ne lisent la base.
    */
@@ -129,13 +129,14 @@ export class ImportsController {
   @RequiertPermission("users:import")
   importerUtilisateurs(@Body() corps: unknown, @Demande() d: ContexteDemande) {
     const { contenu } = valider(corpsFichier, corps);
-    return this.imports.importerUtilisateurs(contenu, d.userId);
+    // RG-USR-10 — droits et périmètre de l'acteur, comme pour POST /utilisateurs.
+    return this.imports.importerUtilisateurs(contenu, d.userId, d.permissions, d.perimetre);
   }
 
   /**
    * `EX-CMP-09` — l'import du référentiel de compétences.
    *
-   * `skills:import`, pas `tasks:import` : le catalogue de `cadrage/01 § 3.2`
+   * `skills:import`, pas `tasks:import` : le catalogue de `docs/reference-fonctionnelle.md § 3.2`
    * donne à chaque domaine son action d'import, et emprunter celle d'un autre
    * domaine ouvrirait le référentiel à qui n'a que des droits sur les tâches.
    *
@@ -154,7 +155,7 @@ export class ImportsController {
    *
    * Le **périmètre** est transmis au service et appliqué ligne à ligne : la
    * permission dit qui peut importer, le périmètre dit pour qui. Les deux, dans
-   * cet ordre (`cadrage/03 § 5.4`).
+   * cet ordre.
    */
   @Post("conges")
   @RequiertPermission("leaves:import")
@@ -166,8 +167,8 @@ export class ImportsController {
   /** Les volumes que le mode Remplacer va supprimer, avant de le faire. */
   @Get("projet/:id/volumes")
   @RequiertPermission("tasks:import")
-  volumes(@Param("id") id: string) {
-    return this.imports.volumesRemplacement(id);
+  volumes(@Param("id") id: string, @Demande() d: ContexteDemande) {
+    return this.imports.volumesRemplacement(id, d.userId, d.permissions);
   }
 
   /** `RG-IMP-05`, `RG-IMP-06` — l'import projet complet. */
@@ -178,7 +179,7 @@ export class ImportsController {
       corpsFichier.extend({ mode: z.enum(["ajouter", "remplacer"]).default("ajouter") }),
       corps,
     );
-    return this.imports.importerProjet(id, donnees.contenu, donnees.mode, d.userId);
+    return this.imports.importerProjet(id, donnees.contenu, donnees.mode, d.userId, d.permissions);
   }
 
   /**
@@ -189,7 +190,7 @@ export class ImportsController {
   @RequiertPermission("tasks:import")
   importerTaches(@Param("id") id: string, @Body() corps: unknown, @Demande() d: ContexteDemande) {
     const donnees = valider(corpsFichier, corps);
-    return this.imports.importerTachesProjet(id, donnees.contenu, d.userId);
+    return this.imports.importerTachesProjet(id, donnees.contenu, d.userId, d.permissions);
   }
 
   /** `EX-JAL-06` — les jalons seuls. Même histoire, même remède. */
@@ -197,25 +198,42 @@ export class ImportsController {
   @RequiertPermission("milestones:import")
   importerJalons(@Param("id") id: string, @Body() corps: unknown, @Demande() d: ContexteDemande) {
     const donnees = valider(corpsFichier, corps);
-    return this.imports.importerJalonsProjet(id, donnees.contenu, d.userId);
+    return this.imports.importerJalonsProjet(id, donnees.contenu, d.userId, d.permissions);
   }
 
   @Get("export/projet/:id/taches")
   @RequiertPermission("tasks:export")
-  @Header("Content-Type", "text/csv; charset=utf-8")
-  async exporterTaches(@Param("id") id: string, @Res() reponse: FastifyReply) {
+  async exporterTaches(
+    @Param("id") id: string,
+    @Demande() d: ContexteDemande,
+    @Res() reponse: FastifyReply,
+  ) {
+    /*
+     * `RG-IMP-07` — le contenu est calculé AVANT les en-têtes, et le type CSV
+     * n'est posé qu'une fois le contenu obtenu. Posé par `@Header` sur la
+     * route, il valait aussi pour la réponse d'ERREUR : le refus de périmètre,
+     * un objet JSON, partait sous `text/csv`, Fastify refusait de le
+     * sérialiser, et un 403 rédigé devenait un 500.
+     */
+    const contenu = await this.imports.exporterTaches(id, d.perimetre, d.permissions);
     return reponse
+      .header("Content-Type", "text/csv; charset=utf-8")
       .header("Content-Disposition", `attachment; filename="taches-${id}.csv"`)
-      .send(await this.imports.exporterTaches(id));
+      .send(contenu);
   }
 
   @Get("export/projet/:id/jalons")
   @RequiertPermission("tasks:export")
-  @Header("Content-Type", "text/csv; charset=utf-8")
-  async exporterJalons(@Param("id") id: string, @Res() reponse: FastifyReply) {
+  async exporterJalons(
+    @Param("id") id: string,
+    @Demande() d: ContexteDemande,
+    @Res() reponse: FastifyReply,
+  ) {
+    const contenu = await this.imports.exporterJalons(id, d.perimetre, d.permissions);
     return reponse
+      .header("Content-Type", "text/csv; charset=utf-8")
       .header("Content-Disposition", `attachment; filename="jalons-${id}.csv"`)
-      .send(await this.imports.exporterJalons(id));
+      .send(contenu);
   }
 
   @Get("export/competences")

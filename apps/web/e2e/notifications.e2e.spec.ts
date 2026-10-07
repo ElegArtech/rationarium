@@ -34,8 +34,8 @@ test.beforeEach(async ({ page }) => {
  * Le jeu d'essai se calque sur la SIGNATURE du service, jamais sur ce que le
  * client croit recevoir : `lister()` rend `titre` et `contenu` — la langue du
  * COMPTE — **et** `cle`/`params`, dont le panneau compose sa phrase dans la
- * langue de la SESSION (`RG-GEN-08`). Les titres sont ceux de `cadrage/01
- * § M18`, liste fermée : « Nouvelle tâche : X » n'en fait pas partie et le
+ * langue de la SESSION (`RG-GEN-08`). Les titres sont ceux de
+ * `docs/reference-fonctionnelle.md § M18`, liste fermée : « Nouvelle tâche : X » n'en fait pas partie et le
  * serveur ne l'écrit plus depuis la vague 1.
  */
 const NOTIFICATIONS = {

@@ -321,6 +321,7 @@ describe("Un jalon sans date — tâche de schéma du 2026-08-16", () => {
     const jalon = await projets.creerJalon(
       { nom: "À planifier", projectId: p.id },
       acteur,
+      toutes,
     );
     expect(jalon.dateEcheance).toBeNull();
   });
@@ -330,14 +331,17 @@ describe("Un jalon sans date — tâche de schéma du 2026-08-16", () => {
     await projets.creerJalon(
       { nom: "Sans date", projectId: p.id },
       acteur,
+      toutes,
     );
     await projets.creerJalon(
       { nom: "Décembre", dateEcheance: utc("2026-12-01"), projectId: p.id },
       acteur,
+      toutes,
     );
     await projets.creerJalon(
       { nom: "Mars", dateEcheance: utc("2026-03-01"), projectId: p.id },
       acteur,
+      toutes,
     );
 
     const { jalons } = await projets.feuilleDeRoute(p.id, await global(), toutes);
@@ -347,7 +351,7 @@ describe("Un jalon sans date — tâche de schéma du 2026-08-16", () => {
 
   it("son statut reste calculé comme les autres", async () => {
     const p = await projet("Statut du jalon sans date");
-    const jalon = await projets.creerJalon({ nom: "Ouvert", projectId: p.id }, acteur);
+    const jalon = await projets.creerJalon({ nom: "Ouvert", projectId: p.id }, acteur, toutes);
     await prisma.task.create({
       data: { titre: "Commencée", projectId: p.id, milestoneId: jalon.id, statut: "doing" },
     });

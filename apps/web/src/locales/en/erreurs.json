@@ -6,6 +6,7 @@
   "autoValidationInterdite": "You cannot approve your own request.",
   "avancementIncoherent": "A completed task is at 100% progress. Change its status first to enter a different percentage.",
   "chevauchement": "You already have time off over this period.",
+  "champHorsPermission": "This field requires a permission you do not have. The rest of your change was not saved.",
   "clientInactif": "This client is inactive and can no longer be linked.",
   "codeDejaPris": "This code is already in use. Choose another one.",
   "collaborateurInactif": "This account is deactivated.",
@@ -59,6 +60,7 @@
   "regleEnDouble": "A recurring rule already covers this day.",
   "roleSystemeNonRenommable": "The code of a role shipped with the product cannot be changed.",
   "roleSystemeNonSupprimable": "This role ships with the product and cannot be deleted. Duplicate it to create a variant.",
+  "roleSystemeNonModifiable": "This role ships with the product: its permissions cannot be changed. Duplicate it to create a variant.",
   "roleUtilise": "This role is still assigned to accounts. Reassign them before deleting it.",
   "serviceHorsDepartement": "This team does not belong to the selected department.",
   "soiMemeInterdit": "You cannot perform this action on your own account.",
@@ -81,5 +83,9 @@
   "dateNonPropageable": "The date is what tells occurrences apart: it can be changed on this occurrence only, not on the whole series.",
   "epopeeEnDouble": "An epic with this name already exists in this project.",
   "jalonCalcule": "This milestone has tasks: its status is derived from their progress. Move its tasks forward, or detach them.",
-  "calendrierScolaireIndisponible": "No official period is available for this school year and zone. Choose an available combination."
+  "calendrierScolaireIndisponible": "No official period is available for this school year and zone. Choose an available combination.",
+  "comptePlusPrivilegie": "This account has more permissions than you: you cannot act on it.",
+  "rolePlusPrivilegie": "This role would carry permissions you do not have: you cannot compose it.",
+  "fichierTropVolumineux": "This file is too large.",
+  "fichierTropVolumineux_detail": "This file is too large: the maximum size is {maxOctets, number, ::scale/0.00000095367431640625 .#} MiB."
 }

@@ -16,7 +16,7 @@ import { GabaritAcces, LienAcces } from "./gabarit-acces.js";
  * d'alerte en tête : le message doit désigner le champ fautif, et un message
  * global ne le désigne pas.
  *
- * États couverts (`design/etats.json` + panneau de revue de la maquette) :
+ * États couverts (spécification des états + panneau de revue de la maquette) :
  * nominal · politique en cours de frappe · champs requis · mots de passe
  * différents · email pris · login pris · domaine refusé · fonctionnalité
  * désactivée · soumission · succès.

@@ -139,7 +139,7 @@ export const portefeuille = (filtres: {
    * Maquette 10 — le bouton « Mes projets ». C'est un **confort de lecture**,
    * pas un contrôle : le périmètre s'applique de toute façon au serveur, et
    * ce drapeau ne fait que le resserrer sur les projets dont on est créateur,
-   * chef, sponsor ou membre (`cadrage/02 § vue 10`, variantes).
+   * chef, sponsor ou membre (variantes de la vue 10).
    */
   mesProjets?: boolean;
 }) => appeler<Portefeuille>(`/projets${params(filtres)}`);
@@ -224,7 +224,7 @@ export const restaurerProjet = (id: string) =>
  * première comparaison.
  *
  * Les deux réserves consignées ici sont levées :
- * — `RG-PRJ-09` veut une capture **périodique** (`cadrage/03 § 5.4`, `pg-boss`)
+ * — `RG-PRJ-09` veut une capture **périodique** (`pg-boss`)
  *   et `ProjetsModule` planifie désormais `projets.instantanes` chaque nuit,
  *   avec le verrou d'instance unique. Ce bouton n'est plus le seul producteur ;
  * — `EX-PRJ-13` demande de **consulter l'historique** : `instantanes()`

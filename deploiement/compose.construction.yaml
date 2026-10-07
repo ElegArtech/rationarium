@@ -1,5 +1,9 @@
 # À combiner avec compose.yaml sur une machine de construction connectée.
 services:
+  base:
+    build:
+      context: ..
+      dockerfile: deploiement/Dockerfile.base
   api:
     build:
       context: ..

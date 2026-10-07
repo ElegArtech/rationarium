@@ -53,47 +53,50 @@ for (const langue of ["fr", "en"] as const) {
       await expect(lien).toHaveAttribute("href", "/taches?retard=1");
     });
 
-    test(`RM-11 P-112 ${langue} quatre échelles sans graduation tronquée`, async ({ page }) => {
-      await serveur(page, {
-        session: { ...SESSION_RAPPORTS, langue },
-        reponses: {
-          "/api/rapports": { corps: VUE_ENSEMBLE },
-          "/api/rapports/gantt": { corps: GANTT },
-        },
-      });
-      await page.goto("/rapports");
-      await page.getByRole("button", {
-        name: langue === "fr" ? "Gantt portefeuille" : "Portfolio Gantt",
-      }).click();
-      const noms = langue === "fr"
-        ? ["Jour", "Semaine", "Mois", "Trimestre"]
-        : ["Day", "Week", "Month", "Quarter"];
-      await expect(page.getByRole("button", { name: noms[2]!, exact: true })).toHaveAttribute("aria-pressed", "true");
-      for (const nom of noms) {
-        await page.getByRole("group", {
-          name: langue === "fr" ? "Échelle de temps" : "Time scale",
-        }).getByRole("button", { name: nom, exact: true }).click();
-        const mesures = await page.locator(".pg-m").evaluateAll(elements =>
-          elements.map(element => ({ visible: element.clientWidth, requis: element.scrollWidth })),
-        );
-        expect(mesures.length).toBeGreaterThan(1);
-        expect(
-          mesures.filter(m => m.requis > m.visible + 1).map(m => ({ echelle: nom, ...m })),
-        ).toEqual([]);
-        for (const sombre of [false, true]) {
-          await page.evaluate(dark => document.documentElement.classList.toggle("dark", dark), sombre);
-          await page.waitForTimeout(180);
-          for (const width of [1440, 768]) {
+    // Chaque état garde son délai propre : seize scans axe et captures dans un
+    // seul test dépassaient 30 s sur le runner CI, même avec deux ouvriers.
+    const echelles = langue === "fr"
+      ? ["Jour", "Semaine", "Mois", "Trimestre"]
+      : ["Day", "Week", "Month", "Quarter"];
+    for (const nom of echelles) {
+      for (const sombre of [false, true]) {
+        for (const width of [1440, 768]) {
+          test(`RM-11 P-112 ${langue} ${nom} ${sombre ? "sombre" : "clair"} ${width} sans graduation tronquée`, async ({ page }) => {
             await page.setViewportSize({ width, height: 1024 });
+            await page.addInitScript(dark => localStorage.setItem("rationarium.theme", dark ? "sombre" : "clair"), sombre);
+            await serveur(page, {
+              session: { ...SESSION_RAPPORTS, langue },
+              reponses: {
+                "/api/rapports": { corps: VUE_ENSEMBLE },
+                "/api/rapports/gantt": { corps: GANTT },
+              },
+            });
+            await page.goto("/rapports");
+            await page.getByRole("button", {
+              name: langue === "fr" ? "Gantt portefeuille" : "Portfolio Gantt",
+            }).click();
+            await expect(page.getByRole("button", { name: echelles[2]!, exact: true })).toHaveAttribute("aria-pressed", "true");
+            const echelle = page.getByRole("group", {
+              name: langue === "fr" ? "Échelle de temps" : "Time scale",
+            }).getByRole("button", { name: nom, exact: true });
+            await echelle.click();
+            await expect(echelle).toHaveAttribute("aria-pressed", "true");
+            await expect(page.locator("html")).toHaveClass(sombre ? /dark/ : /^(?!.*dark).*$/);
+            await page.evaluate(() => document.fonts.ready);
+            const mesures = await page.locator(".pg-m").evaluateAll(elements =>
+              elements.map(element => ({ visible: element.clientWidth, requis: element.scrollWidth })),
+            );
+            expect(mesures.length).toBeGreaterThan(1);
+            expect(mesures.filter(m => m.requis > m.visible + 1)).toEqual([]);
             expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
             await page.screenshot({
               path: `../../recette/remediation/rm-11/reprise/gantt-${nom.toLowerCase()}-${langue}-${sombre ? "sombre" : "clair"}-${width}.png`,
               fullPage: true,
             });
-          }
+          });
         }
       }
-    });
+    }
 
     for (const nombre of [12, 6] as const) {
       test(`RM-11 vue 30 volumétrie ${nombre} projets ${langue}`, async ({ page }) => {

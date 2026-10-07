@@ -1,7 +1,7 @@
 import type { TypeNotification } from "./notifications.service.js";
 
 /**
- * Le vocabulaire des notifications — `cadrage/01 § M18`, `RG-NTF-01`.
+ * Le vocabulaire des notifications — `docs/reference-fonctionnelle.md § M18`, `RG-NTF-01`.
  *
  * ══════════════════════════════════════════════════════════════════════════
  * DEUX DÉFAUTS TROUVÉS EN RECETTE (P-18, P-19, P-20), et ils tiennent au même
@@ -39,7 +39,7 @@ export type Langue = "fr" | "en";
 export const langueDe = (declaree: string | null | undefined): Langue =>
   declaree?.toLowerCase().startsWith("en") ? "en" : "fr";
 
-/** Les six intitulés de `cadrage/01 § M18`. La liste est fermée. */
+/** Les six intitulés de `docs/reference-fonctionnelle.md § M18`. La liste est fermée. */
 const TITRES: Record<TypeNotification, Record<Langue, string>> = {
   tache_assignee: { fr: "Nouvelle tâche assignée", en: "New task assigned" },
   conge_a_valider: { fr: "Demande de congé à valider", en: "Leave request to approve" },
@@ -91,7 +91,7 @@ const CORPS: Record<string, Record<Langue, (p: Record<string, string>) => string
     en: (p) => `A leave request of ${jours(p["jours"], "en")} is awaiting your decision.`,
   },
   /*
-   * Un seul type pour les deux faces de la décision — `cadrage/01 § M18` n'en
+   * Un seul type pour les deux faces de la décision — `docs/reference-fonctionnelle.md § M18` n'en
    * énonce qu'un —, donc `decision` porte laquelle. Le motif de refus est une
    * CITATION : il reste dans la langue où son auteur l'a écrit, seule la
    * phrase qui l'entoure se rend. Sans ce modèle, le refus s'affichait le

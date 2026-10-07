@@ -147,6 +147,35 @@
     "MANAGER": "Service manager",
     "PROJECT_LEAD": "Project lead",
     "PROJECT_CONTRIBUTOR": "Project contributor",
-    "HR_OFFICER": "HR officer"
+    "BASIC_USER": "Basic user",
+    "HR_OFFICER": "HR officer",
+    "descriptions": {
+      "ADMIN": "Full access: accounts, roles, organisation calendar, audit log.",
+      "ADMIN_DELEGATED": "Day-to-day administration, without permission governance or the audit log: a delegate cannot grant themselves permissions.",
+      "PORTFOLIO_MANAGER": "Portfolio health on one page, milestones at risk, workload by service.",
+      "MANAGER": "Approve leave knowing its impact, spot overloads, follow up on a staff member.",
+      "MANAGER_PROJECT_FOCUS": "Management centred on running projects; HR approval kept to a minimum.",
+      "MANAGER_HR_FOCUS": "Management centred on people: leave, remote work, attendance, skills.",
+      "PROJECT_LEAD": "Structure a project into milestones, know who is available, spot delays and dependencies.",
+      "PROJECT_LEAD_JUNIOR": "Project leadership without creating or archiving: steers existing projects, does not open new ones.",
+      "TECHNICAL_LEAD": "Technical leadership: tasks, dependencies, RACI, team skills. No project management.",
+      "PROJECT_CONTRIBUTOR": "Contribution to the projects one belongs to: own tasks, leave, remote work and time.",
+      "PROJECT_CONTRIBUTOR_LIGHT": "Reads and updates own tasks, without creating or deleting.",
+      "FUNCTIONAL_REFERENT": "Contribution extended to cross-cutting reading: understand the whole without acting on it.",
+      "HR_OFFICER": "Leave types and balances, bulk imports, oversight, skills catalogue.",
+      "HR_OFFICER_LIGHT": "Day-to-day HR without the reference data: no leave types, no balances, no account removal.",
+      "THIRD_PARTY_MANAGER": "Catalogue of external contributors and beneficiaries.",
+      "CONTROLLER": "Full cross-cutting read access and audit log. Changes nothing: that is its whole point.",
+      "BUDGET_ANALYST": "Declared time, budgets consumed, workload. Read and export.",
+      "DATA_ANALYST": "Reports and exports across the whole scope, without access to the audit log.",
+      "IT_SUPPORT": "Account support: reset a password, fix an organisational assignment. No role management: that is the line between support and administration.",
+      "IT_INFRASTRUCTURE": "Technical settings and organisation calendar; audit log read-only.",
+      "OBSERVER_FULL": "Read-only across the whole authorised scope. No writing, ever.",
+      "OBSERVER_PROJECTS_ONLY": "Read-only on projects. Sees nothing of leave or remote work.",
+      "OBSERVER_HR_ONLY": "Read-only on people and their availability. Sees nothing of project content.",
+      "BASIC_USER": "The bare essentials: own schedule, leave, remote work and time.",
+      "EXTERNAL_PRESTATAIRE": "External contractor: own tasks and time, nothing else. No leave, no remote work, no directory: not a member of staff.",
+      "STAGIAIRE_ALTERNANT": "Supervised contribution: own tasks, time and leave. Cannot create tasks outside a project."
+    }
   }
 }

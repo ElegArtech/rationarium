@@ -39,7 +39,7 @@ test.beforeEach(async ({ page }) => {
 /**
  * L-32 — vues 10, 11, 13 et 14.
  *
- * Les tests suivent `design/etats.json` : chaque axe d'état y est couvert, et
+ * Les tests suivent la spécification des états : chaque axe d'état y est couvert, et
  * les notes du manifeste — « "rien n'existe" et "rien ne correspond" n'ont pas
  * la même sortie », « les trois états bloquent la modification différemment »,
  * « trois populations, trois formes de pastille » — sont vérifiées telles
@@ -864,7 +864,7 @@ test.describe("Vue 13 — jalons", () => {
 
 test.describe("EX-JAL-05 — déplier / replier les tâches d'un jalon, et modifier leur statut depuis la feuille de route", () => {
   /*
-   * Le statut se change EN LIGNE : c'est ce que `cadrage/02` pose sur la vue
+   * Le statut se change EN LIGNE : c'est ce que le brief pose sur la vue
    * 13 (« chaque tâche affiche titre, statut modifiable en ligne, assignés,
    * estimation »), et c'est pour cela que `feuilleDeRoute` rend la `version`
    * de chaque tâche — sans elle, le client ne pourrait écrire qu'en « dernier

@@ -46,7 +46,7 @@ import "./tableau.css";
  * point d'attention du brief. Statut, heures et to-do se modifient en place :
  * une fenêtre modale pour saisir « 2 h » coûterait plus que la saisie.
  *
- * Le balisage suit `mockups/06-tableau-de-bord.html` **classe par classe** ;
+ * Le balisage suit la maquette 06 (tableau de bord) **classe par classe** ;
  * le style vit dans `tableau.css`, porté des sections 8 et 9 de cette même
  * maquette. La vue avait vécu sans aucune feuille : ses classes étaient
  * posées, aucune règle ne les recevait, et la page était nue.
@@ -340,7 +340,7 @@ const MAX_OCCUPATIONS_VISIBLES = 3;
  *
  * Une journée chargée empilait ses huit occupations dans une colonne de
  * 74 px de haut : la tuile poussait le reste du tableau de bord hors de
- * l'écran, ce que `cadrage/02` interdit précisément pour cette vue. Les trois
+ * l'écran, ce que la spécification interdit précisément pour cette vue. Les trois
  * premières suffisent à dire ce qu'est la journée ; le reste s'ouvre d'un
  * bouton, et les jetons ouverts sont les mêmes que les autres — donc
  * cliquables jusqu'à la fiche de la tâche.
@@ -976,7 +976,7 @@ function MaToDo({ todos }: { todos: api.Todos }) {
  *    son brief l'écrit : « ce qui concerne l'utilisateur aujourd'hui », et son
  *    surtitre porte la date. La vue 27 administre des comptes ; la notion de
  *    journée n'y existe nulle part.
- * 2. **Le destinataire.** `cadrage/01 § 2` donne le besoin à Fatou, manager de
+ * 2. **Le destinataire.** La spécification donne le besoin à Fatou, manager de
  *    service : « voir le taux de présence ». Fatou détient `users:read` par
  *    `ENCADREMENT` ; Camille, contributrice, ne l'a pas.
  * 3. **La contrainte du brief tient.** « Pour Camille, la vue doit être

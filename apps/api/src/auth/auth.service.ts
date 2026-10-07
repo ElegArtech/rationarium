@@ -12,12 +12,18 @@ import {
   engendrerJeton,
   hacherJeton,
 } from "./mots-de-passe.js";
-import { detecterTypeAvatar, lireAvatar, stockerAvatar, type TypeAvatar } from "./avatar.js";
+import {
+  TAILLE_MAX_AVATAR,
+  detecterTypeAvatar,
+  lireAvatar,
+  stockerAvatar,
+  type TypeAvatar,
+} from "./avatar.js";
 
 /**
  * Erreurs métier de l'authentification.
  *
- * Chaque code correspond à un message rédigé dans `cadrage/02`, vues 01 à 05.
+ * Chaque code correspond à un message rédigé pour les vues 01 à 05.
  * Ces messages sont **contractuels** : ils sont vérifiés à la lettre par la
  * boucle de conformité visuelle. Le service ne les formule pas — il nomme la
  * situation, la couche HTTP traduit.
@@ -38,11 +44,16 @@ export type EchecAuth =
   | "avatar_predefini_invalide"
   | "avatar_format_invalide"
   | "avatar_vide"
+  | "avatar_trop_volumineux"
   | "avatar_introuvable"
   | "conflit_de_version";
 
 export class ErreurAuth extends Error {
-  constructor(readonly code: EchecAuth) {
+  constructor(
+    readonly code: EchecAuth,
+    /** Le détail chiffré du refus, transmis au client tel quel (`detail`). */
+    readonly detail?: Record<string, unknown>,
+  ) {
     super(code);
   }
 }
@@ -66,6 +77,15 @@ const PAR_DEFAUT: Reglages = {
   domainesAutorises: [],
 };
 
+/** `RG-AUTH-12` — borne de la mémoire des identifiants inconnus. */
+const MAX_INCONNUS = 10_000;
+
+/**
+ * `RG-AUTH-13` — une session n'est réécrite qu'une fois par intervalle : sans
+ * cette borne, chaque requête authentifiée coûtait une écriture en base.
+ */
+const INTERVALLE_GLISSEMENT_MS = 5 * 60_000;
+
 /**
  * L'adresse publique de l'instance, pour le lien du courriel.
  *
@@ -84,11 +104,14 @@ const adressePubliqueInstance = (): string => {
 export class AuthService {
   private readonly journal = new Logger(AuthService.name);
 
+  /** `RG-AUTH-12` — échecs sur des identifiants inconnus, voir `echecInconnu`. */
+  private readonly inconnus = new Map<string, { echecs: number; verrouilleJusqua: number }>();
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     /**
-     * La file de travaux — `RG-NTF-04`, `ADR-0007`.
+     * La file de travaux — `RG-NTF-04`.
      *
      * `@Optional()` pour que les tests d'intégration qui construisent le
      * service à la main continuent de le faire ; **le montage réel n'est pas
@@ -138,21 +161,11 @@ export class AuthService {
     const r = await this.reglages();
     const user = await this.prisma.user.findFirst({
       where: { OR: [{ login: identifiant }, { email: identifiant.toLowerCase() }] },
+      // RG-AUTH-14 — l'un des deux seuls lecteurs légitimes du haché.
+      omit: { motDePasseHash: false },
     });
 
-    if (!user) {
-      // Empreinte factice : le coût de vérification doit être le même.
-      await verifierMotDePasse(
-        "$argon2id$v=19$m=19456,t=2,p=1$c29tZXNhbHRzb21lc2FsdA$0000000000000000000000000000000000000000000",
-        motDePasse,
-      );
-      await this.audit.tracer({
-        action: "auth.login.failed",
-        typeEntite: "User",
-        detail: { identifiant, motif: "inconnu", ip: contexte.ip },
-      });
-      throw new ErreurAuth("identifiants_invalides");
-    }
+    if (!user) return this.echecInconnu(identifiant, motDePasse, r, contexte);
 
     // RG-AUTH-01 — verrouillage temporaire après N tentatives.
     if (user.verrouilleJusqua && user.verrouilleJusqua > new Date()) {
@@ -209,6 +222,7 @@ export class AuthService {
         data: {
           jetonHash: hacherJeton(jeton),
           userId: user.id,
+          derniereActivite: new Date(),
           expireLe: new Date(Date.now() + r.dureeSessionJours * 86_400_000),
           adresseIp: contexte.ip ?? null,
           agentUtilisateur: contexte.agent ?? null,
@@ -229,6 +243,74 @@ export class AuthService {
     });
 
     return { userId: user.id, jeton, motDePasseAChanger: user.motDePasseAChanger };
+  }
+
+  /**
+   * `RG-AUTH-12` — **un identifiant inconnu se verrouille comme un compte réel.**
+   *
+   * `RG-AUTH-02` rendait le même message aux deux échecs, mais le
+   * verrouillage n'existait que pour un compte en base : cinq essais sur un
+   * identifiant, et « Trop de tentatives » au cinquième voulait dire « ce
+   * compte existe ». Chaque message était tenu ; leur séquence trahissait.
+   *
+   * Le compteur des inconnus vit en mémoire — rien à écrire en base pour un
+   * compte qui n'y est pas —, avec le seuil et la durée des comptes réels, lus
+   * aux mêmes réglages et appliqués avec la même mécanique : au seuil, le
+   * compteur repart à zéro et le verrou court `dureeVerrouillageMinutes`.
+   * L'identifiant est normalisé en minuscules : sans cela, varier la casse
+   * remettrait le compteur à zéro.
+   *
+   * Borné à `MAX_INCONNUS` entrées : une `Map` garde l'ordre d'insertion, et
+   * chaque écriture réinsère la clé, si bien que la première est toujours la
+   * plus anciennement touchée. Un balayage d'identifiants inventés ne fait
+   * donc pas grossir la mémoire du serveur sans fin.
+   */
+  private async echecInconnu(
+    identifiant: string,
+    motDePasse: string,
+    r: Reglages,
+    contexte: { ip?: string },
+  ): Promise<never> {
+    const cle = identifiant.toLowerCase();
+    const maintenant = Date.now();
+    const etat = this.inconnus.get(cle) ?? { echecs: 0, verrouilleJusqua: 0 };
+
+    if (etat.verrouilleJusqua > maintenant) {
+      // Comme un compte réel verrouillé : aucune vérification, refus direct.
+      await this.audit.tracer({
+        action: "auth.login.locked",
+        typeEntite: "User",
+        detail: { identifiant, motif: "inconnu", ip: contexte.ip },
+      });
+      throw new ErreurAuth("compte_verrouille");
+    }
+
+    // Empreinte factice : le coût de vérification doit être le même.
+    await verifierMotDePasse(
+      "$argon2id$v=19$m=19456,t=2,p=1$c29tZXNhbHRzb21lc2FsdA$0000000000000000000000000000000000000000000",
+      motDePasse,
+    );
+
+    const echecs = etat.echecs + 1;
+    const verrouiller = echecs >= r.tentativesAvantVerrouillage;
+    this.inconnus.delete(cle);
+    this.inconnus.set(cle, {
+      echecs: verrouiller ? 0 : echecs,
+      verrouilleJusqua: verrouiller ? maintenant + r.dureeVerrouillageMinutes * 60_000 : 0,
+    });
+    while (this.inconnus.size > MAX_INCONNUS) {
+      const plusAncienne = this.inconnus.keys().next().value;
+      if (plusAncienne === undefined) break;
+      this.inconnus.delete(plusAncienne);
+    }
+
+    await this.audit.tracer({
+      action: verrouiller ? "auth.login.lockout" : "auth.login.failed",
+      typeEntite: "User",
+      detail: { identifiant, motif: "inconnu", tentatives: echecs, ip: contexte.ip },
+    });
+    // RG-AUTH-02 — mêmes codes que pour un compte réel.
+    throw new ErreurAuth(verrouiller ? "compte_verrouille" : "identifiants_invalides");
   }
 
   // ── Session ──────────────────────────────────────────────────────────────
@@ -270,12 +352,26 @@ export class AuthService {
     }
     if (!session.user.actif) return null;
 
-    // EX-AUTH-02 — la session glisse : rester connecté entre deux sessions de
-    // navigateur suppose que l'usage repousse l'expiration.
-    await this.prisma.session.update({
-      where: { id: session.id },
-      data: { derniereActivite: new Date() },
-    });
+    /*
+     * `EX-AUTH-02`, `RG-AUTH-13` — la session glisse : l'usage repousse
+     * l'expiration. Le commentaire d'origine le disait, et le code ne
+     * réécrivait que `derniereActivite` — une session ouverte expirait à
+     * trente jours pile, utilisée ou non, au prix d'une écriture par requête.
+     *
+     * L'écriture est bornée à une par intervalle : l'expiration perd au plus
+     * cinq minutes de glissement, la base gagne une écriture sur des centaines.
+     */
+    const maintenant = new Date();
+    if (maintenant.getTime() - session.derniereActivite.getTime() >= INTERVALLE_GLISSEMENT_MS) {
+      const { dureeSessionJours } = await this.reglages();
+      await this.prisma.session.update({
+        where: { id: session.id },
+        data: {
+          derniereActivite: maintenant,
+          expireLe: new Date(maintenant.getTime() + dureeSessionJours * 86_400_000),
+        },
+      });
+    }
 
     return {
       userId: session.userId,
@@ -326,7 +422,11 @@ export class AuthService {
     nouveau: string,
     options: { conserverSessionId?: string } = {},
   ): Promise<void> {
-    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    const user = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      // RG-AUTH-14 — l'autre lecteur légitime du haché.
+      select: { motDePasseHash: true },
+    });
     if (!(await verifierMotDePasse(user.motDePasseHash, actuel))) {
       throw new ErreurAuth("ancien_mot_de_passe_incorrect");
     }
@@ -549,7 +649,7 @@ export class AuthService {
    * effectives**.
    *
    * Les permissions sont résolues côté serveur à chaque appel, jamais lues
-   * depuis un jeton porté par le client (`ADR-0008`). Elles servent à la
+   * depuis un jeton porté par le client. Elles servent à la
    * coquille pour masquer ce qui serait refusé (`RG-GEN-06`) — une courtoisie,
    * pas un contrôle : le contrôle reste la garde, côté serveur.
    *
@@ -564,9 +664,9 @@ export class AuthService {
    * lecture porte **exclusivement** sur `userId`, qui vient de la session
    * résolue depuis le cookie et jamais d'un paramètre d'appel. C'est une
    * donnée strictement personnelle, sans domaine au catalogue de
-   * `cadrage/01 § 3.2`.
+   * `docs/reference-fonctionnelle.md § 3.2`.
    */
-  /** EX-AUTH-07, cadrage/02 vue 05 — expliquer le blocage sans divulguer le journal. */
+  /** EX-AUTH-07, vue 05 — expliquer le blocage sans divulguer le journal. */
   async motifChangementMotDePasse(userId: string, impose: boolean): Promise<{
     motifChangementMotDePasse: "premiere" | "administrateur" | null;
     motDePasseReinitialiseLe: string | null;
@@ -727,6 +827,9 @@ export class AuthService {
     donnees: { contenu: Buffer; typeMime: string; version: number },
   ) {
     if (donnees.contenu.byteLength === 0) throw new ErreurAuth("avatar_vide");
+    if (donnees.contenu.byteLength > TAILLE_MAX_AVATAR) {
+      throw new ErreurAuth("avatar_trop_volumineux", { maxOctets: TAILLE_MAX_AVATAR });
+    }
     const typeMime = detecterTypeAvatar(donnees.contenu);
     if (!typeMime || typeMime !== donnees.typeMime) {
       throw new ErreurAuth("avatar_format_invalide");

@@ -4,7 +4,7 @@ import { stringify } from "csv-stringify/sync";
 /**
  * Socle des imports CSV — M21, `RG-IMP-01` à `RG-IMP-06`.
  *
- * Six types d'import partagent la même mécanique, et `cadrage/02 § D.6`
+ * Six types d'import partagent la même mécanique, et la spécification d'interface
  * demande explicitement un gabarit commun. Il est ici, écrit une fois.
  *
  * Trois exigences le structurent :
@@ -56,6 +56,37 @@ export const detecterSeparateur = (contenu: string): "," | ";" => {
   const premiere = contenu.split(/\r?\n/)[0] ?? "";
   return (premiere.match(/;/g)?.length ?? 0) > (premiere.match(/,/g)?.length ?? 0) ? ";" : ",";
 };
+
+/**
+ * `RG-IMP-08` — **une cellule texte exportée ne s'exécute pas à l'ouverture.**
+ *
+ * Un tableur lit comme une FORMULE toute cellule qui commence par `=`, `+`,
+ * `-` ou `@`, et certains suppriment une tabulation ou un retour chariot
+ * initial avant de le faire. Un titre de tâche saisi `=HYPERLINK(…)` devenait
+ * ainsi, chez celui qui ouvrait l'export, un lien qu'il n'avait jamais écrit.
+ * L'apostrophe initiale fait lire la cellule comme du texte, et ne s'affiche
+ * pas.
+ *
+ * **Le motif couvre aussi les apostrophes déjà présentes** devant un
+ * déclencheur : sans cela, un texte saisi `'=x` ressortirait `'=x`, et
+ * `restaurerFormule` le rendrait `=x` au réimport. L'aller-retour ne serait
+ * plus exact sur la seule valeur qui ressemble à notre propre marque.
+ *
+ * Ne s'applique qu'aux cellules TEXTE : un nombre négatif dans une colonne
+ * numérique est une valeur, pas une formule, et l'appelant ne la passe pas ici.
+ */
+const DECLENCHEUR_FORMULE = /^'*[=+\-@\t\r]/;
+
+export const neutraliserFormule = (valeur: string): string =>
+  DECLENCHEUR_FORMULE.test(valeur) ? `'${valeur}` : valeur;
+
+/**
+ * `RG-IMP-08` — l'inverse, à l'analyse d'un import : retire l'apostrophe que
+ * `neutraliserFormule` a posée, et elle seule. Une apostrophe qui ne précède
+ * pas un déclencheur est une donnée et reste en place.
+ */
+export const restaurerFormule = (valeur: string): string =>
+  valeur.startsWith("'") && DECLENCHEUR_FORMULE.test(valeur.slice(1)) ? valeur.slice(1) : valeur;
 
 /** `RG-IMP-02` — un modèle de fichier est téléchargeable pour chaque type. */
 export const modeleCsv = (colonnes: string[], exemple: Record<string, string>[]): string =>

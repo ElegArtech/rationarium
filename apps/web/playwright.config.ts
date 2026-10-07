@@ -7,10 +7,10 @@ import { defineConfig, devices } from "@playwright/test";
  *          parcours clavier qu'aucune analyse statique ne voit (L-25).
  *   e2e  — parcours de bout en bout : exige l'application (à partir de L-05).
  *
- * Il n'y a **pas** de projet `perf`. `ADR-0015` a établi que le budget de
- * `cadrage/01 § 7` se dépense côté serveur, dans l'agrégat de `RG-PLN-01` : la
+ * Il n'y a **pas** de projet `perf`. Il est établi que le budget de
+ * `docs/reference-fonctionnelle.md § 7` se dépense côté serveur, dans l'agrégat de `RG-PLN-01` : la
  * mesure vit dans `apps/api/src/perf`, sur PostgreSQL réel à la volumétrie
- * cible. La placer ici aurait mesuré la peinture, qu'`ADR-0015` a déjà
+ * cible. La placer ici aurait mesuré la peinture, que l'on a déjà
  * démontrée non problématique — 52 ms pour 500 ressources sur 31 jours.
  */
 /*

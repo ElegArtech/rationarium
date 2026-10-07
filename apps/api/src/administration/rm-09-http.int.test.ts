@@ -130,17 +130,17 @@ describe("RG-GEN-07 — concurrence optimiste HTTP sur les rôles", () => {
   it("EX-ADM-04 / RG-GEN-07 — la matrice périmée est refusée sans remplacement partiel", async () => {
     const version = (await prisma.role.findUniqueOrThrow({ where: { id: roleModifiable.id } })).version;
     const premier = await appel("PUT", `/api/administration/roles/${roleModifiable.id}/permissions`, jetonGestionnaire, {
-      permissions: ["projects:read"], version,
+      permissions: ["users:create"], version,
     });
     expect(premier.statusCode).toBe(200);
 
     const perime = await appel("PUT", `/api/administration/roles/${roleModifiable.id}/permissions`, jetonGestionnaire, {
-      permissions: ["tasks:read"], version,
+      permissions: ["users:update"], version,
     });
     expect(perime.statusCode).toBe(409);
     expect(perime.json()).toMatchObject({ cle: "erreurs:conflitDeVersion" });
     const permissions = await prisma.rolePermission.findMany({ where: { roleId: roleModifiable.id } });
-    expect(permissions.map((p) => p.permission)).toEqual(["projects:read"]);
+    expect(permissions.map((p) => p.permission)).toEqual(["users:create"]);
   });
 
   it("RG-GEN-07 — les écritures de rôle sans version sont refusées à la frontière HTTP", async () => {

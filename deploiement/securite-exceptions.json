@@ -1,0 +1,41 @@
+{
+  "npm": [
+    {
+      "avis": "GHSA-vfj7-8cjw-p6xm",
+      "paquet": "braces",
+      "version": "3.0.3",
+      "chemin": ".>stylelint>fast-glob>micromatch>braces",
+      "raison": "Braces est utilisé par Stylelint pour les motifs glob du dépôt. Aucun motif issu des utilisateurs du produit ne lui parvient ; Stylelint et braces sont interdits dans l’image API par le contrôle de contenu. La version 3.0.4 annoncée par npm audit n’est pas publiée au 3 octobre 2026. Réexaminer à sa publication.",
+      "source": "https://github.com/advisories/GHSA-vfj7-8cjw-p6xm",
+      "expiration": "2026-11-03"
+    },
+    {
+      "avis": "GHSA-vfj7-8cjw-p6xm",
+      "paquet": "braces",
+      "version": "3.0.3",
+      "chemin": ".>stylelint>globby>fast-glob>micromatch>braces",
+      "raison": "Braces est utilisé par Stylelint pour les motifs glob du dépôt. Aucun motif issu des utilisateurs du produit ne lui parvient ; Stylelint et braces sont interdits dans l’image API par le contrôle de contenu. La version 3.0.4 annoncée par npm audit n’est pas publiée au 3 octobre 2026. Réexaminer à sa publication.",
+      "source": "https://github.com/advisories/GHSA-vfj7-8cjw-p6xm",
+      "expiration": "2026-11-03"
+    },
+    {
+      "avis": "GHSA-vfj7-8cjw-p6xm",
+      "paquet": "braces",
+      "version": "3.0.3",
+      "chemin": ".>stylelint>globby>micromatch>braces",
+      "raison": "Braces est utilisé par Stylelint pour les motifs glob du dépôt. Aucun motif issu des utilisateurs du produit ne lui parvient ; Stylelint et braces sont interdits dans l’image API par le contrôle de contenu. La version 3.0.4 annoncée par npm audit n’est pas publiée au 3 octobre 2026. Réexaminer à sa publication.",
+      "source": "https://github.com/advisories/GHSA-vfj7-8cjw-p6xm",
+      "expiration": "2026-11-03"
+    },
+    {
+      "avis": "GHSA-vfj7-8cjw-p6xm",
+      "paquet": "braces",
+      "version": "3.0.3",
+      "chemin": ".>stylelint>micromatch>braces",
+      "raison": "Braces est utilisé par Stylelint pour les motifs glob du dépôt. Aucun motif issu des utilisateurs du produit ne lui parvient ; Stylelint et braces sont interdits dans l’image API par le contrôle de contenu. La version 3.0.4 annoncée par npm audit n’est pas publiée au 3 octobre 2026. Réexaminer à sa publication.",
+      "source": "https://github.com/advisories/GHSA-vfj7-8cjw-p6xm",
+      "expiration": "2026-11-03"
+    }
+  ],
+  "images": []
+}

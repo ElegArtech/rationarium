@@ -113,6 +113,7 @@ describe("EX-JAL-07 — créer, modifier, supprimer une épopée", () => {
     const e = await projets.creerEpopee(
       { nom: "Socle technique", description: "Les fondations", projectId: p },
       acteur,
+      toutes,
     );
     expect(e.projectId).toBe(p);
 
@@ -128,8 +129,8 @@ describe("EX-JAL-07 — créer, modifier, supprimer une épopée", () => {
      * genre de champ qu'on lit sans jamais le contredire.
      */
     const p = await projet();
-    const a = await projets.creerEpopee({ nom: "A", projectId: p }, acteur);
-    await projets.creerEpopee({ nom: "B", projectId: p }, acteur);
+    const a = await projets.creerEpopee({ nom: "A", projectId: p }, acteur, toutes);
+    await projets.creerEpopee({ nom: "B", projectId: p }, acteur, toutes);
     await taches.creer(nouvelleTache(p, { epicId: a.id }), acteur, DROITS_TACHE);
     await taches.creer(nouvelleTache(p, { epicId: a.id }), acteur, DROITS_TACHE);
     await taches.creer(nouvelleTache(p), acteur, DROITS_TACHE);
@@ -141,28 +142,29 @@ describe("EX-JAL-07 — créer, modifier, supprimer une épopée", () => {
 
   it("EX-JAL-07 — REFUSE deux épopées homonymes dans le même projet", async () => {
     const p = await projet();
-    await projets.creerEpopee({ nom: "Migration", projectId: p }, acteur);
+    await projets.creerEpopee({ nom: "Migration", projectId: p }, acteur, toutes);
     await expect(
-      projets.creerEpopee({ nom: "Migration", projectId: p }, acteur),
+      projets.creerEpopee({ nom: "Migration", projectId: p }, acteur, toutes),
     ).rejects.toMatchObject({ code: "epopee_en_double", detail: { nom: "Migration" } });
   });
 
   it("EX-JAL-07 — le même nom dans DEUX projets est licite", async () => {
     const a = await projet();
     const b = await projet();
-    await projets.creerEpopee({ nom: "Migration", projectId: a }, acteur);
+    await projets.creerEpopee({ nom: "Migration", projectId: a }, acteur, toutes);
     await expect(
-      projets.creerEpopee({ nom: "Migration", projectId: b }, acteur),
+      projets.creerEpopee({ nom: "Migration", projectId: b }, acteur, toutes),
     ).resolves.toMatchObject({ nom: "Migration" });
   });
 
   it("EX-JAL-07 — modifie une épopée", async () => {
     const p = await projet();
-    const e = await projets.creerEpopee({ nom: "Avant", projectId: p }, acteur);
+    const e = await projets.creerEpopee({ nom: "Avant", projectId: p }, acteur, toutes);
     const modifiee = await projets.modifierEpopee(
       e.id,
       { nom: "Après", description: "Reformulée", version: e.version },
       acteur,
+      toutes,
     );
     expect(modifiee.nom).toBe("Après");
     expect(modifiee.description).toBe("Reformulée");
@@ -171,10 +173,10 @@ describe("EX-JAL-07 — créer, modifier, supprimer une épopée", () => {
 
   it("RG-GEN-07 — une modification d'épopée sur une version périmée est REFUSÉE", async () => {
     const p = await projet();
-    const e = await projets.creerEpopee({ nom: "Concurrente", projectId: p }, acteur);
-    await projets.modifierEpopee(e.id, { nom: "Premier", version: e.version }, acteur);
+    const e = await projets.creerEpopee({ nom: "Concurrente", projectId: p }, acteur, toutes);
+    await projets.modifierEpopee(e.id, { nom: "Premier", version: e.version }, acteur, toutes);
     await expect(
-      projets.modifierEpopee(e.id, { nom: "Second", version: e.version }, acteur),
+      projets.modifierEpopee(e.id, { nom: "Second", version: e.version }, acteur, toutes),
     ).rejects.toMatchObject({ code: "conflit_de_version" });
 
     // Et le premier écrit tient : le refus n'a rien écrasé.
@@ -184,19 +186,19 @@ describe("EX-JAL-07 — créer, modifier, supprimer une épopée", () => {
 
   it("EX-JAL-07 — REFUSE de renommer une épopée sur le nom d'une autre du projet", async () => {
     const p = await projet();
-    await projets.creerEpopee({ nom: "Prise", projectId: p }, acteur);
-    const b = await projets.creerEpopee({ nom: "Libre", projectId: p }, acteur);
+    await projets.creerEpopee({ nom: "Prise", projectId: p }, acteur, toutes);
+    const b = await projets.creerEpopee({ nom: "Libre", projectId: p }, acteur, toutes);
     await expect(
-      projets.modifierEpopee(b.id, { nom: "Prise", version: b.version }, acteur),
+      projets.modifierEpopee(b.id, { nom: "Prise", version: b.version }, acteur, toutes),
     ).rejects.toMatchObject({ code: "epopee_en_double" });
   });
 
   it("EX-JAL-07 — supprimer une épopée DÉTACHE ses tâches sans les supprimer", async () => {
     const p = await projet();
-    const e = await projets.creerEpopee({ nom: "À supprimer", projectId: p }, acteur);
+    const e = await projets.creerEpopee({ nom: "À supprimer", projectId: p }, acteur, toutes);
     const t = await taches.creer(nouvelleTache(p, { epicId: e.id }), acteur, DROITS_TACHE);
 
-    const { tachesDetachees } = await projets.supprimerEpopee(e.id, acteur);
+    const { tachesDetachees } = await projets.supprimerEpopee(e.id, acteur, toutes);
     expect(tachesDetachees).toBe(1);
 
     const restee = await prisma.task.findUnique({ where: { id: t.id } });
@@ -206,9 +208,9 @@ describe("EX-JAL-07 — créer, modifier, supprimer une épopée", () => {
 
   it("EX-JAL-07 — la suppression est tracée avec le nombre de tâches détachées", async () => {
     const p = await projet();
-    const e = await projets.creerEpopee({ nom: "Tracée", projectId: p }, acteur);
+    const e = await projets.creerEpopee({ nom: "Tracée", projectId: p }, acteur, toutes);
     await taches.creer(nouvelleTache(p, { epicId: e.id }), acteur, DROITS_TACHE);
-    await projets.supprimerEpopee(e.id, acteur);
+    await projets.supprimerEpopee(e.id, acteur, toutes);
 
     const trace = await prisma.auditLog.findFirst({
       where: { action: "epic.delete", entiteId: e.id },
@@ -218,9 +220,9 @@ describe("EX-JAL-07 — créer, modifier, supprimer une épopée", () => {
 
   it("EX-JAL-07 — REFUSE de créer une épopée dans un projet annulé", async () => {
     const p = await projet();
-    await projets.annuler(p, acteur);
+    await projets.annuler(p, acteur, toutes);
     await expect(
-      projets.creerEpopee({ nom: "Trop tard", projectId: p }, acteur),
+      projets.creerEpopee({ nom: "Trop tard", projectId: p }, acteur, toutes),
     ).rejects.toMatchObject({ code: "projet_annule" });
   });
 });
@@ -234,7 +236,7 @@ describe("RG-JAL-03 / RG-JAL-04 — le rattachement d'une tâche", () => {
      */
     const a = await projet();
     const b = await projet();
-    const chezB = await projets.creerEpopee({ nom: "Chez B", projectId: b }, acteur);
+    const chezB = await projets.creerEpopee({ nom: "Chez B", projectId: b }, acteur, toutes);
 
     await expect(
       taches.creer(nouvelleTache(a, { epicId: chezB.id }), acteur, DROITS_TACHE),
@@ -243,7 +245,7 @@ describe("RG-JAL-03 / RG-JAL-04 — le rattachement d'une tâche", () => {
 
   it("RG-JAL-04 — REFUSE une tâche HORS PROJET rattachée à une épopée", async () => {
     const p = await projet();
-    const e = await projets.creerEpopee({ nom: "Orpheline", projectId: p }, acteur);
+    const e = await projets.creerEpopee({ nom: "Orpheline", projectId: p }, acteur, toutes);
     await expect(
       taches.creer(nouvelleTache(null, { epicId: e.id }), acteur, DROITS_TACHE),
     ).rejects.toMatchObject({ code: "hors_projet_avec_jalon" });
@@ -256,7 +258,7 @@ describe("RG-JAL-03 / RG-JAL-04 — le rattachement d'une tâche", () => {
      * un bloc « sans jalon » que rien ne permettait de vider.
      */
     const p = await projet();
-    const e = await projets.creerEpopee({ nom: "Après coup", projectId: p }, acteur);
+    const e = await projets.creerEpopee({ nom: "Après coup", projectId: p }, acteur, toutes);
     const t = await taches.creer(nouvelleTache(p), acteur, DROITS_TACHE);
     expect(t.epicId).toBeNull();
 
@@ -266,7 +268,7 @@ describe("RG-JAL-03 / RG-JAL-04 — le rattachement d'une tâche", () => {
 
   it("RG-JAL-03 — rattache une tâche à un JALON après coup, et l'en détache", async () => {
     const p = await projet();
-    const j = await projets.creerJalon({ nom: "V1", projectId: p }, acteur);
+    const j = await projets.creerJalon({ nom: "V1", projectId: p }, acteur, toutes);
     const t = await taches.creer(nouvelleTache(p), acteur, DROITS_TACHE);
 
     const rattachee = await taches.modifier(
@@ -287,7 +289,7 @@ describe("RG-JAL-03 / RG-JAL-04 — le rattachement d'une tâche", () => {
   it("RG-JAL-03 — REFUSE de rattacher APRÈS COUP à un jalon d'un autre projet", async () => {
     const a = await projet();
     const b = await projet();
-    const chezB = await projets.creerJalon({ nom: "Chez B", projectId: b }, acteur);
+    const chezB = await projets.creerJalon({ nom: "Chez B", projectId: b }, acteur, toutes);
     const t = await taches.creer(nouvelleTache(a), acteur, DROITS_TACHE);
 
     await expect(
@@ -297,7 +299,7 @@ describe("RG-JAL-03 / RG-JAL-04 — le rattachement d'une tâche", () => {
 
   it("RG-JAL-04 — REFUSE de rattacher APRÈS COUP une tâche hors projet", async () => {
     const p = await projet();
-    const e = await projets.creerEpopee({ nom: "Cible", projectId: p }, acteur);
+    const e = await projets.creerEpopee({ nom: "Cible", projectId: p }, acteur, toutes);
     const t = await taches.creer(nouvelleTache(null), acteur, DROITS_TACHE);
 
     await expect(
@@ -312,11 +314,13 @@ describe("EX-JAL-01 — modifier un jalon", () => {
     const j = await projets.creerJalon(
       { nom: "Avant", dateEcheance: utc("2026-06-30"), projectId: p },
       acteur,
+      toutes,
     );
     const modifie = await projets.modifierJalon(
       j.id,
       { nom: "Après", description: "Repoussé", dateEcheance: utc("2026-09-30"), version: j.version },
       acteur,
+      toutes,
     );
     expect(modifie.nom).toBe("Après");
     expect(modifie.description).toBe("Repoussé");
@@ -328,28 +332,30 @@ describe("EX-JAL-01 — modifier un jalon", () => {
     const j = await projets.creerJalon(
       { nom: "Sans date", dateEcheance: utc("2026-06-30"), projectId: p },
       acteur,
+      toutes,
     );
     const modifie = await projets.modifierJalon(
       j.id,
       { dateEcheance: null, version: j.version },
       acteur,
+      toutes,
     );
     expect(modifie.dateEcheance).toBeNull();
   });
 
   it("RG-GEN-07 — une modification de jalon sur une version périmée est REFUSÉE", async () => {
     const p = await projet();
-    const j = await projets.creerJalon({ nom: "Concurrent", projectId: p }, acteur);
-    await projets.modifierJalon(j.id, { nom: "Premier", version: j.version }, acteur);
+    const j = await projets.creerJalon({ nom: "Concurrent", projectId: p }, acteur, toutes);
+    await projets.modifierJalon(j.id, { nom: "Premier", version: j.version }, acteur, toutes);
     await expect(
-      projets.modifierJalon(j.id, { nom: "Second", version: j.version }, acteur),
+      projets.modifierJalon(j.id, { nom: "Second", version: j.version }, acteur, toutes),
     ).rejects.toMatchObject({ code: "conflit_de_version" });
   });
 
   it("RG-JAL-02 — modifier un jalon ne change JAMAIS son projet", async () => {
     const p = await projet();
-    const j = await projets.creerJalon({ nom: "Ancré", projectId: p }, acteur);
-    const modifie = await projets.modifierJalon(j.id, { nom: "Ancré II", version: j.version }, acteur);
+    const j = await projets.creerJalon({ nom: "Ancré", projectId: p }, acteur, toutes);
+    const modifie = await projets.modifierJalon(j.id, { nom: "Ancré II", version: j.version }, acteur, toutes);
     expect(modifie.projectId).toBe(p);
   });
 });
@@ -368,24 +374,24 @@ describe("EX-JAL-02, RG-JAL-06 — marquer un jalon SANS TÂCHE comme atteint", 
    */
   it("EX-JAL-02 — un jalon sans tâche se marque atteint, et se rouvre", async () => {
     const p = await projet();
-    const j = await projets.creerJalon({ nom: "Comité de lancement", projectId: p }, acteur);
+    const j = await projets.creerJalon({ nom: "Comité de lancement", projectId: p }, acteur, toutes);
     expect(await projets.statutJalon(j.id)).toBe("pending");
 
-    const marque = await projets.marquerJalon(j.id, true, j.version, acteur);
+    const marque = await projets.marquerJalon(j.id, true, j.version, acteur, toutes);
     expect(await projets.statutJalon(j.id)).toBe("done");
 
-    await projets.marquerJalon(j.id, false, marque.version, acteur);
+    await projets.marquerJalon(j.id, false, marque.version, acteur, toutes);
     expect(await projets.statutJalon(j.id)).toBe("pending");
   });
 
   it("RG-JAL-01 — un jalon QUI PORTE DES TÂCHES refuse d'être marqué, et dit pourquoi", async () => {
     const p = await projet();
-    const j = await projets.creerJalon({ nom: "Recette", projectId: p }, acteur);
+    const j = await projets.creerJalon({ nom: "Recette", projectId: p }, acteur, toutes);
     const t = await taches.creer(nouvelleTache(p, { milestoneId: j.id }), acteur, DROITS_TACHE);
     expect(t.milestoneId).toBe(j.id);
 
     const relu = await prisma.milestone.findUniqueOrThrow({ where: { id: j.id } });
-    await expect(projets.marquerJalon(j.id, true, relu.version, acteur)).rejects.toMatchObject({
+    await expect(projets.marquerJalon(j.id, true, relu.version, acteur, toutes)).rejects.toMatchObject({
       code: "jalon_calcule",
     });
   });
@@ -397,8 +403,8 @@ describe("EX-JAL-02, RG-JAL-06 — marquer un jalon SANS TÂCHE comme atteint", 
      * « atteint » sans que personne n'ait rien fait.
      */
     const p = await projet();
-    const j = await projets.creerJalon({ nom: "Jalon marqué", projectId: p }, acteur);
-    await projets.marquerJalon(j.id, true, j.version, acteur);
+    const j = await projets.creerJalon({ nom: "Jalon marqué", projectId: p }, acteur, toutes);
+    await projets.marquerJalon(j.id, true, j.version, acteur, toutes);
     expect(await projets.statutJalon(j.id)).toBe("done");
 
     // Une tâche arrive : le calcul reprend, et le jalon repart « en attente ».
@@ -412,8 +418,8 @@ describe("EX-JAL-02, RG-JAL-06 — marquer un jalon SANS TÂCHE comme atteint", 
 
   it("RG-JAL-06 — le rattachement APRÈS COUP efface la marque, lui aussi", async () => {
     const p = await projet();
-    const j = await projets.creerJalon({ nom: "Marqué puis peuplé", projectId: p }, acteur);
-    await projets.marquerJalon(j.id, true, j.version, acteur);
+    const j = await projets.creerJalon({ nom: "Marqué puis peuplé", projectId: p }, acteur, toutes);
+    await projets.marquerJalon(j.id, true, j.version, acteur, toutes);
     const t = await taches.creer(nouvelleTache(p), acteur, DROITS_TACHE);
 
     await taches.modifier(t.id, { milestoneId: j.id, version: t.version }, acteur, DROITS_TACHE);
@@ -427,7 +433,7 @@ describe("EX-JAL-02, RG-JAL-06 — marquer un jalon SANS TÂCHE comme atteint", 
      * doit rester gouverné par ses tâches.
      */
     const p = await projet();
-    const j = await projets.creerJalon({ nom: "Gouverné", projectId: p }, acteur);
+    const j = await projets.creerJalon({ nom: "Gouverné", projectId: p }, acteur, toutes);
     await taches.creer(nouvelleTache(p, { milestoneId: j.id }), acteur, DROITS_TACHE);
     // On corrompt la colonne à la main, sous le calcul.
     await prisma.milestone.update({ where: { id: j.id }, data: { statut: "done" } });
@@ -437,9 +443,9 @@ describe("EX-JAL-02, RG-JAL-06 — marquer un jalon SANS TÂCHE comme atteint", 
 
   it("RG-GEN-07 — marquer sur une version périmée est REFUSÉ", async () => {
     const p = await projet();
-    const j = await projets.creerJalon({ nom: "Concurrent", projectId: p }, acteur);
-    await projets.marquerJalon(j.id, true, j.version, acteur);
-    await expect(projets.marquerJalon(j.id, false, j.version, acteur)).rejects.toMatchObject({
+    const j = await projets.creerJalon({ nom: "Concurrent", projectId: p }, acteur, toutes);
+    await projets.marquerJalon(j.id, true, j.version, acteur, toutes);
+    await expect(projets.marquerJalon(j.id, false, j.version, acteur, toutes)).rejects.toMatchObject({
       code: "conflit_de_version",
     });
   });
@@ -447,8 +453,8 @@ describe("EX-JAL-02, RG-JAL-06 — marquer un jalon SANS TÂCHE comme atteint", 
   it("EX-JAL-02 — la feuille de route rend le statut MARQUÉ, pas un calcul aveugle", async () => {
     // Le raccord : ce que la vue 13 lit vient bien de la même fonction.
     const p = await projet();
-    const j = await projets.creerJalon({ nom: "Vu de la feuille", projectId: p }, acteur);
-    await projets.marquerJalon(j.id, true, j.version, acteur);
+    const j = await projets.creerJalon({ nom: "Vu de la feuille", projectId: p }, acteur, toutes);
+    await projets.marquerJalon(j.id, true, j.version, acteur, toutes);
 
     const route = await projets.feuilleDeRoute(p, await global(), toutes);
     expect(route.jalons.find((x) => x.id === j.id)?.statut).toBe("done");
@@ -492,7 +498,7 @@ describe("EX-TSK-08 — un projet chargé avec son historique n'affiche plus zé
      * qu'on vient de réparer.
      */
     const p = await projet();
-    const j = await projets.creerJalon({ nom: "Livraison", projectId: p }, acteur);
+    const j = await projets.creerJalon({ nom: "Livraison", projectId: p }, acteur, toutes);
     for (const titre of ["Un", "Deux"]) {
       await taches.creer(
         nouvelleTache(p, { titre, statut: "done", avancement: 100, milestoneId: j.id }),

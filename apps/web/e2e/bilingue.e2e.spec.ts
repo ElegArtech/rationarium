@@ -12,7 +12,7 @@ import { SESSION_PLANNING, SEMAINE } from "./fixtures/planning.js";
  *    les deux catalogues peut n'être jamais employée.
  * 2. **`RG-GEN-09` — les formats suivent-ils le paramétrage global ?** Ils
  *    étaient enregistrés par la vue 31 et appliqués nulle part.
- * 3. **`cadrage/02 § D.7` — l'anglais est 30 % plus long.** Aucune largeur ne
+ * 3. **L'anglais est 30 % plus long.** Aucune largeur ne
  *    doit être calée sur le français : un libellé tronqué en anglais est un
  *    défaut de conception, pas un accident de traduction.
  */
@@ -69,7 +69,7 @@ test.describe("Le basculement de langue", () => {
   });
 });
 
-test.describe("cadrage/02 § D.7 — L'ANGLAIS EST 30 % PLUS LONG", () => {
+test.describe("L'ANGLAIS EST 30 % PLUS LONG", () => {
   const vues = [
     { nom: "planning", chemin: "/planning" },
     { nom: "profil", chemin: "/profil" },

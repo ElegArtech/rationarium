@@ -10,7 +10,7 @@ import { PerimetreService } from "./perimetre.service.js";
  * Le module est global. C'est une exception à la règle d'injection explicite,
  * et elle se motive : ces trois services sont des dépendances transverses par
  * construction — l'audit et le périmètre sont exigés sur *chaque* lecture et
- * *chaque* écriture (`cadrage/03 § 5.4`). Les redéclarer vingt fois ne
+ * *chaque* écriture. Les redéclarer vingt fois ne
  * documenterait rien ; ça inviterait surtout à en oublier un.
  */
 @Global()

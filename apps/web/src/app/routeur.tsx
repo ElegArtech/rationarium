@@ -104,7 +104,7 @@ const routeConnexion = createRoute({
     const navigate = useNavigate();
     const client = useQueryClient();
     const { suite } = useSearch({ from: "/connexion" });
-    // `design/etats.json`, vue 01, axe « Inscription autonome ». Le réglage
+    // Vue 01, axe « Inscription autonome ». Le réglage
     // vient du serveur : le passer en dur rendait la variante inatteignable.
     const { data: acces } = useQuery({
       queryKey: ["auth", "acces"],

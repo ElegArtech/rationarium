@@ -96,7 +96,7 @@ const PUBLIQUES_ATTENDUES = new Set([
  * Les seules routes autorisées à exiger une session **sans** permission.
  *
  * `RG-DSH-01` — les to-do sont strictement privées, et les vingt-quatre
- * domaines de `cadrage/01 § 3.2` n'en comportent aucun pour elles. La liste est
+ * domaines de `docs/reference-fonctionnelle.md § 3.2` n'en comportent aucun pour elles. La liste est
  * énumérée ici pour la même raison que la précédente : y ajouter une route
  * demande une modification visible en relecture.
  */
@@ -105,13 +105,13 @@ const PERSONNELLES_ATTENDUES = new Set([
   "TableauController.ajouter",
   "TableauController.modifier",
   "TableauController.supprimer",
-  // `cadrage/01 § M18` — une notification appartient à son destinataire.
+  // `docs/reference-fonctionnelle.md § M18` — une notification appartient à son destinataire.
   "NotificationsController.lister",
   "NotificationsController.marquerLue",
   "NotificationsController.toutMarquerLu",
   /*
    * `EX-AUTH-09` — son propre profil. Le catalogue des vingt-quatre domaines
-   * de `cadrage/01 § 3.2` n'en comporte pas pour « modifier son identité, sa
+   * de `docs/reference-fonctionnelle.md § 3.2` n'en comporte pas pour « modifier son identité, sa
    * langue, son thème » : inventer un domaine hors catalogue serait pire.
    *
    * La route est bornée à `d.userId` — jamais à un identifiant reçu du client.
@@ -519,7 +519,7 @@ const SANS_CLIENT: { verbe: string; chemin: string; raison: string }[] = [
     verbe: "GET",
     chemin: "/temps/non-declarees",
     raison:
-      "redondante — `GET /tableau` appelle LE MÊME `TempsService.tachesNonDeclarees(userId)`, sur le même utilisateur, et `cadrage/02` vue 06 nomme l'écran : « Mes tâches — sélecteur : À venir / Non déclarées », avec sa case « Valider sans déclaration » (`POST /temps/renoncement/:taskId`, branchée). Le brief de la vue 21, lui, n'en dit rien : l'y ajouter serait inventer une fonctionnalité, pas en brancher une",
+      "redondante — `GET /tableau` appelle LE MÊME `TempsService.tachesNonDeclarees(userId)`, sur le même utilisateur, et la vue 06 nomme l'écran : « Mes tâches — sélecteur : À venir / Non déclarées », avec sa case « Valider sans déclaration » (`POST /temps/renoncement/:taskId`, branchée). Le brief de la vue 21, lui, n'en dit rien : l'y ajouter serait inventer une fonctionnalité, pas en brancher une",
   },
   {
     verbe: "POST",
@@ -533,10 +533,10 @@ const SANS_CLIENT: { verbe: string; chemin: string; raison: string }[] = [
    * `PUT /conges/soldes` a quitté cette liste en L-48.
    *
    * L'entrée disait « l'ÉCRAN n'est spécifié nulle part », sur la foi d'une
-   * contradiction interne à `cadrage/02` § vue 19 : son énumération
+   * contradiction interne à la spécification de la vue 19 : son énumération
    * « Structure » fermait la liste à six onglets, sa ligne « Variantes » disait
    * « Hugo voit tout, plus les types **et les soldes** ». L'arbitrage est
-   * tranché et écrit dans `cadrage/02` : c'est la ligne Variantes qui l'emporte,
+   * tranché : c'est la ligne Variantes qui l'emporte,
    * seule des deux à parler d'un détenteur de `leaves:manage_balances`. La vue
    * 19 porte donc un sixième onglet « Soldes », et la route a son client.
    */

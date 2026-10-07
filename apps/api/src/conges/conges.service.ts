@@ -70,7 +70,7 @@ export class ErreurConge extends Error {
  *
  * `PUT /conges/soldes` exige la version dès qu'une allocation existe
  * (`RG-CNG-23`). Sans elle dans la lecture, aucune requête d'écriture n'est
- * composable : c'est le piège de `profil()` consigné dans `CLAUDE.md`, où un
+ * composable : c'est le piège de `profil()` déjà rencontré, où un
  * champ manquant à la lecture rend l'écriture impossible et fait conclure à
  * tort que la route n'existe pas.
  */
@@ -622,6 +622,81 @@ export class CongesService {
     if (!collaborateur?.actif) throw new ErreurConge("collaborateur_inactif");
   }
 
+  // ── Droit sur une demande — RG-CNG-34, RG-CNG-35 ─────────────────────────
+
+  /**
+   * `leaves:manage_any` **ne vaut pas portée globale.** MANAGER, HR_OFFICER,
+   * PORTFOLIO_MANAGER la détiennent : elle dit « je gère les congés de mes
+   * agents », pas « de tous les agents de l'instance ». La portée vient du
+   * périmètre organisationnel (`RG-SCOPE-01`), que seule une permission de
+   * gestion globale étend à tous (`RG-SCOPE-03`).
+   */
+  private gereLAgent(agentId: string, perimetre: Perimetre, permissions: ReadonlySet<string>) {
+    return (
+      permissions.has("leaves:manage_any") &&
+      (perimetre.global || perimetre.utilisateurs.has(agentId))
+    );
+  }
+
+  /**
+   * `RG-CNG-34` — approuver, refuser ou traiter une annulation exige d'être le
+   * validateur enregistré de la demande, le validateur que `RG-CNG-08` et
+   * `RG-CNG-10` désigneraient au moment du geste, ou de gérer l'agent.
+   *
+   * Les trois routes n'étaient gardées que par `leaves:approve` : n'importe
+   * quel manager décidait du congé de n'importe quel agent de l'instance.
+   *
+   * Le validateur « au moment du geste » couvre deux cas que le validateur
+   * enregistré manque : le délégué d'une délégation ouverte APRÈS le dépôt, et
+   * le manager nommé à la tête du service depuis. Le validateur enregistré
+   * garde la main — c'est chez lui que la demande figure « À valider », et
+   * l'onglet ne doit rien proposer que le serveur refuse (`RG-GEN-06`).
+   *
+   * Appelée par le contrôleur AVANT le geste, comme
+   * `verifierDeclarationPourAutrui` : les gestes eux-mêmes restent appelables
+   * de l'intérieur — import, notifications — sans contexte de requête.
+   */
+  async exigerDecideur(
+    congeId: string,
+    acteurId: string,
+    perimetre: Perimetre,
+    permissions: ReadonlySet<string>,
+  ) {
+    const conge = await this.prisma.leave.findUnique({
+      where: { id: congeId },
+      select: { userId: true, validateurId: true },
+    });
+    if (!conge) throw new ErreurConge("introuvable");
+    if (conge.validateurId === acteurId) return;
+    if (this.gereLAgent(conge.userId, perimetre, permissions)) return;
+    if ((await this.determinerValidateur(conge.userId, new Date())) === acteurId) return;
+    throw new ErreurConge("hors_perimetre");
+  }
+
+  /**
+   * `RG-CNG-35` — modifier ou supprimer une demande exige d'en être l'agent,
+   * ou de gérer l'agent.
+   *
+   * `leaves:update` et `leaves:delete` sont dans le SOCLE : tout agent les
+   * détient, pour SES demandes. Sans ce contrôle, la permission valait pour
+   * celles de tous.
+   */
+  async exigerTitulaireOuGestionnaire(
+    congeId: string,
+    acteurId: string,
+    perimetre: Perimetre,
+    permissions: ReadonlySet<string>,
+  ) {
+    const conge = await this.prisma.leave.findUnique({
+      where: { id: congeId },
+      select: { userId: true },
+    });
+    if (!conge) throw new ErreurConge("introuvable");
+    if (conge.userId === acteurId) return;
+    if (this.gereLAgent(conge.userId, perimetre, permissions)) return;
+    throw new ErreurConge("hors_perimetre");
+  }
+
   // ── Concurrence — RG-GEN-07 ──────────────────────────────────────────────
 
   /**
@@ -675,7 +750,7 @@ export class CongesService {
    * que d'écrire contre une réalité différente**.
    *
    * D'où la transaction en `RepeatableRead` avec verrou sur la ligne
-   * d'allocation, prescrite par `cadrage/03 § 5.3`.
+   * d'allocation.
    */
   async approuver(
     congeId: string,
@@ -759,7 +834,7 @@ export class CongesService {
     if (!sienne) {
       /*
        * `RG-GEN-08` — paramètres, pas phrase. `decision` distingue les deux
-       * faces du même type : `cadrage/01 § M18` n'en énonce qu'un, « Décision
+       * faces du même type : `docs/reference-fonctionnelle.md § M18` n'en énonce qu'un, « Décision
        * sur votre demande de congé », et le corps porte laquelle.
        *
        * `RG-NTF-01` — le destinataire est le DEMANDEUR : son congé est dans
@@ -1184,7 +1259,7 @@ export class CongesService {
    * `EX-CNG-13` — tous les soldes d'une personne pour une année.
    *
    * « Le solde disponible est l'information la plus attendue au moment de la
-   * demande : il ne doit pas être à chercher » (`cadrage/02`, vue 19). Il est
+   * demande : il ne doit pas être à chercher » (vue 19). Il est
    * donc servi en bloc, pas type par type — une vue qui ferait six appels
    * afficherait six compteurs qui apparaissent l'un après l'autre.
    */

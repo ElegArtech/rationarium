@@ -194,7 +194,7 @@ export type Client = {
   adresse: string | null;
   notes: string | null;
   actif: boolean;
-  /** `internal` ou `external` — vue 25, l'axe de `design/etats.json`. */
+  /** `internal` ou `external` — l'axe d'état de la vue 25. */
   nature: string;
   projets: { project: { id: string; nom: string } }[];
   _count: { projets: number };

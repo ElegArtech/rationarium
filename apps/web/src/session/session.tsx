@@ -8,7 +8,7 @@ import type { VisuelAvatarPredefini } from "@rationarium/contracts";
  *
  * Le point important : les permissions ne sont jamais lues d'un jeton porté
  * par le client, ni mémorisées entre deux sessions. Elles sont demandées au
- * serveur, qui les recalcule à chaque appel (`ADR-0008`). Un client qui
+ * serveur, qui les recalcule à chaque appel. Un client qui
  * garderait sa liste de permissions en cache continuerait d'afficher des
  * actions révoquées le matin même — et le serveur les refuserait, ce qui
  * donnerait à l'utilisateur l'impression d'un défaut.

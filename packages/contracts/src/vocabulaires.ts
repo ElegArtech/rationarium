@@ -1,12 +1,12 @@
 /**
- * Vocabulaires — `cadrage/01 § 4.1`.
+ * Vocabulaires — `docs/reference-fonctionnelle.md § 4.1`.
  *
  * Définition unique, employée par le serveur, le client, les énumérations en
  * base et les tests. Toute énumération locale d'un de ces vocabulaires est
  * interdite : une règle ESLint le refuse.
  *
  * Les valeurs sont arrêtées après l'arbitrage B1 du 2026-08-16 : priorité à
- * quatre niveaux, statut de projet à cinq valeurs. Voir `cadrage/03 § 7`.
+ * quatre niveaux, statut de projet à cinq valeurs.
  */
 
 /** Décrit une valeur d'énumération : son code technique et ses libellés. */
@@ -100,7 +100,7 @@ export const progressionJalon = (
 };
 
 /**
- * Rôles dans l'équipe projet — `cadrage/01 § M4`, dix-sept valeurs énumérées.
+ * Rôles dans l'équipe projet — `docs/reference-fonctionnelle.md § M4`, dix-sept valeurs énumérées.
  *
  * **Le cadrage les énumère, donc ce n'est pas une chaîne libre.** Le contrat
  * les acceptait pourtant en `z.string().max(80)` : deux projets pouvaient
@@ -145,7 +145,7 @@ export const PRIORITES = vocabulaire([
 ]);
 export type Priorite = (typeof PRIORITES)[number]["code"];
 
-/** Rôles RACI sur une tâche — `cadrage/01 § 4`. */
+/** Rôles RACI sur une tâche — `docs/reference-fonctionnelle.md § 4`. */
 export const ROLES_RACI = vocabulaire([
   { code: "responsible", fr: "Responsable", en: "Responsible" },
   { code: "accountable", fr: "Autorité", en: "Accountable" },
@@ -222,7 +222,7 @@ export type NiveauCompetence = (typeof NIVEAUX_COMPETENCE)[number]["code"];
 // ── Tiers, activité récurrente, santé ───────────────────────────────────────
 
 /**
- * Nature d'un bénéficiaire — `cadrage/02`, vue 25.
+ * Nature d'un bénéficiaire — vue 25.
  *
  * Une direction de la collectivité ou un organisme extérieur. La distinction
  * change la lecture du portefeuille : elle dit si le projet sert la maison ou
@@ -249,7 +249,7 @@ export const DUREES_TACHE_PREDEFINIE = vocabulaire([
 export type DureeTachePredefinie = (typeof DUREES_TACHE_PREDEFINIE)[number]["code"];
 
 /**
- * Type de règle de récurrence — `cadrage/02`, vue 34.
+ * Type de règle de récurrence — vue 34.
  *
  * **Trois orthographes coexistaient pour la même notion**, et aucune ne
  * recouvrait les autres :
@@ -267,7 +267,7 @@ export type DureeTachePredefinie = (typeof DUREES_TACHE_PREDEFINIE)[number]["cod
  * seul endroit où la valeur a un COMPORTEMENT ; les deux autres s'alignent, et
  * ce vocabulaire est désormais l'unique définition.
  *
- * `daily` disparaît : `cadrage/02` n'énumère que trois types, et le moteur
+ * `daily` disparaît : la spécification de la vue 34 n'énumère que trois types, et le moteur
  * n'a jamais su le produire.
  */
 export const TYPES_RECURRENCE = vocabulaire([
@@ -277,7 +277,7 @@ export const TYPES_RECURRENCE = vocabulaire([
 ]);
 export type TypeRecurrence = (typeof TYPES_RECURRENCE)[number]["code"];
 
-/** Santé de projet — `cadrage/01 § M17`, calculée, jamais saisie. */
+/** Santé de projet — `docs/reference-fonctionnelle.md § M17`, calculée, jamais saisie. */
 export const SANTES_PROJET = vocabulaire([
   { code: "good", fr: "Bon", en: "Good" },
   { code: "warning", fr: "Attention", en: "Warning" },
@@ -285,7 +285,7 @@ export const SANTES_PROJET = vocabulaire([
 ]);
 export type SanteProjet = (typeof SANTES_PROJET)[number]["code"];
 
-/** RAG du Gantt portefeuille — `cadrage/01 § M17`. */
+/** RAG du Gantt portefeuille — `docs/reference-fonctionnelle.md § M17`. */
 export const ETATS_RAG = vocabulaire([
   { code: "on_track", fr: "On track", en: "On track" },
   { code: "at_risk", fr: "À risque", en: "At risk" },

@@ -3,7 +3,7 @@ import { describe, it, expect } from "vitest";
 /**
  * **Une ancre brute dans une application à routeur RECHARGE tout le document.**
  *
- * Le piège est consigné dans `CLAUDE.md` depuis qu'il a été mesuré sur la barre
+ * Le piège est connu depuis qu'il a été mesuré sur la barre
  * latérale — un repère posé sur `window` avant le clic ne survivait pas. Il a
  * été corrigé là, et il est resté ailleurs : le titre d'une notification
  * (`Notifications.tsx`), l'entrée « Mon profil » du menu utilisateur (un

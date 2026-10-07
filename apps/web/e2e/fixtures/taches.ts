@@ -3,7 +3,7 @@ import { PROJET, SESSION } from "./projets.js";
 /**
  * Jeux de données des vues 12, 16 et 17.
  *
- * Ils sont construits pour que chaque état de `design/etats.json` soit
+ * Ils sont construits pour que chaque état déclaré pour ces vues soit
  * atteignable : colonnes vides, tâche hors projet, dépendances dans les deux
  * sens, tâche sans rien.
  */
@@ -76,6 +76,7 @@ export const FICHE = {
     {
       id: "c1",
       contenu: "Le périmètre a été revu avec la direction.",
+      version: 1,
       creeLe: "2026-08-10T09:15:00.000Z",
       auteur: { id: "a1", prenom: "Driss", nom: "Amrani" },
     },
@@ -126,7 +127,7 @@ export const FICHE = {
   }[],
 };
 
-/** Une tâche dont tout est vide : l'état « tout vide » de `design/etats.json`. */
+/** Une tâche dont tout est vide : l'état « tout vide ». */
 export const FICHE_VIDE = {
   ...FICHE,
   id: "55555555-5555-4555-8555-555555555555",

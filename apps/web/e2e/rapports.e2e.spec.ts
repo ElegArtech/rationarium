@@ -694,11 +694,10 @@ test.describe("Vue 15 — projet, onglet Gantt", () => {
   });
 
   /*
-   * CONTRADICTION ENTRE SOURCES GELÉES, non tranchée — voir
-   * `docs/audits/conformite-maquettes.md § 2.1`.
+   * CONTRADICTION ENTRE SOURCES GELÉES, non tranchée.
    *
-   *   mockups/15-projet-gantt.html:1549   « Cliquez UNE tâche… »
-   *   cadrage/02 …:509                    « Cliquez SUR une tâche… »
+   *   maquette 15 (Gantt de projet)   « Cliquez UNE tâche… »
+   *   brief de la vue 15              « Cliquez SUR une tâche… »
    *
    * La vue porte la maquette, qui fait loi dans cette campagne et que mesure
    * la boucle de conformité. Le contrôle suit donc la maquette — et cite la

@@ -29,7 +29,7 @@ import "./clients.css";
  * Vue 25 — Clients.
  *
  * **Supprimer un client détache ses projets, il ne les supprime pas.** C'est
- * la note explicite de `design/etats.json`, et c'est le genre de distinction
+ * la note explicite de la spécification des états, et c'est le genre de distinction
  * qu'on ne devine pas : le bilan d'impact liste les projets rattachés et le
  * pied de fenêtre dit ce qui leur arrivera.
  */
@@ -574,7 +574,7 @@ function FenetreSuppression({
       surFermeture={surFermeture}
       categorie={t("clients.bilanImpact")}
       titre={t("clients.supprimerTitre")}
-      // La note de design/etats.json, écrite là où elle sert.
+      // La note de la spécification des états, écrite là où elle sert.
       mention={t("clients.detacherNestPasSupprimer")}
       actions={
         <>

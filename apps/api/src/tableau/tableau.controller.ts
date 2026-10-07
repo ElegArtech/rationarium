@@ -19,7 +19,7 @@ import { valider } from "../commun/http.js";
  *   permission (`coquille/navigation.ts`).
  * - Les **to-do** sont marquées `@Personnel()` : `RG-DSH-01` les dit
  *   strictement privées, et les vingt-quatre domaines de permissions de
- *   `cadrage/01 § 3.2` n'en comportent aucun pour elles. Le contrôle est le
+ *   `docs/reference-fonctionnelle.md § 3.2` n'en comportent aucun pour elles. Le contrôle est le
  *   `userId` de la session, présent dans chaque requête.
  */
 @Controller("tableau-de-bord")

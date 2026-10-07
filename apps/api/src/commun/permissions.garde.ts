@@ -16,7 +16,7 @@ import { AuthService } from "../auth/auth.service.js";
 import { PerimetreService, type Perimetre } from "./perimetre.service.js";
 
 /**
- * Garde de permission — `RG-DROITS-03`, `cadrage/03 § 5.4`.
+ * Garde de permission — `RG-DROITS-03`.
  *
  * **L'ordre est imposé et il ne se négocie pas : permission d'abord, périmètre
  * ensuite.** Une garde qui vérifierait le périmètre sans la permission
@@ -94,7 +94,7 @@ export const Public = () => SetMetadata(CLE_PUBLIC, true);
  * Le cas existe et il est étroit : une donnée qui n'appartient qu'à son auteur
  * et que personne d'autre ne lit jamais. Les to-do de `RG-DSH-01` en sont le
  * seul exemple à ce jour — le cadrage les dit « strictement privées », et les
- * vingt-quatre domaines de permissions de `cadrage/01 § 3.2` n'en comportent
+ * vingt-quatre domaines de permissions de `docs/reference-fonctionnelle.md § 3.2` n'en comportent
  * pas pour elles. Inventer un domaine hors catalogue serait pire.
  *
  * Ce n'est **pas** `@Public()`, qui signifie « avant la session ». La garde se
@@ -107,6 +107,23 @@ export const Public = () => SetMetadata(CLE_PUBLIC, true);
  */
 export const CLE_PERSONNEL = "trame:personnel";
 export const Personnel = () => SetMetadata(CLE_PERSONNEL, true);
+
+/**
+ * `RG-AUTH-11` — marque un point d'entrée comme **atteignable pendant un
+ * changement de mot de passe imposé** (`EX-AUTH-07`).
+ *
+ * Le changement imposé n'était tenu que par le client : la coquille
+ * redirigeait vers la vue 05, et toute requête forgée avec le cookie obtenu à
+ * la connexion passait. Un mot de passe temporaire — remis par un tiers, lu
+ * dans un courriel — ouvrait donc tout le compte sans jamais être changé.
+ *
+ * La garde refuse désormais toute route authentifiée qui ne porte pas ce
+ * marqueur. Il est posé sur `GET /auth/me` (la vue 05 doit savoir qui est
+ * connecté) et `POST /auth/change-password` ; `POST /auth/logout` est
+ * `@Public()` et n'a pas besoin de lui.
+ */
+export const CLE_PENDANT_CHANGEMENT_IMPOSE = "trame:pendant-changement-impose";
+export const PendantChangementImpose = () => SetMetadata(CLE_PENDANT_CHANGEMENT_IMPOSE, true);
 
 export type ContexteDemande = {
   userId: string;
@@ -143,8 +160,19 @@ export class GardePermission implements CanActivate {
     const session = jeton ? await this.auth.resoudreSession(jeton) : null;
     if (!session) throw new UnauthorizedException({ cle: "auth:erreurs.sessionRequise" });
 
+    // 1 bis. RG-AUTH-11 — le changement imposé se tient ici, pas au client.
+    if (
+      session.motDePasseAChanger &&
+      !this.reflector.getAllAndOverride<boolean>(CLE_PENDANT_CHANGEMENT_IMPOSE, cibles)
+    ) {
+      throw new ForbiddenException({
+        cle: "auth:erreurs.changementMotDePasseRequis",
+        message: "Vous devez changer votre mot de passe avant de continuer.",
+      });
+    }
+
     // 2. Les permissions, résolues côté serveur à chaque requête. Jamais
-    //    lues depuis le client — ADR-0008.
+    //    lues depuis le client.
     const permissions = await this.permissionsDe(session.userId);
 
     // 3. La ou les permissions exigées. Liste blanche stricte.

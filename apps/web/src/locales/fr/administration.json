@@ -99,7 +99,8 @@
     "supprimeFaitDe": "Le compte de {nom} a été supprimé.",
     "supprimerLeCompteDe": "Supprimer définitivement le compte de {nom}",
     "toutesLesDonneesDe": "Toutes les données associées à {nom} ({login}) — historique, commentaires, entrées de temps — seront définitivement supprimées.",
-    "remiseMotDePasse": "Choisissez un mot de passe provisoire et transmettez-le à {nom} hors de l’application. Le mot de passe actuel sera remplacé ; le titulaire devra changer ce mot de passe à sa prochaine connexion."
+    "remiseMotDePasse": "Choisissez un mot de passe provisoire et transmettez-le à {nom} hors de l’application. Le mot de passe actuel sera remplacé ; le titulaire devra changer ce mot de passe à sa prochaine connexion.",
+    "comptePlusPrivilegie": "Ce compte a des droits que vous n'avez pas"
   },
   "suivi": {
     "leSuivi": "le suivi individuel",
@@ -553,7 +554,19 @@
     "renomme": "Rôle renommé en « {nom} ».",
     "echecRenommage": "Le renommage a échoué.",
     "codeInchange": "Le code du rôle ne change pas",
-    "systemeNonRenommable": "Les rôles système ne peuvent pas être renommés."
+    "systemeNonRenommable": "Les rôles système ne peuvent pas être renommés.",
+    "codeExemple": "REFERENT_APPLICATIF",
+    "familles": {
+      "administration": "Administration",
+      "management": "Management",
+      "conduiteDeProjet": "Conduite de projet",
+      "contribution": "Contribution",
+      "rh": "Ressources humaines",
+      "transverse": "Transverse",
+      "informatique": "Informatique",
+      "observation": "Observation",
+      "restreints": "Restreints"
+    }
   },
   "audit": {
     "surtitre": "Administration",

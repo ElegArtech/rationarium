@@ -3,7 +3,7 @@
  *
  * Une seule définition, deux usages : le serveur valide via `nestjs-zod`, le
  * client type ses formulaires et ses réponses. Aucune génération de code à
- * orchestrer (ADR-0009).
+ * orchestrer.
  *
  * Les contraintes portées ici sont celles qui se vérifient **sur la donnée
  * seule**. Tout ce qui exige de consulter la base — solde suffisant,
@@ -30,7 +30,7 @@ import {
 } from "./vocabulaires.js";
 
 /**
- * Le schéma Zod d'un vocabulaire de `cadrage/01 § 4.1`.
+ * Le schéma Zod d'un vocabulaire de `docs/reference-fonctionnelle.md § 4.1`.
  *
  * Le type de sortie est **l'union littérale des codes**, pas `string` : c'est
  * ce qui permet à un contrôleur de passer directement le résultat validé à un
@@ -46,7 +46,7 @@ export const enumDe = <T extends readonly { code: string }[]>(v: T) =>
 export const uuid = z.string().uuid();
 
 /**
- * Date métier : ISO `AAAA-MM-JJ`, sans heure ni fuseau (ADR-0010).
+ * Date métier : ISO `AAAA-MM-JJ`, sans heure ni fuseau.
  * Le refus des instants est délibéré : accepter `2026-09-01T00:00:00Z` ici
  * ouvrirait la porte aux décalages d'un jour selon le fuseau du lecteur.
  */
@@ -217,7 +217,7 @@ export const epopeeSchema = z.object({
 export const membreProjetSchema = z.object({
   userId: uuid,
   /*
-   * `cadrage/01 § M4` énumère dix-sept rôles : ce n'est donc pas une chaîne
+   * `docs/reference-fonctionnelle.md § M4` énumère dix-sept rôles : ce n'est donc pas une chaîne
    * libre. En l'acceptant comme telle, deux projets pouvaient écrire « Chef de
    * projet » et « chef de projet », et la vue 14 n'avait aucune liste à
    * proposer dans son sélecteur.

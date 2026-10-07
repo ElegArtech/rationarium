@@ -129,22 +129,87 @@ export class DocumentsService {
     permissions: ReadonlySet<string>,
   ) {
     if (document.taskId) {
-      const tache = await this.prisma.task.findFirst({
-        where: { AND: [{ id: document.taskId }, this.perimetres.filtreTache(perimetre, permissions)] },
-        select: { id: true },
-      });
-      if (!tache) throw new ErreurDocument("hors_perimetre");
+      await this.exigerTacheVisible(document.taskId, perimetre, permissions);
       return;
     }
     if (document.projectId) {
-      const projet = await this.prisma.project.findFirst({
-        where: {
-          AND: [{ id: document.projectId }, this.perimetres.filtreProjet(perimetre, permissions)],
-        },
-        select: { id: true },
-      });
-      if (!projet) throw new ErreurDocument("hors_perimetre");
+      await this.exigerProjetVisible(document.projectId, perimetre, permissions);
     }
+  }
+
+  private async exigerTacheVisible(taskId: string, perimetre: Perimetre, permissions: ReadonlySet<string>) {
+    const tache = await this.prisma.task.findFirst({
+      where: { AND: [{ id: taskId }, this.perimetres.filtreTache(perimetre, permissions)] },
+      select: { id: true },
+    });
+    if (!tache) throw new ErreurDocument("hors_perimetre");
+  }
+
+  private async exigerProjetVisible(projectId: string, perimetre: Perimetre, permissions: ReadonlySet<string>) {
+    const projet = await this.prisma.project.findFirst({
+      where: { AND: [{ id: projectId }, this.perimetres.filtreProjet(perimetre, permissions)] },
+      select: { id: true },
+    });
+    if (!projet) throw new ErreurDocument("hors_perimetre");
+  }
+
+  /**
+   * `RG-DOC-03` — lire le fil, commenter, joindre exigent de pouvoir lire le
+   * porteur. **Chaque** rattachement fourni est contrôlé : une tâche lisible
+   * ne doit pas servir de laissez-passer pour attacher un commentaire à un
+   * projet qui ne l'est pas.
+   *
+   * Le fil n'était gardé que par `comments:read` : il rendait les
+   * commentaires de n'importe quelle tâche, confidentielle comprise, et l'on
+   * commentait ou déposait une pièce sur n'importe quel projet de l'instance.
+   *
+   * Appelée par le contrôleur AVANT le geste, comme `exigerLisible` côté
+   * tâches : `fil`, `commenter` et `joindre` restent appelables de
+   * l'intérieur sans contexte de requête.
+   */
+  async exigerPorteursVisibles(
+    cible: { projectId?: string | null; taskId?: string | null },
+    perimetre: Perimetre,
+    permissions: ReadonlySet<string>,
+  ) {
+    if (cible.taskId) await this.exigerTacheVisible(cible.taskId, perimetre, permissions);
+    if (cible.projectId) await this.exigerProjetVisible(cible.projectId, perimetre, permissions);
+  }
+
+  /**
+   * `RG-DOC-05` — agir sur la contribution d'AUTRUI exige la permission
+   * dédiée, PUIS de pouvoir lire son porteur.
+   *
+   * `documents:manage_any` et `comments:manage_any` disaient « je gère les
+   * contributions des autres », et le service s'en contentait : un porteur de
+   * la permission renommait ou supprimait la pièce jointe d'une tâche
+   * confidentielle qu'il ne pouvait pas ouvrir, ou effaçait le commentaire
+   * d'un projet qui ne lui était pas visible. Même lecture que
+   * `leaves:manage_any` (`RG-CNG-34`) : la permission dit QUOI, le périmètre
+   * dit SUR QUI.
+   *
+   * Sa propre contribution reste à soi, même si le porteur a cessé d'être
+   * lisible : on ne confisque pas à un auteur ce qu'il a écrit. Sans la
+   * permission, on laisse le service refuser avec son propre motif.
+   *
+   * Appelée par le contrôleur AVANT le geste, comme `exigerPorteursVisibles`.
+   */
+  async exigerPorteurSiAutrui(
+    nature: "document" | "commentaire",
+    id: string,
+    acteurId: string,
+    perimetre: Perimetre,
+    permissions: ReadonlySet<string>,
+  ) {
+    const permission = nature === "document" ? "documents:manage_any" : "comments:manage_any";
+    if (!permissions.has(permission)) return;
+    const choix = { select: { auteurId: true, projectId: true, taskId: true } } as const;
+    const contribution =
+      nature === "document"
+        ? await this.prisma.document.findUnique({ where: { id }, ...choix })
+        : await this.prisma.comment.findUnique({ where: { id }, ...choix });
+    if (!contribution || contribution.auteurId === acteurId) return;
+    await this.exigerVisible(contribution, perimetre, permissions);
   }
 
   async consulter(
@@ -219,7 +284,7 @@ export class DocumentsService {
     nom: string,
     acteurId: string,
     permissions: ReadonlySet<string>,
-    version?: number,
+    version: number,
   ) {
     const avant = await this.prisma.document.findUnique({
       where: { id },
@@ -230,11 +295,15 @@ export class DocumentsService {
     if (avant.auteurId !== acteurId && !permissions.has("documents:manage_any")) {
       throw new ErreurDocument("pas_son_contenu");
     }
-    if (version !== undefined && avant.version !== version) {
-      throw new ErreurDocument("conflit_de_version");
-    }
+    // `RG-DOC-06` — la version lue est exigée, confrontée ici puis doublée
+    // dans le `where` : une écriture glissée entre les deux ne passe pas.
+    if (avant.version !== version) throw new ErreurDocument("conflit_de_version");
 
-    await this.prisma.document.update({ where: { id }, data: { nom, version: { increment: 1 } } });
+    const ecrit = await this.prisma.document.updateMany({
+      where: { id, version },
+      data: { nom, version: { increment: 1 } },
+    });
+    if (ecrit.count !== 1) throw new ErreurDocument("conflit_de_version");
     await this.audit.tracer({
       action: "document.rename", typeEntite: "Document", entiteId: id, acteurId,
       detail: { avant: avant.nom, apres: nom },
@@ -281,26 +350,36 @@ export class DocumentsService {
     });
   }
 
-  /** `RG-DOC-01` — on modifie ses propres commentaires, pas ceux des autres. */
+  /**
+   * `RG-DOC-01` — on modifie ses propres commentaires, pas ceux des autres.
+   *
+   * `RG-DOC-06`, `RG-GEN-07` — **la version lue est exigée.** Elle était
+   * incrémentée sans jamais être confrontée : un commentaire corrigé depuis
+   * deux fenêtres gardait la seconde correction, et la première disparaissait
+   * sans que personne le sache. La version est dans le `where` de l'écriture.
+   */
   async modifierCommentaire(
     id: string,
     contenu: string,
+    version: number,
     acteurId: string,
     permissions: ReadonlySet<string>,
   ) {
     const commentaire = await this.prisma.comment.findUnique({
       where: { id },
-      select: { auteurId: true },
+      select: { auteurId: true, version: true },
     });
     if (!commentaire) throw new ErreurDocument("introuvable");
     if (commentaire.auteurId !== acteurId && !permissions.has("comments:manage_any")) {
       throw new ErreurDocument("pas_son_contenu");
     }
+    if (commentaire.version !== version) throw new ErreurDocument("conflit_de_version");
 
-    await this.prisma.comment.update({
-      where: { id },
+    const ecrit = await this.prisma.comment.updateMany({
+      where: { id, version },
       data: { contenu, version: { increment: 1 } },
     });
+    if (ecrit.count !== 1) throw new ErreurDocument("conflit_de_version");
   }
 
   async supprimerCommentaire(id: string, acteurId: string, permissions: ReadonlySet<string>) {

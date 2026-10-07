@@ -45,7 +45,7 @@ Au-delà des permissions, un **périmètre** limite ce qu'un utilisateur voit.
 
 > **RG-SCOPE-01.** Le périmètre par défaut d'un utilisateur est : son département de rattachement ∪ les départements de ses services. S'il est responsable d'une direction, le périmètre s'étend à toute la direction.
 > **RG-SCOPE-02.** Un projet est visible par : son créateur, son chef de projet, son sponsor, et ses membres. Les détenteurs de `projects:manage_any` voient tout.
-> **RG-SCOPE-03.** Les détenteurs d'une permission de gestion globale (`tasks:manage_any`, `users:manage`) conservent la vue complète de l'instance.
+> **RG-SCOPE-03.** Les détenteurs d'une permission de gestion globale (`users:readAll`, `users:manage_any`, `tasks:manage_any`) conservent la vue complète de l'instance.
 > **RG-SCOPE-04.** Une tâche marquée **confidentielle** n'est pas lisible du seul fait d'y être assigné : elle exige une permission explicite.
 
 ---
@@ -139,6 +139,11 @@ Chaque exigence est identifiée `EX-<MODULE>-<n>`, chaque règle de gestion `RG-
 - **RG-AUTH-08** — L'identifiant de connexion n'est jamais modifiable après création.
 - **RG-AUTH-09** — L'avatar est soit un fichier téléversé (jpg, png, webp), soit un visuel prédéfini, soit rien.
 - **RG-AUTH-10** — Connexions réussies, échecs et verrouillages sont tracés dans le journal d'audit.
+- **RG-AUTH-11** — Tant qu'un changement de mot de passe est imposé (`EX-AUTH-07`), le serveur refuse toute requête authentifiée sauf `GET /auth/me`, `POST /auth/change-password` et `POST /auth/logout` : 403 `auth:erreurs.changementMotDePasseRequis`.
+- **RG-AUTH-12** — Ni le message ni le seuil de verrouillage ne permettent de savoir si un compte existe : un identifiant inconnu est « verrouillé » au même seuil et pour la même durée qu'un compte réel. La connexion et la demande de réinitialisation sont limitées en débit par adresse IP.
+- **RG-AUTH-13** — Chaque usage d'une session repousse son expiration de la durée paramétrée (`EX-AUTH-02`). L'écriture se fait au plus une fois toutes les cinq minutes par session.
+- **RG-AUTH-14** — Le haché d'un mot de passe ne sort jamais du serveur, sur aucune route.
+- **RG-AUTH-15** — Sans session, la lecture des réglages publics (`GET /parametrage`) ne rend aucun réglage `auth.*` : seuil et durée de verrouillage, durée de session et domaines autorisés ne se lisent qu'une fois connecté.
 
 Les visuels prédéfinis sont six motifs locaux, nommés et reconnaissables sans dépendre de leur couleur : constellation, feuille, montagne, vagues, soleil et mosaïque. Leurs identifiants techniques sont stables car ils sont persistés ; les libellés visibles sont traduits. Choisir un visuel efface le fichier personnel précédent, téléverser un fichier efface le visuel précédent, et supprimer l’avatar efface les deux.
 
@@ -164,6 +169,7 @@ Trois niveaux : **Direction → Département → Service**.
 - **RG-ORG-03** — Un département peut exister hors direction ; un service ne peut exister hors département.
 - **RG-ORG-04** — Un utilisateur appartient à **un** département et à **zéro ou plusieurs** services.
 - **RG-ORG-05** — Le manager d'un service et le responsable d'un département sont les validateurs naturels de leur périmètre.
+- **RG-ORG-06** — Hors périmètre global, modifier, supprimer ou mesurer une direction exige que **tous** ses départements soient dans le périmètre de l'acteur : désigner le responsable d'une direction étend son périmètre à toute la direction (RG-SCOPE-01). Rattacher un département à une direction reste permis dès qu'un de ses départements est dans le périmètre. Refus : 403 `erreurs:horsPerimetre`.
 
 ---
 
@@ -199,6 +205,8 @@ Trois niveaux : **Direction → Département → Service**.
 - **RG-USR-06** — L'import CSV présente un aperçu avant exécution, puis un compte rendu : créés / ignorés (déjà existants) / en erreur, avec le détail ligne à ligne.
 - **RG-USR-07** — Un modèle de fichier CSV est téléchargeable et documente les colonnes attendues.
 - **RG-USR-08** — Les services sélectionnables dépendent du département choisi.
+- **RG-USR-09** — Nul n'agit sur un compte plus privilégié que soi. Réinitialiser le mot de passe, modifier le courriel, le rôle ou le rattachement, désactiver, réactiver ou supprimer un compte exige que **toutes** les permissions du compte cible soient détenues par l'acteur. Refus : 403 `erreurs:comptePlusPrivilegie`. Attribuer un rôle (création, modification, import) exige aussi que toutes les permissions du rôle attribué soient détenues par l'acteur. Composer un rôle — le dupliquer depuis un modèle, définir ses permissions — exige de détenir toutes les permissions écrites et toutes celles que le rôle porte déjà. Refus : 403 `erreurs:rolePlusPrivilegie`.
+- **RG-USR-10** — L'import CSV d'utilisateurs applique les mêmes règles que la création unitaire : la colonne `role` exige `users:manage_roles` et RG-USR-09 ; le département doit être dans le périmètre d'écriture de l'acteur. Ligne refusée avec motif, pas d'échec global.
 
 ---
 
@@ -249,6 +257,7 @@ Trois niveaux : **Direction → Département → Service**.
   La participation aux événements du projet est conservée, comme le temps déclaré. Le retrait ne supprime ni le compte, ni les tâches, ni les événements.
 
 - **RG-PRJ-11** — L'import projet accepte deux modes : **Ajouter** (conserve l'existant) et **Remplacer** (supprime jalons, tâches et sous-tâches avant import, en tout-ou-rien). Le mode Remplacer exige une confirmation affichant les volumes concernés, et est bloqué si des données rattachées l'empêchent.
+- **RG-PRJ-13** — Modifier, annuler, restaurer, archiver ou supprimer un projet, ou le remplacer par import, exige d'en être créateur, chef ou sponsor, ou de détenir `projects:manage_any`. Créer, modifier, marquer ou supprimer un jalon ou une épopée, et importer en mode Ajouter, exige d'être rattaché au projet au sens de `RG-SCOPE-02`, ou de détenir `projects:manage_any`. Refus : 403 `erreurs:horsPerimetre`. Une permission de gestion globale des personnes (`users:readAll`, `users:manage_any`, `tasks:manage_any`) élargit la lecture (`RG-SCOPE-03`), pas l'écriture d'un projet.
 
 ---
 
@@ -271,6 +280,8 @@ Trois niveaux : **Direction → Département → Service**.
 - **RG-JAL-03** — Une tâche ne peut être rattachée qu'à un jalon ou une épopée **du même projet**.
 - **RG-JAL-04** — Une tâche hors projet ne peut être rattachée ni à un jalon ni à une épopée.
 - **RG-JAL-05** — La suppression d'un jalon détache ses tâches sans les supprimer.
+
+Créer, modifier, marquer ou supprimer un jalon ou une épopée exige d'être rattaché au projet : voir `RG-PRJ-13`.
 
 ---
 
@@ -322,6 +333,8 @@ L’avancement est accepté à la création d’une tâche. La colonne CSV `prog
 - **RG-TSK-15** — Les assignés proposés sont en priorité les membres du projet ; si le projet n'a pas de membre, tous les utilisateurs sont proposés, et l'interface l'explique.
 - **RG-TSK-16** — Les colonnes *À faire* et *Terminé* du kanban ne peuvent pas être masquées.
 - **RG-TSK-17** — Une tâche au statut *Terminé* est à **100 % d'avancement**. Passer une tâche à *Terminé* emporte son avancement ; l'implication est à sens unique — 100 % n'impose pas de statut, une tâche peut être achevée et attendre sa revue. Un avancement explicitement inférieur à 100 % sur une tâche qui reste *Terminée* est **refusé**, jamais écrasé en silence. La règle vaut sur les trois chemins d'écriture : création, modification, import.
+- **RG-TSK-18** — Modifier une tâche — ses champs, ses assignés (agents comme tiers), ses sous-tâches et leur ordre, ses dépendances, son RACI, son déplacement depuis le planning, le décalage en cascade qu'elle pilote — exige l'un de ces liens : détenir `tasks:manage_any` ; y être assigné ; être rattaché à son projet au sens de `RG-SCOPE-02` (créateur, chef, sponsor ou membre), ou détenir `projects:manage_any` pour une tâche de projet ; ou compter l'un de ses assignés dans son périmètre organisationnel (`RG-SCOPE-01`). Une permission de lecture élargie (`tasks:readAll`, ou la portée globale de `users:readAll`, `users:manage_any`) élargit la lecture, pas l'écriture. On ne modifie jamais une tâche qu'on ne peut pas lire : `RG-SCOPE-04` reste par-dessus. Refus : 403 `erreurs:horsPerimetre`. La suppression suit `RG-TSK-14`.
+- **RG-TSK-19** — Marquer une tâche confidentielle, à la création comme après coup, exige `tasks:read_confidential`. Refus : 403 `erreurs:champHorsPermission`, rien n'est écrit. Demander `confidentielle: false` n'est pas gouverné.
 
 ---
 
@@ -419,6 +432,7 @@ Permanences, astreintes, accueil, gardes : activités qui reviennent, ne relève
 - **RG-EVT-05** — Les paramètres de début et de fin sont obligatoires pour interroger une plage.
 - **RG-EVT-06** — Un événement marqué *intervention extérieure* est signalé distinctement dans le planning.
 - **RG-EVT-07** — Toute modification ou suppression d'un événement appartenant à une série **déclare sa portée** : *cette occurrence seulement*, ou *cette occurrence et les suivantes*. La portée est obligatoire sur une série et refusée hors série. La portée « série » **n'agit jamais sur les occurrences antérieures à celle qui est visée** — même borne que `RG-EVT-04` —, et la date, qui distingue les occurrences les unes des autres, ne se modifie que sur une occurrence. Supprimer l'occurrence porteuse de la récurrence ne supprime pas les autres : la plus ancienne conservée en prend la suite.
+- **RG-EVT-08** — Modifier ou supprimer un événement, arrêter sa récurrence, y ajouter ou en retirer un participant exige d'y participer, ou de détenir `events:manage_any`. Lire au-delà de soi (`events:readAll`, périmètre global de `RG-SCOPE-03`) ne donne pas le droit d'écrire. Refus : 403 `erreurs:horsPerimetre`. Qui détient `events:manage_any` lit aussi tous les événements.
 
 ---
 
@@ -468,6 +482,8 @@ Le module le plus riche en règles.
 - **RG-CNG-13** — Un type de congé sans validation requise est approuvé automatiquement ; l'interface l'indique dès la sélection du type.
 - **RG-CNG-14** — Un congé déclaré par un manager pour un collaborateur est directement approuvé : le manager est validateur de fait, et l'action est tracée à son nom.
 - **RG-CNG-15** — Déclarer pour autrui exige la permission dédiée **et** que le collaborateur relève de ses services. Un collaborateur inactif ou hors périmètre est refusé.
+- **RG-CNG-34** — Approuver, refuser ou traiter une annulation exige d'être le validateur enregistré de la demande, le validateur que `RG-CNG-08` et `RG-CNG-10` désigneraient au moment du geste, ou de détenir `leaves:manage_any` avec l'agent dans son périmètre organisationnel. `leaves:manage_any` ne vaut pas portée globale. Refus : 403 `erreurs:horsPerimetre`.
+- **RG-CNG-35** — Modifier ou supprimer une demande exige d'en être l'agent, ou de détenir `leaves:manage_any` avec l'agent dans son périmètre organisationnel. Refus : 403 `erreurs:horsPerimetre`.
 
 #### Règles de gestion — décompte et soldes
 
@@ -568,6 +584,7 @@ Trois vues : **Par utilisateur** · **Référentiel** · **Matrice**.
 - **RG-CMP-04** — Une compétence assignée à des agents ne peut pas être supprimée.
 - **RG-CMP-05** — Les noms de compétences sont uniques.
 - **RG-CMP-06** — Un agent détient une compétence à un seul niveau.
+- **RG-CMP-07** — Définir ou retirer le niveau d'un agent exige que l'agent soit dans le périmètre organisationnel de l'acteur (`RG-SCOPE-01`, `RG-SCOPE-03`). Refus : 403 `erreurs:horsPerimetre`.
 
 Le référentiel des compétences se trie notamment par couverture, ratio détenteurs / requis (`RG-CMP-03`). La matrice des agents se trie par niveau sur une compétence choisie ou par nombre de compétences détenues. Filtres et tris sont appliqués côté serveur avant pagination.
 
@@ -592,6 +609,7 @@ Le référentiel des compétences se trie notamment par couverture, ratio déten
 - **RG-TRS-03** — Un tiers ne peut être rattaché deux fois au même projet, ni assigné deux fois à la même tâche.
 - **RG-TRS-04** — Un tiers ne peut être assigné à une tâche que s'il est rattaché à la tâche ou à son projet parent.
 - **RG-TRS-05** — La suppression d'un tiers ou d'un client est précédée d'un bilan d'impact.
+- **RG-TRS-06** — Rattacher un tiers ou un client à un projet, ou l'en détacher, est une écriture sur le projet : elle exige d'y être rattaché au sens de `RG-SCOPE-02`, ou de détenir `projects:manage_any` (`RG-PRJ-13`). Voir le projet (`projects:readAll`) ne suffit pas. Refus : 403 `erreurs:horsPerimetre`. Assigner un tiers à une tâche suit `RG-TSK-18`.
 
 ---
 
@@ -606,6 +624,10 @@ Le référentiel des compétences se trie notamment par couverture, ratio déten
 
 - **RG-DOC-01** — Un utilisateur modifie et supprime ses propres contributions ; agir sur celles d'autrui exige une permission dédiée.
 - **RG-DOC-02** — Création, lecture, téléchargement, modification et suppression de documents sont tracés dans le journal d'audit.
+- **RG-DOC-03** — Lire le fil, commenter, joindre un document exige de pouvoir lire la tâche ou le projet porteur (`RG-SCOPE-02`, `RG-SCOPE-04`) ; chaque rattachement fourni est contrôlé. Refus : 403 `erreurs:horsPerimetre`. Le fil exige une cible : sans `projectId` ni `taskId`, 400.
+- **RG-DOC-04** — Une pièce jointe pèse au plus 20 Mio, un avatar 2 Mio. Au-delà : 413 `erreurs:fichierTropVolumineux` avec `detail.maxOctets`. Un corps refusé par la limite du transport rend la même clé, sans plafond.
+- **RG-DOC-05** — Renommer ou supprimer le document d'autrui, modifier ou supprimer le commentaire d'autrui exige la permission dédiée (`documents:manage_any`, `comments:manage_any`) **et** de pouvoir lire la tâche ou le projet porteur (`RG-DOC-03`) : la permission dit quoi, le périmètre dit sur qui. L'auteur garde la main sur sa propre contribution. Refus : 403 `erreurs:horsPerimetre`.
+- **RG-DOC-06** — Modifier un commentaire ou renommer un document transmet la version lue (`RG-GEN-07`) ; le fil et la consultation la rendent. Sans version : 400. Version périmée : 409 `erreurs:conflitDeVersion`, rien n'est écrit.
 
 ---
 
@@ -796,9 +818,14 @@ références à des objets existants, pas des énumérations.
 - **RG-IMP-05** — Dans l'import projet complet, l'ordre des lignes est indifférent : les jalons sont créés avant les tâches. Une tâche peut référencer un jalon existant ou une ligne du même fichier.
 - **RG-IMP-06** — Le mode Remplacer est tout-ou-rien : une seule ligne en erreur annule l'ensemble et ne supprime rien.
 
+L'import d'un projet — Remplacer, Ajouter, tâches seules, jalons seuls — et le décompte des volumes qui le précède suivent `RG-PRJ-13`.
+
 #### Exports
 
 Planning au format **ICS** (et import ICS avec prévisualisation) · Tâches et jalons d'un projet en CSV · Matrice de compétences en CSV · Rapports en PDF, Excel et JSON.
+
+- **RG-IMP-07** — Un export ne contient que ce que l'exportateur peut lire : projet visible (`RG-SCOPE-02`) et tâches filtrées par `RG-SCOPE-04`. Un projet hors périmètre est refusé en 403 `erreurs:horsPerimetre`.
+- **RG-IMP-08** — Toute cellule texte exportée en CSV qui commence par `=`, `+`, `-`, `@`, tabulation ou retour chariot est préfixée d'une apostrophe ; une cellule qui commence par une ou plusieurs apostrophes suivies d'un de ces caractères l'est aussi. L'import retire cette apostrophe quand elle précède un de ces caractères, ou une apostrophe qui les précède : l'aller-retour reste exact. Les colonnes numériques ne sont pas concernées. L'export XLSX non plus : ses textes sont écrits en cellules de texte, jamais en formule.
 
 ---
 
@@ -816,6 +843,7 @@ Planning au format **ICS** (et import ICS avec prévisualisation) · Tâches et 
 | RG-GEN-08 | Toute chaîne visible est traduisible ; aucune n'est figée dans le code |
 | RG-GEN-09 | Les formats de date et d'heure suivent le paramétrage global |
 | RG-GEN-10 | Les suppressions sensibles sont d'abord logiques, la suppression définitive étant une action distincte et contrôlée |
+| RG-GEN-11 | Un identifiant mal formé produit 404 (`erreurs:introuvable`), jamais 500 |
 
 ---
 

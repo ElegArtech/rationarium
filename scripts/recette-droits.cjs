@@ -1,0 +1,20 @@
+const path=require('node:path');const dossier=process.argv[2];const env=Object.fromEntries(require('node:fs').readFileSync(path.join(dossier,'kit/.env'),'utf8').split('\n').filter(l=>l&&!l.startsWith('#')).map(l=>[l.slice(0,l.indexOf('=')),l.slice(l.indexOf('=')+1)]));const url=env.RATIONARIUM_URL_PUBLIQUE;
+const r=require('node:module').createRequire(path.resolve(__dirname,'../apps/web/package.json'));
+const {chromium,expect}=r('@playwright/test');const fs=require('node:fs');
+(async()=>{
+const browser=await chromium.launch();
+const admin=await browser.newContext({storageState:path.join(dossier,'session.json')});const p=await admin.newPage();await p.goto(url);
+const result=await p.evaluate(async()=>{const r=await fetch('/api/utilisateurs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prenom:'Audit',nom:'Sans droit',email:'sans.droit@example.invalid',login:'audit.sans.droit',motDePasse:'Audit-Temporaire-123!',roleId:null})});return {status:r.status,body:await r.json()}});
+if(result.status!==201)throw Error(JSON.stringify(result));
+const c=await browser.newContext({locale:'fr-FR'}),page=await c.newPage();await page.goto(url);
+await page.locator('input[autocomplete="username"]').fill('audit.sans.droit');await page.locator('input[autocomplete="current-password"]').fill('Audit-Temporaire-123!');await page.getByRole('button',{name:'Se connecter',exact:true}).click();
+await expect(page.getByRole('heading',{name:'Changez votre mot de passe',exact:true})).toBeVisible();
+await page.locator('input[autocomplete="current-password"]').fill('Audit-Temporaire-123!');
+await page.locator('input[autocomplete="new-password"]').nth(0).fill('Audit-Personnel-456!');await page.locator('input[autocomplete="new-password"]').nth(1).fill('Audit-Personnel-456!');
+await page.getByRole('button',{name:'Changer le mot de passe',exact:true}).click();await page.waitForURL(url+'/');await page.waitForLoadState('networkidle');
+const statuses=await page.evaluate(async()=>{const out={};for(const path of ['/api/projets','/api/utilisateurs','/api/administration/audit'])out[path]=(await fetch(path)).status;out['POST /api/utilisateurs']=(await fetch('/api/utilisateurs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prenom:'Interdit',nom:'Interdit',email:'interdit@example.invalid',login:'interdit',motDePasse:'Interdit-123!',roleId:null})})).status;return out;});
+if(Object.values(statuses).some(x=>x!==403))throw Error(JSON.stringify(statuses));
+await page.screenshot({path:path.join(dossier,'sans-droits.png'),fullPage:true});
+fs.writeFileSync(path.join(dossier,'droits.json'),JSON.stringify({creation:result.status,statuses},null,2));console.log('Compte sans rôle : connexion réelle, trois lectures et une écriture refusées par le serveur (403).');
+await browser.close();
+})().catch(e=>{console.error(e);process.exit(1)});

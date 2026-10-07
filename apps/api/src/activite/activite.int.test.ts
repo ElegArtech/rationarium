@@ -165,7 +165,7 @@ describe("EX-ACT-04 — les règles de récurrence SE POSENT", () => {
   });
 
   /**
-   * `RG-ACT-04` — les trois types de `cadrage/02` doivent tous ENGENDRER.
+   * `RG-ACT-04` — les trois types de la vue 34 doivent tous ENGENDRER.
    *
    * Le point d'entrée de création n'acceptait que `daily`, `weekly` et
    * `monthly` ; le moteur ne lit que `weekly`, `monthly_fixed` et

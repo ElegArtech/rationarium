@@ -150,6 +150,29 @@ test.describe("Vue 27 — import d'utilisateurs", () => {
     );
   });
 
+  /** D22 — au-delà de 15 Mio, ni lecture, ni aperçu, ni envoi : la limite est dite. */
+  test("D22 — un CSV de plus de 15 Mio est refusé avant l'aperçu, limite nommée", async ({ page }) => {
+    const appels: string[] = [];
+    await serveur(page, { session: SESSION_IMPORT, reponses });
+    page.on("request", (r) => {
+      if (r.url().includes("/api/imports/")) appels.push(r.url());
+    });
+
+    await page.goto("/utilisateurs");
+    await page.getByRole("button", { name: "Importer CSV" }).click();
+    await page.getByLabel("Fichier CSV").setInputFiles({
+      name: "enorme.csv",
+      mimeType: "text/csv",
+      buffer: Buffer.alloc(15 * 1024 * 1024 + 1, "a"),
+    });
+
+    await expect(
+      page.getByText("Ce fichier est trop volumineux : la taille maximale est de 15 Mio."),
+    ).toBeVisible();
+    expect(appels.filter((u) => u.includes("/api/imports/apercu"))).toHaveLength(0);
+    await expect(page.getByRole("button", { name: "Importer", exact: true })).toBeDisabled();
+  });
+
   test("RG-IMP-03 — LA PRÉVISUALISATION PRÉCÈDE TOUJOURS L'EXÉCUTION", async ({ page }) => {
     const appels: string[] = [];
     await serveur(page, { session: SESSION_IMPORT, reponses });
