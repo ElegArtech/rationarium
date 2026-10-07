@@ -131,8 +131,9 @@ test.describe("Vue 27 — utilisateurs", () => {
         "Ce compte a des droits que vous n'avez pas",
       );
     }
-    // Le geste est neutralisé : ni fenêtre, ni écriture.
-    await page.getByRole("menuitem", { name: /^Désactiver le compte/ }).click();
+    // Le geste est neutralisé : ni fenêtre, ni écriture. `force` : Playwright refuse
+    // de cliquer un élément aria-disabled, alors que la souris, elle, le peut.
+    await page.getByRole("menuitem", { name: /^Désactiver le compte/ }).click({ force: true });
     await expect(page.getByRole("dialog")).toHaveCount(0);
     expect(ecritures).toEqual([]);
   });
