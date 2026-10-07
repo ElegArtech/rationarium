@@ -179,12 +179,11 @@ export class CongesController {
    */
   @Patch(":id")
   @RequiertPermission("leaves:update")
-  modifier(@Param("id") id: string, @Body() corps: unknown, @Demande() d: ContexteDemande) {
-    return this.conges.modifier(
-      id,
-      valider(modificationSchema, corps),
-      d.userId,
-    );
+  async modifier(@Param("id") id: string, @Body() corps: unknown, @Demande() d: ContexteDemande) {
+    const donnees = valider(modificationSchema, corps);
+    // `RG-CNG-35` — `leaves:update` est au SOCLE : elle vaut pour SES demandes.
+    await this.conges.exigerTitulaireOuGestionnaire(id, d.userId, d.perimetre, d.permissions);
+    return this.conges.modifier(id, donnees, d.userId);
   }
 
   /**
@@ -194,8 +193,9 @@ export class CongesController {
    */
   @Delete(":id")
   @RequiertPermission("leaves:delete")
-  supprimer(@Param("id") id: string, @Query() requete: unknown, @Demande() d: ContexteDemande) {
+  async supprimer(@Param("id") id: string, @Query() requete: unknown, @Demande() d: ContexteDemande) {
     const { version } = valider(z.object({ version: z.coerce.number().int().min(1) }), requete);
+    await this.conges.exigerTitulaireOuGestionnaire(id, d.userId, d.perimetre, d.permissions);
     return this.conges.supprimer(id, d.userId, version);
   }
 
@@ -210,20 +210,23 @@ export class CongesController {
    */
   @Post(":id/approuver")
   @RequiertPermission("leaves:approve")
-  approuver(@Param("id") id: string, @Body() corps: unknown, @Demande() d: ContexteDemande) {
+  async approuver(@Param("id") id: string, @Body() corps: unknown, @Demande() d: ContexteDemande) {
     const { version } = valider(z.object({ version: versionLue }), corps);
+    // `RG-CNG-34` — `leaves:approve` dit QU'on décide, pas DE QUI.
+    await this.conges.exigerDecideur(id, d.userId, d.perimetre, d.permissions);
     return this.conges.approuver(id, d.userId, d.permissions, version);
   }
 
   @Post(":id/refuser")
   @RequiertPermission("leaves:approve")
-  refuser(@Param("id") id: string, @Body() corps: unknown, @Demande() d: ContexteDemande) {
+  async refuser(@Param("id") id: string, @Body() corps: unknown, @Demande() d: ContexteDemande) {
     // `RG-CNG-10` — le motif est obligatoire au refus. Un refus sans motif
     // renvoie l'agent au manager pour poser la question de vive voix.
     const { motifRefus, version } = valider(
       z.object({ motifRefus: z.string().min(1).max(2000), version: versionLue }),
       corps,
     );
+    await this.conges.exigerDecideur(id, d.userId, d.perimetre, d.permissions);
     return this.conges.refuser(id, motifRefus, d.userId, version);
   }
 
@@ -240,11 +243,12 @@ export class CongesController {
 
   @Post(":id/annulation/traiter")
   @RequiertPermission("leaves:approve")
-  traiterAnnulation(@Param("id") id: string, @Body() corps: unknown, @Demande() d: ContexteDemande) {
+  async traiterAnnulation(@Param("id") id: string, @Body() corps: unknown, @Demande() d: ContexteDemande) {
     const { accepte, version } = valider(
       z.object({ accepte: z.boolean(), version: versionLue }),
       corps,
     );
+    await this.conges.exigerDecideur(id, d.userId, d.perimetre, d.permissions);
     return this.conges.traiterAnnulation(id, accepte, d.userId, version);
   }
 

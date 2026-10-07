@@ -477,6 +477,8 @@ Le module le plus riche en règles.
 - **RG-CNG-13** — Un type de congé sans validation requise est approuvé automatiquement ; l'interface l'indique dès la sélection du type.
 - **RG-CNG-14** — Un congé déclaré par un manager pour un collaborateur est directement approuvé : le manager est validateur de fait, et l'action est tracée à son nom.
 - **RG-CNG-15** — Déclarer pour autrui exige la permission dédiée **et** que le collaborateur relève de ses services. Un collaborateur inactif ou hors périmètre est refusé.
+- **RG-CNG-34** — Approuver, refuser ou traiter une annulation exige d'être le validateur enregistré de la demande, le validateur que `RG-CNG-08` et `RG-CNG-10` désigneraient au moment du geste, ou de détenir `leaves:manage_any` avec l'agent dans son périmètre organisationnel. `leaves:manage_any` ne vaut pas portée globale. Refus : 403 `erreurs:horsPerimetre`.
+- **RG-CNG-35** — Modifier ou supprimer une demande exige d'en être l'agent, ou de détenir `leaves:manage_any` avec l'agent dans son périmètre organisationnel. Refus : 403 `erreurs:horsPerimetre`.
 
 #### Règles de gestion — décompte et soldes
 

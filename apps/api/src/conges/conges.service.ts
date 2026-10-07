@@ -622,6 +622,81 @@ export class CongesService {
     if (!collaborateur?.actif) throw new ErreurConge("collaborateur_inactif");
   }
 
+  // ── Droit sur une demande — RG-CNG-34, RG-CNG-35 ─────────────────────────
+
+  /**
+   * `leaves:manage_any` **ne vaut pas portée globale.** MANAGER, HR_OFFICER,
+   * PORTFOLIO_MANAGER la détiennent : elle dit « je gère les congés de mes
+   * agents », pas « de tous les agents de l'instance ». La portée vient du
+   * périmètre organisationnel (`RG-SCOPE-01`), que seule une permission de
+   * gestion globale étend à tous (`RG-SCOPE-03`).
+   */
+  private gereLAgent(agentId: string, perimetre: Perimetre, permissions: ReadonlySet<string>) {
+    return (
+      permissions.has("leaves:manage_any") &&
+      (perimetre.global || perimetre.utilisateurs.has(agentId))
+    );
+  }
+
+  /**
+   * `RG-CNG-34` — approuver, refuser ou traiter une annulation exige d'être le
+   * validateur enregistré de la demande, le validateur que `RG-CNG-08` et
+   * `RG-CNG-10` désigneraient au moment du geste, ou de gérer l'agent.
+   *
+   * Les trois routes n'étaient gardées que par `leaves:approve` : n'importe
+   * quel manager décidait du congé de n'importe quel agent de l'instance.
+   *
+   * Le validateur « au moment du geste » couvre deux cas que le validateur
+   * enregistré manque : le délégué d'une délégation ouverte APRÈS le dépôt, et
+   * le manager nommé à la tête du service depuis. Le validateur enregistré
+   * garde la main — c'est chez lui que la demande figure « À valider », et
+   * l'onglet ne doit rien proposer que le serveur refuse (`RG-GEN-06`).
+   *
+   * Appelée par le contrôleur AVANT le geste, comme
+   * `verifierDeclarationPourAutrui` : les gestes eux-mêmes restent appelables
+   * de l'intérieur — import, notifications — sans contexte de requête.
+   */
+  async exigerDecideur(
+    congeId: string,
+    acteurId: string,
+    perimetre: Perimetre,
+    permissions: ReadonlySet<string>,
+  ) {
+    const conge = await this.prisma.leave.findUnique({
+      where: { id: congeId },
+      select: { userId: true, validateurId: true },
+    });
+    if (!conge) throw new ErreurConge("introuvable");
+    if (conge.validateurId === acteurId) return;
+    if (this.gereLAgent(conge.userId, perimetre, permissions)) return;
+    if ((await this.determinerValidateur(conge.userId, new Date())) === acteurId) return;
+    throw new ErreurConge("hors_perimetre");
+  }
+
+  /**
+   * `RG-CNG-35` — modifier ou supprimer une demande exige d'en être l'agent,
+   * ou de gérer l'agent.
+   *
+   * `leaves:update` et `leaves:delete` sont dans le SOCLE : tout agent les
+   * détient, pour SES demandes. Sans ce contrôle, la permission valait pour
+   * celles de tous.
+   */
+  async exigerTitulaireOuGestionnaire(
+    congeId: string,
+    acteurId: string,
+    perimetre: Perimetre,
+    permissions: ReadonlySet<string>,
+  ) {
+    const conge = await this.prisma.leave.findUnique({
+      where: { id: congeId },
+      select: { userId: true },
+    });
+    if (!conge) throw new ErreurConge("introuvable");
+    if (conge.userId === acteurId) return;
+    if (this.gereLAgent(conge.userId, perimetre, permissions)) return;
+    throw new ErreurConge("hors_perimetre");
+  }
+
   // ── Concurrence — RG-GEN-07 ──────────────────────────────────────────────
 
   /**
