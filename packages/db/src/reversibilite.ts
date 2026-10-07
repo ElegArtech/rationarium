@@ -5,7 +5,7 @@ import type { PrismaClient } from "./generated/client.js";
 /**
  * **C14 — la réversibilité.**
  *
- * `cadrage/01 § 7` : « Toutes les données sont exportables dans des formats
+ * `docs/reference-fonctionnelle.md § 7` : « Toutes les données sont exportables dans des formats
  * ouverts. » C'est une exigence d'exploitation, pas une fonction de produit :
  * elle protège la collectivité contre l'enfermement, et elle ne vaut que si
  * l'export est **intégral**. Un export qui couvre les tables qu'on a pensé à

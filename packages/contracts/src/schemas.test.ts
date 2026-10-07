@@ -14,7 +14,7 @@ describe("primitives métier", () => {
     expect(motDePasse.safeParse("Ab1!").success).toBe(false);     // trop court
   });
 
-  it("ADR-0010 — une date métier refuse un instant", () => {
+  it("une date métier refuse un instant", () => {
     expect(dateMetier.safeParse("2026-09-01").success).toBe(true);
     expect(dateMetier.safeParse("2026-09-01T00:00:00Z").success).toBe(false);
     expect(dateMetier.safeParse("01/09/2026").success).toBe(false);

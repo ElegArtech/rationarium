@@ -62,7 +62,7 @@ export const PROJETS = [
    * ce qui rendait la mesure dépendante d'un jeu étranger.
    *
    * `fin` recule la date de fin : un projet dont l'échéance est passée avec au
-   * moins une tâche en retard est CRITIQUE (`cadrage/01 § M17`).
+   * moins une tâche en retard est CRITIQUE (`docs/reference-fonctionnelle.md § M17`).
    */
   { cle: "cimetiere", nom: "Gestion des cimetières", icone: "p-map", avancement: 45, fin: -10 },
   { cle: "cantine", nom: "Portail des familles", icone: "p-house", avancement: 72 },
@@ -1056,7 +1056,7 @@ const JALONS = [
 ] as const;
 
 const TACHES = [
-  // Priorité HAUTE : c'est la tâche que `design/routes.json` mesure pour la
+  // Priorité HAUTE : c'est la tâche que la mesure de rendu vise pour la
   // vue 17, et la maquette y montre « Haute ». En « Normale », le libellé
   // n'apparaissait sur aucune fiche.
   { titre: "Maquettes portail", projet: "portail", jalon: "Recette", statut: "doing", agent: 0, debut: 0, fin: 1, avancement: 60, heures: 12, priorite: "high" },
@@ -1088,7 +1088,7 @@ const TACHES = [
   { titre: "Ateliers de concertation", projet: "portail", jalon: "Concertation publique", statut: "doing", agent: 2, debut: -20, fin: -9, avancement: 40 },
   /*
    * Trois tâches en retard sur un projet dont l'échéance est passée : la santé
-   * devient CRITIQUE (`cadrage/01 § M17`). Ni `is-crit`, ni `is-alert`, ni le
+   * devient CRITIQUE (`docs/reference-fonctionnelle.md § M17`). Ni `is-crit`, ni `is-alert`, ni le
    * libellé « Critique » n'avaient de source depuis le retrait de la
    * volumétrie — qui les fournissait par accident.
    */
@@ -1171,7 +1171,7 @@ const RECURRENCES = [
 
 /**
  * Les actions du journal que la maquette 33 montre. La liste est FERMÉE par
- * `cadrage/01 § M20` : aucune n'est inventée ici, chacune existe déjà au
+ * `docs/reference-fonctionnelle.md § M20` : aucune n'est inventée ici, chacune existe déjà au
  * catalogue de libellés.
  */
 /**
@@ -1251,7 +1251,7 @@ const CLIENTS = [
   { nom: "Direction de la culture", contact: "Sylvie Nardin", adresse: "12 place de la Mairie, Roqueville", actif: true, nature: "internal" },
   // Sans projet : la puce « Aucun projet » de la vue 25.
   { nom: "Office de tourisme", contact: "Paul Lambert", adresse: "3 rue des Remparts, Roqueville", actif: true, nature: "internal" },
-  // EXTÉRIEUR — `is-ext`. `design/etats.json` déclare l'axe « Direction
+  // EXTÉRIEUR — `is-ext`. La spécification des états déclare l'axe « Direction
   // interne / Organisme extérieur » pour la vue 25 ; il n'avait aucune source.
   { nom: "Syndicat des eaux", contact: null, adresse: null, actif: false, nature: "external" },
   { nom: "Communauté d'agglomération", contact: "Nadia Kaufmann", adresse: "1 rue du Port, Roqueville", actif: true, nature: "external" },

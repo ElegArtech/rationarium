@@ -46,7 +46,7 @@ describe("avatars prédéfinis — RG-AUTH-09", () => {
   });
 });
 
-describe("vocabulaires — cadrage/01 § 4.1", () => {
+describe("vocabulaires", () => {
   it("§ 4.1 — priorité : quatre niveaux, conformes à l'arbitrage B1", () => {
     expect(PRIORITES.map((p) => p.code)).toEqual(["low", "normal", "high", "critical"]);
   });
@@ -94,7 +94,7 @@ describe("vocabulaires — cadrage/01 § 4.1", () => {
   });
 });
 
-describe("catalogue de permissions — cadrage/01 § 3.2", () => {
+describe("catalogue de permissions", () => {
   it("couvre les 24 domaines du cadrage", () => {
     expect(DOMAINES).toHaveLength(24);
     for (const d of DOMAINES) {
@@ -136,7 +136,7 @@ describe("catalogue de permissions — cadrage/01 § 3.2", () => {
   });
 });
 
-describe("modèles de rôles — cadrage/01 § 3.2", () => {
+describe("modèles de rôles", () => {
   it("les 26 modèles annoncés existent", () => {
     expect(NOMBRE_MODELES).toBe(26);
   });

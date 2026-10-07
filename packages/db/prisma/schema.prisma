@@ -1,8 +1,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 // Rationarium — modèle de données
 //
-// Lot L-02, vague 1. Produit globalement et non lot par lot : voir
-// `cadrage/04 § 5.3` pour le motif et sa contrepartie — toute évolution
+// Lot L-02, vague 1. Produit globalement et non lot par lot. En contrepartie, toute évolution
 // ultérieure passe par une tâche de schéma dédiée, garantie par un hook.
 //
 // Trois principes portent ce schéma :
@@ -13,7 +12,7 @@
 //      ne peut le contourner.
 //   2. LES DATES MÉTIER N'ONT NI HEURE NI FUSEAU. Type `@db.Date`. Les
 //      représenter comme des instants est la source d'erreurs la plus courante
-//      de ce type d'application (ADR-0010).
+//      de ce type d'application.
 //   3. LA CONCURRENCE SE DÉTECTE (RG-GEN-07). Colonne `version` sur toute
 //      entité modifiable ; jamais d'écriture « dernier arrivé gagne ».
 //
@@ -27,7 +26,7 @@ generator client {
   output   = "../src/generated"
 }
 
-// L'URL de connexion vit dans prisma.config.ts (Prisma 7). Voir ADR-0006.
+// L'URL de connexion vit dans prisma.config.ts (Prisma 7).
 datasource db {
   provider = "postgresql"
 }
@@ -124,7 +123,7 @@ enum TypeTiers {
   organisation
 }
 
-/// `cadrage/02`, vue 25 — un bénéficiaire est une direction de la collectivité
+/// Vue 25 — un bénéficiaire est une direction de la collectivité
 /// ou un organisme extérieur. La distinction change la lecture du
 /// portefeuille : elle dit si le projet sert la maison ou un partenaire.
 enum NatureClient {
@@ -275,7 +274,7 @@ model UserService {
   @@map("user_services")
 }
 
-/// EX-AUTH-02, EX-AUTH-03 — session opaque en base, révocable. ADR-0008.
+/// EX-AUTH-02, EX-AUTH-03 — session opaque en base, révocable.
 model Session {
   id             String   @id @default(uuid()) @db.Uuid
   jetonHash      String   @unique
@@ -975,7 +974,7 @@ model TaskThirdParty {
 model Client {
   id        String   @id @default(uuid()) @db.Uuid
   nom       String
-  /// `design/etats.json` déclare pour la vue 25 l'axe « Direction interne /
+  /// La spécification des états déclare pour la vue 25 l'axe « Direction interne /
   /// Organisme extérieur », avec ses deux pilotes. Le manifeste exigeait un
   /// état que le modèle ne pouvait pas porter : `is-ext` était inatteignable.
   nature    NatureClient @default(internal)

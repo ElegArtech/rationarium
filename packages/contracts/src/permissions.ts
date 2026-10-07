@@ -1,10 +1,10 @@
 /**
- * Catalogue des permissions atomiques — `cadrage/01 § 3.2`.
+ * Catalogue des permissions atomiques — `docs/reference-fonctionnelle.md § 3.2`.
  *
  * ────────────────────────────────────────────────────────────────────────────
  * DÉCISION PRISE EN AUTONOMIE — 2026-08-16, réversible
  *
- * `cadrage/01 § 3.2` annonce « ≈ 125 permissions », donne la nomenclature, les
+ * `docs/reference-fonctionnelle.md § 3.2` annonce « ≈ 125 permissions », donne la nomenclature, les
  * familles d'actions et les 24 domaines couverts — mais **ne les énumère pas**.
  * C'est un trou de spécification, relevé comme tel au montage du plan.
  *
@@ -29,7 +29,7 @@
  * `RG-DROITS-03` — toute permission absente est refusée par défaut (liste blanche).
  */
 
-/** Les 24 domaines de `cadrage/01 § 3.2`, dans l'ordre du document. */
+/** Les 24 domaines de `docs/reference-fonctionnelle.md § 3.2`, dans l'ordre du document. */
 export const DOMAINES = [
   "audit",
   "clients",

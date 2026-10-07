@@ -9,12 +9,10 @@ import { exporterTout } from "./reversibilite.js";
  * Un outil d'exploitant, pas un point d'entrée HTTP. Motif : l'export porte sur
  * **toute** la base, sans périmètre organisationnel ni filtre de
  * confidentialité — ce que le catalogue des 24 domaines de permissions de
- * `cadrage/01 § 3.2` ne sait pas exprimer, et il ne se complète pas par
+ * `docs/reference-fonctionnelle.md § 3.2` ne sait pas exprimer, et il ne se complète pas par
  * initiative. Le rendre accessible en HTTP demanderait d'inventer une
  * permission ; le laisser à l'exploitant, qui a déjà accès à la base, n'ajoute
  * aucun droit à personne.
- *
- * Voir `docs/audits/L-29-exploitation.md § 5` pour la question laissée ouverte.
  */
 
 const dossier = process.argv[2];

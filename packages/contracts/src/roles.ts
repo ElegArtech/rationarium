@@ -1,5 +1,5 @@
 /**
- * Modèles de rôles — `cadrage/01 § 3.2`.
+ * Modèles de rôles — `docs/reference-fonctionnelle.md § 3.2`.
  *
  * ────────────────────────────────────────────────────────────────────────────
  * DÉCISION PRISE EN AUTONOMIE — 2026-08-16, réversible
@@ -9,7 +9,7 @@
  * spécification, relevé au montage du plan.
  *
  * Les compositions ci-dessous sont dérivées des personas de `§ 3.1` et des
- * variantes par rôle décrites dans les briefs de `cadrage/02`. Chaque modèle
+ * variantes par rôle décrites dans les briefs des vues. Chaque modèle
  * porte le raisonnement qui l'a produit.
  *
  * `RG-DROITS-01` — un modèle est un point de départ, pas une contrainte : un
@@ -38,7 +38,7 @@ const lecture = (...d: Domaine[]) => d.map((x) => `${x}:read`);
 /**
  * Socle commun à tout compte actif. C'est ce que Camille, agent contributeur,
  * doit avoir pour que sa journée fonctionne — et sa barre latérale tient en
- * huit entrées (`cadrage/02 § B`).
+ * huit entrées.
  */
 const SOCLE = [
   "planning:read",
