@@ -1,6 +1,6 @@
 {
   "$schema": "Déclaration de traçabilité — tenue par scripts/tracabilite-check.mjs.",
-  "$regle": "CLAUDE.md : « une EX-…/RG-… = un test nommé qui la cite ». Tout identifiant déclaré dans cadrage/01 est cité par un test, ou inscrit ici.",
+  "$regle": "Une EX-…/RG-… = un test nommé qui la cite. Tout identifiant déclaré dans docs/reference-fonctionnelle.md est cité par un test, ou inscrit ici.",
   "$listes": {
     "aTester": "LA DETTE CONNUE : le test reste à écrire. CETTE LISTE DOIT RÉTRÉCIR — le contrôle imprime sa taille à chaque exécution, et refuse une entrée qu'un test cite désormais. `module` nomme le lot qui a construit la fonctionnalité, et sert de ligne de découpe. Une entrée peut porter un champ `defaut` : le test n’est alors pas seulement à écrire, c’est le CODE qui manque ou diverge — la vague 7-4 l’a constaté et consigné plutôt que corrigé.",
     "nonTestable": "Les identifiants qu'AUCUN test nommé ne peut honnêtement couvrir, chacun avec sa raison. Une entrée sans raison est refusée. Cette liste ne s'allonge pas sans arbitrage : y ranger une règle testable, c'est un test qui ne sera jamais écrit.",

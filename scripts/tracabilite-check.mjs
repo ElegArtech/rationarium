@@ -2,7 +2,7 @@
 /**
  * Contrôle de traçabilité — « une EX-…/RG-… = un test nommé qui la cite ».
  *
- * CLAUDE.md pose cette règle depuis l'origine ; rien ne la tenait. Ce contrôle
+ * Cette règle est posée depuis l'origine ; rien ne la tenait. Ce contrôle
  * la tient dans les deux sens :
  *
  *   1. Toute exigence ou règle DÉCLARÉE dans la référence est citée par un test,

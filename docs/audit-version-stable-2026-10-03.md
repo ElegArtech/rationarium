@@ -100,6 +100,6 @@ Il faut réduire le contenu livré à ce qui sert effectivement au serveur, aux 
 
 Les journaux, le relevé npm complet, les résultats du parcours réel et les captures sont conservés dans `.local/audit-stable-2026-10-03/`, dossier ignoré par Git. Les sauvegardes et kits temporaires privés sont sous `/tmp/rationarium-stable-audit/`. Ils contiennent des secrets de test et ne doivent pas être publiés.
 
-Les trois documents déjà non suivis au début de l'audit ont été conservés. Les captures générées par les suites dans `recette/` ont été déplacées dans le dossier local de preuves.
+Les trois documents déjà non suivis au début de l'audit ont été conservés. Les captures générées par les suites ont été déplacées dans le dossier local de preuves.
 
 Les deux projets Compose d'essai, leurs volumes et le relais SMTP de test ont été supprimés après vérification. Les images locales restent disponibles sous `rationarium-stable-audit/api:0c9d7e0` et `rationarium-stable-audit/web:0c9d7e0`.

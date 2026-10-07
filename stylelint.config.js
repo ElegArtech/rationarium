@@ -1,5 +1,5 @@
 /**
- * Discipline du CSS — garde-fou du design system (risque R8 de cadrage/03).
+ * Discipline du CSS — garde-fou du design system.
  *
  * La règle portante est la dernière : aucune couleur littérale hors
  * `socle.css`. C'est ce qui empêche mécaniquement la dérive du contrat de
