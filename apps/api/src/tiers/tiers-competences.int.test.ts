@@ -128,7 +128,11 @@ describe("EX-TRS-02, RG-TRS-02, RG-TRS-04 — rattacher au projet, assigner à l
 
   it("une tâche hors projet ne réclame aucun rattachement préalable", async () => {
     const t = await tiers.creerTiers({ type: "individual", contactNom: "Libre" }, acteur);
-    const tache = await prisma.task.create({ data: { titre: "Hors projet" } });
+    // `RG-TSK-18` — une tâche hors projet ne se modifie que par un lien direct :
+    // l'acteur y est assigné, `projects:manage_any` ne couvre que les projets.
+    const tache = await prisma.task.create({
+      data: { titre: "Hors projet", assignes: { create: [{ userId: acteur }] } },
+    });
     await expect(tiers.assignerALaTache(tache.id, t.id, acteur, await globalP(), droitsProjet)).resolves.toBeUndefined();
   });
 });

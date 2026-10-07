@@ -3,6 +3,7 @@ import { PrismaService } from "../prisma.service.js";
 import { AuditService } from "../commun/audit.service.js";
 import { PerimetreService, type Perimetre } from "../commun/perimetre.service.js";
 import type { TypeTiers } from "@rationarium/contracts";
+import { exigerRattacheAuProjet } from "../projets/projets.service.js";
 
 /**
  * Tiers et clients — M14, vues 23 à 26.
@@ -51,32 +52,18 @@ export class TiersService {
     private readonly perimetres: PerimetreService,
   ) {}
 
-  /**
-   * Permission PUIS périmètre, sur l'écriture comme sur la lecture.
+  /*
+   * `RG-TRS-06` — **rattacher un tiers ou un client à un projet, ou l'en
+   * détacher, est une écriture sur le projet** : elle suit `RG-PRJ-13`
+   * (`exigerRattacheAuProjet`), pas la lecture.
    *
-   * Les rattachements de projet ne contrôlaient que la permission :
-   * `third_parties:assign` suffisait à poser un prestataire sur n'importe quel
-   * projet de l'instance en devinant son identifiant. Miroir exact du défaut
-   * déjà consigné sur les lectures par identifiant — la liste filtre,
-   * l'adresse directe non.
+   * Les rattachements ne contrôlaient d'abord que la permission ; la vague 2
+   * leur avait ajouté la VISIBILITÉ du projet. Mais `projects:readAll` rend
+   * tout projet visible : un porteur de `third_parties:assign` ou de
+   * `clients:update` qui lit le portefeuille entier posait donc un
+   * prestataire sur n'importe quel projet de l'instance. Une permission de
+   * lecture élargie n'élargit pas l'écriture.
    */
-  private async exigerProjetVisible(
-    projectId: string,
-    perimetre: Perimetre,
-    permissions: ReadonlySet<string>,
-  ) {
-    const projet = await this.prisma.project.findUnique({
-      where: { id: projectId },
-      select: { id: true },
-    });
-    if (!projet) throw new ErreurTiers("introuvable");
-
-    const visible = await this.prisma.project.findFirst({
-      where: { AND: [{ id: projectId }, this.perimetres.filtreProjet(perimetre, permissions)] },
-      select: { id: true },
-    });
-    if (!visible) throw new ErreurTiers("hors_perimetre");
-  }
 
   // ── Tiers — EX-TRS-01 ────────────────────────────────────────────────────
 
@@ -174,10 +161,10 @@ export class TiersService {
     projectId: string,
     thirdPartyId: string,
     acteurId: string,
-    perimetre: Perimetre,
+    _perimetre: Perimetre,
     permissions: ReadonlySet<string>,
   ) {
-    await this.exigerProjetVisible(projectId, perimetre, permissions);
+    await exigerRattacheAuProjet(this.prisma, this.perimetres, projectId, acteurId, permissions);
     await this.refuserSiArchive(thirdPartyId);
     const existe = await this.prisma.projectThirdParty.findUnique({
       where: { projectId_thirdPartyId: { projectId, thirdPartyId } },
@@ -209,10 +196,10 @@ export class TiersService {
     projectId: string,
     thirdPartyId: string,
     acteurId: string,
-    perimetre: Perimetre,
+    _perimetre: Perimetre,
     permissions: ReadonlySet<string>,
   ) {
-    await this.exigerProjetVisible(projectId, perimetre, permissions);
+    await exigerRattacheAuProjet(this.prisma, this.perimetres, projectId, acteurId, permissions);
 
     const existe = await this.prisma.projectThirdParty.findUnique({
       where: { projectId_thirdPartyId: { projectId, thirdPartyId } },
@@ -301,6 +288,15 @@ export class TiersService {
       select: { projectId: true },
     });
     if (!tache) throw new ErreurTiers("introuvable");
+
+    // `RG-TSK-18` — assigner un tiers MODIFIE la tâche : la lire ne suffit pas.
+    const modifiable = await this.prisma.task.findFirst({
+      where: {
+        AND: [{ id: taskId }, this.perimetres.filtreTacheEcriture(perimetre, permissions)],
+      },
+      select: { id: true },
+    });
+    if (!modifiable) throw new ErreurTiers("hors_perimetre");
     await this.refuserSiArchive(thirdPartyId);
 
     if (tache.projectId) {
@@ -599,10 +595,10 @@ export class TiersService {
     projectId: string,
     clientIds: string[],
     acteurId: string,
-    perimetre: Perimetre,
+    _perimetre: Perimetre,
     permissions: ReadonlySet<string>,
   ) {
-    await this.exigerProjetVisible(projectId, perimetre, permissions);
+    await exigerRattacheAuProjet(this.prisma, this.perimetres, projectId, acteurId, permissions);
     const clients = await this.prisma.client.findMany({
       where: { id: { in: clientIds } },
       select: { id: true, nom: true, actif: true },
@@ -653,10 +649,10 @@ export class TiersService {
     projectId: string,
     clientId: string,
     acteurId: string,
-    perimetre: Perimetre,
+    _perimetre: Perimetre,
     permissions: ReadonlySet<string>,
   ) {
-    await this.exigerProjetVisible(projectId, perimetre, permissions);
+    await exigerRattacheAuProjet(this.prisma, this.perimetres, projectId, acteurId, permissions);
 
     const existe = await this.prisma.projectClient.findUnique({
       where: { projectId_clientId: { projectId, clientId } },

@@ -609,6 +609,7 @@ Le référentiel des compétences se trie notamment par couverture, ratio déten
 - **RG-TRS-03** — Un tiers ne peut être rattaché deux fois au même projet, ni assigné deux fois à la même tâche.
 - **RG-TRS-04** — Un tiers ne peut être assigné à une tâche que s'il est rattaché à la tâche ou à son projet parent.
 - **RG-TRS-05** — La suppression d'un tiers ou d'un client est précédée d'un bilan d'impact.
+- **RG-TRS-06** — Rattacher un tiers ou un client à un projet, ou l'en détacher, est une écriture sur le projet : elle exige d'y être rattaché au sens de `RG-SCOPE-02`, ou de détenir `projects:manage_any` (`RG-PRJ-13`). Voir le projet (`projects:readAll`) ne suffit pas. Refus : 403 `erreurs:horsPerimetre`. Assigner un tiers à une tâche suit `RG-TSK-18`.
 
 ---
 

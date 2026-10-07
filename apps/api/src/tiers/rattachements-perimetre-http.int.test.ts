@@ -196,3 +196,104 @@ describe("RG-SCOPE-02 — le portefeuille d'un client ne nomme que les projets v
     expect(r.json<{ projets: unknown[] }>().projets).toHaveLength(2);
   });
 });
+
+describe("RG-TRS-06 — rattacher un tiers ou un client à un projet exige d'y être rattaché, pas de le voir", () => {
+  /*
+   * `projects:readAll` rend tout projet VISIBLE ; les rattachements ne
+   * contrôlaient que la visibilité. Les comptes portent les permissions réelles
+   * de leur modèle : c'est la combinaison livrée qui ouvrait le trou.
+   */
+  const ecrire = (methode: "POST" | "DELETE", url: string, jeton: string, corps?: object) =>
+    app.inject({
+      method: methode,
+      url,
+      cookies: { rationarium_session: jeton },
+      ...(corps ? { payload: corps } : {}),
+    });
+
+  let focus: Compte;
+  let gestionTiers: Compte;
+  let projet: string;
+  let prestataire: string;
+  let commanditaire: string;
+  let dejaRattache: string;
+
+  beforeAll(async () => {
+    const { MODELES_ROLES } = await import("@rationarium/contracts");
+    const du = (code: string) => [...MODELES_ROLES.find((m) => m.code === code)!.permissions];
+    focus = await compte("focus", du("MANAGER_PROJECT_FOCUS"));
+    gestionTiers = await compte("gestiontiers", du("THIRD_PARTY_MANAGER"));
+
+    projet = (
+      await prisma.project.create({
+        data: { nom: "Projet sans eux", dateDebut: jour("2027-01-01"), dateFin: jour("2027-12-31") },
+      })
+    ).id;
+    prestataire = (await prisma.thirdParty.create({ data: { type: "organisation", organisation: "Cabinet conseil" } })).id;
+    dejaRattache = (
+      await prisma.thirdParty.create({
+        data: { type: "organisation", organisation: "Bureau rattaché", projets: { create: [{ projectId: projet }] } },
+      })
+    ).id;
+    commanditaire = (
+      await prisma.client.create({ data: { nom: "Communauté de communes", projets: { create: [{ projectId: projet }] } } })
+    ).id;
+  });
+
+  it("RG-TRS-06 — MANAGER_PROJECT_FOCUS (projects:readAll) non rattaché ne rattache pas un tiers, rien n'est écrit", async () => {
+    const r = await ecrire("POST", `/api/tiers/projets/${projet}/rattacher`, focus.jeton, { thirdPartyId: prestataire });
+    expect(r.statusCode).toBe(403);
+    expect(r.json()).toMatchObject({ cle: "erreurs:horsPerimetre" });
+    expect(await prisma.projectThirdParty.count({ where: { projectId: projet, thirdPartyId: prestataire } })).toBe(0);
+  });
+
+  it("RG-TRS-06 — ni n'en détache un, et le rattachement reste", async () => {
+    const r = await ecrire("DELETE", `/api/tiers/projets/${projet}/${dejaRattache}`, focus.jeton);
+    expect(r.statusCode).toBe(403);
+    expect(await prisma.projectThirdParty.count({ where: { projectId: projet, thirdPartyId: dejaRattache } })).toBe(1);
+  });
+
+  it("RG-TRS-06 — THIRD_PARTY_MANAGER (projects:readAll, clients:update) non rattaché ne rattache pas un client", async () => {
+    const autre = (await prisma.client.create({ data: { nom: "Syndicat mixte" } })).id;
+    const r = await ecrire("POST", `/api/clients/projets/${projet}`, gestionTiers.jeton, { clientIds: [autre] });
+    expect(r.statusCode).toBe(403);
+    expect(r.json()).toMatchObject({ cle: "erreurs:horsPerimetre" });
+    expect(await prisma.projectClient.count({ where: { projectId: projet, clientId: autre } })).toBe(0);
+  });
+
+  it("RG-TRS-06 — ni n'en détache un, et le rattachement reste", async () => {
+    const r = await ecrire("DELETE", `/api/clients/projets/${projet}/${commanditaire}`, gestionTiers.jeton);
+    expect(r.statusCode).toBe(403);
+    expect(await prisma.projectClient.count({ where: { projectId: projet, clientId: commanditaire } })).toBe(1);
+  });
+
+  it("RG-TSK-18 — MANAGER_PROJECT_FOCUS (tasks:readAll) n'assigne pas un tiers à la tâche d'un projet dont il n'est pas membre", async () => {
+    const tache = (await prisma.task.create({ data: { titre: "Diagnostic", projectId: projet } })).id;
+    const r = await ecrire("POST", `/api/tiers/taches/${tache}/assigner`, focus.jeton, { thirdPartyId: dejaRattache });
+    expect(r.statusCode).toBe(403);
+    expect(r.json()).toMatchObject({ cle: "erreurs:horsPerimetre" });
+    expect(await prisma.taskThirdParty.count({ where: { taskId: tache } })).toBe(0);
+  });
+
+  it("RG-TRS-06 — contre-témoin : membre du projet, les quatre gestes passent", async () => {
+    await prisma.projectMember.create({ data: { projectId: projet, userId: focus.id, roleProjet: "membre" } });
+    await prisma.projectMember.create({ data: { projectId: projet, userId: gestionTiers.id, roleProjet: "membre" } });
+
+    const rattache = await ecrire("POST", `/api/tiers/projets/${projet}/rattacher`, focus.jeton, { thirdPartyId: prestataire });
+    expect(rattache.statusCode).toBe(201);
+    expect(await prisma.projectThirdParty.count({ where: { projectId: projet, thirdPartyId: prestataire } })).toBe(1);
+
+    const detache = await ecrire("DELETE", `/api/tiers/projets/${projet}/${prestataire}`, focus.jeton);
+    expect(detache.statusCode).toBe(200);
+    expect(await prisma.projectThirdParty.count({ where: { projectId: projet, thirdPartyId: prestataire } })).toBe(0);
+
+    const autre = (await prisma.client.create({ data: { nom: "Département voisin" } })).id;
+    const client = await ecrire("POST", `/api/clients/projets/${projet}`, gestionTiers.jeton, { clientIds: [autre] });
+    expect(client.statusCode).toBe(201);
+    expect(await prisma.projectClient.count({ where: { projectId: projet, clientId: autre } })).toBe(1);
+
+    const retire = await ecrire("DELETE", `/api/clients/projets/${projet}/${commanditaire}`, gestionTiers.jeton);
+    expect(retire.statusCode).toBe(200);
+    expect(await prisma.projectClient.count({ where: { projectId: projet, clientId: commanditaire } })).toBe(0);
+  });
+});
