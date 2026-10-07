@@ -82,8 +82,8 @@ describe("D20 — descriptions des modèles de rôles", () => {
   });
 });
 
-describe("RG-GEN-06 — les gestes de gestion d'un compte plus privilégié", () => {
-  it("RG-GEN-06 — une ligne actionsRestreintes refuse modifier, réinitialiser, désactiver et supprimer", () => {
+describe("RG-USR-09, RG-GEN-06 — les gestes de gestion d'un compte plus privilégié", () => {
+  it("RG-USR-09 — une ligne actionsRestreintes refuse modifier, réinitialiser, désactiver et supprimer", () => {
     expect(refusGestion({ id: "admin", actionsRestreintes: true }, "moi")).toEqual({
       modifier: "plusPrivilegie",
       reinitialiser: "plusPrivilegie",
@@ -116,7 +116,7 @@ describe("RG-GEN-06 — les gestes de gestion d'un compte plus privilégié", ()
   });
 });
 
-describe("D22 — un fichier trop volumineux nomme la limite", () => {
+describe("RG-DOC-04 — un fichier trop volumineux nomme la limite", () => {
   const Mio = 1024 * 1024;
   for (const [langue, catalogue, unite] of [
     ["fr", erreursFr, "Mio"],
