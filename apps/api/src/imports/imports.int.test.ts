@@ -1277,7 +1277,7 @@ describe("EX-USR-08 — le mot de passe importé est haché, jamais stocké en c
 
     expect(cree.motDePasseHash).not.toBe(MDP);
     expect(cree.motDePasseHash).not.toContain(MDP);
-    // Argon2id, `ADR-0008` — la même empreinte que tous les autres chemins de
+    // Argon2id — la même empreinte que tous les autres chemins de
     // création de compte, pas une variante propre à l'import.
     expect(cree.motDePasseHash).toMatch(/^\$argon2id\$/);
   });

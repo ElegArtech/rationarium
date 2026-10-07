@@ -135,7 +135,7 @@ describe("RG-IMP-03 — la prévisualisation précède l'écriture, sur CHAQUE c
 });
 
 /**
- * `cadrage/03 § 5.4` — **le modèle et l'aperçu d'un type exigent exactement ce
+ * **Le modèle et l'aperçu d'un type exigent exactement ce
  * qu'exige son exécution.**
  *
  * Sans cette correspondance, on referme le défaut d'un côté et on le rouvre de

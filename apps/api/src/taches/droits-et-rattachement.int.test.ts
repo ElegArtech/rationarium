@@ -20,8 +20,8 @@ import { PlanningController } from "../planning/planning.controller.js";
  * Chaque suite ici sépare volontairement les droits : un acteur qui détient
  * exactement ce que la règle discute, et rien de plus. Passer `manage_any`
  * partout, comme le font les autres suites du module, rendrait ces tests verts
- * **avec et sans les correctifs** — c'est le faux témoin consigné dans
- * `CLAUDE.md`, et il est d'autant plus dangereux qu'il a l'air plus robuste.
+ * **avec et sans les correctifs** — c'est le faux témoin déjà rencontré,
+ * et il est d'autant plus dangereux qu'il a l'air plus robuste.
  */
 
 const RACINE_DB = path.resolve(import.meta.dirname, "../../../../packages/db");

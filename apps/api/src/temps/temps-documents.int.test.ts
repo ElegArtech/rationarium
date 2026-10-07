@@ -630,8 +630,8 @@ describe("RG-TMP-04 — déclarer pour un tiers exige une permission dédiée �
    * Le contrôle exprime la règle telle qu'elle est écrite : un acteur qui ne
    * détient rien déclare pour un prestataire, et cela doit être refusé. Il
    * échoue — le service ne reçoit même pas les permissions de l'appelant, il
-   * n'a donc aucun endroit où loger le refus. `RG-TMP-04` reste en dette dans
-   * `design/tracabilite.json`, avec sa raison.
+   * n'a donc aucun endroit où loger le refus. `RG-TMP-04` reste en dette,
+   * avec sa raison.
    */
   /*
    * **Le défaut consigné ici a été corrigé, et le marqueur a fait son travail.**

@@ -22,7 +22,7 @@ import { PerimetreService } from "../commun/perimetre.service.js";
  * par nom, COUVERTURE ou compétence », le produit proposait « nom / nombre de
  * compétences / par niveau sur une compétence ». Le tri par couverture — le
  * ratio détenteurs/requis de `RG-CMP-03`, celui qui répond à la question du
- * module — n'existait nulle part. Tranché et porté dans `cadrage/01 § M13` :
+ * module — n'existait nulle part. Tranché et porté dans `docs/reference-fonctionnelle.md § M13` :
  * deux vocabulaires, un par objet trié, parce que le référentiel range des
  * compétences et la matrice range des agents.
  *

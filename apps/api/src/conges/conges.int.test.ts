@@ -968,10 +968,10 @@ describe("RG-CNG-24 — les jours S'ATTRIBUENT, par beneficiaire ou globalement"
 });
 
 /* ══════════════════════════════════════════════════════════════════════════ *
- *  Les exigences et règles que `design/tracabilite.json` portait encore en   *
+ *  Les exigences et règles que la déclaration de traçabilité portait encore en   *
  *  dette pour le module M10.                                                *
  *                                                                            *
- *  Chaque assertion est écrite depuis le texte de `cadrage/01`, pas depuis   *
+ *  Chaque assertion est écrite depuis le texte de la référence fonctionnelle, pas depuis   *
  *  le code : c'est la seule façon qu'un test a de trouver un écart plutôt    *
  *  que de le figer. Deux d'entre elles ont trouvé un défaut réel :   *
  *  le troisième échelon du validateur, qui n'existait pas, et la version    *
@@ -2058,7 +2058,7 @@ describe("RG-CNG-08 — la route nomme le validateur, elle ne rend pas qu'un ide
  * `PUT /conges/soldes` exige la version dès qu'une allocation existe
  * (`RG-CNG-23`), et `GET /conges/soldes` ne la rendait pas : aucune requête
  * d'écriture n'était composable depuis ce que le serveur donnait à lire. C'est
- * le piège de `profil()` consigné dans `CLAUDE.md` — un champ manquant à la
+ * le piège de `profil()` déjà rencontré — un champ manquant à la
  * lecture rend l'écriture impossible, et on en conclut à tort que la route
  * n'existe pas. Les moitiés étaient justes toutes les deux ; c'est le raccord
  * qui cassait, et aucun test des moitiés ne pouvait le voir.

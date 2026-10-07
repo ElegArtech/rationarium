@@ -102,7 +102,7 @@ export class EvenementsService {
    * Charge un événement **après** l'avoir confronté au périmètre d'écriture —
    * tous ses appelants écrivent (`RG-EVT-08`).
    *
-   * `cadrage/03 § 5.4` — permission d'abord (la garde de la route l'a déjà
+   * Permission d'abord (la garde de la route l'a déjà
    * exigée), périmètre ensuite. « Introuvable » et « hors périmètre » sont
    * distingués : les confondre priverait l'utilisateur de l'information qui lui
    * dit à qui s'adresser.

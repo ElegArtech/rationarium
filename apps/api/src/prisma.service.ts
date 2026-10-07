@@ -25,7 +25,7 @@ const OMISSIONS = { user: { motDePasseHash: true } } as const;
  *
  * En Prisma 7, la connexion passe **obligatoirement** par un adaptateur de
  * pilote : `datasourceUrl` n'existe plus, et l'URL des migrations vit dans
- * `prisma.config.ts`. Voir ADR-0006.
+ * `prisma.config.ts`.
  */
 @Injectable()
 export class PrismaService

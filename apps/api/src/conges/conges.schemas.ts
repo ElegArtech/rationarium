@@ -124,7 +124,7 @@ export const modificationTypeSchema = z.object({
  * Le même, restreint aux cinq champs que `RG-CNG-30` laisse ouverts.
  *
  * **Le refus est nommé champ par champ**, et non par un « clés inconnues »
- * générique : `cadrage/02` affiche l'erreur sous le champ fautif, et un
+ * générique : l'interface affiche l'erreur sous le champ fautif, et un
  * message global obligerait à chercher lequel des dix est en cause. C'est le
  * même contrat que toute autre validation d'entrée — `valider` rend un 400
  * avec son détail —, et c'est ce qui permet à la règle d'être **rédigée**

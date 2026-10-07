@@ -88,8 +88,8 @@ export class TempsService {
      * deux sont des sortes d'acteur, donc « déclarer pour un tiers » couvre
      * aussi bien un collègue qu'un intervenant extérieur. Déclarer pour
      * quelqu'un d'autre que soi, quelle qu'en soit la nature, demande la
-     * permission. Clarification portée dans `cadrage/01`, journalisée en
-     * `docs/audits/V7-diff-retour.md`.
+     * permission. Clarification portée dans
+     * `docs/reference-fonctionnelle.md`.
      */
     const pourUnTiers = Boolean(donnees.thirdPartyId);
     const refus = pourUnTiers
@@ -250,7 +250,7 @@ export class TempsService {
         /*
          * **Le plafond voyage avec le cumul.**
          *
-         * `cadrage/01 § parti-pris 3` — une limite fonctionnelle est un
+         * Une limite fonctionnelle est un
          * paramètre d'administration, jamais une valeur figée. Or il n'est pas
          * exposé par `GET /parametrage`, qui ne rend que les réglages publics
          * (« la table porte aussi des limites internes… qu'un écran de

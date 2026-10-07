@@ -8,7 +8,7 @@ import rateLimit from "@fastify/rate-limit";
 import { AppModule } from "./app.module.js";
 
 /**
- * Point d'entrée du serveur — NestJS sur adaptateur Fastify (ADR-0005).
+ * Point d'entrée du serveur — NestJS sur adaptateur Fastify.
  *
  * C1 : aucune ressource distante. Les en-têtes de sécurité sont posés ici et
  * la limitation d'essais protège la connexion (RG-AUTH-01) au niveau du

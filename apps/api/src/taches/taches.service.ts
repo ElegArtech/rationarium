@@ -187,7 +187,7 @@ export class TachesService {
    * confidentialité elle-même figure parmi les champs modifiables : une
    * requête forgée pouvait DÉMASQUER une tâche secrète. Autour, les
    * sous-tâches, les dépendances, le RACI, la cascade et la liste des assignés
-   * offraient la même prise. C'est la famille déjà consignée dans `CLAUDE.md`
+   * offraient la même prise. C'est la famille déjà rencontrée
    * — « la LISTE filtre, l'adresse directe non » —, cette fois du côté des
    * écritures.
    *
@@ -414,7 +414,7 @@ export class TachesService {
      * une tâche sans attache.
      *
      * Deux corrections possibles. Ajouter `Task.createurId` est la bonne, et
-     * elle relève d'une **tâche de schéma dédiée** (`cadrage/04 § 5.3`) : elle
+     * elle relève d'une **tâche de schéma dédiée** : elle
      * n'est pas écrite ici. Celle qui l'est : quand la tâche naît **hors
      * projet** et **sans aucun assigné**, l'acteur en devient l'assigné — donc
      * le porteur, puisqu'il est premier de la liste.
@@ -478,7 +478,7 @@ export class TachesService {
     });
 
     /*
-     * `cadrage/01 § M18` — « Nouvelle tâche assignée ». On ne se notifie pas
+     * `docs/reference-fonctionnelle.md § M18` — « Nouvelle tâche assignée ». On ne se notifie pas
      * soi-même : celui qui crée la tâche vient de la voir.
      *
      * `RG-GEN-08` — le corps voyage en **paramètres**, pas en phrase. Une
@@ -1219,7 +1219,7 @@ export class TachesService {
     }
 
     /*
-     * `cadrage/01 § M20` — le journal garde le vocabulaire des gestes unitaires
+     * `docs/reference-fonctionnelle.md § M20` — le journal garde le vocabulaire des gestes unitaires
      * (`task.dependency_add` / `_remove`). Une action « ensemble défini » ne
      * dirait pas ce qui a bougé, et c'est ce qu'on relit dans un journal.
      */
@@ -1677,7 +1677,7 @@ export class TachesService {
     });
 
     /*
-     * `cadrage/01 § M18` — on ne prévient que les ARRIVANTS, et jamais
+     * `docs/reference-fonctionnelle.md § M18` — on ne prévient que les ARRIVANTS, et jamais
      * soi-même. Renotifier ceux qui étaient déjà là ferait du bruit à chaque
      * réordonnancement, et le bruit finit par masquer le signal.
      */

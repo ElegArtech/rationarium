@@ -2,7 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma.service.js";
 
 /**
- * Journal d'audit — RG-ADM-01, `cadrage/01 § M20`.
+ * Journal d'audit — RG-ADM-01, `docs/reference-fonctionnelle.md § M20`.
  *
  * **Une trace ne doit jamais empêcher une action métier d'aboutir.** C'est
  * l'esprit de RG-NTF-04 appliqué ici : si l'écriture de la trace échoue, on

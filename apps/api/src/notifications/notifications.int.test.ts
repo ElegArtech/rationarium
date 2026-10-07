@@ -189,7 +189,7 @@ describe("RG-NTF-04 — la messagerie ne bloque JAMAIS le métier", () => {
   });
 });
 
-describe("cadrage/01 § M18 — les six déclencheurs", () => {
+describe("les six déclencheurs", () => {
   it("une demande de congé prévient SON validateur, et personne d'autre", async () => {
     await conges.deposer(
       {
@@ -232,7 +232,7 @@ describe("cadrage/01 § M18 — les six déclencheurs", () => {
 
     const recues = await notifsDe(agent);
     expect(recues.map((n) => n.type)).toEqual(["conge_decide"]);
-    // `cadrage/01 § M18` — le vocabulaire des titres est FERMÉ : « Décision
+    // `docs/reference-fonctionnelle.md § M18` — le vocabulaire des titres est FERMÉ : « Décision
     // sur votre demande de congé ». Ce que la décision fut se lit au corps.
     expect(recues[0]?.titre).toBe("Décision sur votre demande de congé");
 
@@ -562,7 +562,7 @@ describe("RG-NTF-02 — le traitement planifié est protégé contre les exécut
 });
 
 /**
- * `RG-GEN-08`, `cadrage/01 § M18` — la notification se lit dans la langue de
+ * `RG-GEN-08`, `docs/reference-fonctionnelle.md § M18` — la notification se lit dans la langue de
  * SON LECTEUR.
  *
  * DÉFAUT TROUVÉ EN RECETTE (P-18, P-19, P-20) : les phrases étaient écrites en
@@ -604,7 +604,7 @@ describe("RG-GEN-08 — une notification émise en français se lit en anglais",
     );
   });
 
-  it("cadrage/01 § M18 — le titre stocké ne porte plus la formulation écartée", async () => {
+  it("le titre stocké ne porte plus la formulation écartée", async () => {
     const porteur = await creerAgent("Théo");
     await prisma.task.create({
       data: {

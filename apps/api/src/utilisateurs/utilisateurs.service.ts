@@ -8,7 +8,7 @@ import { PerimetreService, type Perimetre } from "../commun/perimetre.service.js
 import { hacherMotDePasse } from "../auth/mots-de-passe.js";
 
 /**
- * Utilisateurs et annuaire — M3, `cadrage/01 § M3`.
+ * Utilisateurs et annuaire — M3, `docs/reference-fonctionnelle.md § M3`.
  *
  * Le lot porte la distinction que `RG-GEN-10` et `§ D.4` exigent de ne
  * **jamais** confondre : la désactivation réversible et la suppression

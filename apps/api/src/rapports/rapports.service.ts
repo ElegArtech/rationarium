@@ -398,7 +398,7 @@ export class RapportsService {
   /**
    * `EX-RPT-06` — la santé des projets.
    *
-   * Trois niveaux, **calculés** et non saisis (`cadrage/01 § M17`) : tâches
+   * Trois niveaux, **calculés** et non saisis (`docs/reference-fonctionnelle.md § M17`) : tâches
    * restantes, tâches en retard, jalons à venir. Une santé saisie à la main
    * dirait ce que le chef de projet veut bien en dire ; celle-ci dit ce que
    * les données montrent.

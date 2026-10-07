@@ -84,7 +84,7 @@ export class ImportsController {
   /**
    * La permission du type demandé, contrôlée après celle de la route.
    *
-   * `cadrage/03 § 5.4` — permission puis périmètre, et ici permission de
+   * Permission puis périmètre, et ici permission de
    * route puis permission de type. Il n'y a rien à cloisonner en dessous :
    * ni le modèle ni l'aperçu ne lisent la base.
    */
@@ -136,7 +136,7 @@ export class ImportsController {
   /**
    * `EX-CMP-09` — l'import du référentiel de compétences.
    *
-   * `skills:import`, pas `tasks:import` : le catalogue de `cadrage/01 § 3.2`
+   * `skills:import`, pas `tasks:import` : le catalogue de `docs/reference-fonctionnelle.md § 3.2`
    * donne à chaque domaine son action d'import, et emprunter celle d'un autre
    * domaine ouvrirait le référentiel à qui n'a que des droits sur les tâches.
    *
@@ -155,7 +155,7 @@ export class ImportsController {
    *
    * Le **périmètre** est transmis au service et appliqué ligne à ligne : la
    * permission dit qui peut importer, le périmètre dit pour qui. Les deux, dans
-   * cet ordre (`cadrage/03 § 5.4`).
+   * cet ordre.
    */
   @Post("conges")
   @RequiertPermission("leaves:import")

@@ -4,7 +4,7 @@ import { stringify } from "csv-stringify/sync";
 /**
  * Socle des imports CSV — M21, `RG-IMP-01` à `RG-IMP-06`.
  *
- * Six types d'import partagent la même mécanique, et `cadrage/02 § D.6`
+ * Six types d'import partagent la même mécanique, et la spécification d'interface
  * demande explicitement un gabarit commun. Il est ici, écrit une fois.
  *
  * Trois exigences le structurent :

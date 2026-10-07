@@ -23,7 +23,7 @@ import {
 /**
  * Erreurs métier de l'authentification.
  *
- * Chaque code correspond à un message rédigé dans `cadrage/02`, vues 01 à 05.
+ * Chaque code correspond à un message rédigé pour les vues 01 à 05.
  * Ces messages sont **contractuels** : ils sont vérifiés à la lettre par la
  * boucle de conformité visuelle. Le service ne les formule pas — il nomme la
  * situation, la couche HTTP traduit.
@@ -111,7 +111,7 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     /**
-     * La file de travaux — `RG-NTF-04`, `ADR-0007`.
+     * La file de travaux — `RG-NTF-04`.
      *
      * `@Optional()` pour que les tests d'intégration qui construisent le
      * service à la main continuent de le faire ; **le montage réel n'est pas
@@ -649,7 +649,7 @@ export class AuthService {
    * effectives**.
    *
    * Les permissions sont résolues côté serveur à chaque appel, jamais lues
-   * depuis un jeton porté par le client (`ADR-0008`). Elles servent à la
+   * depuis un jeton porté par le client. Elles servent à la
    * coquille pour masquer ce qui serait refusé (`RG-GEN-06`) — une courtoisie,
    * pas un contrôle : le contrôle reste la garde, côté serveur.
    *
@@ -664,9 +664,9 @@ export class AuthService {
    * lecture porte **exclusivement** sur `userId`, qui vient de la session
    * résolue depuis le cookie et jamais d'un paramètre d'appel. C'est une
    * donnée strictement personnelle, sans domaine au catalogue de
-   * `cadrage/01 § 3.2`.
+   * `docs/reference-fonctionnelle.md § 3.2`.
    */
-  /** EX-AUTH-07, cadrage/02 vue 05 — expliquer le blocage sans divulguer le journal. */
+  /** EX-AUTH-07, vue 05 — expliquer le blocage sans divulguer le journal. */
   async motifChangementMotDePasse(userId: string, impose: boolean): Promise<{
     motifChangementMotDePasse: "premiere" | "administrateur" | null;
     motDePasseReinitialiseLe: string | null;

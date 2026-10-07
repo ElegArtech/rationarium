@@ -9,7 +9,7 @@ import { valider } from "../commun/http.js";
  *
  * Toutes les routes sont `@Personnel()` : une notification appartient à son
  * destinataire et à personne d'autre. Les vingt-quatre domaines de permissions
- * de `cadrage/01 § 3.2` n'en comportent pas pour elles, et en inventer un
+ * de `docs/reference-fonctionnelle.md § 3.2` n'en comportent pas pour elles, et en inventer un
  * serait pire — le contrôle est le `userId` de la session, présent dans chaque
  * requête et vérifié par un test.
  */

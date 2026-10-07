@@ -70,7 +70,7 @@ export class ErreurConge extends Error {
  *
  * `PUT /conges/soldes` exige la version dès qu'une allocation existe
  * (`RG-CNG-23`). Sans elle dans la lecture, aucune requête d'écriture n'est
- * composable : c'est le piège de `profil()` consigné dans `CLAUDE.md`, où un
+ * composable : c'est le piège de `profil()` déjà rencontré, où un
  * champ manquant à la lecture rend l'écriture impossible et fait conclure à
  * tort que la route n'existe pas.
  */
@@ -750,7 +750,7 @@ export class CongesService {
    * que d'écrire contre une réalité différente**.
    *
    * D'où la transaction en `RepeatableRead` avec verrou sur la ligne
-   * d'allocation, prescrite par `cadrage/03 § 5.3`.
+   * d'allocation.
    */
   async approuver(
     congeId: string,
@@ -834,7 +834,7 @@ export class CongesService {
     if (!sienne) {
       /*
        * `RG-GEN-08` — paramètres, pas phrase. `decision` distingue les deux
-       * faces du même type : `cadrage/01 § M18` n'en énonce qu'un, « Décision
+       * faces du même type : `docs/reference-fonctionnelle.md § M18` n'en énonce qu'un, « Décision
        * sur votre demande de congé », et le corps porte laquelle.
        *
        * `RG-NTF-01` — le destinataire est le DEMANDEUR : son congé est dans
@@ -1259,7 +1259,7 @@ export class CongesService {
    * `EX-CNG-13` — tous les soldes d'une personne pour une année.
    *
    * « Le solde disponible est l'information la plus attendue au moment de la
-   * demande : il ne doit pas être à chercher » (`cadrage/02`, vue 19). Il est
+   * demande : il ne doit pas être à chercher » (vue 19). Il est
    * donc servi en bloc, pas type par type — une vue qui ferait six appels
    * afficherait six compteurs qui apparaissent l'un après l'autre.
    */

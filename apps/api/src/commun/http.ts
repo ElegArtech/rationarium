@@ -142,7 +142,7 @@ const compacter = <T extends object>(o: T): T => {
 /**
  * Valide une entrée, ou refuse en 400 **champ par champ**.
  *
- * Le détail par champ n'est pas un luxe : `cadrage/02` demande que l'erreur
+ * Le détail par champ n'est pas un luxe : la spécification d'interface demande que l'erreur
  * s'affiche sous le champ fautif. Un message global obligerait l'utilisateur à
  * chercher lequel des douze champs est en cause.
  */

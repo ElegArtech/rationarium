@@ -9,7 +9,7 @@ import type { EchecAuth } from "./auth.service.js";
  * clé comme repli — pour un client qui n'aurait pas le catalogue, et pour les
  * journaux — mais l'interface affiche la traduction de la clé.
  *
- * Les libellés de repli sont ceux de `cadrage/02`, vues 01 à 05, **à la
+ * Les libellés de repli sont ceux des vues 01 à 05, **à la
  * lettre** : ils sont contractuels et vérifiés par la boucle de conformité.
  *
  * Les placer ici plutôt que dans le service tient la règle de séparation : le

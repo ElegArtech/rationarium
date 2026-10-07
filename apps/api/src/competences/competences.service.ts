@@ -39,7 +39,7 @@ export class ErreurCompetence extends Error {
  * veut rien dire d'autre que « par niveau sur une compétence choisie », et
  * cela n'ordonne que la matrice, dont les lignes sont des agents.
  *
- * Tranché : deux vocabulaires, un par objet trié. `cadrage/01 § M13` porte
+ * Tranché : deux vocabulaires, un par objet trié. `docs/reference-fonctionnelle.md § M13` porte
  * désormais la distinction, et le tri par couverture — qui manquait
  * entièrement — existe.
  */
@@ -49,7 +49,7 @@ export type TriReferentiel = (typeof TRIS_REFERENTIEL)[number];
 export const TRIS_MATRICE = ["nom", "nombre", "competence"] as const;
 export type TriMatrice = (typeof TRIS_MATRICE)[number];
 
-/** L'ordre des niveaux, du plus faible au plus fort — `cadrage/01 § 4.1`. */
+/** L'ordre des niveaux, du plus faible au plus fort — `docs/reference-fonctionnelle.md § 4.1`. */
 const RANG: Record<NiveauCompetence, number> = {
   beginner: 1,
   intermediate: 2,

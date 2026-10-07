@@ -4,7 +4,7 @@ import { PrismaService } from "../prisma.service.js";
 import { AuditService } from "../commun/audit.service.js";
 
 /**
- * Calendrier de l'organisation — M19, `cadrage/01 § M19`, vue 31.
+ * Calendrier de l'organisation — M19, `docs/reference-fonctionnelle.md § M19`, vue 31.
  *
  * Ce service porte une responsabilité que le reste du produit consomme sans
  * la connaître : **définir ce qu'est un jour ouvré**. Le décompte des congés
@@ -67,7 +67,7 @@ const estZoneScolaire = (valeur: string | undefined): valeur is ZoneScolaire =>
   valeur === "A" || valeur === "B" || valeur === "C";
 
 /**
- * ADR-0017 — l'instantané est lu à côté du lot compilé. En développement, le
+ * L'instantané est lu à côté du lot compilé. En développement, le
  * repli pointe vers la référence versionnée ; la construction API la copie
  * dans `dist/parametrage`, qui est ensuite copiée telle quelle dans l'image.
  */
@@ -388,7 +388,7 @@ export class CalendrierService {
   }
 
   /**
-   * D-RM-15 / ADR-0017 — import strictement local, année-zone explicite ou
+   * D-RM-15 — import strictement local, année-zone explicite ou
    * héritée du réglage global. `createMany(skipDuplicates)` fait porter
    * l'idempotence concurrente par l'unicité déjà présente en base.
    */

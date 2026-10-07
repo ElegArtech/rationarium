@@ -12,7 +12,7 @@ import {
 import { permissionsIncluses } from "../utilisateurs/utilisateurs.service.js";
 
 /**
- * Rôles et permissions — M20, `cadrage/01 § M20`, vue 32.
+ * Rôles et permissions — M20, `docs/reference-fonctionnelle.md § M20`, vue 32.
  *
  * `RG-DROITS-01` — un modèle de rôle est un **point de départ**, pas une
  * contrainte : un administrateur compose un rôle sur mesure en cochant les

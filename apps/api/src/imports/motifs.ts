@@ -76,7 +76,7 @@ export const MOTIFS = {
       `colonne « progress » : une tâche « done » est à ${attendu}`,
     ),
 
-  /** `cadrage/01 § M21` — une colonne d'énumération porte le CODE, pas le libellé. */
+  /** `docs/reference-fonctionnelle.md § M21` — une colonne d'énumération porte le CODE, pas le libellé. */
   valeurInconnue: (colonne: string, valeur: string, attendues: string): Motif =>
     motif(
       "valeurInconnue",

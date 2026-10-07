@@ -1246,7 +1246,7 @@ describe("EX-TSK-03 — les quatre filtres, chacun avec son témoin exclu", () =
 
 describe("EX-TSK-07 — modifier depuis la FICHE : ce que la fiche rend compose la requête", () => {
   /*
-   * Le piège consigné au CLAUDE.md, dans sa forme exacte : deux moitiés justes
+   * Le piège déjà rencontré, dans sa forme exacte : deux moitiés justes
    * qui ne se raccordent pas. `profil()` ne rendait pas `version`, que le
    * schéma de modification exige au titre de `RG-GEN-07` — la route existait,
    * aucune requête n'était composable, et le diagnostic tiré fut « la route

@@ -12,8 +12,7 @@ import { AuditService } from "../commun/audit.service.js";
  *
  * `RG-ADM-03` — la consultation exige une permission dédiée, **et l'accès
  * refusé est lui-même tracé**. Ce second point est traité par la garde
- * (`GardePermission`), qui s'exécute avant ce service : l'ordre importe, il
- * est décrit dans `cadrage/03 § 5.4`.
+ * (`GardePermission`), qui s'exécute avant ce service : l'ordre importe.
  */
 
 export type FiltreAudit = {

@@ -20,7 +20,7 @@ import { PERMISSIONS_GESTION_GLOBALE } from "@rationarium/contracts";
  *     de requête. Un ensemble se teste ; un fragment se relit.
  * ════════════════════════════════════════════════════════════════════════════
  *
- * Rappel de l'ordre imposé par `cadrage/03 § 5.4` : la **permission** d'abord,
+ * Rappel de l'ordre imposé : la **permission** d'abord,
  * le **périmètre** ensuite. Ce service ne traite que le second. Un point
  * d'entrée qui l'emploierait sans garde de permission serait ouvert à tous.
  */

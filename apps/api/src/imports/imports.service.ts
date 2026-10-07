@@ -130,7 +130,7 @@ class Rendu {
   }
 }
 
-/** Les six types d'import de `cadrage/01 § M21`. La liste est fermée. */
+/** Les six types d'import de `docs/reference-fonctionnelle.md § M21`. La liste est fermée. */
 export const TYPES_IMPORT = [
   "utilisateurs",
   "taches",
@@ -228,7 +228,7 @@ const BORNES: Partial<Record<TypeImport, { colonne: string; min: number; max: nu
 };
 
 /**
- * `cadrage/01 § M21` — les colonnes d'énumération portent le **code**, pas le
+ * `docs/reference-fonctionnelle.md § M21` — les colonnes d'énumération portent le **code**, pas le
  * libellé.
  *
  * Le tableau des colonnes ne le disait pour aucune d'elles, et trois imports
@@ -666,7 +666,7 @@ export class ImportsService {
             email,
             login,
             /*
-             * `EX-USR-08`, `ADR-0008` — le mot de passe du fichier est un mot
+             * `EX-USR-08` — le mot de passe du fichier est un mot
              * de passe **provisoire**, et il est HACHÉ comme tous les autres.
              *
              * Il partait en clair dans la colonne `motDePasseHash`. Deux
@@ -1319,7 +1319,7 @@ export class ImportsService {
         enPanne(MOTIFS.compteDesactive(email));
         continue;
       }
-      // Le périmètre, APRÈS la permission — `cadrage/03 § 5.4`.
+      // Le périmètre, APRÈS la permission.
       if (!perimetre.global && !perimetre.utilisateurs.has(agent.id)) {
         enPanne(MOTIFS.horsPerimetre(email));
         continue;

@@ -16,7 +16,7 @@ import { AuthService } from "../auth/auth.service.js";
 import { PerimetreService, type Perimetre } from "./perimetre.service.js";
 
 /**
- * Garde de permission — `RG-DROITS-03`, `cadrage/03 § 5.4`.
+ * Garde de permission — `RG-DROITS-03`.
  *
  * **L'ordre est imposé et il ne se négocie pas : permission d'abord, périmètre
  * ensuite.** Une garde qui vérifierait le périmètre sans la permission
@@ -94,7 +94,7 @@ export const Public = () => SetMetadata(CLE_PUBLIC, true);
  * Le cas existe et il est étroit : une donnée qui n'appartient qu'à son auteur
  * et que personne d'autre ne lit jamais. Les to-do de `RG-DSH-01` en sont le
  * seul exemple à ce jour — le cadrage les dit « strictement privées », et les
- * vingt-quatre domaines de permissions de `cadrage/01 § 3.2` n'en comportent
+ * vingt-quatre domaines de permissions de `docs/reference-fonctionnelle.md § 3.2` n'en comportent
  * pas pour elles. Inventer un domaine hors catalogue serait pire.
  *
  * Ce n'est **pas** `@Public()`, qui signifie « avant la session ». La garde se
@@ -172,7 +172,7 @@ export class GardePermission implements CanActivate {
     }
 
     // 2. Les permissions, résolues côté serveur à chaque requête. Jamais
-    //    lues depuis le client — ADR-0008.
+    //    lues depuis le client.
     const permissions = await this.permissionsDe(session.userId);
 
     // 3. La ou les permissions exigées. Liste blanche stricte.

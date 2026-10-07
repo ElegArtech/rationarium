@@ -1274,7 +1274,7 @@ describe("RG-PRJ-11 — les deux modes de l'import projet ; le blocage sur donn�
    *     effacement, un seul le refuse.
    *
    * Les deux contrôles ci-dessous énoncent la règle, pas le comportement
-   * observé. `RG-PRJ-11` reste en dette dans `design/tracabilite.json`.
+   * observé. `RG-PRJ-11` reste en dette.
    * ────────────────────────────────────────────────────────────────────────
    */
   it(

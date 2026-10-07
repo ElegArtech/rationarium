@@ -146,7 +146,7 @@ const SELECTION_TACHE_JALON = {
    * `RG-GEN-07` — la version lue accompagne l'écriture.
    *
    * La maquette 13 rend le statut de chaque tâche **modifiable en ligne**
-   * (`select.mini-select`), et `cadrage/02` le confirme : « Chaque tâche
+   * (`select.mini-select`), et le brief de la vue le confirme : « Chaque tâche
    * affiche titre, statut modifiable en ligne, assignés, estimation ». Sans la
    * version ici, le client n'aurait rien à opposer à une écriture concurrente
    * et ne pourrait modifier qu'en « dernier arrivé gagne » — interdit.
@@ -848,7 +848,7 @@ export class ProjetsService {
       detail: { userId: donnees.userId, role: donnees.roleProjet },
     });
 
-    // `cadrage/01 § M18` — « Ajout à un projet ». Le lien mène au projet :
+    // `docs/reference-fonctionnelle.md § M18` — « Ajout à un projet ». Le lien mène au projet :
     // une notification qui ne mène nulle part oblige à le retrouver.
     if (donnees.userId !== acteurId) {
       const projet = await this.prisma.project.findUnique({
@@ -859,7 +859,7 @@ export class ProjetsService {
        * `RG-GEN-08` — le corps voyage en **paramètres**, pas en phrase
        * française : il se compose à la lecture, dans la langue du lecteur
        * (`notifications/libelles.ts`). Le titre, lui, se déduit du type depuis
-       * la vague 1 — « Ajout à un projet », `cadrage/01 § M18`.
+       * la vague 1 — « Ajout à un projet », `docs/reference-fonctionnelle.md § M18`.
        */
       await this.notifications.notifier({
         userId: donnees.userId,
@@ -942,7 +942,7 @@ export class ProjetsService {
    * **Le retrait emporte les affectations aux tâches DU PROJET**, et rien
    * d'autre. La vue disait l'inverse — « les tâches assignées sont
    * conservées » — et c'était une décision prise à l'implémentation, sur une
-   * spécification muette : `cadrage/01` ne disait pas ce que le retrait fait.
+   * spécification muette, qui ne disait pas ce que le retrait fait.
    * Or `RG-SCOPE-02` rend un projet visible à ses MEMBRES : garder une
    * affectation après le retrait laissait quelqu'un porteur d'une tâche d'un
    * projet qu'il ne peut plus ouvrir, et `RG-TSK-03` refuse par ailleurs d'en

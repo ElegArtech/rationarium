@@ -33,7 +33,7 @@ import { MESSAGES } from "./messages.js";
 
 const COOKIE = "rationarium_session";
 
-/** Le cookie de session : `HttpOnly`, `SameSite=Lax`, `Secure`. ADR-0008. */
+/** Le cookie de session : `HttpOnly`, `SameSite=Lax`, `Secure`. */
 const optionsCookie = (jours: number) => ({
   httpOnly: true,
   sameSite: "lax" as const,
@@ -123,7 +123,7 @@ export class AuthController {
   /**
    * Ce que la page de connexion doit savoir **avant** toute session.
    *
-   * `design/etats.json` déclare pour la vue 01 un axe « Inscription autonome :
+   * La spécification des états déclare pour la vue 01 un axe « Inscription autonome :
    * activée · désactivée ». Sans ce point d'entrée, le client ne pouvait pas
    * connaître le réglage : il passait `false` en dur, et la variante activée
    * était **inatteignable** — un état spécifié, maquetté, et impossible à
@@ -305,7 +305,7 @@ export class AuthController {
    * la colonne l'attendait en base.
    *
    * `@Personnel()` et non `@Public()` : le catalogue des vingt-quatre domaines
-   * est FERMÉ par `cadrage/01 § 3.2` et modifier son propre profil n'y trouve
+   * est FERMÉ par `docs/reference-fonctionnelle.md § 3.2` et modifier son propre profil n'y trouve
    * pas de domaine — en inventer un serait ajouter au catalogue par
    * initiative. Mais `@Public()` signifie « AVANT la session », et cette route
    * en exige une. `surface-http.test.ts` l'a refusée sur-le-champ : sa liste

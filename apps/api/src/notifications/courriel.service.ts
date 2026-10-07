@@ -54,7 +54,7 @@ export class CourrielService implements OnModuleInit {
    *
    * Une exception ici fait échouer le travail, qui sera réessayé avec
    * temporisation croissante puis mis en file d'échec — et n'atteint jamais
-   * l'utilisateur (`cadrage/03 § 5`).
+   * l'utilisateur.
    */
   private async envoyer(travail: TravailCourriel): Promise<void> {
     if (!this.transport) {
