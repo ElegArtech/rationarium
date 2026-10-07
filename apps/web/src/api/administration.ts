@@ -29,6 +29,13 @@ export type Utilisateur = {
   role: { id: string; code: string; nom: string; systeme?: boolean } | null;
   departement: { id: string; nom: string } | null;
   services: { service: { id: string; nom: string } }[];
+  /**
+   * `RG-USR-09` — vrai quand ce compte détient une permission que le lecteur
+   * n'a pas : ses actions de gestion lui seraient refusées. Facultatif tant que
+   * le serveur ne le rend pas partout ; absent vaut faux, et le serveur refuse
+   * de toute façon.
+   */
+  actionsRestreintes?: boolean;
 };
 
 export type Impact = {
