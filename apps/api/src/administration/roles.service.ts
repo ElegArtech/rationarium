@@ -9,6 +9,7 @@ import {
   estAuCatalogue,
   type ModeleRole,
 } from "@rationarium/contracts";
+import { permissionsIncluses } from "../utilisateurs/utilisateurs.service.js";
 
 /**
  * Rôles et permissions — M20, `cadrage/01 § M20`, vue 32.
@@ -23,6 +24,7 @@ export type EchecRole =
   | "role_systeme_non_supprimable"
   | "role_systeme_non_renommable"
   | "role_systeme_non_modifiable"
+  | "role_plus_privilegie"
   | "permission_hors_catalogue"
   | "code_deja_pris"
   | "role_utilise"
@@ -191,10 +193,17 @@ export class RolesService {
     };
   }
 
-  /** `EX-ADM-02` — créer un rôle, éventuellement à partir d'un modèle. */
+  /**
+   * `EX-ADM-02` — créer un rôle, éventuellement à partir d'un modèle.
+   *
+   * `RG-USR-09` — dupliquer un modèle, c'est composer un rôle portant ses
+   * permissions : l'acteur doit toutes les détenir. `permissionsActeur` est
+   * fourni par la route HTTP ; l'amorçage et les appels internes l'omettent.
+   */
   async creer(
     donnees: { code: string; nom: string; description?: string; depuisModele?: string },
     acteurId: string,
+    permissionsActeur?: ReadonlySet<string>,
   ) {
     if (await this.prisma.role.findUnique({ where: { code: donnees.code }, select: { id: true } })) {
       throw new ErreurRole("code_deja_pris");
@@ -203,6 +212,7 @@ export class RolesService {
     const modele = donnees.depuisModele
       ? MODELES_ROLES.find((m) => m.code === donnees.depuisModele)
       : undefined;
+    if (modele) exigerRoleCouvert(modele.permissions, permissionsActeur);
 
     const role = await this.prisma.role.create({
       data: {
@@ -298,18 +308,32 @@ export class RolesService {
    * référentiel (`initialiserReferentiel`) appelle sans acteur, la route HTTP
    * appelle avec. Un rôle système se réaligne donc toujours sur son modèle, et
    * ne se modifie jamais à la demande.
+   *
+   * `RG-USR-09` — **nul ne compose un rôle plus large que soi.** Le contrôle
+   * d'attribution ne suffisait pas : un porteur de `users:manage_permissions`
+   * ajoutait à son PROPRE rôle ce qu'il n'avait pas, sans rien attribuer. Les
+   * permissions écrites ET celles que le rôle porte déjà doivent toutes être
+   * détenues par l'acteur — retirer des droits à un rôle plus privilégié, c'est
+   * agir sur lui. `permissionsActeur` est fourni par la route HTTP.
    */
-  async definirPermissions(roleId: string, permissions: string[], acteurId?: string, version?: number) {
+  async definirPermissions(
+    roleId: string,
+    permissions: string[],
+    acteurId?: string,
+    version?: number,
+    permissionsActeur?: ReadonlySet<string>,
+  ) {
     const hors = permissions.filter((p) => !estAuCatalogue(p));
     if (hors.length > 0) throw new ErreurRole("permission_hors_catalogue", { permissions: hors });
 
     const uniques = [...new Set(permissions)];
     const role = await this.prisma.role.findUnique({
       where: { id: roleId },
-      select: { systeme: true, version: true },
+      select: { systeme: true, version: true, permissions: { select: { permission: true } } },
     });
     if (!role) throw new ErreurRole("introuvable");
     if (acteurId && role.systeme) throw new ErreurRole("role_systeme_non_modifiable");
+    exigerRoleCouvert([...uniques, ...role.permissions.map((p) => p.permission)], permissionsActeur);
     if (acteurId && version === undefined) throw new ErreurRole("conflit_de_version");
     const attendue = version ?? role.version;
     if (role.version !== attendue) throw new ErreurRole("conflit_de_version");
@@ -355,6 +379,16 @@ export class RolesService {
     await this.definirPermissions(roleId, attendues, undefined, role.version);
   }
 }
+
+/** `RG-USR-09` — refuse un rôle dont l'acteur ne détient pas toutes les permissions. */
+const exigerRoleCouvert = (
+  permissions: Iterable<string>,
+  permissionsActeur: ReadonlySet<string> | undefined,
+) => {
+  if (permissionsActeur && !permissionsIncluses(permissions, permissionsActeur)) {
+    throw new ErreurRole("role_plus_privilegie");
+  }
+};
 
 const codePrisma = (erreur: unknown): string | undefined =>
   typeof erreur === "object" && erreur !== null && "code" in erreur

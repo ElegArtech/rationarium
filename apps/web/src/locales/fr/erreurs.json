@@ -83,6 +83,7 @@
   "jalonCalcule": "Ce jalon porte des tâches : son statut se calcule à partir de leur avancement. Faites avancer ses tâches, ou détachez-les.",
   "calendrierScolaireIndisponible": "Aucune période officielle n’est disponible pour cette année scolaire et cette zone. Choisissez une combinaison disponible.",
   "comptePlusPrivilegie": "Ce compte a plus de droits que vous : vous ne pouvez pas agir sur lui.",
+  "rolePlusPrivilegie": "Ce rôle porterait des permissions que vous n'avez pas : vous ne pouvez pas le composer.",
   "fichierTropVolumineux": "Ce fichier est trop volumineux.",
   "fichierTropVolumineux_detail": "Ce fichier est trop volumineux : la taille maximale est de {maxOctets, number, ::scale/0.00000095367431640625 .#} Mio."
 }

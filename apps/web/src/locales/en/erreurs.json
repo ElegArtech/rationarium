@@ -83,6 +83,7 @@
   "jalonCalcule": "This milestone has tasks: its status is derived from their progress. Move its tasks forward, or detach them.",
   "calendrierScolaireIndisponible": "No official period is available for this school year and zone. Choose an available combination.",
   "comptePlusPrivilegie": "This account has more permissions than you: you cannot act on it.",
+  "rolePlusPrivilegie": "This role would carry permissions you do not have: you cannot compose it.",
   "fichierTropVolumineux": "This file is too large.",
   "fichierTropVolumineux_detail": "This file is too large: the maximum size is {maxOctets, number, ::scale/0.00000095367431640625 .#} MiB."
 }
