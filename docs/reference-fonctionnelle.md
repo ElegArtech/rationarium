@@ -168,6 +168,7 @@ Trois niveaux : **Direction → Département → Service**.
 - **RG-ORG-03** — Un département peut exister hors direction ; un service ne peut exister hors département.
 - **RG-ORG-04** — Un utilisateur appartient à **un** département et à **zéro ou plusieurs** services.
 - **RG-ORG-05** — Le manager d'un service et le responsable d'un département sont les validateurs naturels de leur périmètre.
+- **RG-ORG-06** — Hors périmètre global, modifier, supprimer ou mesurer une direction exige que **tous** ses départements soient dans le périmètre de l'acteur : désigner le responsable d'une direction étend son périmètre à toute la direction (RG-SCOPE-01). Rattacher un département à une direction reste permis dès qu'un de ses départements est dans le périmètre. Refus : 403 `erreurs:horsPerimetre`.
 
 ---
 
