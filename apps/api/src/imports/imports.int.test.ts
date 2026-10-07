@@ -194,7 +194,7 @@ describe("RG-IMP-04 — trois familles, jamais deux", () => {
       "ana@exemple.fr;ana;secret;Ana;Berger\n" +
       "ana@exemple.fr;ana2;secret;Ana;Berger\n";
 
-    const rendu = await imports.importerUtilisateurs(fichier, acteur);
+    const rendu = await imports.importerUtilisateurs(fichier, acteur, new Set(), perimetreGlobal());
 
     // Rejouer un fichier est un usage normal, pas un incident.
     expect(rendu).toMatchObject({ importes: 1, ignores: 1 });
@@ -203,8 +203,8 @@ describe("RG-IMP-04 — trois familles, jamais deux", () => {
 
   it("le rejeu complet n'importe rien et n'échoue pas", async () => {
     const fichier = "email;login;password;firstName;lastName\nbob@exemple.fr;bob;s;Bob;Costa\n";
-    await imports.importerUtilisateurs(fichier, acteur);
-    const second = await imports.importerUtilisateurs(fichier, acteur);
+    await imports.importerUtilisateurs(fichier, acteur, new Set(), perimetreGlobal());
+    const second = await imports.importerUtilisateurs(fichier, acteur, new Set(), perimetreGlobal());
 
     expect(second).toMatchObject({ importes: 0, ignores: 1, erreurs: [] });
     expect(await prisma.user.count({ where: { email: "bob@exemple.fr" } })).toBe(1);
@@ -217,7 +217,7 @@ describe("RG-IMP-04 — trois familles, jamais deux", () => {
       ";sansmail;s;Sans;Mail\n" +
       "deux@exemple.fr;deux;s;Deux;Deux\n";
 
-    const rendu = await imports.importerUtilisateurs(fichier, acteur);
+    const rendu = await imports.importerUtilisateurs(fichier, acteur, new Set(), perimetreGlobal());
     expect(rendu.importes).toBe(2);
     expect(rendu.erreurs).toHaveLength(1);
     expect(rendu.erreurs[0]?.ligne).toBe(3);
@@ -226,7 +226,7 @@ describe("RG-IMP-04 — trois familles, jamais deux", () => {
   it("le compte importé porte l'obligation de changer son mot de passe", async () => {
     await imports.importerUtilisateurs(
       "email;login;password;firstName;lastName\nneuf@exemple.fr;neuf;Provisoire!1;Neuf;Compte\n",
-      acteur,
+      acteur, new Set(), perimetreGlobal(),
     );
     const cree = await prisma.user.findUniqueOrThrow({ where: { email: "neuf@exemple.fr" } });
     // Le mot de passe du fichier est provisoire, et le produit le dit à la
@@ -238,7 +238,7 @@ describe("RG-IMP-04 — trois familles, jamais deux", () => {
     await prisma.auditLog.deleteMany({ where: { entiteId: "import-csv" } });
     await imports.importerUtilisateurs(
       "email;login;password;firstName;lastName\ntrace@exemple.fr;trace;s;T;R\n",
-      acteur,
+      acteur, new Set(), perimetreGlobal(),
     );
     const trace = await prisma.auditLog.findFirst({ where: { entiteId: "import-csv" } });
     expect(trace?.detail).toMatchObject({ source: "csv", importes: 1 });
@@ -1263,7 +1263,7 @@ describe("EX-USR-08 — le mot de passe importé est haché, jamais stocké en c
     `email;login;password;firstName;lastName\n${email};${login};${MDP};Noé;Arbogast\n`;
 
   it("EX-USR-08 — le mot de passe du fichier n'est nulle part en base", async () => {
-    await imports.importerUtilisateurs(fichierAvec("clair@exemple.fr", "clair"), acteur);
+    await imports.importerUtilisateurs(fichierAvec("clair@exemple.fr", "clair"), acteur, new Set(), perimetreGlobal());
     const cree = await prisma.user.findUniqueOrThrow({ where: { email: "clair@exemple.fr" } });
 
     expect(cree.motDePasseHash).not.toBe(MDP);
@@ -1275,7 +1275,7 @@ describe("EX-USR-08 — le mot de passe importé est haché, jamais stocké en c
 
   it("EX-USR-08 — LE COMPTE IMPORTÉ PEUT SE CONNECTER : c'est le critère", async () => {
     const { verifierMotDePasse } = await import("../auth/mots-de-passe.js");
-    await imports.importerUtilisateurs(fichierAvec("entrant@exemple.fr", "entrant"), acteur);
+    await imports.importerUtilisateurs(fichierAvec("entrant@exemple.fr", "entrant"), acteur, new Set(), perimetreGlobal());
     const cree = await prisma.user.findUniqueOrThrow({ where: { email: "entrant@exemple.fr" } });
 
     expect(await verifierMotDePasse(cree.motDePasseHash, MDP)).toBe(true);
@@ -1292,7 +1292,7 @@ describe("EX-USR-08 — le mot de passe importé est haché, jamais stocké en c
       `email;login;password;firstName;lastName\n` +
         `un@exemple.fr;un;${MDP};A;Un\n` +
         `deux@exemple.fr;deux;${MDP};B;Deux\n`,
-      acteur,
+      acteur, new Set(), perimetreGlobal(),
     );
     const un = await prisma.user.findUniqueOrThrow({ where: { email: "un@exemple.fr" } });
     const deux = await prisma.user.findUniqueOrThrow({ where: { email: "deux@exemple.fr" } });
@@ -1325,7 +1325,7 @@ describe("RG-USR-01, RG-IMP-04 — collision d'adresse et collision d'identifian
     "nouveau.email@exemple.fr;l.vasseur;Provisoire-2026!;Homonyme;Login\n";
 
   it("RG-USR-01 — LES DEUX MOTIFS SONT DISTINCTS, et chacun porte sa ligne", async () => {
-    const rendu = await imports.importerUtilisateurs(COLLISIONS, acteur);
+    const rendu = await imports.importerUtilisateurs(COLLISIONS, acteur, new Set(), perimetreGlobal());
 
     expect(rendu).toMatchObject({ importes: 0, ignores: 2, erreurs: [] });
     expect(rendu.ignorees.map((i) => i.ligne)).toEqual([2, 3]);
@@ -1336,14 +1336,14 @@ describe("RG-USR-01, RG-IMP-04 — collision d'adresse et collision d'identifian
   });
 
   it("RG-USR-01 — chaque motif NOMME la valeur en cause, pas seulement sa nature", async () => {
-    const rendu = await imports.importerUtilisateurs(COLLISIONS, acteur);
+    const rendu = await imports.importerUtilisateurs(COLLISIONS, acteur, new Set(), perimetreGlobal());
     expect(rendu.ignorees[0]?.params).toMatchObject({ email: "l.vasseur@exemple.fr" });
     expect(rendu.ignorees[1]?.params).toMatchObject({ login: "l.vasseur" });
   });
 
   it("RG-IMP-04 — rien n'est créé : un ignoré n'est pas un import silencieux", async () => {
     const avant = await prisma.user.count();
-    await imports.importerUtilisateurs(COLLISIONS, acteur);
+    await imports.importerUtilisateurs(COLLISIONS, acteur, new Set(), perimetreGlobal());
     expect(await prisma.user.count()).toBe(avant);
   });
 });
@@ -1434,7 +1434,7 @@ describe("RG-IMP-04 — le compte rendu ne peut pas se contredire", () => {
       await imports.importerUtilisateurs(
         "email;login;password;firstName;lastName\n" +
           "z@exemple.fr;z;Provisoire-2026!;Z;Z\nz@exemple.fr;z2;Provisoire-2026!;Z;Z\n",
-        acteur,
+        acteur, new Set(), perimetreGlobal(),
       ),
       await imports.importerJalonsProjet(
         projet,
@@ -1505,7 +1505,7 @@ describe("RG-GEN-08 — chaque ligne du compte rendu est traduisible", () => {
         "neuf@exemple.fr;neuf;Provisoire-2026!;N;F\n" +
         "deja@exemple.fr;autre;Provisoire-2026!;D;J\n" +
         ";sansmail;Provisoire-2026!;S;M\n",
-      acteur,
+      acteur, new Set(), perimetreGlobal(),
     );
 
     expect(rendu).toMatchObject({ importes: 1, ignores: 1 });

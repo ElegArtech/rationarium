@@ -15,6 +15,7 @@ import { AuditService } from "../commun/audit.service.js";
 import { CongesService, ErreurConge } from "../conges/conges.service.js";
 import type { Perimetre } from "../commun/perimetre.service.js";
 import { hacherMotDePasse } from "../auth/mots-de-passe.js";
+import { permissionsIncluses } from "../utilisateurs/utilisateurs.service.js";
 import { MOTIFS, type LigneRendu, type Motif } from "./motifs.js";
 
 /**
@@ -544,14 +545,36 @@ export class ImportsService {
    * unicités, l'adresse et l'identifiant : elles se cherchent donc **l'une
    * après l'autre**, et non par un `OR` qui rend une ligne sans dire laquelle
    * des deux a mordu. Deux causes opposées, deux corrections opposées.
+   *
+   * `RG-USR-10` — **les règles de la création unitaire, ligne par ligne.** Le
+   * fichier écrivait la colonne `role` sous la seule permission `users:import` :
+   * un responsable RH créait un ADMIN au mot de passe qu'il avait lui-même
+   * choisi (D02). La colonne exige désormais `users:manage_roles`, le rôle
+   * doit être couvert par les droits de l'acteur (`RG-USR-09`), et le
+   * rattachement doit tomber dans son périmètre — exactement ce que
+   * `POST /utilisateurs` exige par sa garde. Une ligne refusée l'est avec son
+   * motif ; les autres entrent.
    */
-  async importerUtilisateurs(contenu: string, acteurId: string): Promise<CompteRendu> {
+  async importerUtilisateurs(
+    contenu: string,
+    acteurId: string,
+    permissions: ReadonlySet<string>,
+    perimetre: Perimetre,
+  ): Promise<CompteRendu> {
     const apercu = this.analyser("utilisateurs", contenu);
     const rendu = new Rendu(apercu.erreurs);
 
     for (const { numero, brut: ligne } of this.lignesSaines(apercu)) {
       const email = ligne["email"]!.trim().toLowerCase();
       const login = ligne["login"]!.trim();
+      const codeRole = NON_VIDE(ligne["role"]) ? ligne["role"].trim() : null;
+
+      // RG-USR-10 — le jumeau de `champRefuse` sur `roleId` : avant toute
+      // lecture, la colonne est fermée à qui ne gère pas les rôles.
+      if (codeRole && !permissions.has("users:manage_roles")) {
+        rendu.refuser(numero, MOTIFS.roleSansPermission(codeRole));
+        continue;
+      }
 
       const parEmail = await this.prisma.user.findUnique({
         where: { email },
@@ -571,15 +594,23 @@ export class ImportsService {
       }
 
       try {
-        const role = NON_VIDE(ligne["role"])
+        const role = codeRole
           ? await this.prisma.role.findUnique({
-              where: { code: ligne["role"].trim() },
-              select: { id: true },
+              where: { code: codeRole },
+              select: { id: true, permissions: { select: { permission: true } } },
             })
           : null;
-        const departement = NON_VIDE(ligne["departmentName"])
+        // RG-USR-09 — attribuer un rôle exige d'en détenir toutes les permissions.
+        if (role && !permissionsIncluses(role.permissions.map((p) => p.permission), permissions)) {
+          rendu.refuser(numero, MOTIFS.rolePlusPrivilegie(codeRole!));
+          continue;
+        }
+        const nomDepartement = NON_VIDE(ligne["departmentName"])
+          ? ligne["departmentName"].trim()
+          : null;
+        const departement = nomDepartement
           ? await this.prisma.departement.findFirst({
-              where: { nom: ligne["departmentName"].trim() },
+              where: { nom: nomDepartement },
               select: { id: true },
             })
           : null;
@@ -587,9 +618,32 @@ export class ImportsService {
         const services = NON_VIDE(ligne["serviceNames"])
           ? await this.prisma.service.findMany({
               where: { nom: { in: ligne["serviceNames"].split(";").map((s) => s.trim()) } },
-              select: { id: true },
+              select: { id: true, nom: true, departementId: true },
             })
           : [];
+
+        /*
+         * RG-USR-10 — le périmètre, comme `GardeCibleUtilisateur` le tient pour
+         * la création unitaire : hors gestion globale, le compte se rattache à
+         * un département ou à un service, et chacun est dans le périmètre de
+         * l'acteur. Un département inconnu est refusé comme un département
+         * hors périmètre : distinguer les deux dirait ce qui existe ailleurs.
+         */
+        if (!perimetre.global) {
+          if (nomDepartement && (!departement || !perimetre.departements.has(departement.id))) {
+            rendu.refuser(numero, MOTIFS.departementHorsPerimetre(nomDepartement));
+            continue;
+          }
+          const serviceIntrus = services.find((s) => !perimetre.departements.has(s.departementId));
+          if (serviceIntrus) {
+            rendu.refuser(numero, MOTIFS.serviceHorsPerimetre(serviceIntrus.nom));
+            continue;
+          }
+          if (!departement && services.length === 0) {
+            rendu.refuser(numero, MOTIFS.rattachementRequis());
+            continue;
+          }
+        }
 
         await this.prisma.user.create({
           data: {

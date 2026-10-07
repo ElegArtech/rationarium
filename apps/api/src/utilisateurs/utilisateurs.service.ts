@@ -1,6 +1,6 @@
 import { presenceALaDate } from "../commun/presence.js";
 import { CalendrierService } from "../parametrage/calendrier.service.js";
-import { Injectable } from "@nestjs/common";
+import { ForbiddenException, Injectable } from "@nestjs/common";
 import { champRefuse, CHAMPS_GOUVERNES_UTILISATEUR } from "../commun/champs-gouvernes.js";
 import { PrismaService } from "../prisma.service.js";
 import { AuditService } from "../commun/audit.service.js";
@@ -36,6 +36,38 @@ export class ErreurUtilisateur extends Error {
   }
 }
 
+/**
+ * `RG-USR-09` — les permissions de la cible sont-elles toutes détenues par
+ * l'acteur ?
+ *
+ * Une inclusion, pas une comparaison de rangs : les rôles ne sont pas
+ * ordonnés. `IT_SUPPORT` et `HR_OFFICER` ont chacun ce que l'autre n'a pas, et
+ * aucun des deux n'est « au-dessus ». Un compte sans rôle n'a aucune
+ * permission : il est inclus dans tout.
+ */
+export function permissionsIncluses(
+  cible: Iterable<string>,
+  acteur: ReadonlySet<string>,
+): boolean {
+  for (const permission of cible) if (!acteur.has(permission)) return false;
+  return true;
+}
+
+/**
+ * `RG-USR-09` — le refus, en clé traduisible (403).
+ *
+ * Levé par le service, pas par la garde : la règle est du domaine et vaut pour
+ * tout appel. Une exception HTTP plutôt qu'un code de `EchecUtilisateur`, parce
+ * que la table `commun/messages-metier.ts` n'appartient pas à ce lot ; le
+ * contrat rendu au client — statut et clé — est le même.
+ */
+export const refusComptePlusPrivilegie = () =>
+  new ForbiddenException({
+    cle: "erreurs:comptePlusPrivilegie",
+    message:
+      "Ce compte détient des droits que vous n'avez pas : seul un compte qui les détient tous peut agir sur lui.",
+  });
+
 /** Blocages nommés qui interdisent une suppression définitive — `RG-USR-03`. */
 export type Blocage = { objet: string; nombre: number };
 
@@ -69,6 +101,7 @@ export class UtilisateursService {
       roleId?: string;
       actif?: boolean;
     } = {},
+    permissionsLecteur: ReadonlySet<string> = new Set(),
   ) {
     const clauses: Record<string, unknown>[] = [this.perimetres.filtreUtilisateur(perimetre)];
 
@@ -88,17 +121,100 @@ export class UtilisateursService {
     if (filtres.roleId) clauses.push({ roleId: filtres.roleId });
     if (filtres.actif !== undefined) clauses.push({ actif: filtres.actif });
 
-    return this.prisma.user.findMany({
+    const lignes = await this.prisma.user.findMany({
       where: { AND: clauses },
       orderBy: [{ nom: "asc" }, { prenom: "asc" }],
       select: {
         id: true, prenom: true, nom: true, email: true, login: true, actif: true,
-        derniereConnexion: true, version: true,
+        derniereConnexion: true, version: true, roleId: true,
         role: { select: { id: true, code: true, nom: true, systeme: true } },
         departement: { select: { id: true, nom: true } },
         services: { select: { service: { select: { id: true, nom: true } } } },
       },
     });
+
+    /*
+     * `RG-USR-09` — l'interface doit pouvoir dire, AVANT le geste, qu'un compte
+     * est hors d'atteinte : un bouton actif qui répond 403 n'explique rien.
+     * Une requête pour tous les rôles de la page, pas une par ligne.
+     */
+    const roleIds = [...new Set(lignes.flatMap((l) => (l.roleId ? [l.roleId] : [])))];
+    const parRole = new Map<string, string[]>();
+    if (roleIds.length > 0) {
+      const accordees = await this.prisma.rolePermission.findMany({
+        where: { roleId: { in: roleIds } },
+        select: { roleId: true, permission: true },
+      });
+      for (const a of accordees) {
+        parRole.set(a.roleId, [...(parRole.get(a.roleId) ?? []), a.permission]);
+      }
+    }
+    return lignes.map((l) => ({
+      ...l,
+      actionsRestreintes: !permissionsIncluses(
+        l.roleId ? (parRole.get(l.roleId) ?? []) : [],
+        permissionsLecteur,
+      ),
+    }));
+  }
+
+  // ── RG-USR-09 — nul n'agit sur un compte plus privilégié que soi ─────────
+
+  /**
+   * Les permissions d'un compte, lues comme la garde globale les lit.
+   *
+   * Les méthodes de cycle de vie reçoivent l'acteur et non ses permissions :
+   * leurs signatures sont appelées hors de ce module, et la règle ne doit pas
+   * dépendre de ce que l'appelant choisit de transmettre.
+   */
+  private async permissionsDe(userId: string): Promise<ReadonlySet<string>> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: { select: { permissions: { select: { permission: true } } } } },
+    });
+    return new Set(user?.role?.permissions.map((p) => p.permission) ?? []);
+  }
+
+  /**
+   * `RG-USR-09` — refuse d'agir sur un compte dont l'une des permissions
+   * manque à l'acteur.
+   *
+   * **Le défaut qu'il ferme (D01).** `users:reset_password` gardait la route
+   * de réinitialisation, et rien ne regardait QUI elle visait : le support
+   * informatique, la RH, l'administrateur délégué réinitialisaient le mot de
+   * passe de l'ADMIN — ou changeaient son courriel avant un « mot de passe
+   * oublié » — et se retrouvaient administrateurs. Même motif que `roleId`
+   * sous `users:update` : la permission garde une route, pas une cible.
+   */
+  async exigerPasPlusPrivilegie(cibleId: string, permissionsActeur: ReadonlySet<string>) {
+    const cible = await this.prisma.user.findUnique({
+      where: { id: cibleId },
+      select: { role: { select: { permissions: { select: { permission: true } } } } },
+    });
+    if (!cible) throw new ErreurUtilisateur("introuvable");
+    const permissions = cible.role?.permissions.map((p) => p.permission) ?? [];
+    if (!permissionsIncluses(permissions, permissionsActeur)) throw refusComptePlusPrivilegie();
+  }
+
+  /**
+   * `RG-USR-09`, second alinéa — attribuer un rôle exige d'en détenir toutes
+   * les permissions. `users:manage_roles` ouvre le champ ; elle ne dit pas
+   * QUEL rôle on peut donner, et sans ceci un gestionnaire des rôles
+   * fabriquait un ADMIN.
+   */
+  private async exigerRoleAttribuable(
+    roleId: string | null | undefined,
+    permissionsActeur: ReadonlySet<string>,
+  ) {
+    if (!roleId) return;
+    const role = await this.prisma.role.findUnique({
+      where: { id: roleId },
+      select: { permissions: { select: { permission: true } } },
+    });
+    if (!role) throw new ErreurUtilisateur("introuvable");
+    if (!permissionsIncluses(role.permissions.map((p) => p.permission), permissionsActeur)) {
+      throw refusComptePlusPrivilegie();
+    }
   }
 
   /**
@@ -343,6 +459,11 @@ export class UtilisateursService {
      */
     const refuse = champRefuse(donnees, CHAMPS_GOUVERNES_UTILISATEUR, permissions);
     if (refuse) throw new ErreurUtilisateur("champ_hors_permission", refuse);
+    // RG-USR-09 — sur toute modification : corriger un nom n'est pas
+    // dangereux, mais le courriel et le rattachement le sont, et une règle qui
+    // trierait les champs se laisserait contourner par le prochain.
+    await this.exigerPasPlusPrivilegie(id, permissions);
+    await this.exigerRoleAttribuable(donnees.roleId, permissions);
 
     const avant = await this.prisma.user.findUnique({
       where: { id },
@@ -434,6 +555,7 @@ export class UtilisateursService {
      */
     const refuse = champRefuse(donnees, CHAMPS_GOUVERNES_UTILISATEUR, permissions);
     if (refuse) throw new ErreurUtilisateur("champ_hors_permission", refuse);
+    await this.exigerRoleAttribuable(donnees.roleId, permissions);
 
     const email = donnees.email.toLowerCase();
     if (await this.prisma.user.findUnique({ where: { email }, select: { id: true } })) {
@@ -513,6 +635,7 @@ export class UtilisateursService {
    */
   async desactiver(id: string, acteurId: string, version: number) {
     if (id === acteurId) throw new ErreurUtilisateur("soi_meme_interdit");
+    await this.exigerPasPlusPrivilegie(id, await this.permissionsDe(acteurId));
     const avant = await this.prisma.user.findUnique({ where: { id }, select: { actif: true, version: true } });
     if (!avant) throw new ErreurUtilisateur("introuvable");
     if (avant.version !== version) throw new ErreurUtilisateur("conflit_de_version");
@@ -536,6 +659,7 @@ export class UtilisateursService {
 
   async reactiver(id: string, acteurId: string, version: number) {
     if (id === acteurId) throw new ErreurUtilisateur("soi_meme_interdit");
+    await this.exigerPasPlusPrivilegie(id, await this.permissionsDe(acteurId));
     const avant = await this.prisma.user.findUnique({ where: { id }, select: { actif: true, version: true } });
     if (!avant) throw new ErreurUtilisateur("introuvable");
     if (avant.version !== version) throw new ErreurUtilisateur("conflit_de_version");
@@ -566,7 +690,14 @@ export class UtilisateursService {
    * déclaré bloque, parce qu'il est comptable ; des to-do personnelles
    * s'effacent, parce qu'elles n'appartiennent qu'à l'intéressé.
    */
-  async impactSuppression(id: string): Promise<{
+  async impactSuppression(id: string, acteurId: string) {
+    // RG-USR-09 — l'inventaire d'un compte hors d'atteinte ne se consulte pas
+    // non plus : il prépare un geste que l'acteur n'a pas le droit de faire.
+    await this.exigerPasPlusPrivilegie(id, await this.permissionsDe(acteurId));
+    return this.inventaireSuppression(id);
+  }
+
+  private async inventaireSuppression(id: string): Promise<{
     nom: string;
     login: string;
     version: number;
@@ -619,7 +750,7 @@ export class UtilisateursService {
   async supprimerDefinitivement(id: string, acteurId: string, version: number) {
     if (id === acteurId) throw new ErreurUtilisateur("soi_meme_interdit");
 
-    const impact = await this.impactSuppression(id);
+    const impact = await this.impactSuppression(id, acteurId);
     if (impact.version !== version) throw new ErreurUtilisateur("conflit_de_version");
     if (impact.blocages.length > 0) {
       throw new ErreurUtilisateur("suppression_bloquee", { blocages: impact.blocages });
@@ -654,6 +785,7 @@ export class UtilisateursService {
    */
   async reinitialiserMotDePasse(id: string, nouveau: string, acteurId: string) {
     if (id === acteurId) throw new ErreurUtilisateur("soi_meme_interdit");
+    await this.exigerPasPlusPrivilegie(id, await this.permissionsDe(acteurId));
 
     await this.prisma.$transaction([
       this.prisma.user.update({

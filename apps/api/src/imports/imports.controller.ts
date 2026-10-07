@@ -129,7 +129,8 @@ export class ImportsController {
   @RequiertPermission("users:import")
   importerUtilisateurs(@Body() corps: unknown, @Demande() d: ContexteDemande) {
     const { contenu } = valider(corpsFichier, corps);
-    return this.imports.importerUtilisateurs(contenu, d.userId);
+    // RG-USR-10 — droits et périmètre de l'acteur, comme pour POST /utilisateurs.
+    return this.imports.importerUtilisateurs(contenu, d.userId, d.permissions, d.perimetre);
   }
 
   /**
