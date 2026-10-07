@@ -232,3 +232,74 @@ describe("RG-DOC-04 — une pièce jointe pèse au plus 20 Mio", () => {
     expect((await prisma.document.findUniqueOrThrow({ where: { id } })).tailleOctets).toBe(5 * MIO);
   });
 });
+
+describe("RG-DOC-05 — agir sur la contribution d'autrui exige la permission dédiée, puis de lire son porteur", () => {
+  /*
+   * Un rôle composé sur mesure : il gère les contributions des autres, sans
+   * portée globale ni lecture des tâches confidentielles. C'est le cas que la
+   * permission seule laissait passer.
+   */
+  const GESTIONNAIRE = [
+    "documents:update", "documents:delete", "documents:manage_any",
+    "comments:update", "comments:delete", "comments:manage_any",
+  ];
+  let gestionnaire: Compte;
+  let documentConfidentiel: string;
+  let documentVisible: string;
+  let commentaireConfidentiel: string;
+  let commentaireInvisible: string;
+
+  beforeAll(async () => {
+    gestionnaire = await compte("gestionnaire", GESTIONNAIRE);
+    await prisma.projectMember.create({ data: { projectId: projetVisible, userId: gestionnaire.id, roleProjet: "membre" } });
+    const fichier = { empreinte: "0".repeat(64), tailleOctets: 4, typeMime: "text/plain", auteurId: contributeur.id };
+    documentConfidentiel = (await prisma.document.create({ data: { nom: "rapport-secret.txt", taskId: tacheConfidentielle, ...fichier } })).id;
+    documentVisible = (await prisma.document.create({ data: { nom: "compte-rendu.txt", projectId: projetVisible, ...fichier } })).id;
+    commentaireConfidentiel = (
+      await prisma.comment.create({ data: { contenu: "Témoignage", auteurId: contributeur.id, taskId: tacheConfidentielle } })
+    ).id;
+    commentaireInvisible = (
+      await prisma.comment.create({ data: { contenu: "Arbitrage", auteurId: contributeur.id, projectId: projetInvisible } })
+    ).id;
+  });
+
+  it("RG-DOC-05 — renommer la pièce d'autrui sur une tâche confidentielle illisible est refusé, rien ne change", async () => {
+    const r = await appel("PATCH", `/api/documents/${documentConfidentiel}`, gestionnaire.jeton, { nom: "renomme.txt" });
+    expect(r.statusCode).toBe(403);
+    expect(r.json()).toMatchObject({ cle: "erreurs:horsPerimetre" });
+    expect((await prisma.document.findUniqueOrThrow({ where: { id: documentConfidentiel } })).nom).toBe("rapport-secret.txt");
+  });
+
+  it("RG-DOC-05 — supprimer la pièce d'autrui sur une tâche confidentielle illisible est refusé, elle reste", async () => {
+    const r = await appel("DELETE", `/api/documents/${documentConfidentiel}`, gestionnaire.jeton);
+    expect(r.statusCode).toBe(403);
+    expect(await prisma.document.count({ where: { id: documentConfidentiel } })).toBe(1);
+  });
+
+  it("RG-DOC-05 — modifier le commentaire d'autrui sur une tâche confidentielle illisible est refusé", async () => {
+    const r = await appel("PATCH", `/api/documents/commentaires/${commentaireConfidentiel}`, gestionnaire.jeton, { contenu: "Réécrit" });
+    expect(r.statusCode).toBe(403);
+    expect((await prisma.comment.findUniqueOrThrow({ where: { id: commentaireConfidentiel } })).contenu).toBe("Témoignage");
+  });
+
+  it("RG-DOC-05 — supprimer le commentaire d'autrui sur un projet non visible est refusé, il reste", async () => {
+    const r = await appel("DELETE", `/api/documents/commentaires/${commentaireInvisible}`, gestionnaire.jeton);
+    expect(r.statusCode).toBe(403);
+    expect(r.json()).toMatchObject({ cle: "erreurs:horsPerimetre" });
+    expect(await prisma.comment.count({ where: { id: commentaireInvisible } })).toBe(1);
+  });
+
+  it("RG-DOC-05 — contre-témoin : sur un projet visible, la permission dédiée suffit à renommer la pièce d'autrui", async () => {
+    const r = await appel("PATCH", `/api/documents/${documentVisible}`, gestionnaire.jeton, { nom: "compte-rendu-final.txt" });
+    expect(r.statusCode).toBe(200);
+    expect((await prisma.document.findUniqueOrThrow({ where: { id: documentVisible } })).nom).toBe("compte-rendu-final.txt");
+  });
+
+  it("RG-DOC-05 — contre-témoin : l'auteur garde la main sur sa contribution, porteur illisible compris", async () => {
+    const sien = await prisma.comment.create({
+      data: { contenu: "Ma note", auteurId: gestionnaire.id, taskId: tacheConfidentielle },
+    });
+    const r = await appel("PATCH", `/api/documents/commentaires/${sien.id}`, gestionnaire.jeton, { contenu: "Ma note corrigée" });
+    expect(r.statusCode).toBe(200);
+  });
+});

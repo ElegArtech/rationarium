@@ -101,7 +101,7 @@ export class DocumentsController {
 
   @Patch(":id")
   @RequiertPermission("documents:update")
-  renommer(@Param("id") id: string, @Body() corps: unknown, @Demande() d: ContexteDemande) {
+  async renommer(@Param("id") id: string, @Body() corps: unknown, @Demande() d: ContexteDemande) {
     /*
      * `version` est FACULTATIVE, et c'est une décision : le client de la vague 7
      * ne la porte pas encore, et l'exiger d'emblée casserait le renommage à
@@ -112,12 +112,15 @@ export class DocumentsController {
       z.object({ nom: z.string().min(1).max(255), version: z.number().int().positive().optional() }),
       corps,
     );
+    // `RG-DOC-05` — la pièce d'autrui : permission dédiée, puis porteur lisible.
+    await this.documents.exigerPorteurSiAutrui("document", id, d.userId, d.perimetre, d.permissions);
     return this.documents.renommer(id, nom, d.userId, d.permissions, version);
   }
 
   @Delete(":id")
   @RequiertPermission("documents:delete")
-  supprimer(@Param("id") id: string, @Demande() d: ContexteDemande) {
+  async supprimer(@Param("id") id: string, @Demande() d: ContexteDemande) {
+    await this.documents.exigerPorteurSiAutrui("document", id, d.userId, d.perimetre, d.permissions);
     return this.documents.supprimer(id, d.userId, d.permissions);
   }
 
@@ -150,18 +153,20 @@ export class DocumentsController {
   /** `RG-DOC-01` — on modifie ses propres contributions, pas celles d'autrui. */
   @Patch("commentaires/:id")
   @RequiertPermission("comments:update")
-  modifierCommentaire(
+  async modifierCommentaire(
     @Param("id") id: string,
     @Body() corps: unknown,
     @Demande() d: ContexteDemande,
   ) {
     const { contenu } = valider(z.object({ contenu: z.string().min(1).max(10_000) }), corps);
+    await this.documents.exigerPorteurSiAutrui("commentaire", id, d.userId, d.perimetre, d.permissions);
     return this.documents.modifierCommentaire(id, contenu, d.userId, d.permissions);
   }
 
   @Delete("commentaires/:id")
   @RequiertPermission("comments:delete")
-  supprimerCommentaire(@Param("id") id: string, @Demande() d: ContexteDemande) {
+  async supprimerCommentaire(@Param("id") id: string, @Demande() d: ContexteDemande) {
+    await this.documents.exigerPorteurSiAutrui("commentaire", id, d.userId, d.perimetre, d.permissions);
     return this.documents.supprimerCommentaire(id, d.userId, d.permissions);
   }
 }

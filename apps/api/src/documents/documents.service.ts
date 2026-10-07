@@ -176,6 +176,42 @@ export class DocumentsService {
     if (cible.projectId) await this.exigerProjetVisible(cible.projectId, perimetre, permissions);
   }
 
+  /**
+   * `RG-DOC-05` — agir sur la contribution d'AUTRUI exige la permission
+   * dédiée, PUIS de pouvoir lire son porteur.
+   *
+   * `documents:manage_any` et `comments:manage_any` disaient « je gère les
+   * contributions des autres », et le service s'en contentait : un porteur de
+   * la permission renommait ou supprimait la pièce jointe d'une tâche
+   * confidentielle qu'il ne pouvait pas ouvrir, ou effaçait le commentaire
+   * d'un projet qui ne lui était pas visible. Même lecture que
+   * `leaves:manage_any` (`RG-CNG-34`) : la permission dit QUOI, le périmètre
+   * dit SUR QUI.
+   *
+   * Sa propre contribution reste à soi, même si le porteur a cessé d'être
+   * lisible : on ne confisque pas à un auteur ce qu'il a écrit. Sans la
+   * permission, on laisse le service refuser avec son propre motif.
+   *
+   * Appelée par le contrôleur AVANT le geste, comme `exigerPorteursVisibles`.
+   */
+  async exigerPorteurSiAutrui(
+    nature: "document" | "commentaire",
+    id: string,
+    acteurId: string,
+    perimetre: Perimetre,
+    permissions: ReadonlySet<string>,
+  ) {
+    const permission = nature === "document" ? "documents:manage_any" : "comments:manage_any";
+    if (!permissions.has(permission)) return;
+    const choix = { select: { auteurId: true, projectId: true, taskId: true } } as const;
+    const contribution =
+      nature === "document"
+        ? await this.prisma.document.findUnique({ where: { id }, ...choix })
+        : await this.prisma.comment.findUnique({ where: { id }, ...choix });
+    if (!contribution || contribution.auteurId === acteurId) return;
+    await this.exigerVisible(contribution, perimetre, permissions);
+  }
+
   async consulter(
     id: string,
     acteurId: string,
