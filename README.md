@@ -51,12 +51,18 @@ les variables, puis exécuter `docker compose up -d --wait`.
 
 ## État de la version
 
-`1.0.0` est le candidat à la première version stable. Le déploiement fourni vise une machine unique.
+`1.0.0` est la première version stable. Elle corrige des failles de sécurité de `1.0.0-rc.1` : mettez à jour. Le déploiement fourni vise une machine unique.
 Les changements et les conditions de livraison sont décrits dans les [notes de version](docs/versions/1.0.0.md).
 
 Les ressources de l’interface sont servies localement. Un relais SMTP est nécessaire pour recevoir
 les messages par courriel, notamment les liens de réinitialisation de mot de passe. Les notifications
 dans l’application restent disponibles sans SMTP.
+
+## Contribuer et signaler une faille
+
+Les contributions sont les bienvenues : voir [CONTRIBUTING.md](CONTRIBUTING.md). Le code et la
+documentation sont en français. Une faille de sécurité se signale en privé, jamais dans une issue :
+voir [SECURITY.md](SECURITY.md).
 
 ## Auteur et licence
 

@@ -1,0 +1,44 @@
+name: Défaut / Bug
+description: Quelque chose ne fonctionne pas comme décrit. Something does not work as documented.
+labels: ["défaut"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Une faille de sécurité ne se signale pas ici : voir SECURITY.md.
+        Security issues must not be reported here: see SECURITY.md.
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Tag ou commit, et mode d'installation (kit Compose, hors ligne, sources).
+      placeholder: 1.0.0, kit Compose
+    validations:
+      required: true
+  - type: input
+    id: role
+    attributes:
+      label: Rôle du compte utilisé
+      placeholder: PROJECT_LEAD
+  - type: textarea
+    id: etapes
+    attributes:
+      label: Étapes pour reproduire
+      placeholder: |
+        1. Ouvrir…
+        2. Cliquer sur…
+    validations:
+      required: true
+  - type: textarea
+    id: attendu
+    attributes:
+      label: Résultat attendu, et règle concernée si vous la connaissez (RG-…)
+    validations:
+      required: true
+  - type: textarea
+    id: obtenu
+    attributes:
+      label: Résultat obtenu
+      description: Message affiché, journaux (`docker compose logs api`), captures.
+    validations:
+      required: true

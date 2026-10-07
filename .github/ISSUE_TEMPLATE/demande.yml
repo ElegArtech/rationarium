@@ -1,0 +1,22 @@
+name: Demande / Feature request
+description: Proposer une fonctionnalité ou une règle nouvelle. Propose a feature or a new rule.
+labels: ["demande"]
+body:
+  - type: textarea
+    id: besoin
+    attributes:
+      label: Besoin
+      description: Qui en a besoin, dans quelle situation, et ce qu'il fait aujourd'hui à la place.
+    validations:
+      required: true
+  - type: textarea
+    id: regle
+    attributes:
+      label: Règle proposée
+      description: Ce que le produit devrait faire, y compris dans les cas limites et selon les droits.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives envisagées
