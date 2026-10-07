@@ -802,6 +802,43 @@ test.describe("Vue 17 — trois gestes que la fiche n'offrait pas", () => {
     expect(Buffer.from(String(recu!["contenuBase64"]), "base64").toString()).toBe("bonjour");
   });
 
+  /**
+   * D22, `RG-DOC-04` — au-delà de 20 Mio, le serveur refuse en 413. La fiche
+   * le disait par « échec du dépôt » après avoir encodé et envoyé : le refus
+   * se dit désormais AVANT, avec la limite, et rien ne part.
+   */
+  test("D22 — une pièce jointe de plus de 20 Mio est refusée avant l'envoi, limite nommée", async ({
+    page,
+  }) => {
+    let envois = 0;
+    await serveur(page, {
+      session: SESSION_DOC,
+      reponses: { [`/api/taches/${FICHE.id}`]: { corps: FICHE } },
+    });
+    await page.route(
+      (url) => url.pathname === "/api/documents",
+      (route) => {
+        if (route.request().method() !== "POST") return route.fallback();
+        envois++;
+        return route.fulfill({ status: 201, contentType: "application/json", body: '{"id":"d1"}' });
+      },
+    );
+    await page.goto(`/taches/${FICHE.id}`);
+
+    await page
+      .getByLabel("Déposez un fichier ici, ou cliquez pour parcourir.")
+      .setInputFiles({
+        name: "archive.zip",
+        mimeType: "application/zip",
+        buffer: Buffer.alloc(20 * 1024 * 1024 + 1),
+      });
+
+    await expect(
+      page.getByText("Ce fichier est trop volumineux : la taille maximale est de 20 Mio."),
+    ).toBeVisible();
+    expect(envois).toBe(0);
+  });
+
   test("RG-GEN-06 — sans documents:create, la zone de dépôt n'est pas proposée", async ({
     page,
   }) => {

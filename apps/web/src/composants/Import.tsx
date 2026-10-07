@@ -23,6 +23,9 @@ import "./import.css";
 
 const MAX_APERCU = 5;
 
+/** Un fichier d'import pèse au plus 15 Mio — la limite que le serveur applique. */
+const TAILLE_MAX_IMPORT = 15 * 1024 * 1024;
+
 export function FenetreImport({
   type,
   titre,
@@ -67,6 +70,19 @@ export function FenetreImport({
   });
 
   const lire = async (fichier: File) => {
+    /*
+     * D22 — au-delà de 15 Mio, l'import est refusé AVANT d'être lu ni envoyé,
+     * et la fenêtre revient à « aucun fichier » : garder l'aperçu du fichier
+     * précédent laisserait exécuter ce qu'on ne voulait plus importer.
+     */
+    if (fichier.size > TAILLE_MAX_IMPORT) {
+      setNomFichier("");
+      setContenu(null);
+      setRendu(null);
+      previsualisation.reset();
+      annoncer("err", tErreurs("fichierTropVolumineux_detail", { maxOctets: TAILLE_MAX_IMPORT }));
+      return;
+    }
     const texte = await fichier.text();
     setNomFichier(fichier.name);
     setContenu(texte);
@@ -153,6 +169,8 @@ export function FenetreImport({
           onChange={(e) => {
             const fichier = e.target.files?.[0];
             if (fichier) void lire(fichier);
+            // Rechoisir le même fichier, une fois allégé, doit redéclencher.
+            e.target.value = "";
           }}
         />
         {nomFichier ? <span className="imp-nom">{nomFichier}</span> : null}

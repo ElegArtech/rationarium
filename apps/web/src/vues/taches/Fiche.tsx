@@ -1266,6 +1266,9 @@ function Commentaires({ tache }: { tache: api.FicheTache }) {
   );
 }
 
+/** `RG-DOC-04` — une pièce jointe pèse au plus 20 Mio. */
+const TAILLE_MAX_PIECE_JOINTE = 20 * 1024 * 1024;
+
 function Documents({ tache }: { tache: api.FicheTache }) {
   const { t } = useTranslation("taches");
   const { t: tErreurs } = useTranslation("erreurs");
@@ -1369,8 +1372,20 @@ function Documents({ tache }: { tache: api.FicheTache }) {
             disabled={depot.isPending}
             onChange={(e) => {
               const fichier = e.target.files?.[0];
-              if (fichier) depot.mutate(fichier);
               e.target.value = "";
+              if (!fichier) return;
+              /* D22 — `RG-DOC-04` : au-delà de 20 Mio, le serveur refuse en
+                 413. On le dit AVANT d'encoder et d'envoyer, en nommant la
+                 limite : un refus après une minute d'envoi, ou un « échec du
+                 dépôt » sans cause, laissait chercher. */
+              if (fichier.size > TAILLE_MAX_PIECE_JOINTE) {
+                annoncer(
+                  "err",
+                  tErreurs("fichierTropVolumineux_detail", { maxOctets: TAILLE_MAX_PIECE_JOINTE }),
+                );
+                return;
+              }
+              depot.mutate(fichier);
             }}
           />
         </label>

@@ -170,6 +170,9 @@ export function Profil({
 }
 
 /** Les deux blocs : ce qui m'appartient, ce qui engage l'organisation. */
+/** `RG-DOC-04` — un avatar pèse au plus 2 Mio. */
+const TAILLE_MAX_AVATAR = 2 * 1024 * 1024;
+
 function Informations({
   utilisateur,
 }: {
@@ -237,6 +240,8 @@ function Informations({
       if (!types.includes(fichier.type as (typeof types)[number])) {
         throw new Error("avatar-format");
       }
+      // D22 — `RG-DOC-04` : refusé AVANT l'envoi, limite nommée.
+      if (fichier.size > TAILLE_MAX_AVATAR) throw new Error("avatar-taille");
       const octets = new Uint8Array(await fichier.arrayBuffer());
       let binaire = "";
       for (const octet of octets) binaire += String.fromCharCode(octet);
@@ -254,7 +259,9 @@ function Informations({
     onError: (e) => {
       const texte = e instanceof Error && e.message === "avatar-format"
         ? tAuth("erreurs.avatarFormatInvalide")
-        : messageErreur(e, tAuth, t("profil.avatarEchec"));
+        : e instanceof Error && e.message === "avatar-taille"
+          ? tErreurs("fichierTropVolumineux_detail", { maxOctets: TAILLE_MAX_AVATAR })
+          : messageErreur(e, tAuth, t("profil.avatarEchec"));
       setRetourAvatar({ type: "erreur", texte });
       if (saisieAvatar.current) saisieAvatar.current.value = "";
     },
