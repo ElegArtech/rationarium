@@ -129,22 +129,51 @@ export class DocumentsService {
     permissions: ReadonlySet<string>,
   ) {
     if (document.taskId) {
-      const tache = await this.prisma.task.findFirst({
-        where: { AND: [{ id: document.taskId }, this.perimetres.filtreTache(perimetre, permissions)] },
-        select: { id: true },
-      });
-      if (!tache) throw new ErreurDocument("hors_perimetre");
+      await this.exigerTacheVisible(document.taskId, perimetre, permissions);
       return;
     }
     if (document.projectId) {
-      const projet = await this.prisma.project.findFirst({
-        where: {
-          AND: [{ id: document.projectId }, this.perimetres.filtreProjet(perimetre, permissions)],
-        },
-        select: { id: true },
-      });
-      if (!projet) throw new ErreurDocument("hors_perimetre");
+      await this.exigerProjetVisible(document.projectId, perimetre, permissions);
     }
+  }
+
+  private async exigerTacheVisible(taskId: string, perimetre: Perimetre, permissions: ReadonlySet<string>) {
+    const tache = await this.prisma.task.findFirst({
+      where: { AND: [{ id: taskId }, this.perimetres.filtreTache(perimetre, permissions)] },
+      select: { id: true },
+    });
+    if (!tache) throw new ErreurDocument("hors_perimetre");
+  }
+
+  private async exigerProjetVisible(projectId: string, perimetre: Perimetre, permissions: ReadonlySet<string>) {
+    const projet = await this.prisma.project.findFirst({
+      where: { AND: [{ id: projectId }, this.perimetres.filtreProjet(perimetre, permissions)] },
+      select: { id: true },
+    });
+    if (!projet) throw new ErreurDocument("hors_perimetre");
+  }
+
+  /**
+   * `RG-DOC-03` — lire le fil, commenter, joindre exigent de pouvoir lire le
+   * porteur. **Chaque** rattachement fourni est contrôlé : une tâche lisible
+   * ne doit pas servir de laissez-passer pour attacher un commentaire à un
+   * projet qui ne l'est pas.
+   *
+   * Le fil n'était gardé que par `comments:read` : il rendait les
+   * commentaires de n'importe quelle tâche, confidentielle comprise, et l'on
+   * commentait ou déposait une pièce sur n'importe quel projet de l'instance.
+   *
+   * Appelée par le contrôleur AVANT le geste, comme `exigerLisible` côté
+   * tâches : `fil`, `commenter` et `joindre` restent appelables de
+   * l'intérieur sans contexte de requête.
+   */
+  async exigerPorteursVisibles(
+    cible: { projectId?: string | null; taskId?: string | null },
+    perimetre: Perimetre,
+    permissions: ReadonlySet<string>,
+  ) {
+    if (cible.taskId) await this.exigerTacheVisible(cible.taskId, perimetre, permissions);
+    if (cible.projectId) await this.exigerProjetVisible(cible.projectId, perimetre, permissions);
   }
 
   async consulter(

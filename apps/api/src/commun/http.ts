@@ -95,6 +95,17 @@ const TROP_VOLUMINEUX: Message = {
   message: "Le fichier dépasse la taille autorisée.",
 };
 
+/**
+ * `RG-DOC-04` — le même refus, levé par un contrôleur qui connaît son
+ * plafond : `detail.maxOctets` permet au client de dire « 20 Mio au plus »
+ * plutôt que « trop gros ».
+ */
+export const fichierTropVolumineux = (maxOctets: number) =>
+  new HttpException(
+    { cle: TROP_VOLUMINEUX.cle, message: TROP_VOLUMINEUX.message, detail: { maxOctets } },
+    TROP_VOLUMINEUX.statut,
+  );
+
 /** Une erreur métier : toute erreur portant un `code` reconnu. */
 type ErreurCodee = Error & { code: string; detail?: Record<string, unknown> };
 
