@@ -21,6 +21,7 @@ let prisma: PrismaClient;
 let tiers: TiersService;
 let competences: CompetencesService;
 let acteur: string;
+let perimetres: PerimetreService;
 
 async function agent(prenom = "A", nom = "T") {
   const id = crypto.randomUUID();
@@ -42,7 +43,7 @@ beforeAll(async () => {
   });
   prisma = creerClient(pg.getConnectionUri());
   const audit = new AuditService(prisma as never);
-  const perimetres = new PerimetreService(prisma as never);
+  perimetres = new PerimetreService(prisma as never);
   tiers = new TiersService(prisma as never, audit, perimetres);
   competences = new CompetencesService(prisma as never, audit, perimetres);
   acteur = await agent("Acteur", "Test");
@@ -141,7 +142,7 @@ describe("EX-TRS-04 — le répertoire des clients", () => {
     });
     await prisma.projectClient.create({ data: { projectId: p.id, clientId: client.id } });
 
-    const ligne = (await tiers.listerClients({ recherche: "Avec portefeuille" }))[0];
+    const ligne = (await tiers.listerClients({ recherche: "Avec portefeuille" }, await perimetres.resoudre(acteur, new Set(["users:manage_any"])), new Set(["users:manage_any"])))[0];
     expect(ligne?._count.projets).toBe(1);
     expect(ligne?.projets[0]?.project.nom).toBe("Son projet");
   });

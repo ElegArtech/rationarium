@@ -34,8 +34,8 @@ export class TiersController {
 
   @Get(":id")
   @RequiertPermission("third_parties:read")
-  fiche(@Param("id") id: string) {
-    return this.tiers.ficheTiers(id);
+  fiche(@Param("id") id: string, @Demande() d: ContexteDemande) {
+    return this.tiers.ficheTiers(id, d.perimetre, d.permissions);
   }
 
   @Get(":id/impact")
@@ -152,7 +152,7 @@ export class ClientsController {
 
   @Get()
   @RequiertPermission("clients:read")
-  lister(@Query() requete: unknown) {
+  lister(@Query() requete: unknown, @Demande() d: ContexteDemande) {
     const filtres = valider(
       z.object({
         recherche: z.string().max(120).optional(),
@@ -160,13 +160,13 @@ export class ClientsController {
       }),
       requete,
     );
-    return this.tiers.listerClients(filtres);
+    return this.tiers.listerClients(filtres, d.perimetre, d.permissions);
   }
 
   @Get(":id")
   @RequiertPermission("clients:read")
-  fiche(@Param("id") id: string) {
-    return this.tiers.ficheClient(id);
+  fiche(@Param("id") id: string, @Demande() d: ContexteDemande) {
+    return this.tiers.ficheClient(id, d.perimetre, d.permissions);
   }
 
   @Get(":id/impact")
