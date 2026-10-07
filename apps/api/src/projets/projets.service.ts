@@ -45,6 +45,87 @@ export class ErreurProjet extends Error {
   }
 }
 
+// ── RG-PRJ-13 — qui peut ÉCRIRE sur un projet ──────────────────────────────
+//
+// Les écritures d'un projet, de ses jalons et de ses épopées ne contrôlaient
+// que la PERMISSION, posée par la garde de route. Le service écrivait ensuite
+// sur l'identifiant reçu : un chef de projet renommait, annulait, archivait ou
+// supprimait le projet d'un autre, et en refaisait la feuille de route, en
+// devinant son identifiant. Le miroir exact, côté écriture, du défaut déjà
+// corrigé sur les lectures — « la LISTE filtre, l'adresse directe non ».
+//
+// Deux cercles, parce que deux natures de geste :
+//   - PORTER le projet — le modifier, l'annuler, le restaurer, l'archiver, le
+//     supprimer, le remplacer par import : son créateur, son chef, son sponsor ;
+//   - y être RATTACHÉ — en structurer la feuille de route (jalons, épopées,
+//     import en mode Ajouter) : les mêmes, plus ses membres. C'est l'ensemble
+//     de `RG-SCOPE-02`, lu par `filtreMesProjets` comme le fait
+//     `TachesService.exigerAppartenance` pour la création d'une tâche.
+//
+// Dans les deux cas `projects:manage_any` lève le contrôle : c'est la
+// permission de DOMAINE. Une permission de gestion globale des PERSONNES
+// (`users:readAll`…) ouvre la vue, elle n'ouvre pas l'écriture d'un projet.
+//
+// Fonctions plutôt que méthodes : l'import de projet (M21) applique les mêmes
+// deux cercles, et une seconde écriture du prédicat divergerait au premier
+// rôle ajouté.
+
+/** `RG-PRJ-13` — créateur, chef ou sponsor du projet, ou `projects:manage_any`. */
+export async function exigerPorteurDuProjet(
+  prisma: PrismaService,
+  projectId: string,
+  acteurId: string,
+  permissions: ReadonlySet<string>,
+): Promise<void> {
+  const projet = await prisma.project.findUnique({
+    where: { id: projectId },
+    select: { createurId: true, chefId: true, sponsorId: true },
+  });
+  if (!projet) throw new ErreurProjet("introuvable");
+  if (permissions.has("projects:manage_any")) return;
+  if ([projet.createurId, projet.chefId, projet.sponsorId].includes(acteurId)) return;
+  throw new ErreurProjet("hors_perimetre");
+}
+
+/** `RG-PRJ-13` — rattaché au projet au sens de `RG-SCOPE-02`, ou `projects:manage_any`. */
+export async function exigerRattacheAuProjet(
+  prisma: PrismaService,
+  perimetres: PerimetreService,
+  projectId: string,
+  acteurId: string,
+  permissions: ReadonlySet<string>,
+): Promise<void> {
+  const projet = await prisma.project.findUnique({ where: { id: projectId }, select: { id: true } });
+  if (!projet) throw new ErreurProjet("introuvable");
+  if (permissions.has("projects:manage_any")) return;
+  const mien = await prisma.project.findFirst({
+    where: { AND: [{ id: projectId }, perimetres.filtreMesProjets(acteurId)] },
+    select: { id: true },
+  });
+  if (!mien) throw new ErreurProjet("hors_perimetre");
+}
+
+/**
+ * `RG-SCOPE-02` — le projet est lisible par le lecteur. Introuvable et hors
+ * périmètre sont deux refus distincts : voir `ProjetsService.exigerVisible`.
+ */
+export async function exigerProjetVisible(
+  prisma: PrismaService,
+  perimetres: PerimetreService,
+  projectId: string,
+  perimetre: Perimetre,
+  permissions: ReadonlySet<string>,
+): Promise<void> {
+  const projet = await prisma.project.findUnique({ where: { id: projectId }, select: { id: true } });
+  if (!projet) throw new ErreurProjet("introuvable");
+
+  const visible = await prisma.project.findFirst({
+    where: { AND: [{ id: projectId }, perimetres.filtreProjet(perimetre, permissions)] },
+    select: { id: true },
+  });
+  if (!visible) throw new ErreurProjet("hors_perimetre");
+}
+
 /**
  * Ce qu'une tâche montre sur la feuille de route — vue 13.
  *
@@ -175,17 +256,17 @@ export class ProjetsService {
     perimetre: Perimetre,
     permissions: ReadonlySet<string>,
   ) {
-    const projet = await this.prisma.project.findUnique({
-      where: { id: projectId },
-      select: { id: true },
-    });
-    if (!projet) throw new ErreurProjet("introuvable");
+    await exigerProjetVisible(this.prisma, this.perimetres, projectId, perimetre, permissions);
+  }
 
-    const visible = await this.prisma.project.findFirst({
-      where: { AND: [{ id: projectId }, this.perimetres.filtreProjet(perimetre, permissions)] },
-      select: { id: true },
-    });
-    if (!visible) throw new ErreurProjet("hors_perimetre");
+  /** `RG-PRJ-13` — porter le projet. Voir `exigerPorteurDuProjet`. */
+  private exigerPorteur(projectId: string, acteurId: string, permissions: ReadonlySet<string>) {
+    return exigerPorteurDuProjet(this.prisma, projectId, acteurId, permissions);
+  }
+
+  /** `RG-PRJ-13` — être rattaché au projet. Voir `exigerRattacheAuProjet`. */
+  private exigerRattache(projectId: string, acteurId: string, permissions: ReadonlySet<string>) {
+    return exigerRattacheAuProjet(this.prisma, this.perimetres, projectId, acteurId, permissions);
   }
 
   /**
@@ -444,6 +525,9 @@ export class ProjetsService {
      * `projects:manage_members` comme l'ajout d'un membre — et non par
      * `projects:update`, qui garde la route.
      */
+    // `RG-PRJ-13` — le périmètre d'abord : un refus de champ rendu à qui
+    // n'a aucun droit sur le projet lui apprendrait ce que le projet porte.
+    await this.exigerPorteur(id, acteurId, permissions);
     const refuse = champRefuse(donnees, CHAMPS_GOUVERNES_PROJET, permissions);
     if (refuse) throw new ErreurProjet("champ_hors_permission", refuse);
 
@@ -509,14 +593,16 @@ export class ProjetsService {
    * `RG-PRJ-02` — la suppression d'un projet est d'abord **logique** : il passe
    * au statut Annulé et reste restaurable.
    */
-  async annuler(id: string, acteurId: string) {
+  async annuler(id: string, acteurId: string, permissions: ReadonlySet<string>) {
+    await this.exigerPorteur(id, acteurId, permissions);
     await this.prisma.project.update({ where: { id }, data: { statut: "cancelled" } });
     await this.audit.tracer({
       action: "project.cancel", typeEntite: "Project", entiteId: id, acteurId,
     });
   }
 
-  async restaurer(id: string, acteurId: string) {
+  async restaurer(id: string, acteurId: string, permissions: ReadonlySet<string>) {
+    await this.exigerPorteur(id, acteurId, permissions);
     await this.prisma.project.update({ where: { id }, data: { statut: "active" } });
     await this.audit.tracer({
       action: "project.restore", typeEntite: "Project", entiteId: id, acteurId,
@@ -528,7 +614,13 @@ export class ProjetsService {
    * ni un projet non archivé être désarchivé. Deux refus distincts : dire
    * « impossible » sans dire lequel des deux laisserait l'utilisateur deviner.
    */
-  async archiver(id: string, archive: boolean, acteurId: string) {
+  async archiver(
+    id: string,
+    archive: boolean,
+    acteurId: string,
+    permissions: ReadonlySet<string>,
+  ) {
+    await this.exigerPorteur(id, acteurId, permissions);
     const projet = await this.prisma.project.findUnique({
       where: { id },
       select: { archive: true },
@@ -584,7 +676,8 @@ export class ProjetsService {
     };
   }
 
-  async supprimerDefinitivement(id: string, acteurId: string) {
+  async supprimerDefinitivement(id: string, acteurId: string, permissions: ReadonlySet<string>) {
+    await this.exigerPorteur(id, acteurId, permissions);
     const impact = await this.calculerImpact(id);
     if (impact.blocages.length > 0) {
       throw new ErreurProjet("suppression_bloquee", {
@@ -898,7 +991,9 @@ export class ProjetsService {
   async creerJalon(
     donnees: { nom: string; description?: string; dateEcheance?: Date; projectId: string },
     acteurId: string,
+    permissions: ReadonlySet<string>,
   ) {
+    await this.exigerRattache(donnees.projectId, acteurId, permissions);
     await this.refuserSiAnnule(donnees.projectId);
     const jalon = await this.prisma.milestone.create({
       data: {
@@ -976,12 +1071,14 @@ export class ProjetsService {
     atteint: boolean,
     version: number,
     acteurId: string,
+    permissions: ReadonlySet<string>,
   ) {
     const jalon = await this.prisma.milestone.findUnique({
       where: { id },
       select: { projectId: true, _count: { select: { taches: true } } },
     });
     if (!jalon) throw new ErreurProjet("introuvable");
+    await this.exigerRattache(jalon.projectId, acteurId, permissions);
     await this.refuserSiAnnule(jalon.projectId);
     if (jalon._count.taches > 0) throw new ErreurProjet("jalon_calcule");
 
@@ -1088,7 +1185,13 @@ export class ProjetsService {
   }
 
   /** `RG-JAL-05` — la suppression d'un jalon **détache** ses tâches sans les supprimer. */
-  async supprimerJalon(id: string, acteurId: string) {
+  async supprimerJalon(id: string, acteurId: string, permissions: ReadonlySet<string>) {
+    const jalon = await this.prisma.milestone.findUnique({
+      where: { id },
+      select: { projectId: true },
+    });
+    if (!jalon) throw new ErreurProjet("introuvable");
+    await this.exigerRattache(jalon.projectId, acteurId, permissions);
     const detachees = await this.prisma.task.count({ where: { milestoneId: id } });
     await this.prisma.$transaction([
       this.prisma.task.updateMany({ where: { milestoneId: id }, data: { milestoneId: null } }),
@@ -1121,9 +1224,11 @@ export class ProjetsService {
       version: number;
     },
     acteurId: string,
+    permissions: ReadonlySet<string>,
   ) {
     const avant = await this.prisma.milestone.findUnique({ where: { id } });
     if (!avant) throw new ErreurProjet("introuvable");
+    await this.exigerRattache(avant.projectId, acteurId, permissions);
     await this.refuserSiAnnule(avant.projectId);
 
     const { count } = await this.prisma.milestone.updateMany({
@@ -1174,7 +1279,9 @@ export class ProjetsService {
   async creerEpopee(
     donnees: { nom: string; description?: string; projectId: string },
     acteurId: string,
+    permissions: ReadonlySet<string>,
   ) {
+    await this.exigerRattache(donnees.projectId, acteurId, permissions);
     await this.refuserSiAnnule(donnees.projectId);
     const doublon = await this.prisma.epic.findUnique({
       where: { projectId_nom: { projectId: donnees.projectId, nom: donnees.nom } },
@@ -1200,9 +1307,11 @@ export class ProjetsService {
     id: string,
     donnees: { nom?: string; description?: string | null; version: number },
     acteurId: string,
+    permissions: ReadonlySet<string>,
   ) {
     const avant = await this.prisma.epic.findUnique({ where: { id } });
     if (!avant) throw new ErreurProjet("introuvable");
+    await this.exigerRattache(avant.projectId, acteurId, permissions);
     await this.refuserSiAnnule(avant.projectId);
 
     if (donnees.nom !== undefined && donnees.nom !== avant.nom) {
@@ -1237,9 +1346,10 @@ export class ProjetsService {
    * `onDelete: SetNull` sur `Task.epic` ; on compte quand même les tâches avant
    * pour pouvoir le DIRE — un détachement muet est ce qui inquiète.
    */
-  async supprimerEpopee(id: string, acteurId: string) {
+  async supprimerEpopee(id: string, acteurId: string, permissions: ReadonlySet<string>) {
     const avant = await this.prisma.epic.findUnique({ where: { id } });
     if (!avant) throw new ErreurProjet("introuvable");
+    await this.exigerRattache(avant.projectId, acteurId, permissions);
 
     const detachees = await this.prisma.task.count({ where: { epicId: id } });
     await this.prisma.epic.delete({ where: { id } });

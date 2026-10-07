@@ -127,20 +127,20 @@ export class ProjetsController {
   @Post(":id/annuler")
   @RequiertPermission("projects:update")
   annuler(@Param("id") id: string, @Demande() d: ContexteDemande) {
-    return this.projets.annuler(id, d.userId);
+    return this.projets.annuler(id, d.userId, d.permissions);
   }
 
   @Post(":id/restaurer")
   @RequiertPermission("projects:update")
   restaurer(@Param("id") id: string, @Demande() d: ContexteDemande) {
-    return this.projets.restaurer(id, d.userId);
+    return this.projets.restaurer(id, d.userId, d.permissions);
   }
 
   @Post(":id/archiver")
   @RequiertPermission("projects:archive")
   archiver(@Param("id") id: string, @Body() corps: unknown, @Demande() d: ContexteDemande) {
     const { archive } = valider(z.object({ archive: z.boolean() }), corps);
-    return this.projets.archiver(id, archive, d.userId);
+    return this.projets.archiver(id, archive, d.userId, d.permissions);
   }
 
   @Get(":id/impact")
@@ -152,7 +152,7 @@ export class ProjetsController {
   @Delete(":id")
   @RequiertPermission("projects:delete")
   supprimer(@Param("id") id: string, @Demande() d: ContexteDemande) {
-    return this.projets.supprimerDefinitivement(id, d.userId);
+    return this.projets.supprimerDefinitivement(id, d.userId, d.permissions);
   }
 
   // ── Équipe — vue 14 ──────────────────────────────────────────────────────
@@ -230,7 +230,7 @@ export class ProjetsController {
       }),
       corps,
     );
-    return this.projets.creerJalon({ ...donnees, projectId: id }, d.userId);
+    return this.projets.creerJalon({ ...donnees, projectId: id }, d.userId, d.permissions);
   }
 
   /**
@@ -248,13 +248,13 @@ export class ProjetsController {
       z.object({ atteint: z.boolean(), version: z.int().positive() }),
       corps,
     );
-    return this.projets.marquerJalon(id, atteint, version, d.userId);
+    return this.projets.marquerJalon(id, atteint, version, d.userId, d.permissions);
   }
 
   @Delete("jalons/:id")
   @RequiertPermission("milestones:delete")
   supprimerJalon(@Param("id") id: string, @Demande() d: ContexteDemande) {
-    return this.projets.supprimerJalon(id, d.userId);
+    return this.projets.supprimerJalon(id, d.userId, d.permissions);
   }
 
   /** `EX-JAL-01` — modifier un jalon. Le geste manquait : on ne pouvait que créer et supprimer. */
@@ -270,7 +270,7 @@ export class ProjetsController {
       }),
       corps,
     );
-    return this.projets.modifierJalon(id, donnees, d.userId);
+    return this.projets.modifierJalon(id, donnees, d.userId, d.permissions);
   }
 
   // ── Épopées — vue 13, `EX-JAL-07` ────────────────────────────────────────
@@ -291,7 +291,7 @@ export class ProjetsController {
       }),
       corps,
     );
-    return this.projets.creerEpopee({ ...donnees, projectId: id }, d.userId);
+    return this.projets.creerEpopee({ ...donnees, projectId: id }, d.userId, d.permissions);
   }
 
   @Patch("epopees/:id")
@@ -305,13 +305,13 @@ export class ProjetsController {
       }),
       corps,
     );
-    return this.projets.modifierEpopee(id, donnees, d.userId);
+    return this.projets.modifierEpopee(id, donnees, d.userId, d.permissions);
   }
 
   @Delete("epopees/:id")
   @RequiertPermission("epics:delete")
   supprimerEpopee(@Param("id") id: string, @Demande() d: ContexteDemande) {
-    return this.projets.supprimerEpopee(id, d.userId);
+    return this.projets.supprimerEpopee(id, d.userId, d.permissions);
   }
 
   /**

@@ -255,6 +255,7 @@ Trois niveaux : **Direction → Département → Service**.
   La participation aux événements du projet est conservée, comme le temps déclaré. Le retrait ne supprime ni le compte, ni les tâches, ni les événements.
 
 - **RG-PRJ-11** — L'import projet accepte deux modes : **Ajouter** (conserve l'existant) et **Remplacer** (supprime jalons, tâches et sous-tâches avant import, en tout-ou-rien). Le mode Remplacer exige une confirmation affichant les volumes concernés, et est bloqué si des données rattachées l'empêchent.
+- **RG-PRJ-13** — Modifier, annuler, restaurer, archiver ou supprimer un projet, ou le remplacer par import, exige d'en être créateur, chef ou sponsor, ou de détenir `projects:manage_any`. Créer, modifier, marquer ou supprimer un jalon ou une épopée, et importer en mode Ajouter, exige d'être rattaché au projet au sens de `RG-SCOPE-02`, ou de détenir `projects:manage_any`. Refus : 403 `erreurs:horsPerimetre`. Une permission de gestion globale des personnes (`users:readAll`, `users:manage_any`, `tasks:manage_any`) élargit la lecture (`RG-SCOPE-03`), pas l'écriture d'un projet.
 
 ---
 
@@ -277,6 +278,8 @@ Trois niveaux : **Direction → Département → Service**.
 - **RG-JAL-03** — Une tâche ne peut être rattachée qu'à un jalon ou une épopée **du même projet**.
 - **RG-JAL-04** — Une tâche hors projet ne peut être rattachée ni à un jalon ni à une épopée.
 - **RG-JAL-05** — La suppression d'un jalon détache ses tâches sans les supprimer.
+
+Créer, modifier, marquer ou supprimer un jalon ou une épopée exige d'être rattaché au projet : voir `RG-PRJ-13`.
 
 ---
 
