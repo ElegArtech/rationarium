@@ -45,7 +45,7 @@ Au-delà des permissions, un **périmètre** limite ce qu'un utilisateur voit.
 
 > **RG-SCOPE-01.** Le périmètre par défaut d'un utilisateur est : son département de rattachement ∪ les départements de ses services. S'il est responsable d'une direction, le périmètre s'étend à toute la direction.
 > **RG-SCOPE-02.** Un projet est visible par : son créateur, son chef de projet, son sponsor, et ses membres. Les détenteurs de `projects:manage_any` voient tout.
-> **RG-SCOPE-03.** Les détenteurs d'une permission de gestion globale (`tasks:manage_any`, `users:manage`) conservent la vue complète de l'instance.
+> **RG-SCOPE-03.** Les détenteurs d'une permission de gestion globale (`users:readAll`, `users:manage_any`, `tasks:manage_any`) conservent la vue complète de l'instance.
 > **RG-SCOPE-04.** Une tâche marquée **confidentielle** n'est pas lisible du seul fait d'y être assigné : elle exige une permission explicite.
 
 ---
@@ -203,6 +203,8 @@ Trois niveaux : **Direction → Département → Service**.
 - **RG-USR-06** — L'import CSV présente un aperçu avant exécution, puis un compte rendu : créés / ignorés (déjà existants) / en erreur, avec le détail ligne à ligne.
 - **RG-USR-07** — Un modèle de fichier CSV est téléchargeable et documente les colonnes attendues.
 - **RG-USR-08** — Les services sélectionnables dépendent du département choisi.
+- **RG-USR-09** — Nul n'agit sur un compte plus privilégié que soi. Réinitialiser le mot de passe, modifier le courriel, le rôle ou le rattachement, désactiver, réactiver ou supprimer un compte exige que **toutes** les permissions du compte cible soient détenues par l'acteur. Refus : 403 `erreurs:comptePlusPrivilegie`. Attribuer un rôle (création, modification, import) exige aussi que toutes les permissions du rôle attribué soient détenues par l'acteur.
+- **RG-USR-10** — L'import CSV d'utilisateurs applique les mêmes règles que la création unitaire : la colonne `role` exige `users:manage_roles` et RG-USR-09 ; le département doit être dans le périmètre d'écriture de l'acteur. Ligne refusée avec motif, pas d'échec global.
 
 ---
 
