@@ -562,3 +562,24 @@ export const NOMBRE_MODELES = MODELES_ROLES.length;
 
 export const modeleParCode = (code: string): ModeleRole | undefined =>
   MODELES_ROLES.find((m) => m.code === code);
+
+/**
+ * Descriptions publiées par les versions antérieures, par code de modèle.
+ *
+ * Jusqu'à 1.0.0-rc.1, plusieurs descriptions nommaient des personas de
+ * conception. Une instance déjà installée les porte en base : l'amorçage les
+ * reconnaît ici comme « le modèle tel qu'il était » et les remplace par le
+ * texte courant, au lieu de les compter comme des rôles personnalisés en
+ * collision.
+ */
+export const DESCRIPTIONS_ANTERIEURES: Readonly<Record<string, readonly string[]>> = {
+  ADMIN: ["Accès complet. Karim : comptes, rôles, calendrier, audit."],
+  ADMIN_DELEGATED: ["Administration courante sans la gouvernance des droits ni le journal d'audit — la séparation qui empêche un délégué de s'octroyer des permissions."],
+  PORTFOLIO_MANAGER: ["Inès : la santé du portefeuille en une page, les jalons à risque, la charge par service."],
+  MANAGER: ["Fatou : valider les congés en connaissant l'impact, repérer les surcharges, suivre un agent."],
+  PROJECT_LEAD: ["Driss : structurer en jalons, savoir qui est disponible, repérer retards et dépendances."],
+  PROJECT_CONTRIBUTOR: ["Camille : ses tâches du jour, ses congés, son télétravail, son temps. N'ouvrira jamais un rapport."],
+  HR_OFFICER: ["Hugo : paramétrer types de congés et soldes, importer en masse, contrôler."],
+  IT_SUPPORT: ["Assistance aux comptes : réinitialiser un mot de passe, corriger un rattachement. **Pas de gestion des rôles** — c'est la limite qui sépare le support de l'administration."],
+  EXTERNAL_PRESTATAIRE: ["Intervenant extérieur : ses tâches et son temps, rien d'autre. **Ni congés, ni télétravail, ni annuaire** — il n'est pas agent de l'organisation."],
+};

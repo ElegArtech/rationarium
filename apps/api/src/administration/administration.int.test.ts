@@ -101,6 +101,41 @@ describe("EX-ADM-06 — initialisation du référentiel", () => {
     const restaure = await roles.initialiserReferentiel(karim);
     expect(restaure.crees).toBe(1);
   });
+
+  it("EX-ADM-06 — une description publiée par une version antérieure est remplacée, pas comptée en collision", async () => {
+    const { DESCRIPTIONS_ANTERIEURES, modeleParCode } = await import("@rationarium/contracts");
+    // Un modèle non système et un modèle système, tels qu'une instance rc.1 les porte.
+    for (const code of ["IT_SUPPORT", "ADMIN"]) {
+      await prisma.role.update({
+        where: { code },
+        data: { description: DESCRIPTIONS_ANTERIEURES[code]![0]! },
+      });
+    }
+
+    const resultat = await roles.initialiserReferentiel(karim);
+
+    expect(resultat.collisions).toEqual([]);
+    for (const code of ["IT_SUPPORT", "ADMIN"]) {
+      const role = await prisma.role.findUniqueOrThrow({ where: { code } });
+      expect(role.description).toBe(modeleParCode(code)!.description);
+    }
+  });
+
+  it("EX-ADM-06 — une description rédigée par l'organisation n'est pas réécrite", async () => {
+    await prisma.role.update({ where: { code: "IT_SUPPORT" }, data: { description: "Support de proximité" } });
+
+    const resultat = await roles.initialiserReferentiel(karim);
+
+    const support = await prisma.role.findUniqueOrThrow({ where: { code: "IT_SUPPORT" } });
+    expect(support.description).toBe("Support de proximité");
+    expect(resultat.collisions.map((c) => c.code)).toEqual(["IT_SUPPORT"]);
+
+    const { modeleParCode } = await import("@rationarium/contracts");
+    await prisma.role.update({
+      where: { code: "IT_SUPPORT" },
+      data: { description: modeleParCode("IT_SUPPORT")!.description },
+    });
+  });
 });
 
 describe("RG-DROITS-02 — les rôles système sont protégés", () => {

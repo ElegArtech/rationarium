@@ -1,7 +1,14 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma.service.js";
 import { AuditService } from "../commun/audit.service.js";
-import { MODELES_ROLES, PERMISSIONS, DOMAINES, estAuCatalogue } from "@rationarium/contracts";
+import {
+  DESCRIPTIONS_ANTERIEURES,
+  MODELES_ROLES,
+  PERMISSIONS,
+  DOMAINES,
+  estAuCatalogue,
+  type ModeleRole,
+} from "@rationarium/contracts";
 
 /**
  * Rôles et permissions — M20, `cadrage/01 § M20`, vue 32.
@@ -61,13 +68,12 @@ export class RolesService {
         // système. Un rôle personnalisé qui porte par hasard le code réservé
         // n'est PAS un modèle existant : on le signale sans le réécrire et on
         // poursuit l'initialisation des autres modèles.
-        const correspondAuModele =
-          existe.nom === modele.nom && existe.description === (modele.description ?? null);
-        if (!existe.systeme && !correspondAuModele) {
+        if (!existe.systeme && !correspondAuModele(existe, modele)) {
           collisions.push({ code: modele.code, roleId: existe.id });
           continue;
         }
         existants++;
+        await this.actualiserDescription(existe, modele);
         if (existe.systeme) await this.alignerPermissionsSysteme(existe.id, [...modele.permissions]);
         continue;
       }
@@ -92,10 +98,9 @@ export class RolesService {
           where: { code: modele.code },
           select: { id: true, systeme: true, nom: true, description: true },
         });
-        const correspondAuModele =
-          concurrent.nom === modele.nom && concurrent.description === (modele.description ?? null);
-        if (concurrent.systeme || correspondAuModele) {
+        if (concurrent.systeme || correspondAuModele(concurrent, modele)) {
           existants++;
+          await this.actualiserDescription(concurrent, modele);
           if (concurrent.systeme) {
             await this.alignerPermissionsSysteme(concurrent.id, [...modele.permissions]);
           }
@@ -113,6 +118,22 @@ export class RolesService {
       detail: { crees, existants, collisions },
     });
     return { crees, existants, collisions };
+  }
+
+  /**
+   * Remplace une description de modèle publiée par une version antérieure par
+   * le texte courant. Une description modifiée par l'organisation n'est ni
+   * courante ni antérieure : elle reste telle quelle.
+   */
+  private async actualiserDescription(
+    role: { id: string; description: string | null },
+    modele: ModeleRole,
+  ) {
+    if (!DESCRIPTIONS_ANTERIEURES[modele.code]?.includes(role.description ?? "")) return;
+    await this.prisma.role.update({
+      where: { id: role.id },
+      data: { description: modele.description, version: { increment: 1 } },
+    });
   }
 
   /** `EX-ADM-01` — lister les rôles avec leur nombre de permissions. */
@@ -339,3 +360,15 @@ const codePrisma = (erreur: unknown): string | undefined =>
   typeof erreur === "object" && erreur !== null && "code" in erreur
     ? String((erreur as { code?: unknown }).code)
     : undefined;
+
+/**
+ * Un rôle non système correspond à son modèle quand il en porte le nom et la
+ * description — courante, ou publiée par une version antérieure.
+ */
+const correspondAuModele = (
+  role: { nom: string; description: string | null },
+  modele: ModeleRole,
+): boolean =>
+  role.nom === modele.nom &&
+  (role.description === (modele.description ?? null) ||
+    (DESCRIPTIONS_ANTERIEURES[modele.code] ?? []).includes(role.description ?? ""));
