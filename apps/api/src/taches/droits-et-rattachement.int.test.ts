@@ -34,6 +34,8 @@ let perimetres: PerimetreService;
 
 /** Les deux droits de création réunis : le corps décide lequel s'applique. */
 const CREER = new Set(["tasks:create", "tasks:create_standalone"]) as ReadonlySet<string>;
+/** `RG-TSK-19` — créer une tâche confidentielle exige de pouvoir la lire. */
+const CREER_CONFIDENTIEL = new Set([...CREER, "tasks:read_confidential"]) as ReadonlySet<string>;
 /** Seulement le droit de créer DANS un projet. */
 const CREER_DANS_PROJET = new Set(["tasks:create"]) as ReadonlySet<string>;
 /** Seulement le droit de créer HORS projet. */
@@ -596,7 +598,8 @@ describe("RG-SCOPE-04, RG-TSK-13 — une tâche hors périmètre ne s'ÉCRIT pas
     const t = await taches.creer(
       { titre: "Celle d'un autre", assigneIds: [proprietaire], confidentielle },
       proprietaire,
-      CREER,
+      // `RG-TSK-19` — la créer confidentielle exige de pouvoir lire le confidentiel.
+      confidentielle ? CREER_CONFIDENTIEL : CREER,
     );
     return { proprietaire, t };
   }
@@ -923,7 +926,7 @@ describe("RG-SCOPE-04 — déplacer une tâche depuis le planning respecte le p�
     const t = await taches.creer(
       { titre: "Secrète", assigneIds: [proprietaire], confidentielle: true, dateFin: utc("2026-07-01") },
       proprietaire,
-      CREER,
+      CREER_CONFIDENTIEL,
     );
     const etranger = await agent();
     const droits = new Set([...MODIFIER, "tasks:readAll"]) as ReadonlySet<string>;

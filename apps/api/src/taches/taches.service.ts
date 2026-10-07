@@ -42,6 +42,7 @@ export type EchecTache =
   | "suppression_reservee_aux_assignes"
   | "introuvable"
   | "hors_perimetre"
+  | "champ_hors_permission"
   | "conflit_de_version";
 
 export class ErreurTache extends Error {
@@ -213,6 +214,55 @@ export class TachesService {
   }
 
   /**
+   * `RG-TSK-18` — **la porte de toute ÉCRITURE sur une tâche.**
+   *
+   * Lire et modifier ne sont pas le même droit. `exigerLisible` gardait les
+   * deux, si bien qu'une permission de lecture élargie — `tasks:readAll`, ou la
+   * portée globale de `users:readAll` — ouvrait l'écriture sur toute
+   * l'instance. Le prédicat d'écriture (`filtreTacheEcriture`) s'ajoute à celui
+   * de lecture, il ne le remplace pas : on ne modifie jamais ce qu'on ne peut
+   * pas lire, confidentialité comprise.
+   *
+   * Même refus que `exigerLisible` — « hors périmètre », qui ne renseigne pas
+   * sur l'existence de la ligne.
+   */
+  async exigerModifiable(taskId: string, acteurId: string, permissions: ReadonlySet<string>) {
+    const perimetre = await this.perimetres.resoudre(acteurId, permissions);
+    const modifiable = await this.prisma.task.findFirst({
+      where: {
+        AND: [
+          { id: taskId },
+          this.perimetres.filtreTache(perimetre, permissions),
+          this.perimetres.filtreTacheEcriture(perimetre, permissions),
+        ],
+      },
+      select: { id: true },
+    });
+    if (!modifiable) throw new ErreurTache("hors_perimetre");
+  }
+
+  /**
+   * `RG-TSK-19` — **poser la confidentialité exige de pouvoir la lire.**
+   *
+   * Marquer une tâche confidentielle sans `tasks:read_confidential`, c'est la
+   * faire disparaître de sa propre vue — et de celle de ses assignés — sans
+   * pouvoir ensuite la retrouver ni défaire le geste. Le refus nomme le champ
+   * et la permission, comme tout champ gouverné (`RG-DROITS-03`). Seul `true`
+   * est gouverné : `false` sur une tâche qu'on peut modifier ne cache rien.
+   */
+  private exigerDroitDeConfidentialite(
+    confidentielle: boolean | undefined,
+    permissions: ReadonlySet<string>,
+  ) {
+    if (confidentielle === true && !permissions.has("tasks:read_confidential")) {
+      throw new ErreurTache("champ_hors_permission", {
+        champ: "confidentielle",
+        permission: "tasks:read_confidential",
+      });
+    }
+  }
+
+  /**
    * `RG-JAL-06` — rattacher une tâche à un jalon EFFACE la marque posée à la
    * main sur lui.
    *
@@ -293,6 +343,9 @@ export class TachesService {
     if (donnees.projectId) {
       await this.exigerAppartenance(donnees.projectId, acteurId, permissions);
     }
+
+    // `RG-TSK-19` — on ne crée pas confidentiel ce qu'on ne pourra pas relire.
+    this.exigerDroitDeConfidentialite(donnees.confidentielle, permissions);
 
     if (donnees.dateDebut && donnees.dateFin && donnees.dateFin < donnees.dateDebut) {
       throw new ErreurTache("dates_incoherentes");
@@ -595,8 +648,12 @@ export class TachesService {
      * par identifiant deviné, et `confidentielle` étant elle-même modifiable,
      * on pouvait la démasquer. La feuille de route ne l'offre plus depuis la
      * vague 1 ; la requête forgée, elle, passait toujours.
+     *
+     * `RG-TSK-18` — et lisible ne suffit plus : il faut pouvoir la MODIFIER.
      */
-    await this.exigerLisible(taskId, acteurId, permissions);
+    await this.exigerModifiable(taskId, acteurId, permissions);
+    // `RG-TSK-19` — marquer confidentiel exige de pouvoir lire le confidentiel.
+    this.exigerDroitDeConfidentialite(donnees.confidentielle, permissions);
 
     const { version, ...champs } = donnees;
     const avant = await this.prisma.task.findUnique({
@@ -723,7 +780,7 @@ export class TachesService {
     permissions: ReadonlySet<string>,
   ) {
     // `RG-SCOPE-04` — on n'ajoute pas de sous-tâche à ce qu'on ne peut pas lire.
-    await this.exigerLisible(taskId, acteurId, permissions);
+    await this.exigerModifiable(taskId, acteurId, permissions);
     const dernier = await this.prisma.subtask.aggregate({
       where: { taskId },
       _max: { ordre: true },
@@ -749,16 +806,16 @@ export class TachesService {
     acteurId: string,
     permissions: ReadonlySet<string>,
   ) {
-    await this.exigerLisibleParSousTache(id, acteurId, permissions);
+    await this.exigerModifiableParSousTache(id, acteurId, permissions);
     return this.prisma.subtask.update({ where: { id }, data: { fait } });
   }
 
   async supprimerSousTache(id: string, acteurId: string, permissions: ReadonlySet<string>) {
-    await this.exigerLisibleParSousTache(id, acteurId, permissions);
+    await this.exigerModifiableParSousTache(id, acteurId, permissions);
     await this.prisma.subtask.delete({ where: { id } });
   }
 
-  private async exigerLisibleParSousTache(
+  private async exigerModifiableParSousTache(
     id: string,
     acteurId: string,
     permissions: ReadonlySet<string>,
@@ -768,7 +825,7 @@ export class TachesService {
       select: { taskId: true },
     });
     if (!sousTache) throw new ErreurTache("introuvable");
-    await this.exigerLisible(sousTache.taskId, acteurId, permissions);
+    await this.exigerModifiable(sousTache.taskId, acteurId, permissions);
   }
 
   /**
@@ -790,7 +847,7 @@ export class TachesService {
     acteurId: string,
     permissions: ReadonlySet<string>,
   ) {
-    await this.exigerLisible(taskId, acteurId, permissions);
+    await this.exigerModifiable(taskId, acteurId, permissions);
     const tache = await this.prisma.task.findUnique({
       where: { id: taskId },
       select: { version: true },
@@ -829,7 +886,7 @@ export class TachesService {
     acteurId: string,
     permissions: ReadonlySet<string>,
   ) {
-    await this.exigerLisible(taskId, acteurId, permissions);
+    await this.exigerModifiable(taskId, acteurId, permissions);
     await this.prisma.taskDependency.delete({
       where: { taskId_prerequisId: { taskId, prerequisId } },
     });
@@ -847,7 +904,7 @@ export class TachesService {
     acteurId: string,
     permissions: ReadonlySet<string>,
   ) {
-    await this.exigerLisible(taskId, acteurId, permissions);
+    await this.exigerModifiable(taskId, acteurId, permissions);
     await this.prisma.taskRaci.delete({
       where: { taskId_userId_role: { taskId, userId, role } },
     });
@@ -1057,11 +1114,9 @@ export class TachesService {
     });
     if (!tache) throw new ErreurTache("introuvable");
 
-    const lisible = await this.prisma.task.findFirst({
-      where: { AND: [{ id: taskId }, visible] },
-      select: { id: true },
-    });
-    if (!lisible) throw new ErreurTache("hors_perimetre");
+    // `RG-TSK-18` — la tâche dont on pose les prérequis est MODIFIÉE ; les
+    // prérequis, eux, n'ont qu'à être nommables (`visible`, plus bas).
+    await this.exigerModifiable(taskId, acteurId, permissions);
 
     if (tache.version !== version) {
       throw new ErreurTache("conflit_de_version", { attendue: tache.version, recue: version });
@@ -1199,7 +1254,7 @@ export class TachesService {
      * proposait déjà que des tâches du périmètre, et cette route-ci acceptait
      * n'importe quel identifiant deviné.
      */
-    await this.exigerLisible(taskId, acteurId, permissions);
+    await this.exigerModifiable(taskId, acteurId, permissions);
     await this.exigerLisible(prerequisId, acteurId, permissions);
 
     const [tache, prerequis] = await Promise.all([
@@ -1401,7 +1456,7 @@ export class TachesService {
     acteurId: string,
     permissions: ReadonlySet<string>,
   ) {
-    await this.exigerLisible(taskId, acteurId, permissions);
+    await this.exigerModifiable(taskId, acteurId, permissions);
     const touchees = await this.apercuCascade(taskId, jours);
     const ids = [taskId, ...touchees.map((t) => t.id)];
 
@@ -1512,7 +1567,7 @@ export class TachesService {
     acteurId: string,
     permissions: ReadonlySet<string>,
   ) {
-    await this.exigerLisible(taskId, acteurId, permissions);
+    await this.exigerModifiable(taskId, acteurId, permissions);
     const existe = await this.prisma.taskRaci.findUnique({
       where: { taskId_userId_role: { taskId, userId, role } },
     });
@@ -1560,7 +1615,7 @@ export class TachesService {
     acteurId: string,
     permissions: ReadonlySet<string>,
   ): Promise<{ assignes: string[]; version: number }> {
-    await this.exigerLisible(taskId, acteurId, permissions);
+    await this.exigerModifiable(taskId, acteurId, permissions);
     const tache = await this.prisma.task.findUnique({
       where: { id: taskId },
       select: { id: true, titre: true, version: true },

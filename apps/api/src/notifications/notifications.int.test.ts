@@ -46,6 +46,11 @@ const DROITS_TACHE = new Set([
   "tasks:create_standalone",
   "tasks:manage_any",
 ]) as ReadonlySet<string>;
+/** `RG-TSK-19` — créer une tâche confidentielle exige de pouvoir la lire. */
+const DROITS_TACHE_CONFIDENTIELLE = new Set([
+  ...DROITS_TACHE,
+  "tasks:read_confidential",
+]) as ReadonlySet<string>;
 let perimetres: PerimetreService;
 
 let agent: string;
@@ -643,7 +648,7 @@ describe("RM-04 — confidentialité du destinataire", () => {
     const role = await prisma.role.create({ data: { code: `GLOBAL_${uuid()}`, nom: "Lecture globale", permissions: { create: [{ permission: "users:readAll" }, { permission: "tasks:read" }] } } });
     await prisma.user.update({ where: { id: dest }, data: { roleId: role.id } });
     const publier = vi.spyOn(file, "publier").mockResolvedValue(null);
-    await taches.creer({ titre: "Secret RH", confidentielle: true, assigneIds: [dest], dateFin: utc("2026-08-01") }, validateur, DROITS_TACHE);
+    await taches.creer({ titre: "Secret RH", confidentielle: true, assigneIds: [dest], dateFin: utc("2026-08-01") }, validateur, DROITS_TACHE_CONFIDENTIELLE);
     expect(await notifsDe(dest)).toEqual([]);
     expect(await notifications.alertesEcheance(utc("2026-08-11"))).toMatchObject({ emises: 0 });
     expect(await notifsDe(dest)).toEqual([]);
@@ -656,7 +661,7 @@ describe("RM-04 — confidentialité du destinataire", () => {
     const dest = await creerAgent("Autorisé");
     const role = await prisma.role.create({ data: { code: `CONF_${uuid()}`, nom: "Confidentiel", permissions: { create: [{ permission: "tasks:read_confidential" }, { permission: "tasks:read" }] } } });
     await prisma.user.update({ where: { id: dest }, data: { roleId: role.id } });
-    await taches.creer({ titre: "Secret RH", confidentielle: true, assigneIds: [dest], dateFin: utc("2026-08-01") }, validateur, DROITS_TACHE);
+    await taches.creer({ titre: "Secret RH", confidentielle: true, assigneIds: [dest], dateFin: utc("2026-08-01") }, validateur, DROITS_TACHE_CONFIDENTIELLE);
     expect((await notifsDe(dest)).map((n) => n.type)).toEqual(["tache_assignee"]);
     await notifications.alertesEcheance(utc("2026-08-11"));
     expect((await notifsDe(dest)).map((n) => n.type)).toEqual(["tache_assignee", "tache_en_retard"]);

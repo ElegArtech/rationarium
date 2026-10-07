@@ -414,7 +414,8 @@ export class TachesController {
      * compare les deux routes plutôt que de les vérifier séparément — c'est
      * la divergence qui coûte, pas l'absence.
      */
-    await this.taches.exigerLisible(id, d.userId, d.permissions);
+    // `RG-TSK-18` — déplacer est une écriture : lisible ne suffit pas.
+    await this.taches.exigerModifiable(id, d.userId, d.permissions);
     return this.taches.deplacerDepuisPlanning(id, cible, d.userId);
   }
 }

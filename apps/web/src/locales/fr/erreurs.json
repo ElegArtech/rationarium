@@ -6,6 +6,7 @@
   "autoValidationInterdite": "Vous ne pouvez pas valider votre propre demande.",
   "avancementIncoherent": "Une tâche terminée est à 100 % d'avancement. Changez d'abord son statut pour saisir un autre pourcentage.",
   "chevauchement": "Vous avez déjà une absence sur cette période.",
+  "champHorsPermission": "Ce champ demande une permission que vous n'avez pas. Le reste de votre modification n'a pas été enregistré.",
   "clientInactif": "Ce client est inactif : il ne peut plus être rattaché.",
   "codeDejaPris": "Ce code est déjà utilisé. Choisissez-en un autre.",
   "collaborateurInactif": "Ce compte est désactivé.",

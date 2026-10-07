@@ -179,6 +179,13 @@ describe("RG-SCOPE-04 — une tâche lisible ne nomme pas ses voisines confident
 
 describe("RG-TSK-09 — décaler en cascade exige d'être membre du projet", () => {
   it("RG-TSK-09 — un lecteur de toutes les tâches, hors du projet, ne décale pas la chaîne : 403, rien ne bouge", async () => {
+    /*
+     * `RG-TSK-18` — lire toutes les tâches ne donne plus la main sur la tâche
+     * pilote. Pour atteindre la règle de la CASCADE, le manager doit pouvoir
+     * modifier le pilote : il y est assigné, sans être du projet. C'est la
+     * chaîne de dépendantes que `RG-TSK-09` lui refuse alors.
+     */
+    await prisma.taskAssignee.create({ data: { taskId: pilote, userId: manager.id } });
     const r = await appel("POST", `/api/taches/${pilote}/cascade`, manager.jeton, { jours: 3 });
     expect(r.statusCode).toBe(403);
     expect(r.json()).toMatchObject({ cle: "erreurs:pasMembreDuProjet" });
