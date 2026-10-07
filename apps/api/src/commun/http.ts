@@ -30,13 +30,15 @@ import { MESSAGES as MESSAGES_AUTH } from "../auth/messages.js";
  * La traduction est journalisée en avertissement : le filet rattrape, il ne
  * dispense pas.
  */
+const INTROUVABLE: Message = {
+  statut: 404,
+  cle: "erreurs:introuvable",
+  message: "Cet élément n'existe pas ou plus.",
+};
+
 const ERREURS_PRISMA: Record<string, Message> = {
   /** Enregistrement requis introuvable. */
-  P2025: {
-    statut: 404,
-    cle: "erreurs:introuvable",
-    message: "Cet élément n'existe pas ou plus.",
-  },
+  P2025: INTROUVABLE,
   /** Contrainte d'unicité violée. */
   P2002: {
     statut: 409,
@@ -55,6 +57,42 @@ const ERREURS_PRISMA: Record<string, Message> = {
     cle: "erreurs:contrainteBase",
     message: "L'opération viole une règle garantie par la base de données.",
   },
+};
+
+/**
+ * `RG-GEN-11` — un identifiant mal formé est un « introuvable », jamais un 500.
+ *
+ * Les routes `:id` passent l'identifiant tel quel à Prisma. `abc` ne désigne
+ * aucune ligne, mais PostgreSQL refuse de le convertir en UUID (`22P02`), et
+ * Prisma 7 le rend en `P2007` avec la cause du pilote en `meta` — ou en
+ * `P2023` selon le chemin de requête. Sans cette reconnaissance, une adresse
+ * tapée de travers produisait « erreur inattendue, incident enregistré ».
+ *
+ * La reconnaissance est ÉTROITE : seul l'UUID mal formé est un introuvable.
+ * Un `22P02` sur une énumération dit qu'une validation manque en amont, et
+ * celui-là doit continuer de se voir en 500.
+ */
+const estIdentifiantMalForme = (e: ErreurCodee): boolean => {
+  if (e.code === "P2023") return true;
+  if (e.code !== "P2007") return false;
+  const cause = (e as { meta?: { driverAdapterError?: { cause?: { originalCode?: unknown; originalMessage?: unknown } } } })
+    .meta?.driverAdapterError?.cause;
+  return cause?.originalCode === "22P02" && /\btype uuid\b/.test(String(cause.originalMessage ?? ""));
+};
+
+/**
+ * `RG-DOC-04` — un corps refusé par le TRANSPORT se dit dans la même langue
+ * qu'un fichier refusé par le service.
+ *
+ * Au-delà de `bodyLimit`, Fastify lève `FST_ERR_CTP_BODY_TOO_LARGE` avant
+ * qu'aucun contrôleur ne voie la requête ; Nest la convertit en
+ * `HttpException(message, 413)` et perd le code au passage. Le client recevait
+ * donc un 413 sans clé, c'est-à-dire sans message traduisible.
+ */
+const TROP_VOLUMINEUX: Message = {
+  statut: 413,
+  cle: "erreurs:fichierTropVolumineux",
+  message: "Le fichier dépasse la taille autorisée.",
 };
 
 /** Une erreur métier : toute erreur portant un `code` reconnu. */
@@ -139,6 +177,11 @@ export class FiltreErreurs implements ExceptionFilter {
 
     if (exception instanceof HttpException) {
       const charge = exception.getResponse();
+      // Le 413 du transport arrive sans clé : il n'a pas traversé de contrôleur.
+      if (exception.getStatus() === 413 && typeof charge === "string") {
+        void reponse.status(413).send({ cle: TROP_VOLUMINEUX.cle, message: TROP_VOLUMINEUX.message });
+        return;
+      }
       void reponse
         .status(exception.getStatus())
         .send(typeof charge === "string" ? { message: charge } : charge);
@@ -160,7 +203,11 @@ export class FiltreErreurs implements ExceptionFilter {
         });
         return;
       }
-      const dePrisma = ERREURS_PRISMA[exception.code];
+      if (exception.code === "FST_ERR_CTP_BODY_TOO_LARGE") {
+        void reponse.status(413).send({ cle: TROP_VOLUMINEUX.cle, message: TROP_VOLUMINEUX.message });
+        return;
+      }
+      const dePrisma = estIdentifiantMalForme(exception) ? INTROUVABLE : ERREURS_PRISMA[exception.code];
       if (dePrisma) {
         // Le service aurait dû nommer la situation lui-même — d'où la trace.
         // Mais un filet vaut mieux qu'un 500 : « cet élément n'existe pas »

@@ -830,6 +830,7 @@ Planning au format **ICS** (et import ICS avec prévisualisation) · Tâches et 
 | RG-GEN-08 | Toute chaîne visible est traduisible ; aucune n'est figée dans le code |
 | RG-GEN-09 | Les formats de date et d'heure suivent le paramétrage global |
 | RG-GEN-10 | Les suppressions sensibles sont d'abord logiques, la suppression définitive étant une action distincte et contrôlée |
+| RG-GEN-11 | Un identifiant mal formé produit 404 (`erreurs:introuvable`), jamais 500 |
 
 ---
 
