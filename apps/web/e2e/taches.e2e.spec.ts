@@ -76,7 +76,8 @@ async function survoler(page: Page, cible: Locator) {
 const SESSION_TACHES = {
   ...SESSION,
   permissions: [...SESSION.permissions, "tasks:create", "tasks:update", "tasks:delete",
-    "tasks:manage_any", "tasks:manage_dependencies", "tasks:manage_raci", "comments:create"],
+    "tasks:manage_any", "tasks:manage_dependencies", "tasks:manage_raci", "comments:create",
+    "tasks:read_confidential"],
 };
 
 /** `RG-TSK-14` — le geste, sans la portée élargie : ses tâches, et elles seules. */
@@ -1632,6 +1633,20 @@ test.describe("Vue 17 — le formulaire complet de modification", () => {
 
     await expect.poll(() => envois.length).toBe(1);
     expect(envois[0]).toMatchObject({ confidentielle: true });
+  });
+
+  test("RG-TSK-19 — sans tasks:read_confidential, la case « Confidentielle » n'est pas proposée", async ({
+    page,
+  }) => {
+    const session = {
+      ...SESSION_TACHES,
+      permissions: SESSION_TACHES.permissions.filter((p) => p !== "tasks:read_confidential"),
+    };
+    await serveur(page, { session, reponses });
+    await ouvrir(page);
+
+    await expect(page.getByLabel("Date de fin")).toBeVisible();
+    await expect(page.getByLabel("Confidentielle", { exact: true })).toHaveCount(0);
   });
 
   test("RG-JAL-03 — le sélecteur ne propose que les jalons DU PROJET de la tâche", async ({

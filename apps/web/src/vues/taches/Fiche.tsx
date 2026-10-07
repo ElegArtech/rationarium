@@ -2159,6 +2159,7 @@ function FenetreModification({
   const { t: tErreurs } = useTranslation("erreurs");
   const annoncer = useMessages();
   const client = useQueryClient();
+  const peut = usePeut();
 
   const [description, setDescription] = useState(tache.description ?? "");
   const [priorite, setPriorite] = useState(tache.priorite);
@@ -2389,17 +2390,21 @@ function FenetreModification({
           </div>
         ) : null}
 
-        <div className="field-block">
-          <label className="check">
-            <input
-              type="checkbox"
-              checked={confidentielle}
-              onChange={(e) => setConfidentielle(e.target.checked)}
-            />
-            <span>{t("fiche.confidentielle")}</span>
-          </label>
-          <p className="field-hint">{t("fiche.confidentielleAide")}</p>
-        </div>
+        {/* RG-TSK-19 — marquer confidentiel exige de pouvoir lire le confidentiel :
+            sans ce droit, la case n'est pas proposée (le serveur refuse de toute façon). */}
+        {peut("tasks:read_confidential") ? (
+          <div className="field-block">
+            <label className="check">
+              <input
+                type="checkbox"
+                checked={confidentielle}
+                onChange={(e) => setConfidentielle(e.target.checked)}
+              />
+              <span>{t("fiche.confidentielle")}</span>
+            </label>
+            <p className="field-hint">{t("fiche.confidentielleAide")}</p>
+          </div>
+        ) : null}
       </form>
     </Fenetre>
   );
