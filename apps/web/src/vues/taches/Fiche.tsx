@@ -1132,8 +1132,10 @@ function Raci({ tache }: { tache: api.FicheTache }) {
 
 function Commentaires({ tache }: { tache: api.FicheTache }) {
   const { t } = useTranslation("taches");
+  const { t: tErreurs } = useTranslation("erreurs");
   const peut = usePeut();
   const { session } = useSession();
+  const annoncer = useMessages();
   const client = useQueryClient();
   const [contenu, setContenu] = useState("");
   const [edite, setEdite] = useState<string | null>(null);
@@ -1141,12 +1143,19 @@ function Commentaires({ tache }: { tache: api.FicheTache }) {
 
   const rafraichir = () => client.invalidateQueries({ queryKey: ["tache", tache.id] });
 
+  /*
+   * `RG-DOC-06`, `RG-GEN-07` — la version LUE du commentaire part avec la
+   * correction, et le refus en conflit se dit : un 409 tu laisserait croire
+   * que la correction est enregistrée.
+   */
   const edition = useMutation({
-    mutationFn: (id: string) => api.modifierCommentaire(id, brouillon.trim()),
+    mutationFn: (c: { id: string; version: number }) =>
+      api.modifierCommentaire(c.id, brouillon.trim(), c.version),
     onSuccess: () => {
       setEdite(null);
       void rafraichir();
     },
+    onError: (e) => annoncer("err", messageErreur(e, tErreurs, t("fiche.echecEnregistrement"))),
   });
 
   const retrait = useMutation({
@@ -1228,7 +1237,7 @@ function Commentaires({ tache }: { tache: api.FicheTache }) {
                     <Button
                       className="btn btn-primary"
                       isDisabled={!brouillon.trim() || edition.isPending}
-                      onPress={() => edition.mutate(c.id)}
+                      onPress={() => edition.mutate({ id: c.id, version: c.version })}
                     >
                       {t("fiche.enregistrerCommentaire")}
                     </Button>
@@ -1467,7 +1476,8 @@ function FenetreDocument({
   };
 
   const renommage = useMutation({
-    mutationFn: () => api.renommerDocument(document!.id, nom.trim()),
+    // `RG-DOC-06` — la version est celle que la consultation a rendue.
+    mutationFn: () => api.renommerDocument(document!.id, nom.trim(), detail.data!.version),
     onSuccess: () => {
       annoncer("ok", t("fiche.documentRenomme"));
       rafraichir();
@@ -1529,7 +1539,9 @@ function FenetreDocument({
           {renommable ? (
             <Button
               className="btn btn-primary"
-              isDisabled={!nom.trim() || nom.trim() === detail.data?.nom || renommage.isPending}
+              isDisabled={
+                !detail.data || !nom.trim() || nom.trim() === detail.data.nom || renommage.isPending
+              }
               onPress={() => renommage.mutate()}
             >
               {t("fiche.renommerDocument")}

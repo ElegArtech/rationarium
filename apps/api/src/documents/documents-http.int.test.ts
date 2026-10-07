@@ -264,7 +264,7 @@ describe("RG-DOC-05 — agir sur la contribution d'autrui exige la permission d�
   });
 
   it("RG-DOC-05 — renommer la pièce d'autrui sur une tâche confidentielle illisible est refusé, rien ne change", async () => {
-    const r = await appel("PATCH", `/api/documents/${documentConfidentiel}`, gestionnaire.jeton, { nom: "renomme.txt" });
+    const r = await appel("PATCH", `/api/documents/${documentConfidentiel}`, gestionnaire.jeton, { nom: "renomme.txt", version: 1 });
     expect(r.statusCode).toBe(403);
     expect(r.json()).toMatchObject({ cle: "erreurs:horsPerimetre" });
     expect((await prisma.document.findUniqueOrThrow({ where: { id: documentConfidentiel } })).nom).toBe("rapport-secret.txt");
@@ -277,7 +277,7 @@ describe("RG-DOC-05 — agir sur la contribution d'autrui exige la permission d�
   });
 
   it("RG-DOC-05 — modifier le commentaire d'autrui sur une tâche confidentielle illisible est refusé", async () => {
-    const r = await appel("PATCH", `/api/documents/commentaires/${commentaireConfidentiel}`, gestionnaire.jeton, { contenu: "Réécrit" });
+    const r = await appel("PATCH", `/api/documents/commentaires/${commentaireConfidentiel}`, gestionnaire.jeton, { contenu: "Réécrit", version: 1 });
     expect(r.statusCode).toBe(403);
     expect((await prisma.comment.findUniqueOrThrow({ where: { id: commentaireConfidentiel } })).contenu).toBe("Témoignage");
   });
@@ -290,7 +290,7 @@ describe("RG-DOC-05 — agir sur la contribution d'autrui exige la permission d�
   });
 
   it("RG-DOC-05 — contre-témoin : sur un projet visible, la permission dédiée suffit à renommer la pièce d'autrui", async () => {
-    const r = await appel("PATCH", `/api/documents/${documentVisible}`, gestionnaire.jeton, { nom: "compte-rendu-final.txt" });
+    const r = await appel("PATCH", `/api/documents/${documentVisible}`, gestionnaire.jeton, { nom: "compte-rendu-final.txt", version: 1 });
     expect(r.statusCode).toBe(200);
     expect((await prisma.document.findUniqueOrThrow({ where: { id: documentVisible } })).nom).toBe("compte-rendu-final.txt");
   });
@@ -299,7 +299,85 @@ describe("RG-DOC-05 — agir sur la contribution d'autrui exige la permission d�
     const sien = await prisma.comment.create({
       data: { contenu: "Ma note", auteurId: gestionnaire.id, taskId: tacheConfidentielle },
     });
-    const r = await appel("PATCH", `/api/documents/commentaires/${sien.id}`, gestionnaire.jeton, { contenu: "Ma note corrigée" });
+    const r = await appel("PATCH", `/api/documents/commentaires/${sien.id}`, gestionnaire.jeton, { contenu: "Ma note corrigée", version: sien.version });
     expect(r.statusCode).toBe(200);
+  });
+});
+
+describe("RG-DOC-06 — modifier un commentaire ou renommer un document exige la version lue", () => {
+  /*
+   * `RG-GEN-07` — la version était incrémentée sans jamais être confrontée sur
+   * le commentaire, et facultative sur le renommage : deux fenêtres qui
+   * corrigeaient le même commentaire gardaient la seconde correction, et la
+   * première disparaissait sans que personne le sache.
+   */
+  let auteur: Compte;
+  let commentaire: string;
+  let document: string;
+
+  beforeAll(async () => {
+    auteur = await compte("auteur", [...CONTRIBUTEUR, "comments:update", "documents:update"]);
+    // Assigné : la consultation du document exige de lire sa tâche (`RG-DOC-03`).
+    await prisma.taskAssignee.create({ data: { taskId: tacheVisible, userId: auteur.id } });
+    commentaire = (
+      await prisma.comment.create({ data: { contenu: "Première version", auteurId: auteur.id, taskId: tacheVisible } })
+    ).id;
+    document = (
+      await prisma.document.create({
+        data: {
+          nom: "plan.txt", taskId: tacheVisible, empreinte: "1".repeat(64),
+          tailleOctets: 4, typeMime: "text/plain", auteurId: auteur.id,
+        },
+      })
+    ).id;
+  });
+
+  it("RG-DOC-06 — le fil rend la version de chaque commentaire", async () => {
+    const r = await appel("GET", `/api/documents/commentaires/fil?taskId=${tacheVisible}`, contributeur.jeton);
+    expect(r.statusCode).toBe(200);
+    const ligne = (r.json() as { id: string; version: number }[]).find((c) => c.id === commentaire);
+    expect(ligne?.version).toBe(1);
+  });
+
+  it("RG-DOC-06 — modifier un commentaire SANS version est refusé en 400, rien n'est écrit", async () => {
+    const r = await appel("PATCH", `/api/documents/commentaires/${commentaire}`, auteur.jeton, { contenu: "Sans version" });
+    expect(r.statusCode).toBe(400);
+    const relu = await prisma.comment.findUniqueOrThrow({ where: { id: commentaire } });
+    expect(relu.contenu).toBe("Première version");
+    expect(relu.version).toBe(1);
+  });
+
+  it("RG-DOC-06 — une version PÉRIMÉE est refusée en 409, et la correction concurrente reste", async () => {
+    // Une autre fenêtre a corrigé entre-temps : la version en base est passée à 2.
+    const premiere = await appel("PATCH", `/api/documents/commentaires/${commentaire}`, auteur.jeton, { contenu: "Fenêtre A", version: 1 });
+    expect(premiere.statusCode).toBe(200);
+
+    const seconde = await appel("PATCH", `/api/documents/commentaires/${commentaire}`, auteur.jeton, { contenu: "Fenêtre B", version: 1 });
+    expect(seconde.statusCode).toBe(409);
+    expect(seconde.json()).toMatchObject({ cle: "erreurs:conflitDeVersion" });
+    const relu = await prisma.comment.findUniqueOrThrow({ where: { id: commentaire } });
+    expect(relu.contenu).toBe("Fenêtre A");
+    expect(relu.version).toBe(2);
+  });
+
+  it("RG-DOC-06 — renommer un document SANS version est refusé en 400, rien n'est écrit", async () => {
+    const r = await appel("PATCH", `/api/documents/${document}`, auteur.jeton, { nom: "sans-version.txt" });
+    expect(r.statusCode).toBe(400);
+    const relu = await prisma.document.findUniqueOrThrow({ where: { id: document } });
+    expect(relu.nom).toBe("plan.txt");
+    expect(relu.version).toBe(1);
+  });
+
+  it("RG-DOC-06 — renommer avec la version LUE réussit, puis la même version est refusée en 409", async () => {
+    const lu = await appel("GET", `/api/documents/${document}`, auteur.jeton);
+    expect(lu.statusCode).toBe(200);
+    const { version } = lu.json() as { version: number };
+
+    const r = await appel("PATCH", `/api/documents/${document}`, auteur.jeton, { nom: "plan-v2.txt", version });
+    expect(r.statusCode).toBe(200);
+    const encore = await appel("PATCH", `/api/documents/${document}`, auteur.jeton, { nom: "plan-v3.txt", version });
+    expect(encore.statusCode).toBe(409);
+    expect(encore.json()).toMatchObject({ cle: "erreurs:conflitDeVersion" });
+    expect((await prisma.document.findUniqueOrThrow({ where: { id: document } })).nom).toBe("plan-v2.txt");
   });
 });

@@ -62,6 +62,8 @@ export type FicheTache = LigneTache & {
   commentaires?: {
     id: string;
     contenu: string;
+    /** `RG-DOC-06` — la version lue, renvoyée à la modification. */
+    version: number;
     creeLe: string;
     auteur: Personne;
   }[];
@@ -302,8 +304,12 @@ export const retirerRaci = (id: string, userId: string, role: string) =>
  * l'auteur** — c'est le client qui masque par courtoisie ; le refus
  * `pas_son_contenu` reste au serveur.
  */
-export const modifierCommentaire = (id: string, contenu: string) =>
-  appeler<void>(`/documents/commentaires/${id}`, { methode: "PATCH", corps: { contenu } });
+export const modifierCommentaire = (id: string, contenu: string, version: number) =>
+  // `RG-DOC-06`, `RG-GEN-07` — la version lue part avec la correction.
+  appeler<void>(`/documents/commentaires/${id}`, {
+    methode: "PATCH",
+    corps: { contenu, version },
+  });
 
 export const supprimerCommentaire = (id: string) =>
   appeler<void>(`/documents/commentaires/${id}`, { methode: "DELETE" });
@@ -369,13 +375,12 @@ export const consulterDocument = (id: string) => appeler<DocumentConsulte>(`/doc
 /**
  * `EX-DOC-02` — renommer. Le nom est une métadonnée : le contenu ne bouge pas.
  *
- * La route n'accepte **pas** de version — le serveur incrémente la sienne sans
- * jamais la confronter à celle qu'on a lue. C'est un écart à `RG-GEN-07`, il
- * est au serveur, et ce lot ne touche pas au serveur : il est consigné en fin
- * de `docs/audits/V7-diff-retour.md`.
+ * `RG-DOC-06`, `RG-GEN-07` — la version lue est obligatoire : c'est celle que
+ * rend la consultation (`DocumentConsulte.version`), et le serveur refuse en
+ * conflit un renommage parti d'une lecture périmée.
  */
-export const renommerDocument = (id: string, nom: string) =>
-  appeler<void>(`/documents/${id}`, { methode: "PATCH", corps: { nom } });
+export const renommerDocument = (id: string, nom: string, version: number) =>
+  appeler<void>(`/documents/${id}`, { methode: "PATCH", corps: { nom, version } });
 
 /** `EX-DOC-02`, `RG-DOC-01` — supprimer. Le serveur refuse le document d'autrui. */
 export const supprimerDocument = (id: string) =>

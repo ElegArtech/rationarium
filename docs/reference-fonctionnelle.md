@@ -627,6 +627,7 @@ Le référentiel des compétences se trie notamment par couverture, ratio déten
 - **RG-DOC-03** — Lire le fil, commenter, joindre un document exige de pouvoir lire la tâche ou le projet porteur (`RG-SCOPE-02`, `RG-SCOPE-04`) ; chaque rattachement fourni est contrôlé. Refus : 403 `erreurs:horsPerimetre`. Le fil exige une cible : sans `projectId` ni `taskId`, 400.
 - **RG-DOC-04** — Une pièce jointe pèse au plus 20 Mio, un avatar 2 Mio. Au-delà : 413 `erreurs:fichierTropVolumineux` avec `detail.maxOctets`. Un corps refusé par la limite du transport rend la même clé, sans plafond.
 - **RG-DOC-05** — Renommer ou supprimer le document d'autrui, modifier ou supprimer le commentaire d'autrui exige la permission dédiée (`documents:manage_any`, `comments:manage_any`) **et** de pouvoir lire la tâche ou le projet porteur (`RG-DOC-03`) : la permission dit quoi, le périmètre dit sur qui. L'auteur garde la main sur sa propre contribution. Refus : 403 `erreurs:horsPerimetre`.
+- **RG-DOC-06** — Modifier un commentaire ou renommer un document transmet la version lue (`RG-GEN-07`) ; le fil et la consultation la rendent. Sans version : 400. Version périmée : 409 `erreurs:conflitDeVersion`, rien n'est écrit.
 
 ---
 

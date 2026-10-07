@@ -869,12 +869,14 @@ test.describe("Vue 17 — trois gestes que la fiche n'offrait pas", () => {
         {
           id: "c-moi",
           contenu: "À moi",
+          version: 3,
           creeLe: "2026-08-10T09:15:00.000Z",
           auteur: { id: mien.id, prenom: "Camille", nom: "Roussel" },
         },
         {
           id: "c-autre",
           contenu: "À quelqu'un d'autre",
+          version: 1,
           creeLe: "2026-08-10T10:00:00.000Z",
           auteur: { id: "a1", prenom: "Driss", nom: "Amrani" },
         },
@@ -903,7 +905,8 @@ test.describe("Vue 17 — trois gestes que la fiche n'offrait pas", () => {
     await page.getByRole("button", { name: "Enregistrer", exact: true }).click();
 
     await expect.poll(() => patch).not.toBeNull();
-    expect(patch).toMatchObject({ contenu: "Corrigé" });
+    // `RG-DOC-06` — la version LUE du commentaire part avec la correction.
+    expect(patch).toEqual({ contenu: "Corrigé", version: 3 });
   });
 });
 
@@ -1022,7 +1025,11 @@ test.describe("Vue 17 — les trois verbes du document que rien n'appelait", () 
     await fenetre.getByRole("button", { name: "Renommer" }).click();
 
     await expect.poll(() => journal.filter((a) => a.verbe === "PATCH")).toHaveLength(1);
-    expect(journal.find((a) => a.verbe === "PATCH")!.corps).toEqual({ nom: "cadrage-v3.pdf" });
+    // `RG-DOC-06` — avec la version que la consultation a rendue.
+    expect(journal.find((a) => a.verbe === "PATCH")!.corps).toEqual({
+      nom: "cadrage-v3.pdf",
+      version: DOCUMENT_MIEN.version,
+    });
     await expect(page.getByText("Document renommé.")).toBeVisible();
   });
 

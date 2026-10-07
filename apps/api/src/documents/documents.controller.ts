@@ -103,13 +103,13 @@ export class DocumentsController {
   @RequiertPermission("documents:update")
   async renommer(@Param("id") id: string, @Body() corps: unknown, @Demande() d: ContexteDemande) {
     /*
-     * `version` est FACULTATIVE, et c'est une décision : le client de la vague 7
-     * ne la porte pas encore, et l'exiger d'emblée casserait le renommage à
-     * l'instant. Quand elle est fournie, elle est confrontée (`RG-GEN-07`) ;
-     * son passage à obligatoire est une tâche de vue, tracée au journal.
+     * `RG-DOC-06`, `RG-GEN-07` — la version lue est OBLIGATOIRE. Elle a été
+     * facultative tant que le client ne la portait pas ; facultative, elle ne
+     * protégeait que les appelants qui voulaient bien l'être, et un renommage
+     * sans version écrasait en silence celui d'une autre fenêtre.
      */
     const { nom, version } = valider(
-      z.object({ nom: z.string().min(1).max(255), version: z.number().int().positive().optional() }),
+      z.object({ nom: z.string().min(1).max(255), version: z.number().int().positive() }),
       corps,
     );
     // `RG-DOC-05` — la pièce d'autrui : permission dédiée, puis porteur lisible.
@@ -158,9 +158,13 @@ export class DocumentsController {
     @Body() corps: unknown,
     @Demande() d: ContexteDemande,
   ) {
-    const { contenu } = valider(z.object({ contenu: z.string().min(1).max(10_000) }), corps);
+    // `RG-DOC-06`, `RG-GEN-07` — la version lue accompagne la modification.
+    const { contenu, version } = valider(
+      z.object({ contenu: z.string().min(1).max(10_000), version: z.number().int().positive() }),
+      corps,
+    );
     await this.documents.exigerPorteurSiAutrui("commentaire", id, d.userId, d.perimetre, d.permissions);
-    return this.documents.modifierCommentaire(id, contenu, d.userId, d.permissions);
+    return this.documents.modifierCommentaire(id, contenu, version, d.userId, d.permissions);
   }
 
   @Delete("commentaires/:id")

@@ -76,6 +76,7 @@ export const FICHE = {
     {
       id: "c1",
       contenu: "Le périmètre a été revu avec la direction.",
+      version: 1,
       creeLe: "2026-08-10T09:15:00.000Z",
       auteur: { id: "a1", prenom: "Driss", nom: "Amrani" },
     },

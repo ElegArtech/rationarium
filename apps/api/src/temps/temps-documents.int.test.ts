@@ -382,11 +382,11 @@ describe("RG-DOC-01 — on agit sur SES contributions", () => {
     const c = await documents.commenter({ contenu: "Le mien", projectId: projet }, auteur);
 
     await expect(
-      documents.modifierCommentaire(c.id, "Détourné", intrus, new Set()),
+      documents.modifierCommentaire(c.id, "Détourné", c.version, intrus, new Set()),
     ).rejects.toMatchObject({ code: "pas_son_contenu" });
 
     await expect(
-      documents.modifierCommentaire(c.id, "Corrigé", auteur, new Set()),
+      documents.modifierCommentaire(c.id, "Corrigé", c.version, auteur, new Set()),
     ).resolves.toBeUndefined();
   });
 
@@ -729,7 +729,7 @@ describe("EX-DOC-02 — consulter, télécharger, renommer, supprimer un documen
   it("renommer change le NOM et rien d'autre — le contenu est adressé par empreinte", async () => {
     const doc = await joindre("faute-de-frape.txt");
 
-    await documents.renommer(doc.id, "sans-faute.txt", acteur, new Set());
+    await documents.renommer(doc.id, "sans-faute.txt", acteur, new Set(), doc.version);
 
     const relu = await prisma.document.findUniqueOrThrow({ where: { id: doc.id } });
     expect(relu.nom).toBe("sans-faute.txt");
@@ -753,7 +753,7 @@ describe("EX-DOC-02 — consulter, télécharger, renommer, supprimer un documen
     const intrus = await agent();
 
     await expect(
-      documents.renommer(doc.id, "detourne.txt", intrus, new Set(["documents:update"])),
+      documents.renommer(doc.id, "detourne.txt", intrus, new Set(["documents:update"]), doc.version),
     ).rejects.toMatchObject({ code: "pas_son_contenu" });
 
     // Et rien n'a bougé, version comprise.
@@ -766,7 +766,7 @@ describe("EX-DOC-02 — consulter, télécharger, renommer, supprimer un documen
     const doc = await joindre("archive.txt");
     const bibliothecaire = await agent();
     await expect(
-      documents.renommer(doc.id, "range.txt", bibliothecaire, new Set(["documents:manage_any"])),
+      documents.renommer(doc.id, "range.txt", bibliothecaire, new Set(["documents:manage_any"]), doc.version),
     ).resolves.toBeUndefined();
   });
 
@@ -787,7 +787,7 @@ describe("EX-DOC-02 — consulter, télécharger, renommer, supprimer un documen
     const inconnu = "00000000-0000-4000-8000-000000000000";
     await expect(documents.consulter(inconnu, acteur, await globalP(), TOUTES_LECTURES)).rejects.toMatchObject({ code: "introuvable" });
     await expect(documents.telecharger(inconnu, acteur, await globalP(), TOUTES_LECTURES)).rejects.toMatchObject({ code: "introuvable" });
-    await expect(documents.renommer(inconnu, "x", acteur, new Set())).rejects.toMatchObject({
+    await expect(documents.renommer(inconnu, "x", acteur, new Set(), 1)).rejects.toMatchObject({
       code: "introuvable",
     });
     await expect(documents.supprimer(inconnu, acteur, new Set())).rejects.toMatchObject({
@@ -839,7 +839,7 @@ describe("EX-DOC-04 — modifier et supprimer SES PROPRES commentaires", () => {
     const u = await agent();
     const c = await documents.commenter({ contenu: "Avant", projectId: projet }, u);
 
-    await documents.modifierCommentaire(c.id, "Après", u, new Set());
+    await documents.modifierCommentaire(c.id, "Après", c.version, u, new Set());
 
     const relu = await prisma.comment.findUniqueOrThrow({ where: { id: c.id } });
     expect(relu.contenu).toBe("Après");
@@ -867,7 +867,7 @@ describe("EX-DOC-04 — modifier et supprimer SES PROPRES commentaires", () => {
   it("un commentaire inconnu est refusé, il n'est pas « déjà supprimé »", async () => {
     const inconnu = "00000000-0000-4000-8000-000000000000";
     await expect(
-      documents.modifierCommentaire(inconnu, "x", acteur, new Set()),
+      documents.modifierCommentaire(inconnu, "x", 1, acteur, new Set()),
     ).rejects.toMatchObject({ code: "introuvable" });
     await expect(
       documents.supprimerCommentaire(inconnu, acteur, new Set()),

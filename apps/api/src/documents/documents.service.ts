@@ -284,7 +284,7 @@ export class DocumentsService {
     nom: string,
     acteurId: string,
     permissions: ReadonlySet<string>,
-    version?: number,
+    version: number,
   ) {
     const avant = await this.prisma.document.findUnique({
       where: { id },
@@ -295,11 +295,15 @@ export class DocumentsService {
     if (avant.auteurId !== acteurId && !permissions.has("documents:manage_any")) {
       throw new ErreurDocument("pas_son_contenu");
     }
-    if (version !== undefined && avant.version !== version) {
-      throw new ErreurDocument("conflit_de_version");
-    }
+    // `RG-DOC-06` — la version lue est exigée, confrontée ici puis doublée
+    // dans le `where` : une écriture glissée entre les deux ne passe pas.
+    if (avant.version !== version) throw new ErreurDocument("conflit_de_version");
 
-    await this.prisma.document.update({ where: { id }, data: { nom, version: { increment: 1 } } });
+    const ecrit = await this.prisma.document.updateMany({
+      where: { id, version },
+      data: { nom, version: { increment: 1 } },
+    });
+    if (ecrit.count !== 1) throw new ErreurDocument("conflit_de_version");
     await this.audit.tracer({
       action: "document.rename", typeEntite: "Document", entiteId: id, acteurId,
       detail: { avant: avant.nom, apres: nom },
@@ -346,26 +350,36 @@ export class DocumentsService {
     });
   }
 
-  /** `RG-DOC-01` — on modifie ses propres commentaires, pas ceux des autres. */
+  /**
+   * `RG-DOC-01` — on modifie ses propres commentaires, pas ceux des autres.
+   *
+   * `RG-DOC-06`, `RG-GEN-07` — **la version lue est exigée.** Elle était
+   * incrémentée sans jamais être confrontée : un commentaire corrigé depuis
+   * deux fenêtres gardait la seconde correction, et la première disparaissait
+   * sans que personne le sache. La version est dans le `where` de l'écriture.
+   */
   async modifierCommentaire(
     id: string,
     contenu: string,
+    version: number,
     acteurId: string,
     permissions: ReadonlySet<string>,
   ) {
     const commentaire = await this.prisma.comment.findUnique({
       where: { id },
-      select: { auteurId: true },
+      select: { auteurId: true, version: true },
     });
     if (!commentaire) throw new ErreurDocument("introuvable");
     if (commentaire.auteurId !== acteurId && !permissions.has("comments:manage_any")) {
       throw new ErreurDocument("pas_son_contenu");
     }
+    if (commentaire.version !== version) throw new ErreurDocument("conflit_de_version");
 
-    await this.prisma.comment.update({
-      where: { id },
+    const ecrit = await this.prisma.comment.updateMany({
+      where: { id, version },
       data: { contenu, version: { increment: 1 } },
     });
+    if (ecrit.count !== 1) throw new ErreurDocument("conflit_de_version");
   }
 
   async supprimerCommentaire(id: string, acteurId: string, permissions: ReadonlySet<string>) {
