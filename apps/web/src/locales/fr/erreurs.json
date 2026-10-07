@@ -59,6 +59,7 @@
   "regleEnDouble": "Une règle récurrente couvre déjà ce jour.",
   "roleSystemeNonRenommable": "Le code d'un rôle fourni avec le produit ne peut pas être modifié.",
   "roleSystemeNonSupprimable": "Ce rôle est fourni avec le produit : il ne peut pas être supprimé. Dupliquez-le pour en créer une variante.",
+  "roleSystemeNonModifiable": "Ce rôle est fourni avec le produit : ses permissions ne peuvent pas être modifiées. Dupliquez-le pour en créer une variante.",
   "roleUtilise": "Ce rôle est encore attribué à des comptes. Réattribuez-les avant de le supprimer.",
   "serviceHorsDepartement": "Ce service n'appartient pas au département choisi.",
   "soiMemeInterdit": "Vous ne pouvez pas effectuer cette action sur votre propre compte.",

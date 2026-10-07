@@ -59,6 +59,7 @@
   "regleEnDouble": "A recurring rule already covers this day.",
   "roleSystemeNonRenommable": "The code of a role shipped with the product cannot be changed.",
   "roleSystemeNonSupprimable": "This role ships with the product and cannot be deleted. Duplicate it to create a variant.",
+  "roleSystemeNonModifiable": "This role ships with the product: its permissions cannot be changed. Duplicate it to create a variant.",
   "roleUtilise": "This role is still assigned to accounts. Reassign them before deleting it.",
   "serviceHorsDepartement": "This team does not belong to the selected department.",
   "soiMemeInterdit": "You cannot perform this action on your own account.",
