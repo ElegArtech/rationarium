@@ -16,6 +16,7 @@ import type { CategorieCompetence, NiveauCompetence } from "@rationarium/contrac
 export type EchecCompetence =
   | "nom_deja_pris"
   | "competence_assignee"
+  | "hors_perimetre"
   | "introuvable";
 
 export class ErreurCompetence extends Error {
@@ -108,6 +109,21 @@ export class CompetencesService {
     await this.audit.tracer({
       action: "skill.delete", typeEntite: "Skill", entiteId: id, acteurId,
     });
+  }
+
+  /**
+   * `RG-CMP-07` — le niveau d'un agent ne s'écrit que dans le périmètre de
+   * l'acteur.
+   *
+   * La matrice se LIT bornée par `filtreUtilisateur` ; elle s'écrivait sans
+   * borne, et `skills:manage_matrix` posait ou retirait le niveau de
+   * n'importe quel agent de l'instance. Appelée par le contrôleur avant le
+   * geste : `definirNiveau` sert aussi aux appelants internes.
+   */
+  exigerAgentDansPerimetre(userId: string, perimetre: Perimetre) {
+    if (!perimetre.global && !perimetre.utilisateurs.has(userId)) {
+      throw new ErreurCompetence("hors_perimetre");
+    }
   }
 
   /** `EX-CMP-02`, `EX-CMP-03`, `RG-CMP-06` — un agent détient une compétence à UN SEUL niveau. */

@@ -579,6 +579,7 @@ Trois vues : **Par utilisateur** · **Référentiel** · **Matrice**.
 - **RG-CMP-04** — Une compétence assignée à des agents ne peut pas être supprimée.
 - **RG-CMP-05** — Les noms de compétences sont uniques.
 - **RG-CMP-06** — Un agent détient une compétence à un seul niveau.
+- **RG-CMP-07** — Définir ou retirer le niveau d'un agent exige que l'agent soit dans le périmètre organisationnel de l'acteur (`RG-SCOPE-01`, `RG-SCOPE-03`). Refus : 403 `erreurs:horsPerimetre`.
 
 Le référentiel des compétences se trie notamment par couverture, ratio détenteurs / requis (`RG-CMP-03`). La matrice des agents se trie par niveau sur une compétence choisie ou par nombre de compétences détenues. Filtres et tris sont appliqués côté serveur avant pagination.
 
