@@ -642,7 +642,10 @@ export class RapportsService {
         where: {
           id: { in: tacheIds },
           statut: { not: "done" },
-          dateFin: { gte: debut, lt: reference },
+          // `RG-TSK-12` — `dateFin` est une colonne `@db.Date` : on la borne
+          // par des débuts de jour. `lt: reference` comptait « passée en
+          // retard » toute tâche due AUJOURD'HUI dès la première seconde.
+          dateFin: { gte: debutDuJour(debut), lt: debutDuJour(reference) },
         },
       }),
     ]);
@@ -680,14 +683,21 @@ export class RapportsService {
       const total = p.taches.length;
       const finies = p.taches.filter((t) => t.statut === "done").length;
       const progression = total === 0 ? 0 : Math.round((finies / total) * 100);
+      /*
+       * `RG-TSK-12` — les trois dates comparées ici sont des colonnes
+       * `@db.Date`, revenues à minuit. Comparées à l'INSTANT de référence,
+       * une tâche ou un projet dû aujourd'hui passait « en retard » dès la
+       * première seconde — le piège que `commun/dates.ts` nomme, et que la
+       * santé des projets avait déjà quitté. On compare des jours.
+       */
       const enRetard = p.taches.filter(
-        (t) => t.statut !== "done" && t.dateFin !== null && t.dateFin < reference,
+        (t) => t.statut !== "done" && echeanceDepassee(t.dateFin, reference),
       ).length;
 
       let rag: EtatRag;
       if (p.statut === "done" || (total > 0 && finies === total)) rag = "done";
-      else if (p.dateDebut > reference) rag = "upcoming";
-      else if (p.dateFin < reference) rag = "late";
+      else if (p.dateDebut.getTime() > debutDuJour(reference).getTime()) rag = "upcoming";
+      else if (echeanceDepassee(p.dateFin, reference)) rag = "late";
       else if (enRetard > 0) rag = "at_risk";
       else rag = "on_track";
 
