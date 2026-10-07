@@ -71,8 +71,12 @@ afterAll(async () => {
   await pg?.stop();
 });
 
-/** Le jeu de permissions d'un compte à vue complète — `RG-SCOPE-03`. */
-const PERMISSIONS_GLOBALES: ReadonlySet<string> = new Set(["users:manage_any"]);
+/**
+ * Le jeu de permissions d'un compte à vue complète — `RG-SCOPE-03` — qui gère
+ * aussi tous les événements : la vue complète ne donne pas l'écriture
+ * (`RG-EVT-08`), `events:manage_any` la donne.
+ */
+const PERMISSIONS_GLOBALES: ReadonlySet<string> = new Set(["users:manage_any", "events:manage_any"]);
 const globalP = () => perimetres.resoudre(acteur, PERMISSIONS_GLOBALES);
 
 // ══════════════════════════════ L-14 — Événements ══════════════════════════

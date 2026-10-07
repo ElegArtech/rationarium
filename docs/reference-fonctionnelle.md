@@ -428,6 +428,7 @@ Permanences, astreintes, accueil, gardes : activités qui reviennent, ne relève
 - **RG-EVT-05** — Les paramètres de début et de fin sont obligatoires pour interroger une plage.
 - **RG-EVT-06** — Un événement marqué *intervention extérieure* est signalé distinctement dans le planning.
 - **RG-EVT-07** — Toute modification ou suppression d'un événement appartenant à une série **déclare sa portée** : *cette occurrence seulement*, ou *cette occurrence et les suivantes*. La portée est obligatoire sur une série et refusée hors série. La portée « série » **n'agit jamais sur les occurrences antérieures à celle qui est visée** — même borne que `RG-EVT-04` —, et la date, qui distingue les occurrences les unes des autres, ne se modifie que sur une occurrence. Supprimer l'occurrence porteuse de la récurrence ne supprime pas les autres : la plus ancienne conservée en prend la suite.
+- **RG-EVT-08** — Modifier ou supprimer un événement, arrêter sa récurrence, y ajouter ou en retirer un participant exige d'y participer, ou de détenir `events:manage_any`. Lire au-delà de soi (`events:readAll`, périmètre global de `RG-SCOPE-03`) ne donne pas le droit d'écrire. Refus : 403 `erreurs:horsPerimetre`. Qui détient `events:manage_any` lit aussi tous les événements.
 
 ---
 
