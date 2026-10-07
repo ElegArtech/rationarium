@@ -12,7 +12,22 @@
  * que son français (`cadrage/02 § D.7`) : la largeur est prise sur « Rename »
  * et « Delete » réunis, pas sur le seul français.
  */
-.role-grid{ display:grid; grid-template-columns:minmax(0,1fr) 190px 152px 116px 236px; gap:13px; }
+/*
+ * D21 — **à 800 px, les quatre pistes fixes prenaient tout.** 694 px de pistes
+ * en dur plus les gouttières ne laissaient rien à la première colonne :
+ * `minmax(0,1fr)` la réduisait à zéro, les noms se repliaient mot à mot et se
+ * lisaient par-dessus les barres, et la colonne d'actions sortait du cadre.
+ *
+ * Chaque piste a désormais un PLANCHER lisible et un PLAFOND — l'ancienne
+ * largeur. Le nom ne descend pas sous 9rem. Les actions ont un plancher de
+ * deux boutons (9.5rem) et s'étendent jusqu'à leur largeur naturelle : quand
+ * la place manque, la rangée passe sur deux lignes plutôt que de déborder.
+ */
+.role-grid{ display:grid; gap:13px;
+  grid-template-columns:minmax(9rem,1fr) minmax(7rem,190px) minmax(4.5rem,152px)
+    minmax(5.5rem,116px) minmax(9.5rem,max-content); }
+.role-row .lv-acts{ flex-wrap:wrap; }
+.role-row > *{ min-width:0; }
 .role-head{ padding:9px 14px; background:var(--surface-2); border-bottom:1px solid var(--line-strong); }
 .role-head span{ font-family:var(--font-mono); font-size:8.5px; font-weight:500; letter-spacing:.12em;
   text-transform:uppercase; color:var(--muted); }
@@ -20,9 +35,12 @@
 .role-row:last-child{ border-bottom:none; }
 .role-row:hover{ background:var(--surface-2); }
 .role-row.is-sel{ background:var(--accent-soft); box-shadow:inset 3px 0 0 var(--accent); }
-.role-n{ font-size:13px; font-weight:600; margin:0; }
-.role-c{ display:block; font-family:var(--font-mono); font-size:9.5px; color:var(--muted); margin-top:3px; }
-.role-perm{ display:flex; align-items:center; gap:9px; }
+/* Un nom ou un code personnalisé peut dépasser la piste : il passe à la ligne,
+   jamais par-dessus la colonne voisine. */
+.role-n{ font-size:13px; font-weight:600; margin:0; overflow-wrap:anywhere; }
+.role-c{ display:block; font-family:var(--font-mono); font-size:9.5px; color:var(--muted); margin-top:3px;
+  overflow-wrap:anywhere; }
+.role-perm{ display:flex; align-items:center; gap:9px; min-width:0; }
 .role-perm .bar{ flex:1; margin:0; max-width:110px; }
 .role-pn{ font-family:var(--font-mono); font-size:11px; }
 

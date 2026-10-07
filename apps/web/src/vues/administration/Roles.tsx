@@ -299,6 +299,27 @@ export function Roles() {
  * pas une contrainte » : partir d'une matrice vide et tout cocher est un
  * parcours légitime, la liste porte donc sa propre entrée « partir de zéro ».
  */
+/**
+ * D20 — **un modèle se lit dans la langue de l'interface.** Sa description et
+ * sa famille venaient telles quelles de `@rationarium/contracts`, en français
+ * même en anglais. La traduction est cherchée par CODE de modèle ; le texte du
+ * contrat reste le repli, de sorte qu'un modèle ajouté sans traduction s'affiche
+ * encore, en français, plutôt qu'en clé brute.
+ *
+ * La famille n'a pas de code : sa clé se dérive de son libellé, sans accent ni
+ * espace — « Conduite de projet » donne `conduiteDeProjet`.
+ */
+export const cleFamille = (famille: string): string =>
+  famille
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .split(/[^A-Za-z0-9]+/)
+    .filter(Boolean)
+    .map((mot, i) =>
+      i === 0 ? mot.toLowerCase() : mot.charAt(0).toUpperCase() + mot.slice(1).toLowerCase(),
+    )
+    .join("");
+
 function FenetreCreation({
   ouverte,
   surFermeture,
@@ -310,6 +331,7 @@ function FenetreCreation({
 }) {
   const { t } = useTranslation("administration");
   const { t: tErreurs } = useTranslation("erreurs");
+  const { t: tCoquille } = useTranslation("coquille");
   const annoncer = useMessages();
   const client = useQueryClient();
   const [nom, setNom] = useState("");
@@ -344,15 +366,21 @@ function FenetreCreation({
   const codeInvalide = !/^[A-Z_]{2,40}$/.test(code.trim());
   const invalide = nomManquant || codeInvalide;
 
+  const description = (m: (typeof MODELES_ROLES)[number]): string =>
+    tCoquille(`rolesSysteme.descriptions.${m.code}`, { defaultValue: m.description });
+
+  // La recherche porte sur ce qui s'AFFICHE : chercher « leave » en anglais
+  // doit trouver la description anglaise, pas seulement la française.
   const familles = useMemo(() => {
     const q = recherche.trim().toLowerCase();
     const groupes = new Map<string, typeof MODELES_ROLES>();
     for (const m of MODELES_ROLES) {
-      if (q && !`${m.code} ${m.nom} ${m.description}`.toLowerCase().includes(q)) continue;
+      const affiche = tCoquille(`rolesSysteme.descriptions.${m.code}`, { defaultValue: m.description });
+      if (q && !`${m.code} ${m.nom} ${affiche}`.toLowerCase().includes(q)) continue;
       groupes.set(m.famille, [...(groupes.get(m.famille) ?? []), m]);
     }
     return [...groupes.entries()];
-  }, [recherche]);
+  }, [recherche, tCoquille]);
 
   return (
     <Fenetre
@@ -411,7 +439,7 @@ function FenetreCreation({
             id="r-code"
             type="text"
             value={code}
-            placeholder="REFERENT_APPLICATIF"
+            placeholder={t("roles.codeExemple")}
             aria-invalid={touche && codeInvalide}
             onChange={(e) => setCode(e.target.value.toUpperCase())}
           />
@@ -446,7 +474,9 @@ function FenetreCreation({
           ) : (
             familles.map(([famille, modeles]) => (
               <Fragment key={famille}>
-                <div className="tpl-fam">{famille}</div>
+                <div className="tpl-fam">
+                  {t(`roles.familles.${cleFamille(famille)}`, { defaultValue: famille })}
+                </div>
                 {modeles.map((m) => (
                   <Button
                     className="tpl"
@@ -457,7 +487,7 @@ function FenetreCreation({
                     <span className="opt-mark" aria-hidden="true" />
                     <span className="bloc-etroit">
                       <span className="tpl-n">{m.code}</span>
-                      <span className="tpl-d">{m.description}</span>
+                      <span className="tpl-d">{description(m)}</span>
                     </span>
                     <span className="role-pn">
                       {t("roles.nPermissions", { n: m.permissions.length })}

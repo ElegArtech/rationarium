@@ -171,7 +171,7 @@ export const MODELES_ROLES: readonly ModeleRole[] = [
     nom: "Administrateur",
     famille: "Administration",
     systeme: true,
-    description: "Accès complet. Karim : comptes, rôles, calendrier, audit.",
+    description: "Accès complet : comptes, rôles, calendrier de l'organisation, journal d'audit.",
     permissions: [...PERMISSIONS],
   },
   {
@@ -180,7 +180,7 @@ export const MODELES_ROLES: readonly ModeleRole[] = [
     famille: "Administration",
     systeme: true,
     description:
-      "Administration courante sans la gouvernance des droits ni le journal d'audit — la séparation qui empêche un délégué de s'octroyer des permissions.",
+      "Administration courante, sans la gouvernance des droits ni le journal d'audit : un délégué ne peut pas s'octroyer de permissions.",
     permissions: dedoublonne(
       PERMISSIONS.filter(
         (p) =>
@@ -198,7 +198,7 @@ export const MODELES_ROLES: readonly ModeleRole[] = [
     nom: "Responsable de portefeuille",
     famille: "Management",
     systeme: true,
-    description: "Inès : la santé du portefeuille en une page, les jalons à risque, la charge par service.",
+    description: "Santé du portefeuille en une page, jalons à risque, charge par service.",
     permissions: dedoublonne([
       ...SOCLE,
       ...ENCADREMENT,
@@ -219,7 +219,7 @@ export const MODELES_ROLES: readonly ModeleRole[] = [
     nom: "Manager de service",
     famille: "Management",
     systeme: true,
-    description: "Fatou : valider les congés en connaissant l'impact, repérer les surcharges, suivre un agent.",
+    description: "Valider les congés en connaissant leur impact, repérer les surcharges, suivre un agent.",
     permissions: dedoublonne([...SOCLE, ...CONTRIBUTION_PROJET, ...ENCADREMENT]),
   },
   {
@@ -260,7 +260,7 @@ export const MODELES_ROLES: readonly ModeleRole[] = [
     nom: "Chef de projet",
     famille: "Conduite de projet",
     systeme: true,
-    description: "Driss : structurer en jalons, savoir qui est disponible, repérer retards et dépendances.",
+    description: "Structurer un projet en jalons, savoir qui est disponible, repérer retards et dépendances.",
     permissions: dedoublonne([...SOCLE, ...CONDUITE_PROJET, "planning:read_team", "users:read"]),
   },
   {
@@ -301,7 +301,7 @@ export const MODELES_ROLES: readonly ModeleRole[] = [
     nom: "Contributeur projet",
     famille: "Contribution",
     systeme: true,
-    description: "Camille : ses tâches du jour, ses congés, son télétravail, son temps. N'ouvrira jamais un rapport.",
+    description: "Contribution aux projets dont on est membre : ses tâches, ses congés, son télétravail, son temps.",
     permissions: dedoublonne([...SOCLE, ...CONTRIBUTION_PROJET]),
   },
   {
@@ -338,7 +338,7 @@ export const MODELES_ROLES: readonly ModeleRole[] = [
     nom: "Responsable RH",
     famille: "RH",
     systeme: true,
-    description: "Hugo : paramétrer types de congés et soldes, importer en masse, contrôler.",
+    description: "Types de congés et soldes, imports en masse, contrôle, référentiel des compétences.",
     // D-RM-03 : référentiel et matrice RH ; le rôle léger conserve RH seul.
     permissions: dedoublonne([...SOCLE, ...RH, ...tout("skills")]),
   },
@@ -430,7 +430,7 @@ export const MODELES_ROLES: readonly ModeleRole[] = [
     famille: "Informatique",
     systeme: false,
     description:
-      "Assistance aux comptes : réinitialiser un mot de passe, corriger un rattachement. **Pas de gestion des rôles** — c'est la limite qui sépare le support de l'administration.",
+      "Assistance aux comptes : réinitialiser un mot de passe, corriger un rattachement. Pas de gestion des rôles : c'est la limite entre le support et l'administration.",
     permissions: dedoublonne([
       ...SOCLE,
       "users:read",
@@ -511,7 +511,7 @@ export const MODELES_ROLES: readonly ModeleRole[] = [
     famille: "Restreints",
     systeme: false,
     description:
-      "Intervenant extérieur : ses tâches et son temps, rien d'autre. **Ni congés, ni télétravail, ni annuaire** — il n'est pas agent de l'organisation.",
+      "Intervenant extérieur : ses tâches et son temps, rien d'autre. Ni congés, ni télétravail, ni annuaire : il n'est pas agent de l'organisation.",
     permissions: dedoublonne([
       "planning:read",
       "projects:read",

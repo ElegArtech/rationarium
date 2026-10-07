@@ -147,6 +147,34 @@
     "MANAGER": "Manager de service",
     "PROJECT_LEAD": "Chef de projet",
     "PROJECT_CONTRIBUTOR": "Contributeur projet",
-    "HR_OFFICER": "Responsable RH"
+    "HR_OFFICER": "Responsable RH",
+    "descriptions": {
+      "ADMIN": "Accès complet : comptes, rôles, calendrier de l'organisation, journal d'audit.",
+      "ADMIN_DELEGATED": "Administration courante, sans la gouvernance des droits ni le journal d'audit : un délégué ne peut pas s'octroyer de permissions.",
+      "PORTFOLIO_MANAGER": "Santé du portefeuille en une page, jalons à risque, charge par service.",
+      "MANAGER": "Valider les congés en connaissant leur impact, repérer les surcharges, suivre un agent.",
+      "MANAGER_PROJECT_FOCUS": "Encadrement centré sur la conduite de projet ; validation RH réduite au minimum.",
+      "MANAGER_HR_FOCUS": "Encadrement centré sur les personnes : congés, télétravail, présence, compétences.",
+      "PROJECT_LEAD": "Structurer un projet en jalons, savoir qui est disponible, repérer retards et dépendances.",
+      "PROJECT_LEAD_JUNIOR": "Conduite de projet sans création ni archivage : on pilote l'existant, on ne l'ouvre pas.",
+      "TECHNICAL_LEAD": "Conduite technique : tâches, dépendances, RACI, compétences de l'équipe. Pas de gestion de projet.",
+      "PROJECT_CONTRIBUTOR": "Contribution aux projets dont on est membre : ses tâches, ses congés, son télétravail, son temps.",
+      "PROJECT_CONTRIBUTOR_LIGHT": "Contribution en lecture et mise à jour de ses propres tâches, sans création ni suppression.",
+      "FUNCTIONAL_REFERENT": "Contribution élargie à la lecture transverse : comprendre l'ensemble sans agir dessus.",
+      "HR_OFFICER": "Types de congés et soldes, imports en masse, contrôle, référentiel des compétences.",
+      "HR_OFFICER_LIGHT": "Gestion RH courante sans le référentiel : ni types de congés, ni soldes, ni suppression de compte.",
+      "THIRD_PARTY_MANAGER": "Référentiel des intervenants externes et des bénéficiaires.",
+      "CONTROLLER": "Lecture transverse complète et journal d'audit. Ne modifie rien : c'est ce qui fait sa valeur.",
+      "BUDGET_ANALYST": "Temps déclaré, budgets consommés, charge. Lecture et export.",
+      "DATA_ANALYST": "Rapports et exports sur l'ensemble du périmètre, sans accès au journal d'audit.",
+      "IT_SUPPORT": "Assistance aux comptes : réinitialiser un mot de passe, corriger un rattachement. Pas de gestion des rôles : c'est la limite entre le support et l'administration.",
+      "IT_INFRASTRUCTURE": "Paramétrage technique et calendrier de l'organisation ; journal d'audit en lecture.",
+      "OBSERVER_FULL": "Lecture seule sur tout le périmètre autorisé. Aucune écriture, jamais.",
+      "OBSERVER_PROJECTS_ONLY": "Lecture seule sur le domaine projet. Ne voit rien des congés ni du télétravail.",
+      "OBSERVER_HR_ONLY": "Lecture seule sur les personnes et leur disponibilité. Ne voit rien du contenu des projets.",
+      "BASIC_USER": "Le strict nécessaire : son planning, ses congés, son télétravail, son temps.",
+      "EXTERNAL_PRESTATAIRE": "Intervenant extérieur : ses tâches et son temps, rien d'autre. Ni congés, ni télétravail, ni annuaire : il n'est pas agent de l'organisation.",
+      "STAGIAIRE_ALTERNANT": "Contribution encadrée : ses tâches, son temps, ses congés. Pas de création de tâche hors projet."
+    }
   }
 }

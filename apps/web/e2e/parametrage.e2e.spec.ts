@@ -554,6 +554,75 @@ test.describe("Vue 32 — rôles et permissions", () => {
   });
 
   /**
+   * D20 — les modèles se lisaient en français même en anglais, avec les
+   * prénoms des personas du cadrage et des `**` de markdown. La description
+   * et la famille se traduisent désormais par code ; l'exemple du champ Code
+   * aussi.
+   */
+  test("D20 — en anglais, aucun modèle ne nomme de persona ni n'affiche de markdown", async ({
+    page,
+  }) => {
+    await page.addInitScript(() => localStorage.setItem("rationarium.langue", "en"));
+    await serveur(page, { session: SESSION_CONFIG, reponses });
+    await page.goto("/roles");
+    await page.getByRole("button", { name: "Create a role" }).click();
+
+    const liste = page.locator(".tpl-list");
+    await expect(liste.getByRole("button", { name: /^ADMIN_DELEGATED/ })).toBeVisible();
+    await expect(liste).toContainText("Full access: accounts, roles, organisation calendar, audit log.");
+    await expect(liste).toContainText("Project leadership");
+    const texte = (await liste.innerText()).normalize("NFC");
+    for (const prenom of ["Karim", "Inès", "Fatou", "Driss", "Camille", "Hugo"]) {
+      expect(texte, prenom).not.toContain(prenom);
+    }
+    expect(texte).not.toContain("**");
+    // Les descriptions françaises ne doivent plus apparaître en anglais.
+    expect(texte).not.toContain("Accès complet");
+    await expect(page.getByLabel("Code")).toHaveAttribute("placeholder", "APPLICATION_REFERENT");
+
+    // La recherche porte sur le texte affiché, donc anglais.
+    await page.getByRole("searchbox", { name: "Start from a template" }).fill("remote work");
+    await expect(liste.getByRole("button", { name: /^MANAGER_HR_FOCUS/ })).toBeVisible();
+  });
+
+  /**
+   * D21 — à 800 px, la première piste tombait à zéro : les noms se lisaient
+   * par-dessus les barres et la colonne Actions sortait du cadre. Ce qui le
+   * tient est une mesure de GÉOMÉTRIE, pas de présence.
+   */
+  test("D21 — à 800 px, le nom ne chevauche pas la barre et les actions restent dans la ligne", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 800, height: 900 });
+    await serveur(page, { session: SESSION_CONFIG, reponses });
+    await page.goto("/roles");
+    await expect(page.locator(".role-row").first()).toBeVisible();
+
+    for (const ligne of await page.locator(".role-row").all()) {
+      const mesure = await ligne.evaluate((el) => {
+        const r = (s: string) => el.querySelector(s)!.getBoundingClientRect();
+        // L'étendue du TEXTE, pas celle de sa boîte : un texte qui déborde
+        // laisse sa boîte à la largeur de la piste.
+        const texte = (s: string) => {
+          const plage = document.createRange();
+          plage.selectNodeContents(el.querySelector(s)!);
+          return plage.getBoundingClientRect();
+        };
+        const ligneR = el.getBoundingClientRect();
+        const actions = [...el.querySelectorAll(".lv-acts > *")].map((b) => b.getBoundingClientRect());
+        return {
+          finNom: Math.max(texte(".role-n").right, texte(".role-c").right),
+          debutBarre: r(".role-perm").left,
+          droiteLigne: ligneR.right,
+          droiteActions: Math.max(...actions.map((a) => a.right)),
+        };
+      });
+      expect(mesure.finNom).toBeLessThanOrEqual(mesure.debutBarre);
+      expect(mesure.droiteActions).toBeLessThanOrEqual(mesure.droiteLigne);
+    }
+  });
+
+  /**
    * `EX-ADM-03` — « modifier un rôle ». `RG-DROITS-02` — « les rôles système
    * ne sont ni supprimables **ni renommables** ».
    *

@@ -99,7 +99,8 @@
     "supprimeFaitDe": "{nom}'s account has been deleted.",
     "supprimerLeCompteDe": "Permanently delete {nom}'s account",
     "toutesLesDonneesDe": "All data attached to {nom} ({login}) — history, comments, time entries — will be permanently deleted.",
-    "remiseMotDePasse": "Choose a temporary password and give it to {nom} outside the application. The current password will be replaced; the account holder must change this password at next sign-in."
+    "remiseMotDePasse": "Choose a temporary password and give it to {nom} outside the application. The current password will be replaced; the account holder must change this password at next sign-in.",
+    "comptePlusPrivilegie": "This account has permissions you do not have"
   },
   "suivi": {
     "leSuivi": "the individual tracking",
@@ -553,7 +554,19 @@
     "renomme": "Role renamed to “{nom}”.",
     "echecRenommage": "The rename failed.",
     "codeInchange": "The role code does not change",
-    "systemeNonRenommable": "System roles cannot be renamed."
+    "systemeNonRenommable": "System roles cannot be renamed.",
+    "codeExemple": "APPLICATION_REFERENT",
+    "familles": {
+      "administration": "Administration",
+      "management": "Management",
+      "conduiteDeProjet": "Project leadership",
+      "contribution": "Contribution",
+      "rh": "Human resources",
+      "transverse": "Cross-functional",
+      "informatique": "IT",
+      "observation": "Observation",
+      "restreints": "Restricted"
+    }
   },
   "audit": {
     "surtitre": "Administration",
