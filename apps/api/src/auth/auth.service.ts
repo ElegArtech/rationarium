@@ -40,6 +40,9 @@ export type EchecAuth =
   | "email_deja_pris"
   | "login_deja_pris"
   | "domaine_non_autorise"
+  | "domaine_email_non_autorise"
+  | "mot_de_passe_actuel_requis"
+  | "mot_de_passe_actuel_incorrect"
   | "inscription_desactivee"
   | "avatar_ambigu"
   | "avatar_predefini_invalide"
@@ -899,10 +902,16 @@ export class AuthService {
       theme?: string | undefined;
       avatarFichier?: string | null | undefined;
       avatarPredefini?: VisuelAvatarPredefini | null | undefined;
+      motDePasseActuel?: string | undefined;
       version: number;
     },
+    contexte: { ip?: string | undefined } = {},
   ) {
-    const avant = await this.prisma.user.findUnique({ where: { id: userId } });
+    const avant = await this.prisma.user.findUnique({
+      where: { id: userId },
+      // RG-AUTH-14 — lu pour la seule vérification du changement d'adresse.
+      omit: { motDePasseHash: false },
+    });
     if (!avant) throw new ErreurAuth("identifiants_invalides");
 
     /*
@@ -923,8 +932,44 @@ export class AuthService {
     }
     if (fichier && predefini) throw new ErreurAuth("avatar_ambigu");
 
-    if (d.email && d.email !== avant.email) {
-      const pris = await this.prisma.user.findUnique({ where: { email: d.email } });
+    /*
+     * `RG-AUTH-16` — **changer d'adresse exige le mot de passe actuel.**
+     *
+     * L'adresse est la clé de la réinitialisation : qui la change reçoit le
+     * prochain lien. Sans cette exigence, une session volée — un poste resté
+     * ouvert suffit — remplaçait l'adresse puis demandait un lien, et devenait
+     * propriétaire du compte sans avoir jamais connu son mot de passe.
+     * `RG-USR-05` ferme la même porte côté administration ; le profil la
+     * laissait ouverte.
+     *
+     * L'adresse est normalisée en minuscules comme à l'inscription et à
+     * l'administration : la connexion la cherche en minuscules, et une adresse
+     * en capitales ne s'y retrouvait plus. Les échecs comptent dans le compteur
+     * de verrouillage (`RG-AUTH-01`), et la liste blanche de domaines de
+     * l'inscription (`RG-AUTH-03`) s'applique à la nouvelle adresse.
+     */
+    const email = d.email?.trim().toLowerCase();
+    const changeEmail = email !== undefined && email !== avant.email;
+    if (changeEmail) {
+      if (!d.motDePasseActuel) throw new ErreurAuth("mot_de_passe_actuel_requis");
+      const r = await this.reglages();
+      if (avant.verrouilleJusqua && avant.verrouilleJusqua > new Date()) {
+        throw new ErreurAuth("compte_verrouille");
+      }
+      const verdict = await this.verifierSousCompteur(avant, d.motDePasseActuel, r, contexte, {
+        echec: "user.email_change_failed",
+      });
+      if (verdict === "verrouille") throw new ErreurAuth("compte_verrouille");
+      if (verdict === "invalide") throw new ErreurAuth("mot_de_passe_actuel_incorrect");
+      await this.prisma.user.update({ where: { id: userId }, data: { echecsConnexion: 0 } });
+
+      if (r.domainesAutorises.length > 0) {
+        const domaine = email.split("@")[1] ?? "";
+        if (!r.domainesAutorises.includes(domaine)) {
+          throw new ErreurAuth("domaine_email_non_autorise");
+        }
+      }
+      const pris = await this.prisma.user.findUnique({ where: { email }, select: { id: true } });
       if (pris) throw new ErreurAuth("email_deja_pris");
     }
 
@@ -935,7 +980,7 @@ export class AuthService {
       data: {
         ...(d.prenom !== undefined ? { prenom: d.prenom } : {}),
         ...(d.nom !== undefined ? { nom: d.nom } : {}),
-        ...(d.email !== undefined ? { email: d.email } : {}),
+        ...(changeEmail ? { email } : {}),
         ...(d.langue !== undefined ? { langue: d.langue } : {}),
         ...(d.theme !== undefined ? { theme: d.theme } : {}),
         ...(d.avatarFichier !== undefined ? { avatarFichier: d.avatarFichier } : {}),
@@ -946,7 +991,81 @@ export class AuthService {
     });
     if (count === 0) throw new ErreurAuth("conflit_de_version");
 
+    if (changeEmail) {
+      await this.audit.tracer({
+        action: "user.email_changed",
+        typeEntite: "User",
+        entiteId: userId,
+        acteurId: userId,
+        detail: { avant: avant.email, apres: email, ip: contexte.ip },
+      });
+      await this.avertirChangementAdresse(avant.email, email, avant.langue);
+    }
+
     return this.profil(userId);
+  }
+
+  /**
+   * `RG-AUTH-16` — **l'ANCIENNE adresse est prévenue.** C'est la seule que le
+   * titulaire lit encore si quelqu'un d'autre a fait le changement : prévenir
+   * la nouvelle préviendrait l'intrus.
+   *
+   * Rédigé dans la langue enregistrée du compte : c'est la seule information
+   * de langue dont dispose le serveur. Comme le lien de réinitialisation, une
+   * mise en file qui ne lève jamais (`RG-NTF-04`) : le changement a eu lieu,
+   * et un relais SMTP en panne ne le défait pas.
+   */
+  private async avertirChangementAdresse(
+    ancienne: string,
+    nouvelle: string,
+    langue: string,
+  ): Promise<void> {
+    const instance = adressePubliqueInstance();
+    const message =
+      langue === "en"
+        ? {
+            sujet: "Your email address was changed",
+            corps: [
+              "The email address of your Rationarium account has just been changed.",
+              "",
+              `New address: ${nouvelle}`,
+              "",
+              "If you made this change, no action is needed.",
+              "If you did not, contact your administrator immediately:",
+              "someone may be using your account.",
+              "",
+              instance,
+            ],
+          }
+        : {
+            sujet: "Votre adresse de messagerie a été modifiée",
+            corps: [
+              "L'adresse de messagerie de votre compte Rationarium vient d'être modifiée.",
+              "",
+              `Nouvelle adresse : ${nouvelle}`,
+              "",
+              "Si vous êtes à l'origine de ce changement, vous n'avez rien à faire.",
+              "Sinon, prévenez immédiatement votre administrateur :",
+              "quelqu'un utilise peut-être votre compte.",
+              "",
+              instance,
+            ],
+          };
+    try {
+      if (!this.file) {
+        this.journal.error(
+          "La file de travaux n'est pas injectée : l'avis de changement d'adresse ne peut pas partir.",
+        );
+        return;
+      }
+      await this.file.publier(FILE_COURRIEL, {
+        destinataire: ancienne,
+        sujet: message.sujet,
+        corps: message.corps.join("\n"),
+      });
+    } catch {
+      // Le changement est fait ; l'avis manqué ne doit pas le faire échouer.
+    }
   }
 
   /**

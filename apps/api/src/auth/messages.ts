@@ -65,6 +65,21 @@ export const MESSAGES: Record<EchecAuth, { statut: number; cle: string; message:
     cle: "auth:erreurs.domaineNonAutorise",
     message: "Les inscriptions sont réservées aux adresses des domaines autorisés",
   },
+  domaine_email_non_autorise: {
+    statut: 403,
+    cle: "auth:erreurs.domaineEmailNonAutorise",
+    message: "Cette adresse n'appartient pas à un domaine de messagerie autorisé.",
+  },
+  mot_de_passe_actuel_requis: {
+    statut: 400,
+    cle: "auth:erreurs.motDePasseActuelRequis",
+    message: "Saisissez votre mot de passe actuel pour changer d'adresse.",
+  },
+  mot_de_passe_actuel_incorrect: {
+    statut: 400,
+    cle: "auth:erreurs.motDePasseActuelIncorrect",
+    message: "Mot de passe actuel incorrect",
+  },
   inscription_desactivee: {
     statut: 403,
     cle: "auth:erreurs.inscriptionDesactivee",

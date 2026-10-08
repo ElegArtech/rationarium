@@ -327,10 +327,14 @@ export class AuthController {
    */
   @Personnel()
   @Patch("me")
-  async modifierProfil(@Body() corps: unknown, @Demande() demande: ContexteDemande) {
+  async modifierProfil(
+    @Body() corps: unknown,
+    @Demande() demande: ContexteDemande,
+    @Req() req: FastifyRequest,
+  ) {
     const d = valider(modificationProfilSchema, corps);
     try {
-      return await this.auth.modifierProfil(demande.userId, d);
+      return await this.auth.modifierProfil(demande.userId, d, { ip: req.ip });
     } catch (e) {
       return traduire(e);
     }

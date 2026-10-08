@@ -342,3 +342,31 @@ describe("RG-AUTH-15 — les réglages d'authentification ne se lisent pas sans 
     expect(connecte["auth.domainesAutorises"]).toBe("exemple.fr");
   });
 });
+
+describe("RG-AUTH-16 — changer d'adresse exige le mot de passe actuel, sur la chaîne HTTP", () => {
+  /*
+   * Sur la surface assemblée, parce que Zod retire les clés inconnues EN
+   * SILENCE : un `motDePasseActuel` absent du schéma de route disparaîtrait
+   * avant le service, et le changement légitime deviendrait impossible.
+   */
+  it("une session seule ne change pas l'adresse ; avec le mot de passe, si", async () => {
+    const titulaire = await compte("sec02.adresse", [], { ip: "203.0.113.61" });
+    const moi = await appel("GET", "/api/auth/me", { jeton: titulaire.jeton });
+    const version = (moi.json() as { version: number }).version;
+
+    const sansMotDePasse = await appel("PATCH", "/api/auth/me", {
+      jeton: titulaire.jeton,
+      corps: { email: "detournee@exemple.fr", version },
+    });
+    expect(sansMotDePasse.statusCode).toBe(400);
+    expect(sansMotDePasse.json()).toMatchObject({ cle: "auth:erreurs.motDePasseActuelRequis" });
+
+    const avecMotDePasse = await appel("PATCH", "/api/auth/me", {
+      jeton: titulaire.jeton,
+      corps: { email: "Nouvelle.Adresse@exemple.fr", motDePasseActuel: MDP, version },
+    });
+    expect(avecMotDePasse.statusCode).toBe(200);
+    expect(avecMotDePasse.json()).toMatchObject({ email: "nouvelle.adresse@exemple.fr" });
+    expect(avecMotDePasse.body).not.toContain(MDP);
+  });
+});

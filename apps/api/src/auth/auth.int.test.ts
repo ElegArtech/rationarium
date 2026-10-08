@@ -964,8 +964,117 @@ describe("EX-AUTH-09 — modifier son profil", () => {
     const a = await poserUnCompte();
     const b = await poserUnCompte();
     await expect(
-      auth.modifierProfil(b.id, { email: a.email, version: 1 }),
+      auth.modifierProfil(b.id, { email: a.email, motDePasseActuel: MDP, version: 1 }),
     ).rejects.toMatchObject({ code: "email_deja_pris" });
+  });
+
+  /**
+   * `RG-AUTH-16` — **changer d'adresse exige le mot de passe actuel.**
+   *
+   * L'adresse est la clé de la réinitialisation. Avec une session volée, on
+   * remplaçait l'adresse, on demandait un lien, et le compte changeait de
+   * propriétaire sans que son mot de passe ait jamais été connu.
+   */
+  it("RG-AUTH-16 — changer d'adresse SANS le mot de passe actuel est refusé, l'adresse reste", async () => {
+    const u = await poserUnCompte();
+    await expect(
+      auth.modifierProfil(u.id, { email: "intrus@ailleurs.fr", version: 1 }),
+    ).rejects.toMatchObject({ code: "mot_de_passe_actuel_requis" });
+    const relu = await prisma.user.findUniqueOrThrow({ where: { id: u.id } });
+    expect(relu.email).toBe(u.email);
+    expect(relu.version).toBe(1);
+  });
+
+  it("RG-AUTH-16, RG-AUTH-01 — un mot de passe faux est refusé, tracé, et compte jusqu'au verrou", async () => {
+    await reglage("auth.tentativesAvantVerrouillage", "2");
+    const u = await poserUnCompte();
+    await expect(
+      auth.modifierProfil(u.id, { email: "intrus@ailleurs.fr", motDePasseActuel: "Faux1234!", version: 1 }),
+    ).rejects.toMatchObject({ code: "mot_de_passe_actuel_incorrect" });
+    await expect(
+      auth.modifierProfil(u.id, { email: "intrus@ailleurs.fr", motDePasseActuel: "Faux1234!", version: 1 }),
+    ).rejects.toMatchObject({ code: "compte_verrouille" });
+    // Verrouillé : même le bon mot de passe ne change plus l'adresse.
+    await expect(
+      auth.modifierProfil(u.id, { email: "intrus@ailleurs.fr", motDePasseActuel: MDP, version: 1 }),
+    ).rejects.toMatchObject({ code: "compte_verrouille" });
+
+    const relu = await prisma.user.findUniqueOrThrow({ where: { id: u.id } });
+    expect(relu.email).toBe(u.email);
+    const actions = (await prisma.auditLog.findMany({ where: { entiteId: u.id } })).map((t) => t.action);
+    expect(actions).toContain("user.email_change_failed");
+    expect(actions).toContain("auth.login.lockout");
+  });
+
+  it("RG-AUTH-16 — avec le bon mot de passe : adresse en minuscules, trace, avis à l'ANCIENNE adresse", async () => {
+    const enFile: { file: string; donnees: Record<string, unknown> }[] = [];
+    const avecFile = new AuthService(
+      prisma as never,
+      new AuditService(prisma as never),
+      {
+        publier: async (file: string, donnees: Record<string, unknown>) => {
+          enFile.push({ file, donnees });
+          return "travail";
+        },
+      } as never,
+    );
+    const u = await poserUnCompte();
+    const nouvelle = `Nouvelle.${u.id.slice(0, 8)}@Collectivite.FR`;
+
+    const apres = await avecFile.modifierProfil(u.id, {
+      email: nouvelle,
+      motDePasseActuel: MDP,
+      version: 1,
+    });
+
+    expect(apres.email).toBe(nouvelle.toLowerCase());
+    // La connexion cherche l'adresse en minuscules : elle la retrouve.
+    await expect(auth.connecter(nouvelle, MDP)).resolves.toMatchObject({ userId: u.id });
+
+    const trace = await prisma.auditLog.findFirstOrThrow({
+      where: { action: "user.email_changed", entiteId: u.id },
+    });
+    expect(trace.detail).toMatchObject({ avant: u.email, apres: nouvelle.toLowerCase() });
+
+    expect(enFile).toHaveLength(1);
+    expect(enFile[0]!.file).toBe("courriel");
+    expect(enFile[0]!.donnees["destinataire"]).toBe(u.email);
+    expect(String(enFile[0]!.donnees["corps"])).toContain(nouvelle.toLowerCase());
+  });
+
+  it("RG-AUTH-16 — l'avis suit la langue enregistrée du compte", async () => {
+    const enFile: Record<string, unknown>[] = [];
+    const avecFile = new AuthService(
+      prisma as never,
+      new AuditService(prisma as never),
+      { publier: async (_f: string, d: Record<string, unknown>) => (enFile.push(d), "t") } as never,
+    );
+    const u = await poserUnCompte();
+    await prisma.user.update({ where: { id: u.id }, data: { langue: "en" } });
+    await avecFile.modifierProfil(u.id, {
+      email: `en.${u.id.slice(0, 8)}@collectivite.fr`,
+      motDePasseActuel: MDP,
+      version: 1,
+    });
+    expect(String(enFile[0]!["sujet"])).toBe("Your email address was changed");
+  });
+
+  it("RG-AUTH-16, RG-AUTH-03 — la nouvelle adresse respecte la liste blanche des domaines", async () => {
+    await reglage("auth.domainesAutorises", "collectivite.fr");
+    const u = await poserUnCompte();
+    await expect(
+      auth.modifierProfil(u.id, { email: "agent@gmail.com", motDePasseActuel: MDP, version: 1 }),
+    ).rejects.toMatchObject({ code: "domaine_email_non_autorise" });
+    await expect(
+      auth.modifierProfil(u.id, { email: `autre.${u.id.slice(0, 8)}@collectivite.fr`, motDePasseActuel: MDP, version: 1 }),
+    ).resolves.toBeTruthy();
+  });
+
+  it("RG-AUTH-16 — reposer la même adresse, casse comprise, n'exige rien", async () => {
+    const u = await poserUnCompte();
+    await expect(
+      auth.modifierProfil(u.id, { email: u.email.toUpperCase(), prenom: "Inès", version: 1 }),
+    ).resolves.toMatchObject({ prenom: "Inès", email: u.email });
   });
 
   it("NE TOUCHE JAMAIS AU LOGIN NI AU MOT DE PASSE, quoi qu'on lui passe", async () => {

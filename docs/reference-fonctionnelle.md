@@ -144,6 +144,7 @@ Chaque exigence est identifiée `EX-<MODULE>-<n>`, chaque règle de gestion `RG-
 - **RG-AUTH-13** — Chaque usage d'une session repousse son expiration de la durée paramétrée (`EX-AUTH-02`). L'écriture se fait au plus une fois toutes les cinq minutes par session.
 - **RG-AUTH-14** — Le haché d'un mot de passe ne sort jamais du serveur, sur aucune route.
 - **RG-AUTH-15** — Sans session, la lecture des réglages publics (`GET /parametrage`) ne rend aucun réglage `auth.*` : seuil et durée de verrouillage, durée de session et domaines autorisés ne se lisent qu'une fois connecté.
+- **RG-AUTH-16** — Changer l'adresse de messagerie de son propre compte exige le mot de passe actuel ; les échecs comptent pour le verrouillage (`RG-AUTH-01`). La nouvelle adresse est normalisée en minuscules et soumise à la liste de domaines autorisés (`RG-AUTH-03`). Le changement est tracé et un avis part vers l'ancienne adresse, dans la langue du compte.
 
 Les visuels prédéfinis sont six motifs locaux, nommés et reconnaissables sans dépendre de leur couleur : constellation, feuille, montagne, vagues, soleil et mosaïque. Leurs identifiants techniques sont stables car ils sont persistés ; les libellés visibles sont traduits. Choisir un visuel efface le fichier personnel précédent, téléverser un fichier efface le visuel précédent, et supprimer l’avatar efface les deux.
 

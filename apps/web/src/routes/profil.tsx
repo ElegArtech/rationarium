@@ -24,6 +24,7 @@ import {
 import { CLE_SESSION } from "../session/session.js";
 import { useMessages } from "../composants/messages.js";
 import { messageErreur } from "../api/erreurs.js";
+import { ErreurApi } from "../api/client.js";
 import { formaterDate } from "../formats.js";
 import "../composants/partages.css";
 import "./profil.css";
@@ -200,12 +201,21 @@ function Informations({
   const [prenom, setPrenom] = useState(utilisateur.prenom);
   const [nom, setNom] = useState(utilisateur.nom);
   const [email, setEmail] = useState(utilisateur.email);
+  /*
+   * `RG-AUTH-16` — changer d'adresse exige le mot de passe actuel : c'est
+   * l'adresse qui reçoit le lien de réinitialisation, et une session seule ne
+   * doit pas suffire à la détourner. Le champ n'apparaît que lorsque
+   * l'adresse change ; le serveur l'exige de toute façon.
+   */
+  const [motDePasseActuel, setMotDePasseActuel] = useState("");
+  const [erreurMotDePasse, setErreurMotDePasse] = useState<string | null>(null);
   const [retour, setRetour] = useState<{ type: "succes" | "erreur"; texte: string } | null>(null);
   const [retourAvatar, setRetourAvatar] = useState<{ type: "succes" | "erreur"; texte: string } | null>(null);
   const saisieAvatar = useRef<HTMLInputElement>(null);
 
   const modifie =
     prenom !== utilisateur.prenom || nom !== utilisateur.nom || email !== utilisateur.email;
+  const emailChange = email.trim().toLowerCase() !== utilisateur.email;
 
   /**
    * `EX-AUTH-09` — « consulter **et** modifier ».
@@ -218,19 +228,39 @@ function Informations({
    * conclusion tirée alors fut que la route n'existait pas.
    */
   const enregistrement = useMutation({
-    mutationFn: () => modifierProfil({ prenom, nom, email, version: utilisateur.version }),
+    mutationFn: () => {
+      if (emailChange && !motDePasseActuel) throw new Error("mot-de-passe-requis");
+      return modifierProfil({
+        prenom,
+        nom,
+        email,
+        ...(emailChange ? { motDePasseActuel } : {}),
+        version: utilisateur.version,
+      });
+    },
     onSuccess: async () => {
       setRetour({ type: "succes", texte: t("profil.enregistre") });
+      setMotDePasseActuel("");
+      setErreurMotDePasse(null);
       await client.invalidateQueries({ queryKey: CLE_SESSION });
     },
-    onError: (e) =>
-      setRetour({ type: "erreur", texte: messageErreur(e, tErreurs, t("profil.echecEnregistrement")) }),
+    onError: (e) => {
+      const texte = e instanceof Error && e.message === "mot-de-passe-requis"
+        ? tAuth("erreurs.motDePasseActuelRequis")
+        : messageErreur(e, tErreurs, t("profil.echecEnregistrement"));
+      const surLeMotDePasse = (e instanceof Error && e.message === "mot-de-passe-requis") ||
+        (e instanceof ErreurApi && Boolean(e.cle?.startsWith("auth:erreurs.motDePasseActuel")));
+      setErreurMotDePasse(surLeMotDePasse ? texte : null);
+      setRetour({ type: "erreur", texte });
+    },
   });
 
   const annuler = () => {
     setPrenom(utilisateur.prenom);
     setNom(utilisateur.nom);
     setEmail(utilisateur.email);
+    setMotDePasseActuel("");
+    setErreurMotDePasse(null);
     setRetour(null);
   };
 
@@ -487,6 +517,23 @@ function Informations({
               />
               <p className="field-hint">{t("profil.emailAide")}</p>
             </div>
+            {emailChange ? (
+              <div className="span2">
+                <ChampMotDePasse
+                  libelle={t("profil.motDePasseActuelEmail")}
+                  aide={t("profil.motDePasseActuelEmailAide")}
+                  value={motDePasseActuel}
+                  onChange={(valeur) => {
+                    setMotDePasseActuel(valeur);
+                    setErreurMotDePasse(null);
+                  }}
+                  isRequired
+                  isDisabled={enregistrement.isPending}
+                  autoComplete="current-password"
+                  {...(erreurMotDePasse ? { erreur: erreurMotDePasse } : {})}
+                />
+              </div>
+            ) : null}
           </div>
           <div aria-live="polite">
             {retour ? (

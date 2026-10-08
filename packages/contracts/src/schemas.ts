@@ -136,6 +136,11 @@ export const modificationProfilSchema = z
     theme: z.enum(["clair", "sombre", "auto"]).optional(),
     avatarFichier: z.string().max(255).nullish(),
     avatarPredefini: visuelAvatarPredefiniSchema.nullish(),
+    /**
+     * `RG-AUTH-16` — exigé par le service quand l'adresse change : une session
+     * seule ne suffit pas à détourner la clé de la réinitialisation.
+     */
+    motDePasseActuel: z.string().min(1).max(256).optional(),
     /** `RG-GEN-07` — la version lue accompagne l'écriture. */
     version: z.number().int().positive(),
   })
