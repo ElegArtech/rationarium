@@ -19,6 +19,16 @@ La migration est logique, vers un volume neuf. Le démarrage d'un ancien volume 
 
 L'avis braces de Stylelint concerne les motifs de développement du dépôt ; le paquet n'est pas embarqué dans l'API. Ses quatre chemins qualifiés expirent le **3 novembre 2026**, sans prolongation automatique. L'image web conserve l'avis UNKNOWN GO-2026-5932 sur le module OpenPGP ; il reste visible. Ces avis ne sont pas corrigés par le travail PostgreSQL. L'API ne présente pas d'alerte dans le scan courant.
 
+## Publication
+
+Le job qui construit, analyse et recette les images n'a aucun droit d'écriture. Sur un tag `v*`
+seulement, il exporte les trois images contrôlées ; un job distinct, seul détenteur de
+`packages: write`, les recharge en vérifiant leur identifiant, refuse de remplacer une version
+existante, les publie, en atteste la provenance (`actions/attest-build-provenance`) et réécrit le
+`compose.yaml` du kit en ligne pour désigner chaque image par l'empreinte publiée
+(`deploiement/epingler-kit.sh`), avant de recalculer les sommes de contrôle. Le paquet hors ligne
+embarque ses images et garde les tags. Aucun `checkout` ne conserve le jeton.
+
 ## Reproduction
 
 ```bash
