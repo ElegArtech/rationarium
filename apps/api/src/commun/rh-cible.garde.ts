@@ -50,6 +50,16 @@ export class GardeCibleRH implements CanActivate {
     if (regle.source === "temps") {
       const saisie = await this.prisma.timeEntry.findUnique({ where: { id }, select: { creeParId: true, userId: true } });
       cible = saisie?.creeParId ?? saisie?.userId;
+      /*
+       * Une saisie ORPHELINE — agent et déclarant supprimés (tiers, ou
+       * comptes purgés) — n'a plus de cible : le contrôle ci-dessous ne
+       * s'appliquait donc pas, et tout porteur de la permission de la route
+       * la supprimait. Faute de cible, seul qui détient la permission
+       * d'agir pour autrui (`regle.autrui`) y touche.
+       */
+      if (saisie && typeof cible !== "string" && !regle.autrui.some((p) => d.permissions.has(p))) {
+        throw new ForbiddenException({ cle: "commun:droits.permissionRequise" });
+      }
     }
     if (typeof cible === "string" && cible !== d.userId) {
       if (!regle.autrui.some((p) => d.permissions.has(p))) throw new ForbiddenException({ cle: "commun:droits.permissionRequise" });

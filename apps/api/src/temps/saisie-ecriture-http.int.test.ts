@@ -15,6 +15,10 @@ import { hacherMotDePasse } from "../auth/mots-de-passe.js";
  * ou d'une portée globale (`users:readAll`) saisissait donc du temps sur
  * n'importe quel projet et n'importe quelle tâche de l'instance — et
  * `RG-PRJ-08` calcule le budget consommé à partir de ces saisies.
+ *
+ * Second défaut, `DELETE /temps/:id` : une saisie ORPHELINE (tiers dont le
+ * déclarant a été supprimé) n'avait plus de cible, et la garde la laissait
+ * supprimer à tout porteur de `time_tracking:delete`.
  */
 
 const RACINE_DB = path.resolve(import.meta.dirname, "../../../../packages/db");
@@ -32,6 +36,7 @@ let lecteurGlobal: Acteur;
 /** Assigné d'une tâche d'un projet dont il n'est pas membre. */
 let assigne: Acteur;
 let membre: Acteur;
+let administrateur: Acteur;
 let chef: string;
 
 async function compte(login: string, permissions: string[]): Promise<Acteur> {
@@ -86,6 +91,7 @@ beforeAll(async () => {
   ]);
   assigne = await compte("agent.assigne", SAISIE);
   membre = await compte("agent.membre", SAISIE);
+  administrateur = await compte("admin.comptes", [...SAISIE, "users:manage_any"]);
   chef = (await compte("chef.projet", SAISIE)).id;
 }, 300_000);
 
@@ -129,5 +135,31 @@ describe("RG-PRJ-13, RG-TSK-18 — saisir du temps exige un droit d'ÉCRITURE su
     // Mais pas sur le projet seul : c'est la tâche qui le lie, pas le projet.
     const seul = await appel(assigne, "POST", "/temps", { projectId: projet.id, date: "2026-09-11", heures: 1 });
     expect(seul.statusCode).toBe(403);
+  });
+});
+
+describe("RG-TMP-03 — une saisie orpheline n'est pas à la merci de tout porteur de la permission", () => {
+  it("RG-TMP-03 — sans déclarant ni agent, la suppression exige users:manage_any", async () => {
+    const tiers = await prisma.thirdParty.create({ data: { type: "organisation", organisation: "Prestataire" } });
+    const { projet } = await projetEtTache();
+    // Le déclarant existe à la saisie, puis son compte est supprimé :
+    // `creeParId` passe à NULL (`onDelete: SetNull`), la saisie demeure.
+    const declarant = await prisma.user.create({
+      data: { login: "declarant.parti", email: "declarant.parti@exemple.fr", prenom: "Parti", nom: "SAISIE", motDePasseHash: "x" },
+    });
+    const orpheline = await prisma.timeEntry.create({
+      data: { thirdPartyId: tiers.id, creeParId: declarant.id, projectId: projet.id, date: date("2026-09-10"), heures: 4 },
+    });
+    await prisma.user.delete({ where: { id: declarant.id } });
+    expect(await prisma.timeEntry.findUniqueOrThrow({ where: { id: orpheline.id } })).toMatchObject({
+      creeParId: null, userId: null,
+    });
+
+    const refus = await appel(membre, "DELETE", `/temps/${orpheline.id}`);
+    expect(refus.statusCode).toBe(403);
+    expect(await prisma.timeEntry.count({ where: { id: orpheline.id } })).toBe(1);
+
+    expect((await appel(administrateur, "DELETE", `/temps/${orpheline.id}`)).statusCode).toBe(200);
+    expect(await prisma.timeEntry.count({ where: { id: orpheline.id } })).toBe(0);
   });
 });
