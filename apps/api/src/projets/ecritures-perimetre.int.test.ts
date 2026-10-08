@@ -344,3 +344,94 @@ describe("RG-PRJ-13 — `projects:manage_any` lève le contrôle de rattachement
     expect((await appel(gestionnaire, "DELETE", `/projets/${p.id}`)).statusCode).toBe(200);
   });
 });
+
+/*
+ * `RG-PRJ-13`, `RG-TRS-06` — composer l'équipe est une ÉCRITURE sur le projet.
+ *
+ * Le défaut : ajouter, modifier ou retirer un membre ne contrôlait que la
+ * VISIBILITÉ du projet. `MANAGER_PROJECT_FOCUS` porte `projects:readAll` et
+ * `projects:manage_members` sans `projects:manage_any` : il voyait tout, donc
+ * s'inscrivait lui-même à n'importe quel projet, puis y écrivait jalons et
+ * tâches au titre de membre, ou en retirait l'équipe.
+ */
+describe("RG-PRJ-13 — voir un projet ne donne pas le droit d'en composer l'équipe", () => {
+  let lecteurGlobal: Acteur;
+
+  beforeAll(async () => {
+    lecteurGlobal = await compte("manager.projets", "MANAGER_PROJECT_FOCUS");
+  });
+
+  it("RG-PRJ-13 — le modèle de référence voit tout et gère les membres, sans gestion de domaine", () => {
+    const modele = modeleParCode("MANAGER_PROJECT_FOCUS")!;
+    expect(modele.permissions).toContain("projects:readAll");
+    expect(modele.permissions).toContain("projects:manage_members");
+    expect(modele.permissions).not.toContain("projects:manage_any");
+  });
+
+  it("RG-PRJ-13 — readAll + manage_members, non rattaché : s'ajouter soi-même au projet est refusé", async () => {
+    const { projet: p } = await projet();
+    // Il VOIT le projet : le refus ne vient pas de la lecture.
+    expect((await appel(lecteurGlobal, "GET", `/projets/${p.id}`)).statusCode).toBe(200);
+
+    const r = await appel(lecteurGlobal, "POST", `/projets/${p.id}/membres`, {
+      userId: lecteurGlobal.id, roleProjet: "Membre",
+    });
+
+    expect(r.statusCode).toBe(403);
+    expect((r.json() as { cle: string }).cle).toBe("erreurs:horsPerimetre");
+    expect(await prisma.projectMember.count({ where: { projectId: p.id, userId: lecteurGlobal.id } })).toBe(0);
+  });
+
+  it("RG-PRJ-13 — readAll + manage_members, non rattaché : modifier ou retirer un membre est refusé", async () => {
+    const { projet: p } = await projet();
+    const avant = await prisma.projectMember.findMany({ where: { projectId: p.id } });
+
+    const modifie = await appel(lecteurGlobal, "PATCH", `/projets/${p.id}/membres/${membre.id}`, {
+      roleProjet: "Détourné",
+    });
+    expect(modifie.statusCode).toBe(403);
+    expect((modifie.json() as { cle: string }).cle).toBe("erreurs:horsPerimetre");
+
+    const retire = await appel(lecteurGlobal, "DELETE", `/projets/${p.id}/membres/${membre.id}`);
+    expect(retire.statusCode).toBe(403);
+    expect((retire.json() as { cle: string }).cle).toBe("erreurs:horsPerimetre");
+
+    expect(await prisma.projectMember.findMany({ where: { projectId: p.id } })).toEqual(avant);
+  });
+
+  it("RG-PRJ-13 — rattaché au projet, le même modèle compose l'équipe", async () => {
+    const { projet: p } = await projet();
+    await prisma.projectMember.create({
+      data: { projectId: p.id, userId: lecteurGlobal.id, roleProjet: "Membre" },
+    });
+    // Une recrue sans connexion : seul son identifiant sert ici.
+    const recrue = { id: createur };
+
+    const ajoute = await appel(lecteurGlobal, "POST", `/projets/${p.id}/membres`, {
+      userId: recrue.id, roleProjet: "Membre",
+    });
+    expect(ajoute.statusCode).toBe(201);
+    const modifie = await appel(lecteurGlobal, "PATCH", `/projets/${p.id}/membres/${recrue.id}`, {
+      roleProjet: "Testeur",
+    });
+    expect(modifie.statusCode).toBe(200);
+    expect((await appel(lecteurGlobal, "DELETE", `/projets/${p.id}/membres/${recrue.id}`)).statusCode).toBe(200);
+    expect(await prisma.projectMember.count({ where: { projectId: p.id, userId: recrue.id } })).toBe(0);
+  });
+
+  it("RG-PRJ-13 — `projects:manage_any` compose l'équipe d'un projet où il n'est rien", async () => {
+    const { projet: p } = await projet();
+    // `gestionnaire` détient `projects:manage_any` ; on lui ajoute la
+    // permission de la route (lue à chaque requête), sans nouvelle connexion.
+    const { roleId } = await prisma.user.findUniqueOrThrow({ where: { id: gestionnaire.id } });
+    await prisma.rolePermission.upsert({
+      where: { roleId_permission: { roleId: roleId!, permission: "projects:manage_members" } },
+      create: { roleId: roleId!, permission: "projects:manage_members" },
+      update: {},
+    });
+    const r = await appel(gestionnaire, "POST", `/projets/${p.id}/membres`, {
+      userId: createur, roleProjet: "Membre",
+    });
+    expect(r.statusCode).toBe(201);
+  });
+});

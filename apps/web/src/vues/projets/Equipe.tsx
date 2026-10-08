@@ -8,7 +8,7 @@ import { appeler } from "../../api/client.js";
 import * as api from "../../api/projets.js";
 import * as apiReferentiels from "../../api/referentiels.js";
 import { messageErreur } from "../../api/erreurs.js";
-import { usePeut } from "../../session/session.js";
+import { usePeut, useSession } from "../../session/session.js";
 import {
   CHEMIN_ANNUAIRE,
   PERMISSION_ANNUAIRE,
@@ -77,7 +77,7 @@ type Equipe = {
 
 export function Equipe({ projetId }: { projetId: string }) {
   const { t } = useTranslation("projets");
-  const peut = usePeut();
+  const { session, peut: peutSession } = useSession();
   const [ajoutOuvert, setAjoutOuvert] = useState(false);
 
   const projet = useQuery({ queryKey: ["projet", projetId], queryFn: () => api.fiche(projetId) });
@@ -93,6 +93,19 @@ export function Equipe({ projetId }: { projetId: string }) {
     return <ErreurDeChargement erreur={equipe.error} surReessai={() => void equipe.refetch()} />;
 
   const { agents, tiers, clients, allocationCumulee } = equipe.data;
+
+  /*
+   * `RG-PRJ-13`, `RG-TRS-06` — composer l'équipe est une ÉCRITURE sur le
+   * projet : elle exige d'y être rattaché (créateur, chef, sponsor, membre) ou
+   * `projects:manage_any`. Voir le projet — `projects:readAll` — ne suffit
+   * pas, et le serveur refuse. Ici, courtoisie seulement (`RG-GEN-06`) : on ne
+   * propose pas un geste qui serait refusé.
+   */
+  const rattache =
+    peutSession("projects:manage_any") ||
+    [projet.data.createur?.id, projet.data.chef?.id, projet.data.sponsor?.id].includes(session.id) ||
+    agents.some((m) => m.userId === session.id);
+  const peut = (permission: string) => rattache && peutSession(permission);
 
   return (
     <CadreProjet projet={projet.data} onglet="equipe">
@@ -148,7 +161,7 @@ export function Equipe({ projetId }: { projetId: string }) {
         vide={{ titre: t("equipe.aucunMembre"), explication: t("equipe.aucunMembreExplication") }}
       >
         {agents.map((m) => (
-          <LigneAgent key={m.userId} projetId={projetId} membre={m} />
+          <LigneAgent key={m.userId} projetId={projetId} membre={m} rattache={rattache} />
         ))}
       </Section>
 
@@ -162,7 +175,7 @@ export function Equipe({ projetId }: { projetId: string }) {
         vide={{ titre: t("equipe.aucunTiers"), explication: t("equipe.aucunTiersExplication") }}
       >
         {tiers.map((x) => (
-          <LigneTiers key={x.id} projetId={projetId} tiers={x} />
+          <LigneTiers key={x.id} projetId={projetId} tiers={x} rattache={rattache} />
         ))}
       </Section>
 
@@ -176,7 +189,7 @@ export function Equipe({ projetId }: { projetId: string }) {
         vide={{ titre: t("equipe.aucunClient"), explication: t("equipe.aucunClientExplication") }}
       >
         {clients.map((c) => (
-          <LigneClient key={c.id} projetId={projetId} client={c} />
+          <LigneClient key={c.id} projetId={projetId} client={c} rattache={rattache} />
         ))}
       </Section>
 
@@ -246,13 +259,17 @@ function Section({
 function LigneTiers({
   projetId,
   tiers,
+  rattache,
 }: {
   projetId: string;
   tiers: Equipe["tiers"][number];
+  /** `RG-PRJ-13` — rattaché au projet : sans cela, la ligne est en lecture. */
+  rattache: boolean;
 }) {
   const { t } = useTranslation("projets");
   const { t: tErreurs } = useTranslation("erreurs");
-  const peut = usePeut();
+  const peutSession = usePeut();
+  const peut = (permission: string) => rattache && peutSession(permission);
   const annoncer = useMessages();
   const client = useQueryClient();
   const libelle = useLibelle();
@@ -321,13 +338,17 @@ function LigneTiers({
 function LigneClient({
   projetId,
   client: beneficiaire,
+  rattache,
 }: {
   projetId: string;
   client: Equipe["clients"][number];
+  /** `RG-PRJ-13` — rattaché au projet : sans cela, la ligne est en lecture. */
+  rattache: boolean;
 }) {
   const { t } = useTranslation("projets");
   const { t: tErreurs } = useTranslation("erreurs");
-  const peut = usePeut();
+  const peutSession = usePeut();
+  const peut = (permission: string) => rattache && peutSession(permission);
   const annoncer = useMessages();
   const cache = useQueryClient();
   const [detachementOuvert, setDetachementOuvert] = useState(false);
@@ -465,13 +486,17 @@ function FenetreRetrait({
 function LigneAgent({
   projetId,
   membre,
+  rattache,
 }: {
   projetId: string;
   membre: Equipe["agents"][number];
+  /** `RG-PRJ-13` — rattaché au projet : sans cela, la ligne est en lecture. */
+  rattache: boolean;
 }) {
   const { t } = useTranslation("projets");
   const { t: tErreurs } = useTranslation("erreurs");
-  const peut = usePeut();
+  const peutSession = usePeut();
+  const peut = (permission: string) => rattache && peutSession(permission);
   const annoncer = useMessages();
   const client = useQueryClient();
   const [retraitOuvert, setRetraitOuvert] = useState(false);
