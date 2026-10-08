@@ -169,6 +169,64 @@ describe("RG-AUTH-01 — verrouillage après tentatives infructueuses", () => {
     });
     await expect(auth.connecter(c.login, MDP)).resolves.toMatchObject({ userId: c.id });
   });
+
+  /**
+   * `RG-AUTH-01` — **le verrou ne se contourne pas en parallèle.**
+   *
+   * Le service lisait le compteur, attendait Argon2, puis écrivait `lu + 1` :
+   * vingt connexions lancées ensemble lisaient toutes zéro et écrivaient
+   * toutes un. Vingt essais de mot de passe pour un seuil de cinq, et le
+   * compte restait ouvert au bon mot de passe juste après.
+   */
+  it("RG-AUTH-01 — vingt connexions fausses EN PARALLÈLE verrouillent le compte, sans plus d'essais que le seuil", async () => {
+    await reglage("auth.tentativesAvantVerrouillage", "5");
+    const c = await poserUnCompte();
+
+    const codes = await Promise.all(
+      Array.from({ length: 20 }, () =>
+        auth.connecter(c.login, "Faux1234!").then(
+          () => "connecte",
+          (e: ErreurAuth) => e.code,
+        ),
+      ),
+    );
+
+    // Au plus seuil − 1 réponses « identifiants invalides » : chaque autre
+    // requête a été refusée par le verrou, sans vérifier le mot de passe.
+    expect(codes.filter((code) => code === "identifiants_invalides").length).toBeLessThanOrEqual(4);
+    expect(codes).toContain("compte_verrouille");
+    const u = await prisma.user.findUniqueOrThrow({ where: { id: c.id } });
+    expect(u.verrouilleJusqua!.getTime()).toBeGreaterThan(Date.now());
+    await expect(auth.connecter(c.login, MDP)).rejects.toMatchObject({ code: "compte_verrouille" });
+  });
+
+  it("RG-AUTH-01 — un compteur resté au-dessus du seuil sans verrou ne bloque pas pour toujours", async () => {
+    // Une réservation orpheline : processus tombé entre l'incrément et la fin.
+    await reglage("auth.tentativesAvantVerrouillage", "5");
+    await reglage("auth.dureeVerrouillageMinutes", "15");
+    const c = await poserUnCompte();
+    await prisma.user.update({ where: { id: c.id }, data: { echecsConnexion: 9 } });
+
+    await expect(auth.connecter(c.login, MDP)).rejects.toMatchObject({ code: "compte_verrouille" });
+    const u = await prisma.user.findUniqueOrThrow({ where: { id: c.id } });
+    expect(u.echecsConnexion).toBe(0);
+    expect(u.verrouilleJusqua).not.toBeNull();
+
+    await prisma.user.update({ where: { id: c.id }, data: { verrouilleJusqua: new Date(Date.now() - 1000) } });
+    await expect(auth.connecter(c.login, MDP)).resolves.toMatchObject({ userId: c.id });
+  });
+
+  it("RG-AUTH-01, RG-AUTH-12 — vingt essais parallèles sur un identifiant INCONNU le verrouillent aussi", async () => {
+    await reglage("auth.tentativesAvantVerrouillage", "5");
+    const inconnu = `fantome-${uuid().slice(0, 8)}`;
+    const codes = await Promise.all(
+      Array.from({ length: 20 }, () =>
+        auth.connecter(inconnu, "Faux1234!").catch((e: ErreurAuth) => e.code),
+      ),
+    );
+    expect(codes.filter((code) => code === "identifiants_invalides").length).toBeLessThanOrEqual(4);
+    await expect(auth.connecter(inconnu, "Faux1234!")).rejects.toMatchObject({ code: "compte_verrouille" });
+  });
 });
 
 describe("RG-AUTH-12 — le verrouillage ne révèle pas si un compte existe", () => {
@@ -430,6 +488,53 @@ describe("EX-AUTH-07, EX-AUTH-08 — mot de passe", () => {
     await auth.changerMotDePasse(c.id, MDP, "Nouveau12!");
     await expect(auth.resoudreSession(jeton)).resolves.toBeNull();
   });
+
+  /**
+   * `RG-AUTH-07`, `RG-AUTH-11` — **le mot de passe provisoire ne survit pas
+   * au changement imposé.** La vue 05 refusait l'identique côté client
+   * seulement : une requête directe reposait le secret que l'administrateur
+   * avait choisi, et levait l'obligation.
+   */
+  it("RG-AUTH-07 — un nouveau mot de passe IDENTIQUE à l'actuel est refusé, l'obligation demeure", async () => {
+    const c = await poserUnCompte({ motDePasseAChanger: true });
+    await expect(auth.changerMotDePasse(c.id, MDP, MDP)).rejects.toMatchObject({
+      code: "nouveau_identique",
+    });
+    const u = await prisma.user.findUniqueOrThrow({ where: { id: c.id } });
+    expect(u.motDePasseAChanger).toBe(true);
+  });
+
+  /**
+   * `RG-AUTH-01` — **le changement de mot de passe compte ses échecs.** Il
+   * n'avait ni compteur ni verrou : une session volée y essayait des mots de
+   * passe sans limite, et le bon lui donnait le compte.
+   */
+  it("RG-AUTH-01 — les échecs du changement de mot de passe sont tracés, comptés, et verrouillent le compte", async () => {
+    await reglage("auth.tentativesAvantVerrouillage", "3");
+    const c = await poserUnCompte();
+    const codes: string[] = [];
+    for (let i = 0; i < 3; i++) {
+      codes.push(
+        await auth.changerMotDePasse(c.id, `Faux${i}234!`, "Nouveau12!").then(
+          () => "change",
+          (e: ErreurAuth) => e.code,
+        ),
+      );
+    }
+    expect(codes).toEqual([
+      "ancien_mot_de_passe_incorrect",
+      "ancien_mot_de_passe_incorrect",
+      "compte_verrouille",
+    ]);
+    // Verrouillé : le bon mot de passe ne passe plus, ni ici ni à la connexion.
+    await expect(auth.changerMotDePasse(c.id, MDP, "Nouveau12!")).rejects.toMatchObject({
+      code: "compte_verrouille",
+    });
+    await expect(auth.connecter(c.login, MDP)).rejects.toMatchObject({ code: "compte_verrouille" });
+    const traces = await prisma.auditLog.findMany({ where: { entiteId: c.id } });
+    expect(traces.map((t) => t.action)).toContain("auth.password.change_failed");
+    expect(traces.map((t) => t.action)).toContain("auth.login.lockout");
+  });
 });
 
 describe("EX-AUTH-06, RG-AUTH-04 — définir un nouveau mot de passe depuis le lien reçu ; le jeton est à usage unique et il expire", () => {
@@ -577,6 +682,67 @@ describe("EX-AUTH-06, RG-AUTH-04 — définir un nouveau mot de passe depuis le 
       code: "jeton_invalide",
     });
   });
+
+  /**
+   * `RG-AUTH-04` — **un seul lien actif par compte.** Chaque demande ajoutait
+   * un jeton sans retirer les précédents : dix demandes, dix liens valables
+   * dans la boîte aux lettres.
+   */
+  it("RG-AUTH-04 — une nouvelle demande invalide le lien précédent", async () => {
+    const c = await poserUnCompte();
+    const premiere = await auth.demanderReinitialisation(c.email);
+    const seconde = await auth.demanderReinitialisation(c.email);
+
+    await expect(auth.verifierJetonReinitialisation(premiere!.jeton)).rejects.toMatchObject({
+      code: "jeton_invalide",
+    });
+    await expect(auth.reinitialiserMotDePasse(premiere!.jeton, "Nouveau12!")).rejects.toMatchObject({
+      code: "jeton_invalide",
+    });
+    await expect(auth.verifierJetonReinitialisation(seconde!.jeton)).resolves.toMatchObject({
+      email: c.email,
+    });
+    expect(
+      await prisma.passwordResetToken.count({ where: { userId: c.id, utiliseLe: null } }),
+    ).toBe(1);
+  });
+
+  it("RG-AUTH-04 — changer son mot de passe révoque le lien de réinitialisation en cours", async () => {
+    const c = await poserUnCompte();
+    const demande = await auth.demanderReinitialisation(c.email);
+    await auth.changerMotDePasse(c.id, MDP, "Nouveau12!");
+
+    await expect(auth.reinitialiserMotDePasse(demande!.jeton, "Intrus123!")).rejects.toMatchObject({
+      code: "jeton_invalide",
+    });
+    await expect(auth.connecter(c.login, "Nouveau12!")).resolves.toBeTruthy();
+  });
+
+  it("RG-AUTH-04 — la réinitialisation administrateur révoque aussi le lien en cours", async () => {
+    const admin = await poserUnCompte();
+    const c = await poserUnCompte();
+    const demande = await auth.demanderReinitialisation(c.email);
+    const utilisateurs = new UtilisateursService(
+      prisma as never,
+      new AuditService(prisma as never),
+      new PerimetreService(prisma as never),
+    );
+    await utilisateurs.reinitialiserMotDePasse(c.id, "Provisoire1!", admin.id);
+
+    await expect(auth.reinitialiserMotDePasse(demande!.jeton, "Intrus123!")).rejects.toMatchObject({
+      code: "jeton_invalide",
+    });
+  });
+
+  it("RG-AUTH-04 — deux consommations SIMULTANÉES du même jeton : une seule réussit", async () => {
+    const c = await poserUnCompte();
+    const demande = await auth.demanderReinitialisation(c.email);
+    const issues = await Promise.allSettled([
+      auth.reinitialiserMotDePasse(demande!.jeton, "Premier12!"),
+      auth.reinitialiserMotDePasse(demande!.jeton, "Second123!"),
+    ]);
+    expect(issues.filter((i) => i.status === "fulfilled")).toHaveLength(1);
+  });
 });
 
 describe("EX-AUTH-04, RG-AUTH-03 — créer un compte en autonomie, activable et désactivable", () => {
@@ -694,15 +860,26 @@ describe("EX-AUTH-09 — modifier son profil", () => {
     expect(apres.prenom).toBe("Inès");
   });
 
-  it("RG-AUTH-09 — REFUSE un avatar à la fois fichier ET prédéfini", async () => {
+  /**
+   * `RG-AUTH-09` — **un fichier ne se désigne pas, il se téléverse.**
+   *
+   * `PATCH /auth/me` acceptait une chaîne libre et l'écrivait telle quelle :
+   * l'empreinte de n'importe quelle pièce jointe du magasin commun devenait
+   * l'avatar du compte, et `GET /auth/me/avatar` la servait — une lecture de
+   * pièce jointe sans `documents:download`. Seul `null` s'écrit désormais.
+   */
+  it("RG-AUTH-09 — PATCH ne pose JAMAIS un fichier désigné par le client, seul null s'écrit", async () => {
     const u = await poserUnCompte();
     await expect(
-      auth.modifierProfil(u.id, {
-        avatarFichier: "photo.webp",
-        avatarPredefini: "constellation",
-        version: 1,
-      }),
-    ).rejects.toMatchObject({ code: "avatar_ambigu" });
+      auth.modifierProfil(u.id, { avatarFichier: "a".repeat(64), version: 1 } as never),
+    ).rejects.toMatchObject({ code: "avatar_introuvable" });
+    const relu = await prisma.user.findUniqueOrThrow({ where: { id: u.id } });
+    expect(relu.avatarFichier).toBeNull();
+    expect(relu.version).toBe(1);
+    expect(
+      modificationProfilSchema.safeParse({ avatarFichier: "a".repeat(64), version: 1 }).success,
+    ).toBe(false);
+    expect(modificationProfilSchema.safeParse({ avatarFichier: null, version: 1 }).success).toBe(true);
   });
 
   it("RG-AUTH-09 — refuse un identifiant prédéfini hors catalogue même sans frontière HTTP", async () => {
@@ -756,29 +933,12 @@ describe("EX-AUTH-09 — modifier son profil", () => {
     });
   });
 
-  it("RG-AUTH-09 — refuse aussi quand l'AMBIGUÏTÉ NAÎT DE L'ÉTAT DÉJÀ EN BASE", async () => {
-    /*
-     * Le cas que le schéma seul ne peut pas voir : le corps ne porte qu'UN
-     * avatar, donc il est valide ; c'est l'état résultant qui en compte deux.
-     * Sans ce contrôle dans le service, deux requêtes licites successives
-     * fabriquaient l'état que la règle interdit.
-     */
+  it("RG-AUTH-09 — avatarFichier: null efface le fichier téléversé, et rien d'autre", async () => {
     const u = await poserUnCompte();
-    await auth.modifierProfil(u.id, { avatarPredefini: "constellation", version: 1 });
-    await expect(
-      auth.modifierProfil(u.id, { avatarFichier: "photo.webp", version: 2 }),
-    ).rejects.toMatchObject({ code: "avatar_ambigu" });
-  });
-
-  it("RG-AUTH-09 — accepte de remplacer un avatar par l'autre en une requête", async () => {
-    const u = await poserUnCompte();
-    await auth.modifierProfil(u.id, { avatarPredefini: "constellation", version: 1 });
-    const r = await auth.modifierProfil(u.id, {
-      avatarPredefini: null,
-      avatarFichier: "photo.webp",
-      version: 2,
-    });
-    expect(r.avatarFichier).toBe("photo.webp");
+    await prisma.user.update({ where: { id: u.id }, data: { avatarFichier: "b".repeat(64) } });
+    const r = await auth.modifierProfil(u.id, { avatarFichier: null, version: 1 });
+    expect(r.avatarFichier).toBeNull();
+    expect(r.avatarUrl).toBeNull();
     expect(r.avatarPredefini).toBeNull();
   });
 
@@ -798,8 +958,117 @@ describe("EX-AUTH-09 — modifier son profil", () => {
     const a = await poserUnCompte();
     const b = await poserUnCompte();
     await expect(
-      auth.modifierProfil(b.id, { email: a.email, version: 1 }),
+      auth.modifierProfil(b.id, { email: a.email, motDePasseActuel: MDP, version: 1 }),
     ).rejects.toMatchObject({ code: "email_deja_pris" });
+  });
+
+  /**
+   * `RG-AUTH-16` — **changer d'adresse exige le mot de passe actuel.**
+   *
+   * L'adresse est la clé de la réinitialisation. Avec une session volée, on
+   * remplaçait l'adresse, on demandait un lien, et le compte changeait de
+   * propriétaire sans que son mot de passe ait jamais été connu.
+   */
+  it("RG-AUTH-16 — changer d'adresse SANS le mot de passe actuel est refusé, l'adresse reste", async () => {
+    const u = await poserUnCompte();
+    await expect(
+      auth.modifierProfil(u.id, { email: "intrus@ailleurs.fr", version: 1 }),
+    ).rejects.toMatchObject({ code: "mot_de_passe_actuel_requis" });
+    const relu = await prisma.user.findUniqueOrThrow({ where: { id: u.id } });
+    expect(relu.email).toBe(u.email);
+    expect(relu.version).toBe(1);
+  });
+
+  it("RG-AUTH-16, RG-AUTH-01 — un mot de passe faux est refusé, tracé, et compte jusqu'au verrou", async () => {
+    await reglage("auth.tentativesAvantVerrouillage", "2");
+    const u = await poserUnCompte();
+    await expect(
+      auth.modifierProfil(u.id, { email: "intrus@ailleurs.fr", motDePasseActuel: "Faux1234!", version: 1 }),
+    ).rejects.toMatchObject({ code: "mot_de_passe_actuel_incorrect" });
+    await expect(
+      auth.modifierProfil(u.id, { email: "intrus@ailleurs.fr", motDePasseActuel: "Faux1234!", version: 1 }),
+    ).rejects.toMatchObject({ code: "compte_verrouille" });
+    // Verrouillé : même le bon mot de passe ne change plus l'adresse.
+    await expect(
+      auth.modifierProfil(u.id, { email: "intrus@ailleurs.fr", motDePasseActuel: MDP, version: 1 }),
+    ).rejects.toMatchObject({ code: "compte_verrouille" });
+
+    const relu = await prisma.user.findUniqueOrThrow({ where: { id: u.id } });
+    expect(relu.email).toBe(u.email);
+    const actions = (await prisma.auditLog.findMany({ where: { entiteId: u.id } })).map((t) => t.action);
+    expect(actions).toContain("user.email_change_failed");
+    expect(actions).toContain("auth.login.lockout");
+  });
+
+  it("RG-AUTH-16 — avec le bon mot de passe : adresse en minuscules, trace, avis à l'ANCIENNE adresse", async () => {
+    const enFile: { file: string; donnees: Record<string, unknown> }[] = [];
+    const avecFile = new AuthService(
+      prisma as never,
+      new AuditService(prisma as never),
+      {
+        publier: async (file: string, donnees: Record<string, unknown>) => {
+          enFile.push({ file, donnees });
+          return "travail";
+        },
+      } as never,
+    );
+    const u = await poserUnCompte();
+    const nouvelle = `Nouvelle.${u.id.slice(0, 8)}@Collectivite.FR`;
+
+    const apres = await avecFile.modifierProfil(u.id, {
+      email: nouvelle,
+      motDePasseActuel: MDP,
+      version: 1,
+    });
+
+    expect(apres.email).toBe(nouvelle.toLowerCase());
+    // La connexion cherche l'adresse en minuscules : elle la retrouve.
+    await expect(auth.connecter(nouvelle, MDP)).resolves.toMatchObject({ userId: u.id });
+
+    const trace = await prisma.auditLog.findFirstOrThrow({
+      where: { action: "user.email_changed", entiteId: u.id },
+    });
+    expect(trace.detail).toMatchObject({ avant: u.email, apres: nouvelle.toLowerCase() });
+
+    expect(enFile).toHaveLength(1);
+    expect(enFile[0]!.file).toBe("courriel");
+    expect(enFile[0]!.donnees["destinataire"]).toBe(u.email);
+    expect(String(enFile[0]!.donnees["corps"])).toContain(nouvelle.toLowerCase());
+  });
+
+  it("RG-AUTH-16 — l'avis suit la langue enregistrée du compte", async () => {
+    const enFile: Record<string, unknown>[] = [];
+    const avecFile = new AuthService(
+      prisma as never,
+      new AuditService(prisma as never),
+      { publier: async (_f: string, d: Record<string, unknown>) => (enFile.push(d), "t") } as never,
+    );
+    const u = await poserUnCompte();
+    await prisma.user.update({ where: { id: u.id }, data: { langue: "en" } });
+    await avecFile.modifierProfil(u.id, {
+      email: `en.${u.id.slice(0, 8)}@collectivite.fr`,
+      motDePasseActuel: MDP,
+      version: 1,
+    });
+    expect(String(enFile[0]!["sujet"])).toBe("Your email address was changed");
+  });
+
+  it("RG-AUTH-16, RG-AUTH-03 — la nouvelle adresse respecte la liste blanche des domaines", async () => {
+    await reglage("auth.domainesAutorises", "collectivite.fr");
+    const u = await poserUnCompte();
+    await expect(
+      auth.modifierProfil(u.id, { email: "agent@gmail.com", motDePasseActuel: MDP, version: 1 }),
+    ).rejects.toMatchObject({ code: "domaine_email_non_autorise" });
+    await expect(
+      auth.modifierProfil(u.id, { email: `autre.${u.id.slice(0, 8)}@collectivite.fr`, motDePasseActuel: MDP, version: 1 }),
+    ).resolves.toBeTruthy();
+  });
+
+  it("RG-AUTH-16 — reposer la même adresse, casse comprise, n'exige rien", async () => {
+    const u = await poserUnCompte();
+    await expect(
+      auth.modifierProfil(u.id, { email: u.email.toUpperCase(), prenom: "Inès", version: 1 }),
+    ).resolves.toMatchObject({ prenom: "Inès", email: u.email });
   });
 
   it("NE TOUCHE JAMAIS AU LOGIN NI AU MOT DE PASSE, quoi qu'on lui passe", async () => {

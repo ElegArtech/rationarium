@@ -86,6 +86,8 @@
     "modifiableParVous": "You can change these",
     "modifiableParVousAide": "These details are yours: change them whenever you want.",
     "emailAide": "Used for notifications and password reset.",
+    "motDePasseActuelEmail": "Current password",
+    "motDePasseActuelEmailAide": "Required to change your email: any password reset link will be sent there. Your previous address will be notified.",
     "enregistrer": "Save",
     "annuler": "Cancel",
     "gereParAdministration": "Managed by your administration",

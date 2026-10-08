@@ -802,6 +802,9 @@ export class UtilisateursService {
         data: { motDePasseHash: await hacherMotDePasse(nouveau), motDePasseAChanger: true },
       }),
       this.prisma.session.deleteMany({ where: { userId: id } }),
+      // `RG-AUTH-04` — un lien de réinitialisation en cours ne survit pas au
+      // secret provisoire : il contournerait le changement imposé.
+      this.prisma.passwordResetToken.deleteMany({ where: { userId: id, utiliseLe: null } }),
     ]);
     await this.audit.tracer({
       action: "user.reset_password", typeEntite: "User", entiteId: id, acteurId,

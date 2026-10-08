@@ -37,6 +37,19 @@ export class ErreurDocument extends Error {
   }
 }
 
+/**
+ * `C14` — **l'empreinte ne sort pas du serveur.** Elle est l'adresse du
+ * contenu dans un magasin que les avatars partagent avec les pièces jointes :
+ * la rendre à la consultation (`documents:read`) donnait de quoi désigner le
+ * contenu ailleurs, sans `documents:download`. Le client ne s'en servait que
+ * pour l'afficher.
+ */
+const sansEmpreinte = <T extends { empreinte: string }>(document: T): Omit<T, "empreinte"> => {
+  const reste: Partial<T> = { ...document };
+  delete reste.empreinte;
+  return reste as Omit<T, "empreinte">;
+};
+
 @Injectable()
 export class DocumentsService {
   constructor(
@@ -98,7 +111,7 @@ export class DocumentsService {
       action: "document.create", typeEntite: "Document", entiteId: document.id, acteurId,
       detail: { nom: donnees.nom, octets: donnees.contenu.byteLength },
     });
-    return document;
+    return sansEmpreinte(document);
   }
 
   /**
@@ -225,7 +238,7 @@ export class DocumentsService {
     await this.audit.tracer({
       action: "document.read", typeEntite: "Document", entiteId: id, acteurId,
     });
-    return document;
+    return sansEmpreinte(document);
   }
 
   /**

@@ -186,7 +186,7 @@ export const CANDIDATS = [
  * L'écart entre les deux formes est tout l'objet de cette route : la fiche
  * tâche donne `auteur: { prenom, nom }`, sans identifiant, donc aucun écran ne
  * peut y décider ce que `RG-DOC-01` autorise. La consultation donne
- * `auteurId`, `empreinte`, `version` et le rattachement.
+ * `auteurId`, `version` et le rattachement — jamais l'empreinte (`C14`).
  *
  * Le jeu se calque sur la signature du service (`DocumentsService.consulter`
  * rend la ligne Prisma entière), jamais sur ce que le client croirait recevoir
@@ -197,7 +197,6 @@ const AUTRE_AUTEUR = "88888888-8888-4888-8888-888888888888";
 export const DOCUMENT_AUTRUI = {
   id: "d1",
   nom: "cadrage-v2.pdf",
-  empreinte: "3f786850e387550fdab836ed7e6dc881de23001b3d6e1c1e2b2c9e0a1f4a5b6c",
   tailleOctets: 248_320,
   typeMime: "application/pdf",
   /** Fatou Berthier — c'est-à-dire quelqu'un d'autre que la session. */

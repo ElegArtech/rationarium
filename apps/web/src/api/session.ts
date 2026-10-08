@@ -68,6 +68,8 @@ export const modifierProfil = (donnees: {
   theme?: string;
   avatarFichier?: null;
   avatarPredefini?: SessionComplete["avatarPredefini"];
+  /** `RG-AUTH-16` — exigé par le serveur quand l'adresse change. */
+  motDePasseActuel?: string;
   version: number;
 }) => appeler<SessionComplete>("/auth/me", { methode: "PATCH", corps: donnees });
 

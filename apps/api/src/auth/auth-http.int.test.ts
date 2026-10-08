@@ -40,7 +40,7 @@ const appel = (
 async function compte(
   login: string,
   permissions: readonly string[],
-  options: { motDePasseAChanger?: boolean } = {},
+  options: { motDePasseAChanger?: boolean; ip?: string } = {},
 ) {
   const role = await prisma.role.create({
     data: {
@@ -62,6 +62,7 @@ async function compte(
   });
   const connexion = await appel("POST", "/api/auth/login", {
     corps: { identifiant: login, motDePasse: MDP },
+    ...(options.ip ? { ip: options.ip } : {}),
   });
   if (connexion.statusCode !== 200) throw new Error(`connexion refusée : ${connexion.body}`);
   return {
@@ -239,6 +240,38 @@ describe("RG-AUTH-12 — connexion et réinitialisation limitées en débit par 
     expect(reponses[5]!.json()).toMatchObject({ cle: "auth:erreurs.tropDeDemandes" });
   });
 
+  /**
+   * `RG-AUTH-12` — **le changement de mot de passe vérifie un mot de passe :
+   * il est limité comme la connexion.** Il n'avait que la limite globale de
+   * trois cents requêtes par minute, un dictionnaire pour qui tient une
+   * session volée. Le seuil de verrouillage est relevé le temps du test :
+   * sans cela, le verrou du compte (429 lui aussi) répondrait avant la limite.
+   */
+  it("la 11e tentative de changement de mot de passe en une minute est refusée en 429", async () => {
+    await prisma.setting.upsert({
+      where: { cle: "auth.tentativesAvantVerrouillage" },
+      create: { cle: "auth.tentativesAvantVerrouillage", valeur: "100" },
+      update: { valeur: "100" },
+    });
+    try {
+      const titulaire = await compte("sec02.debit.mdp", [], { ip: "203.0.113.51" });
+      const reponses = [];
+      for (let i = 0; i < 11; i++) {
+        reponses.push(
+          await appel("POST", "/api/auth/change-password", {
+            jeton: titulaire.jeton,
+            ip: "203.0.113.52",
+            corps: { actuel: `Faux${i}234!`, nouveau: "Nouv3au-Secret!", confirmation: "Nouv3au-Secret!" },
+          }),
+        );
+      }
+      expect(reponses.slice(0, 10).map((r) => r.statusCode)).toEqual(Array(10).fill(400));
+      expect(reponses[10]!.statusCode).toBe(429);
+    } finally {
+      await prisma.setting.delete({ where: { cle: "auth.tentativesAvantVerrouillage" } });
+    }
+  });
+
   it("la limite globale dépassée rend 429 et une clé, jamais une erreur interne", async () => {
     let derniere;
     for (let i = 0; i < 301; i++) {
@@ -307,5 +340,33 @@ describe("RG-AUTH-15 — les réglages d'authentification ne se lisent pas sans 
     const connecte = (await appel("GET", "/api/parametrage", { jeton: jetonAdmin })).json() as Record<string, string>;
     expect(connecte["auth.tentativesAvantVerrouillage"]).toBe("7");
     expect(connecte["auth.domainesAutorises"]).toBe("exemple.fr");
+  });
+});
+
+describe("RG-AUTH-16 — changer d'adresse exige le mot de passe actuel, sur la chaîne HTTP", () => {
+  /*
+   * Sur la surface assemblée, parce que Zod retire les clés inconnues EN
+   * SILENCE : un `motDePasseActuel` absent du schéma de route disparaîtrait
+   * avant le service, et le changement légitime deviendrait impossible.
+   */
+  it("une session seule ne change pas l'adresse ; avec le mot de passe, si", async () => {
+    const titulaire = await compte("sec02.adresse", [], { ip: "203.0.113.61" });
+    const moi = await appel("GET", "/api/auth/me", { jeton: titulaire.jeton });
+    const version = (moi.json() as { version: number }).version;
+
+    const sansMotDePasse = await appel("PATCH", "/api/auth/me", {
+      jeton: titulaire.jeton,
+      corps: { email: "detournee@exemple.fr", version },
+    });
+    expect(sansMotDePasse.statusCode).toBe(400);
+    expect(sansMotDePasse.json()).toMatchObject({ cle: "auth:erreurs.motDePasseActuelRequis" });
+
+    const avecMotDePasse = await appel("PATCH", "/api/auth/me", {
+      jeton: titulaire.jeton,
+      corps: { email: "Nouvelle.Adresse@exemple.fr", motDePasseActuel: MDP, version },
+    });
+    expect(avecMotDePasse.statusCode).toBe(200);
+    expect(avecMotDePasse.json()).toMatchObject({ email: "nouvelle.adresse@exemple.fr" });
+    expect(avecMotDePasse.body).not.toContain(MDP);
   });
 });

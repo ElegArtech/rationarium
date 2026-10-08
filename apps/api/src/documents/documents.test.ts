@@ -14,6 +14,8 @@ import {
   lireContenu,
   racineStockage,
   RACINE_PAR_DEFAUT,
+  FORME_TYPE_MIME,
+  typeMimeServi,
 } from "./stockage.js";
 
 /**
@@ -213,5 +215,29 @@ describe("EX-DOC-02 — la réponse HTTP est une pièce jointe", () => {
     );
     expect(reponse.body).toBe("colonne;valeur\n1;2\n");
     await app.close();
+  });
+});
+
+describe("EX-DOC-02 — le type servi vient d'une liste blanche", () => {
+  it("sert tels quels les documents de travail courants", () => {
+    for (const type of ["application/pdf", "image/png", "text/plain", "text/csv",
+      "application/vnd.oasis.opendocument.spreadsheet", "APPLICATION/PDF"]) {
+      expect(typeMimeServi(type)).toBe(type.toLowerCase());
+    }
+  });
+
+  it("sert en octet-stream tout ce qui pourrait s'exécuter, et tout l'inconnu", () => {
+    for (const type of ["text/javascript", "text/html", "image/svg+xml", "application/xhtml+xml",
+      "text/plain\r\nX: 1", "", "application/x-inconnu"]) {
+      expect(typeMimeServi(type)).toBe("application/octet-stream");
+    }
+  });
+
+  it("EX-DOC-01 — la forme déclarée est type/sous-type, sans contrôle ni paramètre", () => {
+    expect(FORME_TYPE_MIME.test("application/vnd.oasis.opendocument.text")).toBe(true);
+    expect(FORME_TYPE_MIME.test("image/svg+xml")).toBe(true);
+    for (const type of ["text/plain\r\nX: 1", "text/plain; charset=utf-8", "texte", "/plain", "text/", " text/plain"]) {
+      expect(FORME_TYPE_MIME.test(type)).toBe(false);
+    }
   });
 });

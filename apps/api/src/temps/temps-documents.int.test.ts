@@ -292,10 +292,12 @@ describe("C14 — le stockage est adressé par EMPREINTE, jamais par nom", () =>
       { nom: "rapport.pdf", contenu: Buffer.from("contenu B"), typeMime: "application/pdf", projectId: projet },
       acteur,
     );
-    expect(a.empreinte).not.toBe(b.empreinte);
-    expect(documents.cheminDeStockage(a.empreinte)).not.toBe(
-      documents.cheminDeStockage(b.empreinte),
-    );
+    // L'empreinte ne sort plus du service (`C14`) : on la relit en base.
+    const ea = (await prisma.document.findUniqueOrThrow({ where: { id: a.id } })).empreinte;
+    const eb = (await prisma.document.findUniqueOrThrow({ where: { id: b.id } })).empreinte;
+    expect(a).not.toHaveProperty("empreinte");
+    expect(ea).not.toBe(eb);
+    expect(documents.cheminDeStockage(ea)).not.toBe(documents.cheminDeStockage(eb));
   });
 
   it("un nom hostile ne participe pas au chemin", async () => {
@@ -307,7 +309,8 @@ describe("C14 — le stockage est adressé par EMPREINTE, jamais par nom", () =>
       acteur,
     );
     // Le nom reste une métadonnée d'affichage ; il ne peut pas s'échapper.
-    expect(documents.cheminDeStockage(d.empreinte)).not.toContain("..");
+    const { empreinte } = await prisma.document.findUniqueOrThrow({ where: { id: d.id } });
+    expect(documents.cheminDeStockage(empreinte)).not.toContain("..");
     expect(d.nom).toBe("../../etc/passwd");
   });
 });
@@ -728,12 +731,13 @@ describe("EX-DOC-02 — consulter, télécharger, renommer, supprimer un documen
 
   it("renommer change le NOM et rien d'autre — le contenu est adressé par empreinte", async () => {
     const doc = await joindre("faute-de-frape.txt");
+    const { empreinte } = await prisma.document.findUniqueOrThrow({ where: { id: doc.id } });
 
     await documents.renommer(doc.id, "sans-faute.txt", acteur, new Set(), doc.version);
 
     const relu = await prisma.document.findUniqueOrThrow({ where: { id: doc.id } });
     expect(relu.nom).toBe("sans-faute.txt");
-    expect(relu.empreinte).toBe(doc.empreinte);
+    expect(relu.empreinte).toBe(empreinte);
     expect(relu.tailleOctets).toBe(doc.tailleOctets);
     // `RG-GEN-07` — le renommage est une écriture : la version bouge.
     expect(relu.version).toBe(doc.version + 1);

@@ -1,4 +1,6 @@
 import { Injectable } from "@nestjs/common";
+import { stringify } from "csv-stringify/sync";
+import { neutraliserFormule } from "../commun/import-csv.js";
 import { PrismaService } from "../prisma.service.js";
 import { AuditService } from "../commun/audit.service.js";
 import { PerimetreService, type Perimetre } from "../commun/perimetre.service.js";
@@ -438,11 +440,27 @@ export class CompetencesService {
 
   /** `EX-CMP-08` — export de la matrice en CSV. */
   async exporterMatrice(perimetre: Perimetre): Promise<string> {
-    const m = await this.matrice(perimetre);
-    const entete = ["Agent", ...m.colonnes.map((c) => c.nom)].join(";");
-    const lignes = m.lignes.map((l) =>
-      [`${l.agent.prenom} ${l.agent.nom}`, ...l.niveaux.map((n) => n ?? "")].join(";"),
-    );
-    return [entete, ...lignes].join("\n");
+    return csvMatrice(await this.matrice(perimetre));
   }
+}
+
+/**
+ * `EX-CMP-08`, `RG-IMP-08` — la matrice en CSV, **échappée et neutralisée**.
+ *
+ * Elle était assemblée par `join(";")` : un nom portant un point-virgule
+ * décalait toutes les colonnes suivantes, et un prénom saisi
+ * `=HYPERLINK(…)` devenait une formule chez celui qui ouvrait le fichier.
+ * Même sérialiseur et même neutralisation que les autres exports du produit.
+ *
+ * Hors de la classe et exportée : c'est du texte pur, qui se vérifie sans base.
+ */
+export function csvMatrice(m: {
+  colonnes: readonly { nom: string }[];
+  lignes: readonly { agent: { prenom: string; nom: string }; niveaux: readonly (string | null)[] }[];
+}): string {
+  const lignes = [
+    ["Agent", ...m.colonnes.map((c) => c.nom)],
+    ...m.lignes.map((l) => [`${l.agent.prenom} ${l.agent.nom}`, ...l.niveaux.map((n) => n ?? "")]),
+  ].map((ligne) => ligne.map(neutraliserFormule));
+  return stringify(lignes, { delimiter: ";" });
 }

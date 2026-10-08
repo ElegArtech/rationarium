@@ -36,9 +36,13 @@ export type EchecAuth =
   | "jeton_deja_utilise"
   | "jeton_invalide"
   | "ancien_mot_de_passe_incorrect"
+  | "nouveau_identique"
   | "email_deja_pris"
   | "login_deja_pris"
   | "domaine_non_autorise"
+  | "domaine_email_non_autorise"
+  | "mot_de_passe_actuel_requis"
+  | "mot_de_passe_actuel_incorrect"
   | "inscription_desactivee"
   | "avatar_ambigu"
   | "avatar_predefini_invalide"
@@ -179,34 +183,19 @@ export class AuthService {
       throw new ErreurAuth("compte_verrouille");
     }
 
-    const valide = await verifierMotDePasse(user.motDePasseHash, motDePasse);
-
-    if (!valide) {
-      const echecs = user.echecsConnexion + 1;
-      const verrouiller = echecs >= r.tentativesAvantVerrouillage;
-      await this.prisma.user.update({
-        where: { id: user.id },
-        data: {
-          echecsConnexion: verrouiller ? 0 : echecs,
-          verrouilleJusqua: verrouiller
-            ? new Date(Date.now() + r.dureeVerrouillageMinutes * 60_000)
-            : null,
-        },
-      });
-      await this.audit.tracer({
-        action: verrouiller ? "auth.login.lockout" : "auth.login.failed",
-        typeEntite: "User",
-        entiteId: user.id,
-        detail: { tentatives: echecs, ip: contexte.ip },
-      });
-      // RG-AUTH-02 — même code que pour un identifiant inconnu.
-      throw new ErreurAuth(verrouiller ? "compte_verrouille" : "identifiants_invalides");
-    }
+    const verdict = await this.verifierSousCompteur(user, motDePasse, r, contexte, {
+      echec: "auth.login.failed",
+    });
+    if (verdict === "verrouille") throw new ErreurAuth("compte_verrouille");
+    // RG-AUTH-02 — même code que pour un identifiant inconnu.
+    if (verdict === "invalide") throw new ErreurAuth("identifiants_invalides");
 
     // RG-AUTH-05 — un utilisateur inactif ne peut pas se connecter.
     // Vérifié APRÈS le mot de passe : sinon l'inactivité d'un compte serait
     // devinable sans le connaître.
     if (!user.actif) {
+      // La tentative réservée par `verifierSousCompteur` n'était pas un échec.
+      await this.prisma.user.update({ where: { id: user.id }, data: { echecsConnexion: 0 } });
       await this.audit.tracer({
         action: "auth.login.failed",
         typeEntite: "User",
@@ -243,6 +232,95 @@ export class AuthService {
     });
 
     return { userId: user.id, jeton, motDePasseAChanger: user.motDePasseAChanger };
+  }
+
+  /**
+   * `RG-AUTH-01` — **le compteur d'échecs ne se contourne pas en parallèle.**
+   *
+   * Le service lisait `echecsConnexion`, attendait Argon2 — plusieurs dizaines
+   * de millisecondes —, puis écrivait `lu + 1`. Vingt requêtes lancées
+   * ensemble lisaient toutes zéro et écrivaient toutes un : vingt essais de
+   * mot de passe pour un compte réglé à cinq, et jamais de verrou.
+   *
+   * La tentative est donc **réservée avant la vérification**, par un
+   * incrément atomique qui rend la valeur obtenue (`UPDATE … RETURNING`) et
+   * qui ne prend pas sur un compte déjà verrouillé. Chaque requête connaît
+   * ainsi son rang sans avoir lu celui des autres :
+   *
+   * - au-delà du seuil, elle est refusée sans que le mot de passe soit
+   *   vérifié, et pose le verrou — une réservation orpheline (processus tombé
+   *   entre l'incrément et la fin) ne laisse donc pas le compteur au-dessus du
+   *   seuil pour toujours ;
+   * - au seuil, un échec verrouille ;
+   * - une réussite remet le compteur à zéro, à la charge de l'appelant.
+   *
+   * Partagé par la connexion, le changement de mot de passe et le changement
+   * d'adresse : un mot de passe se devine par n'importe laquelle de ces
+   * portes, et une seule d'entre elles comptait.
+   *
+   * L'instant est passé en millisecondes et converti en UTC par la base :
+   * Prisma écrit ses `DateTime` en UTC dans une colonne sans fuseau, et c'est
+   * l'horloge du serveur — celle que les tests figent — qui fait foi.
+   */
+  private async verifierSousCompteur(
+    user: { id: string; motDePasseHash: string },
+    motDePasse: string,
+    r: Reglages,
+    contexte: { ip?: string | undefined },
+    actions: { echec: string },
+  ): Promise<"valide" | "invalide" | "verrouille"> {
+    const maintenant = Date.now();
+    const lignes = await this.prisma.$queryRaw<{ echecs: number }[]>`
+      UPDATE "users" SET "echecsConnexion" = "echecsConnexion" + 1
+      WHERE "id" = ${user.id}::uuid
+        AND ("verrouilleJusqua" IS NULL
+             OR "verrouilleJusqua" <= (to_timestamp(${maintenant}::double precision / 1000) AT TIME ZONE 'UTC'))
+      RETURNING "echecsConnexion" AS "echecs"`;
+    const rang = lignes[0]?.echecs;
+
+    if (rang === undefined) {
+      // Verrouillé entre la lecture de l'appelant et cette écriture.
+      await this.audit.tracer({
+        action: "auth.login.locked",
+        typeEntite: "User",
+        entiteId: user.id,
+        acteurId: user.id,
+        detail: { ip: contexte.ip },
+      });
+      return "verrouille";
+    }
+    if (rang > r.tentativesAvantVerrouillage) {
+      await this.verrouiller(user.id, r);
+      await this.audit.tracer({
+        action: "auth.login.lockout",
+        typeEntite: "User",
+        entiteId: user.id,
+        detail: { tentatives: rang, ip: contexte.ip },
+      });
+      return "verrouille";
+    }
+
+    if (await verifierMotDePasse(user.motDePasseHash, motDePasse)) return "valide";
+
+    const verrouiller = rang >= r.tentativesAvantVerrouillage;
+    if (verrouiller) await this.verrouiller(user.id, r);
+    await this.audit.tracer({
+      action: verrouiller ? "auth.login.lockout" : actions.echec,
+      typeEntite: "User",
+      entiteId: user.id,
+      detail: { tentatives: rang, ip: contexte.ip },
+    });
+    return verrouiller ? "verrouille" : "invalide";
+  }
+
+  private async verrouiller(userId: string, r: Reglages): Promise<void> {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        echecsConnexion: 0,
+        verrouilleJusqua: new Date(Date.now() + r.dureeVerrouillageMinutes * 60_000),
+      },
+    });
   }
 
   /**
@@ -285,12 +363,12 @@ export class AuthService {
       throw new ErreurAuth("compte_verrouille");
     }
 
-    // Empreinte factice : le coût de vérification doit être le même.
-    await verifierMotDePasse(
-      "$argon2id$v=19$m=19456,t=2,p=1$c29tZXNhbHRzb21lc2FsdA$0000000000000000000000000000000000000000000",
-      motDePasse,
-    );
-
+    /*
+     * `RG-AUTH-01` — le compteur avance AVANT l'attente : lu, attendu, puis
+     * écrit `lu + 1`, il laissait des requêtes parallèles lire toutes le même
+     * état et ne compter qu'un échec. Sans `await` entre la lecture et
+     * l'écriture, la boucle d'événements les sérialise.
+     */
     const echecs = etat.echecs + 1;
     const verrouiller = echecs >= r.tentativesAvantVerrouillage;
     this.inconnus.delete(cle);
@@ -303,6 +381,12 @@ export class AuthService {
       if (plusAncienne === undefined) break;
       this.inconnus.delete(plusAncienne);
     }
+
+    // Empreinte factice : le coût de vérification doit être le même.
+    await verifierMotDePasse(
+      "$argon2id$v=19$m=19456,t=2,p=1$c29tZXNhbHRzb21lc2FsdA$0000000000000000000000000000000000000000000",
+      motDePasse,
+    );
 
     await this.audit.tracer({
       action: verrouiller ? "auth.login.lockout" : "auth.login.failed",
@@ -420,20 +504,51 @@ export class AuthService {
     userId: string,
     actuel: string,
     nouveau: string,
-    options: { conserverSessionId?: string } = {},
+    options: { conserverSessionId?: string; ip?: string } = {},
   ): Promise<void> {
+    /*
+     * `RG-AUTH-07`, `RG-AUTH-11` — le nouveau mot de passe diffère de l'actuel.
+     * La vue 05 le refusait côté client seulement : une requête directe
+     * levait l'obligation de changement en reposant le mot de passe
+     * provisoire, que l'administrateur connaît.
+     */
+    if (nouveau === actuel) throw new ErreurAuth("nouveau_identique");
+
+    const r = await this.reglages();
     const user = await this.prisma.user.findUniqueOrThrow({
       where: { id: userId },
-      // RG-AUTH-14 — l'autre lecteur légitime du haché.
-      select: { motDePasseHash: true },
+      // RG-AUTH-14 — un lecteur légitime du haché : la vérification.
+      select: { id: true, motDePasseHash: true, verrouilleJusqua: true },
     });
-    if (!(await verifierMotDePasse(user.motDePasseHash, actuel))) {
-      throw new ErreurAuth("ancien_mot_de_passe_incorrect");
+    /*
+     * `RG-AUTH-01` — les échecs comptent ici comme à la connexion. Cette
+     * route n'avait ni compteur ni limite de débit propre : une session volée
+     * y essayait des mots de passe à volonté, et le bon la rendait
+     * propriétaire du compte.
+     */
+    if (user.verrouilleJusqua && user.verrouilleJusqua > new Date()) {
+      throw new ErreurAuth("compte_verrouille");
     }
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: { motDePasseHash: await hacherMotDePasse(nouveau), motDePasseAChanger: false },
+    const verdict = await this.verifierSousCompteur(user, actuel, r, { ip: options.ip }, {
+      echec: "auth.password.change_failed",
     });
+    if (verdict === "verrouille") throw new ErreurAuth("compte_verrouille");
+    if (verdict === "invalide") throw new ErreurAuth("ancien_mot_de_passe_incorrect");
+
+    const motDePasseHash = await hacherMotDePasse(nouveau);
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: userId },
+        data: { motDePasseHash, motDePasseAChanger: false, echecsConnexion: 0 },
+      }),
+      /*
+       * `RG-AUTH-04` — un lien de réinitialisation demandé AVANT le changement
+       * ne vaut plus après : sinon le geste qu'on fait quand on soupçonne une
+       * compromission laissait ouverte la porte que l'intrus venait de
+       * demander.
+       */
+      this.prisma.passwordResetToken.deleteMany({ where: { userId, utiliseLe: null } }),
+    ]);
     // Un changement de mot de passe invalide les autres sessions : c'est le
     // geste qu'on fait quand on soupçonne une compromission. Celle qui l'a
     // demandé n'en fait pas partie — elle vient de prouver qui elle est.
@@ -459,14 +574,26 @@ export class AuthService {
     const user = await this.prisma.user.findUnique({ where: { email: email.toLowerCase() } });
     if (!user || !user.actif) return null;
 
+    /*
+     * `RG-AUTH-04` — **un seul lien actif par compte.** Chaque demande en
+     * ajoutait un sans retirer les précédents : dix demandes, dix liens
+     * valables deux heures dans une boîte aux lettres, et le dernier reçu
+     * n'était pas le seul à ouvrir le compte. Les jetons non consommés sont
+     * retirés dans la même transaction que la création du nouveau ; un ancien
+     * lien répond désormais « invalide ». Les jetons consommés restent : ils
+     * font l'historique, et « déjà utilisé » reste vrai pour eux.
+     */
     const jeton = engendrerJeton();
-    await this.prisma.passwordResetToken.create({
-      data: {
-        jetonHash: hacherJeton(jeton),
-        userId: user.id,
-        expireLe: new Date(Date.now() + r.dureeJetonReinitialisationHeures * 3_600_000),
-      },
-    });
+    await this.prisma.$transaction([
+      this.prisma.passwordResetToken.deleteMany({ where: { userId: user.id, utiliseLe: null } }),
+      this.prisma.passwordResetToken.create({
+        data: {
+          jetonHash: hacherJeton(jeton),
+          userId: user.id,
+          expireLe: new Date(Date.now() + r.dureeJetonReinitialisationHeures * 3_600_000),
+        },
+      }),
+    ]);
 
     await this.envoyerLienDeReinitialisation(
       user.email,
@@ -572,17 +699,27 @@ export class AuthService {
     if (enregistre.utiliseLe) throw new ErreurAuth("jeton_deja_utilise");
     if (enregistre.expireLe <= new Date()) throw new ErreurAuth("jeton_expire");
 
-    await this.prisma.$transaction([
-      this.prisma.user.update({
-        where: { id: enregistre.userId },
-        data: { motDePasseHash: await hacherMotDePasse(nouveau), motDePasseAChanger: false },
-      }),
-      this.prisma.passwordResetToken.update({
-        where: { id: enregistre.id },
+    const motDePasseHash = await hacherMotDePasse(nouveau);
+    await this.prisma.$transaction(async (tx) => {
+      /*
+       * `RG-AUTH-04` — usage unique, y compris sous deux requêtes simultanées :
+       * la consommation est conditionnelle, et seule la première l'obtient.
+       */
+      const { count } = await tx.passwordResetToken.updateMany({
+        where: { id: enregistre.id, utiliseLe: null },
         data: { utiliseLe: new Date() },
-      }),
-      this.prisma.session.deleteMany({ where: { userId: enregistre.userId } }),
-    ]);
+      });
+      if (count === 0) throw new ErreurAuth("jeton_deja_utilise");
+      await tx.user.update({
+        where: { id: enregistre.userId },
+        data: { motDePasseHash, motDePasseAChanger: false },
+      });
+      // Les autres liens en cours tombent avec le mot de passe qu'ils visaient.
+      await tx.passwordResetToken.deleteMany({
+        where: { userId: enregistre.userId, utiliseLe: null },
+      });
+      await tx.session.deleteMany({ where: { userId: enregistre.userId } });
+    });
 
     await this.audit.tracer({
       action: "auth.password.reset",
@@ -763,12 +900,18 @@ export class AuthService {
       email?: string | undefined;
       langue?: string | undefined;
       theme?: string | undefined;
-      avatarFichier?: string | null | undefined;
+      avatarFichier?: null | undefined;
       avatarPredefini?: VisuelAvatarPredefini | null | undefined;
+      motDePasseActuel?: string | undefined;
       version: number;
     },
+    contexte: { ip?: string | undefined } = {},
   ) {
-    const avant = await this.prisma.user.findUnique({ where: { id: userId } });
+    const avant = await this.prisma.user.findUnique({
+      where: { id: userId },
+      // RG-AUTH-14 — lu pour la seule vérification du changement d'adresse.
+      omit: { motDePasseHash: false },
+    });
     if (!avant) throw new ErreurAuth("identifiants_invalides");
 
     /*
@@ -777,20 +920,61 @@ export class AuthService {
      * reçu : poser un fichier sans effacer le prédéfini déjà là produirait les
      * deux à la fois, et le schéma seul ne peut pas le voir.
      */
-    if (d.avatarFichier && d.avatarPredefini) throw new ErreurAuth("avatar_ambigu");
-    const fichier = d.avatarPredefini
-      ? null
-      : d.avatarFichier !== undefined
-        ? d.avatarFichier
-        : avant.avatarFichier;
+    /*
+     * Un fichier ne se DÉSIGNE pas ici : il se téléverse (`televerserAvatar`),
+     * qui en lit les octets. Accepter une chaîne laissait poser comme avatar
+     * l'empreinte de n'importe quelle pièce jointe du magasin commun, puis la
+     * lire par `GET /auth/me/avatar` sans `documents:download`. Le schéma le
+     * refuse déjà ; le service le refuse aussi, pour tout autre appelant.
+     */
+    if ((d.avatarFichier as unknown) !== undefined && d.avatarFichier !== null) {
+      throw new ErreurAuth("avatar_introuvable");
+    }
+    const fichier = d.avatarPredefini || d.avatarFichier === null ? null : avant.avatarFichier;
     const predefini = d.avatarPredefini !== undefined ? d.avatarPredefini : avant.avatarPredefini;
     if (predefini && !estVisuelAvatarPredefini(predefini)) {
       throw new ErreurAuth("avatar_predefini_invalide");
     }
     if (fichier && predefini) throw new ErreurAuth("avatar_ambigu");
 
-    if (d.email && d.email !== avant.email) {
-      const pris = await this.prisma.user.findUnique({ where: { email: d.email } });
+    /*
+     * `RG-AUTH-16` — **changer d'adresse exige le mot de passe actuel.**
+     *
+     * L'adresse est la clé de la réinitialisation : qui la change reçoit le
+     * prochain lien. Sans cette exigence, une session volée — un poste resté
+     * ouvert suffit — remplaçait l'adresse puis demandait un lien, et devenait
+     * propriétaire du compte sans avoir jamais connu son mot de passe.
+     * `RG-USR-05` ferme la même porte côté administration ; le profil la
+     * laissait ouverte.
+     *
+     * L'adresse est normalisée en minuscules comme à l'inscription et à
+     * l'administration : la connexion la cherche en minuscules, et une adresse
+     * en capitales ne s'y retrouvait plus. Les échecs comptent dans le compteur
+     * de verrouillage (`RG-AUTH-01`), et la liste blanche de domaines de
+     * l'inscription (`RG-AUTH-03`) s'applique à la nouvelle adresse.
+     */
+    const email = d.email?.trim().toLowerCase();
+    const changeEmail = email !== undefined && email !== avant.email;
+    if (changeEmail) {
+      if (!d.motDePasseActuel) throw new ErreurAuth("mot_de_passe_actuel_requis");
+      const r = await this.reglages();
+      if (avant.verrouilleJusqua && avant.verrouilleJusqua > new Date()) {
+        throw new ErreurAuth("compte_verrouille");
+      }
+      const verdict = await this.verifierSousCompteur(avant, d.motDePasseActuel, r, contexte, {
+        echec: "user.email_change_failed",
+      });
+      if (verdict === "verrouille") throw new ErreurAuth("compte_verrouille");
+      if (verdict === "invalide") throw new ErreurAuth("mot_de_passe_actuel_incorrect");
+      await this.prisma.user.update({ where: { id: userId }, data: { echecsConnexion: 0 } });
+
+      if (r.domainesAutorises.length > 0) {
+        const domaine = email.split("@")[1] ?? "";
+        if (!r.domainesAutorises.includes(domaine)) {
+          throw new ErreurAuth("domaine_email_non_autorise");
+        }
+      }
+      const pris = await this.prisma.user.findUnique({ where: { email }, select: { id: true } });
       if (pris) throw new ErreurAuth("email_deja_pris");
     }
 
@@ -801,18 +985,91 @@ export class AuthService {
       data: {
         ...(d.prenom !== undefined ? { prenom: d.prenom } : {}),
         ...(d.nom !== undefined ? { nom: d.nom } : {}),
-        ...(d.email !== undefined ? { email: d.email } : {}),
+        ...(changeEmail ? { email } : {}),
         ...(d.langue !== undefined ? { langue: d.langue } : {}),
         ...(d.theme !== undefined ? { theme: d.theme } : {}),
-        ...(d.avatarFichier !== undefined ? { avatarFichier: d.avatarFichier } : {}),
-        ...(d.avatarPredefini ? { avatarFichier: null } : {}),
+        ...(d.avatarFichier === null || d.avatarPredefini ? { avatarFichier: null } : {}),
         ...(d.avatarPredefini !== undefined ? { avatarPredefini: d.avatarPredefini } : {}),
         version: { increment: 1 },
       },
     });
     if (count === 0) throw new ErreurAuth("conflit_de_version");
 
+    if (changeEmail) {
+      await this.audit.tracer({
+        action: "user.email_changed",
+        typeEntite: "User",
+        entiteId: userId,
+        acteurId: userId,
+        detail: { avant: avant.email, apres: email, ip: contexte.ip },
+      });
+      await this.avertirChangementAdresse(avant.email, email, avant.langue);
+    }
+
     return this.profil(userId);
+  }
+
+  /**
+   * `RG-AUTH-16` — **l'ANCIENNE adresse est prévenue.** C'est la seule que le
+   * titulaire lit encore si quelqu'un d'autre a fait le changement : prévenir
+   * la nouvelle préviendrait l'intrus.
+   *
+   * Rédigé dans la langue enregistrée du compte : c'est la seule information
+   * de langue dont dispose le serveur. Comme le lien de réinitialisation, une
+   * mise en file qui ne lève jamais (`RG-NTF-04`) : le changement a eu lieu,
+   * et un relais SMTP en panne ne le défait pas.
+   */
+  private async avertirChangementAdresse(
+    ancienne: string,
+    nouvelle: string,
+    langue: string,
+  ): Promise<void> {
+    const instance = adressePubliqueInstance();
+    const message =
+      langue === "en"
+        ? {
+            sujet: "Your email address was changed",
+            corps: [
+              "The email address of your Rationarium account has just been changed.",
+              "",
+              `New address: ${nouvelle}`,
+              "",
+              "If you made this change, no action is needed.",
+              "If you did not, contact your administrator immediately:",
+              "someone may be using your account.",
+              "",
+              instance,
+            ],
+          }
+        : {
+            sujet: "Votre adresse de messagerie a été modifiée",
+            corps: [
+              "L'adresse de messagerie de votre compte Rationarium vient d'être modifiée.",
+              "",
+              `Nouvelle adresse : ${nouvelle}`,
+              "",
+              "Si vous êtes à l'origine de ce changement, vous n'avez rien à faire.",
+              "Sinon, prévenez immédiatement votre administrateur :",
+              "quelqu'un utilise peut-être votre compte.",
+              "",
+              instance,
+            ],
+          };
+    try {
+      if (!this.file) {
+        this.journal.error(
+          "La file de travaux n'est pas injectée : l'avis de changement d'adresse ne peut pas partir.",
+        );
+        return;
+      }
+      await this.file.publier(FILE_COURRIEL, {
+        destinataire: ancienne,
+        sujet: message.sujet,
+        corps: message.corps.join("\n"),
+      });
+    } catch {
+      // Le changement est fait ; l'avis manqué ne doit pas le faire échouer.
+    }
   }
 
   /**

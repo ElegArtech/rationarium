@@ -227,6 +227,75 @@ for (const langue of ["fr", "en"] as const) test.describe(langue, () => {
     await expect(page.locator(".profil-head img.avatar-image")).toHaveCount(0);
   });
 
+  /**
+   * `RG-AUTH-16` — changer d'adresse demande le mot de passe actuel. Le
+   * champ n'apparaît que quand l'adresse change ; sans lui, rien ne part ;
+   * le refus du serveur se lit SUR le champ, pas seulement dans l'alerte.
+   */
+  test(`RG-AUTH-16 ${langue} changer d'adresse demande le mot de passe actuel`, async ({ page }) => {
+    const session = { ...SESSION_CONFIG, langue, theme: "clair", version: 1 };
+    await serveur(page, { session, reponses: { "/api/parametrage": { corps: REGLAGES } } });
+    const ecritures: Record<string, unknown>[] = [];
+    await page.route(url => url.pathname === "/api/auth/me", async route => {
+      if (route.request().method() !== "PATCH") return route.fulfill({ json: session });
+      const corps = route.request().postDataJSON() as Record<string, unknown>;
+      ecritures.push(corps);
+      if (corps["motDePasseActuel"] !== "Actuel12!") {
+        return route.fulfill({
+          status: 400,
+          json: { cle: "auth:erreurs.motDePasseActuelIncorrect", message: "Mot de passe actuel incorrect" },
+        });
+      }
+      Object.assign(session, { email: corps["email"], version: 2 });
+      return route.fulfill({ json: session });
+    });
+
+    await page.goto("/profil");
+    const motDePasse = page.locator('input[autocomplete="current-password"]');
+    await expect(motDePasse).toHaveCount(0);
+    await page.locator("#profil-email").fill("nouvelle.adresse@exemple.fr");
+    await expect(motDePasse).toBeVisible();
+
+    const enregistrer = page.getByRole("button", { name: langue === "fr" ? "Enregistrer" : "Save", exact: true });
+    await enregistrer.click();
+    await expect(page.locator(".field-block").filter({ has: motDePasse })).toContainText(
+      langue === "fr"
+        ? "Saisissez votre mot de passe actuel pour changer d'adresse."
+        : "Enter your current password to change your email address.",
+    );
+    expect(ecritures).toHaveLength(0);
+
+    await motDePasse.fill("Faux1234!");
+    await enregistrer.click();
+    await expect.poll(() => ecritures.length).toBe(1);
+    await expect(motDePasse).toHaveAttribute("aria-invalid", "true");
+    await expect(page.locator(".field-block").filter({ has: motDePasse })).toContainText(
+      langue === "fr" ? "Mot de passe actuel incorrect" : "Current password is incorrect",
+    );
+    for (const sombre of [false, true]) {
+      await page.evaluate(dark => document.documentElement.classList.toggle("dark", dark), sombre);
+      await page.waitForTimeout(180);
+      for (const width of [1440, 768]) {
+        await page.setViewportSize({ width, height: 1024 });
+        expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+        await page.screenshot({
+          path: `../../recette/remediation/rm-12/reprise/adresse-mot-de-passe-${langue}-${sombre ? "sombre" : "clair"}-${width}.png`,
+        });
+      }
+    }
+
+    await motDePasse.fill("Actuel12!");
+    await enregistrer.click();
+    await expect.poll(() => ecritures.at(-1)).toEqual({
+      prenom: session.prenom,
+      nom: session.nom,
+      email: "nouvelle.adresse@exemple.fr",
+      motDePasseActuel: "Actuel12!",
+      version: 1,
+    });
+    await expect(page.locator(".alert-success")).toBeVisible();
+  });
+
   test(`RM-12 socle ${langue} rend les pictogrammes date et heure en thème sombre`, async ({ page }) => {
     await page.setViewportSize({ width: 768, height: 1024 });
     await serveur(page, {

@@ -132,18 +132,19 @@ Chaque exigence est identifiée `EX-<MODULE>-<n>`, chaque règle de gestion `RG-
 - **RG-AUTH-01** — Après un nombre paramétrable de tentatives infructueuses, le compte est temporairement verrouillé. Message : *« Trop de tentatives de connexion. Réessayez plus tard. »*
 - **RG-AUTH-02** — Le message d'échec ne distingue jamais « identifiant inconnu » de « mot de passe erroné ».
 - **RG-AUTH-03** — L'inscription autonome peut être désactivée globalement, et peut être restreinte à une liste de domaines de messagerie autorisés.
-- **RG-AUTH-04** — Un jeton de réinitialisation est à usage unique et expire. Les deux cas produisent des messages distincts.
+- **RG-AUTH-04** — Un jeton de réinitialisation est à usage unique et expire. Les deux cas produisent des messages distincts. Un compte n'a qu'un lien actif : une nouvelle demande invalide le précédent, et tout changement de mot de passe (personnel, par lien ou par l'administration) révoque les liens en cours.
 - **RG-AUTH-05** — Un utilisateur inactif ne peut pas se connecter.
 - **RG-AUTH-06** — Le mot de passe respecte une politique minimale : 8 caractères, une majuscule, un chiffre, un caractère spécial.
-- **RG-AUTH-07** — Le changement de mot de passe par l'intéressé exige le mot de passe actuel.
+- **RG-AUTH-07** — Le changement de mot de passe par l'intéressé exige le mot de passe actuel, et le nouveau diffère de l'actuel. Les échecs comptent pour le verrouillage (`RG-AUTH-01`) et sont tracés.
 - **RG-AUTH-08** — L'identifiant de connexion n'est jamais modifiable après création.
 - **RG-AUTH-09** — L'avatar est soit un fichier téléversé (jpg, png, webp), soit un visuel prédéfini, soit rien.
 - **RG-AUTH-10** — Connexions réussies, échecs et verrouillages sont tracés dans le journal d'audit.
 - **RG-AUTH-11** — Tant qu'un changement de mot de passe est imposé (`EX-AUTH-07`), le serveur refuse toute requête authentifiée sauf `GET /auth/me`, `POST /auth/change-password` et `POST /auth/logout` : 403 `auth:erreurs.changementMotDePasseRequis`.
-- **RG-AUTH-12** — Ni le message ni le seuil de verrouillage ne permettent de savoir si un compte existe : un identifiant inconnu est « verrouillé » au même seuil et pour la même durée qu'un compte réel. La connexion et la demande de réinitialisation sont limitées en débit par adresse IP.
+- **RG-AUTH-12** — Ni le message ni le seuil de verrouillage ne permettent de savoir si un compte existe : un identifiant inconnu est « verrouillé » au même seuil et pour la même durée qu'un compte réel. La connexion, le changement de mot de passe et la demande de réinitialisation sont limités en débit par adresse IP.
 - **RG-AUTH-13** — Chaque usage d'une session repousse son expiration de la durée paramétrée (`EX-AUTH-02`). L'écriture se fait au plus une fois toutes les cinq minutes par session.
 - **RG-AUTH-14** — Le haché d'un mot de passe ne sort jamais du serveur, sur aucune route.
 - **RG-AUTH-15** — Sans session, la lecture des réglages publics (`GET /parametrage`) ne rend aucun réglage `auth.*` : seuil et durée de verrouillage, durée de session et domaines autorisés ne se lisent qu'une fois connecté.
+- **RG-AUTH-16** — Changer l'adresse de messagerie de son propre compte exige le mot de passe actuel ; les échecs comptent pour le verrouillage (`RG-AUTH-01`). La nouvelle adresse est normalisée en minuscules et soumise à la liste de domaines autorisés (`RG-AUTH-03`). Le changement est tracé et un avis part vers l'ancienne adresse, dans la langue du compte.
 
 Les visuels prédéfinis sont six motifs locaux, nommés et reconnaissables sans dépendre de leur couleur : constellation, feuille, montagne, vagues, soleil et mosaïque. Leurs identifiants techniques sont stables car ils sont persistés ; les libellés visibles sont traduits. Choisir un visuel efface le fichier personnel précédent, téléverser un fichier efface le visuel précédent, et supprimer l’avatar efface les deux.
 

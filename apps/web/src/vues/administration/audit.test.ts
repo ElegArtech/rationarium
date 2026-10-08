@@ -82,6 +82,7 @@ const ACTIONS_TRACEES = [
   // Quelques-unes qui étaient déjà couvertes : le contrôle doit rester vrai
   // pour l'ensemble, pas seulement pour ce qu'on vient d'ajouter.
   "user.create", "project.create", "leave.approve", "auth.login_success",
+  "auth.password.change_failed", "user.email_changed", "user.email_change_failed",
 ];
 
 describe("EX-ADM-03 — chaque action journalisée porte un libellé, dans les deux langues", () => {

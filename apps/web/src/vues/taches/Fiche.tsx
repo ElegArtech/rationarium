@@ -1580,11 +1580,6 @@ function FenetreDocument({
             </dd>
             <dt>{t("fiche.deposeLe")}</dt>
             <dd>{formaterDateLongue(detail.data.creeLe)}</dd>
-            {/* `C14` — le contenu est adressé par empreinte, jamais par nom
-                d'origine. La montrer permet de vérifier qu'un renommage n'a
-                pas changé le fichier : c'est précisément ce que dit la règle. */}
-            <dt>{t("fiche.empreinte")}</dt>
-            <dd className="doc-m">{detail.data.empreinte}</dd>
           </dl>
 
           {renommable ? (

@@ -110,12 +110,28 @@ const remplacer = (_cle: string, valeur: unknown): unknown => {
   return valeur;
 };
 
-/** Une valeur, telle qu'un tableur doit la lire. */
-function versChampCsv(valeur: unknown): string {
+/**
+ * `RG-IMP-08` — le déclencheur de formule d'un tableur, apostrophes déjà
+ * présentes comprises. Recopié de `apps/api/src/commun/import-csv.ts` : ce
+ * paquet ne dépend pas du serveur, et la règle tient en une ligne.
+ */
+const DECLENCHEUR_FORMULE = /^'*[=+\-@\t\r]/;
+
+/**
+ * Une valeur, telle qu'un tableur doit la lire.
+ *
+ * Une cellule TEXTE qui commence par `=`, `+`, `-` ou `@` reçoit une
+ * apostrophe : sans elle, un titre saisi `=HYPERLINK(…)` s'exécutait chez
+ * celui qui ouvrait l'export de réversibilité. Seul le CSV est neutralisé ;
+ * le JSONL, qui sert à la restauration, reste fidèle à l'octet près. Les
+ * nombres ne sont pas des formules et ne sont pas touchés.
+ */
+export function versChampCsv(valeur: unknown): string {
   if (valeur === null || valeur === undefined) return "";
   if (valeur instanceof Date) return valeur.toISOString();
-  const texte =
+  const brut =
     typeof valeur === "object" ? JSON.stringify(valeur, remplacer) : String(valeur);
+  const texte = typeof valeur === "string" && DECLENCHEUR_FORMULE.test(brut) ? `'${brut}` : brut;
   // Guillemet doublé, champ encadré dès qu'il porte un séparateur ou un saut
   // de ligne. C'est le minimum du RFC 4180, et c'est aussi tout ce dont un
   // tableur a besoin.

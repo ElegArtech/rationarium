@@ -86,6 +86,8 @@
     "modifiableParVous": "Modifiable par vous",
     "modifiableParVousAide": "Ces informations vous appartiennent : modifiez-les quand vous le souhaitez.",
     "emailAide": "Utilisée pour les notifications et la réinitialisation du mot de passe.",
+    "motDePasseActuelEmail": "Mot de passe actuel",
+    "motDePasseActuelEmailAide": "Requis pour changer d'adresse : c'est vers elle que partira tout lien de réinitialisation. Votre ancienne adresse sera prévenue.",
     "enregistrer": "Enregistrer",
     "annuler": "Annuler",
     "gereParAdministration": "Géré par votre administration",
