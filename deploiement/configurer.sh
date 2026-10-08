@@ -49,8 +49,15 @@ if [[ "$PROTOCOLE" == https ]]; then
     *) echo 'Choisir automatique, fourni ou interne.' >&2; exit 1 ;;
   esac
 fi
-read -r -p 'Identifiant du premier administrateur [admin] : ' RATIONARIUM_ADMIN_LOGIN <&3
-RATIONARIUM_ADMIN_LOGIN=${RATIONARIUM_ADMIN_LOGIN:-admin}
+# Un identifiant connu d'avance permet à quiconque sur le réseau de verrouiller
+# le seul administrateur : la proposition est engendrée, « admin » est refusé.
+IDENTIFIANT_PROPOSE="admin-$(od -An -N3 -tx1 /dev/urandom | tr -d ' \n')"
+read -r -p "Identifiant du premier administrateur [$IDENTIFIANT_PROPOSE] : " RATIONARIUM_ADMIN_LOGIN <&3
+RATIONARIUM_ADMIN_LOGIN=${RATIONARIUM_ADMIN_LOGIN:-$IDENTIFIANT_PROPOSE}
+[[ "$RATIONARIUM_ADMIN_LOGIN" =~ ^[A-Za-z0-9._-]{3,60}$ ]] || { echo 'L’identifiant compte 3 à 60 lettres, chiffres, points, tirets ou soulignés.' >&2; exit 1; }
+case ${RATIONARIUM_ADMIN_LOGIN,,} in
+  admin|administrateur|administrator|root|rationarium) echo 'Choisir un identifiant moins prévisible que celui-ci.' >&2; exit 1 ;;
+esac
 read -r -p 'Courriel de l’administrateur : ' RATIONARIUM_ADMIN_EMAIL <&3
 [[ "$RATIONARIUM_ADMIN_EMAIL" == *@*.* ]] || { echo 'Renseigner un courriel valide.' >&2; exit 1; }
 read -r -s -p 'Mot de passe de l’administrateur (12 caractères minimum) : ' RATIONARIUM_ADMIN_MOTDEPASSE <&3

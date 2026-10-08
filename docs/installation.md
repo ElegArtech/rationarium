@@ -21,7 +21,8 @@ curl -fL https://github.com/ElegArtech/rationarium/releases/download/v1.0.1/inst
 
 Le script télécharge le kit de cette version, vérifie son empreinte SHA-256, puis l’extrait dans
 un nouveau dossier `rationarium/`. Il demande l’adresse publique, l’identifiant, le courriel et
-le mot de passe temporaire du premier administrateur. Les secrets PostgreSQL et de session sont
+le mot de passe temporaire du premier administrateur. L’identifiant proposé est engendré
+(`admin-xxxxxx`) ; `admin` et les autres identifiants prévisibles sont refusés. Les secrets PostgreSQL et de session sont
 générés localement. Le mot de passe saisi n’est pas affiché.
 
 Le script refuse d’écraser une installation existante. Un autre dossier peut être donné :
@@ -64,7 +65,7 @@ de connexion à PostgreSQL.
 | `COOKIE_SECRET` | Secret de session, sans valeur par défaut |
 | `RATIONARIUM_HOTE` | Adresse écoutée par Caddy, sans le port publié sur l’hôte |
 | `RATIONARIUM_URL_PUBLIQUE` | Origine exacte vue par le navigateur, avec le port éventuel ; utilisée dans les liens par courriel |
-| `RATIONARIUM_ADMIN_LOGIN` | Identifiant du premier administrateur |
+| `RATIONARIUM_ADMIN_LOGIN` | Identifiant du premier administrateur ; vide pour en engendrer un (`admin-xxxxxx`), affiché dans les journaux d’amorçage. Éviter `admin` : un identifiant connu permet à quiconque sur le réseau de verrouiller le compte |
 | `RATIONARIUM_ADMIN_EMAIL` | Courriel du premier administrateur |
 | `RATIONARIUM_ADMIN_MOTDEPASSE` | Mot de passe temporaire ; vide pour en générer un dans les journaux d’amorçage |
 | `RATIONARIUM_IP_ECOUTE` | Adresse de l’hôte où les ports sont publiés : `127.0.0.1` pour un accès local en HTTP (valeur de l’exemple), vide pour toutes les interfaces, ou l’adresse d’une interface interne |
@@ -89,7 +90,7 @@ Ouvrir l’adresse du site, se connecter et changer le mot de passe temporaire. 
 l’application demande au moins huit caractères, une majuscule, un chiffre et un caractère spécial.
 Suivre ensuite [les premiers pas](utilisation.md).
 
-Si aucun mot de passe n’a été fourni, le consulter avec `docker compose logs amorcage`.
+Si aucun identifiant ou mot de passe n’a été fourni, les consulter avec `docker compose logs amorcage`.
 Après le premier accès, retirer les variables `RATIONARIUM_ADMIN_*` de `.env`. Les redémarrages
 conservent les utilisateurs et leurs mots de passe. Le référentiel des rôles système est synchronisé ;
 les rôles personnalisés restent conservés.

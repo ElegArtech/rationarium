@@ -76,7 +76,7 @@ services:
     environment:
       <<: *application
       COOKIE_SECRET: ${COOKIE_SECRET:?renseigner COOKIE_SECRET dans .env}
-      RATIONARIUM_ADMIN_LOGIN: ${RATIONARIUM_ADMIN_LOGIN:-admin}
+      RATIONARIUM_ADMIN_LOGIN: ${RATIONARIUM_ADMIN_LOGIN:-}
       RATIONARIUM_ADMIN_EMAIL: ${RATIONARIUM_ADMIN_EMAIL:-admin@localhost}
       RATIONARIUM_ADMIN_MOTDEPASSE: ${RATIONARIUM_ADMIN_MOTDEPASSE:-}
     command: ['node', 'dist/exploitation/amorcage.js']
