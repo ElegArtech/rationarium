@@ -173,7 +173,7 @@ describe("RM-12 — serveur profil, avatar et rôles système", () => {
     } as never, {} as never);
     service.profil = vi.fn().mockResolvedValue({ login: "identifiant-stable" });
     await service.modifierProfil("utilisateur", {
-      email: "b@example.test",
+      prenom: "Autre",
       version: 1,
       login: "usurpateur",
     } as never);
