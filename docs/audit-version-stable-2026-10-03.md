@@ -1,5 +1,12 @@
 # Audit du passage en version stable
 
+> **Mise à jour du 8 octobre 2026 — document historique.** L'avis « publication stable à
+> différer » et les 36 alertes ci-dessous décrivent l'état du 3 octobre 2026 avant correction.
+> Leur résolution est consignée dans le [bilan de stabilisation](bilan-stabilisation-1.0.0.md) et
+> la [sécurité de la livraison](securite-livraison.md) ; la version stable a été publiée en
+> [1.0.0](versions/1.0.0.md), puis [1.0.1](versions/1.0.1.md). Le texte de l'audit est conservé
+> tel qu'il a été rendu.
+
 Audit réalisé le 3 octobre 2026 sur `0c9d7e0c6cd51b076125958c0ca78f3d6d8bc038`, comparé à `v1.0.0-rc.1`.
 
 **Avis : publication stable à différer.** Les contrôles fonctionnels et les essais d'exploitation exécutés passent. L'audit des dépendances de production remonte toutefois 36 alertes, dont 20 élevées et 16 modérées, correspondant à 30 avis distincts. Leur qualification et leur correction restent nécessaires avant de recommander la version stable.
