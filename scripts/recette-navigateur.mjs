@@ -12,7 +12,7 @@ try {
   const erreurs = [];
   page.on('pageerror', e => erreurs.push(e.message));
   await page.goto(env.RATIONARIUM_URL_PUBLIQUE);
-  await page.locator('input[autocomplete="username"]').fill('admin');
+  await page.locator('input[autocomplete="username"]').fill(env.RATIONARIUM_ADMIN_LOGIN);
   await page.locator('input[autocomplete="current-password"]').fill(env.RATIONARIUM_ADMIN_MOTDEPASSE + (phase === 'initiale' ? '' : '2'));
   await page.getByRole('button', { name: 'Se connecter', exact: true }).click();
   if (phase === 'initiale') {
