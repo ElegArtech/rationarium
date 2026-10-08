@@ -488,6 +488,53 @@ describe("EX-AUTH-07, EX-AUTH-08 — mot de passe", () => {
     await auth.changerMotDePasse(c.id, MDP, "Nouveau12!");
     await expect(auth.resoudreSession(jeton)).resolves.toBeNull();
   });
+
+  /**
+   * `RG-AUTH-07`, `RG-AUTH-11` — **le mot de passe provisoire ne survit pas
+   * au changement imposé.** La vue 05 refusait l'identique côté client
+   * seulement : une requête directe reposait le secret que l'administrateur
+   * avait choisi, et levait l'obligation.
+   */
+  it("RG-AUTH-07 — un nouveau mot de passe IDENTIQUE à l'actuel est refusé, l'obligation demeure", async () => {
+    const c = await poserUnCompte({ motDePasseAChanger: true });
+    await expect(auth.changerMotDePasse(c.id, MDP, MDP)).rejects.toMatchObject({
+      code: "nouveau_identique",
+    });
+    const u = await prisma.user.findUniqueOrThrow({ where: { id: c.id } });
+    expect(u.motDePasseAChanger).toBe(true);
+  });
+
+  /**
+   * `RG-AUTH-01` — **le changement de mot de passe compte ses échecs.** Il
+   * n'avait ni compteur ni verrou : une session volée y essayait des mots de
+   * passe sans limite, et le bon lui donnait le compte.
+   */
+  it("RG-AUTH-01 — les échecs du changement de mot de passe sont tracés, comptés, et verrouillent le compte", async () => {
+    await reglage("auth.tentativesAvantVerrouillage", "3");
+    const c = await poserUnCompte();
+    const codes: string[] = [];
+    for (let i = 0; i < 3; i++) {
+      codes.push(
+        await auth.changerMotDePasse(c.id, `Faux${i}234!`, "Nouveau12!").then(
+          () => "change",
+          (e: ErreurAuth) => e.code,
+        ),
+      );
+    }
+    expect(codes).toEqual([
+      "ancien_mot_de_passe_incorrect",
+      "ancien_mot_de_passe_incorrect",
+      "compte_verrouille",
+    ]);
+    // Verrouillé : le bon mot de passe ne passe plus, ni ici ni à la connexion.
+    await expect(auth.changerMotDePasse(c.id, MDP, "Nouveau12!")).rejects.toMatchObject({
+      code: "compte_verrouille",
+    });
+    await expect(auth.connecter(c.login, MDP)).rejects.toMatchObject({ code: "compte_verrouille" });
+    const traces = await prisma.auditLog.findMany({ where: { entiteId: c.id } });
+    expect(traces.map((t) => t.action)).toContain("auth.password.change_failed");
+    expect(traces.map((t) => t.action)).toContain("auth.login.lockout");
+  });
 });
 
 describe("EX-AUTH-06, RG-AUTH-04 — définir un nouveau mot de passe depuis le lien reçu ; le jeton est à usage unique et il expire", () => {

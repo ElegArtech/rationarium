@@ -36,6 +36,7 @@ export type EchecAuth =
   | "jeton_deja_utilise"
   | "jeton_invalide"
   | "ancien_mot_de_passe_incorrect"
+  | "nouveau_identique"
   | "email_deja_pris"
   | "login_deja_pris"
   | "domaine_non_autorise"
@@ -500,19 +501,44 @@ export class AuthService {
     userId: string,
     actuel: string,
     nouveau: string,
-    options: { conserverSessionId?: string } = {},
+    options: { conserverSessionId?: string; ip?: string } = {},
   ): Promise<void> {
+    /*
+     * `RG-AUTH-07`, `RG-AUTH-11` — le nouveau mot de passe diffère de l'actuel.
+     * La vue 05 le refusait côté client seulement : une requête directe
+     * levait l'obligation de changement en reposant le mot de passe
+     * provisoire, que l'administrateur connaît.
+     */
+    if (nouveau === actuel) throw new ErreurAuth("nouveau_identique");
+
+    const r = await this.reglages();
     const user = await this.prisma.user.findUniqueOrThrow({
       where: { id: userId },
-      // RG-AUTH-14 — l'autre lecteur légitime du haché.
-      select: { motDePasseHash: true },
+      // RG-AUTH-14 — un lecteur légitime du haché : la vérification.
+      select: { id: true, motDePasseHash: true, verrouilleJusqua: true },
     });
-    if (!(await verifierMotDePasse(user.motDePasseHash, actuel))) {
-      throw new ErreurAuth("ancien_mot_de_passe_incorrect");
+    /*
+     * `RG-AUTH-01` — les échecs comptent ici comme à la connexion. Cette
+     * route n'avait ni compteur ni limite de débit propre : une session volée
+     * y essayait des mots de passe à volonté, et le bon la rendait
+     * propriétaire du compte.
+     */
+    if (user.verrouilleJusqua && user.verrouilleJusqua > new Date()) {
+      throw new ErreurAuth("compte_verrouille");
     }
+    const verdict = await this.verifierSousCompteur(user, actuel, r, { ip: options.ip }, {
+      echec: "auth.password.change_failed",
+    });
+    if (verdict === "verrouille") throw new ErreurAuth("compte_verrouille");
+    if (verdict === "invalide") throw new ErreurAuth("ancien_mot_de_passe_incorrect");
+
     await this.prisma.user.update({
       where: { id: userId },
-      data: { motDePasseHash: await hacherMotDePasse(nouveau), motDePasseAChanger: false },
+      data: {
+        motDePasseHash: await hacherMotDePasse(nouveau),
+        motDePasseAChanger: false,
+        echecsConnexion: 0,
+      },
     });
     // Un changement de mot de passe invalide les autres sessions : c'est le
     // geste qu'on fait quand on soupçonne une compromission. Celle qui l'a

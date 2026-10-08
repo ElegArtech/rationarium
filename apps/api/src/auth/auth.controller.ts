@@ -260,6 +260,16 @@ export class AuthController {
   /** EX-AUTH-08 — changer son mot de passe depuis son profil. */
   @Personnel()
   @PendantChangementImpose()
+  /*
+   * `RG-AUTH-12` — la même limite que la connexion : cette route vérifie un
+   * mot de passe, et sans limite propre elle n'avait que les 300 requêtes par
+   * minute de `main.ts` — un dictionnaire, avec une session volée.
+   */
+  @LimiteDeDebit(
+    10,
+    "auth:erreurs.compteVerrouille",
+    "Trop de tentatives de connexion. Réessayez plus tard.",
+  )
   @Post("change-password")
   @HttpCode(200)
   async changePassword(@Body() corps: unknown, @Req() req: FastifyRequest) {
@@ -277,6 +287,7 @@ export class AuthController {
        */
       await this.auth.changerMotDePasse(session.userId, d.actuel, d.nouveau, {
         conserverSessionId: session.sessionId,
+        ip: req.ip,
       });
       return { cle: "auth.motDePasseChange", message: "Mot de passe modifié" };
     } catch (e) {

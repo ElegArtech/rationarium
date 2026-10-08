@@ -53,6 +53,11 @@ export const MESSAGES: Record<EchecAuth, { statut: number; cle: string; message:
     cle: "auth:erreurs.ancienMotDePasseIncorrect",
     message: "Ancien mot de passe incorrect",
   },
+  nouveau_identique: {
+    statut: 400,
+    cle: "auth:erreurs.nouveauIdentique",
+    message: "Le nouveau mot de passe doit être différent de l'actuel",
+  },
   email_deja_pris: { statut: 409, cle: "auth:erreurs.emailDejaPris", message: "Cet email est déjà utilisé" },
   login_deja_pris: { statut: 409, cle: "auth:erreurs.loginDejaPris", message: "Ce login est déjà utilisé" },
   domaine_non_autorise: {
