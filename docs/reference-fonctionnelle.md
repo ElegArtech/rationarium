@@ -817,6 +817,7 @@ références à des objets existants, pas des énumérations.
 - **RG-IMP-04** — Le compte rendu distingue systématiquement : importés / ignorés (doublons) / en erreur, avec le détail des erreurs.
 - **RG-IMP-05** — Dans l'import projet complet, l'ordre des lignes est indifférent : les jalons sont créés avant les tâches. Une tâche peut référencer un jalon existant ou une ligne du même fichier.
 - **RG-IMP-06** — Le mode Remplacer est tout-ou-rien : une seule ligne en erreur annule l'ensemble et ne supprime rien.
+- **RG-IMP-09** — Un fichier importé porte au plus 5 000 lignes de données ; au-delà, l'aperçu comme l'exécution sont refusés en 422 `erreurs:importTropDeLignes`, avec le nombre de lignes trouvé et le plafond.
 
 L'import d'un projet — Remplacer, Ajouter, tâches seules, jalons seuls — et le décompte des volumes qui le précède suivent `RG-PRJ-13`.
 
@@ -844,6 +845,9 @@ Planning au format **ICS** (et import ICS avec prévisualisation) · Tâches et 
 | RG-GEN-09 | Les formats de date et d'heure suivent le paramétrage global |
 | RG-GEN-10 | Les suppressions sensibles sont d'abord logiques, la suppression définitive étant une action distincte et contrôlée |
 | RG-GEN-11 | Un identifiant mal formé produit 404 (`erreurs:introuvable`), jamais 500 |
+| RG-ROB-01 | Le corps d'une requête est limité à 1 Mio ; seules les routes qui reçoivent un fichier relèvent cette limite, chacune à la mesure de son plafond (pièce jointe : 32 Mio). Au-delà : 413 `erreurs:fichierTropVolumineux` |
+| RG-ROB-02 | Une lecture ou une génération par plage de dates exige `fin ≥ debut` (sinon 400 `erreurs:datesIncoherentes`) et couvre au plus 366 jours (sinon 400 `erreurs:periodeTropEtendue`, avec la borne). Exceptions motivées : décompte des jours ouvrés et demande de congé, 3 × 366 jours ; suivi individuel, un siècle |
+| RG-ROB-03 | La recherche globale rend au plus 50 résultats par famille |
 
 ---
 
