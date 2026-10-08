@@ -36,6 +36,11 @@ export type Utilisateur = {
    * de toute façon.
    */
   actionsRestreintes?: boolean;
+  /**
+   * `tasks:assign_any_user` — la personne est dans le périmètre
+   * organisationnel du lecteur, donc assignable par lui sans la permission.
+   */
+  dansMonPerimetre?: boolean;
 };
 
 export type Impact = {

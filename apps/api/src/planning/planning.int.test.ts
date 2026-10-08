@@ -663,7 +663,7 @@ describe("EX-PLN-10 — le glisser-déposer change la DATE ou l'ASSIGNÉ", () =>
       },
     });
 
-    const r = await taches.deplacerDepuisPlanning(t.id, { version: t.version, nouvelleDate: utc("2026-07-13") }, ana);
+    const r = await taches.deplacerDepuisPlanning(t.id, { version: t.version, nouvelleDate: utc("2026-07-13") }, ana, new Set(["tasks:assign_any_user"]));
     expect(r).toMatchObject({ dateModifiee: true, assigneModifie: false });
 
     const apres = await planning.agreger(
@@ -692,7 +692,7 @@ describe("EX-PLN-10 — le glisser-déposer change la DATE ou l'ASSIGNÉ", () =>
     });
 
     const r = await taches.deplacerDepuisPlanning(
-      t.id, { version: t.version, nouvelAssigneId: bruno, ancienAssigneId: ana }, ana,
+      t.id, { version: t.version, nouvelAssigneId: bruno, ancienAssigneId: ana }, ana, new Set(["tasks:assign_any_user"]),
     );
     expect(r).toMatchObject({ dateModifiee: false, assigneModifie: true });
 
@@ -713,7 +713,7 @@ describe("EX-PLN-10 — le glisser-déposer change la DATE ou l'ASSIGNÉ", () =>
         assignes: { create: [{ userId: ana }] },
       },
     });
-    await taches.deplacerDepuisPlanning(t.id, { version: t.version, nouvelleDate: utc("2026-08-05") }, ana);
+    await taches.deplacerDepuisPlanning(t.id, { version: t.version, nouvelleDate: utc("2026-08-05") }, ana, new Set(["tasks:assign_any_user"]));
 
     const trace = await prisma.auditLog.findFirst({
       where: { action: "task.planning_move", entiteId: t.id },

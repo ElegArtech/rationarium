@@ -24,7 +24,16 @@
  * phrase d'indice dit pourquoi la liste s'arrête là. La question remonte.
  */
 
-export type Candidat = { id: string; prenom: string; nom: string };
+export type Candidat = {
+  id: string;
+  prenom: string;
+  nom: string;
+  /**
+   * Rendu par `GET /utilisateurs` : la personne est dans le périmètre
+   * ORGANISATIONNEL du lecteur. Absent ailleurs (membres d'un projet, soi).
+   */
+  dansMonPerimetre?: boolean;
+};
 
 /**
  * L'annuaire des assignables.
@@ -43,6 +52,8 @@ export type Indice =
   | "membresDuProjet"
   | "projetSansMembre"
   | "tousLesUtilisateurs"
+  | "projetSansMembrePerimetre"
+  | "monPerimetre"
   | "annuaireInaccessible";
 
 export function assignables({
@@ -51,6 +62,7 @@ export function assignables({
   equipeChargee,
   annuaire,
   annuaireLisible,
+  assignationLibre,
   moi,
 }: {
   projectId: string | null;
@@ -59,6 +71,13 @@ export function assignables({
   equipeChargee: boolean;
   annuaire: Candidat[];
   annuaireLisible: boolean;
+  /**
+   * `tasks:assign_any_user` (ou `tasks:manage_any`) : n'importe quel compte
+   * est assignable. Sans elle, le serveur refuse quiconque n'est ni soi, ni
+   * dans le périmètre organisationnel, ni rattaché au projet — l'annuaire
+   * proposé se resserre donc d'autant (`RG-GEN-06`).
+   */
+  assignationLibre: boolean;
   moi: Candidat;
 }): { candidats: Candidat[]; indice: Indice; alerte: boolean } {
   if (projectId && !equipeChargee) {
@@ -69,9 +88,15 @@ export function assignables({
   }
 
   // Le repli de `RG-TSK-15` : hors projet, ou projet sans aucun membre.
-  const indice: Indice = projectId ? "projetSansMembre" : "tousLesUtilisateurs";
+  // « Tous les utilisateurs » s'entend de ceux qu'on a le droit d'assigner.
+  const indice: Indice = assignationLibre
+    ? projectId ? "projetSansMembre" : "tousLesUtilisateurs"
+    : projectId ? "projetSansMembrePerimetre" : "monPerimetre";
   if (annuaireLisible) {
-    return { candidats: annuaire, indice, alerte: projectId !== null };
+    const candidats = assignationLibre
+      ? annuaire
+      : annuaire.filter((c) => c.dansMonPerimetre !== false || c.id === moi.id);
+    return { candidats, indice, alerte: projectId !== null };
   }
   return { candidats: [moi], indice: "annuaireInaccessible", alerte: true };
 }

@@ -332,10 +332,13 @@ test.describe("Vue 17 — fiche tâche", () => {
       session: SESSION_TACHES,
       reponses: {
         [`/api/taches/${FICHE_VIDE.id}`]: { corps: FICHE_VIDE },
+        // `GET /utilisateurs` dit, ligne à ligne, si la personne est dans le
+        // périmètre organisationnel du lecteur (`dansMonPerimetre`).
         "/api/utilisateurs": {
           corps: [
-            { id: "a1", prenom: "Driss", nom: "Amrani" },
-            { id: "a2", prenom: "Hugo", nom: "Nguyen" },
+            { id: "a1", prenom: "Driss", nom: "Amrani", dansMonPerimetre: true },
+            { id: "a2", prenom: "Hugo", nom: "Nguyen", dansMonPerimetre: true },
+            { id: "a3", prenom: "Inès", nom: "Rocher", dansMonPerimetre: false },
           ],
         },
       },
@@ -355,8 +358,11 @@ test.describe("Vue 17 — fiche tâche", () => {
     await expect(plus).toBeEnabled();
     await plus.click();
 
-    // Hors projet : tous les utilisateurs, et l'interface le dit.
-    await expect(page.getByText("Tous les utilisateurs")).toBeVisible();
+    // Hors projet : tous ceux qu'on a le droit d'assigner, et l'interface le
+    // dit. Sans `tasks:assign_any_user`, c'est son périmètre : la personne
+    // d'ailleurs, que le serveur refuserait, n'est pas proposée (`RG-GEN-06`).
+    await expect(page.getByText("Les personnes de votre périmètre")).toBeVisible();
+    await expect(page.getByRole("checkbox", { name: "Inès Rocher" })).toHaveCount(0);
     await page.getByRole("checkbox", { name: "Driss Amrani" }).check();
     await page.getByRole("checkbox", { name: "Hugo Nguyen" }).check();
     await page.getByRole("button", { name: "Enregistrer les assignés" }).click();

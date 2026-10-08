@@ -242,6 +242,82 @@ export class TachesService {
   }
 
   /**
+   * `tasks:assign_any_user` — **qui peut-on charger d'une tâche.**
+   *
+   * ──────────────────────────────────────────────────────────────────────────
+   * Trouvé à l'audit du 2026-10-08. La permission existait au catalogue, trois
+   * modèles de rôle la portaient (conduite de projet, responsable technique),
+   * et AUCUNE ligne de l'API ne la lisait : `creer`, `definirAssignes`,
+   * `attribuerRaci` et le déplacement depuis le planning acceptaient
+   * n'importe quel compte de l'instance, et `serviceIds` n'importe quel
+   * service. Un agent pouvait donc charger de travail une personne d'une
+   * autre direction — et la notifier — sans aucun lien avec elle.
+   *
+   * Sans `tasks:assign_any_user` (ni `tasks:manage_any`, la gestion de
+   * domaine), une personne nouvellement désignée doit être :
+   *   - soi-même — s'assigner reste toujours possible ;
+   *   - ou dans le périmètre ORGANISATIONNEL de l'acteur
+   *     (`perimetre.utilisateurs`, `RG-SCOPE-01`) ;
+   *   - ou, pour une tâche de projet, rattachée à ce projet au sens de
+   *     `RG-SCOPE-02` — `RG-TSK-15` propose d'abord les membres du projet, et
+   *     un projet transverse en compte d'autres directions.
+   *
+   * La portée globale de `RG-SCOPE-03` n'entre pas ici : elle élargit la
+   * LECTURE, pas l'écriture (`RG-TSK-18`). Seules les ARRIVÉES sont
+   * contrôlées — réordonner une liste qui contient déjà quelqu'un d'ailleurs,
+   * posé par qui en avait le droit, ne doit pas échouer.
+   * ──────────────────────────────────────────────────────────────────────────
+   */
+  async exigerAssignables(
+    userIds: readonly string[],
+    projectId: string | null,
+    acteurId: string,
+    permissions: ReadonlySet<string>,
+  ): Promise<void> {
+    if (permissions.has("tasks:assign_any_user") || permissions.has("tasks:manage_any")) return;
+    let restants = [...new Set(userIds)].filter((id) => id !== acteurId);
+    if (restants.length === 0) return;
+
+    const perimetre = await this.perimetres.resoudre(acteurId, permissions);
+    restants = restants.filter((id) => !perimetre.utilisateurs.has(id));
+    if (restants.length > 0 && projectId) {
+      const projet = await this.prisma.project.findUnique({
+        where: { id: projectId },
+        select: {
+          createurId: true, chefId: true, sponsorId: true,
+          membres: { where: { userId: { in: restants } }, select: { userId: true } },
+        },
+      });
+      const rattaches = new Set<string | null>([
+        projet?.createurId ?? null, projet?.chefId ?? null, projet?.sponsorId ?? null,
+        ...(projet?.membres ?? []).map((m) => m.userId),
+      ]);
+      restants = restants.filter((id) => !rattaches.has(id));
+    }
+    if (restants.length > 0) throw new ErreurTache("hors_perimetre");
+  }
+
+  /**
+   * `EX-TSK-06`, `tasks:assign_any_user` — inviter un service entier, c'est
+   * désigner tous ses membres d'un coup : sans la permission, le service doit
+   * relever d'un département du périmètre de l'acteur.
+   */
+  private async exigerServicesAssignables(
+    serviceIds: readonly string[],
+    acteurId: string,
+    permissions: ReadonlySet<string>,
+  ): Promise<void> {
+    if (serviceIds.length === 0) return;
+    if (permissions.has("tasks:assign_any_user") || permissions.has("tasks:manage_any")) return;
+    const perimetre = await this.perimetres.resoudre(acteurId, permissions);
+    const uniques = [...new Set(serviceIds)];
+    const admis = await this.prisma.service.count({
+      where: { id: { in: uniques }, departementId: { in: [...perimetre.departements] } },
+    });
+    if (admis !== uniques.length) throw new ErreurTache("hors_perimetre");
+  }
+
+  /**
    * `RG-TSK-19` — **poser la confidentialité exige de pouvoir la lire.**
    *
    * Marquer une tâche confidentielle sans `tasks:read_confidential`, c'est la
@@ -391,6 +467,8 @@ export class TachesService {
     // EX-TSK-06 — inviter des services entiers : les membres sont dépliés à la
     // création, pas conservés comme lien vers le service. Un service dont
     // l'effectif change ne doit pas réassigner rétroactivement une tâche.
+    // `tasks:assign_any_user` — le service, puis chaque personne désignée.
+    await this.exigerServicesAssignables(donnees.serviceIds ?? [], acteurId, permissions);
     const parServices = donnees.serviceIds?.length
       ? await this.prisma.userService.findMany({
           where: { serviceId: { in: donnees.serviceIds } },
@@ -435,6 +513,7 @@ export class TachesService {
      * atteignable par le retrait des assignés et par l'import.
      */
     if (!donnees.projectId && assignes.length === 0) assignes.push(acteurId);
+    await this.exigerAssignables(assignes, donnees.projectId ?? null, acteurId, permissions);
 
     /*
      * `RG-TSK-17` — créer une tâche DÉJÀ terminée l'écrit à cent pour cent.
@@ -1575,6 +1654,11 @@ export class TachesService {
     permissions: ReadonlySet<string>,
   ) {
     await this.exigerModifiable(taskId, acteurId, permissions);
+    // `tasks:assign_any_user` — un rôle RACI attache une personne au travail.
+    const { projectId } = await this.prisma.task.findUniqueOrThrow({
+      where: { id: taskId }, select: { projectId: true },
+    });
+    await this.exigerAssignables([userId], projectId, acteurId, permissions);
     const existe = await this.prisma.taskRaci.findUnique({
       where: { taskId_userId_role: { taskId, userId, role } },
     });
@@ -1625,7 +1709,7 @@ export class TachesService {
     await this.exigerModifiable(taskId, acteurId, permissions);
     const tache = await this.prisma.task.findUnique({
       where: { id: taskId },
-      select: { id: true, titre: true, version: true },
+      select: { id: true, titre: true, version: true, projectId: true },
     });
     if (!tache) throw new ErreurTache("introuvable");
 
@@ -1650,6 +1734,11 @@ export class TachesService {
       where: { taskId },
       select: { userId: true },
     });
+    // `tasks:assign_any_user` — seules les arrivées sont contrôlées.
+    const dejaLa = new Set(avant.map((a) => a.userId));
+    await this.exigerAssignables(
+      uniques.filter((id) => !dejaLa.has(id)), tache.projectId, acteurId, permissions,
+    );
 
     try {
       await this.prisma.$transaction([
@@ -1708,7 +1797,15 @@ export class TachesService {
     taskId: string,
     cible: { version: number; nouvelleDate?: Date; nouvelAssigneId?: string; ancienAssigneId?: string },
     acteurId: string,
+    permissions: ReadonlySet<string>,
   ): Promise<{ dateModifiee: boolean; assigneModifie: boolean; version: number; avertissement?: string }> {
+    // `tasks:assign_any_user` — glisser une tâche sur la ligne de quelqu'un l'en charge.
+    if (cible.nouvelAssigneId) {
+      const { projectId } = await this.prisma.task.findUniqueOrThrow({
+        where: { id: taskId }, select: { projectId: true },
+      });
+      await this.exigerAssignables([cible.nouvelAssigneId], projectId, acteurId, permissions);
+    }
     const resultat = await this.prisma.$transaction(async (tx) => {
       // Le verrou versionné précède les lectures des assignations ; toute erreur annule l'ensemble.
       const verrou = await tx.task.updateMany({ where: { id: taskId, version: cible.version }, data: { version: { increment: 1 } } });

@@ -1028,7 +1028,14 @@ function Raci({ tache }: { tache: api.FicheTache }) {
     queryFn: () => appeler<Candidat[]>(CHEMIN_ANNUAIRE),
     enabled: peut("tasks:manage_raci") && peut(PERMISSION_ANNUAIRE),
   });
-  const candidats = peut(PERMISSION_ANNUAIRE) ? annuaire.data ?? [] : [session];
+  // `tasks:assign_any_user` — sans elle, le serveur refuse un rôle RACI à
+  // qui n'est ni soi, ni du périmètre organisationnel, ni du projet.
+  const assignationLibre = peut("tasks:assign_any_user") || peut("tasks:manage_any");
+  const candidats = peut(PERMISSION_ANNUAIRE)
+    ? (annuaire.data ?? []).filter(
+        (c) => assignationLibre || c.dansMonPerimetre !== false || c.id === session.id,
+      )
+    : [session];
   const attribution = useMutation({
     mutationFn: () => api.attribuerRaci(tache.id, qui, role),
     onSuccess: () => {
@@ -1777,6 +1784,7 @@ function FenetreAssignes({
     equipeChargee: equipe.isSuccess,
     annuaire: tous.data ?? [],
     annuaireLisible,
+    assignationLibre: peut("tasks:assign_any_user") || peut("tasks:manage_any"),
     moi: { id: session.id, prenom: session.prenom, nom: session.nom },
   });
 

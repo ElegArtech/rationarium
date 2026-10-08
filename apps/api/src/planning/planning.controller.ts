@@ -106,7 +106,7 @@ export class PlanningController {
      */
     // `RG-TSK-18` — déplacer est une écriture : lisible ne suffit pas.
     await this.taches.exigerModifiable(taskId, d.userId, d.permissions);
-    return this.taches.deplacerDepuisPlanning(taskId, cible, d.userId);
+    return this.taches.deplacerDepuisPlanning(taskId, cible, d.userId, d.permissions);
   }
 
   /**

@@ -68,6 +68,8 @@
     "membresDuProjet": "Project members",
     "projetSansMembre": "No member in this project — all users are listed",
     "tousLesUtilisateurs": "All users",
+    "projetSansMembrePerimetre": "No member in this project — people within your scope are listed",
+    "monPerimetre": "People within your scope",
     "annuaireInaccessible": "You cannot access the directory: only your own assignment is offered.",
     "ouvrirLeProjet": "Open project {nom}",
     "creee": "Task created.",
