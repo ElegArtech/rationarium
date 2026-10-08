@@ -179,34 +179,19 @@ export class AuthService {
       throw new ErreurAuth("compte_verrouille");
     }
 
-    const valide = await verifierMotDePasse(user.motDePasseHash, motDePasse);
-
-    if (!valide) {
-      const echecs = user.echecsConnexion + 1;
-      const verrouiller = echecs >= r.tentativesAvantVerrouillage;
-      await this.prisma.user.update({
-        where: { id: user.id },
-        data: {
-          echecsConnexion: verrouiller ? 0 : echecs,
-          verrouilleJusqua: verrouiller
-            ? new Date(Date.now() + r.dureeVerrouillageMinutes * 60_000)
-            : null,
-        },
-      });
-      await this.audit.tracer({
-        action: verrouiller ? "auth.login.lockout" : "auth.login.failed",
-        typeEntite: "User",
-        entiteId: user.id,
-        detail: { tentatives: echecs, ip: contexte.ip },
-      });
-      // RG-AUTH-02 — même code que pour un identifiant inconnu.
-      throw new ErreurAuth(verrouiller ? "compte_verrouille" : "identifiants_invalides");
-    }
+    const verdict = await this.verifierSousCompteur(user, motDePasse, r, contexte, {
+      echec: "auth.login.failed",
+    });
+    if (verdict === "verrouille") throw new ErreurAuth("compte_verrouille");
+    // RG-AUTH-02 — même code que pour un identifiant inconnu.
+    if (verdict === "invalide") throw new ErreurAuth("identifiants_invalides");
 
     // RG-AUTH-05 — un utilisateur inactif ne peut pas se connecter.
     // Vérifié APRÈS le mot de passe : sinon l'inactivité d'un compte serait
     // devinable sans le connaître.
     if (!user.actif) {
+      // La tentative réservée par `verifierSousCompteur` n'était pas un échec.
+      await this.prisma.user.update({ where: { id: user.id }, data: { echecsConnexion: 0 } });
       await this.audit.tracer({
         action: "auth.login.failed",
         typeEntite: "User",
@@ -243,6 +228,95 @@ export class AuthService {
     });
 
     return { userId: user.id, jeton, motDePasseAChanger: user.motDePasseAChanger };
+  }
+
+  /**
+   * `RG-AUTH-01` — **le compteur d'échecs ne se contourne pas en parallèle.**
+   *
+   * Le service lisait `echecsConnexion`, attendait Argon2 — plusieurs dizaines
+   * de millisecondes —, puis écrivait `lu + 1`. Vingt requêtes lancées
+   * ensemble lisaient toutes zéro et écrivaient toutes un : vingt essais de
+   * mot de passe pour un compte réglé à cinq, et jamais de verrou.
+   *
+   * La tentative est donc **réservée avant la vérification**, par un
+   * incrément atomique qui rend la valeur obtenue (`UPDATE … RETURNING`) et
+   * qui ne prend pas sur un compte déjà verrouillé. Chaque requête connaît
+   * ainsi son rang sans avoir lu celui des autres :
+   *
+   * - au-delà du seuil, elle est refusée sans que le mot de passe soit
+   *   vérifié, et pose le verrou — une réservation orpheline (processus tombé
+   *   entre l'incrément et la fin) ne laisse donc pas le compteur au-dessus du
+   *   seuil pour toujours ;
+   * - au seuil, un échec verrouille ;
+   * - une réussite remet le compteur à zéro, à la charge de l'appelant.
+   *
+   * Partagé par la connexion, le changement de mot de passe et le changement
+   * d'adresse : un mot de passe se devine par n'importe laquelle de ces
+   * portes, et une seule d'entre elles comptait.
+   *
+   * L'instant est passé en millisecondes et converti en UTC par la base :
+   * Prisma écrit ses `DateTime` en UTC dans une colonne sans fuseau, et c'est
+   * l'horloge du serveur — celle que les tests figent — qui fait foi.
+   */
+  private async verifierSousCompteur(
+    user: { id: string; motDePasseHash: string },
+    motDePasse: string,
+    r: Reglages,
+    contexte: { ip?: string | undefined },
+    actions: { echec: string },
+  ): Promise<"valide" | "invalide" | "verrouille"> {
+    const maintenant = Date.now();
+    const lignes = await this.prisma.$queryRaw<{ echecs: number }[]>`
+      UPDATE "users" SET "echecsConnexion" = "echecsConnexion" + 1
+      WHERE "id" = ${user.id}::uuid
+        AND ("verrouilleJusqua" IS NULL
+             OR "verrouilleJusqua" <= (to_timestamp(${maintenant}::double precision / 1000) AT TIME ZONE 'UTC'))
+      RETURNING "echecsConnexion" AS "echecs"`;
+    const rang = lignes[0]?.echecs;
+
+    if (rang === undefined) {
+      // Verrouillé entre la lecture de l'appelant et cette écriture.
+      await this.audit.tracer({
+        action: "auth.login.locked",
+        typeEntite: "User",
+        entiteId: user.id,
+        acteurId: user.id,
+        detail: { ip: contexte.ip },
+      });
+      return "verrouille";
+    }
+    if (rang > r.tentativesAvantVerrouillage) {
+      await this.verrouiller(user.id, r);
+      await this.audit.tracer({
+        action: "auth.login.lockout",
+        typeEntite: "User",
+        entiteId: user.id,
+        detail: { tentatives: rang, ip: contexte.ip },
+      });
+      return "verrouille";
+    }
+
+    if (await verifierMotDePasse(user.motDePasseHash, motDePasse)) return "valide";
+
+    const verrouiller = rang >= r.tentativesAvantVerrouillage;
+    if (verrouiller) await this.verrouiller(user.id, r);
+    await this.audit.tracer({
+      action: verrouiller ? "auth.login.lockout" : actions.echec,
+      typeEntite: "User",
+      entiteId: user.id,
+      detail: { tentatives: rang, ip: contexte.ip },
+    });
+    return verrouiller ? "verrouille" : "invalide";
+  }
+
+  private async verrouiller(userId: string, r: Reglages): Promise<void> {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        echecsConnexion: 0,
+        verrouilleJusqua: new Date(Date.now() + r.dureeVerrouillageMinutes * 60_000),
+      },
+    });
   }
 
   /**
@@ -285,12 +359,12 @@ export class AuthService {
       throw new ErreurAuth("compte_verrouille");
     }
 
-    // Empreinte factice : le coût de vérification doit être le même.
-    await verifierMotDePasse(
-      "$argon2id$v=19$m=19456,t=2,p=1$c29tZXNhbHRzb21lc2FsdA$0000000000000000000000000000000000000000000",
-      motDePasse,
-    );
-
+    /*
+     * `RG-AUTH-01` — le compteur avance AVANT l'attente : lu, attendu, puis
+     * écrit `lu + 1`, il laissait des requêtes parallèles lire toutes le même
+     * état et ne compter qu'un échec. Sans `await` entre la lecture et
+     * l'écriture, la boucle d'événements les sérialise.
+     */
     const echecs = etat.echecs + 1;
     const verrouiller = echecs >= r.tentativesAvantVerrouillage;
     this.inconnus.delete(cle);
@@ -303,6 +377,12 @@ export class AuthService {
       if (plusAncienne === undefined) break;
       this.inconnus.delete(plusAncienne);
     }
+
+    // Empreinte factice : le coût de vérification doit être le même.
+    await verifierMotDePasse(
+      "$argon2id$v=19$m=19456,t=2,p=1$c29tZXNhbHRzb21lc2FsdA$0000000000000000000000000000000000000000000",
+      motDePasse,
+    );
 
     await this.audit.tracer({
       action: verrouiller ? "auth.login.lockout" : "auth.login.failed",

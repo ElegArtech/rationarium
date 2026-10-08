@@ -169,6 +169,64 @@ describe("RG-AUTH-01 — verrouillage après tentatives infructueuses", () => {
     });
     await expect(auth.connecter(c.login, MDP)).resolves.toMatchObject({ userId: c.id });
   });
+
+  /**
+   * `RG-AUTH-01` — **le verrou ne se contourne pas en parallèle.**
+   *
+   * Le service lisait le compteur, attendait Argon2, puis écrivait `lu + 1` :
+   * vingt connexions lancées ensemble lisaient toutes zéro et écrivaient
+   * toutes un. Vingt essais de mot de passe pour un seuil de cinq, et le
+   * compte restait ouvert au bon mot de passe juste après.
+   */
+  it("RG-AUTH-01 — vingt connexions fausses EN PARALLÈLE verrouillent le compte, sans plus d'essais que le seuil", async () => {
+    await reglage("auth.tentativesAvantVerrouillage", "5");
+    const c = await poserUnCompte();
+
+    const codes = await Promise.all(
+      Array.from({ length: 20 }, () =>
+        auth.connecter(c.login, "Faux1234!").then(
+          () => "connecte",
+          (e: ErreurAuth) => e.code,
+        ),
+      ),
+    );
+
+    // Au plus seuil − 1 réponses « identifiants invalides » : chaque autre
+    // requête a été refusée par le verrou, sans vérifier le mot de passe.
+    expect(codes.filter((code) => code === "identifiants_invalides").length).toBeLessThanOrEqual(4);
+    expect(codes).toContain("compte_verrouille");
+    const u = await prisma.user.findUniqueOrThrow({ where: { id: c.id } });
+    expect(u.verrouilleJusqua!.getTime()).toBeGreaterThan(Date.now());
+    await expect(auth.connecter(c.login, MDP)).rejects.toMatchObject({ code: "compte_verrouille" });
+  });
+
+  it("RG-AUTH-01 — un compteur resté au-dessus du seuil sans verrou ne bloque pas pour toujours", async () => {
+    // Une réservation orpheline : processus tombé entre l'incrément et la fin.
+    await reglage("auth.tentativesAvantVerrouillage", "5");
+    await reglage("auth.dureeVerrouillageMinutes", "15");
+    const c = await poserUnCompte();
+    await prisma.user.update({ where: { id: c.id }, data: { echecsConnexion: 9 } });
+
+    await expect(auth.connecter(c.login, MDP)).rejects.toMatchObject({ code: "compte_verrouille" });
+    const u = await prisma.user.findUniqueOrThrow({ where: { id: c.id } });
+    expect(u.echecsConnexion).toBe(0);
+    expect(u.verrouilleJusqua).not.toBeNull();
+
+    await prisma.user.update({ where: { id: c.id }, data: { verrouilleJusqua: new Date(Date.now() - 1000) } });
+    await expect(auth.connecter(c.login, MDP)).resolves.toMatchObject({ userId: c.id });
+  });
+
+  it("RG-AUTH-01, RG-AUTH-12 — vingt essais parallèles sur un identifiant INCONNU le verrouillent aussi", async () => {
+    await reglage("auth.tentativesAvantVerrouillage", "5");
+    const inconnu = `fantome-${uuid().slice(0, 8)}`;
+    const codes = await Promise.all(
+      Array.from({ length: 20 }, () =>
+        auth.connecter(inconnu, "Faux1234!").catch((e: ErreurAuth) => e.code),
+      ),
+    );
+    expect(codes.filter((code) => code === "identifiants_invalides").length).toBeLessThanOrEqual(4);
+    await expect(auth.connecter(inconnu, "Faux1234!")).rejects.toMatchObject({ code: "compte_verrouille" });
+  });
 });
 
 describe("RG-AUTH-12 — le verrouillage ne révèle pas si un compte existe", () => {
