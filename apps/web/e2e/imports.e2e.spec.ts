@@ -38,8 +38,8 @@ const SESSION_IMPORT = {
 
 const APERCU_OK = {
   lignes: [
-    { email: "ana@exemple.fr", login: "ana", password: "s", firstName: "Ana", lastName: "Berger" },
-    { email: "bob@exemple.fr", login: "bob", password: "s", firstName: "Bob", lastName: "Costa" },
+    { email: "ana@exemple.test", login: "ana", password: "s", firstName: "Ana", lastName: "Berger" },
+    { email: "bob@exemple.test", login: "bob", password: "s", firstName: "Bob", lastName: "Costa" },
   ],
   total: 2,
   erreurs: [],
@@ -103,8 +103,8 @@ const RENDU = {
     motif(
       3,
       "emailDejaPris",
-      { email: "ana@exemple.fr" },
-      "un compte porte déjà l'adresse « ana@exemple.fr » : ligne ignorée.",
+      { email: "ana@exemple.test" },
+      "un compte porte déjà l'adresse « ana@exemple.test » : ligne ignorée.",
     ),
     motif(
       4,
@@ -118,8 +118,8 @@ const RENDU = {
 
 const FICHIER =
   "email;login;password;firstName;lastName\n" +
-  "ana@exemple.fr;ana;s;Ana;Berger\n" +
-  "bob@exemple.fr;bob;s;Bob;Costa\n";
+  "ana@exemple.test;ana;s;Ana;Berger\n" +
+  "bob@exemple.test;bob;s;Bob;Costa\n";
 
 async function choisirFichier(page: Page) {
   await page.getByLabel("Fichier CSV").setInputFiles({
@@ -187,7 +187,7 @@ test.describe("Vue 27 — import d'utilisateurs", () => {
     await expect(page.getByText("2 lignes détectées")).toBeVisible();
     // Rien n'a encore été écrit : le seul appel est celui de l'aperçu.
     expect(appels.filter((u) => u.includes("/imports/utilisateurs"))).toHaveLength(0);
-    await expect(page.getByText("ana@exemple.fr")).toBeVisible();
+    await expect(page.getByText("ana@exemple.test")).toBeVisible();
   });
 
   test("RG-IMP-04 — le compte rendu distingue TROIS familles", async ({ page }) => {
@@ -223,7 +223,7 @@ test.describe("Vue 27 — import d'utilisateurs", () => {
      */
     await expect(page.getByText("Lignes ignorées")).toBeVisible();
     await expect(
-      page.getByText("Ligne 3 — un compte porte déjà l'adresse « ana@exemple.fr » : ligne ignorée."),
+      page.getByText("Ligne 3 — un compte porte déjà l'adresse « ana@exemple.test » : ligne ignorée."),
     ).toBeVisible();
     await expect(
       page.getByText("Ligne 4 — un compte porte déjà l'identifiant « bob » : ligne ignorée."),
@@ -387,11 +387,11 @@ test.describe("Vue 19 — import de congés", () => {
   const APERCU_CONGES = {
     lignes: [
       {
-        userEmail: "ana@exemple.fr", leaveTypeName: "Congés annuels",
+        userEmail: "ana@exemple.test", leaveTypeName: "Congés annuels",
         startDate: "2026-03-02", endDate: "2026-03-06", halfDay: "", comment: "",
       },
       {
-        userEmail: "bob@exemple.fr", leaveTypeName: "Congés annuels",
+        userEmail: "bob@exemple.test", leaveTypeName: "Congés annuels",
         startDate: "2026-05-11", endDate: "2026-05-13", halfDay: "", comment: "",
       },
     ],
@@ -401,8 +401,8 @@ test.describe("Vue 19 — import de congés", () => {
 
   const FICHIER_CONGES =
     "userEmail;leaveTypeName;startDate;endDate;halfDay;comment\n" +
-    "ana@exemple.fr;Congés annuels;2026-03-02;2026-03-06;;\n" +
-    "bob@exemple.fr;Congés annuels;2026-05-11;2026-05-13;;\n";
+    "ana@exemple.test;Congés annuels;2026-03-02;2026-03-06;;\n" +
+    "bob@exemple.test;Congés annuels;2026-05-11;2026-05-13;;\n";
 
   const reponses = {
     "/api/conges/soldes": { corps: [] },

@@ -153,7 +153,7 @@ test.describe("Les fenêtres modales — piège de focus et retour au déclenche
 
     await expect(page.getByRole("dialog")).toHaveCount(0);
     // La liste n'a pas bougé : fermer n'est pas valider.
-    await expect(page.getByText("camille.roussel@exemple.fr")).toBeVisible();
+    await expect(page.getByText("camille.roussel@exemple.test")).toBeVisible();
   });
 });
 

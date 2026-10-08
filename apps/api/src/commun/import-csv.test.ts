@@ -28,8 +28,8 @@ describe("RG-IMP-01 — virgule et point-virgule acceptés", () => {
   });
 
   it("lit réellement les deux", async () => {
-    const virgule = "email,login,prenom,nom\na@x.fr,a,A,AA";
-    const pointVirgule = "email;login;prenom;nom\na@x.fr;a;A;AA";
+    const virgule = "email,login,prenom,nom\na@x.test,a,A,AA";
+    const pointVirgule = "email;login;prenom;nom\na@x.test;a;A;AA";
     for (const contenu of [virgule, pointVirgule]) {
       const a = await analyserCsv(contenu, {
         colonnesAttendues: COLONNES, colonnesObligatoires: COLONNES, valider,
@@ -43,8 +43,8 @@ describe("RG-IMP-04 — trois catégories, jamais deux", () => {
   it("distingue importés, ignorés (doublons) et en erreur", async () => {
     const contenu = [
       "email;login;prenom;nom",
-      "a@x.fr;a;A;AA",       // valide
-      "a@x.fr;a2;A;AA",      // doublon dans le fichier
+      "a@x.test;a;A;AA",       // valide
+      "a@x.test;a2;A;AA",      // doublon dans le fichier
       "pas-une-adresse;c;C;CC", // erreur
     ].join("\n");
 
@@ -59,7 +59,7 @@ describe("RG-IMP-04 — trois catégories, jamais deux", () => {
   });
 
   it("« ignoré » et « en erreur » ne se confondent pas — le premier est normal", async () => {
-    const contenu = "email;login;prenom;nom\na@x.fr;a;A;AA";
+    const contenu = "email;login;prenom;nom\na@x.test;a;A;AA";
     const a = await analyserCsv(contenu, {
       colonnesAttendues: COLONNES,
       colonnesObligatoires: COLONNES,
@@ -71,7 +71,7 @@ describe("RG-IMP-04 — trois catégories, jamais deux", () => {
   });
 
   it("le détail des erreurs porte le numéro de ligne du fichier", async () => {
-    const contenu = "email;login;prenom;nom\nok@x.fr;a;A;AA\nnon;b;B;BB";
+    const contenu = "email;login;prenom;nom\nok@x.test;a;A;AA\nnon;b;B;BB";
     const a = await analyserCsv(contenu, {
       colonnesAttendues: COLONNES, colonnesObligatoires: COLONNES, valider,
     });
@@ -85,7 +85,7 @@ describe("RG-IMP-04 — trois catégories, jamais deux", () => {
 describe("RG-IMP-03 — la prévisualisation précède l'exécution", () => {
   it("analyser n'écrit rien", async () => {
     let ecrit = false;
-    const a = await analyserCsv("email;login;prenom;nom\na@x.fr;a;A;AA", {
+    const a = await analyserCsv("email;login;prenom;nom\na@x.test;a;A;AA", {
       colonnesAttendues: COLONNES, colonnesObligatoires: COLONNES, valider,
     });
     expect(ecrit).toBe(false);
@@ -94,7 +94,7 @@ describe("RG-IMP-03 — la prévisualisation précède l'exécution", () => {
   });
 
   it("les colonnes manquantes sont signalées AVANT toute écriture", async () => {
-    const a = await analyserCsv("email;login\na@x.fr;a", {
+    const a = await analyserCsv("email;login\na@x.test;a", {
       colonnesAttendues: COLONNES, colonnesObligatoires: COLONNES, valider,
     });
     expect(a.colonnesManquantes).toEqual(["prenom", "nom"]);
@@ -104,7 +104,7 @@ describe("RG-IMP-03 — la prévisualisation précède l'exécution", () => {
 
 describe("RG-IMP-06 — le mode tout-ou-rien n'écrit rien en cas d'erreur", () => {
   it("une seule ligne fautive annule l'ensemble", async () => {
-    const contenu = "email;login;prenom;nom\nok@x.fr;a;A;AA\nnon;b;B;BB";
+    const contenu = "email;login;prenom;nom\nok@x.test;a;A;AA\nnon;b;B;BB";
     const a = await analyserCsv(contenu, {
       colonnesAttendues: COLONNES, colonnesObligatoires: COLONNES, valider,
     });
@@ -118,7 +118,7 @@ describe("RG-IMP-06 — le mode tout-ou-rien n'écrit rien en cas d'erreur", () 
   });
 
   it("sans ce mode, les lignes valides passent", async () => {
-    const contenu = "email;login;prenom;nom\nok@x.fr;a;A;AA\nnon;b;B;BB";
+    const contenu = "email;login;prenom;nom\nok@x.test;a;A;AA\nnon;b;B;BB";
     const a = await analyserCsv(contenu, {
       colonnesAttendues: COLONNES, colonnesObligatoires: COLONNES, valider,
     });
@@ -131,7 +131,7 @@ describe("RG-IMP-06 — le mode tout-ou-rien n'écrit rien en cas d'erreur", () 
 describe("RG-IMP-02 — un modèle téléchargeable par type d'import", () => {
   it("porte les colonnes attendues et une ligne d'exemple", () => {
     const modele = modeleCsv(COLONNES, [
-      { email: "camille.durand@collectivite.fr", login: "cdurand", prenom: "Camille", nom: "Durand" },
+      { email: "camille.durand@collectivite.test", login: "cdurand", prenom: "Camille", nom: "Durand" },
     ]);
     expect(modele.split("\n")[0]).toBe("email;login;prenom;nom");
     expect(modele).toContain("cdurand");
@@ -140,18 +140,18 @@ describe("RG-IMP-02 — un modèle téléchargeable par type d'import", () => {
 
 describe("robustesse des fichiers réels", () => {
   it("tolère le BOM que produit Excel", async () => {
-    const a = await analyserCsv("﻿email;login;prenom;nom\na@x.fr;a;A;AA", {
+    const a = await analyserCsv("﻿email;login;prenom;nom\na@x.test;a;A;AA", {
       colonnesAttendues: COLONNES, colonnesObligatoires: COLONNES, valider,
     });
     expect(a.resume.valides).toBe(1);
   });
 
   it("tolère les fins de ligne Windows et les espaces parasites", async () => {
-    const a = await analyserCsv("email;login;prenom;nom\r\n a@x.fr ; a ; A ; AA \r\n", {
+    const a = await analyserCsv("email;login;prenom;nom\r\n a@x.test ; a ; A ; AA \r\n", {
       colonnesAttendues: COLONNES, colonnesObligatoires: COLONNES, valider,
     });
     expect(a.resume.valides).toBe(1);
-    expect(a.lignes[0]?.valeur?.email).toBe("a@x.fr");
+    expect(a.lignes[0]?.valeur?.email).toBe("a@x.test");
   });
 });
 

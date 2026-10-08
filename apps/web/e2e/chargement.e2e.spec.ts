@@ -47,7 +47,7 @@ const SESSION = {
   id: "11111111-1111-4111-8111-111111111111",
   prenom: "Camille",
   nom: "Roussel",
-  email: "camille.roussel@exemple.fr",
+  email: "camille.roussel@exemple.test",
   login: "camille.roussel",
   avatarFichier: null,
   avatarPredefini: null,

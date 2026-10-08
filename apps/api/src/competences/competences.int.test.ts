@@ -42,7 +42,7 @@ async function agent(nom: string, prenom = "A") {
   const id = uuid();
   await prisma.user.create({
     data: {
-      id, login: `u-${id.slice(0, 8)}`, email: `${id.slice(0, 8)}@x.fr`,
+      id, login: `u-${id.slice(0, 8)}`, email: `${id.slice(0, 8)}@x.test`,
       motDePasseHash: "x", prenom, nom,
     },
   });

@@ -60,7 +60,7 @@ async function compte(login: string, modeleCode: string, ajouts: string[] = []):
     data: {
       id,
       login,
-      email: `${login}@exemple.fr`,
+      email: `${login}@exemple.test`,
       prenom: login,
       nom: "SEC03",
       roleId: role.id,
@@ -250,7 +250,7 @@ describe("RG-IMP-07 — un export ne contient que ce que l'exportateur peut lire
 });
 
 describe("RG-IMP-08 — l'export neutralise les formules, l'import les restitue", () => {
-  const FORMULE = '=HYPERLINK("http://exemple.org")';
+  const FORMULE = '=HYPERLINK("http://exemple.test")';
 
   it("RG-IMP-08 — un titre en formule sort préfixé d'une apostrophe, et revient exact au réimport", async () => {
     const source = await projet();
@@ -263,7 +263,7 @@ describe("RG-IMP-08 — l'export neutralise les formules, l'import les restitue"
 
     const taches = await appel(chef, "GET", `/imports/export/projet/${source.id}/taches`);
     const ligne = lignesCsv(taches.body).find((l) => l.includes("HYPERLINK"));
-    expect(ligne?.startsWith(`"'=HYPERLINK(""http://exemple.org"")";'-dépassement;`)).toBe(true);
+    expect(ligne?.startsWith(`"'=HYPERLINK(""http://exemple.test"")";'-dépassement;`)).toBe(true);
 
     const jalons = await appel(chef, "GET", `/imports/export/projet/${source.id}/jalons`);
     expect(lignesCsv(jalons.body).slice(1)).toContain("'@jalon;;2026-05-31");

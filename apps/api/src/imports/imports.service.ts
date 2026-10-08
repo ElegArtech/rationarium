@@ -370,14 +370,14 @@ export class ImportsService {
     const colonnes = COLONNES[type];
     const exemples: Record<TypeImport, Record<string, string>> = {
       utilisateurs: {
-        email: "camille.roussel@exemple.fr", login: "camille.roussel",
+        email: "camille.roussel@exemple.test", login: "camille.roussel",
         password: "MotDePasse!2026", firstName: "Camille", lastName: "Roussel",
         role: "AGENT", departmentName: "Direction des services numériques",
         serviceNames: "Études et développement;Exploitation",
       },
       taches: {
         title: "Rédiger la note de cadrage", description: "",
-        status: "todo", priority: "normal", assigneeEmail: "camille.roussel@exemple.fr",
+        status: "todo", priority: "normal", assigneeEmail: "camille.roussel@exemple.test",
         milestoneName: "Lancement", estimatedHours: "8",
         startDate: "2026-09-01", endDate: "2026-09-15", progress: "0",
       },
@@ -389,7 +389,7 @@ export class ImportsService {
         subtasks: "",
       },
       conges: {
-        userEmail: "camille.roussel@exemple.fr", leaveTypeName: "Congés annuels",
+        userEmail: "camille.roussel@exemple.test", leaveTypeName: "Congés annuels",
         startDate: "2026-08-10", endDate: "2026-08-14", halfDay: "", comment: "",
       },
       competences: {

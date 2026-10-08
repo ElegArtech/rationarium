@@ -48,7 +48,7 @@ beforeAll(async () => {
 
   const u = await prisma.user.create({
     data: {
-      login: "suivi.agent", email: "suivi.agent@x.fr", motDePasseHash: "x",
+      login: "suivi.agent", email: "suivi.agent@x.test", motDePasseHash: "x",
       prenom: "Suivie", nom: "Agente",
     },
   });
@@ -292,7 +292,7 @@ describe("RG-SCOPE-01 — le suivi individuel est borné au périmètre", () => 
     const dehors = await prisma.user.create({
       data: {
         login: `hors-${crypto.randomUUID().slice(0, 8)}`,
-        email: `hors-${crypto.randomUUID().slice(0, 8)}@x.fr`,
+        email: `hors-${crypto.randomUUID().slice(0, 8)}@x.test`,
         motDePasseHash: "x",
         prenom: "Hors",
         nom: "Périmètre",
@@ -316,7 +316,7 @@ describe("RG-SCOPE-01 — le suivi individuel est borné au périmètre", () => 
     const dehors = await prisma.user.create({
       data: {
         login: `large-${crypto.randomUUID().slice(0, 8)}`,
-        email: `large-${crypto.randomUUID().slice(0, 8)}@x.fr`,
+        email: `large-${crypto.randomUUID().slice(0, 8)}@x.test`,
         motDePasseHash: "x",
         prenom: "Large",
         nom: "Vue",
@@ -366,7 +366,7 @@ describe("RG-SCOPE-04, RG-TSK-13 — le suivi individuel n'expose pas les tâche
     const l = await prisma.user.create({
       data: {
         login: `lect-${crypto.randomUUID().slice(0, 8)}`,
-        email: `lect-${crypto.randomUUID().slice(0, 8)}@x.fr`,
+        email: `lect-${crypto.randomUUID().slice(0, 8)}@x.test`,
         motDePasseHash: "x", prenom: "Lect", nom: "Rice", departementId: dept.id,
       },
     });
@@ -374,7 +374,7 @@ describe("RG-SCOPE-04, RG-TSK-13 — le suivi individuel n'expose pas les tâche
     const u = await prisma.user.create({
       data: {
         login: `confid-${crypto.randomUUID().slice(0, 8)}`,
-        email: `confid-${crypto.randomUUID().slice(0, 8)}@x.fr`,
+        email: `confid-${crypto.randomUUID().slice(0, 8)}@x.test`,
         motDePasseHash: "x", prenom: "Porte", nom: "Secret", departementId: dept.id,
       },
     });

@@ -32,7 +32,7 @@ async function compte(code: "ADMIN" | "HR_OFFICER") {
     data: {
       id,
       login: code.toLowerCase(),
-      email: `${code.toLowerCase()}@exemple.fr`,
+      email: `${code.toLowerCase()}@exemple.test`,
       prenom: code,
       nom: "RM10",
       roleId: role.id,

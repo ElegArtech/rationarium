@@ -34,7 +34,7 @@ beforeAll(async () => {
   acteur = uuid();
   await prisma.user.create({
     data: {
-      id: acteur, login: `admin-${acteur.slice(0, 6)}`, email: `${acteur.slice(0, 6)}@x.fr`,
+      id: acteur, login: `admin-${acteur.slice(0, 6)}`, email: `${acteur.slice(0, 6)}@x.test`,
       motDePasseHash: "x", prenom: "Karim", nom: "Admin",
     },
   });
@@ -177,7 +177,7 @@ describe("EX-ORG-04 — l'arborescence respecte le périmètre", () => {
     const agent = uuid();
     await prisma.user.create({
       data: {
-        id: agent, login: `a-${agent.slice(0, 6)}`, email: `${agent.slice(0, 6)}@x.fr`,
+        id: agent, login: `a-${agent.slice(0, 6)}`, email: `${agent.slice(0, 6)}@x.test`,
         motDePasseHash: "x", prenom: "Camille", nom: "T", departementId: mien.id,
       },
     });
@@ -235,7 +235,7 @@ describe("EX-ORG-01 — créer, modifier, supprimer une direction ; lui désigne
     const id = uuid();
     await prisma.user.create({
       data: {
-        id, login: `r-${id.slice(0, 8)}`, email: `${id.slice(0, 8)}@x.fr`,
+        id, login: `r-${id.slice(0, 8)}`, email: `${id.slice(0, 8)}@x.test`,
         motDePasseHash: "x", prenom, nom: "Responsable",
       },
     });
@@ -315,7 +315,7 @@ describe("EX-ORG-03 — créer, modifier un service ; le rattacher à un départ
     const id = uuid();
     await prisma.user.create({
       data: {
-        id, login: `m-${id.slice(0, 8)}`, email: `${id.slice(0, 8)}@x.fr`,
+        id, login: `m-${id.slice(0, 8)}`, email: `${id.slice(0, 8)}@x.test`,
         motDePasseHash: "x", prenom: "Manager", nom: "M",
       },
     });
@@ -350,7 +350,7 @@ describe("EX-ORG-03 — créer, modifier un service ; le rattacher à un départ
     const chef = uuid();
     await prisma.user.create({
       data: {
-        id: chef, login: `c-${chef.slice(0, 8)}`, email: `${chef.slice(0, 8)}@x.fr`,
+        id: chef, login: `c-${chef.slice(0, 8)}`, email: `${chef.slice(0, 8)}@x.test`,
         motDePasseHash: "x", prenom: "Chef", nom: "DeService",
       },
     });
@@ -377,7 +377,7 @@ describe("EX-ORG-03 — créer, modifier un service ; le rattacher à un départ
     const chef = uuid();
     await prisma.user.create({
       data: {
-        id: chef, login: `c-${chef.slice(0, 8)}`, email: `${chef.slice(0, 8)}@x.fr`,
+        id: chef, login: `c-${chef.slice(0, 8)}`, email: `${chef.slice(0, 8)}@x.test`,
         motDePasseHash: "x", prenom: "Partant", nom: "DeService",
       },
     });
@@ -402,7 +402,7 @@ describe("EX-ORG-03 — créer, modifier un service ; le rattacher à un départ
     const chef = uuid();
     await prisma.user.create({
       data: {
-        id: chef, login: `c-${chef.slice(0, 8)}`, email: `${chef.slice(0, 8)}@x.fr`,
+        id: chef, login: `c-${chef.slice(0, 8)}`, email: `${chef.slice(0, 8)}@x.test`,
         motDePasseHash: "x", prenom: "Resp", nom: "DeDept",
       },
     });
@@ -434,7 +434,7 @@ describe("EX-ORG-03 — créer, modifier un service ; le rattacher à un départ
     const membre = uuid();
     await prisma.user.create({
       data: {
-        id: membre, login: `m-${membre.slice(0, 6)}`, email: `${membre.slice(0, 6)}@x.fr`,
+        id: membre, login: `m-${membre.slice(0, 6)}`, email: `${membre.slice(0, 6)}@x.test`,
         motDePasseHash: "x", prenom: "M", nom: "T",
       },
     });
@@ -628,7 +628,7 @@ describe("EX-ORG-05 — filtrer l'arborescence par département", () => {
 
     const borne = await prisma.user.create({
       data: {
-        id: uuid(), login: `b-${uuid().slice(0, 6)}`, email: `${uuid().slice(0, 6)}@x.fr`,
+        id: uuid(), login: `b-${uuid().slice(0, 6)}`, email: `${uuid().slice(0, 6)}@x.test`,
         motDePasseHash: "x", prenom: "B", nom: "Orne", departementId: sien.id,
       },
     });

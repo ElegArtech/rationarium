@@ -47,7 +47,7 @@ beforeAll(async () => {
     await prisma.user.create({
       data: {
         login: "lecteur",
-        email: "lecteur@exemple.fr",
+        email: "lecteur@exemple.test",
         motDePasseHash: await hacherMotDePasse(MOT_DE_PASSE),
         prenom: "Test",
         nom: "Lecteur",

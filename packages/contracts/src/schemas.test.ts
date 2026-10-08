@@ -109,7 +109,7 @@ describe("temps, tiers, activité, événements", () => {
   });
 
   it("les mots de passe divergents sont refusés à l'inscription", () => {
-    const base = { prenom: "A", nom: "B", email: "a@b.fr", login: "abc", motDePasse: "Abcdef1!" };
+    const base = { prenom: "A", nom: "B", email: "a@b.test", login: "abc", motDePasse: "Abcdef1!" };
     expect(inscriptionSchema.safeParse({ ...base, confirmation: "Abcdef1!" }).success).toBe(true);
     expect(inscriptionSchema.safeParse({ ...base, confirmation: "Autre1!X" }).success).toBe(false);
   });

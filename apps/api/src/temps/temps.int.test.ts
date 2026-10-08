@@ -51,7 +51,7 @@ async function agent() {
     data: {
       id,
       login: `u-${id.slice(0, 8)}`,
-      email: `${id.slice(0, 8)}@x.fr`,
+      email: `${id.slice(0, 8)}@x.test`,
       motDePasseHash: "x",
       prenom: "A",
       nom: "T",

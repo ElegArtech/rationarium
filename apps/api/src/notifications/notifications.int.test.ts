@@ -63,7 +63,7 @@ async function creerAgent(prenom: string) {
   const role = await prisma.role.create({ data: { code: `LECT_${id}`, nom: "Lecture tâche", permissions: { create: { permission: "tasks:read" } } } });
   await prisma.user.create({
     data: {
-      roleId: role.id, id, login: `u-${id.slice(0, 8)}`, email: `${id.slice(0, 8)}@exemple.fr`,
+      roleId: role.id, id, login: `u-${id.slice(0, 8)}`, email: `${id.slice(0, 8)}@exemple.test`,
       motDePasseHash: "x", prenom, nom: "Agent",
     },
   });

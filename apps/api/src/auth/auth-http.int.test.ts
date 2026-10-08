@@ -52,7 +52,7 @@ async function compte(
   const u = await prisma.user.create({
     data: {
       login,
-      email: `${login}@exemple.fr`,
+      email: `${login}@exemple.test`,
       motDePasseHash: await hacherMotDePasse(MDP),
       prenom: "Test",
       nom: login,
@@ -101,7 +101,7 @@ describe("RG-AUTH-14 — le haché d'un mot de passe ne sort jamais du serveur",
       corps: {
         prenom: "Nouvel",
         nom: "Agent",
-        email: "nouvel.agent@exemple.fr",
+        email: "nouvel.agent@exemple.test",
         login: "nouvel.agent",
         motDePasse: "Bonjour12!",
       },
@@ -208,7 +208,7 @@ describe("RG-AUTH-12 — connexion et réinitialisation limitées en débit par 
       reponses.push(
         await appel("POST", "/api/auth/forgot-password", {
           ip: "203.0.113.21",
-          corps: { email: `inconnu${i}@exemple.fr` },
+          corps: { email: `inconnu${i}@exemple.test` },
         }),
       );
     }
@@ -226,7 +226,7 @@ describe("RG-AUTH-12 — connexion et réinitialisation limitées en débit par 
           corps: {
             prenom: "A",
             nom: "B",
-            email: `inscrit${i}@exemple.fr`,
+            email: `inscrit${i}@exemple.test`,
             login: `inscrit${i}`,
             motDePasse: "Bonjour12!",
             confirmation: "Bonjour12!",
@@ -293,7 +293,7 @@ describe("RG-AUTH-15 — les réglages d'authentification ne se lisent pas sans 
       corps: {
         reglages: {
           "auth.tentativesAvantVerrouillage": "7",
-          "auth.domainesAutorises": "exemple.fr",
+          "auth.domainesAutorises": "exemple.test",
           "display.locale": "fr-FR",
         },
       },
@@ -306,6 +306,6 @@ describe("RG-AUTH-15 — les réglages d'authentification ne se lisent pas sans 
 
     const connecte = (await appel("GET", "/api/parametrage", { jeton: jetonAdmin })).json() as Record<string, string>;
     expect(connecte["auth.tentativesAvantVerrouillage"]).toBe("7");
-    expect(connecte["auth.domainesAutorises"]).toBe("exemple.fr");
+    expect(connecte["auth.domainesAutorises"]).toBe("exemple.test");
   });
 });

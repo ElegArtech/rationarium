@@ -29,7 +29,7 @@ async function compte(nom: string, permissions: string[]) {
     data: {
       id,
       login: `rm11-${nom}`,
-      email: `rm11-${nom}@exemple.fr`,
+      email: `rm11-${nom}@exemple.test`,
       prenom: "Test",
       nom,
       roleId: role.id,

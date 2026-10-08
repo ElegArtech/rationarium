@@ -40,7 +40,7 @@ beforeAll(async () => {
   utilisateurs = new UtilisateursService(prisma as never, audit, perimetres);
   tiers = new TiersService(prisma as never, audit, perimetres);
   acteurId = (await prisma.user.create({ data: {
-    login: `admin-${uuid()}`, email: `${uuid()}@exemple.fr`, motDePasseHash: "test",
+    login: `admin-${uuid()}`, email: `${uuid()}@exemple.test`, motDePasseHash: "test",
     prenom: "Karim", nom: "Admin",
   } })).id;
 }, 240_000);
@@ -105,7 +105,7 @@ describe("RM-09 — administration contractuelle sur PostgreSQL réel", () => {
     const ancien = await prisma.role.create({ data: { code: `ANCIEN_${uuid().slice(0, 6)}`, nom: "Chef de projet" } });
     const nouveau = await prisma.role.create({ data: { code: `NOUVEAU_${uuid().slice(0, 6)}`, nom: "Contributeur projet" } });
     const compte = await utilisateurs.creer({
-      prenom: "Ophélie", nom: "Bardin", email: `${uuid()}@exemple.fr`,
+      prenom: "Ophélie", nom: "Bardin", email: `${uuid()}@exemple.test`,
       login: `ophelie-${uuid()}`, motDePasse, roleId: ancien.id,
     }, acteurId, new Set(["users:manage_roles"]));
     await utilisateurs.modifier(
@@ -127,7 +127,7 @@ describe("RM-09 — administration contractuelle sur PostgreSQL réel", () => {
   });
 
   it("RG-USR-01 — une collision concurrente reste traduite distinctement selon email ou identifiant", async () => {
-    const email = `${uuid()}@exemple.fr`;
+    const email = `${uuid()}@exemple.test`;
     const login = `collision-${uuid()}`;
     const creer = (suffixe: string) => utilisateurs.creer({
       prenom: "Test", nom: suffixe, email, login: `${login}-${suffixe}`,
@@ -138,8 +138,8 @@ describe("RM-09 — administration contractuelle sur PostgreSQL réel", () => {
     const rejet = resultats.find(({ status }) => status === "rejected");
     expect(rejet).toMatchObject({ status: "rejected", reason: { code: "email_deja_pris" } });
 
-    const emailA = `${uuid()}@exemple.fr`;
-    const emailB = `${uuid()}@exemple.fr`;
+    const emailA = `${uuid()}@exemple.test`;
+    const emailB = `${uuid()}@exemple.test`;
     const parLogin = (courriel: string) => utilisateurs.creer({
       prenom: "Test", nom: "Login", email: courriel, login,
       motDePasse,
@@ -151,7 +151,7 @@ describe("RM-09 — administration contractuelle sur PostgreSQL réel", () => {
 
   it("EX-USR-05 et RG-GEN-07 — désactivation et réactivation sont réversibles sans accepter une version périmée", async () => {
     const compte = await utilisateurs.creer({
-      prenom: "Compte", nom: "Cyclique", email: `${uuid()}@exemple.fr`,
+      prenom: "Compte", nom: "Cyclique", email: `${uuid()}@exemple.test`,
       login: `cycle-${uuid()}`, motDePasse,
     }, acteurId, new Set());
     await utilisateurs.desactiver(compte.id, acteurId, compte.version);
@@ -167,7 +167,7 @@ describe("RM-09 — administration contractuelle sur PostgreSQL réel", () => {
 
   it("EX-TSK-16, RG-TRS-04 et RG-SCOPE-02 — l'assignation d'un tiers ne révèle ni ne modifie une tâche hors périmètre", async () => {
     const autre = await prisma.user.create({ data: {
-      login: `hors-${uuid()}`, email: `${uuid()}@exemple.fr`, motDePasseHash: "test",
+      login: `hors-${uuid()}`, email: `${uuid()}@exemple.test`, motDePasseHash: "test",
       prenom: "Hors", nom: "Périmètre",
     } });
     const projet = await prisma.project.create({ data: {

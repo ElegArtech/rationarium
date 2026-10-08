@@ -57,7 +57,7 @@ beforeAll(async () => {
   const u = await prisma.user.create({
     data: {
       login: "sans.droit",
-      email: "sans.droit@exemple.fr",
+      email: "sans.droit@exemple.test",
       motDePasseHash: await hacherMotDePasse("Corr3ct-Horse-Battery!"),
       prenom: "Sans",
       nom: "Droit",
@@ -104,7 +104,7 @@ describe("RG-DROITS-03 — sans session, tout est refusé", () => {
 
   it("les routes d'authentification, elles, restent atteignables", async () => {
     const r = await appel("POST", "/api/auth/forgot-password", {
-      corps: { email: "inconnu@exemple.fr" },
+      corps: { email: "inconnu@exemple.test" },
     });
     expect(r.statusCode).toBe(202);
   });

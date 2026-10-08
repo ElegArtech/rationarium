@@ -38,7 +38,7 @@ async function agent(login: string, departementId: string) {
   const { id } = await prisma.user.create({
     data: {
       login,
-      email: `${login}@exemple.fr`,
+      email: `${login}@exemple.test`,
       motDePasseHash: "x",
       prenom: "Test",
       nom: login,
@@ -79,7 +79,7 @@ beforeAll(async () => {
   await prisma.user.create({
     data: {
       login: "manager.a",
-      email: "manager.a@exemple.fr",
+      email: "manager.a@exemple.test",
       motDePasseHash: await hacherMotDePasse(MOT_DE_PASSE),
       prenom: "Test",
       nom: "Manager",
