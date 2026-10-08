@@ -87,7 +87,7 @@ beforeAll(async () => {
   const id = uuid();
   await prisma.user.create({
     data: {
-      id, login: `k-${id.slice(0, 8)}`, email: `${id.slice(0, 8)}@x.fr`,
+      id, login: `k-${id.slice(0, 8)}`, email: `${id.slice(0, 8)}@x.test`,
       motDePasseHash: "x", prenom: "K", nom: "A",
     },
   });
@@ -146,7 +146,7 @@ describe("RG-IMP-02, RG-IMP-03 — le modèle et la prévisualisation", () => {
     // Un fichier vide laisse deviner le format des dates et des listes, et
     // c'est là que se perdent les imports.
     expect(modele).toContain("email;login;password");
-    expect(modele).toContain("camille.roussel@exemple.fr");
+    expect(modele).toContain("camille.roussel@exemple.test");
     // Le BOM : sans lui, Excel lit en ANSI et les accents décrochent.
     expect(modele.charCodeAt(0)).toBe(0xfeff);
   });
@@ -199,8 +199,8 @@ describe("RG-IMP-04 — trois familles, jamais deux", () => {
   it("un compte déjà présent est IGNORÉ, pas mis en erreur", async () => {
     const fichier =
       "email;login;password;firstName;lastName\n" +
-      "ana@exemple.fr;ana;secret;Ana;Berger\n" +
-      "ana@exemple.fr;ana2;secret;Ana;Berger\n";
+      "ana@exemple.test;ana;secret;Ana;Berger\n" +
+      "ana@exemple.test;ana2;secret;Ana;Berger\n";
 
     const rendu = await imports.importerUtilisateurs(fichier, acteur, new Set(), perimetreGlobal());
 
@@ -210,20 +210,20 @@ describe("RG-IMP-04 — trois familles, jamais deux", () => {
   });
 
   it("le rejeu complet n'importe rien et n'échoue pas", async () => {
-    const fichier = "email;login;password;firstName;lastName\nbob@exemple.fr;bob;s;Bob;Costa\n";
+    const fichier = "email;login;password;firstName;lastName\nbob@exemple.test;bob;s;Bob;Costa\n";
     await imports.importerUtilisateurs(fichier, acteur, new Set(), perimetreGlobal());
     const second = await imports.importerUtilisateurs(fichier, acteur, new Set(), perimetreGlobal());
 
     expect(second).toMatchObject({ importes: 0, ignores: 1, erreurs: [] });
-    expect(await prisma.user.count({ where: { email: "bob@exemple.fr" } })).toBe(1);
+    expect(await prisma.user.count({ where: { email: "bob@exemple.test" } })).toBe(1);
   });
 
   it("une ligne en erreur n'empêche pas les autres d'entrer", async () => {
     const fichier =
       "email;login;password;firstName;lastName\n" +
-      "cle@exemple.fr;cle;s;Cle;Un\n" +
+      "cle@exemple.test;cle;s;Cle;Un\n" +
       ";sansmail;s;Sans;Mail\n" +
-      "deux@exemple.fr;deux;s;Deux;Deux\n";
+      "deux@exemple.test;deux;s;Deux;Deux\n";
 
     const rendu = await imports.importerUtilisateurs(fichier, acteur, new Set(), perimetreGlobal());
     expect(rendu.importes).toBe(2);
@@ -233,10 +233,10 @@ describe("RG-IMP-04 — trois familles, jamais deux", () => {
 
   it("le compte importé porte l'obligation de changer son mot de passe", async () => {
     await imports.importerUtilisateurs(
-      "email;login;password;firstName;lastName\nneuf@exemple.fr;neuf;Provisoire!1;Neuf;Compte\n",
+      "email;login;password;firstName;lastName\nneuf@exemple.test;neuf;Provisoire!1;Neuf;Compte\n",
       acteur, new Set(), perimetreGlobal(),
     );
-    const cree = await prisma.user.findUniqueOrThrow({ where: { email: "neuf@exemple.fr" } });
+    const cree = await prisma.user.findUniqueOrThrow({ where: { email: "neuf@exemple.test" } });
     // Le mot de passe du fichier est provisoire, et le produit le dit à la
     // première connexion plutôt que de le laisser vivre.
     expect(cree.motDePasseAChanger).toBe(true);
@@ -245,7 +245,7 @@ describe("RG-IMP-04 — trois familles, jamais deux", () => {
   it("M20 — l'import d'utilisateurs est tracé", async () => {
     await prisma.auditLog.deleteMany({ where: { entiteId: "import-csv" } });
     await imports.importerUtilisateurs(
-      "email;login;password;firstName;lastName\ntrace@exemple.fr;trace;s;T;R\n",
+      "email;login;password;firstName;lastName\ntrace@exemple.test;trace;s;T;R\n",
       acteur, new Set(), perimetreGlobal(),
     );
     const trace = await prisma.auditLog.findFirst({ where: { entiteId: "import-csv" } });
@@ -669,15 +669,15 @@ describe("EX-CNG-14, RG-CNG-32 — importer des congés en masse", () => {
       data: { code: "CA", nom: "Congés annuels", validationRequise: true },
     });
     typeAvecValidation = t.id;
-    ana = await agent("ana@exemple.fr", t.id);
-    bob = await agent("bob@exemple.fr", t.id);
+    ana = await agent("ana@exemple.test", t.id);
+    bob = await agent("bob@exemple.test", t.id);
   });
 
   it("EX-CNG-14 — un fichier de congés entre en masse, avec ses jours et son motif", async () => {
     const rendu = await imports.importerConges(
       ENTETE_CNG +
-        "ana@exemple.fr;Congés annuels;2026-03-02;2026-03-06;;Vacances d'hiver\n" +
-        "bob@exemple.fr;Congés annuels;2026-04-06;2026-04-08;;\n",
+        "ana@exemple.test;Congés annuels;2026-03-02;2026-03-06;;Vacances d'hiver\n" +
+        "bob@exemple.test;Congés annuels;2026-04-06;2026-04-08;;\n",
       acteur,
       perimetreGlobal(),
     );
@@ -707,9 +707,9 @@ describe("EX-CNG-14, RG-CNG-32 — importer des congés en masse", () => {
      */
     const rendu = await imports.importerConges(
       ENTETE_CNG +
-        "ana@exemple.fr;Congés annuels;2026-03-02;2026-03-06;;\n" +
-        "ana@exemple.fr;Congés annuels;2026-03-04;2026-03-10;;\n" +
-        "bob@exemple.fr;Congés annuels;2026-05-11;2026-05-13;;\n",
+        "ana@exemple.test;Congés annuels;2026-03-02;2026-03-06;;\n" +
+        "ana@exemple.test;Congés annuels;2026-03-04;2026-03-10;;\n" +
+        "bob@exemple.test;Congés annuels;2026-05-11;2026-05-13;;\n",
       acteur,
       perimetreGlobal(),
     );
@@ -729,7 +729,7 @@ describe("EX-CNG-14, RG-CNG-32 — importer des congés en masse", () => {
 
   it("RG-CNG-32 — le rejeu du même fichier n'importe rien et n'échoue pas", async () => {
     const fichier =
-      ENTETE_CNG + "ana@exemple.fr;Congés annuels;2026-03-02;2026-03-06;;\n";
+      ENTETE_CNG + "ana@exemple.test;Congés annuels;2026-03-02;2026-03-06;;\n";
 
     await imports.importerConges(fichier, acteur, perimetreGlobal());
     const second = await imports.importerConges(fichier, acteur, perimetreGlobal());
@@ -750,7 +750,7 @@ describe("EX-CNG-14, RG-CNG-32 — importer des congés en masse", () => {
     );
 
     const rendu = await imports.importerConges(
-      ENTETE_CNG + "ana@exemple.fr;Congés annuels;2026-03-05;2026-03-11;;\n",
+      ENTETE_CNG + "ana@exemple.test;Congés annuels;2026-03-05;2026-03-11;;\n",
       acteur,
       perimetreGlobal(),
     );
@@ -764,7 +764,7 @@ describe("EX-CNG-14, RG-CNG-32 — importer des congés en masse", () => {
     // constaté, pas une intention. Deux cents demandes en attente noieraient
     // le validateur et ne diraient rien de plus.
     await imports.importerConges(
-      ENTETE_CNG + "ana@exemple.fr;Congés annuels;2026-03-02;2026-03-06;;\n",
+      ENTETE_CNG + "ana@exemple.test;Congés annuels;2026-03-02;2026-03-06;;\n",
       acteur,
       perimetreGlobal(),
     );
@@ -810,8 +810,8 @@ describe("EX-CNG-14, RG-CNG-32 — importer des congés en masse", () => {
 
     const rendu = await imports.importerConges(
       ENTETE_CNG +
-        "ana@exemple.fr;Congés annuels;2026-03-02;2026-03-06;;\n" +
-        "bob@exemple.fr;Congés annuels;2026-03-02;2026-03-06;;\n",
+        "ana@exemple.test;Congés annuels;2026-03-02;2026-03-06;;\n" +
+        "bob@exemple.test;Congés annuels;2026-03-02;2026-03-06;;\n",
       acteur,
       perimetreGlobal(),
     );
@@ -831,7 +831,7 @@ describe("EX-CNG-14, RG-CNG-32 — importer des congés en masse", () => {
 
   it("RG-CNG-28 — une date de fin antérieure au début est une ERREUR, pas un ignoré", async () => {
     const rendu = await imports.importerConges(
-      ENTETE_CNG + "ana@exemple.fr;Congés annuels;2026-03-06;2026-03-02;;\n",
+      ENTETE_CNG + "ana@exemple.test;Congés annuels;2026-03-06;2026-03-02;;\n",
       acteur,
       perimetreGlobal(),
     );
@@ -849,8 +849,8 @@ describe("EX-CNG-14, RG-CNG-32 — importer des congés en masse", () => {
   it("EX-CNG-14 — un agent inconnu part en erreur, avec le numéro de ligne du fichier", async () => {
     const rendu = await imports.importerConges(
       ENTETE_CNG +
-        "ana@exemple.fr;Congés annuels;2026-03-02;2026-03-06;;\n" +
-        "fantome@exemple.fr;Congés annuels;2026-03-02;2026-03-06;;\n",
+        "ana@exemple.test;Congés annuels;2026-03-02;2026-03-06;;\n" +
+        "fantome@exemple.test;Congés annuels;2026-03-02;2026-03-06;;\n",
       acteur,
       perimetreGlobal(),
     );
@@ -858,12 +858,12 @@ describe("EX-CNG-14, RG-CNG-32 — importer des congés en masse", () => {
     expect(rendu.importes).toBe(1);
     expect(rendu.erreurs).toHaveLength(1);
     expect(rendu.erreurs[0]?.ligne).toBe(3);
-    expect(rendu.erreurs[0]?.message).toContain("fantome@exemple.fr");
+    expect(rendu.erreurs[0]?.message).toContain("fantome@exemple.test");
   });
 
   it("EX-CNG-14 — un type de congé inconnu part en erreur, et le nomme", async () => {
     const rendu = await imports.importerConges(
-      ENTETE_CNG + "ana@exemple.fr;Congé sabbatique;2026-03-02;2026-03-06;;\n",
+      ENTETE_CNG + "ana@exemple.test;Congé sabbatique;2026-03-02;2026-03-06;;\n",
       acteur,
       perimetreGlobal(),
     );
@@ -876,7 +876,7 @@ describe("EX-CNG-14, RG-CNG-32 — importer des congés en masse", () => {
     // Un fichier venu d'un autre outil RH porte « CA » plus souvent que
     // « Congés annuels ».
     const rendu = await imports.importerConges(
-      ENTETE_CNG + "ana@exemple.fr;CA;2026-03-02;2026-03-06;;\n",
+      ENTETE_CNG + "ana@exemple.test;CA;2026-03-02;2026-03-06;;\n",
       acteur,
       perimetreGlobal(),
     );
@@ -890,7 +890,7 @@ describe("EX-CNG-14, RG-CNG-32 — importer des congés en masse", () => {
     });
 
     const rendu = await imports.importerConges(
-      ENTETE_CNG + "ana@exemple.fr;Congés annuels;2026-03-02;2026-03-06;;\n",
+      ENTETE_CNG + "ana@exemple.test;Congés annuels;2026-03-02;2026-03-06;;\n",
       acteur,
       perimetreGlobal(),
     );
@@ -908,8 +908,8 @@ describe("EX-CNG-14, RG-CNG-32 — importer des congés en masse", () => {
      */
     const rendu = await imports.importerConges(
       ENTETE_CNG +
-        "ana@exemple.fr;Congés annuels;2026-03-02;2026-03-06;;\n" +
-        "bob@exemple.fr;Congés annuels;2026-03-02;2026-03-06;;\n",
+        "ana@exemple.test;Congés annuels;2026-03-02;2026-03-06;;\n" +
+        "bob@exemple.test;Congés annuels;2026-03-02;2026-03-06;;\n",
       acteur,
       perimetreDe([ana]),
     );
@@ -924,7 +924,7 @@ describe("EX-CNG-14, RG-CNG-32 — importer des congés en masse", () => {
     await prisma.user.update({ where: { id: bob }, data: { actif: false } });
 
     const rendu = await imports.importerConges(
-      ENTETE_CNG + "bob@exemple.fr;Congés annuels;2026-03-02;2026-03-06;;\n",
+      ENTETE_CNG + "bob@exemple.test;Congés annuels;2026-03-02;2026-03-06;;\n",
       acteur,
       perimetreGlobal(),
     );
@@ -936,7 +936,7 @@ describe("EX-CNG-14, RG-CNG-32 — importer des congés en masse", () => {
 
   it("RG-CNG-17, RG-CNG-18 — la demi-journée compte pour 0,5 sur un congé d'un seul jour", async () => {
     const rendu = await imports.importerConges(
-      ENTETE_CNG + "ana@exemple.fr;Congés annuels;2026-03-02;2026-03-02;morning;\n",
+      ENTETE_CNG + "ana@exemple.test;Congés annuels;2026-03-02;2026-03-02;morning;\n",
       acteur,
       perimetreGlobal(),
     );
@@ -949,7 +949,7 @@ describe("EX-CNG-14, RG-CNG-32 — importer des congés en masse", () => {
 
   it("RG-CNG-18 — une demi-journée sur PLUSIEURS jours est refusée, et l'explique", async () => {
     const rendu = await imports.importerConges(
-      ENTETE_CNG + "ana@exemple.fr;Congés annuels;2026-03-02;2026-03-06;Matin;\n",
+      ENTETE_CNG + "ana@exemple.test;Congés annuels;2026-03-02;2026-03-06;Matin;\n",
       acteur,
       perimetreGlobal(),
     );
@@ -966,7 +966,7 @@ describe("EX-CNG-14, RG-CNG-32 — importer des congés en masse", () => {
     });
 
     await imports.importerConges(
-      ENTETE_CNG + "ana@exemple.fr;Congés annuels;2026-12-28;2027-01-05;;\n",
+      ENTETE_CNG + "ana@exemple.test;Congés annuels;2026-12-28;2027-01-05;;\n",
       acteur,
       perimetreGlobal(),
     );
@@ -978,9 +978,9 @@ describe("EX-CNG-14, RG-CNG-32 — importer des congés en masse", () => {
   it("RG-IMP-04 — une cellule obligatoire vide est une erreur, et n'interrompt pas le fichier", async () => {
     const rendu = await imports.importerConges(
       ENTETE_CNG +
-        "ana@exemple.fr;Congés annuels;2026-03-02;2026-03-06;;\n" +
+        "ana@exemple.test;Congés annuels;2026-03-02;2026-03-06;;\n" +
         ";Congés annuels;2026-03-02;2026-03-06;;\n" +
-        "bob@exemple.fr;Congés annuels;2026-03-02;2026-03-06;;\n",
+        "bob@exemple.test;Congés annuels;2026-03-02;2026-03-06;;\n",
       acteur,
       perimetreGlobal(),
     );
@@ -992,7 +992,7 @@ describe("EX-CNG-14, RG-CNG-32 — importer des congés en masse", () => {
   });
 
   it("RG-IMP-03 — l'aperçu des congés N'ÉCRIT RIEN", async () => {
-    const fichier = ENTETE_CNG + "ana@exemple.fr;Congés annuels;2026-03-02;2026-03-06;;\n";
+    const fichier = ENTETE_CNG + "ana@exemple.test;Congés annuels;2026-03-02;2026-03-06;;\n";
     expect(imports.analyser("conges", fichier).total).toBe(1);
     expect(await prisma.leave.count()).toBe(0);
   });
@@ -1000,7 +1000,7 @@ describe("EX-CNG-14, RG-CNG-32 — importer des congés en masse", () => {
   it("M20 — l'import de congés est tracé, avec son bilan", async () => {
     await prisma.auditLog.deleteMany({ where: { entiteId: "import-csv" } });
     await imports.importerConges(
-      ENTETE_CNG + "ana@exemple.fr;Congés annuels;2026-03-02;2026-03-06;;\n",
+      ENTETE_CNG + "ana@exemple.test;Congés annuels;2026-03-02;2026-03-06;;\n",
       acteur,
       perimetreGlobal(),
     );
@@ -1272,8 +1272,8 @@ describe("EX-USR-08 — le mot de passe importé est haché, jamais stocké en c
     `email;login;password;firstName;lastName\n${email};${login};${MDP};Noé;Arbogast\n`;
 
   it("EX-USR-08 — le mot de passe du fichier n'est nulle part en base", async () => {
-    await imports.importerUtilisateurs(fichierAvec("clair@exemple.fr", "clair"), acteur, new Set(), perimetreGlobal());
-    const cree = await prisma.user.findUniqueOrThrow({ where: { email: "clair@exemple.fr" } });
+    await imports.importerUtilisateurs(fichierAvec("clair@exemple.test", "clair"), acteur, new Set(), perimetreGlobal());
+    const cree = await prisma.user.findUniqueOrThrow({ where: { email: "clair@exemple.test" } });
 
     expect(cree.motDePasseHash).not.toBe(MDP);
     expect(cree.motDePasseHash).not.toContain(MDP);
@@ -1284,8 +1284,8 @@ describe("EX-USR-08 — le mot de passe importé est haché, jamais stocké en c
 
   it("EX-USR-08 — LE COMPTE IMPORTÉ PEUT SE CONNECTER : c'est le critère", async () => {
     const { verifierMotDePasse } = await import("../auth/mots-de-passe.js");
-    await imports.importerUtilisateurs(fichierAvec("entrant@exemple.fr", "entrant"), acteur, new Set(), perimetreGlobal());
-    const cree = await prisma.user.findUniqueOrThrow({ where: { email: "entrant@exemple.fr" } });
+    await imports.importerUtilisateurs(fichierAvec("entrant@exemple.test", "entrant"), acteur, new Set(), perimetreGlobal());
+    const cree = await prisma.user.findUniqueOrThrow({ where: { email: "entrant@exemple.test" } });
 
     expect(await verifierMotDePasse(cree.motDePasseHash, MDP)).toBe(true);
     expect(await verifierMotDePasse(cree.motDePasseHash, "autre chose")).toBe(false);
@@ -1299,12 +1299,12 @@ describe("EX-USR-08 — le mot de passe importé est haché, jamais stocké en c
     // aurait donné exactement ce symptôme.
     await imports.importerUtilisateurs(
       `email;login;password;firstName;lastName\n` +
-        `un@exemple.fr;un;${MDP};A;Un\n` +
-        `deux@exemple.fr;deux;${MDP};B;Deux\n`,
+        `un@exemple.test;un;${MDP};A;Un\n` +
+        `deux@exemple.test;deux;${MDP};B;Deux\n`,
       acteur, new Set(), perimetreGlobal(),
     );
-    const un = await prisma.user.findUniqueOrThrow({ where: { email: "un@exemple.fr" } });
-    const deux = await prisma.user.findUniqueOrThrow({ where: { email: "deux@exemple.fr" } });
+    const un = await prisma.user.findUniqueOrThrow({ where: { email: "un@exemple.test" } });
+    const deux = await prisma.user.findUniqueOrThrow({ where: { email: "deux@exemple.test" } });
     expect(un.motDePasseHash).not.toBe(deux.motDePasseHash);
   });
 });
@@ -1322,7 +1322,7 @@ describe("RG-USR-01, RG-IMP-04 — collision d'adresse et collision d'identifian
   beforeEach(async () => {
     await prisma.user.create({
       data: {
-        id: uuid(), email: "l.vasseur@exemple.fr", login: "l.vasseur",
+        id: uuid(), email: "l.vasseur@exemple.test", login: "l.vasseur",
         motDePasseHash: "x", prenom: "Léa", nom: "Vasseur",
       },
     });
@@ -1330,8 +1330,8 @@ describe("RG-USR-01, RG-IMP-04 — collision d'adresse et collision d'identifian
 
   const COLLISIONS =
     "email;login;password;firstName;lastName\n" +
-    "l.vasseur@exemple.fr;nouveau.login;Provisoire-2026!;Homonyme;Email\n" +
-    "nouveau.email@exemple.fr;l.vasseur;Provisoire-2026!;Homonyme;Login\n";
+    "l.vasseur@exemple.test;nouveau.login;Provisoire-2026!;Homonyme;Email\n" +
+    "nouveau.email@exemple.test;l.vasseur;Provisoire-2026!;Homonyme;Login\n";
 
   it("RG-USR-01 — LES DEUX MOTIFS SONT DISTINCTS, et chacun porte sa ligne", async () => {
     const rendu = await imports.importerUtilisateurs(COLLISIONS, acteur, new Set(), perimetreGlobal());
@@ -1346,7 +1346,7 @@ describe("RG-USR-01, RG-IMP-04 — collision d'adresse et collision d'identifian
 
   it("RG-USR-01 — chaque motif NOMME la valeur en cause, pas seulement sa nature", async () => {
     const rendu = await imports.importerUtilisateurs(COLLISIONS, acteur, new Set(), perimetreGlobal());
-    expect(rendu.ignorees[0]?.params).toMatchObject({ email: "l.vasseur@exemple.fr" });
+    expect(rendu.ignorees[0]?.params).toMatchObject({ email: "l.vasseur@exemple.test" });
     expect(rendu.ignorees[1]?.params).toMatchObject({ login: "l.vasseur" });
   });
 
@@ -1442,7 +1442,7 @@ describe("RG-IMP-04 — le compte rendu ne peut pas se contredire", () => {
     const rendus = [
       await imports.importerUtilisateurs(
         "email;login;password;firstName;lastName\n" +
-          "z@exemple.fr;z;Provisoire-2026!;Z;Z\nz@exemple.fr;z2;Provisoire-2026!;Z;Z\n",
+          "z@exemple.test;z;Provisoire-2026!;Z;Z\nz@exemple.test;z2;Provisoire-2026!;Z;Z\n",
         acteur, new Set(), perimetreGlobal(),
       ),
       await imports.importerJalonsProjet(
@@ -1506,14 +1506,14 @@ describe("RG-GEN-08 — chaque ligne du compte rendu est traduisible", () => {
   it("RG-GEN-08 — sur un fichier d'utilisateurs mêlant les trois familles", async () => {
     await prisma.user.create({
       data: {
-        id: uuid(), email: "deja@exemple.fr", login: "deja",
+        id: uuid(), email: "deja@exemple.test", login: "deja",
         motDePasseHash: "x", prenom: "D", nom: "J",
       },
     });
     const rendu = await imports.importerUtilisateurs(
       "email;login;password;firstName;lastName\n" +
-        "neuf@exemple.fr;neuf;Provisoire-2026!;N;F\n" +
-        "deja@exemple.fr;autre;Provisoire-2026!;D;J\n" +
+        "neuf@exemple.test;neuf;Provisoire-2026!;N;F\n" +
+        "deja@exemple.test;autre;Provisoire-2026!;D;J\n" +
         ";sansmail;Provisoire-2026!;S;M\n",
       acteur, new Set(), perimetreGlobal(),
     );
@@ -1534,7 +1534,7 @@ describe("RG-GEN-08 — chaque ligne du compte rendu est traduisible", () => {
     });
     const agent = await prisma.user.create({
       data: {
-        id: uuid(), email: "agent@exemple.fr", login: `a-${uuid().slice(0, 8)}`,
+        id: uuid(), email: "agent@exemple.test", login: `a-${uuid().slice(0, 8)}`,
         motDePasseHash: "x", prenom: "A", nom: "G",
       },
     });
@@ -1545,10 +1545,10 @@ describe("RG-GEN-08 — chaque ligne du compte rendu est traduisible", () => {
 
     const rendu = await imports.importerConges(
       "userEmail;leaveTypeName;startDate;endDate;halfDay;comment\n" +
-        "inconnu@exemple.fr;Congés annuels;2026-10-05;2026-10-06;;\n" +
-        "agent@exemple.fr;Type qui n'existe pas;2026-10-05;2026-10-06;;\n" +
-        "agent@exemple.fr;Congés annuels;2026-10-09;2026-10-05;;\n" +
-        "agent@exemple.fr;Congés annuels;2026-11-02;2026-11-20;;\n",
+        "inconnu@exemple.test;Congés annuels;2026-10-05;2026-10-06;;\n" +
+        "agent@exemple.test;Type qui n'existe pas;2026-10-05;2026-10-06;;\n" +
+        "agent@exemple.test;Congés annuels;2026-10-09;2026-10-05;;\n" +
+        "agent@exemple.test;Congés annuels;2026-11-02;2026-11-20;;\n",
       acteur,
       perimetreGlobal(),
     );

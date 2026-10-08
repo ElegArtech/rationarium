@@ -117,7 +117,7 @@ export async function peupler(
   const utilisateurs = Array.from({ length: cible.utilisateurs }, (_, i) => ({
     id: uuidDe("b1", i),
     login: `agent${i}`,
-    email: `agent${i}@exemple.fr`,
+    email: `agent${i}@exemple.test`,
     motDePasseHash: "x",
     prenom: `Prénom${i}`,
     nom: `Nom${i}`,

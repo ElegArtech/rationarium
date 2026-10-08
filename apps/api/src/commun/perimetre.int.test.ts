@@ -36,7 +36,7 @@ async function agent(nom: string, departementId?: string | null) {
     data: {
       id,
       login: `${nom}-${id.slice(0, 6)}`,
-      email: `${nom}-${id.slice(0, 6)}@x.fr`,
+      email: `${nom}-${id.slice(0, 6)}@x.test`,
       motDePasseHash: "x",
       prenom: nom,
       nom: "Test",

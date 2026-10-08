@@ -152,7 +152,7 @@ export async function peuplerMaquette(
         where: { login },
         create: {
           login,
-          email: `${login}@roqueville.fr`,
+          email: `${login}@roqueville.example`,
           motDePasseHash: moi.motDePasseHash,
           prenom: a.prenom,
           nom: a.nom,
@@ -372,7 +372,7 @@ export async function peuplerMaquette(
       id: idStable("T", 0),
       type: "organisation",
       organisation: "Atelier Numérique SARL",
-      contactEmail: "contact@atelier-numerique.fr",
+      contactEmail: "contact@atelier-numerique.example",
       adresse: "8 zone des Garrigues, Roqueville",
     },
     update: { organisation: "Atelier Numérique SARL" },
@@ -844,7 +844,7 @@ export async function peuplerMaquette(
       id: idStable("T", 1),
       type: "individual",
       contactNom: "Yanis Berthelot",
-      contactEmail: "y.berthelot@independant.fr",
+      contactEmail: "y.berthelot@independant.example",
     },
     update: { contactNom: "Yanis Berthelot" },
   });

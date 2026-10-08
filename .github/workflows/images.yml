@@ -19,6 +19,8 @@ jobs:
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: '24.21.0'
@@ -57,15 +59,18 @@ jobs:
           if-no-files-found: ignore
 
 
+  # Construit, analyse et recette les images. Aucun droit d'écriture : la
+  # publication est le seul travail du job suivant.
   images:
     needs: validation
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     permissions:
       contents: read
-      packages: write
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: '24.21.0'
@@ -97,10 +102,13 @@ jobs:
       - name: Installer depuis l’archive réellement livrée
         run: bash scripts/recette-livraison.sh "$REGISTRE_RATIONARIUM" "$VERSION_RATIONARIUM" .local/recette --kit "dist/livraison/rationarium-$VERSION_RATIONARIUM-linux-amd64.tar.gz"
       - name: Vérifier la migration rc.1 et son retour arrière
+        # Les sources de la migration sont tirées par empreinte, puis nommées
+        # par le tag que la recette attend : un tag déplacé ne change rien.
         run: |
-          docker pull postgres:18.6-bookworm
-          docker pull ghcr.io/elegartech/rationarium-api:1.0.0-rc.1
-          docker pull ghcr.io/elegartech/rationarium-web:1.0.0-rc.1
+          tirer() { docker pull "$1@$2" && docker tag "$1@$2" "$1:$3"; }
+          tirer postgres sha256:afc7e2d441324c0388fa80c3d24f733b4194a4eb7f47dd8ee2b08eb1a24a647c 18.6-bookworm
+          tirer ghcr.io/elegartech/rationarium-api sha256:743ef12a6da4d5103efed7673b7bf74596b3f5ded1720ac0d1de6a39eb9624ff 1.0.0-rc.1
+          tirer ghcr.io/elegartech/rationarium-web sha256:c85da7fd58e767bf8933b77e1d694915a470be8d2fcc08c77575ad5704e1db99 1.0.0-rc.1
           bash scripts/recette-livraison.sh "$REGISTRE_RATIONARIUM" "$VERSION_RATIONARIUM" .local/recette-migration --depuis-rc
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
@@ -115,8 +123,69 @@ jobs:
             dist/livraison/installer-rationarium.sh
             .local/preuves-images/*.json
             .local/preuves-images/images.txt
-      - name: Publier les images contrôlées sur un tag neuf
+      - name: Exporter les images contrôlées
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+        run: |
+          mkdir -p .local/images-controlees
+          images=()
+          for composant in base api web; do
+            image="$REGISTRE_RATIONARIUM/rationarium-$composant:$VERSION_RATIONARIUM"
+            images+=("$image")
+            printf '%s %s\n' "$image" "$(docker image inspect --format '{{.Id}}' "$image")" >> .local/images-controlees/identifiants.txt
+          done
+          docker image save --output .local/images-controlees/images.tar "${images[@]}"
+          (cd .local/images-controlees && sha256sum images.tar identifiants.txt > SHA256SUMS)
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+        with:
+          name: images-controlees
+          retention-days: 3
+          include-hidden-files: true
+          if-no-files-found: error
+          path: .local/images-controlees/
+
+  # Seul détenteur du droit d'écriture sur le registre. Il publie les images
+  # exportées par le job précédent, à l'identifiant près, sans les reconstruire,
+  # atteste leur provenance et épingle le kit en ligne sur leurs empreintes.
+  publication:
+    needs: images
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Préparer les paramètres
+        run: |
+          echo "VERSION_RATIONARIUM=$(node -p "require('./package.json').version")" >> "$GITHUB_ENV"
+          echo "REGISTRE_RATIONARIUM=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_ENV"
+      - uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        with:
+          name: images-controlees
+          path: .local/images-controlees
+      - uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        with:
+          name: rationarium-livraison
+          path: .local/livraison
+      - name: Charger les images contrôlées, à l'identifiant près
+        run: |
+          (cd .local/images-controlees && sha256sum -c SHA256SUMS)
+          docker image load --input .local/images-controlees/images.tar
+          while read -r image identifiant; do
+            [[ "$image" == "$REGISTRE_RATIONARIUM/rationarium-"*":$VERSION_RATIONARIUM" ]]
+            [[ $(docker image inspect --format '{{.Id}}' "$image") == "$identifiant" ]] || {
+              echo "Image différente de celle contrôlée : $image" >&2; exit 1;
+            }
+          done < .local/images-controlees/identifiants.txt
+          [[ $(wc -l < .local/images-controlees/identifiants.txt) == 3 ]]
+      - name: Publier les images contrôlées sur un tag neuf
+        id: publication
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -131,5 +200,44 @@ jobs:
             fi
           done
           for composant in base api web; do
-            docker push "$REGISTRE_RATIONARIUM/rationarium-$composant:$VERSION_RATIONARIUM"
+            image="$REGISTRE_RATIONARIUM/rationarium-$composant:$VERSION_RATIONARIUM"
+            docker push "$image" | tee "/tmp/push-$composant"
+            empreinte=$(sed -n 's/.*digest: \(sha256:[0-9a-f]\{64\}\).*/\1/p' "/tmp/push-$composant" | tail -n 1)
+            [[ "$empreinte" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "Empreinte introuvable : $image" >&2; exit 1; }
+            echo "$composant=$empreinte" >> "$GITHUB_OUTPUT"
           done
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ${{ env.REGISTRE_RATIONARIUM }}/rationarium-base
+          subject-digest: ${{ steps.publication.outputs.base }}
+          push-to-registry: true
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ${{ env.REGISTRE_RATIONARIUM }}/rationarium-api
+          subject-digest: ${{ steps.publication.outputs.api }}
+          push-to-registry: true
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ${{ env.REGISTRE_RATIONARIUM }}/rationarium-web
+          subject-digest: ${{ steps.publication.outputs.web }}
+          push-to-registry: true
+      - name: Épingler le kit en ligne sur les empreintes publiées
+        env:
+          EMPREINTE_BASE: ${{ steps.publication.outputs.base }}
+          EMPREINTE_API: ${{ steps.publication.outputs.api }}
+          EMPREINTE_WEB: ${{ steps.publication.outputs.web }}
+        run: |
+          bash deploiement/epingler-kit.sh .local/livraison/dist/livraison "$VERSION_RATIONARIUM" \
+            "$REGISTRE_RATIONARIUM/rationarium-base@$EMPREINTE_BASE" \
+            "$REGISTRE_RATIONARIUM/rationarium-api@$EMPREINTE_API" \
+            "$REGISTRE_RATIONARIUM/rationarium-web@$EMPREINTE_WEB"
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: rationarium-livraison-publiee
+          compression-level: 0
+          if-no-files-found: error
+          path: |
+            .local/livraison/dist/livraison/*.tar.gz
+            .local/livraison/dist/livraison/*.sha256
+            .local/livraison/dist/livraison/SHA256SUMS
+            .local/livraison/dist/livraison/installer-rationarium.sh

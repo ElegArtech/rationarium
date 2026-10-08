@@ -21,7 +21,7 @@ const appel = (acteur: { jeton: string }, methode: "GET" | "POST" | "DELETE" | "
 async function compte(departementId: string, droits: string[]) {
   const id = crypto.randomUUID();
   const role = await prisma.role.create({ data: { code: id, nom: id, permissions: { create: droits.map((permission) => ({ permission })) } } });
-  await prisma.user.create({ data: { id, login: id, email: `${id}@x.fr`, prenom: "Agent", nom: id, departementId, roleId: role.id, motDePasseHash: await hacherMotDePasse("Bonjour12!"), motDePasseAChanger: false } });
+  await prisma.user.create({ data: { id, login: id, email: `${id}@x.test`, prenom: "Agent", nom: id, departementId, roleId: role.id, motDePasseHash: await hacherMotDePasse("Bonjour12!"), motDePasseAChanger: false } });
   const connexion = await app.inject({ method: "POST", url: "/api/auth/login", payload: { identifiant: id, motDePasse: "Bonjour12!" } });
   expect(connexion.statusCode).toBe(200);
   return { id, jeton: connexion.cookies.find((c) => c.name === "rationarium_session")!.value };
@@ -240,7 +240,7 @@ it("EX-EVT-05, RG-EVT-02 — fin de récurrence facultative bornée par le régl
 
 it("EX-EVT-04 — invitation de service active ignore ses anciens membres mais refuse une cible inactive explicite", async () => {
   const dept = (await prisma.user.findUniqueOrThrow({ where: { id: membre.id } })).departementId!;
-  const ancien = await prisma.user.create({ data: { login: crypto.randomUUID(), email: `${crypto.randomUUID()}@x.fr`, motDePasseHash: "x", prenom: "Ancien", nom: "Compte", departementId: dept, actif: false, services: { create: { serviceId } } } });
+  const ancien = await prisma.user.create({ data: { login: crypto.randomUUID(), email: `${crypto.randomUUID()}@x.test`, motDePasseHash: "x", prenom: "Ancien", nom: "Compte", departementId: dept, actif: false, services: { create: { serviceId } } } });
   const body = { titre: "Service avec ancien compte", date: "2026-09-29", journeeEntiere: true };
   expect((await appel(manager, "POST", "/evenements", { ...body, participantIds: [ancien.id] })).statusCode).toBe(403);
   const r = await appel(manager, "POST", "/evenements", { ...body, serviceIds: [serviceId] });

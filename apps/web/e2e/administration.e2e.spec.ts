@@ -58,7 +58,7 @@ test.describe("Vue 27 — utilisateurs", () => {
     await page.goto("/utilisateurs");
 
     await expect(page.getByRole("heading", { name: "Utilisateurs", level: 1 })).toBeVisible();
-    await expect(page.getByText("camille.roussel@exemple.fr")).toBeVisible();
+    await expect(page.getByText("camille.roussel@exemple.test")).toBeVisible();
     await expect(page.getByText("Gestion administrative")).toBeVisible();
     /*
      * La maquette 27 dit « Désactivé », pas « Inactif » : c'est un compte que
@@ -104,7 +104,7 @@ test.describe("Vue 27 — utilisateurs", () => {
       id: "u-admin",
       prenom: "Karim",
       nom: "Benali",
-      email: "karim.benali@exemple.fr",
+      email: "karim.benali@exemple.test",
       login: "karim.benali",
       role: { id: "r-admin", code: "ADMIN", nom: "Administrateur", systeme: true },
       actionsRestreintes: true,
@@ -215,7 +215,7 @@ test.describe("Vue 27 — utilisateurs", () => {
 
     await page.getByLabel("Prénom *", { exact: true }).fill("Nadia");
     await page.getByLabel("Nom *", { exact: true }).fill("Belkacem");
-    await page.getByLabel("Email *", { exact: true }).fill("nadia.belkacem@exemple.fr");
+    await page.getByLabel("Email *", { exact: true }).fill("nadia.belkacem@exemple.test");
     await page.getByLabel("Login *", { exact: true }).fill("nbelkacem");
     await page.getByLabel("Mot de passe *", { exact: true }).fill("secret");
     await page.getByRole("button", { name: "Créer le compte" }).click();
@@ -263,7 +263,7 @@ test.describe("Vue 27 — utilisateurs", () => {
     await page.getByRole("button", { name: "Créer un utilisateur" }).click();
     await page.getByLabel("Prénom *", { exact: true }).fill("Nadia");
     await page.getByLabel("Nom *", { exact: true }).fill("Belkacem");
-    await page.getByLabel("Email *", { exact: true }).fill("nadia.belkacem@exemple.fr");
+    await page.getByLabel("Email *", { exact: true }).fill("nadia.belkacem@exemple.test");
     await page.getByLabel("Login *", { exact: true }).fill("nb");
     await page.getByLabel("Mot de passe *", { exact: true }).fill("Secret123!");
     await page.getByRole("button", { name: "Créer le compte" }).click();

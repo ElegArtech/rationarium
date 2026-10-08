@@ -21,7 +21,8 @@ curl -fL https://github.com/ElegArtech/rationarium/releases/download/v1.0.1/inst
 
 Le script télécharge le kit de cette version, vérifie son empreinte SHA-256, puis l’extrait dans
 un nouveau dossier `rationarium/`. Il demande l’adresse publique, l’identifiant, le courriel et
-le mot de passe temporaire du premier administrateur. Les secrets PostgreSQL et de session sont
+le mot de passe temporaire du premier administrateur. L’identifiant proposé est engendré
+(`admin-xxxxxx`) ; `admin` et les autres identifiants prévisibles sont refusés. Les secrets PostgreSQL et de session sont
 générés localement. Le mot de passe saisi n’est pas affiché.
 
 Le script refuse d’écraser une installation existante. Un autre dossier peut être donné :
@@ -37,6 +38,9 @@ bash configurer.sh
 
 Si un port est déjà occupé, choisir une autre adresse publique ou préciser le port secondaire
 avant de lancer l’assistant, par exemple `RATIONARIUM_PORT_HTTPS=9443 bash configurer.sh`.
+Une adresse `http://localhost` publie les ports sur `127.0.0.1` seulement ; une adresse HTTPS les
+publie sur toutes les interfaces. Pour n’écouter que sur un réseau interne, préciser l’adresse :
+`RATIONARIUM_IP_ECOUTE=10.0.0.5 bash configurer.sh`.
 
 Les fichiers `.sha256` de la release permettent aussi de vérifier les archives téléchargées
 manuellement avec `sha256sum --check`.
@@ -61,13 +65,16 @@ de connexion à PostgreSQL.
 | `COOKIE_SECRET` | Secret de session, sans valeur par défaut |
 | `RATIONARIUM_HOTE` | Adresse écoutée par Caddy, sans le port publié sur l’hôte |
 | `RATIONARIUM_URL_PUBLIQUE` | Origine exacte vue par le navigateur, avec le port éventuel ; utilisée dans les liens par courriel |
-| `RATIONARIUM_ADMIN_LOGIN` | Identifiant du premier administrateur |
+| `RATIONARIUM_ADMIN_LOGIN` | Identifiant du premier administrateur ; vide pour en engendrer un (`admin-xxxxxx`), affiché dans les journaux d’amorçage. Éviter `admin` : un identifiant connu permet à quiconque sur le réseau de verrouiller le compte |
 | `RATIONARIUM_ADMIN_EMAIL` | Courriel du premier administrateur |
 | `RATIONARIUM_ADMIN_MOTDEPASSE` | Mot de passe temporaire ; vide pour en générer un dans les journaux d’amorçage |
+| `RATIONARIUM_IP_ECOUTE` | Adresse de l’hôte où les ports sont publiés : `127.0.0.1` pour un accès local en HTTP (valeur de l’exemple), vide pour toutes les interfaces, ou l’adresse d’une interface interne |
 | `NOM_PROJET` | Nom de l’installation et préfixe de ses volumes ; à conserver lors des mises à jour |
 
 Générer deux secrets distincts, par exemple avec `openssl rand -hex 32`. Les valeurs d’exemple
-ouvrent `http://localhost:8080`. Pour accéder au site depuis un autre poste, configurer HTTPS.
+ouvrent `http://localhost:8080`, publié sur `127.0.0.1` seulement : l’accès HTTP sans chiffrement
+n’est pas exposé au réseau. Pour accéder au site depuis un autre poste, configurer HTTPS et vider
+`RATIONARIUM_IP_ECOUTE`, ou y indiquer l’adresse de l’interface à desservir.
 Les cookies de session de production requièrent HTTPS ; l’accès HTTP local sert à l’évaluation.
 
 `MODE_IMAGES=missing` récupère les images absentes. `MODE_IMAGES=never` interdit tout téléchargement.
@@ -83,7 +90,7 @@ Ouvrir l’adresse du site, se connecter et changer le mot de passe temporaire. 
 l’application demande au moins huit caractères, une majuscule, un chiffre et un caractère spécial.
 Suivre ensuite [les premiers pas](utilisation.md).
 
-Si aucun mot de passe n’a été fourni, le consulter avec `docker compose logs amorcage`.
+Si aucun identifiant ou mot de passe n’a été fourni, les consulter avec `docker compose logs amorcage`.
 Après le premier accès, retirer les variables `RATIONARIUM_ADMIN_*` de `.env`. Les redémarrages
 conservent les utilisateurs et leurs mots de passe. Le référentiel des rôles système est synchronisé ;
 les rôles personnalisés restent conservés.
@@ -91,7 +98,8 @@ les rôles personnalisés restent conservés.
 ## HTTPS
 
 Seuls les ports du frontal web sont publiés. L’API et PostgreSQL restent accessibles sur le réseau
-Docker. Les trois modes ci-dessous utilisent les mêmes images.
+Docker. Dans les exemples ci-dessous, `RATIONARIUM_IP_ECOUTE=` (vide) publie sur toutes les
+interfaces ; une adresse d’interface interne limite l’écoute à ce réseau. Les trois modes ci-dessous utilisent les mêmes images.
 
 ### Certificat public automatique
 
@@ -100,6 +108,7 @@ RATIONARIUM_HOTE=https://planning.example.org
 RATIONARIUM_URL_PUBLIQUE=https://planning.example.org
 RATIONARIUM_PORT_HTTP=80
 RATIONARIUM_PORT_HTTPS=443
+RATIONARIUM_IP_ECOUTE=
 DIRECTIVE_TLS=
 COURRIEL_ACME=administration@example.org
 ```
@@ -116,6 +125,7 @@ RATIONARIUM_HOTE=https://planning.example.org
 RATIONARIUM_URL_PUBLIQUE=https://planning.example.org
 RATIONARIUM_PORT_HTTP=80
 RATIONARIUM_PORT_HTTPS=443
+RATIONARIUM_IP_ECOUTE=
 DIRECTIVE_TLS='tls /etc/rationarium/certificats/site.crt /etc/rationarium/certificats/site.key'
 ```
 

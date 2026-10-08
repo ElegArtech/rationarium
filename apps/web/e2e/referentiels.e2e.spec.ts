@@ -410,7 +410,7 @@ test.describe("Vue 23 — tiers", () => {
      * « Coordonnées génériques ». Le test attendait une formule inventée.
      */
     await expect(page.getByText("Coordonnées génériques")).toBeVisible();
-    await expect(page.getByText("nadia.kaufmann@exemple.fr")).toBeVisible();
+    await expect(page.getByText("nadia.kaufmann@exemple.test")).toBeVisible();
   });
 
   test("les archivés sont exclus par défaut, mais restent demandables", async ({ page }) => {

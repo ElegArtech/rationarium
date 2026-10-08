@@ -30,7 +30,7 @@ SELECT count(*) FROM pg_database WHERE NOT datistemplate AND datname NOT IN ('po
 SQL
 )
 [[ "$autres_bases" == 0 ]] || { echo 'Autres bases présentes : prévoir leur migration explicitement avant de poursuivre.' >&2; exit 1; }
-mapfile -t images_base < <(docker compose config --images | grep '/rationarium-base:')
+mapfile -t images_base < <(docker compose config --images | grep -E '/rationarium-base[:@]')
 [[ ${#images_base[@]} == 1 ]] || { echo 'Image cible PostgreSQL introuvable.' >&2; exit 1; }
 cible=${images_base[0]}
 docker image inspect "$cible" > /dev/null

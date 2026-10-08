@@ -52,7 +52,7 @@ async function compte(code: string, permissions: string[]): Promise<string> {
   await prisma.user.create({
     data: {
       login,
-      email: `${login}@exemple.fr`,
+      email: `${login}@exemple.test`,
       motDePasseHash: await hacherMotDePasse("Corr3ct-Horse-Battery!"),
       prenom: "Test",
       nom: code,

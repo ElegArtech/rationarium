@@ -30,13 +30,13 @@ beforeAll(async () => {
   const [acteur, horsPerimetre] = await Promise.all([
     prisma.user.create({
       data: {
-        id: uuid(), login: `acteur-${uuid()}`, email: `${uuid()}@exemple.fr`,
+        id: uuid(), login: `acteur-${uuid()}`, email: `${uuid()}@exemple.test`,
         motDePasseHash: "test", prenom: "Ada", nom: "Visible",
       },
     }),
     prisma.user.create({
       data: {
-        id: uuid(), login: `hors-${uuid()}`, email: `${uuid()}@exemple.fr`,
+        id: uuid(), login: `hors-${uuid()}`, email: `${uuid()}@exemple.test`,
         motDePasseHash: "test", prenom: "Hedy", nom: "Hors périmètre",
       },
     }),

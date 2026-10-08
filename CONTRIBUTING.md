@@ -35,6 +35,12 @@ Node.js 24, pnpm 11.22.0 et Docker, puis une base PostgreSQL de développement a
   [référence fonctionnelle](docs/reference-fonctionnelle.md), par identifiants `EX-…`
   (exigences) et `RG-…` (règles). Une règle modifiée ou ajoutée l'est d'abord dans ce document ;
   chaque règle a au moins un test dont le titre la cite.
+- **Références internes.** Des commentaires et des tests renvoient à `cadrage/…`,
+  `.claude/rules/…` ou `recette/…` : ce sont les documents de conception et de recette internes
+  du projet, qui ne sont pas publiés dans ce dépôt. Le contenu qui fait foi pour une contribution
+  est public : les exigences `EX-…` et les règles `RG-…`, avec les sections du cadrage qu'elles
+  citent (§ 3.2, § 4.1, modules `M…`), sont décrites dans la
+  [référence fonctionnelle](docs/reference-fonctionnelle.md), et les conventions dans ce guide.
 - **Droits.** Tout contrôle de droit se fait au serveur : permission, puis périmètre. Le client
   masque ou désactive une action par courtoisie, jamais par sécurité.
 - **Concurrence.** Une écriture porte la version lue : un conflit se détecte, il ne s'écrase pas.

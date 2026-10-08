@@ -227,7 +227,7 @@ describe("le jeu de données des maquettes", () => {
     const { rows } = await db.query(
       `SELECT count(DISTINCT us."userId")::int AS n
        FROM user_services us JOIN users u ON u.id = us."userId"
-       WHERE u.login = 'admin' OR u.email LIKE '%@roqueville.fr'`,
+       WHERE u.login = 'admin' OR u.email LIKE '%@roqueville.example'`,
     );
     expect(rows[0].n).toBeGreaterThanOrEqual(5);
   });

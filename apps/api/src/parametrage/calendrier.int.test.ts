@@ -35,7 +35,7 @@ beforeAll(async () => {
   acteur = crypto.randomUUID();
   await prisma.user.create({
     data: {
-      id: acteur, login: `k-${acteur.slice(0, 6)}`, email: `${acteur.slice(0, 6)}@x.fr`,
+      id: acteur, login: `k-${acteur.slice(0, 6)}`, email: `${acteur.slice(0, 6)}@x.test`,
       motDePasseHash: "x", prenom: "K", nom: "A",
     },
   });

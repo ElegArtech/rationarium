@@ -5,7 +5,7 @@ import { execFileSync } from 'node:child_process';
 
 const racine = '/rationarium';
 const attendus = [
-  'apps/api/dist/main.js', 'apps/api/dist/exploitation/amorcage.js',
+  'apps/api/dist/main.js', 'apps/api/dist/exploitation/amorcage.js', 'apps/api/dist/exploitation/provisionner-role.js',
   'packages/db/dist/reversibilite-cli.js', 'packages/db/prisma/schema.prisma',
   'packages/db/prisma.config.ts', 'packages/db/node_modules/.bin/prisma',
   'deploiement/lancer.mjs', 'deploiement/roles-restauration.mjs',

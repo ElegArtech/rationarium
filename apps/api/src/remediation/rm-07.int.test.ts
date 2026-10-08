@@ -22,7 +22,7 @@ const appel = (acteur: { jeton: string }, methode: "GET" | "POST" | "DELETE", ur
 async function compte(departementId: string, droits: string[]) {
   const id = crypto.randomUUID();
   const role = await prisma.role.create({ data: { code: id, nom: id, permissions: { create: droits.map((permission) => ({ permission })) } } });
-  await prisma.user.create({ data: { id, login: id, email: `${id}@x.fr`, prenom: "Agent", nom: id, departementId, roleId: role.id, motDePasseHash: await hacherMotDePasse("Bonjour12!"), motDePasseAChanger: false } });
+  await prisma.user.create({ data: { id, login: id, email: `${id}@x.test`, prenom: "Agent", nom: id, departementId, roleId: role.id, motDePasseHash: await hacherMotDePasse("Bonjour12!"), motDePasseAChanger: false } });
   const connexion = await app.inject({ method: "POST", url: "/api/auth/login", payload: { identifiant: id, motDePasse: "Bonjour12!" } });
   expect(connexion.statusCode).toBe(200);
   return { id, jeton: connexion.cookies.find((c) => c.name === "rationarium_session")!.value };

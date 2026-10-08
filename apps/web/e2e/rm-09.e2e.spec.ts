@@ -178,7 +178,7 @@ for (const langue of ["fr", "en"] as const) {
       const utilisateursLongs = Array.from({ length: 32 }, (_, index) => ({
         ...UTILISATEURS[index % UTILISATEURS.length]!,
         id: `u-grille-${index}`,
-        email: `agent.${index}@exemple.fr`,
+        email: `agent.${index}@exemple.test`,
         identifiant: `agent.${index}`,
       }));
       await serveur(page, {

@@ -1,4 +1,12 @@
 import { spawn } from "node:child_process";
+import { readFileSync } from "node:fs";
+
+// Le rôle applicatif lit son secret dans un fichier engendré par le conteneur
+// `migrations` : le mot de passe du superutilisateur n'entre pas dans le sien.
+if (process.env.PGPASSWORD_FILE) {
+  process.env.PGPASSWORD = readFileSync(process.env.PGPASSWORD_FILE, "utf8").trim();
+  delete process.env.PGPASSWORD_FILE;
+}
 
 // Prisma et pg-boss attendent une URL. Les champs de configuration restent séparés
 // dans Compose ; chaque composant est encodé ici, y compris les signes % et /.

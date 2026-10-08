@@ -37,7 +37,7 @@ async function poserUnCompte(
     data: {
       id,
       login: `agent-${suffixe}`,
-      email: `${suffixe}@collectivite.fr`,
+      email: `${suffixe}@collectivite.test`,
       motDePasseHash: await hacherMotDePasse(options.motDePasse ?? MDP),
       prenom: "Camille",
       nom: "Durand",
@@ -45,7 +45,7 @@ async function poserUnCompte(
       motDePasseAChanger: options.motDePasseAChanger ?? false,
     },
   });
-  return { id, login: `agent-${suffixe}`, email: `${suffixe}@collectivite.fr` };
+  return { id, login: `agent-${suffixe}`, email: `${suffixe}@collectivite.test` };
 }
 
 const reglage = (cle: string, valeur: string) =>
@@ -539,7 +539,7 @@ describe("EX-AUTH-07, EX-AUTH-08 — mot de passe", () => {
 
 describe("EX-AUTH-06, RG-AUTH-04 — définir un nouveau mot de passe depuis le lien reçu ; le jeton est à usage unique et il expire", () => {
   it("EX-AUTH-05 — la demande ne révèle pas si l'adresse existe", async () => {
-    await expect(auth.demanderReinitialisation("inconnu@nulle-part.fr")).resolves.toBeNull();
+    await expect(auth.demanderReinitialisation("inconnu@nulle-part.test")).resolves.toBeNull();
     const c = await poserUnCompte();
     await expect(auth.demanderReinitialisation(c.email)).resolves.toMatchObject({ userId: c.id });
   });
@@ -590,7 +590,7 @@ describe("EX-AUTH-06, RG-AUTH-04 — définir un nouveau mot de passe depuis le 
       new AuditService(prisma as never),
       { publier: async () => (enFile.push(1), "t") } as never,
     );
-    await expect(avecFile.demanderReinitialisation("inconnu@nulle-part.fr")).resolves.toBeNull();
+    await expect(avecFile.demanderReinitialisation("inconnu@nulle-part.test")).resolves.toBeNull();
     expect(enFile).toEqual([]);
   });
 
@@ -749,7 +749,7 @@ describe("EX-AUTH-04, RG-AUTH-03 — créer un compte en autonomie, activable et
   const nouveau = () => ({
     prenom: "Léa",
     nom: "Fabre",
-    email: `lea-${crypto.randomUUID().slice(0, 8)}@collectivite.fr`,
+    email: `lea-${crypto.randomUUID().slice(0, 8)}@collectivite.test`,
     login: `lea-${crypto.randomUUID().slice(0, 8)}`,
     motDePasse: MDP,
   });
@@ -772,9 +772,9 @@ describe("EX-AUTH-04, RG-AUTH-03 — créer un compte en autonomie, activable et
 
   it("restreinte à une liste de domaines autorisés", async () => {
     await reglage("auth.inscriptionAutonome", "true");
-    await reglage("auth.domainesAutorises", "collectivite.fr,mairie.fr");
+    await reglage("auth.domainesAutorises", "collectivite.test,mairie.test");
     await expect(
-      auth.inscrire({ ...nouveau(), email: "quelquun@gmail.com" }),
+      auth.inscrire({ ...nouveau(), email: "quelquun@messagerie.test" }),
     ).rejects.toMatchObject({ code: "domaine_non_autorise" });
     await expect(auth.inscrire(nouveau())).resolves.toBeTruthy();
   });

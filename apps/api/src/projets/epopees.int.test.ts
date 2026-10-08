@@ -96,7 +96,7 @@ beforeAll(async () => {
   acteur = uuid();
   await prisma.user.create({
     data: {
-      id: acteur, login: "a-epo", email: "a-epo@x.fr",
+      id: acteur, login: "a-epo", email: "a-epo@x.test",
       motDePasseHash: "x", prenom: "A", nom: "T",
     },
   });

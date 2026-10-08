@@ -17,7 +17,7 @@ export const SESSION = {
   id: "11111111-1111-4111-8111-111111111111",
   prenom: "Camille",
   nom: "Roussel",
-  email: "camille.roussel@exemple.fr",
+  email: "camille.roussel@exemple.test",
   login: "camille.roussel",
   avatarFichier: null,
   avatarPredefini: null,
@@ -287,7 +287,7 @@ export const EQUIPE = {
         id: "a1",
         prenom: "Driss",
         nom: "Amrani",
-        email: "driss.amrani@exemple.fr",
+        email: "driss.amrani@exemple.test",
         departement: { nom: "Direction des services numériques" },
       },
       /* `RG-PRJ-12` — ce que le retrait retirera, annoncé avant le geste.

@@ -19,7 +19,10 @@ Le producteur est la DNE, ministère de l’Éducation nationale.
 Les données sources et leur normalisation sont conservées dans `docs/references/calendrier/`,
 avec l’adresse de provenance, la date de collecte et l’empreinte du fichier source.
 
-Les images PostgreSQL, Node.js, Debian et Caddy contiennent leurs propres composants et
-notices. La licence MIT de Rationarium ne remplace pas les licences de ces composants.
+Les images livrées reposent sur Alpine Linux : PostgreSQL (reconstruit depuis ses sources
+officielles sur Alpine), Node.js (Alpine) et Caddy (Alpine). Elles contiennent leurs propres
+composants et notices ; l'inventaire des paquets Alpine (`apk`) est conservé dans chaque image.
+L'étape de construction de l'interface emploie une image Node.js Debian, qui n'est pas livrée.
+La licence MIT de Rationarium ne remplace pas les licences de ces composants.
 
 L’image PostgreSQL Alpine emploie [su-exec](https://github.com/ncopa/su-exec), sous licence MIT, pour démarrer PostgreSQL sous son utilisateur dédié.

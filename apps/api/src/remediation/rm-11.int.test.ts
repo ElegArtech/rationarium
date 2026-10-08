@@ -35,11 +35,11 @@ beforeAll(async () => {
   );
   const [acteur, autre] = await Promise.all([
     prisma.user.create({ data: {
-      login: `rpt-${uuid()}`, email: `${uuid()}@exemple.fr`, motDePasseHash: "test",
+      login: `rpt-${uuid()}`, email: `${uuid()}@exemple.test`, motDePasseHash: "test",
       prenom: "Inès", nom: "Pilote",
     } }),
     prisma.user.create({ data: {
-      login: `autre-${uuid()}`, email: `${uuid()}@exemple.fr`, motDePasseHash: "test",
+      login: `autre-${uuid()}`, email: `${uuid()}@exemple.test`, motDePasseHash: "test",
       prenom: "Zoé", nom: "Hors périmètre",
     } }),
   ]);

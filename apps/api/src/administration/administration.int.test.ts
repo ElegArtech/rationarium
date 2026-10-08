@@ -37,7 +37,7 @@ beforeAll(async () => {
   karim = uuid();
   await prisma.user.create({
     data: {
-      id: karim, login: `karim-${karim.slice(0, 6)}`, email: `${karim.slice(0, 6)}@x.fr`,
+      id: karim, login: `karim-${karim.slice(0, 6)}`, email: `${karim.slice(0, 6)}@x.test`,
       motDePasseHash: "x", prenom: "Karim", nom: "Admin",
     },
   });
@@ -487,7 +487,7 @@ describe("RG-ADM-01 — le journal est en lecture seule et se consulte", () => {
     const ephemere = uuid();
     await prisma.user.create({
       data: {
-        id: ephemere, login: `e-${ephemere.slice(0, 6)}`, email: `${ephemere.slice(0, 6)}@x.fr`,
+        id: ephemere, login: `e-${ephemere.slice(0, 6)}`, email: `${ephemere.slice(0, 6)}@x.test`,
         motDePasseHash: "x", prenom: "É", nom: "Phémère",
       },
     });

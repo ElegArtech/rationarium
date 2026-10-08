@@ -65,7 +65,7 @@ async function compte(
     data: {
       id,
       login,
-      email: `${login}@exemple.fr`,
+      email: `${login}@exemple.test`,
       prenom: login,
       nom: "SEC03",
       roleId: role.id,

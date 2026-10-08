@@ -41,7 +41,7 @@ with socket.socket() as s:
  s.bind(('127.0.0.1',0)); port=s.getsockname()[1]
 with socket.socket() as s:
  s.bind(('127.0.0.1',0)); tls=s.getsockname()[1]
-e={'NOM_PROJET':'rationarium-recette-'+secrets.token_hex(5),'REGISTRE_RATIONARIUM':os.environ['RECETTE_REGISTRE'],'VERSION_RATIONARIUM':os.environ['RECETTE_VERSION'],'MODE_IMAGES':'never','RESEAU_INTERNE':'true','POSTGRES_MOTDEPASSE':secrets.token_hex(24),'COOKIE_SECRET':secrets.token_hex(32),'RATIONARIUM_ADMIN_MOTDEPASSE':'Recette!'+secrets.token_hex(16),'RATIONARIUM_ADMIN_EMAIL':'admin@recette.invalid','RATIONARIUM_HOTE':'http://localhost','RATIONARIUM_PORT_HTTP':'127.0.0.1:'+str(port),'RATIONARIUM_PORT_HTTPS':'127.0.0.1:'+str(tls),'RATIONARIUM_URL_PUBLIQUE':'http://localhost:'+str(port),'SMTP_HOTE':'smtp-recette','SMTP_PORT':'2525'}
+e={'NOM_PROJET':'rationarium-recette-'+secrets.token_hex(5),'REGISTRE_RATIONARIUM':os.environ['RECETTE_REGISTRE'],'VERSION_RATIONARIUM':os.environ['RECETTE_VERSION'],'MODE_IMAGES':'never','RESEAU_INTERNE':'true','POSTGRES_MOTDEPASSE':secrets.token_hex(24),'COOKIE_SECRET':secrets.token_hex(32),'RATIONARIUM_ADMIN_LOGIN':'recette-'+secrets.token_hex(3),'RATIONARIUM_ADMIN_MOTDEPASSE':'Recette!'+secrets.token_hex(16),'RATIONARIUM_ADMIN_EMAIL':'admin@recette.invalid','RATIONARIUM_HOTE':'http://localhost','RATIONARIUM_PORT_HTTP':'127.0.0.1:'+str(port),'RATIONARIUM_PORT_HTTPS':'127.0.0.1:'+str(tls),'RATIONARIUM_URL_PUBLIQUE':'http://localhost:'+str(port),'SMTP_HOTE':'smtp-recette','SMTP_PORT':'2525'}
 Path(os.environ['RECETTE_SORTIE']+'/kit/.env').write_text(''.join(k+'='+v+'\n' for k,v in e.items()))
 PY
 compose=(docker compose --project-directory "$sortie/kit")
@@ -115,7 +115,8 @@ docker inspect "$("${compose[@]}" ps -q base)" --format '{{json .NetworkSettings
 '
 "${compose[@]}" exec -T api sh -c 'printf recette-document > /var/lib/rationarium/documents/recette.txt'
 bash "$sortie/kit/sauvegarde.sh" "$sortie/sauvegardes"
-"${compose[@]}" exec -T base psql -U rationarium -d rationarium -v ON_ERROR_STOP=1 -c "UPDATE users SET prenom = 'Corrompu' WHERE login = 'admin';"
+admin_login=$(sed -n 's/^RATIONARIUM_ADMIN_LOGIN=//p' "$sortie/kit/.env")
+"${compose[@]}" exec -T base psql -U rationarium -d rationarium -v ON_ERROR_STOP=1 -c "UPDATE users SET prenom = 'Corrompu' WHERE login = '$admin_login';"
 "${compose[@]}" exec -T api sh -c 'printf corrompu > /var/lib/rationarium/documents/recette.txt'
 mapfile -t archives < <(find "$sortie/sauvegardes" -name '*.dump')
 [[ ${#archives[@]} == 1 ]]

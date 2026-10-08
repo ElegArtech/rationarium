@@ -61,7 +61,7 @@ async function compte(
   const { id } = await prisma.user.create({
     data: {
       login,
-      email: `${login}@exemple.fr`,
+      email: `${login}@exemple.test`,
       motDePasseHash: await hacherMotDePasse(MOT_DE_PASSE),
       prenom: "Test",
       nom: login,

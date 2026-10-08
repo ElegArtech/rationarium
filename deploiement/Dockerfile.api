@@ -56,7 +56,9 @@ COPY --from=construction /rationarium/packages/db/dist /rationarium/packages/db/
 COPY --from=construction /rationarium/packages/db/prisma /rationarium/packages/db/prisma
 COPY --from=construction /rationarium/packages/db/prisma.config.ts /rationarium/packages/db/prisma.config.ts
 COPY --from=construction /rationarium/apps/api/dist /rationarium/apps/api/dist
-RUN mkdir -p /var/lib/rationarium/documents && chown node:node /var/lib/rationarium/documents
+RUN mkdir -p /var/lib/rationarium/documents /var/lib/rationarium/identifiants \
+ && chown node:node /var/lib/rationarium/documents /var/lib/rationarium/identifiants \
+ && chmod 700 /var/lib/rationarium/identifiants
 USER node
 COPY LICENSE THIRD_PARTY_NOTICES.md /rationarium/
 COPY deploiement/lancer.mjs deploiement/roles-restauration.mjs /rationarium/deploiement/

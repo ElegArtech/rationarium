@@ -30,6 +30,13 @@ if (( PORT_HTTP < 1 || PORT_HTTP > 65535 || PORT_HTTPS < 1 || PORT_HTTPS > 65535
 if [[ "$PROTOCOLE" == http && "$HOTE" != localhost && "$HOTE" != 127.0.0.1 ]]; then
   echo 'Pour un accès réseau, utiliser une adresse HTTPS afin de protéger la session.' >&2; exit 1
 fi
+# HTTP ne sert qu'à ce poste : les ports ne sont publiés que sur la boucle locale.
+# HTTPS écoute sur toutes les interfaces, sauf adresse fournie, par exemple
+# RATIONARIUM_IP_ECOUTE=10.88.0.1 bash configurer.sh pour un réseau interne.
+if [[ -n "${RATIONARIUM_IP_ECOUTE+defini}" ]]; then IP_ECOUTE=$RATIONARIUM_IP_ECOUTE
+elif [[ "$PROTOCOLE" == http ]]; then IP_ECOUTE=127.0.0.1
+else IP_ECOUTE=; fi
+[[ -z "$IP_ECOUTE" || "$IP_ECOUTE" =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}$ ]] || { echo 'RATIONARIUM_IP_ECOUTE doit être une adresse IPv4, ou vide.' >&2; exit 1; }
 DIRECTIVE_TLS=
 if [[ "$PROTOCOLE" == https ]]; then
   read -r -p 'Certificat HTTPS : automatique, fourni ou interne [automatique] : ' TLS <&3
@@ -42,8 +49,15 @@ if [[ "$PROTOCOLE" == https ]]; then
     *) echo 'Choisir automatique, fourni ou interne.' >&2; exit 1 ;;
   esac
 fi
-read -r -p 'Identifiant du premier administrateur [admin] : ' RATIONARIUM_ADMIN_LOGIN <&3
-RATIONARIUM_ADMIN_LOGIN=${RATIONARIUM_ADMIN_LOGIN:-admin}
+# Un identifiant connu d'avance permet à quiconque sur le réseau de verrouiller
+# le seul administrateur : la proposition est engendrée, « admin » est refusé.
+IDENTIFIANT_PROPOSE="admin-$(od -An -N3 -tx1 /dev/urandom | tr -d ' \n')"
+read -r -p "Identifiant du premier administrateur [$IDENTIFIANT_PROPOSE] : " RATIONARIUM_ADMIN_LOGIN <&3
+RATIONARIUM_ADMIN_LOGIN=${RATIONARIUM_ADMIN_LOGIN:-$IDENTIFIANT_PROPOSE}
+[[ "$RATIONARIUM_ADMIN_LOGIN" =~ ^[A-Za-z0-9._-]{3,60}$ ]] || { echo 'L’identifiant compte 3 à 60 lettres, chiffres, points, tirets ou soulignés.' >&2; exit 1; }
+case ${RATIONARIUM_ADMIN_LOGIN,,} in
+  admin|administrateur|administrator|root|rationarium) echo 'Choisir un identifiant moins prévisible que celui-ci.' >&2; exit 1 ;;
+esac
 read -r -p 'Courriel de l’administrateur : ' RATIONARIUM_ADMIN_EMAIL <&3
 [[ "$RATIONARIUM_ADMIN_EMAIL" == *@*.* ]] || { echo 'Renseigner un courriel valide.' >&2; exit 1; }
 read -r -s -p 'Mot de passe de l’administrateur (12 caractères minimum) : ' RATIONARIUM_ADMIN_MOTDEPASSE <&3
@@ -70,6 +84,7 @@ cat .env.example > "$CONFIG_TEMP"
   ecrire RATIONARIUM_URL_PUBLIQUE "$ORIGINE"
   ecrire RATIONARIUM_PORT_HTTP "$PORT_HTTP"
   ecrire RATIONARIUM_PORT_HTTPS "$PORT_HTTPS"
+  ecrire RATIONARIUM_IP_ECOUTE "$IP_ECOUTE"
   ecrire DIRECTIVE_TLS "$DIRECTIVE_TLS"
   ecrire RATIONARIUM_ADMIN_LOGIN "$RATIONARIUM_ADMIN_LOGIN"
   ecrire RATIONARIUM_ADMIN_EMAIL "$RATIONARIUM_ADMIN_EMAIL"

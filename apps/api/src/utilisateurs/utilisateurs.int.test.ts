@@ -46,7 +46,7 @@ let svcB: string;
 const uuid = () => crypto.randomUUID();
 const nouveau = (p = "agent") => {
   const s = uuid().slice(0, 8);
-  return { prenom: "T", nom: "Test", email: `${p}-${s}@x.fr`, login: `${p}-${s}`, motDePasse: MDP };
+  return { prenom: "T", nom: "Test", email: `${p}-${s}@x.test`, login: `${p}-${s}`, motDePasse: MDP };
 };
 
 beforeAll(async () => {
@@ -735,9 +735,9 @@ describe("EX-USR-08, RG-USR-06 — importer des comptes depuis un CSV", () => {
     const s = uuid().slice(0, 8);
     const csv = [
       ENTETE_CSV,
-      `ada-${s}@x.fr;ada-${s};Motdepasse1!;Ada;Lovelace;;Département A;Service A`,
-      `alan-${s}@x.fr;alan-${s};Motdepasse1!;Alan;Turing;;Département A;`,
-      `grace-${s}@x.fr;grace-${s};Motdepasse1!;Grace;Hopper;;;`,
+      `ada-${s}@x.test;ada-${s};Motdepasse1!;Ada;Lovelace;;Département A;Service A`,
+      `alan-${s}@x.test;alan-${s};Motdepasse1!;Alan;Turing;;Département A;`,
+      `grace-${s}@x.test;grace-${s};Motdepasse1!;Grace;Hopper;;;`,
     ].join("\n");
 
     const rendu = await imports.importerUtilisateurs(csv, karim, new Set(), await globalP());
@@ -745,7 +745,7 @@ describe("EX-USR-08, RG-USR-06 — importer des comptes depuis un CSV", () => {
     expect(rendu.erreurs).toEqual([]);
 
     const ada = await prisma.user.findUniqueOrThrow({
-      where: { email: `ada-${s}@x.fr` },
+      where: { email: `ada-${s}@x.test` },
       include: { services: true },
     });
     // « En masse » ne veut pas dire « à moitié » : chaque compte entre complet.
@@ -753,7 +753,7 @@ describe("EX-USR-08, RG-USR-06 — importer des comptes depuis un CSV", () => {
     expect(ada.departementId).toBe(deptA);
     expect(ada.services.map((x) => x.serviceId)).toEqual([svcA]);
 
-    const grace = await prisma.user.findUniqueOrThrow({ where: { email: `grace-${s}@x.fr` } });
+    const grace = await prisma.user.findUniqueOrThrow({ where: { email: `grace-${s}@x.test` } });
     // Les colonnes facultatives laissées vides ne fabriquent pas de rattachement.
     expect(grace.departementId).toBeNull();
   });
@@ -768,8 +768,8 @@ describe("EX-USR-08, RG-USR-06 — importer des comptes depuis un CSV", () => {
     const s = uuid().slice(0, 8);
     const csv = [
       ENTETE_CSV,
-      `apercu-${s}@x.fr;apercu-${s};Motdepasse1!;Aper;Cu;;;`,
-      `apercu2-${s}@x.fr;apercu2-${s};Motdepasse1!;Aper;Cu2;;;`,
+      `apercu-${s}@x.test;apercu-${s};Motdepasse1!;Aper;Cu;;;`,
+      `apercu2-${s}@x.test;apercu2-${s};Motdepasse1!;Aper;Cu2;;;`,
     ].join("\n");
 
     const avant = await prisma.user.count();
@@ -779,7 +779,7 @@ describe("EX-USR-08, RG-USR-06 — importer des comptes depuis un CSV", () => {
     expect(apercu.lignes[0]?.["firstName"]).toBe("Aper");
     expect(apercu.erreurs).toEqual([]);
     expect(await prisma.user.count()).toBe(avant);
-    expect(await prisma.user.findUnique({ where: { email: `apercu-${s}@x.fr` } })).toBeNull();
+    expect(await prisma.user.findUnique({ where: { email: `apercu-${s}@x.test` } })).toBeNull();
   });
 
   it("RG-USR-06 — le compte rendu distingue CRÉÉS, IGNORÉS et EN ERREUR, et nomme la ligne fautive", async () => {
@@ -801,10 +801,10 @@ describe("EX-USR-08, RG-USR-06 — importer des comptes depuis un CSV", () => {
 
     const csv = [
       ENTETE_CSV,
-      `neuf1-${s}@x.fr;neuf1-${s};Motdepasse1!;Neuf;Un;;;`,
+      `neuf1-${s}@x.test;neuf1-${s};Motdepasse1!;Neuf;Un;;;`,
       `${deja.email};${deja.login};Motdepasse1!;Deja;La;;;`,
-      `casse-${s}@x.fr;casse-${s};Motdepasse1!;Cyril;;;;`,
-      `neuf2-${s}@x.fr;neuf2-${s};Motdepasse1!;Neuf;Deux;;;`,
+      `casse-${s}@x.test;casse-${s};Motdepasse1!;Cyril;;;;`,
+      `neuf2-${s}@x.test;neuf2-${s};Motdepasse1!;Neuf;Deux;;;`,
     ].join("\n");
 
     const rendu = await imports.importerUtilisateurs(csv, karim, new Set(), await globalP());
@@ -822,8 +822,8 @@ describe("EX-USR-08, RG-USR-06 — importer des comptes depuis un CSV", () => {
     expect(rendu.importes + rendu.ignores + rendu.erreurs.length).toBe(4);
 
     // Et la ligne fautive n'a rien créé, malgré ses colonnes valides.
-    expect(await prisma.user.findUnique({ where: { email: `casse-${s}@x.fr` } })).toBeNull();
-    expect(await prisma.user.findUnique({ where: { email: `neuf2-${s}@x.fr` } })).not.toBeNull();
+    expect(await prisma.user.findUnique({ where: { email: `casse-${s}@x.test` } })).toBeNull();
+    expect(await prisma.user.findUnique({ where: { email: `neuf2-${s}@x.test` } })).not.toBeNull();
   });
 
   it("RG-USR-06 — l'aperçu ANNONCE la ligne fautive avant l'exécution, au même numéro", async () => {
@@ -835,8 +835,8 @@ describe("EX-USR-08, RG-USR-06 — importer des comptes depuis un CSV", () => {
     const s = uuid().slice(0, 8);
     const csv = [
       ENTETE_CSV,
-      `ok-${s}@x.fr;ok-${s};Motdepasse1!;Ok;Bon;;;`,
-      `ko-${s}@x.fr;;Motdepasse1!;Ko;Mauvais;;;`,
+      `ok-${s}@x.test;ok-${s};Motdepasse1!;Ok;Bon;;;`,
+      `ko-${s}@x.test;;Motdepasse1!;Ko;Mauvais;;;`,
     ].join("\n");
 
     const apercu = imports.analyser("utilisateurs", csv);

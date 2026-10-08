@@ -27,7 +27,7 @@ async function agent(prenom = "A", nom = "T") {
   const id = crypto.randomUUID();
   await prisma.user.create({
     data: {
-      id, login: `u-${id.slice(0, 8)}`, email: `${id.slice(0, 8)}@x.fr`,
+      id, login: `u-${id.slice(0, 8)}`, email: `${id.slice(0, 8)}@x.test`,
       motDePasseHash: "x", prenom, nom,
     },
   });
@@ -75,7 +75,7 @@ describe("EX-TRS-01 — le répertoire des tiers", () => {
 
   it("la recherche porte sur l'organisation ET sur le contact", async () => {
     await prisma.thirdParty.create({
-      data: { type: "individual", contactNom: "Zoé Cherchée", contactEmail: "zoe@x.fr" },
+      data: { type: "individual", contactNom: "Zoé Cherchée", contactEmail: "zoe@x.test" },
     });
     expect((await tiers.listerTiers({ recherche: "cherchée" }))).toHaveLength(1);
     expect((await tiers.listerTiers({ recherche: "zoe@" }))).toHaveLength(1);
