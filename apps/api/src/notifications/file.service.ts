@@ -119,7 +119,10 @@ export class FileService implements OnModuleInit, OnModuleDestroy {
   async publier(nom: string, donnees: Record<string, unknown>): Promise<string | null> {
     const boss = await this.pret();
     if (!boss) {
-      this.journal.log(`file inactive — travail « ${nom} » journalisé : ${JSON.stringify(donnees)}`);
+      // Le contenu peut porter un jeton de réinitialisation : il ne sort qu'en
+      // développement, où il sert à suivre un envoi sans relais SMTP.
+      const contenu = process.env.NODE_ENV === "production" ? "" : ` : ${JSON.stringify(donnees)}`;
+      this.journal.log(`file inactive — travail « ${nom} » journalisé${contenu}`);
       return null;
     }
     try {
