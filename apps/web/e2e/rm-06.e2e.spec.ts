@@ -218,7 +218,7 @@ for (const langue of ["fr", "en"] as const) {
       else await route.fallback();
     });
     await page.goto("/taches");
-    await page.getByRole("button", { name: langue === "fr" ? "Créer une tâche" : "New task", exact: true }).click();
+    await page.getByRole("button", { name: langue === "fr" ? "Créer une tâche" : "New task", exact: true }).first().click();
     await page.locator("#tk-titre").fill("Tâche dates");
     await page.locator("#tk-debut").fill("2026-10-20");
     await page.locator("#tk-fin").fill("2026-10-19");
