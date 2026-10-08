@@ -61,7 +61,7 @@ beforeAll(async () => {
   perimetres = new PerimetreService(prisma as never);
   const calendrier = new CalendrierService(prisma as never, audit);
   const activite = new ActiviteService(prisma as never, audit, perimetres);
-  const planning = new PlanningService(prisma as never, calendrier, audit, activite);
+  const planning = new PlanningService(prisma as never, calendrier, audit, activite, perimetres);
   const temps = new TempsService(prisma as never, audit, perimetres);
   tableau = new TableauService(prisma as never, planning, temps, perimetres);
 

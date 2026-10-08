@@ -160,7 +160,7 @@ export const SEMAINE = {
         dateDebut: "2026-08-10", dateFin: "2026-08-11",
         heureDebut: null, heureFin: null, interventionExterieure: false,
         project: { id: "p1", nom: "Portail citoyen", icone: "◆" },
-        assignes: ["u-ana"], horsProjet: false, multiAssignee: false,
+        assignes: ["u-ana"], horsProjet: false, multiAssignee: false, ouvrable: true,
       },
       {
         // Hors projet : filet interrompu, visuellement distincte.
@@ -168,7 +168,7 @@ export const SEMAINE = {
         priorite: "low", avancement: 0,
         dateDebut: "2026-08-12", dateFin: "2026-08-12",
         heureDebut: null, heureFin: null, interventionExterieure: false,
-        project: null, assignes: ["u-ana"], horsProjet: true, multiAssignee: false,
+        project: null, assignes: ["u-ana"], horsProjet: true, multiAssignee: false, ouvrable: true,
       },
       {
         // `RG-TSK-11` — multi-assignée : la date ne se déplace pas d'ici.
@@ -177,7 +177,7 @@ export const SEMAINE = {
         dateDebut: "2026-08-13", dateFin: "2026-08-13",
         heureDebut: null, heureFin: null, interventionExterieure: false,
         project: { id: "p1", nom: "Portail citoyen", icone: "◆" },
-        assignes: ["u-ana", "u-bruno"], horsProjet: false, multiAssignee: true,
+        assignes: ["u-ana", "u-bruno"], horsProjet: false, multiAssignee: true, ouvrable: true,
       },
     ],
     conges: [
@@ -281,7 +281,7 @@ export const MOIS = {
         dateDebut: "2026-08-13", dateFin: "2026-08-13",
         heureDebut: null, heureFin: null, interventionExterieure: false,
         project: { id: "p1", nom: "Portail citoyen", icone: "◆" },
-        assignes: ["u-ana"], horsProjet: false, multiAssignee: false,
+        assignes: ["u-ana"], horsProjet: false, multiAssignee: false, ouvrable: true,
       })),
     ],
   },

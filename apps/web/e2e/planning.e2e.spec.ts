@@ -302,6 +302,40 @@ test.describe("Vue 07 — planning, semaine", () => {
     await expect(panneau.getByRole("button", { name: "Fermer le détail" })).toBeVisible();
   });
 
+  test("RG-SCOPE-04 — le lien vers la fiche n'est offert que si le serveur la dit ouvrable", async ({
+    page,
+  }) => {
+    /*
+     * Le planning montre le résumé des tâches de collègues ; il n'en ouvre pas
+     * toutes les fiches. Le panneau proposait « Fiche de la tâche » partout,
+     * et le lien menait à un 403. Le serveur dit désormais, par tâche, si la
+     * fiche s'ouvre (`ouvrable`) : la vue n'offre que ce qui aboutit.
+     */
+    await horlogeFixe(page);
+    const [note, ...autres] = SEMAINE.occupations.taches;
+    const semaine = {
+      ...SEMAINE,
+      occupations: { ...SEMAINE.occupations, taches: [{ ...note!, ouvrable: false }, ...autres] },
+    };
+    await serveur(page, {
+      session: SESSION_PLANNING,
+      reponses: { ...reponses, "/api/planning": { corps: semaine } },
+    });
+    await page.goto("/planning");
+    const panneau = page.locator(".drawer");
+
+    await page.getByRole("button", { name: /Rédiger la note de cadrage/ }).first().click();
+    await page.getByRole("menuitem", { name: "Voir le détail" }).click();
+    await expect(panneau).toHaveClass(/is-open/);
+    await expect(panneau.getByText("En cours", { exact: true })).toBeVisible();
+    await expect(panneau.getByRole("link", { name: "Fiche de la tâche" })).toHaveCount(0);
+
+    await panneau.getByRole("button", { name: "Fermer le détail" }).click();
+    await page.getByRole("button", { name: /Veille technique/ }).first().click();
+    await page.getByRole("menuitem", { name: "Voir le détail" }).click();
+    await expect(panneau.getByRole("link", { name: "Fiche de la tâche" })).toBeVisible();
+  });
+
   test("le « + » de cellule suit le droit de créer, jamais l'inverse", async ({ page }) => {
     await horlogeFixe(page);
     await serveur(page, { session: SESSION_PLANNING, reponses });

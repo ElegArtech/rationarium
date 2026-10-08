@@ -92,6 +92,7 @@ beforeAll(async () => {
     new CalendrierService(prisma as never, audit),
     audit,
     new ActiviteService(prisma as never, audit, perimetres),
+    perimetres,
   );
   taches = new TachesService(
     prisma as never,
@@ -856,5 +857,45 @@ describe("EX-PLN-12 — ouvrir le DÉTAIL d'une tâche ou d'un événement", () 
     // identifiants : c'est ce qui distingue le détail de la carte.
     expect(detail?.participants.map((p) => p.user.id)).toEqual([bruno]);
     expect(detail?.version).toBeTypeOf("number");
+  });
+
+  /*
+   * `RG-SCOPE-04` — le planning montre le RÉSUMÉ des tâches non
+   * confidentielles de collègues, c'est voulu ; il n'en ouvre pas la fiche.
+   * Le panneau proposait « Fiche de la tâche » partout, et le lien menait à un
+   * 403. La grille dit désormais, par tâche, si la fiche s'ouvre — et le test
+   * qui compte est celui qui COMPARE ce drapeau à ce que la fiche fait
+   * réellement, lecteur par lecteur : deux lectures d'une même règle peuvent
+   * se contredire sans qu'aucune ne soit fausse seule.
+   */
+  it("RG-SCOPE-04 — `ouvrable` dit exactement si la fiche s'ouvre, pour chaque lecteur", async () => {
+    const t = await taches.creer(
+      { titre: "Résumé visible", dateDebut: utc("2026-11-10"), dateFin: utc("2026-11-11"), assigneIds: [ana] },
+      acteur, DROITS_TACHE,
+    );
+    const MINIMAUX = new Set(["planning:read", "tasks:read"]) as ReadonlySet<string>;
+    const LECTURE_ELARGIE = new Set([...MINIMAUX, "tasks:readAll"]) as ReadonlySet<string>;
+    const SANS_TACHES = new Set(["planning:read"]) as ReadonlySet<string>;
+
+    const lecteurs: [string, string, ReadonlySet<string>, boolean][] = [
+      ["collègue à droits minimaux, non assigné", acteur, MINIMAUX, false],
+      ["l'assignée", ana, MINIMAUX, true],
+      ["un manager à lecture élargie", acteur, LECTURE_ELARGIE, true],
+      ["sans tasks:read, la fiche est refusée par la route", ana, SANS_TACHES, false],
+    ];
+    for (const [qui, userId, droits, attendu] of lecteurs) {
+      const p = await perimetres.resoudre(userId, droits);
+      const grille = await planning.agreger(utc("2026-11-09"), utc("2026-11-15"), {}, p, droits);
+      const ligne = grille.occupations.taches.find((x) => x.id === t.id);
+      // La tâche est VUE dans tous les cas : seul le lien change.
+      expect(ligne, qui).toBeDefined();
+      expect(ligne!.ouvrable, qui).toBe(attendu);
+
+      // Le raccord : ce que dit le drapeau, la fiche le fait.
+      const ouverte = droits.has("tasks:read")
+        ? await taches.fiche(t.id, p, droits).then(() => true, () => false)
+        : false;
+      expect(ouverte, qui).toBe(ligne!.ouvrable);
+    }
   });
 });

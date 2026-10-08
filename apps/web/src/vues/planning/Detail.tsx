@@ -145,15 +145,22 @@ function Corps({ selection }: { selection: Selection | null }) {
         <dd>{t("detail.pourcentage", { n: tache.avancement })}</dd>
         <dt>{t("detail.assignes")}</dt>
         <dd>{t("detail.nAssignes", { n: tache.assignes.length })}</dd>
-        <dt>{t("detail.ouvrir")}</dt>
-        <dd>
-          {/* Un `Link`, jamais une ancre nue : une `<a href>` dans une
-              application à routeur recharge le document entier — le lot, la
-              session, les réglages, le compteur de notifications. */}
-          <Link className="lien-route" to="/taches/$id" params={{ id: tache.id }}>
-            {t("detail.ficheTache")}
-          </Link>
-        </dd>
+        {/* `RG-SCOPE-04` — le lien n'est offert que si la fiche s'ouvre : le
+            serveur le dit par tâche (`ouvrable`). Un lien vers un 403 est un
+            geste proposé puis refusé (`RG-GEN-06`). */}
+        {tache.ouvrable ? (
+          <>
+            <dt>{t("detail.ouvrir")}</dt>
+            <dd>
+              {/* Un `Link`, jamais une ancre nue : une `<a href>` dans une
+                  application à routeur recharge le document entier — le lot, la
+                  session, les réglages, le compteur de notifications. */}
+              <Link className="lien-route" to="/taches/$id" params={{ id: tache.id }}>
+                {t("detail.ficheTache")}
+              </Link>
+            </dd>
+          </>
+        ) : null}
       </dl>
     );
   }
