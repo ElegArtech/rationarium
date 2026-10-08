@@ -71,6 +71,7 @@
     "soldeInsuffisant": "solde insuffisant pour {annee} : {demandes} jour(s) demandé(s), {disponibles} disponible(s), {manquants} manquant(s).",
     "typeDesactive": "le type de congé « {nom} » est désactivé : réactivez-le, ou choisissez un autre type sur cette ligne.",
     "chevauchement": "cette période chevauche un congé déjà enregistré : ligne ignorée.",
-    "erreurTechnique": "la ligne n'a pas pu être enregistrée : {detail}"
+    "erreurTechnique": "la ligne n'a pas pu être enregistrée : {detail}",
+    "assigneHorsPerimetre": "colonne « {colonne} » : vous ne pouvez pas assigner « {email} » à une tâche de ce projet"
   }
 }

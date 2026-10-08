@@ -46,6 +46,8 @@ let collegue: string;
 let etranger: string;
 let membreDuProjet: string;
 let projet: string;
+/** Département A, membre du projet, importe des tâches, sans `tasks:assign_any_user`. */
+let importeur: Acteur;
 let serviceA: string;
 let serviceB: string;
 
@@ -128,6 +130,9 @@ beforeAll(async () => {
       membres: { create: [{ userId: agent.id, roleProjet: "Membre" }, { userId: membreDuProjet, roleProjet: "Membre" }] },
     },
   })).id;
+  importeur = await compte("importeur.a", a.id, [...DROITS_TACHES, "tasks:import"]);
+  // Chef du projet : le mode Remplacer est un geste de porteur (`RG-PRJ-13`).
+  await prisma.project.update({ where: { id: projet }, data: { chefId: importeur.id } });
 }, 300_000);
 
 afterAll(async () => {
@@ -234,5 +239,40 @@ describe("tasks:assign_any_user — après coup : assignés, RACI, planning", ()
       version: t.version, nouvelAssigneId: etranger, ancienAssigneId: lecteurGlobal.id,
     }));
     expect(await assignesDe(t.id)).toEqual([lecteurGlobal.id]);
+  });
+});
+
+describe("tasks:assign_any_user — à l'import de tâches", () => {
+  const csv = (lignes: [string, string][]) =>
+    ["title;assigneeEmail", ...lignes.map(([t, e]) => `${t};${e}`)].join("\n");
+
+  it("RG-SCOPE-01 — l'import refuse la ligne dont l'assigné est hors périmètre et garde les autres", async () => {
+    const etiquette = crypto.randomUUID().slice(0, 6);
+    const r = await appel(importeur, "POST", `/imports/projet/${projet}/taches`, {
+      contenu: csv([
+        [`Intruse-${etiquette}`, "etranger.b@exemple.fr"],
+        [`Membre-${etiquette}`, "membre.b@exemple.fr"],
+        [`Collègue-${etiquette}`, "collegue.a@exemple.fr"],
+      ]),
+    });
+    expect(r.statusCode, r.body).toBe(201);
+    const rendu = r.json() as { importes: number; erreurs: { ligne: number; cle: string }[] };
+    expect(rendu.importes).toBe(2);
+    expect(rendu.erreurs).toEqual([expect.objectContaining({ ligne: 2, cle: "imports:motifs.assigneHorsPerimetre" })]);
+    expect(await prisma.task.count({ where: { titre: `Intruse-${etiquette}` } })).toBe(0);
+    expect(await prisma.taskAssignee.count({ where: { userId: etranger, task: { titre: { endsWith: etiquette } } } })).toBe(0);
+  });
+
+  it("RG-IMP-06 — en mode Remplacer, un assigné hors périmètre bloque tout avant la moindre suppression", async () => {
+    const avant = await prisma.task.count({ where: { projectId: projet } });
+    const r = await appel(importeur, "POST", `/imports/projet/${projet}`, {
+      mode: "remplacer",
+      contenu: ["rowType;title;assigneeEmail", "TASK;Intruse;etranger.b@exemple.fr"].join("\n"),
+    });
+    expect(r.statusCode, r.body).toBe(201);
+    const rendu = r.json() as { importes: number; erreurs: { cle: string }[] };
+    expect(rendu.importes).toBe(0);
+    expect(rendu.erreurs).toEqual([expect.objectContaining({ cle: "imports:motifs.assigneHorsPerimetre" })]);
+    expect(await prisma.task.count({ where: { projectId: projet } })).toBe(avant);
   });
 });

@@ -14,6 +14,7 @@ import { PrismaService } from "../prisma.service.js";
 import { AuditService } from "../commun/audit.service.js";
 import { CongesService, ErreurConge } from "../conges/conges.service.js";
 import { PerimetreService, type Perimetre } from "../commun/perimetre.service.js";
+import { nonAssignables } from "../commun/assignation.js";
 import { neutraliserFormule, restaurerFormule } from "../commun/import-csv.js";
 import {
   exigerPorteurDuProjet,
@@ -761,7 +762,13 @@ export class ImportsService {
     const jalonsDuFichier = saines.filter((l) => rowType(l) === "MILESTONE");
     const tachesDuFichier = saines.filter((l) => rowType(l) === "TASK");
 
-    const rendu = new Rendu(apercu.erreurs);
+    // `tasks:assign_any_user` — avant toute écriture, comme `RG-IMP-06`.
+    const horsPerimetre = await this.assignationsRefusees(tachesDuFichier, projectId, acteurId, permissions);
+    if (mode === "remplacer" && horsPerimetre.length > 0) {
+      return new Rendu([...apercu.erreurs, ...horsPerimetre]).clore();
+    }
+    const tachesAdmises = this.sansLignes(tachesDuFichier, horsPerimetre);
+    const rendu = new Rendu([...apercu.erreurs, ...horsPerimetre]);
 
     /*
      * `RG-PRJ-11` — « le mode Remplacer est **bloqué si des données rattachées
@@ -810,7 +817,7 @@ export class ImportsService {
 
       // 2. Les tâches ensuite — elles retrouvent leur jalon par son nom, qu'il
       //    vienne du fichier ou de la base.
-      await this.insererTaches(tx, projectId, tachesDuFichier, parNom, rendu);
+      await this.insererTaches(tx, projectId, tachesAdmises, parNom, rendu);
     });
 
     await this.audit.tracer({
@@ -818,6 +825,37 @@ export class ImportsService {
       detail: { source: "csv", mode, ...rendu.bilan() },
     });
     return rendu.clore();
+  }
+
+  /**
+   * `tasks:assign_any_user` — les lignes dont l'assigné ne peut pas être
+   * chargé de la tâche par cet acteur. Une adresse inconnue n'est pas une
+   * erreur ici : la tâche entre alors sans assigné, comme avant.
+   */
+  private async assignationsRefusees(
+    lignes: readonly LigneCsv[],
+    projectId: string,
+    acteurId: string,
+    permissions: ReadonlySet<string>,
+  ): Promise<LigneRendu[]> {
+    const emails = [...new Set(lignes
+      .map((l) => (l.brut["assigneeEmail"] ?? "").trim().toLowerCase())
+      .filter(Boolean))];
+    if (emails.length === 0) return [];
+    const comptes = await this.prisma.user.findMany({ where: { email: { in: emails } }, select: { id: true, email: true } });
+    const idParEmail = new Map(comptes.map((c) => [c.email, c.id]));
+    const refuses = await nonAssignables(this.prisma, this.perimetres, comptes.map((c) => c.id), projectId, acteurId, permissions);
+    if (refuses.size === 0) return [];
+    return lignes.flatMap((l) => {
+      const email = (l.brut["assigneeEmail"] ?? "").trim().toLowerCase();
+      const id = idParEmail.get(email);
+      return id && refuses.has(id) ? [{ ligne: l.numero, ...MOTIFS.assigneHorsPerimetre(email) }] : [];
+    });
+  }
+
+  private sansLignes(lignes: readonly LigneCsv[], refusees: readonly LigneRendu[]): LigneCsv[] {
+    const numeros = new Set(refusees.map((r) => r.ligne));
+    return lignes.filter((l) => !numeros.has(l.numero));
   }
 
   /** Les jalons déjà en base, indexés par nom — la clé de rattachement du CSV. */
@@ -970,8 +1008,10 @@ export class ImportsService {
     // `RG-PRJ-13` — ajouter des tâches structure le projet : être rattaché.
     await exigerRattacheAuProjet(this.prisma, this.perimetres, projectId, acteurId, permissions);
     const apercu = this.analyser("taches", contenu);
-    const rendu = new Rendu(apercu.erreurs);
-    const lignes = this.lignesSaines(apercu);
+    const saines = this.lignesSaines(apercu);
+    const horsPerimetre = await this.assignationsRefusees(saines, projectId, acteurId, permissions);
+    const rendu = new Rendu([...apercu.erreurs, ...horsPerimetre]);
+    const lignes = this.sansLignes(saines, horsPerimetre);
 
     await this.prisma.$transaction(async (tx) => {
       const parNom = await this.jalonsExistants(tx, projectId);

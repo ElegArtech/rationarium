@@ -84,6 +84,14 @@ export const MOTIFS = {
       `colonne « ${colonne} » : « ${valeur} » inconnu, attendu ${attendues}`,
     ),
 
+  /** `tasks:assign_any_user` — l'import charge les mêmes personnes que la création unitaire. */
+  assigneHorsPerimetre: (email: string): Motif =>
+    motif(
+      "assigneHorsPerimetre",
+      { colonne: "assigneeEmail", email },
+      `colonne « assigneeEmail » : vous ne pouvez pas assigner « ${email} » à une tâche de ce projet`,
+    ),
+
   // ── Utilisateurs — RG-USR-01 ────────────────────────────────────────────
   //
   // **Deux collisions, deux messages.** Une seule requête `OR` incrémentait

@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma.service.js";
 import { AuditService } from "../commun/audit.service.js";
 import { PerimetreService, type Perimetre } from "../commun/perimetre.service.js";
+import { nonAssignables } from "../commun/assignation.js";
 import { NotificationsService } from "../notifications/notifications.service.js";
 import {
   avancementImposePar,
@@ -274,27 +275,8 @@ export class TachesService {
     acteurId: string,
     permissions: ReadonlySet<string>,
   ): Promise<void> {
-    if (permissions.has("tasks:assign_any_user") || permissions.has("tasks:manage_any")) return;
-    let restants = [...new Set(userIds)].filter((id) => id !== acteurId);
-    if (restants.length === 0) return;
-
-    const perimetre = await this.perimetres.resoudre(acteurId, permissions);
-    restants = restants.filter((id) => !perimetre.utilisateurs.has(id));
-    if (restants.length > 0 && projectId) {
-      const projet = await this.prisma.project.findUnique({
-        where: { id: projectId },
-        select: {
-          createurId: true, chefId: true, sponsorId: true,
-          membres: { where: { userId: { in: restants } }, select: { userId: true } },
-        },
-      });
-      const rattaches = new Set<string | null>([
-        projet?.createurId ?? null, projet?.chefId ?? null, projet?.sponsorId ?? null,
-        ...(projet?.membres ?? []).map((m) => m.userId),
-      ]);
-      restants = restants.filter((id) => !rattaches.has(id));
-    }
-    if (restants.length > 0) throw new ErreurTache("hors_perimetre");
+    const refuses = await nonAssignables(this.prisma, this.perimetres, userIds, projectId, acteurId, permissions);
+    if (refuses.size > 0) throw new ErreurTache("hors_perimetre");
   }
 
   /**

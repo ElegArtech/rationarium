@@ -71,6 +71,7 @@
     "soldeInsuffisant": "not enough balance for {annee}: {demandes} day(s) requested, {disponibles} available, {manquants} missing.",
     "typeDesactive": "the leave type “{nom}” is deactivated: reactivate it, or choose another type on this row.",
     "chevauchement": "this period overlaps a leave already recorded: row skipped.",
-    "erreurTechnique": "the row could not be saved: {detail}"
+    "erreurTechnique": "the row could not be saved: {detail}",
+    "assigneHorsPerimetre": "column “{colonne}”: you cannot assign “{email}” to a task in this project"
   }
 }
