@@ -27,6 +27,7 @@ const EXEMPLES: Record<string, Motif> = {
   nombreHorsBornes: MOTIFS.nombreHorsBornes("progress", "500", 0, 100),
   avancementIncoherent: MOTIFS.avancementIncoherent(100),
   valeurInconnue: MOTIFS.valeurInconnue("status", "En cours", "todo, doing, done"),
+  assigneHorsPerimetre: MOTIFS.assigneHorsPerimetre("c.durand@exemple.fr"),
   emailDejaPris: MOTIFS.emailDejaPris("l.vasseur@valmorin.fr"),
   loginDejaPris: MOTIFS.loginDejaPris("l.vasseur"),
   roleSansPermission: MOTIFS.roleSansPermission("ADMIN"),
