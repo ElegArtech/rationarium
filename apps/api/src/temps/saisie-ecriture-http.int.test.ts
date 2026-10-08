@@ -38,6 +38,8 @@ let assigne: Acteur;
 let membre: Acteur;
 let administrateur: Acteur;
 let chef: string;
+/** Déclare pour des tiers, voit tous les projets, membre de ceux créés ici. */
+let membreTiers: Acteur;
 
 async function compte(login: string, permissions: string[]): Promise<Acteur> {
   const role = await prisma.role.create({
@@ -65,7 +67,7 @@ async function projetEtTache() {
     data: {
       nom: `P-${crypto.randomUUID().slice(0, 8)}`, chefId: chef,
       dateDebut: date("2026-01-01"), dateFin: date("2026-12-31"),
-      membres: { create: [{ userId: membre.id, roleProjet: "Membre" }] },
+      membres: { create: [{ userId: membre.id, roleProjet: "Membre" }, { userId: membreTiers.id, roleProjet: "Membre" }] },
     },
   });
   const tache = await prisma.task.create({
@@ -93,6 +95,8 @@ beforeAll(async () => {
   membre = await compte("agent.membre", SAISIE);
   administrateur = await compte("admin.comptes", [...SAISIE, "users:manage_any"]);
   chef = (await compte("chef.projet", SAISIE)).id;
+  const TIERS = [...SAISIE, "time_tracking:declare_for_third_party"];
+  membreTiers = await compte("membre.tiers", [...TIERS, "projects:read", "projects:readAll"]);
 }, 300_000);
 
 afterAll(async () => {
@@ -161,5 +165,27 @@ describe("RG-TMP-03 — une saisie orpheline n'est pas à la merci de tout porte
 
     expect((await appel(administrateur, "DELETE", `/temps/${orpheline.id}`)).statusCode).toBe(200);
     expect(await prisma.timeEntry.count({ where: { id: orpheline.id } })).toBe(0);
+  });
+});
+
+describe("RG-PRJ-13 — déclarer pour un tiers exige qu'il intervienne sur le projet de la saisie", () => {
+  it("RG-PRJ-13 — un tiers d'un autre projet, seulement VU, ne se déclare pas sur son propre projet", async () => {
+    const { projet: mien } = await projetEtTache();
+    const { projet: autre } = await projetEtTache();
+    await prisma.projectMember.deleteMany({ where: { projectId: autre.id, userId: membreTiers.id } });
+    const tiers = await prisma.thirdParty.create({ data: { type: "organisation", organisation: "Prestataire" } });
+    await prisma.projectThirdParty.create({ data: { projectId: autre.id, thirdPartyId: tiers.id } });
+    const r = await appel(membreTiers, "POST", "/temps", { thirdPartyId: tiers.id, projectId: mien.id, date: "2026-09-12", heures: 3 });
+    expect(r.statusCode).toBe(403);
+    expect(r.json()).toMatchObject({ cle: "erreurs:horsPerimetre" });
+    expect(await prisma.timeEntry.count({ where: { thirdPartyId: tiers.id } })).toBe(0);
+  });
+
+  it("RG-PRJ-13 — le membre du projet déclare pour le tiers qui y intervient", async () => {
+    const { projet } = await projetEtTache();
+    const tiers = await prisma.thirdParty.create({ data: { type: "organisation", organisation: "Prestataire" } });
+    await prisma.projectThirdParty.create({ data: { projectId: projet.id, thirdPartyId: tiers.id } });
+    const r = await appel(membreTiers, "POST", "/temps", { thirdPartyId: tiers.id, projectId: projet.id, date: "2026-09-12", heures: 3 });
+    expect(r.statusCode, r.body).toBe(201);
   });
 });

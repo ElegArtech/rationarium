@@ -98,7 +98,15 @@ export class GardeCibleRH implements CanActivate {
         if (!projet) throw new ForbiddenException({ cle: "erreurs:horsPerimetre" });
       }
       if (typeof thirdPartyId === "string") {
-        const lien = await this.prisma.projectThirdParty.findFirst({ where: { thirdPartyId, project: this.perimetres.filtreProjet(d.perimetre, d.permissions) }, select: { thirdPartyId: true } });
+        // En écriture, le tiers doit intervenir sur le projet de la saisie,
+        // déjà admis en écriture plus haut : un tiers vu ailleurs ne suffit pas.
+        const projetDeLaSaisie = typeof projectId === "string" ? projectId : projetDeLaTache;
+        const lien = await this.prisma.projectThirdParty.findFirst({
+          where: regle.ecriture && projetDeLaSaisie
+            ? { thirdPartyId, projectId: projetDeLaSaisie }
+            : { thirdPartyId, project: this.perimetres.filtreProjet(d.perimetre, d.permissions) },
+          select: { thirdPartyId: true },
+        });
         if (!lien) throw new ForbiddenException({ cle: "erreurs:horsPerimetre" });
       }
     }
