@@ -6,6 +6,7 @@ import {
   modeleCsv,
   neutraliserFormule,
   restaurerFormule,
+  compterLignesDeDonnees,
 } from "./import-csv.js";
 
 /**
@@ -191,5 +192,14 @@ describe("RG-IMP-08 — neutralisation des formules dans les exports CSV", () =>
     // Sans cela, « '=x » saisi tel quel ressortait « =x » au réimport.
     expect(neutraliserFormule("'=x")).toBe("''=x");
     expect(restaurerFormule(neutraliserFormule("'=x"))).toBe("'=x");
+  });
+});
+
+describe("RG-IMP-09 — le décompte des lignes de données", () => {
+  it("RG-IMP-09 — en-tête exclue, lignes vides et fins de ligne Windows ignorées", () => {
+    expect(compterLignesDeDonnees("a;b\r\n1;2\r\n\r\n3;4\r\n   \n")).toBe(2);
+    expect(compterLignesDeDonnees("﻿a;b\n1;2")).toBe(1);
+    expect(compterLignesDeDonnees("a;b\n")).toBe(0);
+    expect(compterLignesDeDonnees("")).toBe(0);
   });
 });
