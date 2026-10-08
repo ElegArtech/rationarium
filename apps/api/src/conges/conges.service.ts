@@ -771,11 +771,7 @@ export class CongesService {
 
     this.verifierVersion(conge, version);
 
-    // RG-CNG-09 — nul n'approuve sa propre demande, sauf permission explicite.
-    const sienne = conge.userId === acteurId;
-    if (sienne && !permissions.has("leaves:self_approve")) {
-      throw new ErreurConge("auto_validation_interdite");
-    }
+    const sienne = this.exigerDecisionSurAutrui(conge.userId, acteurId, permissions);
 
     await this.prisma.$transaction(
       async (tx) => {
@@ -849,14 +845,49 @@ export class CongesService {
     }
   }
 
+  /**
+   * `RG-CNG-09` — « nul n'approuve **ni ne refuse** sa propre demande, sauf
+   * permission explicite d'auto-validation ; le cas est alors tracé comme
+   * tel. »
+   *
+   * Le contrôle n'existait que dans `approuver`. Refuser sa propre demande, ou
+   * statuer sur sa propre demande d'annulation, passait donc avec la seule
+   * permission de la route — `leaves:approve` — : un validateur décidait de
+   * ses propres congés par la porte d'à côté. Une règle qui porte sur un
+   * GESTE de décision vaut pour tous les gestes de décision ; elle est écrite
+   * une fois, ici, et chacun l'appelle.
+   *
+   * Rend vrai quand l'acteur décide de sa propre demande (avec la permission),
+   * pour que l'appelant le trace comme tel.
+   */
+  private exigerDecisionSurAutrui(
+    titulaireId: string,
+    acteurId: string,
+    permissions: ReadonlySet<string>,
+  ): boolean {
+    const sienne = titulaireId === acteurId;
+    if (sienne && !permissions.has("leaves:self_approve")) {
+      throw new ErreurConge("auto_validation_interdite");
+    }
+    return sienne;
+  }
+
   /** `EX-CNG-05` — refuser, **avec motif**. */
-  async refuser(congeId: string, motifRefus: string, acteurId: string, version: number) {
+  async refuser(
+    congeId: string,
+    motifRefus: string,
+    acteurId: string,
+    version: number,
+    permissions: ReadonlySet<string>,
+  ) {
     const conge = await this.prisma.leave.findUnique({ where: { id: congeId } });
     if (!conge) throw new ErreurConge("introuvable");
     if (conge.statut !== "pending") {
       throw new ErreurConge("statut_incompatible", { statut: conge.statut });
     }
     this.verifierVersion(conge, version);
+    // `RG-CNG-09` — nul ne refuse sa propre demande sans auto-validation.
+    const sienne = this.exigerDecisionSurAutrui(conge.userId, acteurId, permissions);
 
     await this.ecrireSurVersion(version, () =>
       this.prisma.leave.update({
@@ -866,7 +897,7 @@ export class CongesService {
     );
     await this.audit.tracer({
       action: "leave.refuse", typeEntite: "Leave", entiteId: congeId, acteurId,
-      detail: { agent: conge.userId },
+      detail: { agent: conge.userId, autoValide: sienne },
     });
 
     /*
@@ -925,6 +956,7 @@ export class CongesService {
     accepte: boolean,
     acteurId: string,
     version: number,
+    permissions: ReadonlySet<string>,
   ) {
     const conge = await this.prisma.leave.findUnique({ where: { id: congeId } });
     if (!conge) throw new ErreurConge("introuvable");
@@ -932,6 +964,12 @@ export class CongesService {
       throw new ErreurConge("statut_incompatible", { statut: conge.statut });
     }
     this.verifierVersion(conge, version);
+    /*
+     * `RG-CNG-09` — statuer sur sa propre demande d'annulation, c'est décider
+     * de sa propre demande : `RG-CNG-04` fait passer l'annulation d'un congé
+     * approuvé par une validation, et celle-ci ne se donne pas à soi-même.
+     */
+    const sienne = this.exigerDecisionSurAutrui(conge.userId, acteurId, permissions);
 
     await this.ecrireSurVersion(version, () =>
       this.prisma.leave.update({
@@ -943,6 +981,7 @@ export class CongesService {
     await this.audit.tracer({
       action: accepte ? "leave.cancel" : "leave.cancellation_refused",
       typeEntite: "Leave", entiteId: congeId, acteurId,
+      detail: { agent: conge.userId, autoValide: sienne },
     });
   }
 

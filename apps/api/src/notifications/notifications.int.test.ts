@@ -266,7 +266,7 @@ describe("les six déclencheurs", () => {
     );
     await prisma.notification.deleteMany();
 
-    await conges.refuser(conge.id, "Effectif insuffisant sur la période", validateur, conge.version);
+    await conges.refuser(conge.id, "Effectif insuffisant sur la période", validateur, conge.version, new Set());
 
     const recues = await notifsDe(agent);
     const contenu = recues[0]?.contenu ?? "";
