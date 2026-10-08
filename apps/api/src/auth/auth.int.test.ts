@@ -1046,7 +1046,7 @@ describe("EX-AUTH-09 — modifier son profil", () => {
     const u = await poserUnCompte();
     await prisma.user.update({ where: { id: u.id }, data: { langue: "en" } });
     await avecFile.modifierProfil(u.id, {
-      email: `en.${u.id.slice(0, 8)}@collectivite.fr`,
+      email: `en.${u.id.slice(0, 8)}@collectivite.test`,
       motDePasseActuel: MDP,
       version: 1,
     });
@@ -1054,13 +1054,13 @@ describe("EX-AUTH-09 — modifier son profil", () => {
   });
 
   it("RG-AUTH-16, RG-AUTH-03 — la nouvelle adresse respecte la liste blanche des domaines", async () => {
-    await reglage("auth.domainesAutorises", "collectivite.fr");
+    await reglage("auth.domainesAutorises", "collectivite.test");
     const u = await poserUnCompte();
     await expect(
       auth.modifierProfil(u.id, { email: "agent@gmail.com", motDePasseActuel: MDP, version: 1 }),
     ).rejects.toMatchObject({ code: "domaine_email_non_autorise" });
     await expect(
-      auth.modifierProfil(u.id, { email: `autre.${u.id.slice(0, 8)}@collectivite.fr`, motDePasseActuel: MDP, version: 1 }),
+      auth.modifierProfil(u.id, { email: `autre.${u.id.slice(0, 8)}@collectivite.test`, motDePasseActuel: MDP, version: 1 }),
     ).resolves.toBeTruthy();
   });
 

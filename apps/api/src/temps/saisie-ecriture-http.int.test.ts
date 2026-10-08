@@ -48,7 +48,7 @@ async function compte(login: string, permissions: string[]): Promise<Acteur> {
   const id = crypto.randomUUID();
   await prisma.user.create({
     data: {
-      id, login, email: `${login}@exemple.fr`, prenom: login, nom: "SAISIE", roleId: role.id,
+      id, login, email: `${login}@exemple.test`, prenom: login, nom: "SAISIE", roleId: role.id,
       motDePasseHash: await hacherMotDePasse("Bonjour12!"), motDePasseAChanger: false,
     },
   });
@@ -149,7 +149,7 @@ describe("RG-TMP-03 — une saisie orpheline n'est pas à la merci de tout porte
     // Le déclarant existe à la saisie, puis son compte est supprimé :
     // `creeParId` passe à NULL (`onDelete: SetNull`), la saisie demeure.
     const declarant = await prisma.user.create({
-      data: { login: "declarant.parti", email: "declarant.parti@exemple.fr", prenom: "Parti", nom: "SAISIE", motDePasseHash: "x" },
+      data: { login: "declarant.parti", email: "declarant.parti@exemple.test", prenom: "Parti", nom: "SAISIE", motDePasseHash: "x" },
     });
     const orpheline = await prisma.timeEntry.create({
       data: { thirdPartyId: tiers.id, creeParId: declarant.id, projectId: projet.id, date: date("2026-09-10"), heures: 4 },

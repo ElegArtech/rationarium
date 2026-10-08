@@ -55,7 +55,7 @@ async function personne(login: string, departementId: string): Promise<string> {
   const id = crypto.randomUUID();
   await prisma.user.create({
     data: {
-      id, login, email: `${login}@exemple.fr`, prenom: login, nom: "ASSIGN", departementId,
+      id, login, email: `${login}@exemple.test`, prenom: login, nom: "ASSIGN", departementId,
       motDePasseHash: await hacherMotDePasse(MOT_DE_PASSE), motDePasseAChanger: false,
     },
   });
@@ -250,9 +250,9 @@ describe("tasks:assign_any_user — à l'import de tâches", () => {
     const etiquette = crypto.randomUUID().slice(0, 6);
     const r = await appel(importeur, "POST", `/imports/projet/${projet}/taches`, {
       contenu: csv([
-        [`Intruse-${etiquette}`, "etranger.b@exemple.fr"],
-        [`Membre-${etiquette}`, "membre.b@exemple.fr"],
-        [`Collègue-${etiquette}`, "collegue.a@exemple.fr"],
+        [`Intruse-${etiquette}`, "etranger.b@exemple.test"],
+        [`Membre-${etiquette}`, "membre.b@exemple.test"],
+        [`Collègue-${etiquette}`, "collegue.a@exemple.test"],
       ]),
     });
     expect(r.statusCode, r.body).toBe(201);
@@ -267,7 +267,7 @@ describe("tasks:assign_any_user — à l'import de tâches", () => {
     const avant = await prisma.task.count({ where: { projectId: projet } });
     const r = await appel(importeur, "POST", `/imports/projet/${projet}`, {
       mode: "remplacer",
-      contenu: ["rowType;title;assigneeEmail", "TASK;Intruse;etranger.b@exemple.fr"].join("\n"),
+      contenu: ["rowType;title;assigneeEmail", "TASK;Intruse;etranger.b@exemple.test"].join("\n"),
     });
     expect(r.statusCode, r.body).toBe(201);
     const rendu = r.json() as { importes: number; erreurs: { cle: string }[] };

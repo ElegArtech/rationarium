@@ -253,7 +253,7 @@ for (const langue of ["fr", "en"] as const) test.describe(langue, () => {
     await page.goto("/profil");
     const motDePasse = page.locator('input[autocomplete="current-password"]');
     await expect(motDePasse).toHaveCount(0);
-    await page.locator("#profil-email").fill("nouvelle.adresse@exemple.fr");
+    await page.locator("#profil-email").fill("nouvelle.adresse@exemple.test");
     await expect(motDePasse).toBeVisible();
 
     const enregistrer = page.getByRole("button", { name: langue === "fr" ? "Enregistrer" : "Save", exact: true });
@@ -289,7 +289,7 @@ for (const langue of ["fr", "en"] as const) test.describe(langue, () => {
     await expect.poll(() => ecritures.at(-1)).toEqual({
       prenom: session.prenom,
       nom: session.nom,
-      email: "nouvelle.adresse@exemple.fr",
+      email: "nouvelle.adresse@exemple.test",
       motDePasseActuel: "Actuel12!",
       version: 1,
     });
