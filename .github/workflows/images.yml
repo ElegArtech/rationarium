@@ -189,8 +189,10 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          # La session reste ouverte jusqu'à l'attestation, qui pousse vers le
+          # registre ; la dernière étape du job la ferme. Un `trap … EXIT` la
+          # fermait à la fin de CETTE étape : la 1.0.2 est partie sans attestation.
           printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
-          trap 'docker logout ghcr.io' EXIT
           for composant in base api web; do
             image="$REGISTRE_RATIONARIUM/rationarium-$composant:$VERSION_RATIONARIUM"
             if docker manifest inspect "$image" > /tmp/manifeste 2>/tmp/erreur; then
@@ -241,3 +243,6 @@ jobs:
             .local/livraison/dist/livraison/*.sha256
             .local/livraison/dist/livraison/SHA256SUMS
             .local/livraison/dist/livraison/installer-rationarium.sh
+      - name: Fermer la session du registre
+        if: always()
+        run: docker logout ghcr.io
