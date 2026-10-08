@@ -93,8 +93,8 @@ importers:
         specifier: 10.0.15
         version: 10.0.15
       pg-boss:
-        specifier: 12.36.0
-        version: 12.36.0(@opentelemetry/api@1.9.1)
+        specifier: 12.37.0
+        version: 12.37.0(@opentelemetry/api@1.9.1)
       pino:
         specifier: 10.4.0
         version: 10.4.0
@@ -160,8 +160,8 @@ importers:
         specifier: 26.4.2
         version: 26.4.2(typescript@6.0.3)
       i18next-icu:
-        specifier: 2.4.4
-        version: 2.4.4(intl-messageformat@11.2.13)
+        specifier: 2.4.5
+        version: 2.4.5(intl-messageformat@11.2.13)
       intl-messageformat:
         specifier: 11.2.13
         version: 11.2.13
@@ -2161,10 +2161,10 @@ packages:
     resolution: {integrity: sha512-n6l5uca7/y5joxZ3LUePhzmBFUJ+U2YWzhMa8XUTecSeSlQiZdF5XAd/Q3/WUl0VsXgUwWi8I7CNIwdI5WN1SQ==}
     engines: {node: '>=20.10'}
 
-  i18next-icu@2.4.4:
-    resolution: {integrity: sha512-yfYdGTftClNUnZAQG1cu0yHHLaMVsrqfcgQHHchGDufkunBLKHuw2wXTCDuE+8mWMMcdePl8UBR0EUUA/3+FDw==}
+  i18next-icu@2.4.5:
+    resolution: {integrity: sha512-Si4EJ9bnlClZM5Xlz0x5FuIdnwxT10UlmN9BqAuf6+2TR1oa7eJqB1Fnei7HT2I2QSTVHMclF+jGYiDM6AF39A==}
     peerDependencies:
-      intl-messageformat: '>=10.3.3 <12.0.0'
+      intl-messageformat: '>=10.3.3 <13.0.0'
 
   i18next@26.4.2:
     resolution: {integrity: sha512-RX+R0VLg13IbvRuJSxnqykUFS9vQZTl8wYpWPCIUDWVrSGjsQywB5Y+pjzrkboxGAuYfJZVH1InFTdgBdxq6ug==}
@@ -2587,8 +2587,8 @@ packages:
   perfect-debounce@2.1.0:
     resolution: {integrity: sha512-LjgdTytVFXeUgtHZr9WYViYSM/g8MkcTPYDlPa3cDqMirHjKiSZPYd6DoL7pK8AJQr+uWkQvCjHNdiMqsrJs+g==}
 
-  pg-boss@12.36.0:
-    resolution: {integrity: sha512-67Jj4xNuv8mkShTzfmsFtJeVa2ChXyrknjlw/WKZCIMuzRTwyHOUGjl2mf5Snrhmb0xglvFbkfAt5+hLtXukag==}
+  pg-boss@12.37.0:
+    resolution: {integrity: sha512-3TrhjNRPVQqkLVvrIcgUMBK1rHG3eKINq7kXBvHU+qUdmiiiGJbkIW25rAIUQB715NCpdwAqY3PquhOoSEa1/g==}
     engines: {node: '>=22.12.0'}
     hasBin: true
     peerDependencies:
@@ -5162,7 +5162,7 @@ snapshots:
 
   html-tags@5.1.0: {}
 
-  i18next-icu@2.4.4(intl-messageformat@11.2.13):
+  i18next-icu@2.4.5(intl-messageformat@11.2.13):
     dependencies:
       intl-messageformat: 11.2.13
 
@@ -5503,7 +5503,7 @@ snapshots:
 
   perfect-debounce@2.1.0: {}
 
-  pg-boss@12.36.0(@opentelemetry/api@1.9.1):
+  pg-boss@12.37.0(@opentelemetry/api@1.9.1):
     dependencies:
       '@opentelemetry/api': 1.9.1
       cron-parser: 5.10.1
