@@ -4,6 +4,10 @@ import { motDePasse } from "@rationarium/contracts";
 import { UtilisateursService } from "./utilisateurs.service.js";
 import { Demande, RequiertPermission, type ContexteDemande } from "../commun/permissions.garde.js";
 import { valider, dateSchema } from "../commun/http.js";
+import { bornerPlage } from "../commun/plage.js";
+
+/** Un siècle : voir `suivi`. */
+const MAX_JOURS_SUIVI = 36_525;
 import { CibleUtilisateur } from "./utilisateur-cible.garde.js";
 
 /** M3 — comptes, annuaire, suivi individuel. Vues 27 et 28. */
@@ -52,7 +56,15 @@ export class UtilisateursController {
     @Query() requete: unknown,
     @Demande() d: ContexteDemande,
   ) {
-    const q = valider(z.object({ debut: dateSchema, fin: dateSchema }), requete);
+    /*
+     * RG-ROB-02 — la vue 28 propose « tout l'historique » (1970 → année + 5) :
+     * le service n'y énumère aucun jour, il filtre des colonnes indexées. La
+     * borne vaut donc un siècle — elle écarte l'an 275760, pas une vue.
+     */
+    const q = bornerPlage(
+      valider(z.object({ debut: dateSchema, fin: dateSchema }), requete),
+      MAX_JOURS_SUIVI,
+    );
     return this.utilisateurs.suiviIndividuel(id, q, d.perimetre);
   }
 

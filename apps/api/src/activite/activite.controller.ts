@@ -10,6 +10,7 @@ import {
 import { ActiviteService, ErreurActivite } from "./activite.service.js";
 import { Demande, RequiertPermission, type ContexteDemande } from "../commun/permissions.garde.js";
 import { valider, dateSchema } from "../commun/http.js";
+import { bornerPlage } from "../commun/plage.js";
 
 /** M8 — activité récurrente : catalogue, assignations, récurrences. Vue 34. */
 
@@ -23,7 +24,8 @@ export class ActiviteController {
   @Get("grille")
   @RequiertPermission("predefined_tasks:read")
   grille(@Demande() d: ContexteDemande, @Query() requete: unknown) {
-    const q = valider(z.object({ debut: dateSchema, fin: dateSchema }), requete);
+    // RG-ROB-02 — une ligne par jour de la plage.
+    const q = bornerPlage(valider(z.object({ debut: dateSchema, fin: dateSchema }), requete));
     return this.activite.grille(q.debut, q.fin, d.perimetre);
   }
 
@@ -217,6 +219,8 @@ export class ActiviteController {
       }),
       corps,
     );
+    // RG-ROB-02 — la génération déroule les récurrences sur toute la fenêtre.
+    bornerPlage(q);
     return this.activite.genererDepuisRecurrences(
       q.predefinedTaskId,
       q.debut,

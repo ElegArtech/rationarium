@@ -5,6 +5,7 @@ import { enumDe, ETATS_TELETRAVAIL } from "@rationarium/contracts";
 import { TeletravailService } from "./teletravail.service.js";
 import { Demande, RequiertPermission, type ContexteDemande } from "../commun/permissions.garde.js";
 import { valider, dateSchema } from "../commun/http.js";
+import { bornerPlage } from "../commun/plage.js";
 
 /** M11 — télétravail : déclaration, règles récurrentes, vue équipe. Vue 20. */
 
@@ -16,9 +17,9 @@ export class TeletravailController {
   @RequiertPermission("telework:read")
   @CibleRH({ source: "query", autrui: ["telework:read_team", "telework:readAll"] })
   planning(@Demande() d: ContexteDemande, @Query() requete: unknown) {
-    const q = valider(
-      z.object({ userId: z.uuid().optional(), debut: dateSchema, fin: dateSchema }),
-      requete,
+    // RG-TLT-06, RG-ROB-02 — bornée à l'entrée, avant le moindre accès en base.
+    const q = bornerPlage(
+      valider(z.object({ userId: z.uuid().optional(), debut: dateSchema, fin: dateSchema }), requete),
     );
     return this.teletravail.planning(q.userId ?? d.userId, q.debut, q.fin);
   }
@@ -162,9 +163,9 @@ export class TeletravailController {
   @RequiertPermission("telework:generate")
   @CibleRH({ source: "body", autrui: ["telework:manage_any"] })
   generer(@Body() corps: unknown, @Demande() d: ContexteDemande) {
-    const q = valider(
-      z.object({ userId: z.uuid().optional(), debut: dateSchema, fin: dateSchema }),
-      corps,
+    // RG-ROB-02 — la génération écrit jour par jour : sa fenêtre est bornée.
+    const q = bornerPlage(
+      valider(z.object({ userId: z.uuid().optional(), debut: dateSchema, fin: dateSchema }), corps),
     );
     return this.teletravail.generer(q.userId ?? d.userId, q.debut, q.fin, d.userId, d.permissions);
   }

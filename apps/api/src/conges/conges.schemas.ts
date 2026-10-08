@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { enumDe, DEMI_JOURNEES } from "@rationarium/contracts";
 import { dateSchema } from "../commun/http.js";
+import { joursCouverts } from "../commun/plage.js";
 
 /**
  * Les schémas d'écriture du module congés.
@@ -27,6 +28,20 @@ import { dateSchema } from "../commun/http.js";
 
 const demi = enumDe(DEMI_JOURNEES).nullish();
 
+/**
+ * `RG-ROB-02` — la durée d'une demande est bornée.
+ *
+ * Le décompte des jours ouvrés parcourt la période jour par jour et fait une
+ * requête par année civile (`CalendrierService.repartitionParAnnee`) : une
+ * demande du 1er janvier 1970 au 31 décembre 9999 faisait huit mille requêtes
+ * et trois millions de tours de boucle, sur un simple dépôt. Trois ans couvrent
+ * les absences longues qu'un logiciel de pilotage a à porter ; la référence
+ * fonctionnelle ne fixe pas de durée maximale, d'où cette borne large.
+ */
+export const MAX_JOURS_CONGE = 3 * 366;
+
+const MESSAGE_DUREE = `Une demande de congé couvre au plus ${MAX_JOURS_CONGE} jours.`;
+
 /** `RG-CNG-28` — la date de fin est postérieure ou égale à la date de début. */
 const MESSAGE_PERIODE = "La date de fin doit être postérieure ou égale à la date de début.";
 
@@ -51,6 +66,10 @@ export const plageDemandee = z
   })
   .refine((v) => v.dateFin >= v.dateDebut, {
     message: MESSAGE_PERIODE,
+    path: ["dateFin"],
+  })
+  .refine((v) => v.dateFin < v.dateDebut || joursCouverts(v.dateDebut, v.dateFin) <= MAX_JOURS_CONGE, {
+    message: MESSAGE_DUREE,
     path: ["dateFin"],
   })
   .refine(
