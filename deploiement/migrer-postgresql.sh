@@ -44,6 +44,12 @@ cp .env "$sortie/env-avant"
   for paire in "base:$source_base" "api:$conteneur_api" "web:$conteneur_web"; do
     service=${paire%%:*}; conteneur=${paire#*:}
     printf '  %s:\n    image: %s\n    pull_policy: never\n' "$service" "$(docker inspect "$conteneur" --format '{{.Image}}')"
+    # Depuis 1.0.2, le kit connecte l'API sous le rôle applicatif, dont le
+    # secret est un fichier que les images antérieures ne lisent pas : le
+    # retour leur rend la connexion qu'elles avaient.
+    if [[ "$service" == api ]]; then
+      printf '    environment:\n      PGUSER: ${POSTGRES_UTILISATEUR:-rationarium}\n      PGPASSWORD: ${POSTGRES_MOTDEPASSE}\n'
+    fi
   done
   printf 'volumes:\n  donnees:\n    name: %s\n' "$volume_source"
 } > "$sortie/retour.yaml"

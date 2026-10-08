@@ -60,6 +60,12 @@ if [[ "$mode" == --depuis-rc ]]; then
   cp "$sortie/kit/.env" "$sortie/candidate.env"
   sed -i 's|^REGISTRE_RATIONARIUM=.*|REGISTRE_RATIONARIUM=ghcr.io/elegartech|;s|^VERSION_RATIONARIUM=.*|VERSION_RATIONARIUM=1.0.0-rc.1|' "$sortie/kit/.env"
   printf 'services:\n  base:\n    image: postgres:18.6-bookworm\n' > "$sortie/kit/compose.override.yaml"
+  # Une installation rc.1 tourne avec un kit de son époque : depuis 1.0.2, le
+  # service `migrations` du kit lance un script que les images rc.1 n'ont pas.
+  # Le kit de 1.0.1 est le dernier qui démarre ces images ; son tag est immuable.
+  cp "$sortie/kit/compose.yaml" "$sortie/candidate.compose.yaml"
+  git show v1.0.1:deploiement/compose.yaml > "$sortie/kit/compose.yaml" 2>/dev/null \
+    || curl -fsSL https://raw.githubusercontent.com/ElegArtech/rationarium/v1.0.1/deploiement/compose.yaml -o "$sortie/kit/compose.yaml"
 fi
 "${compose[@]}" up -d --wait --wait-timeout 180
 node scripts/recette-navigateur.mjs "$sortie" initiale
@@ -73,6 +79,7 @@ if [[ "$mode" == --depuis-rc ]]; then
   fi
   grep -q 'Ancienne base détectée' "$sortie/refus-volume.log"
   cp "$sortie/candidate.env" "$sortie/kit/.env"
+  cp "$sortie/candidate.compose.yaml" "$sortie/kit/compose.yaml"
   rm "$sortie/kit/compose.override.yaml"
   mkdir "$sortie/kit/.migration-postgresql.lock"
   if bash "$sortie/kit/migrer-postgresql.sh" "$sortie/refus-concurrent" > "$sortie/refus-concurrent.log" 2>&1; then
