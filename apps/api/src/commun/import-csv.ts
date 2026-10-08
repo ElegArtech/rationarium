@@ -206,3 +206,38 @@ export async function executerImport<T>(
     detail: erreurs.map((l) => ({ numero: l.numero, motif: l.motif ?? "" })),
   };
 }
+
+/**
+ * `RG-IMP-09` — un import porte au plus 5 000 lignes de données.
+ *
+ * L'analyse matérialise chaque ligne et la valide, puis l'exécution l'écrit ;
+ * le mode Remplacer tient sa transaction ouverte d'un bout à l'autre
+ * (`RG-IMP-06`). Sans plafond, un fichier de vingt millions de caractères
+ * — ce que le corps admet — occupait le serveur et un verrou de base le temps
+ * de centaines de milliers de lignes. Cinq mille lignes couvrent un annuaire,
+ * un référentiel ou un projet entier à la volumétrie cible.
+ */
+export const MAX_LIGNES_IMPORT = 5_000;
+
+/**
+ * Les lignes de données d'un CSV, comptées sans l'analyser : lignes physiques
+ * non vides, en-tête exclue. C'est ce que l'utilisateur voit dans son tableur
+ * ou son éditeur, et ce que le message de refus lui annonce. Une cellule
+ * entre guillemets qui court sur plusieurs lignes compte pour plusieurs : le
+ * plafond est un garde-fou, pas un décompte d'enregistrements.
+ */
+export function compterLignesDeDonnees(contenu: string): number {
+  let lignes = 0;
+  let pleine = false;
+  for (let i = 0; i < contenu.length; i++) {
+    const c = contenu.charCodeAt(i);
+    if (c === 10) {
+      if (pleine) lignes++;
+      pleine = false;
+    } else if (c !== 13 && c !== 32 && c !== 9 && c !== 0xfeff) {
+      pleine = true;
+    }
+  }
+  if (pleine) lignes++;
+  return Math.max(0, lignes - 1);
+}

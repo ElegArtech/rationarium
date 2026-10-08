@@ -5,6 +5,7 @@ import { enumDe, TYPES_ACTIVITE } from "@rationarium/contracts";
 import { TempsService } from "./temps.service.js";
 import { Demande, RequiertPermission, type ContexteDemande } from "../commun/permissions.garde.js";
 import { valider, dateSchema } from "../commun/http.js";
+import { bornerPlage } from "../commun/plage.js";
 
 /** M12 — temps passé : saisie, plafond, rapports. Vue 21. */
 
@@ -26,6 +27,8 @@ export class TempsController {
       }),
       requete,
     );
+    // RG-ROB-02 — bornée quand les deux bornes sont données.
+    bornerPlage(filtres);
     return this.temps.lister(d.perimetre, d.permissions, filtres);
   }
 
@@ -41,6 +44,7 @@ export class TempsController {
       }),
       requete,
     );
+    bornerPlage(q);
     return this.temps.rapport(d.perimetre, q.axe, { debut: q.debut, fin: q.fin }, d.permissions);
   }
 

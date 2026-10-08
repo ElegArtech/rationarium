@@ -14,6 +14,16 @@ export type ResultatRecherche = {
   }>;
 };
 
+/**
+ * `RG-ROB-03` — une recherche rend au plus 50 résultats par famille.
+ *
+ * Le terme est un `contains` insensible à la casse : une seule lettre
+ * correspond à presque toute la base, et la réponse portait alors les vingt
+ * mille tâches de la volumétrie cible, sérialisées à chaque frappe. La palette
+ * de recherche n'en affiche qu'une poignée ; au-delà, on affine le terme.
+ */
+export const MAX_RESULTATS_PAR_FAMILLE = 50;
+
 /** D-RM-07 — recherche globale bornée aux projets et tâches visibles. */
 @Injectable()
 export class RechercheService {
@@ -41,6 +51,7 @@ export class RechercheService {
               ],
             },
             orderBy: [{ nom: "asc" }, { id: "asc" }],
+            take: MAX_RESULTATS_PAR_FAMILLE,
             select: { id: true, nom: true },
           })
         : Promise.resolve([]),
@@ -53,6 +64,7 @@ export class RechercheService {
               ],
             },
             orderBy: [{ titre: "asc" }, { id: "asc" }],
+            take: MAX_RESULTATS_PAR_FAMILLE,
             select: {
               id: true,
               titre: true,

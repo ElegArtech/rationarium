@@ -12,6 +12,13 @@
 	{$DIRECTIVE_TLS}
 	encode zstd gzip
 
+	# Au-delà de la plus grosse route de l'API (pièce jointe : 32 Mio, voir
+	# apps/api/src/commun/limites-corps.ts), le corps est refusé ici en 413,
+	# avant de traverser le réseau interne. L'API garde ses bornes par route.
+	request_body {
+		max_size 33MiB
+	}
+
 	handle /api/* {
 		reverse_proxy {$RATIONARIUM_API:api:3000}
 	}
@@ -24,11 +31,26 @@
 		X-Content-Type-Options nosniff
 		X-Frame-Options DENY
 		Referrer-Policy same-origin
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
 		Content-Security-Policy "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
 		-Server
 	}
 	@empreinte path_regexp \-[A-Za-z0-9_-]{8,}\.(js|css|woff2)$
 	header @empreinte Cache-Control "public, max-age=31536000, immutable"
-	@volatil not path_regexp \-[A-Za-z0-9_-]{8,}\.(js|css|woff2)$
+	@volatil {
+		not path_regexp \-[A-Za-z0-9_-]{8,}\.(js|css|woff2)$
+		not path /api/*
+	}
 	header @volatil Cache-Control "no-cache"
+	# Les réponses de l'API portent des données personnelles : aucun cache,
+	# ni navigateur ni intermédiaire. Différé pour l'emporter sur l'amont.
+	@api path /api/*
+	header @api {
+		Cache-Control "no-store"
+		defer
+	}
+	# HSTS seulement quand le site est servi en HTTPS (DIRECTIVE_TLS posée) :
+	# servi en HTTP, l'en-tête n'a pas d'objet.
+	@https protocol https
+	header @https Strict-Transport-Security "max-age=31536000"
 }

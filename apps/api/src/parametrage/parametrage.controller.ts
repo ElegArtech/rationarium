@@ -5,6 +5,8 @@ import { CalendrierService } from "./calendrier.service.js";
 import { AuthService } from "../auth/auth.service.js";
 import { Demande, Public, RequiertPermission, type ContexteDemande } from "../commun/permissions.garde.js";
 import { valider, dateSchema } from "../commun/http.js";
+import { bornerPlage } from "../commun/plage.js";
+import { MAX_JOURS_CONGE } from "../conges/conges.schemas.js";
 import {
   IntercepteurAuditParametrage,
   TraceParametrage,
@@ -90,7 +92,8 @@ export class ParametrageController {
   @Get("trame")
   @RequiertPermission("planning:read")
   trame(@Query() requete: unknown) {
-    const q = valider(plage.extend({ zone: z.string().max(10).optional() }), requete);
+    // RG-ROB-02 — la trame énumère les jours de la plage.
+    const q = bornerPlage(valider(plage.extend({ zone: z.string().max(10).optional() }), requete));
     return this.calendrier.trameDeFond(q.debut, q.fin, q.zone);
   }
 
@@ -104,6 +107,13 @@ export class ParametrageController {
       }),
       requete,
     );
+    /*
+     * RG-ROB-02 — le décompte parcourt chaque jour et fait une requête par
+     * année civile. Sa borne est celle d'un congé (`MAX_JOURS_CONGE`), dont
+     * il est l'aperçu : refuser ici une période que le dépôt accepte rendrait
+     * la demande impossible à prévisualiser.
+     */
+    bornerPlage(q, MAX_JOURS_CONGE);
     const options = {
       ...(q.demiJourneeDebut === undefined ? {} : { demiJourneeDebut: q.demiJourneeDebut }),
       ...(q.demiJourneeFin === undefined ? {} : { demiJourneeFin: q.demiJourneeFin }),

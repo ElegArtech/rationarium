@@ -5,6 +5,7 @@ import { heure } from "@rationarium/contracts";
 import { EvenementsService } from "./evenements.service.js";
 import { Demande, RequiertPermission, type ContexteDemande } from "../commun/permissions.garde.js";
 import { valider, dateSchema } from "../commun/http.js";
+import { bornerPlage } from "../commun/plage.js";
 
 /** M9 — événements et récurrences. Vue 18. */
 
@@ -31,6 +32,8 @@ export class EvenementsController {
       }),
       requete,
     );
+    // RG-ROB-02 — une borne absente reste le refus `plage_incomplete` du service.
+    bornerPlage(q);
     const filtres = {
       ...(q.projectId ? { projectId: q.projectId } : {}),
       ...(q.userId ? { userId: q.userId } : {}),

@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   ForbiddenException,
+  HttpException,
   Get,
   Header,
   Param,
@@ -19,6 +20,7 @@ import {
   type ContexteDemande,
 } from "../commun/permissions.garde.js";
 import { valider } from "../commun/http.js";
+import { compterLignesDeDonnees, MAX_LIGNES_IMPORT } from "../commun/import-csv.js";
 
 /**
  * M21 — imports et exports.
@@ -32,6 +34,28 @@ import { valider } from "../commun/http.js";
 
 const typeImport = z.enum(TYPES_IMPORT);
 const corpsFichier = z.object({ contenu: z.string().min(1).max(20_000_000) });
+
+/**
+ * `RG-IMP-09` — le plafond de lignes, contrôlé AVANT l'analyse : c'est
+ * l'analyse elle-même qu'il protège. Le refus dit le nombre trouvé et le
+ * plafond, pas un numéro de ligne — aucune ligne n'est fautive, il y en a
+ * trop. Posé sur chaque point d'entrée qui reçoit un fichier, aperçu compris :
+ * l'aperçu analyse tout autant que l'exécution.
+ */
+const plafonner = <T extends { contenu: string }>(corps: T): T => {
+  const lignes = compterLignesDeDonnees(corps.contenu);
+  if (lignes > MAX_LIGNES_IMPORT) {
+    throw new HttpException(
+      {
+        cle: "erreurs:importTropDeLignes",
+        message: "Le fichier contient trop de lignes. Découpez-le en plusieurs imports.",
+        detail: { lignes, maxLignes: MAX_LIGNES_IMPORT },
+      },
+      422,
+    );
+  }
+  return corps;
+};
 
 /**
  * `RG-IMP-02`, `RG-IMP-03` — **la permission d'un import suit le TYPE importé.**
@@ -121,14 +145,14 @@ export class ImportsController {
   apercu(@Query("type") type: string, @Body() corps: unknown, @Demande() d: ContexteDemande) {
     const t = valider(typeImport, type);
     this.exigerPermissionDuType(t, d);
-    const { contenu } = valider(corpsFichier, corps);
+    const { contenu } = plafonner(valider(corpsFichier, corps));
     return this.imports.analyser(t, contenu);
   }
 
   @Post("utilisateurs")
   @RequiertPermission("users:import")
   importerUtilisateurs(@Body() corps: unknown, @Demande() d: ContexteDemande) {
-    const { contenu } = valider(corpsFichier, corps);
+    const { contenu } = plafonner(valider(corpsFichier, corps));
     // RG-USR-10 — droits et périmètre de l'acteur, comme pour POST /utilisateurs.
     return this.imports.importerUtilisateurs(contenu, d.userId, d.permissions, d.perimetre);
   }
@@ -146,7 +170,7 @@ export class ImportsController {
   @Post("competences")
   @RequiertPermission("skills:import")
   importerCompetences(@Body() corps: unknown, @Demande() d: ContexteDemande) {
-    const { contenu } = valider(corpsFichier, corps);
+    const { contenu } = plafonner(valider(corpsFichier, corps));
     return this.imports.importerCompetences(contenu, d.userId);
   }
 
@@ -160,7 +184,7 @@ export class ImportsController {
   @Post("conges")
   @RequiertPermission("leaves:import")
   importerConges(@Body() corps: unknown, @Demande() d: ContexteDemande) {
-    const { contenu } = valider(corpsFichier, corps);
+    const { contenu } = plafonner(valider(corpsFichier, corps));
     return this.imports.importerConges(contenu, d.userId, d.perimetre);
   }
 
@@ -175,9 +199,8 @@ export class ImportsController {
   @Post("projet/:id")
   @RequiertPermission("tasks:import")
   importerProjet(@Param("id") id: string, @Body() corps: unknown, @Demande() d: ContexteDemande) {
-    const donnees = valider(
-      corpsFichier.extend({ mode: z.enum(["ajouter", "remplacer"]).default("ajouter") }),
-      corps,
+    const donnees = plafonner(
+      valider(corpsFichier.extend({ mode: z.enum(["ajouter", "remplacer"]).default("ajouter") }), corps),
     );
     return this.imports.importerProjet(id, donnees.contenu, donnees.mode, d.userId, d.permissions);
   }
@@ -189,7 +212,7 @@ export class ImportsController {
   @Post("projet/:id/taches")
   @RequiertPermission("tasks:import")
   importerTaches(@Param("id") id: string, @Body() corps: unknown, @Demande() d: ContexteDemande) {
-    const donnees = valider(corpsFichier, corps);
+    const donnees = plafonner(valider(corpsFichier, corps));
     return this.imports.importerTachesProjet(id, donnees.contenu, d.userId, d.permissions);
   }
 
@@ -197,7 +220,7 @@ export class ImportsController {
   @Post("projet/:id/jalons")
   @RequiertPermission("milestones:import")
   importerJalons(@Param("id") id: string, @Body() corps: unknown, @Demande() d: ContexteDemande) {
-    const donnees = valider(corpsFichier, corps);
+    const donnees = plafonner(valider(corpsFichier, corps));
     return this.imports.importerJalonsProjet(id, donnees.contenu, d.userId, d.permissions);
   }
 

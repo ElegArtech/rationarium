@@ -1,12 +1,14 @@
 import { CiblesPlanning } from "../commun/planning-cible.garde.js";
 import { CibleRH } from "../commun/rh-cible.garde.js";
-import { Body, Controller, Get, Header, Patch, Post, Query } from "@nestjs/common";
+import { Body, Controller, Get, Patch, Post, Query, Res } from "@nestjs/common";
+import type { FastifyReply } from "fastify";
 import { z } from "zod";
 import { PlanningService } from "./planning.service.js";
 import { TachesService } from "../taches/taches.service.js";
 import { TeletravailService } from "../teletravail/teletravail.service.js";
 import { Demande, RequiertPermission, type ContexteDemande } from "../commun/permissions.garde.js";
 import { valider, dateSchema } from "../commun/http.js";
+import { bornerPlage } from "../commun/plage.js";
 import { enumDe, ETATS_TELETRAVAIL } from "@rationarium/contracts";
 
 /**
@@ -20,6 +22,9 @@ import { enumDe, ETATS_TELETRAVAIL } from "@rationarium/contracts";
  */
 
 const plage = z.object({ debut: dateSchema, fin: dateSchema });
+
+/** Le nom de fichier de l'export ICS (`EX-PLN-15`). */
+const DISPOSITION_ICS = 'attachment; filename="planning.ics"';
 
 const filtres = z.object({
   services: z.string().optional(),
@@ -40,7 +45,8 @@ export class PlanningController {
   @Get()
   @RequiertPermission("planning:read")
   agreger(@Demande() d: ContexteDemande, @Query() requete: unknown) {
-    const q = valider(plage.extend(filtres.shape), requete);
+    // RG-ROB-02 — la trame se construit jour par jour : la plage est bornée.
+    const q = bornerPlage(valider(plage.extend(filtres.shape), requete));
     return this.planning.agreger(
       q.debut,
       q.fin,
@@ -62,7 +68,7 @@ export class PlanningController {
   @Get("activite")
   @RequiertPermission("predefined_tasks:read")
   activite(@Demande() d: ContexteDemande, @Query() requete: unknown) {
-    const q = valider(plage, requete);
+    const q = bornerPlage(valider(plage, requete));
     return this.planning.grilleActivite(q.debut, q.fin, d.perimetre);
   }
 
@@ -144,14 +150,23 @@ export class PlanningController {
    * Le type MIME et le nom de fichier sont posés ici : servi en
    * `application/json`, un calendrier s'ouvre dans un éditeur de texte au lieu
    * de l'agenda, et l'utilisateur conclut que la fonction ne marche pas.
+   *
+   * Ils sont posés APRÈS le calcul, comme pour les exports CSV (`RG-IMP-07`) :
+   * posés par `@Header`, ils valaient aussi pour la réponse d'erreur, un objet
+   * JSON que Fastify refusait d'envoyer sous `text/calendar` — tout refus de
+   * validation, plage trop étendue comprise (`RG-ROB-02`), sortait en 500.
    */
   @Get("ics")
   @RequiertPermission("planning:export_ics")
-  @Header("Content-Type", "text/calendar; charset=utf-8")
-  @Header("Content-Disposition", 'attachment; filename="planning.ics"')
-  async exporter(@Demande() d: ContexteDemande, @Query() requete: unknown) {
-    const q = valider(plage.extend(filtres.shape).extend({ langue: z.enum(["fr", "en"]).optional() }), requete);
-    return this.planning.exporterIcs(
+  async exporter(
+    @Demande() d: ContexteDemande,
+    @Query() requete: unknown,
+    @Res({ passthrough: true }) reponse: FastifyReply,
+  ) {
+    const q = bornerPlage(
+      valider(plage.extend(filtres.shape).extend({ langue: z.enum(["fr", "en"]).optional() }), requete),
+    );
+    const calendrier = await this.planning.exporterIcs(
       q.debut,
       q.fin,
       {
@@ -165,6 +180,10 @@ export class PlanningController {
       d.permissions,
       q.langue ?? "fr",
     );
+    void reponse
+      .header("Content-Type", "text/calendar; charset=utf-8")
+      .header("Content-Disposition", DISPOSITION_ICS);
+    return calendrier;
   }
 
   @Post("ics/apercu")
