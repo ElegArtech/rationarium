@@ -9,7 +9,7 @@ sortie=${1:-"$racine/dist/rationarium-$version-compose"}
 mkdir -p "$sortie/docs/adr" "$sortie/docs/versions" "$sortie/docs" "$sortie/certificats" "$sortie/apps/web/public/licences"
 cp deploiement/{compose.yaml,Caddyfile,.env.example,configurer.sh,commun.sh,sauvegarde.sh,restauration.sh,migrer-postgresql.sh,charger-images.sh} "$sortie/"
 cp deploiement/securite-exceptions.json "$sortie/"
-cp docs/adr/ADR-20261003-stabilisation.md docs/adr/ADR-20261003-postgresql-alpine.md "$sortie/docs/adr/"
+cp docs/adr/ADR-20261003-stabilisation.md docs/adr/ADR-20261003-postgresql-alpine.md docs/adr/ADR-20261008-role-applicatif.md "$sortie/docs/adr/"
 cp docs/securite-livraison.md docs/migration-postgresql.md "$sortie/docs/"
 cp docs/versions/*.md "$sortie/docs/versions/"
 cp README.md LICENSE THIRD_PARTY_NOTICES.md "$sortie/"

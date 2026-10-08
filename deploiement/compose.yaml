@@ -1,11 +1,22 @@
 # Installation depuis les images publiées. Pour construire : compose.construction.yaml.
 name: ${NOM_PROJET:-rationarium}
 
+# Propriétaire de la base : migrations, sauvegarde, restauration. Jamais l'application.
 x-base: &base
   PGHOST: base
   PGPORT: '5432'
   PGUSER: ${POSTGRES_UTILISATEUR:-rationarium}
   PGPASSWORD: ${POSTGRES_MOTDEPASSE:?renseigner POSTGRES_MOTDEPASSE dans .env}
+  PGDATABASE: ${POSTGRES_BASE:-rationarium}
+
+# Rôle de connexion de l'application : ni superutilisateur, ni création de rôle
+# ou de base, journal d'audit en ajout seul. Son secret est engendré par le
+# service migrations (docs/adr/ADR-20261008-role-applicatif.md).
+x-application: &application
+  PGHOST: base
+  PGPORT: '5432'
+  PGUSER: ${POSTGRES_UTILISATEUR_APPLICATION:-rationarium_api}
+  PGPASSWORD_FILE: /var/lib/rationarium/identifiants/postgresql
   PGDATABASE: ${POSTGRES_BASE:-rationarium}
 
 services:
@@ -34,9 +45,14 @@ services:
     depends_on:
       base:
         condition: service_healthy
-    environment: *base
+    environment:
+      <<: *base
+      RATIONARIUM_PG_APPLICATION: ${POSTGRES_UTILISATEUR_APPLICATION:-rationarium_api}
+      RATIONARIUM_PG_APPLICATION_SECRET: /var/lib/rationarium/identifiants/postgresql
     working_dir: /rationarium/packages/db
-    command: ['/rationarium/packages/db/node_modules/.bin/prisma', 'migrate', 'deploy']
+    command: ['sh', '-c', '/rationarium/packages/db/node_modules/.bin/prisma migrate deploy && node /rationarium/apps/api/dist/exploitation/provisionner-role.js']
+    volumes:
+      - identifiants:/var/lib/rationarium/identifiants
     networks: [interne]
 
   amorcage:
@@ -47,12 +63,14 @@ services:
       migrations:
         condition: service_completed_successfully
     environment:
-      <<: *base
+      <<: *application
       COOKIE_SECRET: ${COOKIE_SECRET:?renseigner COOKIE_SECRET dans .env}
       RATIONARIUM_ADMIN_LOGIN: ${RATIONARIUM_ADMIN_LOGIN:-admin}
       RATIONARIUM_ADMIN_EMAIL: ${RATIONARIUM_ADMIN_EMAIL:-admin@localhost}
       RATIONARIUM_ADMIN_MOTDEPASSE: ${RATIONARIUM_ADMIN_MOTDEPASSE:-}
     command: ['node', 'dist/exploitation/amorcage.js']
+    volumes:
+      - identifiants:/var/lib/rationarium/identifiants:ro
     networks: [interne]
 
   api:
@@ -63,7 +81,7 @@ services:
       amorcage:
         condition: service_completed_successfully
     environment:
-      <<: *base
+      <<: *application
       COOKIE_SECRET: ${COOKIE_SECRET:?renseigner COOKIE_SECRET dans .env}
       RATIONARIUM_URL_PUBLIQUE: ${RATIONARIUM_URL_PUBLIQUE:-http://localhost:8080}
       RATIONARIUM_HOTE: ${RATIONARIUM_HOTE:-http://localhost}
@@ -78,6 +96,7 @@ services:
       SMTP_EXPEDITEUR: ${SMTP_EXPEDITEUR:-rationarium@localhost}
     volumes:
       - documents:/var/lib/rationarium/documents
+      - identifiants:/var/lib/rationarium/identifiants:ro
     healthcheck:
       test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:3000/api/sante/pret').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 10s
@@ -120,6 +139,7 @@ networks:
 
 volumes:
   documents:
+  identifiants:
   donnees:
     name: ${VOLUME_POSTGRES:-${COMPOSE_PROJECT_NAME}_donnees}
   caddy:

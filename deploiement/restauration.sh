@@ -27,6 +27,9 @@ docker run --rm -i --pull never --network none --entrypoint node "$image_api" /r
 docker compose exec -T base dropdb -U "$utilisateur" --if-exists --force "$base"
 docker compose exec -T base createdb -U "$utilisateur" --owner "$utilisateur" "$base"
 docker compose exec -T base pg_restore -U "$utilisateur" -d "$base" --no-owner --exit-on-error /tmp/rationarium-restauration.dump
+# --no-owner rend tout au propriétaire : le service migrations remet la file au
+# rôle applicatif, réaligne son mot de passe et rattrape une sauvegarde ancienne.
+docker compose run --rm --no-deps migrations
 restaurer_volume() {
   docker run --rm -i --pull never --network none --user "$3" --mount "type=volume,src=$1,dst=/cible" --entrypoint sh "$image_api" -c 'find /cible -mindepth 1 -delete && tar -C /cible -xzf - --no-same-owner' < "$2"
 }
