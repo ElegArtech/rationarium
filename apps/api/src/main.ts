@@ -6,6 +6,7 @@ import fastifyCookie from "@fastify/cookie";
 import helmet from "@fastify/helmet";
 import rateLimit from "@fastify/rate-limit";
 import { AppModule } from "./app.module.js";
+import { secretDesCookies } from "./commun/secret-cookie.js";
 
 /**
  * Point d'entrée du serveur — NestJS sur adaptateur Fastify.
@@ -30,7 +31,7 @@ export async function creerApplication(): Promise<NestFastifyApplication> {
   );
 
   await app.register(helmet as never, { contentSecurityPolicy: false });
-  await app.register(fastifyCookie as never, { secret: process.env.COOKIE_SECRET ?? "rationarium-dev" });
+  await app.register(fastifyCookie as never, { secret: secretDesCookies() });
   await app.register(rateLimit as never, {
     max: 300,
     timeWindow: "1 minute",
