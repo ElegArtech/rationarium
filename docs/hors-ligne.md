@@ -8,12 +8,12 @@ installés sur le serveur Linux x86-64. Les autres composants sont livrés dans 
 
 ## Télécharger le paquet complet
 
-Depuis la [version v1.0.1](https://github.com/ElegArtech/rationarium/releases/tag/v1.0.1),
-télécharger le paquet `rationarium-1.0.1-linux-amd64.tar.gz` et son fichier `.sha256`.
+Depuis la [version v1.0.2](https://github.com/ElegArtech/rationarium/releases/tag/v1.0.2),
+télécharger le paquet `rationarium-1.0.2-linux-amd64.tar.gz` et son fichier `.sha256`.
 
 ```sh
-sha256sum --check rationarium-1.0.1-linux-amd64.tar.gz.sha256
-tar -xzf rationarium-1.0.1-linux-amd64.tar.gz
+sha256sum --check rationarium-1.0.2-linux-amd64.tar.gz.sha256
+tar -xzf rationarium-1.0.2-linux-amd64.tar.gz
 ```
 
 Le dossier contient les trois images — PostgreSQL, serveur et interface —, Compose, les scripts,
@@ -51,7 +51,7 @@ Sur une machine connectée avec Docker, Compose et Python 3, depuis les sources 
 bash deploiement/preparer-hors-ligne.sh
 ```
 
-Le script récupère les images publiées et produit `dist/rationarium-1.0.1/`. Il ne copie aucun
+Le script récupère les images publiées et produit `dist/rationarium-1.0.2/`. Il ne copie aucun
 secret ni donnée de l’instance locale. `IMAGES.txt` indique les archives, références et architecture des images.
 La préparation utilise une image Skopeo épinglée, téléchargée depuis `quay.io`, pour copier toutes les
 couches depuis les registres. Chaque couche est vérifiée avant de produire le paquet. Python et

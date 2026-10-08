@@ -1,6 +1,6 @@
 {
   "name": "@rationarium/contracts",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "private": true,
   "type": "module",
   "description": "Contrat partagé client / serveur : schémas Zod, catalogue de permissions, vocabulaires du § 4.1",

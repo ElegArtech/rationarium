@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Télécharge et lance le kit d'installation de cette version.
 set -euo pipefail
-VERSION=1.0.1
+VERSION=1.0.2
 DOSSIER=${1:-"$PWD/rationarium"}
 for outil in curl tar sha256sum docker; do
   command -v "$outil" > /dev/null || { printf 'Prérequis manquant : %s. Voir le guide d’installation.\n' "$outil" >&2; exit 1; }

@@ -12,7 +12,7 @@ body:
     attributes:
       label: Version
       description: Tag ou commit, et mode d'installation (kit Compose, hors ligne, sources).
-      placeholder: 1.0.1, kit Compose
+      placeholder: 1.0.2, kit Compose
     validations:
       required: true
   - type: input
