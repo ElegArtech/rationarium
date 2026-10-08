@@ -853,6 +853,23 @@ test.describe("Vue 17 — trois gestes que la fiche n'offrait pas", () => {
     ).toHaveCount(0);
   });
 
+  test("RG-DROITS-03 — sans documents:read, la liste est absente et la fiche le dit", async ({
+    page,
+  }) => {
+    // Le serveur ne rend pas la clé `documents` sans `documents:read` : le
+    // jeu d'essai la retire comme lui, plutôt que de servir une fiction.
+    const { documents: _absents, ...sansDocuments } = FICHE;
+    await serveur(page, {
+      session: SESSION_TACHES,
+      reponses: { [`/api/taches/${FICHE.id}`]: { corps: sansDocuments } },
+    });
+    await page.goto(`/taches/${FICHE.id}`);
+    await expect(
+      page.getByText("Vous n’avez pas le droit de lire les documents de cette tâche."),
+    ).toBeVisible();
+    await expect(page.getByText("Aucun document", { exact: true })).toHaveCount(0);
+  });
+
   test("EX-DOC-04 — on modifie et supprime SES commentaires, pas ceux des autres", async ({
     page,
   }) => {

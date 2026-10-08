@@ -1289,7 +1289,9 @@ function Documents({ tache }: { tache: api.FicheTache }) {
   const annoncer = useMessages();
   const client = useQueryClient();
   /** La pièce ouverte en consultation — `EX-DOC-02`. `null` : aucune. */
-  const [consulte, setConsulte] = useState<api.FicheTache["documents"][number] | null>(null);
+  const [consulte, setConsulte] = useState<NonNullable<api.FicheTache["documents"]>[number] | null>(null);
+  /** `undefined` quand le serveur n'a pas rendu la clé (`documents:read`) — pas quand elle est vide. */
+  const pieces = tache.documents;
 
   /*
    * `EX-DOC-01` — la zone de dépôt était **purement décorative** : un
@@ -1324,12 +1326,16 @@ function Documents({ tache }: { tache: api.FicheTache }) {
     <section className="panel">
       <div className="panel-head">
         <span className="panel-title">{t("fiche.documents")}</span>
-        <span className="kcol-n">{tache.documents.length}</span>
+        {pieces ? <span className="kcol-n">{pieces.length}</span> : null}
       </div>
-      {tache.documents.length === 0 ? (
+      {/* `RG-DROITS-03` — absente n'est pas vide : sans `documents:read`, le
+          serveur ne rend pas la liste, et « aucun document » mentirait. */}
+      {!pieces ? (
+        <p className="dep-none sous-taches-vide">{t("fiche.documentsNonAutorises")}</p>
+      ) : pieces.length === 0 ? (
         <p className="dep-none sous-taches-vide">{t("fiche.aucunDocument")}</p>
       ) : (
-        tache.documents.map((d) => (
+        pieces.map((d) => (
           <div className="doc" key={d.id}>
             <span className="doc-ic" aria-hidden="true">
               {d.typeMime.split("/").pop()?.slice(0, 3).toUpperCase()}
@@ -1446,7 +1452,7 @@ function FenetreDocument({
   surFermeture,
 }: {
   /** `null` quand aucune pièce n'est ouverte : la fenêtre reste montée, fermée. */
-  document: api.FicheTache["documents"][number] | null;
+  document: NonNullable<api.FicheTache["documents"]>[number] | null;
   tacheId: string;
   surFermeture: () => void;
 }) {

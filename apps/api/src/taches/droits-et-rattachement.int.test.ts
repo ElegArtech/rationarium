@@ -571,6 +571,30 @@ describe("RG-DROITS-03 — `comments:read` garde AUSSI le fil embarqué dans la 
 
     expect(fiche.commentaires?.map((c) => c.contenu)).toEqual(["Visible"]);
   });
+
+  /*
+   * Même forme, autre relation embarquée : la fiche listait les pièces
+   * jointes — nom, auteur — sans `documents:read`, que `GET /documents/:id`
+   * exige pourtant.
+   */
+  it("RG-DROITS-03 — sans `documents:read`, la liste des documents est ABSENTE de la fiche", async () => {
+    const a = await agent();
+    const t = await taches.creer({ titre: "Avec pièce" }, a, CREER);
+    await prisma.document.create({
+      data: {
+        nom: "licenciement-dupont.pdf", taskId: t.id, auteurId: a,
+        typeMime: "application/pdf", tailleOctets: 4, empreinte: "0".repeat(64),
+      },
+    });
+
+    const p = await perimetreDe(a, LECTURE);
+    const fiche = await taches.fiche(t.id, p, LECTURE);
+    expect(fiche).not.toHaveProperty("documents");
+
+    const droits = new Set([...LECTURE, "documents:read"]) as ReadonlySet<string>;
+    const autorisee = await taches.fiche(t.id, await perimetreDe(a, droits), droits);
+    expect(autorisee.documents?.map((d) => d.nom)).toEqual(["licenciement-dupont.pdf"]);
+  });
 });
 
 // ── RG-SCOPE-04 — l'ÉCRITURE par identifiant deviné ──────────────────────────

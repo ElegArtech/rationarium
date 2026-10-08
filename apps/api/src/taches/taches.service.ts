@@ -574,12 +574,19 @@ export class TachesService {
      * Le fil est ABSENT de la réponse, pas vide : un tableau vide dirait « il
      * n'y a pas de commentaire », ce qui est faux, et l'écran ne pourrait pas
      * faire la différence entre « rien à lire » et « pas le droit de lire ».
+     *
+     * **Les documents suivent la même règle**, avec `documents:read` : la
+     * fiche rendait la liste des pièces jointes — nom, taille, type, auteur —
+     * à qui n'avait pas la permission de les lire, alors que
+     * `GET /documents/:id` la lui refuse. Le nom d'un fichier est déjà son
+     * contenu, souvent (« licenciement-dupont.pdf »).
      */
-    const { commentaires, ...reste } = tache;
+    const { commentaires, documents, ...reste } = tache;
     const maintenant = new Date();
     return {
       ...reste,
       ...(permissions.has("comments:read") ? { commentaires } : {}),
+      ...(permissions.has("documents:read") ? { documents } : {}),
       tiers: tache.tiers.map((x) => x.thirdParty),
       dependances: liens,
       incoherences,

@@ -135,6 +135,7 @@
     "publier": "Publier",
     "documents": "Documents",
     "aucunDocument": "Aucun document",
+    "documentsNonAutorises": "Vous n’avez pas le droit de lire les documents de cette tâche.",
     "tailleEtAuteur": "{ko} ko · {qui}",
     "epopee": "Épopée",
     "horaires": "Horaires",

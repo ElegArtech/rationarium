@@ -135,6 +135,7 @@
     "publier": "Post",
     "documents": "Documents",
     "aucunDocument": "No document",
+    "documentsNonAutorises": "You are not allowed to read the documents attached to this task.",
     "tailleEtAuteur": "{ko} kB · {qui}",
     "epopee": "Epic",
     "horaires": "Hours",
