@@ -3,7 +3,7 @@ import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma.service.js";
 import { CalendrierService } from "../parametrage/calendrier.service.js";
 import { ActiviteService } from "../activite/activite.service.js";
-import type { Perimetre } from "../commun/perimetre.service.js";
+import { PerimetreService, type Perimetre } from "../commun/perimetre.service.js";
 import { AuditService } from "../commun/audit.service.js";
 import { genererIcs, analyserIcs, type EvenementIcs } from "./ics.js";
 
@@ -61,6 +61,7 @@ export class PlanningService {
     private readonly calendrier: CalendrierService,
     private readonly audit: AuditService,
     private readonly activite: ActiviteService,
+    private readonly perimetres: PerimetreService,
   ) {}
 
   /**
@@ -225,8 +226,37 @@ export class PlanningService {
       orderBy: { dateDebut: "asc" },
     });
 
+    /*
+     * `RG-SCOPE-04` — **le planning montre plus qu'il n'ouvre.** Un agent voit
+     * dans la grille le résumé des tâches non confidentielles de ses collègues
+     * — titre, projet, statut, avancement, dates : c'est voulu, la grille sert
+     * à savoir qui est occupé à quoi. Mais la fiche (`GET /taches/:id`) exige
+     * `tasks:read` PUIS `filtreTache` : ni assigné, ni rattaché au projet, ni
+     * porteur d'une lecture élargie, il prenait un 403 en suivant le lien
+     * « Fiche de la tâche » du panneau de détail.
+     *
+     * La vue ne peut pas le deviner : le serveur le dit, tâche par tâche, avec
+     * le MÊME prédicat que la fiche — `filtreTache`, pas une réécriture. Un
+     * seul calcul ensembliste pour toute la période, pas une requête par tâche.
+     */
+    const ouvrables = new Set<string>();
+    if (permissions.has("tasks:read") && lignes.length > 0) {
+      const lisibles = await this.prisma.task.findMany({
+        where: {
+          AND: [
+            { id: { in: lignes.map((t) => t.id) } },
+            this.perimetres.filtreTache(perimetre, permissions),
+          ],
+        },
+        select: { id: true },
+      });
+      for (const t of lisibles) ouvrables.add(t.id);
+    }
+
     return lignes.map((t) => ({
       ...t,
+      /** `RG-SCOPE-04` — la fiche de la tâche s'ouvre pour ce lecteur. */
+      ouvrable: ouvrables.has(t.id),
       dateDebut: t.dateDebut ? jour(t.dateDebut) : null,
       dateFin: t.dateFin ? jour(t.dateFin) : null,
       assignes: t.assignes.map((a) => a.userId),

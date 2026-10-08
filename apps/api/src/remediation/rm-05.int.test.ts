@@ -215,7 +215,7 @@ it("RG-GEN-07 — un échec de réassignation restaure l’ancien assigné, les 
   const { TachesService } = await import("../taches/taches.service.js");
   await expect(app.get(TachesService).deplacerDepuisPlanning(t.id, {
     version: 1, ancienAssigneId: manager.id, nouvelAssigneId: crypto.randomUUID(), nouvelleDate: date("2026-09-10"),
-  }, manager.id)).rejects.toThrow();
+  }, manager.id, new Set(["tasks:assign_any_user"]))).rejects.toThrow();
   expect(await prisma.task.findUniqueOrThrow({ where: { id: t.id }, include: { assignes: true } })).toEqual(avant);
   expect(await prisma.auditLog.count({ where: { entiteId: t.id, action: "task.planning_move" } })).toBe(0);
 });

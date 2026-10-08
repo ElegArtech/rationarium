@@ -131,6 +131,7 @@ export function FenetreCreationTache({
     equipeChargee: equipe.isSuccess,
     annuaire: tous.data ?? [],
     annuaireLisible,
+    assignationLibre: peut("tasks:assign_any_user") || peut("tasks:manage_any"),
     moi: { id: session.id, prenom: session.prenom, nom: session.nom },
   });
 

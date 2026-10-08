@@ -332,10 +332,13 @@ test.describe("Vue 17 — fiche tâche", () => {
       session: SESSION_TACHES,
       reponses: {
         [`/api/taches/${FICHE_VIDE.id}`]: { corps: FICHE_VIDE },
+        // `GET /utilisateurs` dit, ligne à ligne, si la personne est dans le
+        // périmètre organisationnel du lecteur (`dansMonPerimetre`).
         "/api/utilisateurs": {
           corps: [
-            { id: "a1", prenom: "Driss", nom: "Amrani" },
-            { id: "a2", prenom: "Hugo", nom: "Nguyen" },
+            { id: "a1", prenom: "Driss", nom: "Amrani", dansMonPerimetre: true },
+            { id: "a2", prenom: "Hugo", nom: "Nguyen", dansMonPerimetre: true },
+            { id: "a3", prenom: "Inès", nom: "Rocher", dansMonPerimetre: false },
           ],
         },
       },
@@ -355,8 +358,10 @@ test.describe("Vue 17 — fiche tâche", () => {
     await expect(plus).toBeEnabled();
     await plus.click();
 
-    // Hors projet : tous les utilisateurs, et l'interface le dit.
+    // Hors projet : tous les utilisateurs, et l'interface le dit. La session
+    // porte `tasks:manage_any` : la personne d'un autre périmètre est proposée.
     await expect(page.getByText("Tous les utilisateurs")).toBeVisible();
+    await expect(page.getByRole("checkbox", { name: "Inès Rocher" })).toHaveCount(1);
     await page.getByRole("checkbox", { name: "Driss Amrani" }).check();
     await page.getByRole("checkbox", { name: "Hugo Nguyen" }).check();
     await page.getByRole("button", { name: "Enregistrer les assignés" }).click();
@@ -366,6 +371,39 @@ test.describe("Vue 17 — fiche tâche", () => {
     // fenêtres ouvertes en même temps s'effaceraient l'une l'autre.
     await expect.poll(() => recu).not.toBeNull();
     expect(recu).toEqual({ version: FICHE_VIDE.version, userIds: ["a1", "a2"] });
+  });
+
+  test("tasks:assign_any_user — sans elle, seules les personnes de son périmètre sont proposées", async ({
+    page,
+  }) => {
+    /*
+     * Le serveur refuse d'assigner quiconque n'est ni soi, ni du périmètre
+     * organisationnel, ni du projet, sans `tasks:assign_any_user` (ni
+     * `tasks:manage_any`). La fenêtre ne propose donc pas ce qu'il
+     * refuserait (`RG-GEN-06`), et le dit — à l'assignation comme au RACI.
+     */
+    await serveur(page, {
+      session: SESSION_TACHES_SIENNES,
+      reponses: {
+        [`/api/taches/${FICHE_VIDE.id}`]: { corps: FICHE_VIDE },
+        "/api/utilisateurs": {
+          corps: [
+            { id: "a1", prenom: "Driss", nom: "Amrani", dansMonPerimetre: true },
+            { id: "a3", prenom: "Inès", nom: "Rocher", dansMonPerimetre: false },
+          ],
+        },
+      },
+    });
+    await page.goto(`/taches/${FICHE_VIDE.id}`);
+
+    await expect(page.getByLabel("Agent")).toBeVisible();
+    await expect(page.getByLabel("Agent").locator("option", { hasText: "Driss Amrani" })).toHaveCount(1);
+    await expect(page.getByLabel("Agent").locator("option", { hasText: "Inès Rocher" })).toHaveCount(0);
+
+    await page.getByRole("button", { name: "Ajouter un assigné" }).click();
+    await expect(page.getByText("Les personnes de votre périmètre")).toBeVisible();
+    await expect(page.getByRole("checkbox", { name: "Driss Amrani" })).toHaveCount(1);
+    await expect(page.getByRole("checkbox", { name: "Inès Rocher" })).toHaveCount(0);
   });
 
   test("les dépendances sont montrées dans les deux sens", async ({ page }) => {
@@ -851,6 +889,23 @@ test.describe("Vue 17 — trois gestes que la fiche n'offrait pas", () => {
     await expect(
       page.getByLabel("Déposez un fichier ici, ou cliquez pour parcourir."),
     ).toHaveCount(0);
+  });
+
+  test("RG-DROITS-03 — sans documents:read, la liste est absente et la fiche le dit", async ({
+    page,
+  }) => {
+    // Le serveur ne rend pas la clé `documents` sans `documents:read` : le
+    // jeu d'essai la retire comme lui, plutôt que de servir une fiction.
+    const { documents: _absents, ...sansDocuments } = FICHE;
+    await serveur(page, {
+      session: SESSION_TACHES,
+      reponses: { [`/api/taches/${FICHE.id}`]: { corps: sansDocuments } },
+    });
+    await page.goto(`/taches/${FICHE.id}`);
+    await expect(
+      page.getByText("Vous n’avez pas le droit de lire les documents de cette tâche."),
+    ).toBeVisible();
+    await expect(page.getByText("Aucun document", { exact: true })).toHaveCount(0);
   });
 
   test("EX-DOC-04 — on modifie et supprime SES commentaires, pas ceux des autres", async ({

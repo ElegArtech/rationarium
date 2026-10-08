@@ -227,7 +227,7 @@ export class CongesController {
       corps,
     );
     await this.conges.exigerDecideur(id, d.userId, d.perimetre, d.permissions);
-    return this.conges.refuser(id, motifRefus, d.userId, version);
+    return this.conges.refuser(id, motifRefus, d.userId, version, d.permissions);
   }
 
   @Post(":id/annulation")
@@ -249,7 +249,7 @@ export class CongesController {
       corps,
     );
     await this.conges.exigerDecideur(id, d.userId, d.perimetre, d.permissions);
-    return this.conges.traiterAnnulation(id, accepte, d.userId, version);
+    return this.conges.traiterAnnulation(id, accepte, d.userId, version, d.permissions);
   }
 
   // ── Délégations — EX-CNG-19 ──────────────────────────────────────────────

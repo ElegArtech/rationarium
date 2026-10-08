@@ -817,7 +817,6 @@ export class ProjetsService {
     projectId: string,
     donnees: { userId: string; roleProjet: string; tauxAllocation?: number },
     acteurId: string,
-    perimetre: Perimetre,
     permissions: ReadonlySet<string>,
   ) {
     /*
@@ -827,8 +826,18 @@ export class ProjetsService {
      * quel projet de l'instance en devinant son identifiant. Le miroir exact
      * du défaut déjà consigné sur les lectures par identifiant — la liste
      * filtre, l'adresse directe non.
+     *
+     * `RG-PRJ-13`, `RG-TRS-06` — et le périmètre est celui de l'ÉCRITURE.
+     * Le premier correctif bornait par `exigerVisible`, le prédicat de
+     * LECTURE : un porteur de `projects:readAll` et de
+     * `projects:manage_members` (le modèle `MANAGER_PROJECT_FOCUS`) voyait
+     * tous les projets, donc s'inscrivait lui-même à n'importe lequel — et,
+     * devenu membre, y écrivait jalons et tâches, ou en retirait l'équipe.
+     * Composer l'équipe est une écriture sur le projet, au même titre que
+     * rattacher un tiers (`RG-TRS-06`) : elle exige d'y être rattaché, ou
+     * `projects:manage_any`. Voir le projet ne suffit pas.
      */
-    await this.exigerVisible(projectId, perimetre, permissions);
+    await this.exigerRattache(projectId, acteurId, permissions);
     await this.refuserSiAnnule(projectId);
     const existe = await this.prisma.projectMember.findUnique({
       where: { projectId_userId: { projectId, userId: donnees.userId } },
@@ -894,10 +903,10 @@ export class ProjetsService {
     userId: string,
     donnees: { roleProjet?: string; tauxAllocation?: number | null },
     acteurId: string,
-    perimetre: Perimetre,
     permissions: ReadonlySet<string>,
   ) {
-    await this.exigerVisible(projectId, perimetre, permissions);
+    // `RG-PRJ-13` — une écriture d'équipe : voir `ajouterMembre`.
+    await this.exigerRattache(projectId, acteurId, permissions);
     await this.refuserSiAnnule(projectId);
     const membre = await this.prisma.projectMember.findUnique({
       where: { projectId_userId: { projectId, userId } },
@@ -967,10 +976,10 @@ export class ProjetsService {
     projectId: string,
     userId: string,
     acteurId: string,
-    perimetre: Perimetre,
     permissions: ReadonlySet<string>,
   ) {
-    await this.exigerVisible(projectId, perimetre, permissions);
+    // `RG-PRJ-13` — une écriture d'équipe : voir `ajouterMembre`.
+    await this.exigerRattache(projectId, acteurId, permissions);
 
     const [, retirees, raci] = await this.prisma.$transaction([
       this.prisma.projectMember.delete({

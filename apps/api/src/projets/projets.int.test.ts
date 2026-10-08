@@ -200,12 +200,12 @@ describe("RG-PRJ-02, RG-PRJ-04 — suppression logique et restauration", () => {
 
     const membre = await agent();
     await expect(
-      projets.ajouterMembre(p.id, { userId: membre, roleProjet: "Membre" }, chef, await global(), toutes),
+      projets.ajouterMembre(p.id, { userId: membre, roleProjet: "Membre" }, chef, toutes),
     ).rejects.toMatchObject({ code: "projet_annule" });
 
     await projets.restaurer(p.id, chef, toutes);
     await expect(
-      projets.ajouterMembre(p.id, { userId: membre, roleProjet: "Membre" }, chef, await global(), toutes),
+      projets.ajouterMembre(p.id, { userId: membre, roleProjet: "Membre" }, chef, toutes),
     ).resolves.toBeTruthy();
   });
 });
@@ -257,9 +257,9 @@ describe("RG-PRJ-06 — un membre ne s'ajoute pas deux fois", () => {
   it("le second ajout est refusé", async () => {
     const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
     const membre = await agent();
-    await projets.ajouterMembre(p.id, { userId: membre, roleProjet: "Développeur" }, chef, await global(), toutes);
+    await projets.ajouterMembre(p.id, { userId: membre, roleProjet: "Développeur" }, chef, toutes);
     await expect(
-      projets.ajouterMembre(p.id, { userId: membre, roleProjet: "Testeur" }, chef, await global(), toutes),
+      projets.ajouterMembre(p.id, { userId: membre, roleProjet: "Testeur" }, chef, toutes),
     ).rejects.toMatchObject({ code: "membre_en_double" });
   });
 });
@@ -278,14 +278,13 @@ describe("EX-PRJ-09 — le rôle d'un membre se change SANS le retirer", () => {
   it("le rôle et l'allocation changent, l'appartenance ne bouge pas", async () => {
     const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
     const membre = await agent();
-    await projets.ajouterMembre(p.id, { userId: membre, roleProjet: "Développeur", tauxAllocation: 50 }, chef, await global(), toutes);
+    await projets.ajouterMembre(p.id, { userId: membre, roleProjet: "Développeur", tauxAllocation: 50 }, chef, toutes);
 
     const modifie = await projets.changerRoleMembre(
       p.id,
       membre,
       { roleProjet: "Chef de projet", tauxAllocation: 80 },
       chef,
-      await global(),
       toutes,
     );
 
@@ -301,10 +300,10 @@ describe("EX-PRJ-09 — le rôle d'un membre se change SANS le retirer", () => {
     // qu'elle n'avait jamais quitté.
     const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
     const membre = await agent();
-    await projets.ajouterMembre(p.id, { userId: membre, roleProjet: "Développeur" }, chef, await global(), toutes);
+    await projets.ajouterMembre(p.id, { userId: membre, roleProjet: "Développeur" }, chef, toutes);
     const avant = await prisma.notification.count({ where: { userId: membre } });
 
-    await projets.changerRoleMembre(p.id, membre, { roleProjet: "Testeur" }, chef, await global(), toutes);
+    await projets.changerRoleMembre(p.id, membre, { roleProjet: "Testeur" }, chef, toutes);
 
     expect(await prisma.notification.count({ where: { userId: membre } })).toBe(avant);
   });
@@ -312,8 +311,8 @@ describe("EX-PRJ-09 — le rôle d'un membre se change SANS le retirer", () => {
   it("RG-ADM — le changement est tracé, avec l'avant et l'après", async () => {
     const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
     const membre = await agent();
-    await projets.ajouterMembre(p.id, { userId: membre, roleProjet: "Développeur" }, chef, await global(), toutes);
-    await projets.changerRoleMembre(p.id, membre, { roleProjet: "Architecte" }, chef, await global(), toutes);
+    await projets.ajouterMembre(p.id, { userId: membre, roleProjet: "Développeur" }, chef, toutes);
+    await projets.changerRoleMembre(p.id, membre, { roleProjet: "Architecte" }, chef, toutes);
 
     const trace = await prisma.auditLog.findFirst({
       where: { action: "project.member_update", entiteId: p.id },
@@ -328,7 +327,7 @@ describe("EX-PRJ-09 — le rôle d'un membre se change SANS le retirer", () => {
     const p = await projets.creer(nouveauProjet(), chef, TOUS_DROITS_PROJET);
     const etranger = await agent();
     await expect(
-      projets.changerRoleMembre(p.id, etranger, { roleProjet: "Testeur" }, chef, await global(), toutes),
+      projets.changerRoleMembre(p.id, etranger, { roleProjet: "Testeur" }, chef, toutes),
     ).rejects.toMatchObject({ code: "membre_introuvable" });
     expect(await prisma.projectMember.count({ where: { projectId: p.id } })).toBe(0);
   });

@@ -34,6 +34,13 @@ let perimetres: PerimetreService;
 
 /** Les deux droits de création réunis : le corps décide lequel s'applique. */
 const CREER = new Set(["tasks:create", "tasks:create_standalone"]) as ReadonlySet<string>;
+/**
+ * Les agents de cette suite n'ont pas de département : leur périmètre se
+ * réduit à eux-mêmes. Les cas qui désignent QUELQU'UN D'AUTRE sans éprouver
+ * `tasks:assign_any_user` (voir `assignation-perimetre.int.test.ts`) le
+ * détiennent donc explicitement.
+ */
+const CREER_ET_ASSIGNER = new Set([...CREER, "tasks:assign_any_user"]) as ReadonlySet<string>;
 /** `RG-TSK-19` — créer une tâche confidentielle exige de pouvoir la lire. */
 const CREER_CONFIDENTIEL = new Set([...CREER, "tasks:read_confidential"]) as ReadonlySet<string>;
 /** Seulement le droit de créer DANS un projet. */
@@ -495,10 +502,10 @@ describe("RG-GEN-07 — poser une liste ENTIÈRE exige la version lue", () => {
     const t = await taches.creer({ titre: "Équipe", assigneIds: [a] }, a, CREER);
     const lue = await versionDe(t.id);
 
-    await taches.definirAssignes(t.id, [a, b], lue, a, CREER);
+    await taches.definirAssignes(t.id, [a, b], lue, a, CREER_ET_ASSIGNER);
 
     // Une seconde fenêtre, ouverte avant la première et qui enregistre après.
-    await expect(taches.definirAssignes(t.id, [a, c], lue, a, CREER)).rejects.toMatchObject({
+    await expect(taches.definirAssignes(t.id, [a, c], lue, a, CREER_ET_ASSIGNER)).rejects.toMatchObject({
       code: "conflit_de_version",
     });
 
@@ -514,7 +521,7 @@ describe("RG-GEN-07 — poser une liste ENTIÈRE exige la version lue", () => {
     const t = await taches.creer({ titre: "Compteur", assigneIds: [a] }, a, CREER);
     const avant = await versionDe(t.id);
 
-    const r = await taches.definirAssignes(t.id, [a, b], avant, a, CREER);
+    const r = await taches.definirAssignes(t.id, [a, b], avant, a, CREER_ET_ASSIGNER);
 
     expect(r.version).toBe(avant + 1);
     expect(await versionDe(t.id)).toBe(avant + 1);
@@ -570,6 +577,30 @@ describe("RG-DROITS-03 — `comments:read` garde AUSSI le fil embarqué dans la 
     const fiche = await taches.fiche(t.id, p, droits);
 
     expect(fiche.commentaires?.map((c) => c.contenu)).toEqual(["Visible"]);
+  });
+
+  /*
+   * Même forme, autre relation embarquée : la fiche listait les pièces
+   * jointes — nom, auteur — sans `documents:read`, que `GET /documents/:id`
+   * exige pourtant.
+   */
+  it("RG-DROITS-03 — sans `documents:read`, la liste des documents est ABSENTE de la fiche", async () => {
+    const a = await agent();
+    const t = await taches.creer({ titre: "Avec pièce" }, a, CREER);
+    await prisma.document.create({
+      data: {
+        nom: "licenciement-dupont.pdf", taskId: t.id, auteurId: a,
+        typeMime: "application/pdf", tailleOctets: 4, empreinte: "0".repeat(64),
+      },
+    });
+
+    const p = await perimetreDe(a, LECTURE);
+    const fiche = await taches.fiche(t.id, p, LECTURE);
+    expect(fiche).not.toHaveProperty("documents");
+
+    const droits = new Set([...LECTURE, "documents:read"]) as ReadonlySet<string>;
+    const autorisee = await taches.fiche(t.id, await perimetreDe(a, droits), droits);
+    expect(autorisee.documents?.map((d) => d.nom)).toEqual(["licenciement-dupont.pdf"]);
   });
 });
 
@@ -765,7 +796,7 @@ describe("RG-TSK-01 — une tâche hors projet naît rattachée à quelqu'un", (
     // d'autre y inscrirait aussi son auteur, qui deviendrait porteur.
     const a = await agent();
     const b = await agent();
-    const t = await taches.creer({ titre: "Confiée", assigneIds: [b] }, a, CREER);
+    const t = await taches.creer({ titre: "Confiée", assigneIds: [b] }, a, CREER_ET_ASSIGNER);
 
     const assignes = await prisma.taskAssignee.findMany({ where: { taskId: t.id } });
     expect(assignes.map((x) => x.userId)).toEqual([b]);
@@ -803,7 +834,7 @@ describe("RG-GEN-08 — le corps d'une notification voyage en paramètres", () =
       permissions: { create: { permission: "tasks:read" } },
     } });
     await prisma.user.update({ where: { id: b }, data: { roleId: role.id } });
-    await taches.creer({ titre: "À traduire", assigneIds: [b] }, a, CREER);
+    await taches.creer({ titre: "À traduire", assigneIds: [b] }, a, CREER_ET_ASSIGNER);
 
     const n = await prisma.notification.findFirstOrThrow({
       where: { userId: b, type: "tache_assignee" },

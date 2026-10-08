@@ -151,6 +151,15 @@ export class UtilisateursService {
     }
     return lignes.map((l) => ({
       ...l,
+      /*
+       * `tasks:assign_any_user` — sans elle, seules les personnes du périmètre
+       * ORGANISATIONNEL du lecteur (`RG-SCOPE-01`) lui sont assignables, même
+       * quand une portée globale (`RG-SCOPE-03`) lui fait lire tout
+       * l'annuaire. L'écran filtre ses candidats sur ce drapeau, par
+       * courtoisie (`RG-GEN-06`) ; le refus reste au serveur
+       * (`TachesService.exigerAssignables`).
+       */
+      dansMonPerimetre: perimetre.utilisateurs.has(l.id),
       actionsRestreintes: !permissionsIncluses(
         l.roleId ? (parRole.get(l.roleId) ?? []) : [],
         permissionsLecteur,

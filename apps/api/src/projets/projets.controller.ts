@@ -176,7 +176,7 @@ export class ProjetsController {
       }),
       corps,
     );
-    return this.projets.ajouterMembre(id, donnees, d.userId, d.perimetre, d.permissions);
+    return this.projets.ajouterMembre(id, donnees, d.userId, d.permissions);
   }
 
   /**
@@ -203,7 +203,7 @@ export class ProjetsController {
       corps,
     );
     return this.projets.changerRoleMembre(
-      id, userId, donnees, d.userId, d.perimetre, d.permissions,
+      id, userId, donnees, d.userId, d.permissions,
     );
   }
 
@@ -214,7 +214,7 @@ export class ProjetsController {
     @Param("userId") userId: string,
     @Demande() d: ContexteDemande,
   ) {
-    return this.projets.retirerMembre(id, userId, d.userId, d.perimetre, d.permissions);
+    return this.projets.retirerMembre(id, userId, d.userId, d.permissions);
   }
 
   // ── Jalons — vue 13 ──────────────────────────────────────────────────────

@@ -224,7 +224,7 @@ describe("EX-PRJ-09 — le retrait défait un lien, il n'efface rien", () => {
       data: { userId: a, projectId: p.id, date: utc("2026-04-01"), heures: 5 },
     });
 
-    const rendu = await projets.retirerMembre(p.id, a, acteur, await global(), toutes);
+    const rendu = await projets.retirerMembre(p.id, a, acteur, toutes);
 
     expect(rendu).toEqual({ tachesRetirees: 1, raciRetires: 1 });
     expect((await projets.equipe(p.id, await global(), toutes)).agents).toHaveLength(0);
@@ -294,9 +294,8 @@ describe("EX-PRJ-09 — le retrait défait un lien, il n'efface rien", () => {
     });
 
     const etranger = await agent("Étranger", "AuProjet");
-    const dehors = await perimetres.resoudre(etranger, new Set());
     await expect(
-      projets.retirerMembre(p.id, a, etranger, dehors, new Set(["projects:manage_members"])),
+      projets.retirerMembre(p.id, a, etranger, new Set(["projects:manage_members"])),
     ).rejects.toMatchObject({ code: "hors_perimetre" });
   });
 
@@ -306,7 +305,7 @@ describe("EX-PRJ-09 — le retrait défait un lien, il n'efface rien", () => {
     await prisma.projectMember.create({
       data: { projectId: p.id, userId: a, roleProjet: "membre" },
     });
-    await projets.retirerMembre(p.id, a, acteur, await global(), toutes);
+    await projets.retirerMembre(p.id, a, acteur, toutes);
 
     const trace = await prisma.auditLog.findFirst({
       where: { action: "project.member_remove", entiteId: p.id },

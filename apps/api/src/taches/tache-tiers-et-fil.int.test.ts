@@ -45,6 +45,7 @@ const TOUTES = new Set([
   "tasks:manage_any",
   "tasks:read_confidential",
   "comments:read",
+  "documents:read",
 ]) as ReadonlySet<string>;
 /** Voir `taches.int.test.ts` : ces suites n'éprouvent pas les droits d'écriture. */
 const DROITS_CREATION = new Set([
@@ -211,9 +212,9 @@ describe("EX-TSK-17 — commenter et joindre des documents", () => {
 
     const fiche = await taches.fiche(t.id, await perimetreGlobal(), TOUTES);
     expect(fiche.documents).toHaveLength(1);
-    expect(fiche.documents[0]?.nom).toBe("cr.txt");
-    expect(fiche.documents[0]?.tailleOctets).toBe(contenu.byteLength);
-    expect(fiche.documents[0]?.typeMime).toBe("text/plain");
+    expect(fiche.documents?.[0]?.nom).toBe("cr.txt");
+    expect(fiche.documents?.[0]?.tailleOctets).toBe(contenu.byteLength);
+    expect(fiche.documents?.[0]?.typeMime).toBe("text/plain");
   });
 
   it("EX-TSK-17 — un document joint AU PROJET n'apparaît pas sur la fiche de la tâche", async () => {

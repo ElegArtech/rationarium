@@ -67,7 +67,11 @@ export type FicheTache = LigneTache & {
     creeLe: string;
     auteur: Personne;
   }[];
-  documents: {
+  /**
+   * `RG-DROITS-03` — **absent, pas vide**, sans `documents:read` : même
+   * règle que `commentaires`.
+   */
+  documents?: {
     id: string;
     nom: string;
     tailleOctets: number;

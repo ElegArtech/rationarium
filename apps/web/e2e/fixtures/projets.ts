@@ -130,7 +130,12 @@ export const PROJET = {
   creeLe: "2026-02-12T09:00:00.000Z",
   chef: { id: "c1", prenom: "Driss", nom: "Amrani" },
   sponsor: { id: "s1", prenom: "Inès", nom: "Rocher" },
-  createur: { id: "u1", prenom: "Fatou", nom: "Berthier" },
+  /*
+   * `RG-PRJ-13` — la session est CRÉATRICE du projet, donc rattachée : la
+   * vue 14 ne propose de composer l'équipe qu'à qui y est rattaché, comme le
+   * serveur l'exige. Seul l'identifiant compte, le nom affiché reste celui-ci.
+   */
+  createur: { id: SESSION.id, prenom: "Fatou", nom: "Berthier" },
   progression: 62,
   budget: { alloue: 1200, consomme: 744, restant: 456, depassement: false },
   taches: { total: 34, enCours: 8, bloquees: 2 },

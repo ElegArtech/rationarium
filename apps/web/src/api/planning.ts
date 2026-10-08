@@ -46,6 +46,12 @@ export type TachePlanning = {
   horsProjet: boolean;
   /** `RG-TSK-11` — le glisser-déposer en date lui est refusé. */
   multiAssignee: boolean;
+  /**
+   * `RG-SCOPE-04` — la fiche (`GET /taches/:id`) s'ouvre pour ce lecteur.
+   * Calculé au serveur avec le prédicat même de la fiche : le planning montre
+   * le résumé des tâches de collègues, il n'en ouvre pas toutes les fiches.
+   */
+  ouvrable: boolean;
 };
 
 export type CongePlanning = {

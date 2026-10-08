@@ -310,7 +310,7 @@ describe("RG-TSK-11 — glisser-déposer d'une tâche multi-assignée", () => {
       { titre: "Mono", projectId: projetA, assigneIds: [u], dateDebut: utc("2026-07-01"), dateFin: utc("2026-07-03") },
       acteur, DROITS_CREATION
     );
-    const r = await taches.deplacerDepuisPlanning(t.id, { version: t.version, nouvelleDate: utc("2026-07-08") }, acteur);
+    const r = await taches.deplacerDepuisPlanning(t.id, { version: t.version, nouvelleDate: utc("2026-07-08") }, acteur, new Set(["tasks:assign_any_user"]));
     expect(r.dateModifiee).toBe(true);
 
     const apres = await prisma.task.findUniqueOrThrow({ where: { id: t.id } });
@@ -326,7 +326,7 @@ describe("RG-TSK-11 — glisser-déposer d'une tâche multi-assignée", () => {
       { titre: "Multi", projectId: projetA, assigneIds: [u1, u2], dateDebut: utc("2026-07-01"), dateFin: utc("2026-07-03") },
       acteur, DROITS_CREATION
     );
-    const r = await taches.deplacerDepuisPlanning(t.id, { version: t.version, nouvelleDate: utc("2026-07-08") }, acteur);
+    const r = await taches.deplacerDepuisPlanning(t.id, { version: t.version, nouvelleDate: utc("2026-07-08") }, acteur, new Set(["tasks:assign_any_user"]));
     expect(r.dateModifiee).toBe(false);
     expect(r.avertissement).toBe("multi_assignee_date");
 
@@ -348,7 +348,7 @@ describe("RG-TSK-11 — glisser-déposer d'une tâche multi-assignée", () => {
     const r = await taches.deplacerDepuisPlanning(
       t.id,
       { version: t.version, nouvelleDate: utc("2026-07-08"), nouvelAssigneId: u3, ancienAssigneId: u1 },
-      acteur,
+      acteur, new Set(["tasks:assign_any_user"]),
     );
     expect(r.assigneModifie).toBe(true);
     expect(r.dateModifiee).toBe(false);
@@ -362,7 +362,7 @@ describe("RG-TSK-11 — glisser-déposer d'une tâche multi-assignée", () => {
     const u1 = await agent();
     const t = await taches.creer({ titre: "T", projectId: projetA, assigneIds: [u1] }, acteur, DROITS_CREATION);
     await expect(
-      taches.deplacerDepuisPlanning(t.id, { version: t.version, nouvelAssigneId: u1 }, acteur),
+      taches.deplacerDepuisPlanning(t.id, { version: t.version, nouvelAssigneId: u1 }, acteur, new Set(["tasks:assign_any_user"])),
     ).rejects.toMatchObject({ code: "deja_assigne" });
   });
 });

@@ -1030,6 +1030,27 @@ test.describe("Vue 14 — équipe", () => {
     await expect(page.getByText("Cet utilisateur est déjà membre du projet.")).toBeVisible();
   });
 
+  test("RG-PRJ-13 — non rattaché au projet, on le voit sans en composer l'équipe", async ({ page }) => {
+    /*
+     * `projects:manage_members` sans rattachement ni `projects:manage_any` :
+     * le serveur refuse la composition de l'équipe. La vue ne la propose donc
+     * pas (`RG-GEN-06`) — ni ajout, ni rôle modifiable, ni retrait.
+     */
+    await serveur(page, {
+      reponses: {
+        ...reponses,
+        [`/api/projets/${PROJET.id}`]: {
+          corps: { ...PROJET, createur: { id: "u1", prenom: "Fatou", nom: "Berthier" } },
+        },
+      },
+    });
+    await page.goto(`${CHEMIN_PROJET}/equipe`);
+
+    await expect(page.getByText("Équipe interne", { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "+ Ajouter un membre" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /^Retirer/ })).toHaveCount(0);
+  });
+
   /*
    * `EX-TRS-02` — un tiers SE RATTACHE au projet.
    *

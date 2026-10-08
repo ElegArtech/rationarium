@@ -260,7 +260,7 @@ describe("RG-CNG-25..27 — chevauchement", () => {
       { userId: u, typeId: typeAvecValidation, dateDebut: utc("2026-10-05"), dateFin: utc("2026-10-09") },
       u,
     );
-    await conges.refuser(c.id, "Effectif insuffisant", await agent(), await versionDe(c.id));
+    await conges.refuser(c.id, "Effectif insuffisant", await agent(), await versionDe(c.id), new Set());
     await expect(
       conges.deposer(
         { userId: u, typeId: typeAvecValidation, dateDebut: utc("2026-10-05"), dateFin: utc("2026-10-09") },
@@ -483,6 +483,69 @@ describe("RG-CNG-09 — nul n'approuve sa propre demande", () => {
     // Le cadrage exige que le cas soit tracé comme tel.
     expect(apres.autoValide).toBe(true);
   });
+
+  /*
+   * « Nul n'approuve NI NE REFUSE sa propre demande. » Le contrôle n'existait
+   * que dans `approuver` : refuser sa propre demande, ou statuer sur sa propre
+   * demande d'annulation, passait avec la seule permission de la route.
+   */
+  it("RG-CNG-09 — refuser sa propre demande, sans permission d'auto-validation, est refusé", async () => {
+    const u = await agent();
+    await attribuer(u, typeAvecValidation, 2026, 25);
+    const c = await conges.deposer(
+      { userId: u, typeId: typeAvecValidation, dateDebut: utc("2026-03-23"), dateFin: utc("2026-03-27") },
+      u,
+    );
+    await expect(
+      conges.refuser(c.id, "Je me refuse", u, await versionDe(c.id), new Set(["leaves:approve"])),
+    ).rejects.toMatchObject({ code: "auto_validation_interdite" });
+    expect((await prisma.leave.findUniqueOrThrow({ where: { id: c.id } })).statut).toBe("pending");
+  });
+
+  it("RG-CNG-09 — statuer sur sa propre demande d'annulation, sans auto-validation, est refusé", async () => {
+    const u = await agent();
+    await attribuer(u, typeSansValidation, 2026, 25);
+    const c = await conges.deposer(
+      { userId: u, typeId: typeSansValidation, dateDebut: utc("2026-06-08"), dateFin: utc("2026-06-12") },
+      u,
+    );
+    await conges.demanderAnnulation(c.id, u, await versionDe(c.id));
+
+    for (const accepte of [true, false]) {
+      await expect(
+        conges.traiterAnnulation(c.id, accepte, u, await versionDe(c.id), new Set(["leaves:approve"])),
+      ).rejects.toMatchObject({ code: "auto_validation_interdite" });
+    }
+    expect((await prisma.leave.findUniqueOrThrow({ where: { id: c.id } })).statut).toBe(
+      "cancellation_requested",
+    );
+  });
+
+  it("RG-CNG-09 — avec `leaves:self_approve`, refuser et annuler les siens est permis ET TRACÉ", async () => {
+    const u = await agent();
+    await attribuer(u, typeAvecValidation, 2026, 25);
+    await attribuer(u, typeSansValidation, 2026, 25);
+    const auto = new Set(["leaves:approve", "leaves:self_approve"]);
+
+    const enAttente = await conges.deposer(
+      { userId: u, typeId: typeAvecValidation, dateDebut: utc("2026-07-06"), dateFin: utc("2026-07-10") },
+      u,
+    );
+    await conges.refuser(enAttente.id, "Finalement non", u, await versionDe(enAttente.id), auto);
+    expect((await prisma.leave.findUniqueOrThrow({ where: { id: enAttente.id } })).statut).toBe("refused");
+    const refus = await prisma.auditLog.findFirst({ where: { action: "leave.refuse", entiteId: enAttente.id } });
+    expect(refus?.detail).toMatchObject({ autoValide: true });
+
+    const approuve = await conges.deposer(
+      { userId: u, typeId: typeSansValidation, dateDebut: utc("2026-07-13"), dateFin: utc("2026-07-17") },
+      u,
+    );
+    await conges.demanderAnnulation(approuve.id, u, await versionDe(approuve.id));
+    await conges.traiterAnnulation(approuve.id, true, u, await versionDe(approuve.id), auto);
+    expect((await prisma.leave.findUniqueOrThrow({ where: { id: approuve.id } })).statut).toBe("cancelled");
+    const annulation = await prisma.auditLog.findFirst({ where: { action: "leave.cancel", entiteId: approuve.id } });
+    expect(annulation?.detail).toMatchObject({ autoValide: true });
+  });
 });
 
 describe("RG-CNG-01 à 07 — cycle de vie", () => {
@@ -523,7 +586,7 @@ describe("RG-CNG-01 à 07 — cycle de vie", () => {
       u,
     );
     await conges.demanderAnnulation(c.id, u, await versionDe(c.id));
-    await conges.traiterAnnulation(c.id, false, validateur, await versionDe(c.id));
+    await conges.traiterAnnulation(c.id, false, validateur, await versionDe(c.id), new Set());
 
     const apres = await prisma.leave.findUniqueOrThrow({ where: { id: c.id } });
     expect(apres.statut).toBe("approved");
@@ -1325,7 +1388,7 @@ describe("EX-CNG-06 — demander l'annulation d'un congé approuvé", () => {
       u,
     );
     const decideur = await agent();
-    await conges.refuser(conge.id, "Effectifs insuffisants", decideur, await versionDe(conge.id));
+    await conges.refuser(conge.id, "Effectifs insuffisants", decideur, await versionDe(conge.id), new Set());
 
     await expect(conges.demanderAnnulation(conge.id, u, await versionDe(conge.id))).rejects.toMatchObject({
       code: "statut_incompatible",
@@ -1339,7 +1402,7 @@ describe("EX-CNG-06 — demander l'annulation d'un congé approuvé", () => {
     const { u, conge } = await congeApprouve(2028);
     const decideur = await agent();
     await conges.demanderAnnulation(conge.id, u, await versionDe(conge.id));
-    await conges.traiterAnnulation(conge.id, true, decideur, await versionDe(conge.id));
+    await conges.traiterAnnulation(conge.id, true, decideur, await versionDe(conge.id), new Set());
     expect((await prisma.leave.findUniqueOrThrow({ where: { id: conge.id } })).statut).toBe(
       "cancelled",
     );
@@ -2265,7 +2328,7 @@ describe("RG-GEN-07 — la version lue accompagne chaque écriture d'une demande
     );
 
     await expect(
-      conges.refuser(conge.id, "Effectif insuffisant", validateur, perimee),
+      conges.refuser(conge.id, "Effectif insuffisant", validateur, perimee, new Set()),
     ).rejects.toMatchObject({ code: "conflit_de_version" });
     expect((await prisma.leave.findUniqueOrThrow({ where: { id: conge.id } })).statut).toBe(
       "pending",
@@ -2328,7 +2391,7 @@ describe("RG-GEN-07 — la version lue accompagne chaque écriture d'une demande
     await conges.demanderAnnulation(conge.id, u, perimee);
 
     await expect(
-      conges.traiterAnnulation(conge.id, true, validateur, perimee),
+      conges.traiterAnnulation(conge.id, true, validateur, perimee, new Set()),
     ).rejects.toMatchObject({ code: "conflit_de_version" });
     expect((await prisma.leave.findUniqueOrThrow({ where: { id: conge.id } })).statut).toBe(
       "cancellation_requested",
@@ -2419,7 +2482,7 @@ describe("EX-CNG-01, RG-NTF-01 — la notification de congé mène à l'onglet q
      * rend dans la langue du lecteur.
      */
     const { conge, demandeur, validateur } = await demandeEnAttente();
-    await conges.refuser(conge.id, "Effectif insuffisant sur la période", validateur, conge.version);
+    await conges.refuser(conge.id, "Effectif insuffisant sur la période", validateur, conge.version, new Set());
 
     const n = await prisma.notification.findFirstOrThrow({
       where: { userId: demandeur, type: "conge_decide" },

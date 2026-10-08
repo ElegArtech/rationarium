@@ -23,6 +23,7 @@ describe("RG-TSK-15 — les assignés proposés", () => {
     equipeChargee: true,
     annuaire: [] as Candidat[],
     annuaireLisible: true,
+    assignationLibre: true,
     moi,
   };
 
@@ -68,6 +69,35 @@ describe("RG-TSK-15 — les assignés proposés", () => {
     });
     expect(r.candidats).toEqual([membre]);
     expect(r.indice).toBe("membresDuProjet");
+  });
+
+  /*
+   * `tasks:assign_any_user` — sans elle, le serveur refuse quiconque n'est ni
+   * soi, ni du périmètre organisationnel, ni du projet. L'annuaire lu peut être
+   * plus large (portée globale de lecture) : le repli ne propose donc que ce
+   * qui sera accepté, et le dit.
+   */
+  it("tasks:assign_any_user — sans elle, le repli se borne à son périmètre et le dit", () => {
+    const dedans = { ...autre, dansMonPerimetre: true };
+    const dehors = { id: "x1", prenom: "Hugo", nom: "Martin", dansMonPerimetre: false };
+    const soi = { ...moi, dansMonPerimetre: true };
+    const hors = assignables({
+      ...base, assignationLibre: false, projectId: null, annuaire: [dedans, dehors, soi],
+    });
+    expect(hors.candidats).toEqual([dedans, soi]);
+    expect(hors.indice).toBe("monPerimetre");
+
+    const projet = assignables({
+      ...base, assignationLibre: false, projectId: "p1", annuaire: [dedans, dehors],
+    });
+    expect(projet.candidats).toEqual([dedans]);
+    expect(projet.indice).toBe("projetSansMembrePerimetre");
+
+    // Les membres du projet restent tous proposés : le serveur les accepte.
+    const membres = assignables({
+      ...base, assignationLibre: false, projectId: "p1", membres: [membre], annuaire: [dehors],
+    });
+    expect(membres.candidats).toEqual([membre]);
   });
 
   it("RG-AUTH-05 — l'annuaire est demandé ACTIF, le filtre est au serveur", () => {

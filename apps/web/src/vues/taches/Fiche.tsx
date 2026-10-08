@@ -1028,7 +1028,14 @@ function Raci({ tache }: { tache: api.FicheTache }) {
     queryFn: () => appeler<Candidat[]>(CHEMIN_ANNUAIRE),
     enabled: peut("tasks:manage_raci") && peut(PERMISSION_ANNUAIRE),
   });
-  const candidats = peut(PERMISSION_ANNUAIRE) ? annuaire.data ?? [] : [session];
+  // `tasks:assign_any_user` — sans elle, le serveur refuse un rôle RACI à
+  // qui n'est ni soi, ni du périmètre organisationnel, ni du projet.
+  const assignationLibre = peut("tasks:assign_any_user") || peut("tasks:manage_any");
+  const candidats = peut(PERMISSION_ANNUAIRE)
+    ? (annuaire.data ?? []).filter(
+        (c) => assignationLibre || c.dansMonPerimetre !== false || c.id === session.id,
+      )
+    : [session];
   const attribution = useMutation({
     mutationFn: () => api.attribuerRaci(tache.id, qui, role),
     onSuccess: () => {
@@ -1289,7 +1296,9 @@ function Documents({ tache }: { tache: api.FicheTache }) {
   const annoncer = useMessages();
   const client = useQueryClient();
   /** La pièce ouverte en consultation — `EX-DOC-02`. `null` : aucune. */
-  const [consulte, setConsulte] = useState<api.FicheTache["documents"][number] | null>(null);
+  const [consulte, setConsulte] = useState<NonNullable<api.FicheTache["documents"]>[number] | null>(null);
+  /** `undefined` quand le serveur n'a pas rendu la clé (`documents:read`) — pas quand elle est vide. */
+  const pieces = tache.documents;
 
   /*
    * `EX-DOC-01` — la zone de dépôt était **purement décorative** : un
@@ -1324,12 +1333,16 @@ function Documents({ tache }: { tache: api.FicheTache }) {
     <section className="panel">
       <div className="panel-head">
         <span className="panel-title">{t("fiche.documents")}</span>
-        <span className="kcol-n">{tache.documents.length}</span>
+        {pieces ? <span className="kcol-n">{pieces.length}</span> : null}
       </div>
-      {tache.documents.length === 0 ? (
+      {/* `RG-DROITS-03` — absente n'est pas vide : sans `documents:read`, le
+          serveur ne rend pas la liste, et « aucun document » mentirait. */}
+      {!pieces ? (
+        <p className="dep-none sous-taches-vide">{t("fiche.documentsNonAutorises")}</p>
+      ) : pieces.length === 0 ? (
         <p className="dep-none sous-taches-vide">{t("fiche.aucunDocument")}</p>
       ) : (
-        tache.documents.map((d) => (
+        pieces.map((d) => (
           <div className="doc" key={d.id}>
             <span className="doc-ic" aria-hidden="true">
               {d.typeMime.split("/").pop()?.slice(0, 3).toUpperCase()}
@@ -1446,7 +1459,7 @@ function FenetreDocument({
   surFermeture,
 }: {
   /** `null` quand aucune pièce n'est ouverte : la fenêtre reste montée, fermée. */
-  document: api.FicheTache["documents"][number] | null;
+  document: NonNullable<api.FicheTache["documents"]>[number] | null;
   tacheId: string;
   surFermeture: () => void;
 }) {
@@ -1771,6 +1784,7 @@ function FenetreAssignes({
     equipeChargee: equipe.isSuccess,
     annuaire: tous.data ?? [],
     annuaireLisible,
+    assignationLibre: peut("tasks:assign_any_user") || peut("tasks:manage_any"),
     moi: { id: session.id, prenom: session.prenom, nom: session.nom },
   });
 
