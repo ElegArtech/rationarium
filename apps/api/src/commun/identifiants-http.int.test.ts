@@ -119,7 +119,9 @@ describe("RG-DOC-04 — un corps au-delà de la limite du transport se dit en cl
      * contrôleur : c'est le filtre qui doit nommer la situation. Sans lui,
      * le client lisait un 413 sans clé, donc sans message traduisible.
      */
-    const limite = app.getHttpAdapter().getInstance().initialConfig.bodyLimit ?? 1_048_576;
+    // RG-ROB-01 — la limite de cette route est relevée ; c'est elle qu'on dépasse.
+    const { LIMITES_PAR_ROUTE } = await import("./limites-corps.js");
+    const limite = LIMITES_PAR_ROUTE.find((e) => e.methode === "POST" && e.chemin === "/api/documents")!.octets;
     const r = await appel("POST", "/api/documents", {
       nom: "trop.bin",
       typeMime: "application/octet-stream",
