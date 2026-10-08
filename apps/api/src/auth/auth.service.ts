@@ -532,14 +532,20 @@ export class AuthService {
     if (verdict === "verrouille") throw new ErreurAuth("compte_verrouille");
     if (verdict === "invalide") throw new ErreurAuth("ancien_mot_de_passe_incorrect");
 
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: {
-        motDePasseHash: await hacherMotDePasse(nouveau),
-        motDePasseAChanger: false,
-        echecsConnexion: 0,
-      },
-    });
+    const motDePasseHash = await hacherMotDePasse(nouveau);
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: userId },
+        data: { motDePasseHash, motDePasseAChanger: false, echecsConnexion: 0 },
+      }),
+      /*
+       * `RG-AUTH-04` — un lien de réinitialisation demandé AVANT le changement
+       * ne vaut plus après : sinon le geste qu'on fait quand on soupçonne une
+       * compromission laissait ouverte la porte que l'intrus venait de
+       * demander.
+       */
+      this.prisma.passwordResetToken.deleteMany({ where: { userId, utiliseLe: null } }),
+    ]);
     // Un changement de mot de passe invalide les autres sessions : c'est le
     // geste qu'on fait quand on soupçonne une compromission. Celle qui l'a
     // demandé n'en fait pas partie — elle vient de prouver qui elle est.
@@ -565,14 +571,26 @@ export class AuthService {
     const user = await this.prisma.user.findUnique({ where: { email: email.toLowerCase() } });
     if (!user || !user.actif) return null;
 
+    /*
+     * `RG-AUTH-04` — **un seul lien actif par compte.** Chaque demande en
+     * ajoutait un sans retirer les précédents : dix demandes, dix liens
+     * valables deux heures dans une boîte aux lettres, et le dernier reçu
+     * n'était pas le seul à ouvrir le compte. Les jetons non consommés sont
+     * retirés dans la même transaction que la création du nouveau ; un ancien
+     * lien répond désormais « invalide ». Les jetons consommés restent : ils
+     * font l'historique, et « déjà utilisé » reste vrai pour eux.
+     */
     const jeton = engendrerJeton();
-    await this.prisma.passwordResetToken.create({
-      data: {
-        jetonHash: hacherJeton(jeton),
-        userId: user.id,
-        expireLe: new Date(Date.now() + r.dureeJetonReinitialisationHeures * 3_600_000),
-      },
-    });
+    await this.prisma.$transaction([
+      this.prisma.passwordResetToken.deleteMany({ where: { userId: user.id, utiliseLe: null } }),
+      this.prisma.passwordResetToken.create({
+        data: {
+          jetonHash: hacherJeton(jeton),
+          userId: user.id,
+          expireLe: new Date(Date.now() + r.dureeJetonReinitialisationHeures * 3_600_000),
+        },
+      }),
+    ]);
 
     await this.envoyerLienDeReinitialisation(
       user.email,
@@ -678,17 +696,27 @@ export class AuthService {
     if (enregistre.utiliseLe) throw new ErreurAuth("jeton_deja_utilise");
     if (enregistre.expireLe <= new Date()) throw new ErreurAuth("jeton_expire");
 
-    await this.prisma.$transaction([
-      this.prisma.user.update({
-        where: { id: enregistre.userId },
-        data: { motDePasseHash: await hacherMotDePasse(nouveau), motDePasseAChanger: false },
-      }),
-      this.prisma.passwordResetToken.update({
-        where: { id: enregistre.id },
+    const motDePasseHash = await hacherMotDePasse(nouveau);
+    await this.prisma.$transaction(async (tx) => {
+      /*
+       * `RG-AUTH-04` — usage unique, y compris sous deux requêtes simultanées :
+       * la consommation est conditionnelle, et seule la première l'obtient.
+       */
+      const { count } = await tx.passwordResetToken.updateMany({
+        where: { id: enregistre.id, utiliseLe: null },
         data: { utiliseLe: new Date() },
-      }),
-      this.prisma.session.deleteMany({ where: { userId: enregistre.userId } }),
-    ]);
+      });
+      if (count === 0) throw new ErreurAuth("jeton_deja_utilise");
+      await tx.user.update({
+        where: { id: enregistre.userId },
+        data: { motDePasseHash, motDePasseAChanger: false },
+      });
+      // Les autres liens en cours tombent avec le mot de passe qu'ils visaient.
+      await tx.passwordResetToken.deleteMany({
+        where: { userId: enregistre.userId, utiliseLe: null },
+      });
+      await tx.session.deleteMany({ where: { userId: enregistre.userId } });
+    });
 
     await this.audit.tracer({
       action: "auth.password.reset",

@@ -682,6 +682,67 @@ describe("EX-AUTH-06, RG-AUTH-04 — définir un nouveau mot de passe depuis le 
       code: "jeton_invalide",
     });
   });
+
+  /**
+   * `RG-AUTH-04` — **un seul lien actif par compte.** Chaque demande ajoutait
+   * un jeton sans retirer les précédents : dix demandes, dix liens valables
+   * dans la boîte aux lettres.
+   */
+  it("RG-AUTH-04 — une nouvelle demande invalide le lien précédent", async () => {
+    const c = await poserUnCompte();
+    const premiere = await auth.demanderReinitialisation(c.email);
+    const seconde = await auth.demanderReinitialisation(c.email);
+
+    await expect(auth.verifierJetonReinitialisation(premiere!.jeton)).rejects.toMatchObject({
+      code: "jeton_invalide",
+    });
+    await expect(auth.reinitialiserMotDePasse(premiere!.jeton, "Nouveau12!")).rejects.toMatchObject({
+      code: "jeton_invalide",
+    });
+    await expect(auth.verifierJetonReinitialisation(seconde!.jeton)).resolves.toMatchObject({
+      email: c.email,
+    });
+    expect(
+      await prisma.passwordResetToken.count({ where: { userId: c.id, utiliseLe: null } }),
+    ).toBe(1);
+  });
+
+  it("RG-AUTH-04 — changer son mot de passe révoque le lien de réinitialisation en cours", async () => {
+    const c = await poserUnCompte();
+    const demande = await auth.demanderReinitialisation(c.email);
+    await auth.changerMotDePasse(c.id, MDP, "Nouveau12!");
+
+    await expect(auth.reinitialiserMotDePasse(demande!.jeton, "Intrus123!")).rejects.toMatchObject({
+      code: "jeton_invalide",
+    });
+    await expect(auth.connecter(c.login, "Nouveau12!")).resolves.toBeTruthy();
+  });
+
+  it("RG-AUTH-04 — la réinitialisation administrateur révoque aussi le lien en cours", async () => {
+    const admin = await poserUnCompte();
+    const c = await poserUnCompte();
+    const demande = await auth.demanderReinitialisation(c.email);
+    const utilisateurs = new UtilisateursService(
+      prisma as never,
+      new AuditService(prisma as never),
+      new PerimetreService(prisma as never),
+    );
+    await utilisateurs.reinitialiserMotDePasse(c.id, "Provisoire1!", admin.id);
+
+    await expect(auth.reinitialiserMotDePasse(demande!.jeton, "Intrus123!")).rejects.toMatchObject({
+      code: "jeton_invalide",
+    });
+  });
+
+  it("RG-AUTH-04 — deux consommations SIMULTANÉES du même jeton : une seule réussit", async () => {
+    const c = await poserUnCompte();
+    const demande = await auth.demanderReinitialisation(c.email);
+    const issues = await Promise.allSettled([
+      auth.reinitialiserMotDePasse(demande!.jeton, "Premier12!"),
+      auth.reinitialiserMotDePasse(demande!.jeton, "Second123!"),
+    ]);
+    expect(issues.filter((i) => i.status === "fulfilled")).toHaveLength(1);
+  });
 });
 
 describe("EX-AUTH-04, RG-AUTH-03 — créer un compte en autonomie, activable et désactivable", () => {
