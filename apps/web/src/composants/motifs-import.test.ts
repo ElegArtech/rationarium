@@ -71,7 +71,7 @@ describe("RG-GEN-08 — les motifs d'import se traduisent", () => {
     // Un contrôle qui ne mesure rien passe au vert. On affirme la matière
     // avant de la juger — la source du serveur, et les deux catalogues.
     expect(source.length).toBeGreaterThan(2000);
-    expect(serveur.size).toBe(27);
+    expect(serveur.size).toBe(28);
     expect(serveur.get("emailDejaPris")).toEqual(["email"]);
     expect(serveur.get("chevauchement")).toEqual([]);
   });
