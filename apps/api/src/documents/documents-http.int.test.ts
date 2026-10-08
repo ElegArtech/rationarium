@@ -381,3 +381,54 @@ describe("RG-DOC-06 — modifier un commentaire ou renommer un document exige la
     expect((await prisma.document.findUniqueOrThrow({ where: { id: document } })).nom).toBe("plan-v2.txt");
   });
 });
+
+describe("C14, RG-AUTH-09 — une pièce jointe ne se lit pas par le détour de l'avatar", () => {
+  /*
+   * Avatars et pièces jointes partagent un magasin adressé par empreinte.
+   * `GET /documents/:id` rendait l'empreinte à tout porteur de
+   * `documents:read`, et `PATCH /auth/me` acceptait n'importe quelle chaîne
+   * comme `avatarFichier` : il suffisait de se poser l'empreinte d'une image
+   * jointe comme avatar pour la lire par `GET /auth/me/avatar`, sans
+   * `documents:download`.
+   */
+  it("un observateur sans documents:download ne récupère ni l'empreinte, ni le contenu", async () => {
+    const { createHash } = await import("node:crypto");
+    const { ecrireContenu } = await import("./stockage.js");
+    const observateur = await compte("observateur", ["documents:read"]);
+    await prisma.taskAssignee.create({ data: { taskId: tacheVisible, userId: observateur.id } });
+
+    const image = Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), Buffer.from("organigramme")]);
+    const empreinte = createHash("sha256").update(image).digest("hex");
+    await ecrireContenu(empreinte, image);
+    const { id } = await prisma.document.create({
+      data: {
+        nom: "organigramme.png", taskId: tacheVisible, empreinte,
+        tailleOctets: image.byteLength, typeMime: "image/png", auteurId: contributeur.id,
+      },
+    });
+
+    // Le téléchargement lui est refusé : c'est la règle que le détour contournait.
+    expect((await appel("GET", `/api/documents/${id}/telecharger`, observateur.jeton)).statusCode).toBe(403);
+
+    const consultation = await appel("GET", `/api/documents/${id}`, observateur.jeton);
+    expect(consultation.statusCode).toBe(200);
+    expect(consultation.json()).not.toHaveProperty("empreinte");
+    expect(consultation.body).not.toContain(empreinte);
+
+    const moi = await appel("GET", "/api/auth/me", observateur.jeton);
+    const { version } = moi.json() as { version: number };
+    const pose = await appel("PATCH", "/api/auth/me", observateur.jeton, { avatarFichier: empreinte, version });
+    expect(pose.statusCode).toBe(400);
+    expect((await prisma.user.findUniqueOrThrow({ where: { id: observateur.id } })).avatarFichier).toBeNull();
+
+    const avatar = await appel("GET", "/api/auth/me/avatar", observateur.jeton);
+    expect(avatar.statusCode).toBe(404);
+    expect(avatar.rawPayload.includes(Buffer.from("organigramme"))).toBe(false);
+  });
+
+  it("le dépôt d'une pièce ne rend pas non plus l'empreinte", async () => {
+    const r = await appel("POST", "/api/documents", contributeur.jeton, piece(16, { projectId: projetVisible }));
+    expect(r.statusCode).toBe(201);
+    expect(r.json()).not.toHaveProperty("empreinte");
+  });
+});

@@ -860,15 +860,26 @@ describe("EX-AUTH-09 — modifier son profil", () => {
     expect(apres.prenom).toBe("Inès");
   });
 
-  it("RG-AUTH-09 — REFUSE un avatar à la fois fichier ET prédéfini", async () => {
+  /**
+   * `RG-AUTH-09` — **un fichier ne se désigne pas, il se téléverse.**
+   *
+   * `PATCH /auth/me` acceptait une chaîne libre et l'écrivait telle quelle :
+   * l'empreinte de n'importe quelle pièce jointe du magasin commun devenait
+   * l'avatar du compte, et `GET /auth/me/avatar` la servait — une lecture de
+   * pièce jointe sans `documents:download`. Seul `null` s'écrit désormais.
+   */
+  it("RG-AUTH-09 — PATCH ne pose JAMAIS un fichier désigné par le client, seul null s'écrit", async () => {
     const u = await poserUnCompte();
     await expect(
-      auth.modifierProfil(u.id, {
-        avatarFichier: "photo.webp",
-        avatarPredefini: "constellation",
-        version: 1,
-      }),
-    ).rejects.toMatchObject({ code: "avatar_ambigu" });
+      auth.modifierProfil(u.id, { avatarFichier: "a".repeat(64), version: 1 } as never),
+    ).rejects.toMatchObject({ code: "avatar_introuvable" });
+    const relu = await prisma.user.findUniqueOrThrow({ where: { id: u.id } });
+    expect(relu.avatarFichier).toBeNull();
+    expect(relu.version).toBe(1);
+    expect(
+      modificationProfilSchema.safeParse({ avatarFichier: "a".repeat(64), version: 1 }).success,
+    ).toBe(false);
+    expect(modificationProfilSchema.safeParse({ avatarFichier: null, version: 1 }).success).toBe(true);
   });
 
   it("RG-AUTH-09 — refuse un identifiant prédéfini hors catalogue même sans frontière HTTP", async () => {
@@ -922,29 +933,12 @@ describe("EX-AUTH-09 — modifier son profil", () => {
     });
   });
 
-  it("RG-AUTH-09 — refuse aussi quand l'AMBIGUÏTÉ NAÎT DE L'ÉTAT DÉJÀ EN BASE", async () => {
-    /*
-     * Le cas que le schéma seul ne peut pas voir : le corps ne porte qu'UN
-     * avatar, donc il est valide ; c'est l'état résultant qui en compte deux.
-     * Sans ce contrôle dans le service, deux requêtes licites successives
-     * fabriquaient l'état que la règle interdit.
-     */
+  it("RG-AUTH-09 — avatarFichier: null efface le fichier téléversé, et rien d'autre", async () => {
     const u = await poserUnCompte();
-    await auth.modifierProfil(u.id, { avatarPredefini: "constellation", version: 1 });
-    await expect(
-      auth.modifierProfil(u.id, { avatarFichier: "photo.webp", version: 2 }),
-    ).rejects.toMatchObject({ code: "avatar_ambigu" });
-  });
-
-  it("RG-AUTH-09 — accepte de remplacer un avatar par l'autre en une requête", async () => {
-    const u = await poserUnCompte();
-    await auth.modifierProfil(u.id, { avatarPredefini: "constellation", version: 1 });
-    const r = await auth.modifierProfil(u.id, {
-      avatarPredefini: null,
-      avatarFichier: "photo.webp",
-      version: 2,
-    });
-    expect(r.avatarFichier).toBe("photo.webp");
+    await prisma.user.update({ where: { id: u.id }, data: { avatarFichier: "b".repeat(64) } });
+    const r = await auth.modifierProfil(u.id, { avatarFichier: null, version: 1 });
+    expect(r.avatarFichier).toBeNull();
+    expect(r.avatarUrl).toBeNull();
     expect(r.avatarPredefini).toBeNull();
   });
 

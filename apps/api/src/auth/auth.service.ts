@@ -900,7 +900,7 @@ export class AuthService {
       email?: string | undefined;
       langue?: string | undefined;
       theme?: string | undefined;
-      avatarFichier?: string | null | undefined;
+      avatarFichier?: null | undefined;
       avatarPredefini?: VisuelAvatarPredefini | null | undefined;
       motDePasseActuel?: string | undefined;
       version: number;
@@ -920,12 +920,17 @@ export class AuthService {
      * reçu : poser un fichier sans effacer le prédéfini déjà là produirait les
      * deux à la fois, et le schéma seul ne peut pas le voir.
      */
-    if (d.avatarFichier && d.avatarPredefini) throw new ErreurAuth("avatar_ambigu");
-    const fichier = d.avatarPredefini
-      ? null
-      : d.avatarFichier !== undefined
-        ? d.avatarFichier
-        : avant.avatarFichier;
+    /*
+     * Un fichier ne se DÉSIGNE pas ici : il se téléverse (`televerserAvatar`),
+     * qui en lit les octets. Accepter une chaîne laissait poser comme avatar
+     * l'empreinte de n'importe quelle pièce jointe du magasin commun, puis la
+     * lire par `GET /auth/me/avatar` sans `documents:download`. Le schéma le
+     * refuse déjà ; le service le refuse aussi, pour tout autre appelant.
+     */
+    if ((d.avatarFichier as unknown) !== undefined && d.avatarFichier !== null) {
+      throw new ErreurAuth("avatar_introuvable");
+    }
+    const fichier = d.avatarPredefini || d.avatarFichier === null ? null : avant.avatarFichier;
     const predefini = d.avatarPredefini !== undefined ? d.avatarPredefini : avant.avatarPredefini;
     if (predefini && !estVisuelAvatarPredefini(predefini)) {
       throw new ErreurAuth("avatar_predefini_invalide");
@@ -983,8 +988,7 @@ export class AuthService {
         ...(changeEmail ? { email } : {}),
         ...(d.langue !== undefined ? { langue: d.langue } : {}),
         ...(d.theme !== undefined ? { theme: d.theme } : {}),
-        ...(d.avatarFichier !== undefined ? { avatarFichier: d.avatarFichier } : {}),
-        ...(d.avatarPredefini ? { avatarFichier: null } : {}),
+        ...(d.avatarFichier === null || d.avatarPredefini ? { avatarFichier: null } : {}),
         ...(d.avatarPredefini !== undefined ? { avatarPredefini: d.avatarPredefini } : {}),
         version: { increment: 1 },
       },

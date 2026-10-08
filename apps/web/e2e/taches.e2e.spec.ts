@@ -1005,7 +1005,8 @@ test.describe("Vue 17 — les trois verbes du document que rien n'appelait", () 
     // Ce que `GET /taches/:id` ne porte pas, et que seule la consultation rend.
     const fenetre = page.getByRole("dialog");
     await expect(fenetre.getByText("application/pdf")).toBeVisible();
-    await expect(fenetre.getByText(DOCUMENT_MIEN.empreinte)).toBeVisible();
+    // `C14` — l'empreinte ne sort plus du serveur, et la fenêtre ne l'affiche plus.
+    await expect(fenetre.getByText(/^[0-9a-f]{64}$/)).toHaveCount(0);
   });
 
   test("EX-DOC-02 — renommer : le PATCH porte le nom SAISI, pas celui qu'on avait lu", async ({

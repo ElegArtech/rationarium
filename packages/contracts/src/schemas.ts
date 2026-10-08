@@ -134,7 +134,15 @@ export const modificationProfilSchema = z
     email: z.email().max(160).optional(),
     langue: z.enum(["fr", "en"]).optional(),
     theme: z.enum(["clair", "sombre", "auto"]).optional(),
-    avatarFichier: z.string().max(255).nullish(),
+    /*
+     * `RG-AUTH-09` — **seul `null` s'écrit ici** : il efface le fichier. Un
+     * fichier ne se POSE que par `POST /auth/me/avatar`, qui en vérifie les
+     * octets. La chaîne libre qu'on acceptait désignait n'importe quelle
+     * empreinte du magasin commun aux pièces jointes, et `GET
+     * /auth/me/avatar` la servait : une pièce jointe image se lisait sans
+     * `documents:download`, en se la posant comme avatar.
+     */
+    avatarFichier: z.null().optional(),
     avatarPredefini: visuelAvatarPredefiniSchema.nullish(),
     /**
      * `RG-AUTH-16` — exigé par le service quand l'adresse change : une session

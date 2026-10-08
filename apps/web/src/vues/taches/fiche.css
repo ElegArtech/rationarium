@@ -444,16 +444,6 @@
   color: var(--muted);
   margin-top: 2px;
 }
-/*
- * L'empreinte fait 64 caractères d'un seul tenant : sans coupure, elle déborde
- * de la colonne de définition de la fenêtre. La règle est portée par le
- * contexte, pas par `.doc-m`, dont les autres emplois tiennent sur une ligne.
- */
-.side-dl dd.doc-m {
-  overflow-wrap: anywhere;
-  margin-top: 0;
-}
-
 /* Panneau latéral */
 .side-dl {
   display: grid;

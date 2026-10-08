@@ -353,12 +353,13 @@ export const commenter = (taskId: string, contenu: string) =>
  *      d'un document : `auteur: { prenom, nom }`, sans `id`. Sans lui, aucun
  *      écran ne peut masquer par courtoisie ce que le serveur refuserait.
  *      Cette route-ci le rend.
- *   3. L'empreinte et le rattachement n'arrivent par aucun autre chemin.
+ *   3. Le rattachement n'arrive par aucun autre chemin. L'empreinte, elle,
+ *      ne sort plus du serveur (`C14`) : elle désignait le contenu dans un
+ *      magasin partagé avec les avatars.
  */
 export type DocumentConsulte = {
   id: string;
   nom: string;
-  empreinte: string;
   tailleOctets: number;
   typeMime: string;
   /** `null` quand le compte auteur a disparu — la colonne est `SetNull`. */
