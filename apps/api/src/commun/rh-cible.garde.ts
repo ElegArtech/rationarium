@@ -11,6 +11,15 @@ type RegleCible = {
   autrui: string[];
   ressources?: boolean;
   limiterPersonnel?: boolean;
+  /**
+   * `RG-TSK-18`, `RG-PRJ-13` — les ressources désignées reçoivent une
+   * ÉCRITURE (une saisie de temps) : la tâche doit passer le prédicat
+   * d'écriture, le projet exige d'y être rattaché. Sans ce drapeau, les
+   * prédicats de lecture suffisent — ils suffisaient aussi à `POST /temps`,
+   * si bien que `projects:readAll` ou une portée globale ouvrait la saisie de
+   * temps sur tout projet et toute tâche de l'instance.
+   */
+  ecriture?: boolean;
 };
 export const CibleRH = (regle: RegleCible) => applyDecorators(SetMetadata(CLE, regle), UseGuards(GardeCibleRH));
 
@@ -52,12 +61,30 @@ export class GardeCibleRH implements CanActivate {
       if (thirdPartyId && !regle.autrui.some((p) => d.permissions.has(p))) throw new ForbiddenException({ cle: "commun:droits.permissionRequise" });
       const taskId = requete.params.taskId ?? entree["taskId"];
       const projectId = entree["projectId"];
+      let projetDeLaTache: string | null = null;
       if (typeof taskId === "string") {
-        const tache = await this.prisma.task.findFirst({ where: { AND: [{ id: taskId }, this.perimetres.filtreTache(d.perimetre, d.permissions)] }, select: { id: true } });
+        const tache = await this.prisma.task.findFirst({
+          where: {
+            AND: [
+              { id: taskId },
+              this.perimetres.filtreTache(d.perimetre, d.permissions),
+              ...(regle.ecriture ? [this.perimetres.filtreTacheEcriture(d.perimetre, d.permissions)] : []),
+            ],
+          },
+          select: { id: true, projectId: true },
+        });
         if (!tache) throw new ForbiddenException({ cle: "erreurs:horsPerimetre" });
+        projetDeLaTache = tache.projectId;
       }
-      if (typeof projectId === "string") {
-        const projet = await this.prisma.project.findFirst({ where: { AND: [{ id: projectId }, this.perimetres.filtreProjet(d.perimetre, d.permissions)] }, select: { id: true } });
+      // Le projet de la tâche déjà admise en écriture n'a pas à être requestionné :
+      // l'assigné d'une tâche y déclare son temps sans être membre du projet.
+      if (typeof projectId === "string" && !(regle.ecriture && projectId === projetDeLaTache)) {
+        const filtre = !regle.ecriture
+          ? this.perimetres.filtreProjet(d.perimetre, d.permissions)
+          : d.permissions.has("projects:manage_any")
+            ? {}
+            : this.perimetres.filtreMesProjets(d.userId);
+        const projet = await this.prisma.project.findFirst({ where: { AND: [{ id: projectId }, filtre] }, select: { id: true } });
         if (!projet) throw new ForbiddenException({ cle: "erreurs:horsPerimetre" });
       }
       if (typeof thirdPartyId === "string") {

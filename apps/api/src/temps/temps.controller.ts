@@ -67,7 +67,7 @@ export class TempsController {
 
   @Post()
   @RequiertPermission("time_tracking:create")
-  @CibleRH({ source: "body", autrui: ["time_tracking:declare_for_third_party"], ressources: true })
+  @CibleRH({ source: "body", autrui: ["time_tracking:declare_for_third_party"], ressources: true, ecriture: true })
   saisir(@Body() corps: unknown, @Demande() d: ContexteDemande) {
     const donnees = valider(
       z.object({
