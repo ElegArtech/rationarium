@@ -133,9 +133,11 @@ services:
     # Caddy s'exécute en root dans l'image : ports 80/443, et lecture du
     # Caddyfile et des certificats montés quel que soit leur propriétaire.
     cap_add: [NET_BIND_SERVICE, DAC_READ_SEARCH]
+    # Vide : toutes les interfaces. 127.0.0.1 pour un accès local en HTTP,
+    # l'adresse d'une interface interne pour un réseau privé.
     ports:
-      - '${RATIONARIUM_PORT_HTTP:-8080}:80'
-      - '${RATIONARIUM_PORT_HTTPS:-8443}:443'
+      - '${RATIONARIUM_IP_ECOUTE:+${RATIONARIUM_IP_ECOUTE:-}:}${RATIONARIUM_PORT_HTTP:-8080}:80'
+      - '${RATIONARIUM_IP_ECOUTE:+${RATIONARIUM_IP_ECOUTE:-}:}${RATIONARIUM_PORT_HTTPS:-8443}:443'
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - ./certificats:/etc/rationarium/certificats:ro

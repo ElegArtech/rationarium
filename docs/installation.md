@@ -37,6 +37,9 @@ bash configurer.sh
 
 Si un port est déjà occupé, choisir une autre adresse publique ou préciser le port secondaire
 avant de lancer l’assistant, par exemple `RATIONARIUM_PORT_HTTPS=9443 bash configurer.sh`.
+Une adresse `http://localhost` publie les ports sur `127.0.0.1` seulement ; une adresse HTTPS les
+publie sur toutes les interfaces. Pour n’écouter que sur un réseau interne, préciser l’adresse :
+`RATIONARIUM_IP_ECOUTE=10.0.0.5 bash configurer.sh`.
 
 Les fichiers `.sha256` de la release permettent aussi de vérifier les archives téléchargées
 manuellement avec `sha256sum --check`.
@@ -64,10 +67,13 @@ de connexion à PostgreSQL.
 | `RATIONARIUM_ADMIN_LOGIN` | Identifiant du premier administrateur |
 | `RATIONARIUM_ADMIN_EMAIL` | Courriel du premier administrateur |
 | `RATIONARIUM_ADMIN_MOTDEPASSE` | Mot de passe temporaire ; vide pour en générer un dans les journaux d’amorçage |
+| `RATIONARIUM_IP_ECOUTE` | Adresse de l’hôte où les ports sont publiés : `127.0.0.1` pour un accès local en HTTP (valeur de l’exemple), vide pour toutes les interfaces, ou l’adresse d’une interface interne |
 | `NOM_PROJET` | Nom de l’installation et préfixe de ses volumes ; à conserver lors des mises à jour |
 
 Générer deux secrets distincts, par exemple avec `openssl rand -hex 32`. Les valeurs d’exemple
-ouvrent `http://localhost:8080`. Pour accéder au site depuis un autre poste, configurer HTTPS.
+ouvrent `http://localhost:8080`, publié sur `127.0.0.1` seulement : l’accès HTTP sans chiffrement
+n’est pas exposé au réseau. Pour accéder au site depuis un autre poste, configurer HTTPS et vider
+`RATIONARIUM_IP_ECOUTE`, ou y indiquer l’adresse de l’interface à desservir.
 Les cookies de session de production requièrent HTTPS ; l’accès HTTP local sert à l’évaluation.
 
 `MODE_IMAGES=missing` récupère les images absentes. `MODE_IMAGES=never` interdit tout téléchargement.
@@ -91,7 +97,8 @@ les rôles personnalisés restent conservés.
 ## HTTPS
 
 Seuls les ports du frontal web sont publiés. L’API et PostgreSQL restent accessibles sur le réseau
-Docker. Les trois modes ci-dessous utilisent les mêmes images.
+Docker. Dans les exemples ci-dessous, `RATIONARIUM_IP_ECOUTE=` (vide) publie sur toutes les
+interfaces ; une adresse d’interface interne limite l’écoute à ce réseau. Les trois modes ci-dessous utilisent les mêmes images.
 
 ### Certificat public automatique
 
@@ -100,6 +107,7 @@ RATIONARIUM_HOTE=https://planning.example.org
 RATIONARIUM_URL_PUBLIQUE=https://planning.example.org
 RATIONARIUM_PORT_HTTP=80
 RATIONARIUM_PORT_HTTPS=443
+RATIONARIUM_IP_ECOUTE=
 DIRECTIVE_TLS=
 COURRIEL_ACME=administration@example.org
 ```
@@ -116,6 +124,7 @@ RATIONARIUM_HOTE=https://planning.example.org
 RATIONARIUM_URL_PUBLIQUE=https://planning.example.org
 RATIONARIUM_PORT_HTTP=80
 RATIONARIUM_PORT_HTTPS=443
+RATIONARIUM_IP_ECOUTE=
 DIRECTIVE_TLS='tls /etc/rationarium/certificats/site.crt /etc/rationarium/certificats/site.key'
 ```
 
