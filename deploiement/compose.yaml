@@ -19,6 +19,10 @@ x-application: &application
   PGPASSWORD_FILE: /var/lib/rationarium/identifiants/postgresql
   PGDATABASE: ${POSTGRES_BASE:-rationarium}
 
+x-durcissement: &durcissement
+  security_opt: ['no-new-privileges:true']
+  cap_drop: [ALL]
+
 services:
   base:
     image: ${REGISTRE_RATIONARIUM:-ghcr.io/elegartech}/rationarium-base:${VERSION_RATIONARIUM:-1.0.1}
@@ -29,6 +33,11 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_MOTDEPASSE:?renseigner POSTGRES_MOTDEPASSE dans .env}
       POSTGRES_DB: ${POSTGRES_BASE:-rationarium}
       TZ: ${RATIONARIUM_FUSEAU:-Europe/Paris}
+    <<: *durcissement
+    # L'entrée de l'image prépare PGDATA en root (chown, find), puis passe à
+    # l'utilisateur postgres (su-exec). FOWNER sert son chmod 0700, dont l'échec
+    # serait ignoré en silence et ne se verrait qu'au refus de PostgreSQL.
+    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER, SETGID, SETUID]
     volumes:
       - donnees:/var/lib/postgresql
     healthcheck:
@@ -45,6 +54,7 @@ services:
     depends_on:
       base:
         condition: service_healthy
+    <<: *durcissement
     environment:
       <<: *base
       RATIONARIUM_PG_APPLICATION: ${POSTGRES_UTILISATEUR_APPLICATION:-rationarium_api}
@@ -62,6 +72,7 @@ services:
     depends_on:
       migrations:
         condition: service_completed_successfully
+    <<: *durcissement
     environment:
       <<: *application
       COOKIE_SECRET: ${COOKIE_SECRET:?renseigner COOKIE_SECRET dans .env}
@@ -80,6 +91,7 @@ services:
     depends_on:
       amorcage:
         condition: service_completed_successfully
+    <<: *durcissement
     environment:
       <<: *application
       COOKIE_SECRET: ${COOKIE_SECRET:?renseigner COOKIE_SECRET dans .env}
@@ -117,6 +129,10 @@ services:
       RATIONARIUM_API: api:3000
       DIRECTIVE_TLS: ${DIRECTIVE_TLS:-}
       DIRECTIVE_COURRIEL_ACME: ${COURRIEL_ACME:+email ${COURRIEL_ACME:-}}
+    <<: *durcissement
+    # Caddy s'exécute en root dans l'image : ports 80/443, et lecture du
+    # Caddyfile et des certificats montés quel que soit leur propriétaire.
+    cap_add: [NET_BIND_SERVICE, DAC_READ_SEARCH]
     ports:
       - '${RATIONARIUM_PORT_HTTP:-8080}:80'
       - '${RATIONARIUM_PORT_HTTPS:-8443}:443'
