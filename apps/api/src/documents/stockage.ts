@@ -100,3 +100,53 @@ export function dispositionPieceJointe(nom: string): string {
   const ascii = nom.replace(/[^\x20-\x7e]/g, "_").replace(/["\\]/g, "_");
   return `attachment; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(nom)}`;
 }
+
+/**
+ * `EX-DOC-01` — **la forme d'un type de contenu déclaré.** `type/sous-type`,
+ * en caractères de jeton (RFC 6838), sans paramètre ni caractère de contrôle.
+ *
+ * Le type arrivait en chaîne libre et repartait tel quel en `Content-Type` :
+ * un retour chariot y faisait tomber le téléchargement en 500 (Fastify refuse
+ * l'en-tête), et rien n'empêchait d'y écrire ce qu'on voulait.
+ */
+export const FORME_TYPE_MIME = /^[a-z0-9][a-z0-9!#$&^_.+-]{0,62}\/[a-z0-9][a-z0-9!#$&^_.+-]{0,62}$/i;
+
+/**
+ * Les types qu'un téléchargement sert **tels quels**. Tout autre type part en
+ * `application/octet-stream`.
+ *
+ * Une liste blanche, pas une liste noire : `text/javascript`, `text/html` ou
+ * `image/svg+xml` servis depuis l'origine de l'application sont un script de
+ * même origine, et l'on ne peut pas énumérer tout ce qu'un navigateur
+ * exécute. Ce sont les documents de travail courants — bureautique, PDF,
+ * images matricielles, texte —, rien qui s'exécute.
+ */
+const TYPES_SERVIS = new Set([
+  "application/pdf",
+  "application/rtf",
+  "application/zip",
+  "application/json",
+  "application/msword",
+  "application/vnd.ms-excel",
+  "application/vnd.ms-powerpoint",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  "application/vnd.oasis.opendocument.text",
+  "application/vnd.oasis.opendocument.spreadsheet",
+  "application/vnd.oasis.opendocument.presentation",
+  "application/vnd.oasis.opendocument.graphics",
+  "image/png",
+  "image/jpeg",
+  "image/gif",
+  "image/webp",
+  "text/plain",
+  "text/csv",
+  "text/markdown",
+]);
+
+/** Le `Content-Type` effectivement servi pour un type enregistré. */
+export function typeMimeServi(enregistre: string): string {
+  const type = enregistre.trim().toLowerCase();
+  return TYPES_SERVIS.has(type) ? type : "application/octet-stream";
+}

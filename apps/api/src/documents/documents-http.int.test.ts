@@ -432,3 +432,75 @@ describe("C14, RG-AUTH-09 — une pièce jointe ne se lit pas par le détour de 
     expect(r.json()).not.toHaveProperty("empreinte");
   });
 });
+
+describe("EX-DOC-02 — le type servi au téléchargement ne vient pas tel quel du déposant", () => {
+  /*
+   * `typeMime` était une chaîne libre, rendue telle quelle en `Content-Type` :
+   * avec un retour chariot, le téléchargement tombait en 500 ; avec
+   * `text/javascript`, la route servait un script depuis l'origine de
+   * l'application.
+   */
+  let lecteur: Compte;
+
+  beforeAll(async () => {
+    lecteur = await compte("lecteur", ["documents:read", "documents:download"]);
+    await prisma.taskAssignee.create({ data: { taskId: tacheVisible, userId: lecteur.id } });
+  });
+
+  async function deposerEnBase(nom: string, typeMime: string, contenu: string) {
+    const { createHash } = await import("node:crypto");
+    const { ecrireContenu } = await import("./stockage.js");
+    const octets = Buffer.from(contenu);
+    const empreinte = createHash("sha256").update(octets).digest("hex");
+    await ecrireContenu(empreinte, octets);
+    return (
+      await prisma.document.create({
+        data: { nom, taskId: tacheVisible, empreinte, tailleOctets: octets.byteLength, typeMime, auteurId: contributeur.id },
+      })
+    ).id;
+  }
+
+  it("EX-DOC-01 — un type déclaré avec CR/LF est refusé au dépôt en 400, et rien n'est écrit", async () => {
+    const avant = await prisma.document.count();
+    const r = await appel("POST", "/api/documents", contributeur.jeton, {
+      ...piece(4, { projectId: projetVisible }),
+      typeMime: "text/plain\r\nX-Injecte: 1",
+    });
+    expect(r.statusCode).toBe(400);
+    expect(await prisma.document.count()).toBe(avant);
+  });
+
+  it("EX-DOC-01 — un type sans la forme type/sous-type est refusé au dépôt", async () => {
+    const r = await appel("POST", "/api/documents", contributeur.jeton, {
+      ...piece(4, { projectId: projetVisible }),
+      typeMime: "pas un type",
+    });
+    expect(r.statusCode).toBe(400);
+  });
+
+  it("EX-DOC-02 — un document déclaré text/javascript se sert en octet-stream, nosniff et sandbox", async () => {
+    const id = await deposerEnBase("outil.js", "text/javascript", "alert(document.cookie)");
+    const r = await appel("GET", `/api/documents/${id}/telecharger`, lecteur.jeton);
+    expect(r.statusCode).toBe(200);
+    expect(r.headers["content-type"]).toBe("application/octet-stream");
+    expect(r.headers["x-content-type-options"]).toBe("nosniff");
+    expect(r.headers["content-security-policy"]).toBe("sandbox");
+    expect(String(r.headers["content-disposition"])).toMatch(/^attachment;/);
+  });
+
+  it("EX-DOC-02 — un type hérité portant CR/LF se télécharge sans erreur interne", async () => {
+    const id = await deposerEnBase("ancien.txt", "text/plain\r\nX-Injecte: 1", "ancien");
+    const r = await appel("GET", `/api/documents/${id}/telecharger`, lecteur.jeton);
+    expect(r.statusCode).toBe(200);
+    expect(r.headers["content-type"]).toBe("application/octet-stream");
+    expect(r.headers["x-injecte"]).toBeUndefined();
+  });
+
+  it("EX-DOC-02 — contre-témoin : un PDF reste servi en application/pdf", async () => {
+    const id = await deposerEnBase("cahier.pdf", "application/pdf", "%PDF-1.7 cahier");
+    const r = await appel("GET", `/api/documents/${id}/telecharger`, lecteur.jeton);
+    expect(r.statusCode).toBe(200);
+    expect(r.headers["content-type"]).toBe("application/pdf");
+    expect(r.headers["content-security-policy"]).toBe("sandbox");
+  });
+});

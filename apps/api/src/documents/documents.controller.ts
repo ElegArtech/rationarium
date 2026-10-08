@@ -7,11 +7,13 @@ import {
   Patch,
   Post,
   Query,
+  Res,
   StreamableFile,
 } from "@nestjs/common";
+import type { FastifyReply } from "fastify";
 import { z } from "zod";
 import { DocumentsService } from "./documents.service.js";
-import { dispositionPieceJointe } from "./stockage.js";
+import { dispositionPieceJointe, FORME_TYPE_MIME, typeMimeServi } from "./stockage.js";
 import { Demande, RequiertPermission, type ContexteDemande } from "../commun/permissions.garde.js";
 import { fichierTropVolumineux, valider } from "../commun/http.js";
 
@@ -50,7 +52,7 @@ export class DocumentsController {
          * la limite de corps du transport.
          */
         contenuBase64: z.base64(),
-        typeMime: z.string().min(1).max(120),
+        typeMime: z.string().max(127).regex(FORME_TYPE_MIME),
         projectId: z.uuid().nullish(),
         taskId: z.uuid().nullish(),
       }),
@@ -90,10 +92,24 @@ export class DocumentsController {
    */
   @Get(":id/telecharger")
   @RequiertPermission("documents:download")
-  async telecharger(@Param("id") id: string, @Demande() d: ContexteDemande) {
+  async telecharger(
+    @Param("id") id: string,
+    @Demande() d: ContexteDemande,
+    @Res({ passthrough: true }) reponse: FastifyReply,
+  ) {
     const fichier = await this.documents.telecharger(id, d.userId, d.perimetre, d.permissions);
+    /*
+     * Le contenu vient d'un tiers et se sert depuis l'origine de l'application.
+     * Trois défenses, parce qu'aucune ne suffit seule : un type pris dans une
+     * liste blanche (un `text/javascript` déclaré au dépôt fournissait un
+     * script de même origine), `nosniff` pour que le navigateur ne devine pas
+     * mieux, et `sandbox` pour qu'un document ouvert malgré
+     * `Content-Disposition: attachment` n'exécute rien et n'ait pas d'origine.
+     */
+    reponse.header("X-Content-Type-Options", "nosniff");
+    reponse.header("Content-Security-Policy", "sandbox");
     return new StreamableFile(fichier.contenu, {
-      type: fichier.typeMime,
+      type: typeMimeServi(fichier.typeMime),
       disposition: dispositionPieceJointe(fichier.nom),
       length: fichier.contenu.byteLength,
     });
