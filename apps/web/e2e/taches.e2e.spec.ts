@@ -358,11 +358,10 @@ test.describe("Vue 17 — fiche tâche", () => {
     await expect(plus).toBeEnabled();
     await plus.click();
 
-    // Hors projet : tous ceux qu'on a le droit d'assigner, et l'interface le
-    // dit. Sans `tasks:assign_any_user`, c'est son périmètre : la personne
-    // d'ailleurs, que le serveur refuserait, n'est pas proposée (`RG-GEN-06`).
-    await expect(page.getByText("Les personnes de votre périmètre")).toBeVisible();
-    await expect(page.getByRole("checkbox", { name: "Inès Rocher" })).toHaveCount(0);
+    // Hors projet : tous les utilisateurs, et l'interface le dit. La session
+    // porte `tasks:manage_any` : la personne d'un autre périmètre est proposée.
+    await expect(page.getByText("Tous les utilisateurs")).toBeVisible();
+    await expect(page.getByRole("checkbox", { name: "Inès Rocher" })).toHaveCount(1);
     await page.getByRole("checkbox", { name: "Driss Amrani" }).check();
     await page.getByRole("checkbox", { name: "Hugo Nguyen" }).check();
     await page.getByRole("button", { name: "Enregistrer les assignés" }).click();
@@ -372,6 +371,39 @@ test.describe("Vue 17 — fiche tâche", () => {
     // fenêtres ouvertes en même temps s'effaceraient l'une l'autre.
     await expect.poll(() => recu).not.toBeNull();
     expect(recu).toEqual({ version: FICHE_VIDE.version, userIds: ["a1", "a2"] });
+  });
+
+  test("tasks:assign_any_user — sans elle, seules les personnes de son périmètre sont proposées", async ({
+    page,
+  }) => {
+    /*
+     * Le serveur refuse d'assigner quiconque n'est ni soi, ni du périmètre
+     * organisationnel, ni du projet, sans `tasks:assign_any_user` (ni
+     * `tasks:manage_any`). La fenêtre ne propose donc pas ce qu'il
+     * refuserait (`RG-GEN-06`), et le dit — à l'assignation comme au RACI.
+     */
+    await serveur(page, {
+      session: SESSION_TACHES_SIENNES,
+      reponses: {
+        [`/api/taches/${FICHE_VIDE.id}`]: { corps: FICHE_VIDE },
+        "/api/utilisateurs": {
+          corps: [
+            { id: "a1", prenom: "Driss", nom: "Amrani", dansMonPerimetre: true },
+            { id: "a3", prenom: "Inès", nom: "Rocher", dansMonPerimetre: false },
+          ],
+        },
+      },
+    });
+    await page.goto(`/taches/${FICHE_VIDE.id}`);
+
+    await expect(page.getByLabel("Agent")).toBeVisible();
+    await expect(page.getByLabel("Agent").locator("option", { hasText: "Driss Amrani" })).toHaveCount(1);
+    await expect(page.getByLabel("Agent").locator("option", { hasText: "Inès Rocher" })).toHaveCount(0);
+
+    await page.getByRole("button", { name: "Ajouter un assigné" }).click();
+    await expect(page.getByText("Les personnes de votre périmètre")).toBeVisible();
+    await expect(page.getByRole("checkbox", { name: "Driss Amrani" })).toHaveCount(1);
+    await expect(page.getByRole("checkbox", { name: "Inès Rocher" })).toHaveCount(0);
   });
 
   test("les dépendances sont montrées dans les deux sens", async ({ page }) => {
