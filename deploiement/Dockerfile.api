@@ -48,7 +48,7 @@ COPY --from=production /rationarium/packages /rationarium/packages
 COPY --from=production /rationarium/apps/api /rationarium/apps/api
 COPY --from=construction /rationarium/package.json /rationarium/pnpm-workspace.yaml ./
 COPY --from=production \
-  /rationarium/node_modules/.pnpm/@prisma+engines@7.9.1/node_modules/@prisma/engines/schema-engine-linux-musl-openssl-3.0.x \
+  /rationarium/node_modules/.pnpm/@prisma+engines@7.10.0/node_modules/@prisma/engines/schema-engine-linux-musl-openssl-3.0.x \
   /usr/local/lib/prisma/schema-engine
 ENV PRISMA_SCHEMA_ENGINE_BINARY=/usr/local/lib/prisma/schema-engine
 COPY --from=construction /rationarium/packages/contracts/dist /rationarium/packages/contracts/dist
