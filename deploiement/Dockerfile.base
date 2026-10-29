@@ -1,7 +1,7 @@
 # Le démarrage officiel reste épinglé ; PostgreSQL est reconstruit sans les
 # fonctions XML/XSLT et LLVM inutilisées par le produit. LLVM réintroduisait
 # libxml2 2.13 malgré un scan Alpine nul (voir ADR PostgreSQL).
-FROM postgres:18.6-alpine3.24@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873 AS construction
+FROM postgres:18.6-alpine3.24@sha256:10a5c69a83035ab5239f5620d708520e8b28f5aa1f2b20143e6024532edadfb5 AS construction
 RUN apk upgrade --no-cache \
  && apk add --no-cache build-base bison flex perl icu-dev krb5-dev readline-dev \
       openldap-dev openssl-dev util-linux-dev zlib-dev lz4-dev zstd-dev \
