@@ -1,7 +1,7 @@
 /**
  * Schémas Zod — la validation d'entrée, partagée.
  *
- * Une seule définition, deux usages : le serveur valide via `nestjs-zod`, le
+ * Une seule définition, deux usages : le serveur valide par `valider`, le
  * client type ses formulaires et ses réponses. Aucune génération de code à
  * orchestrer.
  *

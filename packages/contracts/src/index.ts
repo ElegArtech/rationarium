@@ -2,7 +2,7 @@
  * @rationarium/contracts — contrat partagé client / serveur.
  *
  * Définition unique dont dérivent la validation d'entrée du serveur
- * (via nestjs-zod), les types et formulaires du client, la garde de
+ * (par `valider`), les types et formulaires du client, la garde de
  * permission, la matrice d'administration et les tests.
  */
 
