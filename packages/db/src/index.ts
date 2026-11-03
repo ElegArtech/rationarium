@@ -15,6 +15,8 @@
  */
 
 export { PrismaClient } from "./generated/client.js";
+/** Les types d'entrée de Prisma (`Prisma.InputJsonValue`, filtres…), pour les colonnes JSON de M22. */
+export type { Prisma } from "./generated/client.js";
 export type * from "./generated/models.js";
 export * from "./generated/enums.js";
 
