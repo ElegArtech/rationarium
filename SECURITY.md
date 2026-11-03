@@ -4,8 +4,9 @@
 
 | Version | Correctifs de sécurité |
 | --- | --- |
-| 1.0.x | Oui, sur la dernière version publiée de la branche : les correctifs paraissent en version corrective (1.0.1, puis 1.0.2 pour le durcissement du déploiement). Une installation 1.0.0 ou 1.0.1 se met à jour vers la dernière 1.0.x. |
-| 1.0.0-rc.1 | Non — préversion ; migrer vers la dernière 1.0.x par la [migration PostgreSQL](docs/migration-postgresql.md) |
+| 1.1.x | Oui, sur la dernière version publiée de la branche. |
+| 1.0.x | Non : une installation 1.0.x se met à jour vers la dernière 1.1.x, qui corrige aussi les avis de dépendances publiés après 1.0.2. |
+| 1.0.0-rc.1 | Non — préversion ; migrer vers la dernière 1.1.x par la [migration PostgreSQL](docs/migration-postgresql.md) |
 
 ## Signaler une faille
 
@@ -45,6 +46,6 @@ Les avis sont listés dans l'onglet **Security** du dépôt.
 ---
 
 **English summary.** Do not report vulnerabilities in public issues. Use GitHub private
-vulnerability reporting (Security tab → Report a vulnerability). Supported: the latest 1.0.x
-release (fixes ship as patch releases: 1.0.1, then 1.0.2); 1.0.0-rc.1 is not supported.
+vulnerability reporting (Security tab → Report a vulnerability). Supported: the latest 1.1.x
+release; 1.0.x installations update to the latest 1.1.x; 1.0.0-rc.1 is not supported.
 We aim to answer within seven days; this is a volunteer project, not a contractual SLA.
