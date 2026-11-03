@@ -1,0 +1,359 @@
+#!/usr/bin/env node
+/* global process */
+/**
+ * rationarium-agent — le client en ligne de commande du guichet des agents
+ * (`docs/assistant/SPEC-PHASE-1.md § 10 et 14`).
+ *
+ * Il agit dans Rationarium pour le compte du propriétaire de son jeton. Il ne
+ * lit aucune source et n'appelle aucun modèle : le client de modèle de langage
+ * du poste le fait, et lui passe les actions et leurs preuves.
+ *
+ * Codes de sortie : 0 réussite, 1 erreur interne, 2 usage ou configuration,
+ * 3 refus HTTP du guichet, 4 guichet injoignable.
+ */
+import { readFileSync, writeFileSync } from "node:fs";
+import {
+  LONGUEUR_ERREUR,
+  LONGUEUR_PROGRESSION,
+  SORTIES,
+  VERSION,
+  ErreurHttp,
+  ErreurUsage,
+  attendrePassage,
+  chargerConfiguration,
+  creerGuichet,
+  executerActions,
+  masquer,
+  normaliserActions,
+  relancerAvecCertificat,
+  verifierIdentifiant,
+  verifierTls,
+} from "./lib/guichet.mjs";
+
+const AIDE = `rationarium-agent ${VERSION} — client du guichet des agents de Rationarium
+
+Usage : rationarium-agent <commande> [options]
+
+  etat [--json]                         Vérifie le jeton : propriétaire, mode, types autorisés, passage actif.
+  attendre [--secondes N] [--pause S]   Attend un passage (25 s par défaut) ; écrit « passage <id> » ou « aucun ».
+  prendre [<id>]                        Prend le passage <id>, ou le passage en attente s'il y en a un.
+  contexte <id> [--sortie fichier]      Écrit le contexte du passage en JSON.
+  temps <id> --du AAAA-MM-JJ --au AAAA-MM-JJ [--sortie fichier]
+                                        Écrit les temps déjà déclarés sur la période.
+  progression <id> <libellé…>           Signale l'avancement (signe de vie, 200 caractères au plus).
+  agir <id> <fichier.json|-> [--sortie fichier]
+                                        Exécute les actions, par lots de 50, et écrit les résultats en JSON.
+  fin <id> --etat terminee|echec [--bilan fichier.json|-] [--erreur texte]
+                                        Clôt le passage avec son bilan.
+  lancer [--projets id,id] [--tolerer-actif]
+                                        Crée un passage manuel, que le relais prendra.
+  aide                                  Affiche cette aide.
+
+Options communes : --json (réponse brute du guichet, pour etat, attendre, prendre, progression, fin, lancer).
+
+Configuration (variables d'environnement, ou ~/.config/rationarium-agent/agent.env) :
+  RATIONARIUM_URL      adresse de l'instance, par exemple https://localhost:8443
+  RATIONARIUM_JETON    jeton d'agent ; à défaut : secret-tool lookup service rationarium-agent usage jeton
+  RATIONARIUM_CA       certificat racine de l'instance, chargé par NODE_EXTRA_CA_CERTS
+  RATIONARIUM_REESSAIS nouvelles tentatives sur une coupure réseau (2 par défaut)
+
+Codes de sortie : 0 réussite, 2 usage, 3 refus HTTP, 4 guichet injoignable.`;
+
+const DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+// ── Entrées et sorties ──────────────────────────────────────────────────────
+
+let jetonConnu = null;
+
+const ecrire = (flux, texte) => flux.write(`${masquer(texte, jetonConnu)}\n`);
+const sortie = (texte) => ecrire(process.stdout, texte);
+const info = (texte) => ecrire(process.stderr, texte);
+const json = (valeur) => sortie(JSON.stringify(valeur, null, 2));
+
+function analyser(args, { valeurs = [], drapeaux = [] } = {}) {
+  const options = {};
+  const positions = [];
+  for (let i = 0; i < args.length; i += 1) {
+    const arg = args[i];
+    if (arg === "--") {
+      positions.push(...args.slice(i + 1));
+      break;
+    }
+    if (!arg.startsWith("--")) {
+      positions.push(arg);
+      continue;
+    }
+    const egal = arg.indexOf("=");
+    const nom = arg.slice(2, egal === -1 ? undefined : egal);
+    if (drapeaux.includes(nom) && egal === -1) {
+      options[nom] = true;
+    } else if (valeurs.includes(nom)) {
+      const valeur = egal === -1 ? args[++i] : arg.slice(egal + 1);
+      if (valeur === undefined) throw new ErreurUsage(`l'option --${nom} attend une valeur`);
+      options[nom] = valeur;
+    } else {
+      throw new ErreurUsage(`option inconnue : ${arg}`);
+    }
+  }
+  return { options, positions };
+}
+
+function lireJson(chemin, quoi) {
+  let texte;
+  try {
+    texte = chemin === "-" ? readFileSync(0, "utf8") : readFileSync(chemin, "utf8");
+  } catch (e) {
+    throw new ErreurUsage(`lecture impossible de ${chemin === "-" ? "l'entrée standard" : chemin} : ${e.code ?? e.message}`);
+  }
+  try {
+    return JSON.parse(texte);
+  } catch (e) {
+    throw new ErreurUsage(`${quoi} n'est pas du JSON valide : ${e.message}`);
+  }
+}
+
+function ecrireJson(chemin, valeur) {
+  try {
+    writeFileSync(chemin, `${JSON.stringify(valeur, null, 2)}\n`, { mode: 0o600 });
+  } catch (e) {
+    throw new ErreurUsage(`écriture impossible de ${chemin} : ${e.code ?? e.message}`);
+  }
+}
+
+/** Le JSON va dans le fichier ou sur la sortie ; le résumé va là où il ne gêne pas. */
+function rendre(valeur, cheminSortie, resume) {
+  if (cheminSortie) {
+    ecrireJson(cheminSortie, valeur);
+    for (const ligne of resume) sortie(ligne);
+    sortie(`Écrit dans ${cheminSortie}.`);
+  } else {
+    json(valeur);
+    for (const ligne of resume) info(ligne);
+  }
+}
+
+function entier(valeur, nom, min, max) {
+  const n = Number(valeur);
+  if (!Number.isFinite(n) || n < min || n > max) throw new ErreurUsage(`--${nom} attend un nombre de ${min} à ${max}`);
+  return n;
+}
+
+const tronquer = (texte, max) => (texte.length > max ? `${texte.slice(0, max - 1)}…` : texte);
+const pluriel = (n, un, plusieurs) => `${n} ${n > 1 ? plusieurs : un}`;
+
+function passageVers(positions, rang = 0) {
+  return verifierIdentifiant(positions[rang], "passage");
+}
+
+// ── Commandes ───────────────────────────────────────────────────────────────
+
+const COMMANDES = {
+  etat: {
+    drapeaux: ["json"],
+    async executer({ guichet, options }) {
+      const e = await guichet.etat();
+      if (options.json) return json(e);
+      const p = e?.proprietaire ?? {};
+      sortie(`Jeton valide : l'agent agit pour ${[p.prenom, p.nom].filter(Boolean).join(" ")} (${p.id}).`);
+      sortie(`Module : ${e.mode}. Jalon obligatoire : ${e.jalonObligatoire ? "oui" : "non"}.`);
+      sortie(`Types d'action autorisés : ${e.typesAutorises?.length ? e.typesAutorises.join(", ") : "tous"}.`);
+      sortie(`Passage actif : ${e.passageActif ? `${e.passageActif.id} (${e.passageActif.etat})` : "aucun"}.`);
+    },
+  },
+
+  attendre: {
+    valeurs: ["secondes", "pause"],
+    drapeaux: ["json"],
+    async executer({ guichet, options }) {
+      const secondes = options.secondes === undefined ? 25 : entier(options.secondes, "secondes", 0, 86_400);
+      const pauseS = options.pause === undefined ? 1 : entier(options.pause, "pause", 0, 3600);
+      const passage = await attendrePassage(guichet, secondes, pauseS);
+      if (options.json) return json(passage);
+      sortie(passage ? `passage ${passage.id}` : "aucun");
+    },
+  },
+
+  prendre: {
+    drapeaux: ["json"],
+    async executer({ guichet, options, positions }) {
+      let id = positions[0];
+      if (id === undefined) {
+        const { passage } = (await guichet.suivant(0)) ?? {};
+        if (!passage) {
+          if (options.json) return json(null);
+          return sortie("aucun");
+        }
+        id = passage.id;
+      }
+      const p = await guichet.prendre(verifierIdentifiant(id, "passage"));
+      if (options.json) return json(p);
+      sortie(`passage ${p.id} pris`);
+      const portee = p.projectIds?.length ? pluriel(p.projectIds.length, "projet désigné", "projets désignés") : "tous les projets suivis";
+      sortie(`Déclenchement : ${p.declenchement ?? "?"}. Portée : ${portee}.`);
+    },
+  },
+
+  contexte: {
+    valeurs: ["sortie"],
+    async executer({ guichet, options, positions }) {
+      const id = passageVers(positions);
+      const c = await guichet.contexte(id);
+      const projets = c?.projets ?? [];
+      const suivis = projets.filter((p) => p.suivi?.actif !== false && p.suivi).length;
+      const compte = (champ) => projets.reduce((n, p) => n + (p[champ]?.length ?? 0), 0);
+      rendre(c, options.sortie, [
+        `Contexte du passage ${id} au ${c?.aujourdhui ?? "?"} : ${pluriel(projets.length, "projet", "projets")} dans la portée, dont ${suivis} suivi${suivis > 1 ? "s" : ""} ; ` +
+          `${pluriel(compte("jalons"), "jalon", "jalons")}, ${pluriel(compte("taches"), "tâche", "tâches")}, ${pluriel(compte("evenements"), "événement", "événements")} ; ` +
+          `${pluriel(c?.autresProjets?.length ?? 0, "autre projet", "autres projets")} ; ${pluriel(c?.actionsRecentes?.length ?? 0, "action récente", "actions récentes")}.`,
+        `Dernier passage terminé : ${c?.dernierPassageTermine ?? "aucun"}.`,
+      ]);
+    },
+  },
+
+  temps: {
+    valeurs: ["du", "au", "sortie"],
+    async executer({ guichet, options, positions }) {
+      const id = passageVers(positions);
+      const { du, au } = options;
+      if (!DATE.test(du ?? "") || !DATE.test(au ?? "")) throw new ErreurUsage("temps attend --du AAAA-MM-JJ et --au AAAA-MM-JJ");
+      if (du > au) throw new ErreurUsage("--du doit précéder --au");
+      const t = await guichet.temps(id, du, au);
+      const saisies = t?.saisies ?? [];
+      const total = saisies.reduce((n, s) => n + (Number(s.heures) || 0), 0);
+      rendre(t, options.sortie, [`${pluriel(saisies.length, "saisie", "saisies")} du ${du} au ${au}, ${Math.round(total * 100) / 100} h au total.`]);
+    },
+  },
+
+  progression: {
+    drapeaux: ["json"],
+    async executer({ guichet, options, positions }) {
+      const id = passageVers(positions);
+      const libelle = positions.slice(1).join(" ").trim();
+      if (!libelle) throw new ErreurUsage("progression attend un libellé");
+      const r = await guichet.progression(id, tronquer(libelle, LONGUEUR_PROGRESSION));
+      if (options.json) return json(r);
+      sortie(`progression enregistrée : ${r?.progression ?? libelle}`);
+    },
+  },
+
+  agir: {
+    valeurs: ["sortie"],
+    async executer({ guichet, options, positions }) {
+      const id = passageVers(positions);
+      if (!positions[1]) throw new ErreurUsage("agir attend un fichier d'actions, ou - pour l'entrée standard");
+      const actions = normaliserActions(lireJson(positions[1], "le fichier d'actions"));
+      const vers = options.sortie ? sortie : info;
+      let bilan;
+      try {
+        bilan = await executerActions(guichet, id, actions, {
+          surLot: (n, total, taille) => total > 1 && info(`lot ${n}/${total} : ${pluriel(taille, "action", "actions")}…`),
+        });
+      } catch (e) {
+        if (e.partiel) {
+          if (options.sortie) ecrireJson(options.sortie, e.partiel);
+          else json(e.partiel);
+          info(`Envoi interrompu au lot ${e.partiel.interrompu.lot}/${e.partiel.lots} : ${e.partiel.effectuees} effectuées et ${e.partiel.refusees} refusées avant l'arrêt.`);
+        }
+        throw e;
+      }
+      if (options.sortie) ecrireJson(options.sortie, bilan);
+      else json(bilan);
+      vers(
+        `${pluriel(bilan.envoyees, "action envoyée", "actions envoyées")} en ${pluriel(bilan.lots, "lot", "lots")} : ` +
+          `${bilan.effectuees} effectuée${bilan.effectuees > 1 ? "s" : ""}, ${bilan.refusees} refusée${bilan.refusees > 1 ? "s" : ""}.`,
+      );
+      for (const r of bilan.resultats) {
+        const nom = r.reference ? ` @${r.reference}` : "";
+        if (r.etat === "refusee") {
+          const m = r.motif ?? {};
+          const regle = m.regle ? ` (${m.regle})` : "";
+          vers(`  [${r.index}] ${r.type}${nom} : refusée${regle} — ${m.statut ?? "?"} ${m.cle ?? ""} : ${m.message ?? ""}`.trimEnd());
+        } else {
+          const cible = r.cibleId ? ` → ${r.cibleType ?? "entité"} ${r.cibleId}${r.version ? ` v${r.version}` : ""}` : "";
+          vers(`  [${r.index}] ${r.type}${nom} : ${r.etat}${cible}${r.rejouee ? " (rejouée)" : ""}`);
+        }
+      }
+      if (options.sortie) sortie(`Résultats écrits dans ${options.sortie}.`);
+    },
+  },
+
+  fin: {
+    valeurs: ["etat", "bilan", "erreur"],
+    drapeaux: ["json"],
+    async executer({ guichet, options, positions }) {
+      const id = passageVers(positions);
+      if (options.etat !== "terminee" && options.etat !== "echec") throw new ErreurUsage("fin attend --etat terminee ou --etat echec");
+      const corps = { etat: options.etat };
+      if (options.bilan) {
+        const bilan = lireJson(options.bilan, "le bilan");
+        if (!bilan || typeof bilan !== "object" || Array.isArray(bilan)) throw new ErreurUsage("le bilan doit être un objet JSON");
+        corps.bilan = bilan;
+      }
+      if (options.erreur) corps.erreur = tronquer(options.erreur, LONGUEUR_ERREUR);
+      const p = await guichet.fin(id, corps);
+      if (options.json) return json(p);
+      sortie(`passage ${id} clos : ${p?.etat ?? options.etat}`);
+    },
+  },
+
+  lancer: {
+    valeurs: ["projets"],
+    drapeaux: ["tolerer-actif", "json"],
+    async executer({ guichet, options }) {
+      const projectIds = (options.projets ?? "")
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .map((s) => verifierIdentifiant(s, "projet"));
+      let p;
+      try {
+        p = await guichet.creerPassage(projectIds);
+      } catch (e) {
+        if (options["tolerer-actif"] && e instanceof ErreurHttp && e.statut === 409 && e.cle === "assistant:erreurs.passageActif") {
+          return sortie(`un passage est déjà actif : ${e.corps?.passageId ?? "?"} ; aucun passage n'est créé`);
+        }
+        throw e;
+      }
+      if (options.json) return json(p);
+      sortie(`passage ${p.id} créé : en attente du poste`);
+    },
+  },
+};
+
+// ── Point d'entrée ──────────────────────────────────────────────────────────
+
+async function principal(argv) {
+  chargerConfiguration(process.env);
+  jetonConnu = process.env.RATIONARIUM_JETON?.trim() || null;
+  verifierTls(process.env);
+  const relance = await relancerAvecCertificat(process.env);
+  if (relance !== null) return relance;
+
+  const [commande, ...reste] = argv;
+  if (commande === "aide" || commande === "--aide" || commande === "--help" || commande === "-h") {
+    sortie(AIDE);
+    return SORTIES.ok;
+  }
+  if (commande === "--version") {
+    sortie(VERSION);
+    return SORTIES.ok;
+  }
+  if (!commande) {
+    info(AIDE);
+    return SORTIES.usage;
+  }
+  const definition = Object.hasOwn(COMMANDES, commande) ? COMMANDES[commande] : null;
+  if (!definition) throw new ErreurUsage(`commande inconnue : ${commande} (rationarium-agent aide)`);
+  const { options, positions } = analyser(reste, definition);
+  const guichet = creerGuichet(process.env);
+  jetonConnu = guichet.jeton;
+  await definition.executer({ guichet, options, positions });
+  return SORTIES.ok;
+}
+
+try {
+  process.exitCode = await principal(process.argv.slice(2));
+} catch (e) {
+  info(`rationarium-agent : ${e?.message ?? e}`);
+  process.exitCode = e?.codeSortie ?? SORTIES.interne;
+}

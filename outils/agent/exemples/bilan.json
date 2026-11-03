@@ -1,0 +1,17 @@
+{
+  "resume": "Deux projets lus. Une tâche close, un jalon et un événement créés, une affaire nouvelle ouverte. Un point reste ouvert.",
+  "sources": [
+    { "type": "courriel", "designation": "from:commanditaire@exemple.org", "signaux": 12 },
+    { "type": "depot", "designation": "equipe/projet", "signaux": 7 }
+  ],
+  "signauxLus": 19,
+  "pointsOuverts": [
+    {
+      "projectId": "6f1c2a7e-0b3d-4c5e-9a8b-1d2e3f405162",
+      "texte": "Un courriel annonce une réunion le 12 novembre sans en donner l'heure : l'événement n'est pas créé.",
+      "preuves": [{ "source": "courriel", "reference": "<20261103.1120@exemple.org>", "date": "2026-11-03" }]
+    }
+  ],
+  "limites": ["Le canal de messagerie du second projet n'est lisible par aucun outil du poste."],
+  "consommation": { "modele": "claude" }
+}

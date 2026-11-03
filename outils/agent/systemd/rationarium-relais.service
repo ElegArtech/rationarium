@@ -1,0 +1,39 @@
+# Rationarium — relais de l'assistant de suivi (unité utilisateur d'exemple).
+#
+# Le relais attend les passages par appels longs au guichet. Il ne consomme rien
+# sur l'abonnement du modèle de langage pendant l'attente, et ne lance la
+# commande d'exécution qu'à l'arrivée d'un passage.
+#
+# Installation :
+#   cp rationarium-relais.service ~/.config/systemd/user/
+#   systemctl --user daemon-reload
+#   systemctl --user enable --now rationarium-relais.service
+#   journalctl --user -u rationarium-relais -f
+#
+# La configuration se lit dans ~/.config/rationarium-agent/agent.env, et le
+# jeton dans le trousseau de la session (secret-tool). Le relais doit donc
+# tourner dans la session de l'utilisateur, une fois le trousseau déverrouillé.
+
+[Unit]
+Description=Rationarium : relais de l'assistant de suivi
+Documentation=file://%h/.local/share/rationarium-agent/README.md
+
+[Service]
+Type=simple
+# ~/.local/bin porte rationarium-agent, rationarium-relais et, souvent, claude.
+Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=%h/.local/bin/rationarium-relais --pause 30
+# Une coupure réseau ne fait pas sortir le relais : il réessaie seul. Les codes
+# 2 (configuration) et 3 (jeton refusé au démarrage) appellent une correction,
+# et un redémarrage en boucle n'y changerait rien.
+Restart=on-failure
+RestartSec=60
+RestartPreventExitStatus=2 3
+# À l'arrêt, le relais transmet SIGTERM à l'exécution en cours, puis clôt son
+# passage en échec. Il lui faut quelques secondes.
+KillMode=mixed
+TimeoutStopSec=60
+NoNewPrivileges=true
+
+[Install]
+WantedBy=default.target

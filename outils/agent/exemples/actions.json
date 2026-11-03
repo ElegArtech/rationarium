@@ -1,0 +1,82 @@
+{
+  "actions": [
+    {
+      "type": "jalon_creer",
+      "reference": "remise-rapport",
+      "justification": "Le commanditaire fixe la remise du rapport au 28 novembre.",
+      "preuves": [
+        {
+          "source": "courriel",
+          "reference": "<20261102.0915@exemple.org>",
+          "date": "2026-11-02",
+          "extrait": "Merci de nous remettre le rapport le 28 novembre au plus tard."
+        }
+      ],
+      "charge": {
+        "projectId": "6f1c2a7e-0b3d-4c5e-9a8b-1d2e3f405162",
+        "nom": "Remise du rapport",
+        "dateEcheance": "2026-11-28"
+      }
+    },
+    {
+      "type": "tache_creer",
+      "justification": "La relecture du chapitre 3 est demandée avant la remise du rapport.",
+      "preuves": [{ "source": "courriel", "reference": "<20261102.0915@exemple.org>", "date": "2026-11-02" }],
+      "charge": {
+        "projectId": "6f1c2a7e-0b3d-4c5e-9a8b-1d2e3f405162",
+        "milestoneId": "@remise-rapport",
+        "titre": "Relire le chapitre 3",
+        "dateFin": "2026-11-25"
+      }
+    },
+    {
+      "type": "tache_modifier",
+      "justification": "Le commit de fusion clôt la tâche de migration du schéma.",
+      "preuves": [
+        {
+          "source": "depot",
+          "reference": "3f9a1c2d",
+          "date": "2026-11-01T16:42:00+01:00",
+          "lien": "https://forge.exemple.org/equipe/projet/commit/3f9a1c2d"
+        }
+      ],
+      "charge": { "taskId": "9b2d4e6f-1a3c-4b5d-8e7f-0a1b2c3d4e5f", "version": 4, "statut": "done" }
+    },
+    {
+      "type": "evenement_creer",
+      "justification": "L'invitation fixe la réunion de lancement le 9 novembre de 10 h à 11 h 30.",
+      "preuves": [{ "source": "courriel", "reference": "<20261103.0802@exemple.org>", "date": "2026-11-03" }],
+      "charge": {
+        "projectId": "6f1c2a7e-0b3d-4c5e-9a8b-1d2e3f405162",
+        "titre": "Réunion de lancement",
+        "date": "2026-11-09",
+        "heureDebut": "10:00",
+        "heureFin": "11:30"
+      }
+    },
+    {
+      "type": "projet_creer",
+      "reference": "audit-voirie",
+      "justification": "Une commande d'audit ouvre une affaire nouvelle, absente des projets existants.",
+      "preuves": [{ "source": "courriel", "reference": "<20261020.1410@exemple.org>", "date": "2026-10-20" }],
+      "charge": {
+        "nom": "Audit de la voirie",
+        "dateDebut": "2026-10-20",
+        "dateFin": "2027-01-31",
+        "statut": "active",
+        "suivi": {
+          "consigne": "Suivre les échanges avec le service de la voirie et les échéances de l'audit.",
+          "sources": [{ "type": "courriel", "designation": "from:voirie@exemple.org", "libelle": "Échanges avec la voirie" }],
+          "silenceJours": 14
+        }
+      }
+    },
+    {
+      "type": "jalon_creer",
+      "reference": "audit-rendu",
+      "justification": "La commande fixe le rendu de l'audit au 31 janvier.",
+      "preuves": [{ "source": "courriel", "reference": "<20261020.1410@exemple.org>", "date": "2026-10-20" }],
+      "charge": { "projectId": "@audit-voirie", "nom": "Rendu de l'audit", "dateEcheance": "2027-01-31" }
+    }
+  ]
+}
