@@ -433,5 +433,16 @@
       "expiration": "2026-12-03"
     }
   ],
-  "images": []
+  "images": [
+    {
+      "image": "web",
+      "avis": "CVE-2026-116587",
+      "paquet": "github.com/go-jose/go-jose/v3",
+      "version": "v3.0.5",
+      "cible": "usr/bin/caddy",
+      "raison": "La série v3 de go-jose n'a pas de version corrigée : le correctif n'existe qu'en 4.1.6, déjà appliqué au binaire recompilé. Dans Caddy, la v3 n'est tirée que par smallstep/certificates, dont le serveur ACME lit des JWK fournies par des tiers. Le Caddyfile du kit n'active pas ce serveur (aucune directive acme_server, administration coupée) : le chemin vulnérable n'est pas atteignable. Réexaminer à la prochaine version de Caddy.",
+      "source": "https://avd.aquasec.com/nvd/cve-2026-116587",
+      "expiration": "2026-12-03"
+    }
+  ]
 }
