@@ -29,6 +29,12 @@ Les contrôles d’accès sont effectués côté serveur, selon la permission et
 utilise les mêmes informations pour présenter les actions disponibles. Les mises à jour concurrentes
 sont détectées par les versions des entités.
 
+L’assistant de suivi (M22) est facultatif et désactivé par défaut. Un agent, sur le poste de
+l’utilisateur, joint le guichet `/api/agent/v1` avec un jeton. Le serveur exécute ses actions en
+rejouant les routes d’écriture existantes au nom du propriétaire du jeton, puis les consigne pour
+les rendre défaisables ([décision](adr/ADR-20261103-assistant-appels-internes.md),
+[spécification](assistant/SPEC-PHASE-1.md)). Le serveur n’appelle aucun modèle de langage.
+
 La [référence fonctionnelle](reference-fonctionnelle.md) détaille les droits et les règles métier.
 Les identifiants EX et RG présents dans les tests renvoient à cette référence.
 

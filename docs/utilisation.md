@@ -47,6 +47,26 @@ Pour les imports CSV, utiliser les modèles proposés par l’application, véri
 messages par ligne avant de valider. Les exports CSV sont destinés aux tableurs ; l’export intégral
 JSONL est décrit dans le [guide d’exploitation](exploitation.md#export-intégral-des-données).
 
+## Faire tenir le suivi par un agent
+
+L’assistant de suivi est facultatif. Un administrateur l’active dans Paramétrage › Assistant. Un
+agent tourne alors sur le poste d’un utilisateur, avec son propre client de modèle de langage et son
+propre abonnement, par exemple Claude Code ou Codex. Il lit les sources déclarées et met à jour les
+projets, les jalons, les tâches, les événements et les temps, sans validation préalable.
+
+1. Dans Mon compte › Agents, créer un jeton. Il ne s’affiche qu’une fois : le ranger aussitôt
+   dans le trousseau du poste.
+2. Sur la fiche d’un projet, l’onglet Suivi dit ce que l’agent doit surveiller : une consigne, des
+   sources et un seuil de silence.
+3. Installer l’agent de référence sur le poste, comme l’explique `outils/agent/README.md`.
+4. Lancer un passage depuis Activité de l’agent, ou laisser la planification le faire.
+
+L’agent agit avec les droits du propriétaire du jeton, et jamais davantage. Il ne supprime rien.
+L’écran Activité de l’agent montre chaque action, avec l’état avant et après, sa justification et
+ses preuves. Une action fausse se corrige comme une saisie ordinaire, ou se défait d’un clic tant
+que l’élément n’a pas changé depuis. Une action défaite n’est pas refaite par les passages suivants.
+Ce que l’agent n’a pas pu trancher seul apparaît dans les points ouverts de son passage.
+
 ## Langue et présentation
 
 L’interface est disponible en français et en anglais, avec un thème clair et un thème sombre.
