@@ -21,10 +21,13 @@ const M18 = {
   tache_echeance_proche: "Tâche à échéance proche",
   tache_en_retard: "Tâche en retard",
   ajout_projet: "Ajout à un projet",
+  // M22 — assistant de suivi.
+  assistant_passage: "Passage de l'agent de suivi",
+  assistant_passage_echec: "Passage de l'agent en échec",
 } as const;
 
 describe("le vocabulaire des notifications est FERMÉ", () => {
-  it("les six types portent l'intitulé de M18, mot pour mot", () => {
+  it("les types portent l'intitulé de M18 et de M22, mot pour mot", () => {
     for (const type of TYPES_NOTIFICATION) {
       expect(titreNotification(type, "fr"), type).toBe(M18[type]);
     }
@@ -216,10 +219,11 @@ describe("RG-GEN-08 — chaque type émis a sa phrase au catalogue du client", (
     // Un contrôle qui n'a rien à mesurer doit échouer, jamais réussir en
     // silence — quatrième leçon du même piège dans ce dépôt.
     expect(Object.keys(fr).length).toBeGreaterThan(6);
-    expect(TYPES_NOTIFICATION.length).toBe(6);
+    // Six types de M18, plus les deux de M22.
+    expect(TYPES_NOTIFICATION.length).toBe(8);
   });
 
-  it("les six INTITULÉS de M18 sont au catalogue, dans les deux langues", () => {
+  it("les intitulés de M18 et de M22 sont au catalogue, dans les deux langues", () => {
     for (const type of TYPES_NOTIFICATION) {
       expect(fr[`type_${type}`], `fr type_${type}`).toBe(titreNotification(type, "fr"));
       expect(en[`type_${type}`], `en type_${type}`).toBe(titreNotification(type, "en"));
@@ -254,7 +258,8 @@ describe("RG-GEN-08 — chaque type émis a sa phrase au catalogue du client", (
      * réclamerait `{agent}` viderait la cloche entière. Les noms admis sont
      * ceux que les services passent en `params`.
      */
-    const admis = new Set(["tache", "projet", "motif", "date", "jours"]);
+    // M22 ajoute le décompte d'un passage et son état de sortie.
+    const admis = new Set(["tache", "projet", "motif", "date", "jours", "effectuees", "refusees", "pointsOuverts", "etat", "erreur"]);
     const fautes: string[] = [];
     for (const [langue, table] of [["fr", fr], ["en", en]] as const) {
       for (const [cle, phrase] of Object.entries(table)) {

@@ -24,7 +24,10 @@ import {
  * échouer l'approbation de congé qui l'a déclenché.
  */
 
-/** Les six types de `docs/reference-fonctionnelle.md § M18`. La liste est fermée. */
+/**
+ * Les types de `docs/reference-fonctionnelle.md § M18`, plus les deux de M22
+ * (assistant de suivi). La liste est fermée.
+ */
 export const TYPES_NOTIFICATION = [
   "tache_assignee",
   "conge_a_valider",
@@ -32,6 +35,8 @@ export const TYPES_NOTIFICATION = [
   "tache_echeance_proche",
   "tache_en_retard",
   "ajout_projet",
+  "assistant_passage",
+  "assistant_passage_echec",
 ] as const;
 
 export type TypeNotification = (typeof TYPES_NOTIFICATION)[number];

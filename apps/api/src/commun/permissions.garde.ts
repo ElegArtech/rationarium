@@ -14,6 +14,12 @@ import { PrismaService } from "../prisma.service.js";
 import { AuditService } from "./audit.service.js";
 import { AuthService } from "../auth/auth.service.js";
 import { PerimetreService, type Perimetre } from "./perimetre.service.js";
+import {
+  ENTETE_TICKET_INTERNE,
+  identiteDuTicket,
+  resoudreJetonAgent,
+  type AgentResolu,
+} from "./acces-agent.js";
 
 /**
  * Garde de permission — `RG-DROITS-03`.
@@ -125,6 +131,24 @@ export const Personnel = () => SetMetadata(CLE_PERSONNEL, true);
 export const CLE_PENDANT_CHANGEMENT_IMPOSE = "trame:pendant-changement-impose";
 export const PendantChangementImpose = () => SetMetadata(CLE_PENDANT_CHANGEMENT_IMPOSE, true);
 
+/**
+ * M22 — marque une route du **guichet des agents** (`/agent/v1/…`).
+ *
+ * Sur ces routes, et sur elles seules, l'authentification vient du jeton
+ * d'agent (`Authorization: Bearer`) et non du cookie de session
+ * (`RG-AST-02`). La suite ne change pas : la permission exigée, puis le
+ * périmètre, sont ceux du propriétaire du jeton. Un jeton n'ouvre donc jamais
+ * une route de session, et une session n'ouvre jamais le guichet.
+ */
+export const CLE_GUICHET = "trame:guichet";
+export const Guichet = () => SetMetadata(CLE_GUICHET, true);
+
+/** Récupère le jeton d'agent résolu par la garde, sur une route `@Guichet()`. */
+export const AgentDemande = createParamDecorator(
+  (_donnee: unknown, ctx: ExecutionContext): AgentResolu =>
+    ctx.switchToHttp().getRequest<FastifyRequest & { agent: AgentResolu }>().agent,
+);
+
 export type ContexteDemande = {
   userId: string;
   permissions: ReadonlySet<string>;
@@ -152,12 +176,11 @@ export class GardePermission implements CanActivate {
     if (this.reflector.getAllAndOverride<boolean>(CLE_PUBLIC, cibles)) return true;
 
     const requete = contexte.switchToHttp().getRequest<
-      FastifyRequest & { trame?: ContexteDemande }
+      FastifyRequest & { trame?: ContexteDemande; agent?: AgentResolu }
     >();
 
-    // 1. La session.
-    const jeton = requete.cookies?.["rationarium_session"];
-    const session = jeton ? await this.auth.resoudreSession(jeton) : null;
+    // 1. La session — ou, pour M22, le jeton d'agent et l'appel interne.
+    const session = await this.identifier(requete, cibles);
     if (!session) throw new UnauthorizedException({ cle: "auth:erreurs.sessionRequise" });
 
     // 1 bis. RG-AUTH-11 — le changement imposé se tient ici, pas au client.
@@ -200,6 +223,45 @@ export class GardePermission implements CanActivate {
 
     requete.trame = { userId: session.userId, permissions, perimetre };
     return true;
+  }
+
+  /**
+   * Qui fait la demande.
+   *
+   * - Une route `@Guichet()` n'accepte que le jeton d'agent (`RG-AST-02`).
+   * - Un appel interne, émis par l'assistant pour rejouer une route existante
+   *   au nom du propriétaire d'un jeton, porte un ticket à usage unique
+   *   (`acces-agent.ts`). Le compte doit être actif.
+   * - Sinon, le cookie de session, comme toujours. L'en-tête `Authorization`
+   *   n'y est jamais lu.
+   */
+  private async identifier(
+    requete: FastifyRequest & { agent?: AgentResolu },
+    cibles: Parameters<Reflector["getAllAndOverride"]>[1],
+  ): Promise<{ userId: string; motDePasseAChanger: boolean } | null> {
+    if (this.reflector.getAllAndOverride<boolean>(CLE_GUICHET, cibles)) {
+      const agent = await resoudreJetonAgent(this.prisma, this.audit, requete.headers.authorization);
+      if (!agent) {
+        throw new UnauthorizedException({
+          cle: "assistant:erreurs.jetonInvalide",
+          message: "Le jeton d'agent est absent, invalide, expiré ou révoqué.",
+        });
+      }
+      requete.agent = agent;
+      return { userId: agent.userId, motDePasseAChanger: agent.motDePasseAChanger };
+    }
+
+    const interne = identiteDuTicket(requete.headers[ENTETE_TICKET_INTERNE]);
+    if (interne) {
+      const user = await this.prisma.user.findUnique({
+        where: { id: interne },
+        select: { actif: true, motDePasseAChanger: true },
+      });
+      return user?.actif ? { userId: interne, motDePasseAChanger: user.motDePasseAChanger } : null;
+    }
+
+    const jeton = requete.cookies?.["rationarium_session"];
+    return jeton ? this.auth.resoudreSession(jeton) : null;
   }
 
   /**

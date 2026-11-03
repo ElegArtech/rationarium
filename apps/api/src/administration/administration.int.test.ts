@@ -229,8 +229,9 @@ describe("EX-ADM-04 — la matrice de la vue 32", () => {
     const r = await prisma.role.findUniqueOrThrow({ where: { code: "BASIC_USER" } });
     const m = await roles.matrice(r.id);
 
-    // 24 domaines en lignes, quelle que soit la maigreur du rôle.
-    expect(m.lignes).toHaveLength(24);
+    // 25 domaines en lignes (24 au cadrage, plus `assistant` de M22), quelle
+    // que soit la maigreur du rôle.
+    expect(m.lignes).toHaveLength(25);
     // Une matrice qui n'afficherait que les permissions détenues ne
     // permettrait pas d'en cocher de nouvelles.
     const audit = m.lignes.find((l) => l.domaine === "audit")!;

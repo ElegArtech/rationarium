@@ -29,6 +29,8 @@ import { NotificationsController } from "../notifications/notifications.controll
 import { ImportsController } from "../imports/imports.controller.js";
 import { SanteController } from "../exploitation/sante.controller.js";
 import { RechercheController } from "../recherche/recherche.controller.js";
+import { AssistantController } from "../assistant/assistant.controller.js";
+import { GuichetController } from "../assistant/guichet.controller.js";
 
 /**
  * `RG-DROITS-03` — **aucun point d'entrée n'est ouvert par inadvertance.**
@@ -69,6 +71,8 @@ const CONTROLEURS = [
   ImportsController,
   SanteController,
   RechercheController,
+  AssistantController,
+  GuichetController,
 ];
 
 /** Les seules routes autorisées à se passer de permission. */
@@ -546,6 +550,18 @@ const SANS_CLIENT: { verbe: string; chemin: string; raison: string }[] = [
     raison:
       "redondante — `GET /planning` et `GET /planning/activite` embarquent déjà la trame de fond (`EX-PLN-14`), et c'est le seul écran qui la consomme. Son seul apport propre est le paramètre `zone`, qu'aucune exigence ne demande d'appliquer au planning : le cadrage fait de la zone un attribut des vacances scolaires, pas un filtre du planning. Conservée comme lecture unitaire, elle n'a pas d'écran.",
   },
+
+  // ── M22 — le guichet des agents ──────────────────────────────────────────
+  // Appelé par l'agent de référence (`outils/agent/`), avec un jeton d'agent, jamais par un écran.
+  { verbe: "GET", chemin: "/agent/v1/etat", raison: "guichet des agents — appelé par l'agent du poste, pas par un écran" },
+  { verbe: "GET", chemin: "/agent/v1/passages/suivant", raison: "guichet des agents — appelé par l'agent du poste, pas par un écran" },
+  { verbe: "POST", chemin: "/agent/v1/passages", raison: "guichet des agents — appelé par l'agent du poste, pas par un écran" },
+  { verbe: "POST", chemin: "/agent/v1/passages/:id/prise", raison: "guichet des agents — appelé par l'agent du poste, pas par un écran" },
+  { verbe: "POST", chemin: "/agent/v1/passages/:id/progression", raison: "guichet des agents — appelé par l'agent du poste, pas par un écran" },
+  { verbe: "GET", chemin: "/agent/v1/passages/:id/contexte", raison: "guichet des agents — appelé par l'agent du poste, pas par un écran" },
+  { verbe: "GET", chemin: "/agent/v1/passages/:id/temps", raison: "guichet des agents — appelé par l'agent du poste, pas par un écran" },
+  { verbe: "POST", chemin: "/agent/v1/passages/:id/actions", raison: "guichet des agents — appelé par l'agent du poste, pas par un écran" },
+  { verbe: "POST", chemin: "/agent/v1/passages/:id/fin", raison: "guichet des agents — appelé par l'agent du poste, pas par un écran" },
 ];
 
 describe("aucune route serveur sans appel client", () => {
