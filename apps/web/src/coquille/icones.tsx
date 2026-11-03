@@ -2,7 +2,8 @@ import { memo } from "react";
 
 /**
  * La bibliothèque d'icônes d'interface — 23 symboles, reprise à l'identique des
- * maquettes (section « Bibliothèque d'icônes »).
+ * maquettes (section « Bibliothèque d'icônes »), plus `i-agent` pour le module
+ * M22, dessiné au même trait.
  *
  * **Aucune dépendance.** On écarte les bibliothèques dont le
  * rendu n'est pas pilotable ; une police d'icônes en serait une, et elle
@@ -68,6 +69,9 @@ export const BibliothequeIcones = memo(function BibliothequeIcones() {
       </symbol>
       <symbol id="i-settings" viewBox="0 0 16 16">
         <path d="M2 5h12M2 11h12"/><circle cx="6" cy="5" r="1.7"/><circle cx="10.5" cy="11" r="1.7"/>
+      </symbol>
+      <symbol id="i-agent" viewBox="0 0 16 16">
+        <rect x="3" y="5" width="10" height="8.5" rx="1.5"/><path d="M8 2.2V5M6 9h.01M10 9h.01M6.2 11.5h3.6"/>
       </symbol>
       <symbol id="i-bell" viewBox="0 0 16 16">
         <path d="M4 7a4 4 0 0 1 8 0v3l1.2 2H2.8L4 10z"/><path d="M6.4 12a1.6 1.6 0 0 0 3.2 0"/>

@@ -397,7 +397,10 @@
     "zoneScolaire": "School holiday zone",
     "zoneNonConfiguree": "Not configured",
     "zoneNom": "Zone {zone}",
-    "zoneScolaireAide": "This zone is the default for school holiday imports and schedule backgrounds."
+    "zoneScolaireAide": "This zone is the default for school holiday imports and schedule backgrounds.",
+    "ongletAssistant": "Assistant",
+    "lesReglagesAssistant": "the assistant settings",
+    "assistantInvalide": "Correct the flagged assistant settings before saving."
   },
   "roles": {
     "surtitre": "Administration",
@@ -566,7 +569,10 @@
       "informatique": "IT",
       "observation": "Observation",
       "restreints": "Restricted"
-    }
+    },
+    "domaine_assistant": "Follow-up assistant",
+    "action_use": "Use",
+    "action_configure": "Configure"
   },
   "audit": {
     "surtitre": "Administration",
@@ -768,7 +774,15 @@
     "action_user_update": "User updated",
     "champsModifies": "Changed fields",
     "champValeur": "Value",
-    "avantApres": "from {avant} to {apres}"
+    "avantApres": "from {avant} to {apres}",
+    "action_agent_action": "Agent action",
+    "action_agent_action_undo": "Agent action undone",
+    "action_agent_token_create": "Agent token created",
+    "action_agent_token_revoke": "Agent token revoked",
+    "action_agent_token_refused": "Agent token refused",
+    "action_agent_run_create": "Agent run started",
+    "action_agent_run_cancel": "Agent run cancelled",
+    "action_project_followup_update": "Follow-up plan updated"
   },
   "predefinies": {
     "surtitre": "Administration",

@@ -31,7 +31,8 @@
     "roles": "Roles",
     "journalAudit": "Audit log",
     "tachesPredefinies": "Recurring tasks",
-    "parametres": "Settings"
+    "parametres": "Settings",
+    "assistant": "Agent activity"
   },
   "entete": {
     "rechercheGlobale": "Global search",
@@ -71,7 +72,13 @@
     "corps_conge_decide_refuse_motif": "Your leave request was declined. Reason: {motif}",
     "corps_ajout_projet": "You have been added to the project “{projet}”.",
     "corps_tache_echeance_proche": "Task “{tache}” is due on {date}.",
-    "corps_tache_en_retard": "Task “{tache}” is past its due date of {date}."
+    "corps_tache_en_retard": "Task “{tache}” is past its due date of {date}.",
+    "type_assistant_passage": "Follow-up agent run",
+    "type_assistant_passage_echec": "Follow-up agent run failed",
+    "corps_assistant_passage": "The agent has completed its run: {effectuees, plural, one {# action done} other {# actions done}}, {refusees, plural, one {# refused} other {# refused}}, {pointsOuverts, plural, one {# open point} other {# open points}}.",
+    "corps_assistant_passage_echec": "The agent run failed.",
+    "corps_assistant_passage_echec_erreur": "The agent run failed: {erreur}",
+    "corps_assistant_passage_echec_interrompue": "The agent run was interrupted: the agent stopped responding."
   },
   "profil": {
     "derniereConnexion": "Last sign-in",
@@ -140,7 +147,8 @@
     "avatarFormats": "Accepted formats: jpg, png or webp.",
     "avatarEnregistre": "Avatar saved.",
     "avatarSupprime": "Avatar removed.",
-    "avatarEchec": "The avatar could not be changed."
+    "avatarEchec": "The avatar could not be changed.",
+    "onglet_agents": "Agents"
   },
   "rolesSysteme": {
     "ADMIN": "Administrator",

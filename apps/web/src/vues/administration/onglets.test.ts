@@ -25,6 +25,13 @@ describe("EX-PRM-01, EX-USR-08 — le fragment porte la section", () => {
     expect(ongletSuivi("competences")).toBe("competences");
   });
 
+  it("M22 — « Assistant » n'existe qu'avec `assistant:configure` ; sans lui, son fragment retombe sur la première section", () => {
+    expect(ongletParametres("assistant", true)).toBe("assistant");
+    expect(ongletParametres("assistant", false)).toBe("affichage");
+    // Le droit ne change rien aux autres sections.
+    expect(ongletParametres("feries", false)).toBe("feries");
+  });
+
   it("un fragment inconnu retombe sur la première section, jamais sur du vide", () => {
     // Une adresse recopiée à la main, ou celle d'une section disparue : la vue
     // ne rendait AUCUN panneau, un écran vide que rien ne signale.

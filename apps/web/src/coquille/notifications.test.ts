@@ -85,6 +85,14 @@ describe("EX-NTF-03 — le lien d'une notification se découpe pour le routeur",
     expect(decouperLien("/conges#")).toEqual({ to: "/conges" });
   });
 
+  it("M22 — la requête `?passage=<id>` passe en `search`, jamais dans le chemin", () => {
+    // `passages.service.ts` écrit `/assistant?passage=<id>` (`EX-AST-08`).
+    expect(decouperLien("/assistant?passage=4f1c")).toEqual({ to: "/assistant", search: { passage: "4f1c" } });
+    expect(decouperLien("/assistant?passage=4f1c").to).not.toContain("?");
+    // Requête et fragment ensemble : chacun à sa place.
+    expect(decouperLien("/x?a=1#b")).toEqual({ to: "/x", hash: "b", search: { a: "1" } });
+  });
+
   it("aucun `to` ne garde de croisillon — c'est exactement le défaut", () => {
     for (const lien of ["/conges#aValider", "/conges#mesDemandes", "/taches/t1", "/conges#"]) {
       expect(decouperLien(lien).to, lien).not.toContain("#");
@@ -161,12 +169,15 @@ describe("RG-GEN-08 — le panneau compose ses phrases dans la langue de la sess
     tache_echeance_proche: { tache: "Rédiger la note", date: "2026-09-01" },
     tache_en_retard: { tache: "Rédiger la note", date: "2026-09-01" },
     ajout_projet: { projet: "Refonte du portail" },
+    // M22 — `passages.service.ts`, `notifierFin` : les décomptes en CHAÎNES.
+    assistant_passage: { effectuees: "3", refusees: "1", pointsOuverts: "2" },
+    assistant_passage_echec: { etat: "echec", erreur: "" },
   };
 
-  it("le contrôle a quelque chose à mesurer — les SIX types de M18", () => {
+  it("le contrôle a quelque chose à mesurer — les SIX types de M18 et les DEUX de M22", () => {
     // Un contrôle qui n'a rien à mesurer doit échouer, jamais réussir en
     // silence : le dépôt a payé quatre fois cette leçon.
-    expect(Object.keys(EMIS)).toHaveLength(6);
+    expect(Object.keys(EMIS)).toHaveLength(8);
   });
 
   for (const [type, params] of Object.entries(EMIS)) {
@@ -211,6 +222,38 @@ describe("RG-GEN-08 — le panneau compose ses phrases dans la langue de la sess
     }
   });
 
+  it("M22 — les intitulés du passage de l'agent sont ceux du serveur, mot pour mot", () => {
+    const passage = (type: string, tr: Traduire) => rendreNotification(entree(type, type, EMIS[type] ?? {}), tr).titre;
+    expect(passage("assistant_passage", t)).toBe("Passage de l'agent de suivi");
+    expect(passage("assistant_passage", tEn)).toBe("Follow-up agent run");
+    expect(passage("assistant_passage_echec", t)).toBe("Passage de l'agent en échec");
+    expect(passage("assistant_passage_echec", tEn)).toBe("Follow-up agent run failed");
+  });
+
+  it("M22 — le décompte d'un passage se met au pluriel juste, ZÉRO compris", () => {
+    const corps = (params: Record<string, string>, tr: Traduire) =>
+      rendreNotification(entree("assistant_passage", "assistant_passage", params), tr).contenu;
+    expect(corps({ effectuees: "3", refusees: "1", pointsOuverts: "0" }, t)).toBe(
+      "L'agent a terminé son passage : 3 actions effectuées, 1 refusée, 0 point ouvert.",
+    );
+    expect(corps({ effectuees: "3", refusees: "1", pointsOuverts: "0" }, tEn)).toBe(
+      "The agent has completed its run: 3 actions done, 1 refused, 0 open points.",
+    );
+    // Un décompte absent ne vide pas le panneau.
+    expect(() => corps({}, t)).not.toThrow();
+  });
+
+  it("M22 — l'échec d'un passage porte ses TROIS faces, comme au serveur", () => {
+    const face = (params: Record<string, string>, tr: Traduire) =>
+      rendreNotification(entree("assistant_passage_echec", "assistant_passage_echec", params), tr).contenu;
+    expect(face({ etat: "interrompue", erreur: "" }, t)).toBe(
+      "Le passage de l'agent a été interrompu : l'agent ne donnait plus signe de vie.",
+    );
+    expect(face({ etat: "echec", erreur: "" }, t)).toBe("Le passage de l'agent a échoué.");
+    // Le message de l'agent est une CITATION : il reste dans sa langue.
+    expect(face({ etat: "echec", erreur: "IMAP injoignable" }, tEn)).toBe("The agent run failed: IMAP injoignable");
+  });
+
   it("la décision de congé porte ses TROIS faces", () => {
     const face = (params: Record<string, string>, tr: Traduire) =>
       rendreNotification(entree("conge_decide", "conge_decide", params), tr).contenu;
@@ -241,6 +284,9 @@ describe("RG-GEN-08 — le panneau compose ses phrases dans la langue de la sess
     // malformée viderait la cloche entière. `Number("")` valant zéro, le
     // filtre porte sur la chaîne — pièges déjà consignés tous les deux.
     expect(parametresCorps({})).toMatchObject({ jours: 0, tache: "", projet: "", motif: "", date: "" });
+    // M22 — les cinq noms du passage de l'agent, les décomptes en NOMBRES.
+    expect(parametresCorps({})).toMatchObject({ effectuees: 0, refusees: 0, pointsOuverts: 0, etat: "", erreur: "" });
+    expect(parametresCorps({ effectuees: "3" })["effectuees"]).toBe(3);
     expect(parametresCorps({ jours: "" })["jours"]).toBe(0);
     expect(parametresCorps({ jours: "4" })["jours"]).toBe(4);
     expect(() =>

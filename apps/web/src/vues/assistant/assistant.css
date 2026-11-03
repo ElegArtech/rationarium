@@ -1,0 +1,113 @@
+/*
+ * M22 — Assistant de suivi. `docs/assistant/SPEC-PHASE-1.md § 13`.
+ *
+ * Aucune maquette ne porte ces écrans : le module est postérieur au gel. Le
+ * vocabulaire reste celui du socle — `.panel*`, `.kpi*`, `.pill`, `.alert*`,
+ * `.field*`, `.check`, `.tabbar`, `.empty` — et ce fichier n'ajoute, sous le
+ * préfixe `ag-`, que ce que le socle ne nomme pas : la ligne d'action, sa
+ * différence avant → après, ses preuves, et la grille de l'historique.
+ * Aucune couleur littérale : des jetons, toujours.
+ */
+
+/* ── En-tête et espacements ─────────────────────────────────────────────── */
+.ag-lede{ margin-top:4px; }
+.ag-espace{ margin-bottom:16px; }
+.ag-espace-haut{ margin-top:14px; }
+.ag-filtre-label{ margin:0; }
+.ag-mono{ font-family:var(--font-mono); font-size:12.5px; }
+.ag-champ-court{ max-width:140px; }
+.ag-code{ font-family:var(--font-mono); font-size:13px; }
+
+/* ── Témoin de l'agent ──────────────────────────────────────────────────── */
+.ag-kpis{ grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); }
+.ag-temoin{ display:flex; align-items:center; gap:8px; margin:8px 0 4px; font-size:15px; font-weight:600; min-height:28px; }
+.ag-point{ width:9px; height:9px; border-radius:50%; background:currentColor; flex:none; }
+
+/* ── Passage ────────────────────────────────────────────────────────────── */
+.ag-faits{ display:grid; grid-template-columns:minmax(110px, max-content) minmax(0, 1fr); gap:6px 14px; margin:0 0 12px; font-size:12.5px; }
+.ag-faits dt{ font-family:var(--font-mono); font-size:9.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); padding-top:2px; }
+.ag-faits dd{ margin:0; min-width:0; overflow-wrap:anywhere; }
+.ag-ligne{ display:block; margin-top:3px; }
+.ag-resume{ margin:12px 0 0; font-size:13px; line-height:1.55; white-space:pre-line; }
+.ag-points{ margin:6px 0 0; padding-left:18px; font-size:12.5px; line-height:1.55; }
+.ag-points > li + li{ margin-top:6px; }
+.ag-point-ouvert{ display:flex; flex-direction:column; gap:4px; align-items:flex-start; }
+
+/* ── Actions groupées par projet ────────────────────────────────────────── */
+.ag-groupe{ margin-bottom:16px; }
+.ag-liste{ display:flex; flex-direction:column; }
+
+/* ── Une action ─────────────────────────────────────────────────────────── */
+.ag-act{ padding:13px 16px; border-top:1px solid var(--line); display:flex; flex-direction:column; gap:8px; min-width:0; }
+.ag-liste > .ag-act:first-child{ border-top:none; }
+.ag-act-head{ display:flex; align-items:center; flex-wrap:wrap; gap:8px; min-width:0; }
+.ag-act-type{ font-size:13.5px; font-weight:600; }
+.ag-act-when{ font-family:var(--font-mono); font-size:10.5px; color:var(--muted); }
+.ag-act-head .ag-act-when{ margin-left:auto; }
+.ag-act-cible{ margin:0; font-size:13px; display:flex; align-items:baseline; flex-wrap:wrap; gap:8px; min-width:0; overflow-wrap:anywhere; }
+.ag-act-foot{ display:flex; align-items:center; flex-wrap:wrap; gap:8px; }
+.ag-act-foot .chip-danger{ margin-left:auto; }
+.ag-act .eyebrow{ margin:0; }
+
+/* La différence se lit en deux colonnes : le champ, puis avant → après. */
+.ag-diff{ display:grid; grid-template-columns:minmax(110px, max-content) minmax(0, 1fr); gap:5px 14px; margin:0;
+  padding:9px 11px; border:1px solid var(--line); border-radius:var(--r); background:var(--surface-2); font-size:12.5px; }
+.ag-diff dt{ font-family:var(--font-mono); font-size:9.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); padding-top:2px; }
+.ag-diff dd{ margin:0; min-width:0; overflow-wrap:anywhere; }
+/* L'état d'avant se barre et l'état d'après se souligne : la différence ne
+   repose pas sur la seule couleur, elle tient en couleurs forcées. */
+.ag-avant{ color:var(--muted); text-decoration:line-through; }
+.ag-apres{ color:var(--ink); text-decoration:none; font-weight:600; }
+.ag-fleche{ margin:0 6px; color:var(--muted); }
+
+.ag-justif{ margin:0; display:flex; flex-direction:column; gap:3px; }
+.ag-justif-t{ font-size:13px; line-height:1.55; white-space:pre-line; overflow-wrap:anywhere; }
+
+/* ── Preuves ────────────────────────────────────────────────────────────── */
+.ag-preuves{ list-style:none; margin:4px 0 0; padding:0; display:flex; flex-direction:column; gap:8px; }
+.ag-preuve{ border-left:2px solid var(--line-strong); padding:2px 0 2px 10px; display:flex; flex-direction:column; gap:4px; align-items:flex-start; min-width:0; }
+.ag-preuve-head{ display:flex; align-items:center; flex-wrap:wrap; gap:8px; min-width:0; }
+.ag-ref{ font-family:var(--font-mono); font-size:11px; overflow-wrap:anywhere; min-width:0; }
+.ag-extrait{ margin:0; padding:6px 9px; background:var(--surface-2); border-radius:var(--r); font-size:12.5px;
+  line-height:1.5; white-space:pre-line; overflow-wrap:anywhere; color:var(--ink); }
+
+/* ── Historique ─────────────────────────────────────────────────────────── */
+.ag-hist-grid{ display:grid; grid-template-columns:minmax(150px, 1fr) 150px minmax(170px, 1.1fr) minmax(150px, 1fr) minmax(0, 2fr); gap:13px; align-items:start; }
+.ag-hist-head{ padding:9px 14px; background:var(--surface-2); border-bottom:1px solid var(--line-strong); }
+.ag-hist-head span{ font-family:var(--font-mono); font-size:8.5px; font-weight:500; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); }
+.ag-hist-liste{ list-style:none; margin:0; padding:0; }
+.ag-hist-row{ padding:11px 14px; border-bottom:1px solid var(--line); font-size:12.5px; }
+.ag-hist-row:last-child{ border-bottom:none; }
+.ag-sous{ display:block; font-size:11.5px; color:var(--muted); margin-top:2px; }
+.ag-pile{ display:flex; flex-direction:column; gap:2px; min-width:0; }
+.ag-resume-court{ display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; overflow-wrap:anywhere; }
+
+/* ── Jetons ─────────────────────────────────────────────────────────────── */
+.ag-fieldset{ border:none; margin:0 0 16px; padding:0; min-width:0; }
+.ag-cases{ display:grid; grid-template-columns:repeat(auto-fill, minmax(210px, 1fr)); gap:7px 14px; margin-top:8px; }
+.ag-cases .check{ white-space:normal; color:var(--ink); }
+.ag-jetons{ list-style:none; margin:0; padding:0; }
+.ag-jeton{ padding:13px 16px; border-top:1px solid var(--line); display:flex; flex-direction:column; gap:8px; }
+.ag-jeton:first-child{ border-top:none; }
+.ag-jeton .ag-faits{ margin:0; }
+.ag-pousse{ margin-left:auto; }
+.ag-jeton-clair{ display:flex; gap:8px; align-items:stretch; }
+.ag-jeton-clair .field{ flex:1; min-width:0; }
+
+/* ── Plan de suivi ──────────────────────────────────────────────────────── */
+.ag-check{ white-space:normal; color:var(--ink); }
+.ag-consigne{ min-height:110px; resize:vertical; }
+.ag-dirty{ margin-bottom:14px; }
+.ag-sources{ list-style:none; margin:8px 0 10px; padding:0; display:flex; flex-direction:column; gap:10px; }
+.ag-source{ border:1px solid var(--line); border-radius:var(--r); padding:10px 12px; display:flex; flex-direction:column; gap:8px; align-items:flex-start; }
+.ag-source-grille{ display:grid; grid-template-columns:minmax(150px, 0.8fr) minmax(0, 1.6fr) minmax(0, 1fr); gap:10px; width:100%; }
+.ag-source-grille .field-label{ font-size:11.5px; }
+.ag-source-grille .f-input{ width:100%; }
+
+@media (max-width:900px){
+  .ag-hist-grid{ grid-template-columns:minmax(0, 1fr) minmax(0, 1fr); }
+  .ag-hist-head{ display:none; }
+  .ag-source-grille{ grid-template-columns:minmax(0, 1fr); }
+  .ag-faits, .ag-diff{ grid-template-columns:minmax(0, 1fr); }
+  .ag-jeton-clair{ flex-direction:column; }
+}

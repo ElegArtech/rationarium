@@ -14,11 +14,12 @@ import { ErreurApi } from "./client.js";
  * Les clés arrivent ici à l'exécution, donc invisibles à l'analyse statique.
  * On les déclare, plutôt que d'affaiblir le contrôle :
  *
- * i18n-familles: auth:erreurs., erreurs:
+ * i18n-familles: auth:erreurs., erreurs:, assistant:erreurs.
  *
- * Les deux familles correspondent aux deux tables du serveur :
+ * Les deux premières familles correspondent aux deux tables du serveur :
  * `auth/messages.ts` pour l'authentification, `commun/messages-metier.ts` pour
- * tout le reste. Le test `messages-metier.test.ts` garantit qu'aucun code
+ * tout le reste. La troisième est celle du module M22 (`assistant/erreurs.ts`,
+ * `refusAssistant`), qui nomme ses refus dans son propre espace. Le test `messages-metier.test.ts` garantit qu'aucun code
  * d'échec ne sort de la table ; le contrôle i18n garantit que la table a bien
  * sa traduction dans les deux langues. Les deux contrôles se complètent : le
  * premier voit ce que le serveur peut dire, le second ce que le client sait

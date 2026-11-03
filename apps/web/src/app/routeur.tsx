@@ -62,6 +62,12 @@ import { Activite } from "../vues/planning/Activite.js";
 import { TableauDeBord } from "../vues/tableau/TableauDeBord.js";
 import { Rapports } from "../vues/rapports/Rapports.js";
 import { GanttProjet } from "../vues/rapports/GanttProjet.js";
+import { OngletSuiviAgent } from "../vues/projets/SuiviAgent.js";
+import { ActiviteAgent } from "../vues/assistant/Activite.js";
+import { HistoriqueAgent } from "../vues/assistant/Historique.js";
+import { useModuleAssistant } from "../vues/assistant/module.js";
+import { ETATS_PASSAGE } from "@rationarium/contracts";
+import type { ModuleFacultatif } from "../coquille/navigation.js";
 
 /**
  * L'arborescence des routes.
@@ -313,6 +319,13 @@ function RedirectionMotDePasse() {
 function CoquilleDeSession({ surDeconnexion }: { surDeconnexion: () => void }) {
   const { session, permissions } = useSession();
   const { t: tCommun } = useTranslation("commun");
+  /*
+   * `RG-AST-01` — le module M22 n'a d'entrée de menu que s'il répond. La sonde
+   * ne bloque pas le rendu : tant qu'elle n'a pas répondu, l'entrée est
+   * absente, et elle apparaît sans rien déplacer d'autre.
+   */
+  const assistant = useModuleAssistant();
+  const modulesActifs = new Set<ModuleFacultatif>(assistant.actif ? ["assistant"] : []);
 
   /**
    * Le compteur de la cloche — `EX-NTF-01`.
@@ -392,6 +405,7 @@ function CoquilleDeSession({ surDeconnexion }: { surDeconnexion: () => void }) {
         avatarPredefini: session.avatarPredefini,
       }}
       permissions={permissions}
+      modulesActifs={modulesActifs}
       surDeconnexion={surDeconnexion}
     >
       <Outlet />
@@ -490,6 +504,16 @@ const routeProjetEquipe = createRoute({
   component: function PageEquipe() {
     const { id } = useParams({ from: "/application/projets/$id/equipe" });
     return <Equipe projetId={id} />;
+  },
+});
+
+/** M22 — Fiche projet › Suivi : le plan de suivi et les actions de l'agent. */
+const routeProjetSuivi = createRoute({
+  getParentRoute: () => routeApplication,
+  path: "/projets/$id/suivi",
+  component: function PageSuiviProjet() {
+    const { id } = useParams({ from: "/application/projets/$id/suivi" });
+    return <OngletSuiviAgent projetId={id} />;
   },
 });
 
@@ -672,6 +696,38 @@ const routePredefinies = createRoute({
   component: Predefinies,
 });
 
+// ── Assistant de suivi — M22 (`docs/assistant/SPEC-PHASE-1.md § 13`) ─────────
+
+/**
+ * `?passage=<id>` est le lien des notifications de fin de passage
+ * (`EX-AST-08`) : il restreint l'écran à ce passage. Un identifiant mal formé
+ * est ignoré plutôt qu'appliqué — une liste vide ressemble à une panne.
+ */
+const routeAssistant = createRoute({
+  getParentRoute: () => routeApplication,
+  path: "/assistant",
+  validateSearch: z.object({ passage: z.uuid().optional().catch(undefined) }),
+  component: function PageAssistant() {
+    const { passage } = useSearch({ from: "/application/assistant" });
+    return <ActiviteAgent passageId={passage} />;
+  },
+});
+
+const routeAssistantHistorique = createRoute({
+  getParentRoute: () => routeApplication,
+  path: "/assistant/historique",
+  validateSearch: z.object({
+    etat: z
+      .enum(ETATS_PASSAGE.map((e) => e.code) as [string, ...string[]])
+      .optional()
+      .catch(undefined),
+  }),
+  component: function PageHistoriqueAssistant() {
+    const { etat } = useSearch({ from: "/application/assistant/historique" });
+    return <HistoriqueAgent etat={ETATS_PASSAGE.find((e) => e.code === etat)?.code} />;
+  },
+});
+
 const arbre = racine.addChildren([
   routeConnexion,
   routeInscription,
@@ -687,6 +743,7 @@ const arbre = racine.addChildren([
     routeProjetJalons,
     routeProjetEquipe,
     routeProjetTaches,
+    routeProjetSuivi,
     routeTaches,
     routeTache,
     routeEvenements,
@@ -709,6 +766,8 @@ const arbre = racine.addChildren([
     routeRoles,
     routeAudit,
     routePredefinies,
+    routeAssistant,
+    routeAssistantHistorique,
   ]),
 ]);
 

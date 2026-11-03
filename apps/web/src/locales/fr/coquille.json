@@ -31,7 +31,8 @@
     "roles": "Rôles",
     "journalAudit": "Journal d'audit",
     "tachesPredefinies": "Tâches prédéfinies",
-    "parametres": "Paramètres"
+    "parametres": "Paramètres",
+    "assistant": "Activité de l'agent"
   },
   "entete": {
     "rechercheGlobale": "Recherche globale",
@@ -71,7 +72,13 @@
     "corps_conge_decide_refuse_motif": "Votre demande de congé a été refusée. Motif : {motif}",
     "corps_ajout_projet": "Vous avez été ajouté au projet « {projet} ».",
     "corps_tache_echeance_proche": "La tâche « {tache} » arrive à échéance le {date}.",
-    "corps_tache_en_retard": "La tâche « {tache} » a dépassé son échéance du {date}."
+    "corps_tache_en_retard": "La tâche « {tache} » a dépassé son échéance du {date}.",
+    "type_assistant_passage": "Passage de l'agent de suivi",
+    "type_assistant_passage_echec": "Passage de l'agent en échec",
+    "corps_assistant_passage": "L'agent a terminé son passage : {effectuees, plural, one {# action effectuée} other {# actions effectuées}}, {refusees, plural, one {# refusée} other {# refusées}}, {pointsOuverts, plural, one {# point ouvert} other {# points ouverts}}.",
+    "corps_assistant_passage_echec": "Le passage de l'agent a échoué.",
+    "corps_assistant_passage_echec_erreur": "Le passage de l'agent a échoué : {erreur}",
+    "corps_assistant_passage_echec_interrompue": "Le passage de l'agent a été interrompu : l'agent ne donnait plus signe de vie."
   },
   "profil": {
     "derniereConnexion": "Dernière connexion",
@@ -140,7 +147,8 @@
     "avatarFormats": "Formats acceptés : jpg, png ou webp.",
     "avatarEnregistre": "Avatar enregistré.",
     "avatarSupprime": "Avatar supprimé.",
-    "avatarEchec": "La modification de l’avatar a échoué."
+    "avatarEchec": "La modification de l’avatar a échoué.",
+    "onglet_agents": "Agents"
   },
   "rolesSysteme": {
     "ADMIN": "Administrateur",

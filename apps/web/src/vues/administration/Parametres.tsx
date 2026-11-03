@@ -4,6 +4,14 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useBlocker, useLocation } from "@tanstack/react-router";
 import { Button } from "react-aria-components";
 import * as api from "../../api/administration.js";
+import * as apiAssistant from "../../api/assistant.js";
+import {
+  OngletAssistant,
+  brouillonsEgaux,
+  depuisBrouillon,
+  versBrouillon,
+  type BrouillonAssistant,
+} from "../assistant/Reglages.js";
 import { messageErreur } from "../../api/erreurs.js";
 import { ErreurApi } from "../../api/client.js";
 import { usePeut } from "../../session/session.js";
@@ -37,7 +45,7 @@ import "./parametres.css";
  * fragment inconnu sur la première section, comme la vue 19 le fait de ses
  * onglets. Un type ne recale rien.
  */
-const ONGLETS = ["affichage", "planning", "feries", "vacances"] as const;
+const ONGLETS = ["affichage", "planning", "feries", "vacances", "assistant"] as const;
 type Onglet = (typeof ONGLETS)[number];
 
 /**
@@ -47,8 +55,12 @@ type Onglet = (typeof ONGLETS)[number];
  * Un fragment recopié à la main, ou celui d'une section disparue, retombe sur
  * la première plutôt que de ne rien rendre du tout.
  */
-export const ongletParametres = (fragment: string): Onglet =>
-  ONGLETS.find((o) => o === fragment) ?? ONGLETS[0];
+export const ongletParametres = (fragment: string, peutConfigurerAssistant = true): Onglet => {
+  const onglet = ONGLETS.find((o) => o === fragment) ?? ONGLETS[0];
+  // M22 — l'onglet « Assistant » n'est offert qu'avec `assistant:configure` :
+  // son fragment saisi sans le droit retombe sur la première section.
+  return onglet === "assistant" && !peutConfigurerAssistant ? ONGLETS[0] : onglet;
+};
 
 const FORMATS_DATE = [
   { cle: "JJ/MM/AAAA", exemple: "31/12/2025" },
@@ -134,8 +146,18 @@ export function Parametres() {
    * rechargerait le document entier.
    */
   const fragment = useLocation({ select: (l) => l.hash });
-  const onglet = ongletParametres(fragment);
+  const peutConfigurerAssistant = peut("assistant:configure");
+  const onglet = ongletParametres(fragment, peutConfigurerAssistant);
   const [brouillon, setBrouillon] = useState<Record<string, string>>({});
+  /*
+   * M22 — le brouillon de l'onglet « Assistant ». Il vit ICI, avec celui des
+   * autres onglets : un brouillon tenu par l'onglet se perdrait au changement
+   * de section, et le bandeau comme l'avertissement de sortie (`RG-PRM-05`)
+   * l'ignoreraient. Les réglages du module ont leur propre route
+   * (`/assistant/reglages`, jamais publique) : ils ne passent pas par
+   * `/parametrage`.
+   */
+  const [brouillonAssistant, setBrouillonAssistant] = useState<BrouillonAssistant | null>(null);
   /** `EX-PRM-02` — la remise aux valeurs par défaut se confirme. */
   const [reinitialisationOuverte, setReinitialisationOuverte] = useState(false);
 
@@ -165,15 +187,52 @@ export function Parametres() {
     if (requete.data) setBrouillon(requete.data);
   }, [requete.data]);
 
+  const reglagesAssistant = useQuery({
+    queryKey: ["assistant", "reglages"],
+    queryFn: apiAssistant.reglages,
+    enabled: peutConfigurerAssistant,
+    retry: false,
+  });
+  useEffect(() => {
+    if (reglagesAssistant.data) setBrouillonAssistant(versBrouillon(reglagesAssistant.data));
+  }, [reglagesAssistant.data]);
+
+  const assistantEnregistre = reglagesAssistant.data ? versBrouillon(reglagesAssistant.data) : null;
+  const assistantModifie =
+    brouillonAssistant !== null && assistantEnregistre !== null && !brouillonsEgaux(brouillonAssistant, assistantEnregistre);
+  const lectureAssistant = brouillonAssistant ? depuisBrouillon(brouillonAssistant) : null;
+
   const enregistrement = useMutation({
-    mutationFn: () => api.enregistrerReglages(brouillon),
+    mutationFn: async () => {
+      /*
+       * Deux routes, une seule commande. Le module d'abord : c'est le seul des
+       * deux qui puisse être refusé par le contrôle de saisie, et un refus ne
+       * doit pas laisser l'affichage enregistré à moitié de ce qu'on a voulu.
+       */
+      if (assistantModifie) {
+        if (!lectureAssistant?.valeurs) throw new Error("assistant-invalide");
+        await apiAssistant.enregistrerReglages(lectureAssistant.valeurs);
+      }
+      if (affichageModifie && commandesEcriture(peut("settings:update")).enregistrer) {
+        await api.enregistrerReglages(brouillon);
+      }
+    },
     onSuccess: () => {
       annoncer("ok", t("parametres.enregistre"));
       void client.invalidateQueries({ queryKey: ["parametrage"] });
       void client.invalidateQueries({ queryKey: ["planning"] });
       void client.invalidateQueries({ queryKey: ["tableau"] });
+      // Activer ou désactiver le module fait apparaître ou disparaître son
+      // entrée de menu et l'onglet « Suivi » des projets.
+      void client.invalidateQueries({ queryKey: ["assistant"] });
     },
-    onError: (e) => annoncer("err", messageErreur(e, tErreurs, t("parametres.echecAction"))),
+    onError: (e) =>
+      annoncer(
+        "err",
+        e instanceof Error && e.message === "assistant-invalide"
+          ? t("parametres.assistantInvalide")
+          : messageErreur(e, tErreurs, t("parametres.echecAction")),
+      ),
   });
 
   /*
@@ -195,7 +254,8 @@ export function Parametres() {
    * than during the previous render ».
    */
   const enregistreOuVide = requete.data ?? {};
-  const modifie = Object.keys(brouillon).some((c) => brouillon[c] !== enregistreOuVide[c]);
+  const affichageModifie = Object.keys(brouillon).some((c) => brouillon[c] !== enregistreOuVide[c]);
+  const modifie = affichageModifie || assistantModifie;
   const sortie = useBlocker({
     /*
      * `RG-PRM-05` porte sur la SORTIE de la page, pas sur le passage d'une
@@ -224,7 +284,13 @@ export function Parametres() {
     return <ErreurDeChargement erreur={requete.error} surReessai={() => void requete.refetch()} />;
 
   const enregistre = requete.data;
-  const commandes = commandesEcriture(peut("settings:update"));
+  /* Enregistrer vaut pour les deux brouillons : celui de `/parametrage`, gardé
+     par `settings:update`, et celui du module, gardé par `assistant:configure`. */
+  const ecritureAffichage = commandesEcriture(peut("settings:update"));
+  const commandes = {
+    enregistrer: ecritureAffichage.enregistrer || peutConfigurerAssistant,
+    reinitialiser: ecritureAffichage.reinitialiser,
+  };
   /* `EX-PRM-02` — ce que la remise aux valeurs par défaut changerait vraiment.
      Un point est un séparateur de niveau chez i18next : la clé métier
      `display.dateFormat` s'aplatit avant de servir de clé de catalogue. */
@@ -241,6 +307,7 @@ export function Parametres() {
     { cle: "planning", libelle: t("parametres.ongletPlanning") },
     { cle: "feries", libelle: t("parametres.ongletFeries") },
     { cle: "vacances", libelle: t("parametres.ongletVacances") },
+    ...(peutConfigurerAssistant ? [{ cle: "assistant" as const, libelle: t("parametres.ongletAssistant") }] : []),
   ];
 
   return (
@@ -297,7 +364,13 @@ export function Parametres() {
             <span className="dirty-t">{t("parametres.modificationsNonEnregistrees")}</span>
             <span className="dirty-d">{t("parametres.modificationsAide")}</span>
           </span>
-          <Button className="chip-btn" onPress={() => setBrouillon(enregistre)}>
+          <Button
+            className="chip-btn"
+            onPress={() => {
+              setBrouillon(enregistre);
+              setBrouillonAssistant(assistantEnregistre);
+            }}
+          >
             {t("parametres.annulerModifications")}
           </Button>
           {/*
@@ -365,6 +438,23 @@ export function Parametres() {
       {onglet === "planning" ? <Planning lire={lire} ecrire={ecrire} /> : null}
       {onglet === "feries" ? <Feries /> : null}
       {onglet === "vacances" ? <VacancesScolaires zoneConfiguree={enregistre["planning.schoolZone"] ?? ""} /> : null}
+      {onglet === "assistant" ? (
+        reglagesAssistant.isPending ? (
+          <Chargement quoi={t("parametres.lesReglagesAssistant")} />
+        ) : reglagesAssistant.isError ? (
+          reglagesAssistant.error instanceof ErreurApi && reglagesAssistant.error.statut === 403 ? (
+            <AccesRefuse erreur={reglagesAssistant.error} />
+          ) : (
+            <ErreurDeChargement erreur={reglagesAssistant.error} surReessai={() => void reglagesAssistant.refetch()} />
+          )
+        ) : brouillonAssistant ? (
+          <OngletAssistant
+            brouillon={brouillonAssistant}
+            ecrire={(m) => setBrouillonAssistant((b) => (b ? { ...b, ...m } : b))}
+            erreurs={lectureAssistant?.erreurs ?? {}}
+          />
+        ) : null
+      ) : null}
       {/*
         `RG-PRM-05` — la question est posée dans NOS mots, avec la sortie et le
         retour clairement nommés. « Quitter sans enregistrer » dit ce qui se
