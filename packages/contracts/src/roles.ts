@@ -160,6 +160,13 @@ const RH = [
   "reports:readAll",
 ];
 
+/**
+ * M22 — brancher un agent de suivi. Réservé aux rôles qui conduisent ou
+ * encadrent des projets : l'agent n'a que les droits de son propriétaire, et un
+ * contributeur n'a guère de projet à faire suivre.
+ */
+const ASSISTANT = ["assistant:use"];
+
 const dedoublonne = (p: readonly string[]) => [...new Set(p)].sort();
 
 // ── Les 26 modèles ──────────────────────────────────────────────────────────
@@ -187,7 +194,8 @@ export const MODELES_ROLES: readonly ModeleRole[] = [
           !p.startsWith("audit:") &&
           p !== "users:manage_roles" &&
           p !== "users:manage_permissions" &&
-          p !== "users:delete_permanently",
+          p !== "users:delete_permanently" &&
+          p !== "assistant:configure",
       ),
     ),
   },
@@ -202,6 +210,7 @@ export const MODELES_ROLES: readonly ModeleRole[] = [
     permissions: dedoublonne([
       ...SOCLE,
       ...ENCADREMENT,
+      ...ASSISTANT,
       "projects:readAll",
       "projects:manage_any",
       "projects:create",
@@ -220,7 +229,7 @@ export const MODELES_ROLES: readonly ModeleRole[] = [
     famille: "Management",
     systeme: true,
     description: "Valider les congés en connaissant leur impact, repérer les surcharges, suivre un agent.",
-    permissions: dedoublonne([...SOCLE, ...CONTRIBUTION_PROJET, ...ENCADREMENT]),
+    permissions: dedoublonne([...SOCLE, ...CONTRIBUTION_PROJET, ...ENCADREMENT, ...ASSISTANT]),
   },
   {
     code: "MANAGER_PROJECT_FOCUS",
@@ -231,6 +240,7 @@ export const MODELES_ROLES: readonly ModeleRole[] = [
     permissions: dedoublonne([
       ...SOCLE,
       ...CONDUITE_PROJET,
+      ...ASSISTANT,
       "leaves:read_team",
       "leaves:approve",
       "planning:read_team",
@@ -261,7 +271,7 @@ export const MODELES_ROLES: readonly ModeleRole[] = [
     famille: "Conduite de projet",
     systeme: true,
     description: "Structurer un projet en jalons, savoir qui est disponible, repérer retards et dépendances.",
-    permissions: dedoublonne([...SOCLE, ...CONDUITE_PROJET, "planning:read_team", "users:read"]),
+    permissions: dedoublonne([...SOCLE, ...CONDUITE_PROJET, ...ASSISTANT, "planning:read_team", "users:read"]),
   },
   {
     code: "PROJECT_LEAD_JUNIOR",
@@ -270,7 +280,7 @@ export const MODELES_ROLES: readonly ModeleRole[] = [
     systeme: false,
     description: "Conduite de projet sans création ni archivage : on pilote l'existant, on ne l'ouvre pas.",
     permissions: dedoublonne(
-      [...SOCLE, ...CONDUITE_PROJET, "users:read"].filter(
+      [...SOCLE, ...CONDUITE_PROJET, ...ASSISTANT, "users:read"].filter(
         (p) => p !== "projects:create" && p !== "projects:archive" && p !== "projects:import",
       ),
     ),
@@ -284,6 +294,7 @@ export const MODELES_ROLES: readonly ModeleRole[] = [
     permissions: dedoublonne([
       ...SOCLE,
       ...CONTRIBUTION_PROJET,
+      ...ASSISTANT,
       "tasks:assign_any_user",
       "tasks:manage_raci",
       "tasks:readAll",

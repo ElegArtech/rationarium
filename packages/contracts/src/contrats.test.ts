@@ -95,8 +95,9 @@ describe("vocabulaires", () => {
 });
 
 describe("catalogue de permissions", () => {
-  it("couvre les 24 domaines du cadrage", () => {
-    expect(DOMAINES).toHaveLength(24);
+  // 24 domaines au cadrage, plus `assistant` (M22, 2026-11-02).
+  it("couvre les 25 domaines du cadrage", () => {
+    expect(DOMAINES).toHaveLength(25);
     for (const d of DOMAINES) {
       expect(
         PERMISSIONS.some((p) => p.startsWith(`${d}:`)),
@@ -121,7 +122,8 @@ describe("catalogue de permissions", () => {
     // Le cadrage annonçait « ≈ 125 ». L'énumération dérivée en donne davantage :
     // voir la décision consignée en tête de permissions.ts. Ce test n'impose pas
     // une valeur juste, il impose qu'un changement de volume soit VU.
-    expect(NOMBRE_PERMISSIONS).toBe(152);
+    // 152, puis 154 avec `assistant:use` et `assistant:configure` (M22).
+    expect(NOMBRE_PERMISSIONS).toBe(154);
   });
 
   it("RG-SCOPE-03 — les permissions de gestion globale appartiennent au catalogue", () => {

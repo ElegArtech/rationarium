@@ -12,3 +12,4 @@ export * from "./icones-projet.js";
 export * from "./permissions.js";
 export * from "./roles.js";
 export * from "./schemas.js";
+export * from "./assistant.js";

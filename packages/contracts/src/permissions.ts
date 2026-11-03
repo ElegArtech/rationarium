@@ -31,6 +31,7 @@
 
 /** Les 24 domaines de `docs/reference-fonctionnelle.md § 3.2`, dans l'ordre du document. */
 export const DOMAINES = [
+  "assistant",
   "audit",
   "clients",
   "comments",
@@ -70,6 +71,12 @@ const CRUD = ["read", "create", "update", "delete"] as const;
  * lecture d'équipe.
  */
 const ACTIONS_PAR_DOMAINE: Record<Domaine, readonly string[]> = {
+  /**
+   * M22 — assistant de suivi. `use` : brancher ses agents et suivre ce qu'ils
+   * font ; `configure` : activer le module et le régler. L'agent n'a aucun
+   * droit propre : chaque action exige les droits de son propriétaire.
+   */
+  assistant: ["use", "configure"],
   /** Lecture seule, et l'accès refusé est lui-même tracé (`RG-ADM-03`). */
   audit: ["read"],
 
