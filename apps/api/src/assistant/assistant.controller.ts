@@ -21,9 +21,10 @@ import { ActionsAgentService } from "./actions.service.js";
 /**
  * M22 — l'assistant de suivi, côté interface (`docs/assistant/SPEC-PHASE-1.md § 13`).
  *
- * Tout ce qui n'est pas réglage répond « introuvable » quand le module est
- * désactivé (`RG-AST-01`). Les réglages restent lisibles et modifiables par
- * `assistant:configure` : sans eux, on ne pourrait pas activer le module.
+ * Tout ce qui n'est ni réglage ni sonde d'état répond « introuvable » quand le
+ * module est désactivé (`RG-AST-01`). Les réglages restent lisibles et
+ * modifiables par `assistant:configure` : sans eux, on ne pourrait pas activer
+ * le module.
  *
  * Jetons, passages et actions sont bornés au compte connecté : chacun ne voit
  * et ne défait que ce que ses propres agents ont fait.
@@ -58,17 +59,26 @@ export class AssistantController {
 
   // ── État ────────────────────────────────────────────────────────────────
 
-  /** Ce que l'écran affiche en tête : l'agent joignable, le passage en cours. */
+  /**
+   * Ce que l'écran affiche en tête : l'agent joignable, le passage en cours.
+   *
+   * `RG-AST-01` — c'est la seule route du module qui répond quand il est
+   * désactivé, et elle ne dit alors que cela. L'interface s'en sert pour savoir
+   * si l'entrée de navigation existe : une sonde qui répondrait 404 à chaque
+   * page ferait passer une installation neuve pour une installation en erreur.
+   */
   @Get("etat")
   @RequiertPermission("assistant:use")
   async etat(@Demande() d: ContexteDemande) {
-    const reglages = await this.reglages.exigerActif();
+    const reglages = await this.reglages.lire();
+    if (reglages.mode === "desactive") return { actif: false as const, mode: reglages.mode };
     const [agent, jetons, passages] = await Promise.all([
       this.jetons.agentJoignable(d.userId),
       this.jetons.lister(d.userId),
       this.passages.lister(d.userId, { limite: 1 }),
     ]);
     return {
+      actif: true as const,
       mode: reglages.mode,
       planification: reglages.planification,
       agent,

@@ -17,9 +17,9 @@ import { appeler } from "./client.js";
  * `actions.service.ts`, `suivis.service.ts` — et non celles que l'écran
  * aimerait recevoir. Un jeu d'essai se calque sur la signature du service.
  *
- * **Le module désactivé répond 404 partout sauf sur les réglages**
- * (`RG-AST-01`). `GET /assistant/etat` sert donc de sonde : c'est elle qui
- * décide si l'entrée de navigation et l'onglet « Suivi » existent.
+ * **Le module désactivé répond 404 partout sauf sur les réglages et la sonde**
+ * (`RG-AST-01`). `GET /assistant/etat` rend alors `{ actif: false }` : c'est elle
+ * qui décide si l'entrée de navigation et l'onglet « Suivi » existent.
  */
 
 /** Ce que l'agent a écrit dans un passage, tel que l'historique le décompte. */
@@ -44,7 +44,11 @@ export type Passage = {
   actions?: DecompteActions;
 };
 
+/** Le module désactivé ne dit rien d'autre que son état. */
+export type EtatAssistantDesactive = { actif: false; mode: "desactive" };
+
 export type EtatAssistant = {
+  actif: true;
   mode: ReglagesAssistant["mode"];
   planification: string;
   agent: { joignable: boolean; dernierContact: string | null };
@@ -149,7 +153,7 @@ export const enregistrerReglages = (valeurs: ReglagesAssistant) =>
 
 // ── État ────────────────────────────────────────────────────────────────────
 
-export const etat = () => appeler<EtatAssistant>("/assistant/etat");
+export const etat = () => appeler<EtatAssistant | EtatAssistantDesactive>("/assistant/etat");
 
 // ── Jetons — EX-AST-02 ──────────────────────────────────────────────────────
 

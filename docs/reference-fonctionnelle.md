@@ -868,7 +868,10 @@ module est facultatif et désactivé par défaut. La spécification détaillée 
 #### Règles de gestion
 
 - **RG-AST-01** — Le module est désactivé par défaut. Désactivé, le guichet et les écrans du module
-  répondent 404 (`erreurs:introuvable`), et aucun traitement planifié du module n'est déclaré.
+  répondent 404 (`erreurs:introuvable`), et aucun traitement planifié du module n'est déclaré. Seules
+  font exception les réglages, sans lesquels on ne pourrait pas l'activer, et la sonde
+  `GET /assistant/etat`, qui répond alors `{ actif: false }` sans rien dire d'autre : l'interface s'en
+  sert pour savoir si elle affiche le module.
 - **RG-AST-02** — Un jeton d'agent agit pour son propriétaire. Il ne donne jamais plus que les
   permissions et le périmètre du propriétaire, contrôlés dans cet ordre. Il n'ouvre que les routes
   du guichet, et aucune route de l'API de session. Seule l'empreinte du jeton est conservée.

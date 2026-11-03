@@ -10,16 +10,18 @@ import { usePeut } from "../../session/session.js";
  * `RG-AST-01` : désactivé, le module n'a ni route, ni écran, ni entrée de
  * menu. Le client ne lit pas les réglages pour le savoir — ils sont gardés par
  * `assistant:configure`, que presque personne ne détient. Il interroge
- * `GET /assistant/etat`, gardé par `assistant:use` : un `404` dit « désactivé »,
- * une réponse dit « actif ». C'est le serveur qui tranche, le client masque par
- * courtoisie (`RG-GEN-06`).
+ * `GET /assistant/etat`, gardé par `assistant:use`, qui rend `actif`. C'est la
+ * seule route du module qui répond quand il est désactivé : une sonde en `404`
+ * à chaque page ferait passer une installation neuve pour une installation en
+ * erreur. C'est le serveur qui tranche, le client masque par courtoisie
+ * (`RG-GEN-06`).
  *
  * **Une seule déclaration des options de la requête.** La coquille, la fiche
  * projet, le profil et l'écran d'activité lisent tous la même clé : deux
  * observateurs qui divergent sur le réessai se relancent l'un l'autre dès que
  * la lecture échoue (piège consigné, sept cent quarante-sept appels en deux
- * secondes et demie). Ici, un module désactivé échoue PAR CONSTRUCTION — le
- * cas n'est pas rare, il est le cas par défaut.
+ * secondes et demie). Un module désactivé est le cas par défaut d'une
+ * installation : la sonde ne doit pas échouer pour le dire.
  */
 export const CLE_ETAT_ASSISTANT = ["assistant", "etat"] as const;
 
@@ -31,9 +33,17 @@ export const optionsEtatAssistant = {
   staleTime: 30_000,
 } as const;
 
-/** Vrai quand l'échec veut dire « module désactivé », et non « panne ». */
+/**
+ * Vrai quand l'échec d'une route du module veut dire « module désactivé », et
+ * non « panne » : le module a pu être désactivé depuis la dernière lecture.
+ */
 export const moduleDesactive = (erreur: unknown): boolean =>
   erreur instanceof ErreurApi && erreur.statut === 404;
+
+/** L'état d'un module actif, ou `undefined` : désactivé, ou pas encore lu. */
+export const etatActif = (
+  donnee: api.EtatAssistant | api.EtatAssistantDesactive | undefined,
+): api.EtatAssistant | undefined => (donnee?.actif === true ? donnee : undefined);
 
 /**
  * L'état du module, tel que la coquille et les vues le consomment.
@@ -55,7 +65,8 @@ export function useModuleAssistant(): {
    * rechargement suivant. Un `404` récent l'emporte sur une donnée ancienne.
    */
   const desactive = requete.isError && moduleDesactive(requete.error);
-  return { actif: autorise && requete.data !== undefined && !desactive, etat: desactive ? undefined : requete.data };
+  const etat = desactive ? undefined : etatActif(requete.data);
+  return { actif: autorise && etat !== undefined, etat };
 }
 
 /**

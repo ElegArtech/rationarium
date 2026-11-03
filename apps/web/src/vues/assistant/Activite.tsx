@@ -16,7 +16,7 @@ import { lienSur } from "./difference.js";
 import { EnTeteAssistant, IlYA, ModuleDesactive, PastilleEtatPassage, useMaintenant } from "./elements.js";
 import { horodatage, minutesEntre } from "./formes.js";
 import { LigneAction, groupesParProjet } from "./LigneAction.js";
-import { moduleDesactive, optionsEtatAssistant, temoinAgent } from "./module.js";
+import { etatActif, moduleDesactive, optionsEtatAssistant, temoinAgent } from "./module.js";
 import "../../composants/partages.css";
 import "../projets/fiche.css";
 import "./assistant.css";
@@ -55,7 +55,9 @@ export function ActiviteAgent({ passageId }: { passageId?: string | undefined })
    * coquille, à l'intervalle près.
    */
   const etat = useQuery({ ...optionsEtatAssistant, refetchInterval: RAFRAICHISSEMENT_MS });
-  const disponible = etat.data !== undefined;
+  // `RG-AST-01` — la sonde répond `{ actif: false }` quand le module est désactivé.
+  const lu = etatActif(etat.data);
+  const disponible = lu !== undefined;
 
   const selection = useQuery({
     queryKey: ["assistant", "passage", passageId],
@@ -64,7 +66,7 @@ export function ActiviteAgent({ passageId }: { passageId?: string | undefined })
     refetchInterval: (q) => (estActif(q.state.data) ? RAFRAICHISSEMENT_MS : false),
   });
 
-  const passageMontre = passageId ? selection.data : etat.data?.dernierPassage;
+  const passageMontre = passageId ? selection.data : lu?.dernierPassage;
   const actif = estActif(passageMontre);
 
   const actions = useQuery({
@@ -88,7 +90,7 @@ export function ActiviteAgent({ passageId }: { passageId?: string | undefined })
     },
   });
 
-  if (etat.error && moduleDesactive(etat.error)) {
+  if ((etat.error && moduleDesactive(etat.error)) || etat.data?.actif === false) {
     return (
       <>
         <EnTeteAssistant onglet="activite" />
@@ -100,7 +102,8 @@ export function ActiviteAgent({ passageId }: { passageId?: string | undefined })
   if (etat.isPending) return <Chargement quoi={t("activite.lActivite")} />;
   if (etat.isError) return <ErreurDeChargement erreur={etat.error} surReessai={() => void etat.refetch()} />;
 
-  const e = etat.data;
+  const e = lu;
+  if (!e) return <Chargement quoi={t("activite.lActivite")} />;
   const passageActif = estActif(e.dernierPassage) ? e.dernierPassage : null;
   const liste = actions.data ?? [];
   const sansAgent = e.jetonsValides === 0;

@@ -186,8 +186,11 @@ afterAll(async () => {
 describe("M22 — module désactivé", () => {
   it("RG-AST-01 — désactivé par défaut, le module répond introuvable et ne déclare aucun traitement", async () => {
     const etat = await session("GET", "/assistant/etat", cookieChef);
-    expect(etat.statusCode).toBe(404);
-    expect(etat.json()).toMatchObject({ cle: "erreurs:introuvable" });
+    expect(etat.statusCode).toBe(200);
+    expect(etat.json()).toEqual({ actif: false, mode: "desactive" });
+    const jetons = await session("GET", "/assistant/jetons", cookieChef);
+    expect(jetons.statusCode).toBe(404);
+    expect(jetons.json()).toMatchObject({ cle: "erreurs:introuvable" });
     const planifies = await prisma.$queryRaw<{ name: string }[]>`SELECT name FROM pgboss.schedule WHERE name LIKE 'assistant.%'`;
     expect(planifies).toEqual([]);
   });
@@ -211,7 +214,7 @@ describe("M22 — réglages et jetons", () => {
     });
     expect(r.statusCode, r.body).toBe(200);
     expect(r.json()).toMatchObject({ mode: "relais" });
-    expect((await session("GET", "/assistant/etat", cookieChef)).statusCode).toBe(200);
+    expect((await session("GET", "/assistant/etat", cookieChef)).json()).toMatchObject({ actif: true, mode: "relais" });
   });
 
   it("EX-AST-02 — le jeton n'est montré qu'à sa création, et seule son empreinte est conservée", async () => {

@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { REGLAGES_ASSISTANT_DEFAUT, SECONDES_AGENT_JOIGNABLE } from "@rationarium/contracts";
 import { ErreurApi } from "../../api/client.js";
-import { agentJoignable, moduleDesactive, optionsEtatAssistant, temoinAgent } from "./module.js";
+import { agentJoignable, etatActif, moduleDesactive, optionsEtatAssistant, temoinAgent } from "./module.js";
 import { ecartAuPresent, minutesEntre } from "./formes.js";
 import { brouillonsEgaux, depuisBrouillon, versBrouillon } from "./Reglages.js";
 
@@ -118,5 +118,24 @@ describe("EX-AST-01, EX-AST-05 — les réglages du module se valident par le co
     expect(brouillonsEgaux(defaut, { ...defaut })).toBe(true);
     expect(brouillonsEgaux(defaut, { ...defaut, mode: "relais" })).toBe(false);
     expect(brouillonsEgaux(defaut, { ...defaut, conservationJours: " 180 " })).toBe(true);
+  });
+});
+
+describe("RG-AST-01 — la sonde d'état dit le module désactivé sans échouer", () => {
+  it("{ actif: false } : pas d'état, donc ni entrée de navigation ni onglet", () => {
+    expect(etatActif({ actif: false, mode: "desactive" })).toBeUndefined();
+    expect(etatActif(undefined)).toBeUndefined();
+  });
+
+  it("{ actif: true } : l'état est rendu tel quel", () => {
+    const etat = {
+      actif: true as const,
+      mode: "relais" as const,
+      planification: "",
+      agent: { joignable: false, dernierContact: null },
+      jetonsValides: 0,
+      dernierPassage: null,
+    };
+    expect(etatActif(etat)).toBe(etat);
   });
 });
