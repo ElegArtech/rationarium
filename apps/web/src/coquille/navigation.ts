@@ -30,7 +30,20 @@ import type { Permission } from "@rationarium/contracts";
  * Confondre les deux donnait à Camille et à Fatou des entrées
  * d'administration qu'elles n'ont pas dans la maquette.
  */
-export type EntreeNav = { cle: string; chemin: string; permission: Permission; icone: string };
+export type EntreeNav = {
+  cle: string;
+  chemin: string;
+  permission: Permission;
+  icone: string;
+  /**
+   * Le module facultatif dont l'entrée dépend. `RG-AST-01` : un module
+   * désactivé n'a aucune entrée de menu — la permission ne suffit pas, c'est
+   * le serveur qui dit si le module répond.
+   */
+  module?: ModuleFacultatif;
+};
+/** Les modules qu'une instance peut ne pas activer. M22 est le premier. */
+export type ModuleFacultatif = "assistant";
 export type GroupeNav = { cle: string; entrees: EntreeNav[] };
 
 export const NAVIGATION: GroupeNav[] = [
@@ -48,6 +61,7 @@ export const NAVIGATION: GroupeNav[] = [
       { cle: "projetsListe", chemin: "/projets", permission: "projects:read" , icone: "i-projects" },
       { cle: "taches", chemin: "/taches", permission: "tasks:read" , icone: "i-tasks" },
       { cle: "evenements", chemin: "/evenements", permission: "events:read" , icone: "i-events" },
+      { cle: "assistant", chemin: "/assistant", permission: "assistant:use", icone: "i-agent", module: "assistant" },
     ],
   },
   {
@@ -79,7 +93,19 @@ export const NAVIGATION: GroupeNav[] = [
   },
 ];
 
-/** Filtre la navigation selon les permissions résolues côté serveur. */
-export const navigationVisible = (permissions: ReadonlySet<string>): GroupeNav[] =>
-  NAVIGATION.map((g) => ({ ...g, entrees: g.entrees.filter((e) => permissions.has(e.permission)) }))
-    .filter((g) => g.entrees.length > 0);
+/**
+ * Filtre la navigation selon les permissions résolues côté serveur, et selon
+ * les modules facultatifs que le serveur déclare actifs. Sans second argument,
+ * aucun module facultatif n'est réputé actif : c'est l'état d'une instance
+ * fraîche, et celui des maquettes.
+ */
+export const navigationVisible = (
+  permissions: ReadonlySet<string>,
+  modulesActifs: ReadonlySet<ModuleFacultatif> = new Set(),
+): GroupeNav[] =>
+  NAVIGATION.map((g) => ({
+    ...g,
+    entrees: g.entrees.filter(
+      (e) => permissions.has(e.permission) && (e.module === undefined || modulesActifs.has(e.module)),
+    ),
+  })).filter((g) => g.entrees.length > 0);

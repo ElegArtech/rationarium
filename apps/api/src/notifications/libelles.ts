@@ -50,6 +50,20 @@ const TITRES: Record<TypeNotification, Record<Langue, string>> = {
   tache_echeance_proche: { fr: "Tâche à échéance proche", en: "Task due soon" },
   tache_en_retard: { fr: "Tâche en retard", en: "Overdue task" },
   ajout_projet: { fr: "Ajout à un projet", en: "Added to a project" },
+  assistant_passage: { fr: "Passage de l'agent de suivi", en: "Follow-up agent run" },
+  assistant_passage_echec: { fr: "Passage de l'agent en échec", en: "Follow-up agent run failed" },
+};
+
+const nombre = (valeur: string | undefined): number => {
+  const n = Number(valeur ?? "");
+  return Number.isFinite(n) ? n : 0;
+};
+
+/** « 3 actions effectuées », « 1 action refusée »… dans la langue du lecteur. */
+const compte = (valeur: string | undefined, langue: Langue, fr: [string, string], en: [string, string]) => {
+  const n = nombre(valeur);
+  if (langue === "fr") return `${n} ${Math.abs(n) < 2 ? fr[0] : fr[1]}`;
+  return `${n} ${Math.abs(n) === 1 ? en[0] : en[1]}`;
 };
 
 /**
@@ -128,6 +142,27 @@ const CORPS: Record<string, Record<Langue, (p: Record<string, string>) => string
   tache_en_retard: {
     fr: (p) => `La tâche « ${p["tache"] ?? ""} » a dépassé son échéance du ${p["date"] ?? ""}.`,
     en: (p) => `Task “${p["tache"] ?? ""}” is past its due date of ${p["date"] ?? ""}.`,
+  },
+  /* M22 — `RG-AST-…`, `EX-AST-08` : ce que l'agent a fait, et ce qu'il n'a pas pu trancher. */
+  assistant_passage: {
+    fr: (p) =>
+      `L'agent a terminé son passage : ${compte(p["effectuees"], "fr", ["action effectuée", "actions effectuées"], ["", ""])}, ` +
+      `${compte(p["refusees"], "fr", ["action refusée", "actions refusées"], ["", ""])}, ` +
+      `${compte(p["pointsOuverts"], "fr", ["point ouvert", "points ouverts"], ["", ""])}.`,
+    en: (p) =>
+      `The agent has completed its run: ${compte(p["effectuees"], "en", ["", ""], ["action done", "actions done"])}, ` +
+      `${compte(p["refusees"], "en", ["", ""], ["action refused", "actions refused"])}, ` +
+      `${compte(p["pointsOuverts"], "en", ["", ""], ["open point", "open points"])}.`,
+  },
+  assistant_passage_echec: {
+    fr: (p) =>
+      p["etat"] === "interrompue"
+        ? "Le passage de l'agent a été interrompu : l'agent ne donnait plus signe de vie."
+        : `Le passage de l'agent a échoué${p["erreur"] ? ` : ${p["erreur"]}` : "."}`,
+    en: (p) =>
+      p["etat"] === "interrompue"
+        ? "The agent run was interrupted: the agent stopped responding."
+        : `The agent run failed${p["erreur"] ? `: ${p["erreur"]}` : "."}`,
   },
 };
 

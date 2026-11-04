@@ -19,7 +19,7 @@ Le produit repose sur un **catalogue de permissions atomiques** (≈ 125 permiss
 | `:read_team` | Lecture restreinte à son équipe / service |
 | Permissions nommées | `leaves:approve`, `leaves:self_approve`, `users:manage_roles`, `skills:manage_matrix`, `tasks:assign_any_user`, `time_tracking:declare_for_third_party`… |
 
-**Domaines couverts.** audit · clients · comments · departments · directions · documents · epics · events · holidays · leaves · milestones · planning · predefined_tasks · projects · reports · school_vacations · services · settings · skills · tasks · telework · third_parties · time_tracking · users.
+**Domaines couverts.** assistant · audit · clients · comments · departments · directions · documents · epics · events · holidays · leaves · milestones · planning · predefined_tasks · projects · reports · school_vacations · services · settings · skills · tasks · telework · third_parties · time_tracking · users.
 
 **Modèles de rôles fournis (26)**
 
@@ -86,6 +86,10 @@ Au-delà des permissions, un **périmètre** limite ce qu'un utilisateur voit.
 | **Vacances scolaires** | Période de référence | Libellé, dates, zone, année scolaire, source |
 | **Notification** | Alerte utilisateur | Type, contenu, lue/non lue, destinataire |
 | **Entrée d'audit** | Trace d'action sensible | Horodatage, action, type d'entité, entité, acteur |
+| **Jeton d'agent** | Accès d'un agent de suivi, pour le compte de son propriétaire | Propriétaire, libellé, empreinte, types d'action autorisés, expiration, dernier usage, révocation |
+| **Plan de suivi** | Ce que l'agent surveille pour un projet | Projet, consigne, sources, seuil de silence, actif |
+| **Passage** | Une exécution de l'agent | Propriétaire, déclenchement, portée, état, progression, signe de vie, bilan |
+| **Action de l'agent** | Une écriture de l'agent, effectuée ou refusée | Passage, type, cible, charge, état avant et après, justification, preuves, état |
 
 ### 4.1 Vocabulaires
 
@@ -101,6 +105,11 @@ Au-delà des permissions, un **périmètre** limite ce qu'un utilisateur voit.
 **Type de tiers** — Personne physique · Personne morale
 **Période de journée** — Matin · Après-midi · Journée entière
 **Durée de tâche prédéfinie** — Demi-journée · Journée entière · Créneau horaire
+**Mode de l'assistant** — Désactivé · Agent sur un poste
+**Déclenchement d'un passage** — Planifié · Manuel
+**État d'un passage** — En attente du poste · Pris en charge · En cours · Terminé · En échec · Interrompu · Annulé
+**État d'une action de l'agent** — Effectuée · Refusée · Défaite
+**Type de source de suivi** — Courriel · Dépôt de code · Dossier · Canal de messagerie · Flux · Page · Autre
 
 ---
 
@@ -706,6 +715,8 @@ L’interface ne propose que les trois formats normatifs ci-dessus. Le point d�
 | Tâche à échéance proche | Approche de la date de fin |
 | Tâche en retard | Dépassement de la date de fin |
 | Ajout à un projet | Ajout comme membre |
+| Passage de l'agent de suivi | Fin d'un passage qui a effectué ou refusé une action, ou relevé un point ouvert (M22) |
+| Passage de l'agent en échec | Passage en échec ou interrompu (M22) |
 
 | Id | Exigence |
 | --- | --- |
@@ -828,6 +839,86 @@ Planning au format **ICS** (et import ICS avec prévisualisation) · Tâches et 
 
 - **RG-IMP-07** — Un export ne contient que ce que l'exportateur peut lire : projet visible (`RG-SCOPE-02`) et tâches filtrées par `RG-SCOPE-04`. Un projet hors périmètre est refusé en 403 `erreurs:horsPerimetre`.
 - **RG-IMP-08** — Toute cellule texte exportée en CSV qui commence par `=`, `+`, `-`, `@`, tabulation ou retour chariot est préfixée d'une apostrophe ; une cellule qui commence par une ou plusieurs apostrophes suivies d'un de ces caractères l'est aussi. L'import retire cette apostrophe quand elle précède un de ces caractères, ou une apostrophe qui les précède : l'aller-retour reste exact. Les colonnes numériques ne sont pas concernées. L'export XLSX non plus : ses textes sont écrits en cellules de texte, jamais en formule.
+
+---
+
+### M22 — Assistant de suivi
+
+Un agent, qui tourne sur le poste de l'utilisateur avec son propre client de modèle de langage, met à
+jour les projets, les jalons, les tâches, les événements et les temps à partir du courriel, des
+documents, des dépôts et des autres sources déclarées. Il agit directement, sans validation
+préalable, pour le compte du propriétaire de son jeton ; chaque action est tracée et se défait. Le
+module est facultatif et désactivé par défaut. La spécification détaillée est
+`docs/assistant/SPEC-PHASE-1.md`.
+
+#### Exigences
+
+| Id | Exigence |
+| --- | --- |
+| EX-AST-01 | Activer ou désactiver le module, et choisir son mode |
+| EX-AST-02 | Créer, lister et révoquer ses jetons d'agent, et limiter les types d'action d'un jeton ; le jeton n'est affiché qu'à sa création |
+| EX-AST-03 | Déclarer le plan de suivi d'un projet : consigne, sources, seuil de silence |
+| EX-AST-04 | Lancer un passage à la main, et suivre son état et sa progression |
+| EX-AST-05 | Planifier les passages |
+| EX-AST-06 | Consulter les actions de l'agent, par passage et par projet, avec l'état avant et après et les preuves |
+| EX-AST-07 | Défaire une action de l'agent |
+| EX-AST-08 | Être notifié de la fin d'un passage : actions effectuées, actions refusées, points ouverts |
+| EX-AST-09 | Consulter l'historique des passages |
+
+#### Règles de gestion
+
+- **RG-AST-01** — Le module est désactivé par défaut. Désactivé, le guichet et les écrans du module
+  répondent 404 (`erreurs:introuvable`), et aucun traitement planifié du module n'est déclaré. Seules
+  font exception les réglages, sans lesquels on ne pourrait pas l'activer, et la sonde
+  `GET /assistant/etat`, qui répond alors `{ actif: false }` sans rien dire d'autre : l'interface s'en
+  sert pour savoir si elle affiche le module.
+- **RG-AST-02** — Un jeton d'agent agit pour son propriétaire. Il ne donne jamais plus que les
+  permissions et le périmètre du propriétaire, contrôlés dans cet ordre. Il n'ouvre que les routes
+  du guichet, et aucune route de l'API de session. Seule l'empreinte du jeton est conservée.
+- **RG-AST-03** — Un jeton révoqué, expiré, ou dont le propriétaire est inactif, est refusé en 401.
+  La révocation prend effet à la requête suivante.
+- **RG-AST-04** — Une action de l'agent est appliquée immédiatement par le service métier de
+  l'entité visée, avec l'identité du propriétaire du jeton. Un refus du service (droit, périmètre,
+  règle métier) est rendu à l'agent avec le message métier, et rien n'est écrit.
+- **RG-AST-05** — Un jeton peut être limité à certains types d'action. Une action d'un type non
+  autorisé est refusée en 403, et rien n'est écrit.
+- **RG-AST-06** — Une action qui modifie une entité existante porte la version de cette entité. Si
+  l'entité a changé depuis la lecture de l'agent, l'action est refusée en 409 et rien n'est écrit
+  (`RG-GEN-07`). L'agent relit l'entité avant de réessayer.
+- **RG-AST-07** — Toute action porte une justification et au moins une preuve. Une preuve comprend
+  une source, une référence, une date et, au plus, un extrait de 280 caractères. Une action porte
+  au plus dix preuves.
+- **RG-AST-08** — Une tâche créée dans un projet par l'agent est rattachée à un jalon de ce projet,
+  existant ou créé dans la même action. Le paramètre `assistant.jalonObligatoire` porte cette règle
+  et vaut `true` par défaut.
+- **RG-AST-09** — Un projet créé par l'agent commence à la date de l'une des preuves de l'action. La
+  date du passage n'est jamais une date de début.
+- **RG-AST-10** — Une action désigne une entité existante par son identifiant. Le serveur ne
+  rapproche jamais deux entités par leur libellé.
+- **RG-AST-11** — L'agent ne supprime aucune entité, ni physiquement ni logiquement : il ne peut
+  ni supprimer, ni annuler, ni archiver.
+- **RG-AST-12** — Une action dont l'empreinte est celle d'une action défaite depuis moins de 90 jours
+  est refusée. Une action rejouée dans le même passage, avec la même empreinte, rend le résultat de
+  la première exécution sans rien écrire de nouveau.
+- **RG-AST-13** — Une action peut déclarer une référence locale (`reference`), et une action
+  suivante du même passage désigne l'entité créée par `@reference`. Si l'action qui déclarait la
+  référence a été refusée, l'action qui la désigne est refusée à son tour, et rien n'est écrit.
+- **RG-AST-14** — Le contexte servi à l'agent ne contient que ce que le propriétaire du jeton peut
+  lire. Une tâche confidentielle en est exclue sans `tasks:read_confidential` (`RG-SCOPE-04`).
+- **RG-AST-15** — Un passage pris sans signe de vie depuis 30 minutes passe à « interrompu ». Un
+  propriétaire n'a qu'un passage actif à la fois.
+- **RG-AST-16** — Le traitement planifié des passages est protégé contre les exécutions
+  concurrentes : une seule instance crée les passages (`RG-NTF-02`).
+- **RG-AST-17** — Chaque action est tracée au journal d'audit comme une saisie directe du
+  propriétaire, avec en plus le passage et le jeton d'origine. Le journal d'audit distingue ainsi
+  l'action de l'agent de celle de la personne (`EX-ADM-09`).
+- **RG-AST-18** — Défaire une action rétablit l'état d'avant, par le service métier, avec
+  l'identité de la personne qui défait. Défaire une création supprime l'entité créée, selon les
+  règles de suppression de cette entité. Si l'entité a changé depuis l'action, défaire est refusé
+  et l'écran l'explique.
+- **RG-AST-19** — Les extraits des preuves sont effacés après la durée de conservation
+  `assistant.conservationJours`. La source, la référence et la date des preuves restent.
+- **RG-AST-20** — En mode `relais`, le serveur n'émet aucun appel réseau sortant pour le module.
 
 ---
 

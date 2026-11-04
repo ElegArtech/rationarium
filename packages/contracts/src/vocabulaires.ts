@@ -295,6 +295,70 @@ export const ETATS_RAG = vocabulaire([
 ]);
 export type EtatRag = (typeof ETATS_RAG)[number]["code"];
 
+// ── Assistant de suivi — M22 ────────────────────────────────────────────────
+//
+// `docs/assistant/SPEC-PHASE-1.md`. Les codes d'action emploient le tiret bas
+// et non le point : un point serait lu par i18next comme un séparateur de clé.
+
+export const MODES_ASSISTANT = vocabulaire([
+  { code: "desactive", fr: "Désactivé", en: "Disabled" },
+  { code: "relais", fr: "Agent sur un poste", en: "Agent on a workstation" },
+]);
+export type ModeAssistant = (typeof MODES_ASSISTANT)[number]["code"];
+
+export const DECLENCHEMENTS_PASSAGE = vocabulaire([
+  { code: "planifie", fr: "Planifié", en: "Scheduled" },
+  { code: "manuel", fr: "Manuel", en: "Manual" },
+]);
+export type DeclenchementPassage = (typeof DECLENCHEMENTS_PASSAGE)[number]["code"];
+
+export const ETATS_PASSAGE = vocabulaire([
+  { code: "en_attente", fr: "En attente du poste", en: "Waiting for the workstation" },
+  { code: "prise", fr: "Pris en charge", en: "Taken" },
+  { code: "en_cours", fr: "En cours", en: "In progress" },
+  { code: "terminee", fr: "Terminé", en: "Completed" },
+  { code: "echec", fr: "En échec", en: "Failed" },
+  { code: "interrompue", fr: "Interrompu", en: "Interrupted" },
+  { code: "annulee", fr: "Annulé", en: "Cancelled" },
+]);
+export type EtatPassage = (typeof ETATS_PASSAGE)[number]["code"];
+
+/** `RG-AST-15` — les états d'un passage qui occupe son propriétaire. */
+export const ETATS_PASSAGE_ACTIFS = ["en_attente", "prise", "en_cours"] as const satisfies readonly EtatPassage[];
+
+export const ETATS_ACTION_AGENT = vocabulaire([
+  { code: "effectuee", fr: "Effectuée", en: "Done" },
+  { code: "refusee", fr: "Refusée", en: "Refused" },
+  { code: "defaite", fr: "Défaite", en: "Undone" },
+]);
+export type EtatActionAgent = (typeof ETATS_ACTION_AGENT)[number]["code"];
+
+export const TYPES_SOURCE_SUIVI = vocabulaire([
+  { code: "courriel", fr: "Courriel", en: "Email" },
+  { code: "depot", fr: "Dépôt de code", en: "Code repository" },
+  { code: "dossier", fr: "Dossier", en: "Folder" },
+  { code: "canal", fr: "Canal de messagerie", en: "Messaging channel" },
+  { code: "flux", fr: "Flux", en: "Feed" },
+  { code: "page", fr: "Page", en: "Page" },
+  { code: "autre", fr: "Autre", en: "Other" },
+]);
+export type TypeSourceSuivi = (typeof TYPES_SOURCE_SUIVI)[number]["code"];
+
+export const TYPES_ACTION_AGENT = vocabulaire([
+  { code: "projet_creer", fr: "Création de projet", en: "Project created" },
+  { code: "projet_modifier", fr: "Modification de projet", en: "Project updated" },
+  { code: "jalon_creer", fr: "Création de jalon", en: "Milestone created" },
+  { code: "jalon_modifier", fr: "Modification de jalon", en: "Milestone updated" },
+  { code: "tache_creer", fr: "Création de tâche", en: "Task created" },
+  { code: "tache_modifier", fr: "Modification de tâche", en: "Task updated" },
+  { code: "evenement_creer", fr: "Création d'événement", en: "Event created" },
+  { code: "evenement_modifier", fr: "Modification d'événement", en: "Event updated" },
+  { code: "temps_saisir", fr: "Saisie de temps", en: "Time entry" },
+  { code: "commentaire_ajouter", fr: "Commentaire", en: "Comment" },
+  { code: "suivi_modifier", fr: "Modification du plan de suivi", en: "Follow-up plan updated" },
+]);
+export type TypeActionAgent = (typeof TYPES_ACTION_AGENT)[number]["code"];
+
 // ── Index ───────────────────────────────────────────────────────────────────
 
 /**
@@ -321,6 +385,12 @@ export const VOCABULAIRES = {
   typeRecurrence: TYPES_RECURRENCE,
   santeProjet: SANTES_PROJET,
   etatRag: ETATS_RAG,
+  modeAssistant: MODES_ASSISTANT,
+  declenchementPassage: DECLENCHEMENTS_PASSAGE,
+  etatPassage: ETATS_PASSAGE,
+  etatActionAgent: ETATS_ACTION_AGENT,
+  typeSourceSuivi: TYPES_SOURCE_SUIVI,
+  typeActionAgent: TYPES_ACTION_AGENT,
 } as const;
 
 export type NomVocabulaire = keyof typeof VOCABULAIRES;

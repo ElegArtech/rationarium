@@ -1,0 +1,377 @@
+#!/usr/bin/env node
+/* global process, console, setTimeout, clearTimeout */
+/**
+ * rationarium-relais — la boucle d'attente du poste (`docs/assistant/SPEC-PHASE-1.md § 14`).
+ *
+ * Le relais attend les passages par appels longs au guichet. Pendant l'attente,
+ * il ne lance rien et ne consomme rien sur l'abonnement du modèle de langage.
+ * Quand un passage arrive, il prépare un dossier de travail, y écrit la
+ * consigne, lance la commande d'exécution configurée, puis reprend l'attente
+ * après une pause.
+ *
+ * Un garde-fou suit chaque exécution : si la commande s'arrête sans avoir clos
+ * son passage, le relais le clôt en échec. Sans lui, un passage resté en
+ * attente reviendrait au tour suivant, et la commande serait relancée sans fin.
+ *
+ * Codes de sortie : 0 arrêt normal, 2 configuration, 3 refus HTTP au
+ * démarrage, 4 guichet injoignable (avec --une-fois).
+ */
+import { spawn } from "node:child_process";
+import { createWriteStream, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { delimiter, dirname, join } from "node:path";
+import { createInterface } from "node:readline";
+import { fileURLToPath } from "node:url";
+import {
+  SECONDES_ATTENTE_PASSAGE,
+  SORTIES,
+  VERSION,
+  ErreurHttp,
+  ErreurReseau,
+  ErreurUsage,
+  attendrePassage,
+  chargerConfiguration,
+  creerGuichet,
+  masquer,
+  relancerAvecCertificat,
+  trouverExecutable,
+  verifierTls,
+} from "./lib/guichet.mjs";
+
+/** Le dossier réel du relais : `rationarium-agent` s'y trouve aussi. */
+const ICI = dirname(fileURLToPath(import.meta.url));
+
+/**
+ * Les outils que Claude Code peut employer sans demander. Ce sont des lectures,
+ * plus le client du guichet ; les écritures de fichiers restent confinées au
+ * dossier du passage par `--permission-mode acceptEdits`.
+ */
+const OUTILS_CLAUDE = [
+  "Bash(rationarium-agent *)",
+  "Bash(git log *)",
+  "Bash(git show *)",
+  "Bash(git -C * log *)",
+  "Bash(git -C * show *)",
+  "Bash(gh issue list *)",
+  "Bash(gh issue view *)",
+  "Bash(gh pr list *)",
+  "Bash(gh pr view *)",
+  "Bash(gh release list *)",
+  "Bash(gh repo view *)",
+  "Bash(date *)",
+  "Read",
+  "Grep",
+  "Glob",
+  "WebFetch",
+].join(" ");
+
+const COMMANDE_PAR_DEFAUT =
+  'claude -p "$(cat "$RATIONARIUM_CONSIGNE_PASSAGE")" --permission-mode acceptEdits --allowedTools "$RATIONARIUM_OUTILS_CLAUDE"';
+
+const AIDE = `rationarium-relais ${VERSION} — attend les passages de l'assistant de suivi et lance leur exécution
+
+Usage : rationarium-relais [--pause S] [--secondes N] [--une-fois]
+
+  --pause S      pause après une exécution, avant de reprendre l'attente (30 s par défaut)
+  --secondes N   durée d'un appel d'attente, de 1 à 25 s (25 par défaut)
+  --une-fois     une seule attente : exécute le passage qui arrive, puis s'arrête
+
+Configuration (variables d'environnement, ou ~/.config/rationarium-agent/agent.env) :
+  RATIONARIUM_URL, RATIONARIUM_JETON, RATIONARIUM_CA   comme pour rationarium-agent
+  RATIONARIUM_COMMANDE    commande lancée par bash dans le dossier du passage ; par défaut :
+                          ${COMMANDE_PAR_DEFAUT}
+  RATIONARIUM_CONSIGNE    modèle de consigne (par défaut : consignes/claude-code.md à côté du relais)
+  RATIONARIUM_TRAVAIL     racine des dossiers de passage (~/.local/state/rationarium-agent/passages)
+  RATIONARIUM_DUREE_MAX   durée maximale d'une exécution, en minutes (180 par défaut)
+  RATIONARIUM_OUTILS_CLAUDE         outils permis à Claude Code (remplace la liste par défaut)
+  RATIONARIUM_OUTILS_SUPPLEMENTAIRES outils ajoutés à la liste par défaut
+
+La commande reçoit RATIONARIUM_PASSAGE, RATIONARIUM_DOSSIER_PASSAGE et RATIONARIUM_CONSIGNE_PASSAGE.`;
+
+// ── Journal et signaux ──────────────────────────────────────────────────────
+
+const etat = { arret: false, occupe: false, enfant: null, reveil: null, jeton: null };
+
+function journal(texte) {
+  console.log(`${new Date().toISOString()} ${masquer(texte, etat.jeton)}`);
+}
+
+/** Une pause que l'arrêt du relais interrompt. */
+function dormir(ms) {
+  return new Promise((resoudre) => {
+    const minuterie = setTimeout(fin, ms);
+    function fin() {
+      clearTimeout(minuterie);
+      etat.reveil = null;
+      resoudre();
+    }
+    etat.reveil = fin;
+  });
+}
+
+function tuer(enfant, signal) {
+  try {
+    process.kill(-enfant.pid, signal);
+  } catch {
+    try {
+      enfant.kill(signal);
+    } catch {
+      // déjà terminé
+    }
+  }
+  if (signal === "SIGTERM") {
+    setTimeout(() => etat.enfant === enfant && tuer(enfant, "SIGKILL"), 15_000).unref();
+  }
+}
+
+function arreter(signal) {
+  if (etat.arret) return;
+  etat.arret = true;
+  journal(`${signal} reçu : arrêt du relais.`);
+  if (!etat.occupe) process.exit(SORTIES.ok);
+  if (etat.enfant) tuer(etat.enfant, "SIGTERM");
+  etat.reveil?.();
+}
+
+// ── Réglages ────────────────────────────────────────────────────────────────
+
+function analyser(argv) {
+  const options = { pause: 30, secondes: SECONDES_ATTENTE_PASSAGE, uneFois: false, aide: false };
+  for (let i = 0; i < argv.length; i += 1) {
+    const [nom, attachee] = argv[i].split(/=(.*)/s, 2);
+    const valeur = () => {
+      const v = attachee ?? argv[++i];
+      if (v === undefined) throw new ErreurUsage(`l'option ${nom} attend une valeur`);
+      return v;
+    };
+    if (nom === "--pause") options.pause = nombre(valeur(), "--pause", 0, 86_400);
+    else if (nom === "--secondes") options.secondes = nombre(valeur(), "--secondes", 1, SECONDES_ATTENTE_PASSAGE);
+    else if (nom === "--une-fois") options.uneFois = true;
+    else if (nom === "--aide" || nom === "--help" || nom === "-h" || nom === "aide") options.aide = true;
+    else throw new ErreurUsage(`option inconnue : ${argv[i]} (rationarium-relais --aide)`);
+  }
+  return options;
+}
+
+function nombre(valeur, nom, min, max) {
+  const n = Number(valeur);
+  if (!Number.isFinite(n) || n < min || n > max) throw new ErreurUsage(`${nom} attend un nombre de ${min} à ${max}`);
+  return n;
+}
+
+function lireReglages(env) {
+  const etatLocal = env.XDG_STATE_HOME || join(env.HOME || homedir(), ".local", "state");
+  const travail = env.RATIONARIUM_TRAVAIL || join(etatLocal, "rationarium-agent", "passages");
+  const consigne = env.RATIONARIUM_CONSIGNE || join(ICI, "consignes", "claude-code.md");
+  if (!existsSync(consigne)) throw new ErreurUsage(`consigne introuvable : ${consigne} (RATIONARIUM_CONSIGNE)`);
+  const commande = env.RATIONARIUM_COMMANDE || COMMANDE_PAR_DEFAUT;
+  if (!env.RATIONARIUM_COMMANDE && !trouverExecutable("claude", env)) {
+    throw new ErreurUsage("claude est introuvable dans PATH : installez Claude Code, ou renseignez RATIONARIUM_COMMANDE.");
+  }
+  const outils = env.RATIONARIUM_OUTILS_CLAUDE || [OUTILS_CLAUDE, env.RATIONARIUM_OUTILS_SUPPLEMENTAIRES].filter(Boolean).join(" ");
+  const dureeMax = nombre(env.RATIONARIUM_DUREE_MAX || 180, "RATIONARIUM_DUREE_MAX", 1, 1440);
+  return { travail, consigne, commande, outils, dureeMax, parDefaut: !env.RATIONARIUM_COMMANDE };
+}
+
+// ── Exécution d'un passage ──────────────────────────────────────────────────
+
+function lancerCommande(commande, dossier, env, dureeMax) {
+  return new Promise((resoudre) => {
+    const fichier = createWriteStream(join(dossier, "execution.log"), { flags: "a", mode: 0o600 });
+    const enfant = spawn("bash", ["-c", commande], { cwd: dossier, env, stdio: ["ignore", "pipe", "pipe"], detached: true });
+    etat.enfant = enfant;
+    let fini = false;
+    const relayer = (flux) =>
+      createInterface({ input: flux, crlfDelay: Infinity }).on("line", (ligne) => {
+        const propre = masquer(ligne, etat.jeton);
+        fichier.write(`${propre}\n`);
+        process.stdout.write(`  │ ${propre}\n`);
+      });
+    relayer(enfant.stdout);
+    relayer(enfant.stderr);
+    const limite = setTimeout(() => {
+      journal(`durée maximale de ${dureeMax} min atteinte : la commande est arrêtée.`);
+      tuer(enfant, "SIGTERM");
+    }, dureeMax * 60_000);
+    const terminer = (code, signal) => {
+      if (fini) return;
+      fini = true;
+      clearTimeout(limite);
+      etat.enfant = null;
+      fichier.end();
+      resoudre({ code, signal });
+    };
+    enfant.on("error", (e) => {
+      journal(`la commande n'a pas pu démarrer : ${e.message}`);
+      terminer(127, null);
+    });
+    enfant.on("close", terminer);
+    // Un descendant qui garderait la sortie ouverte ne retient pas le relais.
+    enfant.on("exit", (code, signal) => setTimeout(() => terminer(code, signal), 5000).unref());
+  });
+}
+
+/** Clôt en échec un passage que la commande a laissé ouvert. */
+async function garder(guichet, passageId, fin) {
+  let actif;
+  try {
+    actif = (await guichet.etat())?.passageActif ?? null;
+  } catch (e) {
+    journal(`passage ${passageId} : état invérifiable (${e.message}).`);
+    return;
+  }
+  if (!actif || actif.id !== passageId) {
+    journal(`passage ${passageId} : clos par l'exécution.`);
+    return;
+  }
+  const erreur =
+    actif.etat === "en_attente"
+      ? `La commande d'exécution s'est terminée (${fin}) sans prendre le passage.`
+      : `La commande d'exécution s'est terminée (${fin}) sans clore le passage.`;
+  try {
+    if (actif.etat === "en_attente") await guichet.prendre(passageId);
+    await guichet.fin(passageId, { etat: "echec", erreur });
+    journal(`passage ${passageId} : clos en échec. ${erreur}`);
+  } catch (e) {
+    journal(`passage ${passageId} : clôture en échec impossible (${e.message}).`);
+  }
+}
+
+async function executer(guichet, passage, reglages) {
+  etat.occupe = true;
+  try {
+    const horodatage = new Date().toISOString().slice(0, 19).replace(/[-:]/g, "").replace("T", "-");
+    const dossier = join(reglages.travail, `${horodatage}-${passage.id}`);
+    mkdirSync(dossier, { recursive: true, mode: 0o700 });
+    const consigne = readFileSync(reglages.consigne, "utf8").replaceAll("{{PASSAGE}}", passage.id).replaceAll("{{DOSSIER}}", dossier);
+    const cheminConsigne = join(dossier, "consigne.md");
+    writeFileSync(cheminConsigne, consigne, { mode: 0o600 });
+    journal(`passage ${passage.id} (${passage.declenchement ?? "déclenchement inconnu"}) : exécution dans ${dossier}.`);
+    const env = {
+      ...process.env,
+      RATIONARIUM_PASSAGE: passage.id,
+      RATIONARIUM_DOSSIER_PASSAGE: dossier,
+      RATIONARIUM_CONSIGNE_PASSAGE: cheminConsigne,
+      RATIONARIUM_OUTILS_CLAUDE: reglages.outils,
+      PATH: [ICI, process.env.PATH].filter(Boolean).join(delimiter),
+    };
+    const debut = Date.now();
+    const { code, signal } = await lancerCommande(reglages.commande, dossier, env, reglages.dureeMax);
+    const issue = signal ? `signal ${signal}` : `code ${code}`;
+    const minutes = ((Date.now() - debut) / 60_000).toFixed(1);
+    journal(`passage ${passage.id} : commande terminée (${issue}) en ${minutes} min ; journal dans ${join(dossier, "execution.log")}.`);
+    await garder(guichet, passage.id, issue);
+  } catch (e) {
+    journal(`passage ${passage.id} : ${e.message}`);
+    await garder(guichet, passage.id, e.message);
+  } finally {
+    etat.occupe = false;
+  }
+}
+
+// ── Boucle ──────────────────────────────────────────────────────────────────
+
+/** Un trousseau verrouillé au démarrage de la session se déverrouille plus tard : on attend. */
+async function obtenirGuichet(uneFois) {
+  for (let essai = 0; ; essai += 1) {
+    try {
+      const guichet = creerGuichet(process.env);
+      etat.jeton = guichet.jeton;
+      return guichet;
+    } catch (e) {
+      if (!(e instanceof ErreurUsage && e.transitoire) || uneFois) throw e;
+      if (essai % 30 === 0) journal(`${e.message} Nouvelle lecture dans 60 s.`);
+      await dormir(60_000);
+    }
+  }
+}
+
+async function principal(argv) {
+  const options = analyser(argv);
+  if (options.aide) {
+    console.log(AIDE);
+    return SORTIES.ok;
+  }
+  chargerConfiguration(process.env);
+  verifierTls(process.env);
+  const relance = await relancerAvecCertificat(process.env);
+  if (relance !== null) return relance;
+  const reglages = lireReglages(process.env);
+  process.on("SIGTERM", arreter);
+  process.on("SIGINT", arreter);
+
+  let guichet = await obtenirGuichet(options.uneFois);
+  journal(
+    `relais ${VERSION} démarré : guichet ${guichet.base} ; jeton lu dans ${guichet.sourceJeton === "trousseau" ? "le trousseau" : "l'environnement"} ; ` +
+      `commande ${reglages.parDefaut ? "par défaut (claude -p)" : "RATIONARIUM_COMMANDE"} ; consigne ${reglages.consigne}.`,
+  );
+  try {
+    const e = await guichet.etat();
+    const p = e?.proprietaire ?? {};
+    journal(`l'agent agit pour ${[p.prenom, p.nom].filter(Boolean).join(" ")} ; module ${e?.mode} ; passage actif : ${e?.passageActif?.id ?? "aucun"}.`);
+  } catch (e) {
+    if (e instanceof ErreurHttp) {
+      journal(`rationarium-relais : ${e.message}`);
+      return SORTIES.http;
+    }
+    if (!(e instanceof ErreurReseau) || options.uneFois) throw e;
+    journal(`${e.message} ; le relais attendra que le guichet réponde.`);
+  }
+
+  const lances = new Set();
+  let coupures = 0;
+  while (!etat.arret) {
+    let passage;
+    try {
+      passage = await attendrePassage(guichet, options.secondes, 1);
+      if (coupures) journal("le guichet répond de nouveau.");
+      coupures = 0;
+    } catch (e) {
+      if (options.uneFois) throw e;
+      if (e instanceof ErreurReseau) {
+        coupures += 1;
+        const attente = Math.min(60, 5 * 2 ** Math.min(coupures - 1, 4));
+        if (coupures === 1 || coupures % 20 === 0) journal(`${e.message} ; nouvelle tentative dans ${attente} s.`);
+        await dormir(attente * 1000);
+        continue;
+      }
+      if (e instanceof ErreurHttp) {
+        const attente = e.statut === 429 ? (e.attente ?? 30_000) : e.statut === 401 || e.statut === 404 ? 300_000 : 60_000;
+        journal(`${e.message} ; nouvelle tentative dans ${Math.round(attente / 1000)} s.`);
+        await dormir(attente);
+        if (e.statut === 401) guichet = await obtenirGuichet(false);
+        continue;
+      }
+      throw e;
+    }
+    if (!passage) {
+      if (options.uneFois) {
+        journal("aucun passage en attente.");
+        break;
+      }
+      continue;
+    }
+    if (lances.has(passage.id)) {
+      journal(`passage ${passage.id} : déjà confié une fois à la commande, il n'est pas relancé.`);
+      await garder(guichet, passage.id, "passage déjà lancé");
+      await dormir(60_000);
+      continue;
+    }
+    lances.add(passage.id);
+    await executer(guichet, passage, reglages);
+    if (options.uneFois || etat.arret) break;
+    if (options.pause > 0) {
+      journal(`reprise de l'attente dans ${options.pause} s.`);
+      await dormir(options.pause * 1000);
+    }
+  }
+  journal("relais arrêté.");
+  return SORTIES.ok;
+}
+
+try {
+  process.exitCode = await principal(process.argv.slice(2));
+} catch (e) {
+  journal(`rationarium-relais : ${e?.message ?? e}`);
+  process.exitCode = e?.codeSortie ?? SORTIES.interne;
+}

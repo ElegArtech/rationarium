@@ -1,0 +1,22 @@
+# Rationarium — passage de secours de l'assistant de suivi (unité utilisateur d'exemple).
+#
+# Cette unité crée un passage manuel depuis le poste. Le relais le prend ensuite,
+# comme un passage planifié par le serveur. Elle sert quand la planification du
+# serveur n'est pas réglée, ou quand le poste était éteint à l'heure prévue.
+# Si un passage est déjà actif, elle n'en crée pas d'autre et se termine sans
+# erreur (--tolerer-actif).
+#
+# Elle est lancée par rationarium-passage.timer ; on peut aussi la lancer à la main :
+#   systemctl --user start rationarium-passage.service
+
+[Unit]
+Description=Rationarium : passage de secours de l'assistant de suivi
+Documentation=file://%h/.local/share/rationarium-agent/README.md
+# Le passage créé n'est exécuté que si le relais tourne : on le démarre au besoin.
+Wants=rationarium-relais.service
+After=rationarium-relais.service
+
+[Service]
+Type=oneshot
+Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=%h/.local/bin/rationarium-agent lancer --tolerer-actif

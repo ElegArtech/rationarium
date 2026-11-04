@@ -1,6 +1,6 @@
 {
   "name": "@rationarium/web",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "private": true,
   "type": "module",
   "description": "Application monopage : React, Vite, TanStack, React Aria Components",
@@ -33,7 +33,7 @@
     "react-dom": "19.3.0",
     "react-i18next": "17.0.15",
     "temporal-polyfill": "1.0.5",
-    "zod": "4.6.5"
+    "zod": "4.6.7"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.13.0",
@@ -42,8 +42,8 @@
     "@types/react-dom": "19.3.0",
     "@vitejs/plugin-react": "6.1.2",
     "typescript": "6.0.3",
-    "vite": "8.3.2",
-    "vitest": "4.1.11"
+    "vite": "8.3.5",
+    "vitest": "4.1.12"
   },
   "license": "MIT",
   "author": "Alexandre Bergé",

@@ -397,7 +397,10 @@
     "zoneScolaire": "Zone scolaire",
     "zoneNonConfiguree": "Non configurée",
     "zoneNom": "Zone {zone}",
-    "zoneScolaireAide": "Cette zone sert par défaut à l’import des vacances scolaires et à la trame des plannings."
+    "zoneScolaireAide": "Cette zone sert par défaut à l’import des vacances scolaires et à la trame des plannings.",
+    "ongletAssistant": "Assistant",
+    "lesReglagesAssistant": "les réglages de l'assistant",
+    "assistantInvalide": "Corrigez les réglages de l'assistant signalés avant d'enregistrer."
   },
   "roles": {
     "surtitre": "Administration",
@@ -566,7 +569,10 @@
       "informatique": "Informatique",
       "observation": "Observation",
       "restreints": "Restreints"
-    }
+    },
+    "domaine_assistant": "Assistant de suivi",
+    "action_use": "Utiliser",
+    "action_configure": "Configurer"
   },
   "audit": {
     "surtitre": "Administration",
@@ -768,7 +774,15 @@
     "action_user_update": "Utilisateur modifié",
     "champsModifies": "Champs modifiés",
     "champValeur": "Valeur",
-    "avantApres": "de {avant} à {apres}"
+    "avantApres": "de {avant} à {apres}",
+    "action_agent_action": "Action de l'agent",
+    "action_agent_action_undo": "Action de l'agent défaite",
+    "action_agent_token_create": "Jeton d'agent créé",
+    "action_agent_token_revoke": "Jeton d'agent révoqué",
+    "action_agent_token_refused": "Jeton d'agent refusé",
+    "action_agent_run_create": "Passage de l'agent lancé",
+    "action_agent_run_cancel": "Passage de l'agent annulé",
+    "action_project_followup_update": "Plan de suivi modifié"
   },
   "predefinies": {
     "surtitre": "Administration",

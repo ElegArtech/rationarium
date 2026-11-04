@@ -48,14 +48,25 @@ describe("§ B — navigation par droits", () => {
     expect(entrees).not.toContain("journalAudit");
   });
 
-  it("Karim, administrateur — les 18 entrées", () => {
+  it("Karim, administrateur — les 18 entrées de la maquette, module M22 désactivé", () => {
     const vue = navigationVisible(permissionsDe("ADMIN"));
     const total = vue.reduce((n, g) => n + g.entrees.length, 0);
     expect(total).toBe(18);
-    expect(total).toBe(NAVIGATION.reduce((n, g) => n + g.entrees.length, 0));
+    // Toutes les entrées du produit, moins celles des modules facultatifs.
+    const horsModules = NAVIGATION.reduce((n, g) => n + g.entrees.filter((e) => !e.module).length, 0);
+    expect(total).toBe(horsModules);
     expect(vue.map((g) => g.cle)).toContain("administration");
   });
 
+  it("Karim, administrateur, module M22 actif — les 19 entrées du produit", () => {
+    const vue = navigationVisible(permissionsDe("ADMIN"), new Set(["assistant"]));
+    const total = vue.reduce((n, g) => n + g.entrees.length, 0);
+    expect(total).toBe(19);
+    expect(total).toBe(NAVIGATION.reduce((n, g) => n + g.entrees.length, 0));
+  });
+});
+
+describe("§ B — navigation par droits (suite)", () => {
   it("Hugo, RH — voit les congés, pas l'administration", () => {
     const vue = navigationVisible(permissionsDe("HR_OFFICER"));
     const entrees = vue.flatMap((g) => g.entrees.map((e) => e.cle));
@@ -71,5 +82,31 @@ describe("§ B — navigation par droits", () => {
     expect(entrees).not.toContain("teletravail");
     expect(entrees).not.toContain("utilisateurs");
     expect(entrees).toContain("taches");
+  });
+});
+
+describe("RG-AST-01 — l'entrée « Activité de l'agent » exige le droit ET le module", () => {
+  const entrees = (permissions: Set<string>, modules: Set<"assistant">) =>
+    navigationVisible(permissions, modules).flatMap((g) => g.entrees.map((e) => e.cle));
+
+  it("module désactivé : absente, même pour qui détient `assistant:use`", () => {
+    expect(entrees(new Set(["assistant:use"]), new Set())).not.toContain("assistant");
+  });
+
+  it("module actif mais sans `assistant:use` : absente", () => {
+    expect(entrees(new Set(["planning:read"]), new Set(["assistant"]))).not.toContain("assistant");
+  });
+
+  it("module actif et droit détenu : présente, et elle mène à `/assistant`", () => {
+    const vue = navigationVisible(new Set(["assistant:use"]), new Set(["assistant"]));
+    expect(vue.flatMap((g) => g.entrees).find((e) => e.cle === "assistant")?.chemin).toBe("/assistant");
+  });
+
+  it("§ 6 — Camille, contributrice, n'a pas `assistant:use` : ses 8 entrées ne bougent pas", () => {
+    expect(entrees(permissionsDe("PROJECT_CONTRIBUTOR"), new Set(["assistant"]))).toHaveLength(8);
+  });
+
+  it("§ 6 — Fatou, manager, détient `assistant:use` : treize entrées quand le module est actif", () => {
+    expect(entrees(permissionsDe("MANAGER"), new Set(["assistant"]))).toHaveLength(13);
   });
 });

@@ -18,7 +18,7 @@ import { BibliothequeIcones, Icone } from "./icones.js";
 import { BibliothequeIconesProjet } from "../composants/icones-projet.js";
 import { AvatarUtilisateur } from "../composants/pastilles.js";
 import type { VisuelAvatarPredefini } from "@rationarium/contracts";
-import { navigationVisible } from "./navigation.js";
+import { navigationVisible, type ModuleFacultatif } from "./navigation.js";
 import { changerLangue, LANGUES } from "../i18n/index.js";
 import { definirTheme } from "../theme/index.js";
 import * as apiRecherche from "../api/recherche.js";
@@ -68,11 +68,14 @@ export function Coquille({
   permissions,
   filAriane = [],
   notificationsNonLues = 0,
+  modulesActifs,
   surDeconnexion,
   children,
 }: {
   utilisateur: Utilisateur;
   permissions: ReadonlySet<string>;
+  /** Les modules facultatifs que le serveur déclare actifs (`RG-AST-01`). */
+  modulesActifs?: ReadonlySet<ModuleFacultatif>;
   filAriane?: { libelle: string; chemin?: string }[];
   notificationsNonLues?: number;
   surDeconnexion: () => void;
@@ -101,7 +104,7 @@ export function Coquille({
     retry: false,
   });
 
-  const groupes = navigationVisible(permissions);
+  const groupes = navigationVisible(permissions, modulesActifs);
   const basculer = () => {
     definirTheme(sombre ? "clair" : "sombre");
     setSombre(!sombre);

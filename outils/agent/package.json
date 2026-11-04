@@ -1,0 +1,19 @@
+{
+  "name": "rationarium-agent",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Agent de référence de l'assistant de suivi de Rationarium (M22), sans dépendance",
+  "type": "module",
+  "main": "./tests.mjs",
+  "bin": {
+    "rationarium-agent": "./rationarium-agent",
+    "rationarium-relais": "./rationarium-relais"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "test": "node --test ./"
+  },
+  "license": "MIT"
+}

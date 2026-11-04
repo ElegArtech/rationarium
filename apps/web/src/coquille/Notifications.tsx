@@ -51,14 +51,26 @@ export const lectureALOuverture = (n: { id: string; lue: boolean }): string | nu
  * lien qui ne mène nulle part n'est ni une erreur de typage, ni une violation
  * d'accessibilité, ni un échec de rendu.
  */
-export const decouperLien = (lien: string): { to: string; hash?: string } => {
+export const decouperLien = (
+  lien: string,
+): { to: string; hash?: string; search?: Record<string, string> } => {
   const coupe = lien.indexOf("#");
-  if (coupe < 0) return { to: lien };
-  const to = lien.slice(0, coupe);
-  const hash = lien.slice(coupe + 1);
+  const avant = coupe < 0 ? lien : lien.slice(0, coupe);
+  const hash = coupe < 0 ? "" : lien.slice(coupe + 1);
+  /*
+   * La même règle vaut pour la REQUÊTE. M22 écrit `/assistant?passage=<id>`
+   * (`EX-AST-08`) : passé tel quel en `to`, le `?` ferait partie du chemin et
+   * ne mènerait à aucune route. Les paramètres passent par `search`.
+   */
+  const interrogation = avant.indexOf("?");
+  const chemin = interrogation < 0 ? avant : avant.slice(0, interrogation);
+  const requete = interrogation < 0 ? "" : avant.slice(interrogation + 1);
+  const search = Object.fromEntries(new URLSearchParams(requete));
+  const avecRecherche = Object.keys(search).length > 0 ? { search } : {};
   // Un fragment vide n'est pas un fragment : `to: "/conges", hash: ""` poserait
   // un « # » nu dans l'adresse. Et un lien réduit à un fragment garde sa forme.
-  return hash ? { to: to || lien, hash } : { to: to || lien };
+  const to = chemin || (coupe === 0 ? lien : avant);
+  return hash ? { to, hash, ...avecRecherche } : { to, ...avecRecherche };
 };
 
 /**
@@ -117,6 +129,18 @@ export const cleCorps = (n: {
   params: Record<string, string>;
 }): string | null => {
   if (!n.cle) return null;
+  /*
+   * M22 — l'échec d'un passage a deux faces, comme au serveur
+   * (`libelles.ts`) : interrompu faute de signe de vie, ou en échec avec,
+   * peut-être, le message de l'agent. Le message est une CITATION : il reste
+   * dans la langue où l'agent l'a écrit.
+   */
+  if (n.cle === "assistant_passage_echec") {
+    if (n.params["etat"] === "interrompue") return "notifications.corps_assistant_passage_echec_interrompue";
+    return n.params["erreur"]
+      ? "notifications.corps_assistant_passage_echec_erreur"
+      : "notifications.corps_assistant_passage_echec";
+  }
   if (n.cle !== "conge_decide") return `notifications.corps_${n.cle}`;
   if (n.params["decision"] !== "refuse") return "notifications.corps_conge_decide_approuve";
   return n.params["motif"]
@@ -130,8 +154,8 @@ export const cleCorps = (n: {
  * Trois précautions, et chacune correspond à un piège déjà payé :
  *
  *  - **Un placeholder manquant fait LEVER `intl-messageformat`**, ce qui
- *    viderait le panneau entier. Les cinq noms employés par le catalogue sont
- *    donc toujours fournis.
+ *    viderait le panneau entier. Les dix noms employés par le catalogue sont
+ *    donc toujours fournis — les cinq de M18, et les cinq de M22.
  *  - **`Number("")` vaut zéro** : le filtre porte sur la CHAÎNE, pas sur sa
  *    conversion, sinon un décompte absent s'afficherait « 0 jour ».
  *  - La date arrive en `AAAA-MM-JJ` du serveur (`notifications.service.ts`) et
@@ -140,14 +164,24 @@ export const cleCorps = (n: {
 export const parametresCorps = (
   params: Record<string, string>,
 ): Record<string, string | number> => {
-  const brut = params["jours"];
-  const jours = brut === undefined || brut === "" ? Number.NaN : Number(brut);
+  const nombre = (cle: string): number => {
+    const brut = params[cle];
+    const n = brut === undefined || brut === "" ? Number.NaN : Number(brut);
+    return Number.isFinite(n) ? n : 0;
+  };
   return {
     tache: "",
     projet: "",
     motif: "",
+    // M22 — l'état de sortie et le message d'échec d'un passage.
+    etat: "",
+    erreur: "",
     ...params,
-    jours: Number.isFinite(jours) ? jours : 0,
+    jours: nombre("jours"),
+    // M22 — le décompte d'un passage, en NOMBRES : ICU choisit son pluriel dessus.
+    effectuees: nombre("effectuees"),
+    refusees: nombre("refusees"),
+    pointsOuverts: nombre("pointsOuverts"),
     date: params["date"] ? formaterDate(params["date"]) : "",
   };
 };

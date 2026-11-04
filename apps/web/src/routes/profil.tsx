@@ -1,6 +1,6 @@
-import { useRef, useState, type ChangeEvent, type FormEvent } from "react";
+import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
+import { useLocation, useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { changerLangue, LANGUES } from "../i18n/index.js";
 import { definirTheme, themeCourant, THEMES, type Theme } from "../theme/index.js";
@@ -26,6 +26,8 @@ import { useMessages } from "../composants/messages.js";
 import { messageErreur } from "../api/erreurs.js";
 import { ErreurApi } from "../api/client.js";
 import { formaterDate } from "../formats.js";
+import { AgentsDuCompte } from "../vues/assistant/Agents.js";
+import { useModuleAssistant } from "../vues/assistant/module.js";
 import "../composants/partages.css";
 import "./profil.css";
 
@@ -43,7 +45,17 @@ import "./profil.css";
  * dans le journal d'audit, et c'est ce que dit son explication.
  */
 
-type Onglet = "info" | "sec" | "pref";
+type Onglet = "info" | "sec" | "pref" | "agents";
+
+/**
+ * L'onglet demandé par le fragment, s'il est offert. « Agents » (M22) n'existe
+ * que si le module est actif et le droit détenu : `/profil#agents` saisi sans
+ * eux retombe sur les informations plutôt que sur un panneau vide. C'est par
+ * ce fragment que l'écran « Activité de l'agent » renvoie à la création d'un
+ * jeton.
+ */
+export const ongletProfil = (fragment: string, offerts: readonly Onglet[]): Onglet =>
+  offerts.find((o) => o === fragment) ?? "info";
 
 /* Les appels restent littéraux pour que le contrôle i18n puisse prouver les
    six clés. Le catalogue partagé fournit les identifiants persistés ; cette
@@ -83,9 +95,22 @@ export function Profil({
 }) {
   const { t } = useTranslation("coquille");
   const { t: tAuth } = useTranslation("auth");
-  const [onglet, setOnglet] = useState<Onglet>("info");
+  const assistant = useModuleAssistant();
+  const offerts: Onglet[] = assistant.actif ? ["info", "sec", "pref", "agents"] : ["info", "sec", "pref"];
+  const fragment = useLocation({ select: (l) => l.hash });
+  const [onglet, setOnglet] = useState<Onglet>(() => ongletProfil(fragment, offerts));
   const navigate = useNavigate();
   const client = useQueryClient();
+
+  /*
+   * Le fragment se relit quand il change — un lien « Mon compte › Agents »
+   * suivi depuis une autre vue — et quand le module se révèle actif après le
+   * premier rendu : la sonde du module n'a pas encore répondu au montage.
+   */
+  const agentsOffert = assistant.actif;
+  useEffect(() => {
+    if (fragment) setOnglet(ongletProfil(fragment, agentsOffert ? ["info", "sec", "pref", "agents"] : ["info", "sec", "pref"]));
+  }, [fragment, agentsOffert]);
 
   return (
     <div className="page">
@@ -149,7 +174,7 @@ export function Profil({
       </div>
 
       <nav className="tabbar" aria-label={t("profil.sections")}>
-        {(["info", "sec", "pref"] as const).map((o) => (
+        {offerts.map((o) => (
           <Button
             key={o}
             className={o === onglet ? "is-active" : ""}
@@ -163,6 +188,8 @@ export function Profil({
 
       {onglet === "info" ? (
         <Informations utilisateur={utilisateur} />
+      ) : onglet === "agents" && agentsOffert ? (
+        <AgentsDuCompte />
       ) : (
         onglet === "pref" ? <Preferences version={utilisateur.version} /> : <Securite tAuth={tAuth} t={t} derniereConnexion={utilisateur.derniereConnexion} />
       )}

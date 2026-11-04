@@ -1,41 +1,448 @@
 {
   "npm": [
     {
-      "avis": "GHSA-vfj7-8cjw-p6xm",
-      "paquet": "braces",
-      "version": "3.0.3",
-      "chemin": ".>stylelint>fast-glob>micromatch>braces",
-      "raison": "Braces est utilisé par Stylelint pour les motifs glob du dépôt. Aucun motif issu des utilisateurs du produit ne lui parvient ; Stylelint et braces sont interdits dans l’image API par le contrôle de contenu. La version 3.0.4 annoncée par npm audit n’est pas publiée au 3 octobre 2026. Réexaminer à sa publication.",
-      "source": "https://github.com/advisories/GHSA-vfj7-8cjw-p6xm",
-      "expiration": "2026-11-03"
+      "avis": "GHSA-g3hv-75wg-m249",
+      "paquet": "minimatch",
+      "version": "10.2.6",
+      "chemin": ".>@eslint/js>eslint>@eslint/config-array>minimatch",
+      "raison": "Minimatch n'est employé que par l'outillage de développement : ESLint et typescript-eslint pour les motifs de fichiers du dépôt, et l'archiveur de testcontainers pour les tests d'intégration. Aucun motif issu des utilisateurs du produit ne lui parvient, et il n'entre dans aucune image. Le correctif n'existe qu'en 11.0.1, une version majeure que ces outils n'acceptent pas encore. Réexaminer à leur prochaine version.",
+      "source": "https://github.com/advisories/GHSA-g3hv-75wg-m249",
+      "expiration": "2026-12-03"
     },
     {
-      "avis": "GHSA-vfj7-8cjw-p6xm",
-      "paquet": "braces",
-      "version": "3.0.3",
-      "chemin": ".>stylelint>globby>fast-glob>micromatch>braces",
-      "raison": "Braces est utilisé par Stylelint pour les motifs glob du dépôt. Aucun motif issu des utilisateurs du produit ne lui parvient ; Stylelint et braces sont interdits dans l’image API par le contrôle de contenu. La version 3.0.4 annoncée par npm audit n’est pas publiée au 3 octobre 2026. Réexaminer à sa publication.",
-      "source": "https://github.com/advisories/GHSA-vfj7-8cjw-p6xm",
-      "expiration": "2026-11-03"
+      "avis": "GHSA-g3hv-75wg-m249",
+      "paquet": "minimatch",
+      "version": "10.2.6",
+      "chemin": ".>@eslint/js>eslint>minimatch",
+      "raison": "Minimatch n'est employé que par l'outillage de développement : ESLint et typescript-eslint pour les motifs de fichiers du dépôt, et l'archiveur de testcontainers pour les tests d'intégration. Aucun motif issu des utilisateurs du produit ne lui parvient, et il n'entre dans aucune image. Le correctif n'existe qu'en 11.0.1, une version majeure que ces outils n'acceptent pas encore. Réexaminer à leur prochaine version.",
+      "source": "https://github.com/advisories/GHSA-g3hv-75wg-m249",
+      "expiration": "2026-12-03"
     },
     {
-      "avis": "GHSA-vfj7-8cjw-p6xm",
-      "paquet": "braces",
-      "version": "3.0.3",
-      "chemin": ".>stylelint>globby>micromatch>braces",
-      "raison": "Braces est utilisé par Stylelint pour les motifs glob du dépôt. Aucun motif issu des utilisateurs du produit ne lui parvient ; Stylelint et braces sont interdits dans l’image API par le contrôle de contenu. La version 3.0.4 annoncée par npm audit n’est pas publiée au 3 octobre 2026. Réexaminer à sa publication.",
-      "source": "https://github.com/advisories/GHSA-vfj7-8cjw-p6xm",
-      "expiration": "2026-11-03"
+      "avis": "GHSA-g3hv-75wg-m249",
+      "paquet": "minimatch",
+      "version": "10.2.6",
+      "chemin": ".>eslint>@eslint/config-array>minimatch",
+      "raison": "Minimatch n'est employé que par l'outillage de développement : ESLint et typescript-eslint pour les motifs de fichiers du dépôt, et l'archiveur de testcontainers pour les tests d'intégration. Aucun motif issu des utilisateurs du produit ne lui parvient, et il n'entre dans aucune image. Le correctif n'existe qu'en 11.0.1, une version majeure que ces outils n'acceptent pas encore. Réexaminer à leur prochaine version.",
+      "source": "https://github.com/advisories/GHSA-g3hv-75wg-m249",
+      "expiration": "2026-12-03"
     },
     {
-      "avis": "GHSA-vfj7-8cjw-p6xm",
-      "paquet": "braces",
-      "version": "3.0.3",
-      "chemin": ".>stylelint>micromatch>braces",
-      "raison": "Braces est utilisé par Stylelint pour les motifs glob du dépôt. Aucun motif issu des utilisateurs du produit ne lui parvient ; Stylelint et braces sont interdits dans l’image API par le contrôle de contenu. La version 3.0.4 annoncée par npm audit n’est pas publiée au 3 octobre 2026. Réexaminer à sa publication.",
-      "source": "https://github.com/advisories/GHSA-vfj7-8cjw-p6xm",
-      "expiration": "2026-11-03"
+      "avis": "GHSA-g3hv-75wg-m249",
+      "paquet": "minimatch",
+      "version": "10.2.6",
+      "chemin": ".>eslint>minimatch",
+      "raison": "Minimatch n'est employé que par l'outillage de développement : ESLint et typescript-eslint pour les motifs de fichiers du dépôt, et l'archiveur de testcontainers pour les tests d'intégration. Aucun motif issu des utilisateurs du produit ne lui parvient, et il n'entre dans aucune image. Le correctif n'existe qu'en 11.0.1, une version majeure que ces outils n'acceptent pas encore. Réexaminer à leur prochaine version.",
+      "source": "https://github.com/advisories/GHSA-g3hv-75wg-m249",
+      "expiration": "2026-12-03"
+    },
+    {
+      "avis": "GHSA-g3hv-75wg-m249",
+      "paquet": "minimatch",
+      "version": "10.2.6",
+      "chemin": ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/parser>@typescript-eslint/typescript-estree>minimatch",
+      "raison": "Minimatch n'est employé que par l'outillage de développement : ESLint et typescript-eslint pour les motifs de fichiers du dépôt, et l'archiveur de testcontainers pour les tests d'intégration. Aucun motif issu des utilisateurs du produit ne lui parvient, et il n'entre dans aucune image. Le correctif n'existe qu'en 11.0.1, une version majeure que ces outils n'acceptent pas encore. Réexaminer à leur prochaine version.",
+      "source": "https://github.com/advisories/GHSA-g3hv-75wg-m249",
+      "expiration": "2026-12-03"
+    },
+    {
+      "avis": "GHSA-g3hv-75wg-m249",
+      "paquet": "minimatch",
+      "version": "10.2.6",
+      "chemin": ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/parser>eslint>@eslint/config-array>minimatch",
+      "raison": "Minimatch n'est employé que par l'outillage de développement : ESLint et typescript-eslint pour les motifs de fichiers du dépôt, et l'archiveur de testcontainers pour les tests d'intégration. Aucun motif issu des utilisateurs du produit ne lui parvient, et il n'entre dans aucune image. Le correctif n'existe qu'en 11.0.1, une version majeure que ces outils n'acceptent pas encore. Réexaminer à leur prochaine version.",
+      "source": "https://github.com/advisories/GHSA-g3hv-75wg-m249",
+      "expiration": "2026-12-03"
+    },
+    {
+      "avis": "GHSA-g3hv-75wg-m249",
+      "paquet": "minimatch",
+      "version": "10.2.6",
+      "chemin": ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/parser>eslint>minimatch",
+      "raison": "Minimatch n'est employé que par l'outillage de développement : ESLint et typescript-eslint pour les motifs de fichiers du dépôt, et l'archiveur de testcontainers pour les tests d'intégration. Aucun motif issu des utilisateurs du produit ne lui parvient, et il n'entre dans aucune image. Le correctif n'existe qu'en 11.0.1, une version majeure que ces outils n'acceptent pas encore. Réexaminer à leur prochaine version.",
+      "source": "https://github.com/advisories/GHSA-g3hv-75wg-m249",
+      "expiration": "2026-12-03"
+    },
+    {
+      "avis": "GHSA-g3hv-75wg-m249",
+      "paquet": "minimatch",
+      "version": "10.2.6",
+      "chemin": ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/typescript-estree>minimatch",
+      "raison": "Minimatch n'est employé que par l'outillage de développement : ESLint et typescript-eslint pour les motifs de fichiers du dépôt, et l'archiveur de testcontainers pour les tests d'intégration. Aucun motif issu des utilisateurs du produit ne lui parvient, et il n'entre dans aucune image. Le correctif n'existe qu'en 11.0.1, une version majeure que ces outils n'acceptent pas encore. Réexaminer à leur prochaine version.",
+      "source": "https://github.com/advisories/GHSA-g3hv-75wg-m249",
+      "expiration": "2026-12-03"
+    },
+    {
+      "avis": "GHSA-g3hv-75wg-m249",
+      "paquet": "minimatch",
+      "version": "10.2.6",
+      "chemin": ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>@eslint/config-array>minimatch",
+      "raison": "Minimatch n'est employé que par l'outillage de développement : ESLint et typescript-eslint pour les motifs de fichiers du dépôt, et l'archiveur de testcontainers pour les tests d'intégration. Aucun motif issu des utilisateurs du produit ne lui parvient, et il n'entre dans aucune image. Le correctif n'existe qu'en 11.0.1, une version majeure que ces outils n'acceptent pas encore. Réexaminer à leur prochaine version.",
+      "source": "https://github.com/advisories/GHSA-g3hv-75wg-m249",
+      "expiration": "2026-12-03"
+    },
+    {
+      "avis": "GHSA-g3hv-75wg-m249",
+      "paquet": "minimatch",
+      "version": "10.2.6",
+      "chemin": ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>minimatch",
+      "raison": "Minimatch n'est employé que par l'outillage de développement : ESLint et typescript-eslint pour les motifs de fichiers du dépôt, et l'archiveur de testcontainers pour les tests d'intégration. Aucun motif issu des utilisateurs du produit ne lui parvient, et il n'entre dans aucune image. Le correctif n'existe qu'en 11.0.1, une version majeure que ces outils n'acceptent pas encore. Réexaminer à leur prochaine version.",
+      "source": "https://github.com/advisories/GHSA-g3hv-75wg-m249",
+      "expiration": "2026-12-03"
+    },
+    {
+      "avis": "GHSA-g3hv-75wg-m249",
+      "paquet": "minimatch",
+      "version": "10.2.6",
+      "chemin": ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/utils>@typescript-eslint/typescript-estree>minimatch",
+      "raison": "Minimatch n'est employé que par l'outillage de développement : ESLint et typescript-eslint pour les motifs de fichiers du dépôt, et l'archiveur de testcontainers pour les tests d'intégration. Aucun motif issu des utilisateurs du produit ne lui parvient, et il n'entre dans aucune image. Le correctif n'existe qu'en 11.0.1, une version majeure que ces outils n'acceptent pas encore. Réexaminer à leur prochaine version.",
+      "source": "https://github.com/advisories/GHSA-g3hv-75wg-m249",
+      "expiration": "2026-12-03"
+    },
+    {
+      "avis": "GHSA-g3hv-75wg-m249",
+      "paquet": "minimatch",
+      "version": "10.2.6",
+      "chemin": ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/utils>eslint>@eslint/config-array>minimatch",
+      "raison": "Minimatch n'est employé que par l'outillage de développement : ESLint et typescript-eslint pour les motifs de fichiers du dépôt, et l'archiveur de testcontainers pour les tests d'intégration. Aucun motif issu des utilisateurs du produit ne lui parvient, et il n'entre dans aucune image. Le correctif n'existe qu'en 11.0.1, une version majeure que ces outils n'acceptent pas encore. Réexaminer à leur prochaine version.",
+      "source": "https://github.com/advisories/GHSA-g3hv-75wg-m249",
+      "expiration": "2026-12-03"
+    },
+    {
+      "avis": "GHSA-g3hv-75wg-m249",
+      "paquet": "minimatch",
+      "version": "10.2.6",
+      "chemin": ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/utils>eslint>minimatch",
+      "raison": "Minimatch n'est employé que par l'outillage de développement : ESLint et typescript-eslint pour les motifs de fichiers du dépôt, et l'archiveur de testcontainers pour les tests d'intégration. Aucun motif issu des utilisateurs du produit ne lui parvient, et il n'entre dans aucune image. Le correctif n'existe qu'en 11.0.1, une version majeure que ces outils n'acceptent pas encore. Réexaminer à leur prochaine version.",
+      "source": "https://github.com/advisories/GHSA-g3hv-75wg-m249",
+      "expiration": "2026-12-03"
+    },
+    {
+      "avis": "GHSA-g3hv-75wg-m249",
+      "paquet": "minimatch",
+      "version": "10.2.6",
+      "chemin": ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>eslint>@eslint/config-array>minimatch",
+      "raison": "Minimatch n'est employé que par l'outillage de développement : ESLint et typescript-eslint pour les motifs de fichiers du dépôt, et l'archiveur de testcontainers pour les tests d'intégration. Aucun motif issu des utilisateurs du produit ne lui parvient, et il n'entre dans aucune image. Le correctif n'existe qu'en 11.0.1, une version majeure que ces outils n'acceptent pas encore. Réexaminer à leur prochaine version.",
+      "source": "https://github.com/advisories/GHSA-g3hv-75wg-m249",
+      "expiration": "2026-12-03"
+    },
+    {
+      "avis": "GHSA-g3hv-75wg-m249",
+      "paquet": "minimatch",
+      "version": "10.2.6",
+      "chemin": ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>eslint>minimatch",
+      "raison": "Minimatch n'est employé que par l'outillage de développement : ESLint et typescript-eslint pour les motifs de fichiers du dépôt, et l'archiveur de testcontainers pour les tests d'intégration. Aucun motif issu des utilisateurs du produit ne lui parvient, et il n'entre dans aucune image. Le correctif n'existe qu'en 11.0.1, une version majeure que ces outils n'acceptent pas encore. Réexaminer à leur prochaine version.",
+      "source": "https://github.com/advisories/GHSA-g3hv-75wg-m249",
+      "expiration": "2026-12-03"
+    },
+    {
+      "avis": "GHSA-g3hv-75wg-m249",
+      "paquet": "minimatch",
+      "version": "10.2.6",
+      "chemin": ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>@eslint/config-array>minimatch",
+      "raison": "Minimatch n'est employé que par l'outillage de développement : ESLint et typescript-eslint pour les motifs de fichiers du dépôt, et l'archiveur de testcontainers pour les tests d'intégration. Aucun motif issu des utilisateurs du produit ne lui parvient, et il n'entre dans aucune image. Le correctif n'existe qu'en 11.0.1, une version majeure que ces outils n'acceptent pas encore. Réexaminer à leur prochaine version.",
+      "source": "https://github.com/advisories/GHSA-g3hv-75wg-m249",
+      "expiration": "2026-12-03"
+    },
+    {
+      "avis": "GHSA-g3hv-75wg-m249",
+      "paquet": "minimatch",
+      "version": "10.2.6",
+      "chemin": ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>minimatch",
+      "raison": "Minimatch n'est employé que par l'outillage de développement : ESLint et typescript-eslint pour les motifs de fichiers du dépôt, et l'archiveur de testcontainers pour les tests d'intégration. Aucun motif issu des utilisateurs du produit ne lui parvient, et il n'entre dans aucune image. Le correctif n'existe qu'en 11.0.1, une version majeure que ces outils n'acceptent pas encore. Réexaminer à leur prochaine version.",
+      "source": "https://github.com/advisories/GHSA-g3hv-75wg-m249",
+      "expiration": "2026-12-03"
+    },
+    {
+      "avis": "GHSA-g3hv-75wg-m249",
+      "paquet": "minimatch",
+      "version": "10.2.6",
+      "chemin": ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/utils>@typescript-eslint/typescript-estree>minimatch",
+      "raison": "Minimatch n'est employé que par l'outillage de développement : ESLint et typescript-eslint pour les motifs de fichiers du dépôt, et l'archiveur de testcontainers pour les tests d'intégration. Aucun motif issu des utilisateurs du produit ne lui parvient, et il n'entre dans aucune image. Le correctif n'existe qu'en 11.0.1, une version majeure que ces outils n'acceptent pas encore. Réexaminer à leur prochaine version.",
+      "source": "https://github.com/advisories/GHSA-g3hv-75wg-m249",
+      "expiration": "2026-12-03"
+    },
+    {
+      "avis": "GHSA-g3hv-75wg-m249",
+      "paquet": "minimatch",
+      "version": "10.2.6",
+      "chemin": ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/utils>eslint>@eslint/config-array>minimatch",
+      "raison": "Minimatch n'est employé que par l'outillage de développement : ESLint et typescript-eslint pour les motifs de fichiers du dépôt, et l'archiveur de testcontainers pour les tests d'intégration. Aucun motif issu des utilisateurs du produit ne lui parvient, et il n'entre dans aucune image. Le correctif n'existe qu'en 11.0.1, une version majeure que ces outils n'acceptent pas encore. Réexaminer à leur prochaine version.",
+      "source": "https://github.com/advisories/GHSA-g3hv-75wg-m249",
+      "expiration": "2026-12-03"
+    },
+    {
+      "avis": "GHSA-g3hv-75wg-m249",
+      "paquet": "minimatch",
+      "version": "10.2.6",
+      "chemin": ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/utils>eslint>minimatch",
+      "raison": "Minimatch n'est employé que par l'outillage de développement : ESLint et typescript-eslint pour les motifs de fichiers du dépôt, et l'archiveur de testcontainers pour les tests d'intégration. Aucun motif issu des utilisateurs du produit ne lui parvient, et il n'entre dans aucune image. Le correctif n'existe qu'en 11.0.1, une version majeure que ces outils n'acceptent pas encore. Réexaminer à leur prochaine version.",
+      "source": "https://github.com/advisories/GHSA-g3hv-75wg-m249",
+      "expiration": "2026-12-03"
+    },
+    {
+      "avis": "GHSA-g3hv-75wg-m249",
+      "paquet": "minimatch",
+      "version": "10.2.6",
+      "chemin": ".>typescript-eslint>@typescript-eslint/eslint-plugin>eslint>@eslint/config-array>minimatch",
+      "raison": "Minimatch n'est employé que par l'outillage de développement : ESLint et typescript-eslint pour les motifs de fichiers du dépôt, et l'archiveur de testcontainers pour les tests d'intégration. Aucun motif issu des utilisateurs du produit ne lui parvient, et il n'entre dans aucune image. Le correctif n'existe qu'en 11.0.1, une version majeure que ces outils n'acceptent pas encore. Réexaminer à leur prochaine version.",
+      "source": "https://github.com/advisories/GHSA-g3hv-75wg-m249",
+      "expiration": "2026-12-03"
+    },
+    {
+      "avis": "GHSA-g3hv-75wg-m249",
+      "paquet": "minimatch",
+      "version": "10.2.6",
+      "chemin": ".>typescript-eslint>@typescript-eslint/eslint-plugin>eslint>minimatch",
+      "raison": "Minimatch n'est employé que par l'outillage de développement : ESLint et typescript-eslint pour les motifs de fichiers du dépôt, et l'archiveur de testcontainers pour les tests d'intégration. Aucun motif issu des utilisateurs du produit ne lui parvient, et il n'entre dans aucune image. Le correctif n'existe qu'en 11.0.1, une version majeure que ces outils n'acceptent pas encore. Réexaminer à leur prochaine version.",
+      "source": "https://github.com/advisories/GHSA-g3hv-75wg-m249",
+      "expiration": "2026-12-03"
+    },
+    {
+      "avis": "GHSA-g3hv-75wg-m249",
+      "paquet": "minimatch",
+      "version": "10.2.6",
+      "chemin": ".>typescript-eslint>@typescript-eslint/parser>@typescript-eslint/typescript-estree>minimatch",
+      "raison": "Minimatch n'est employé que par l'outillage de développement : ESLint et typescript-eslint pour les motifs de fichiers du dépôt, et l'archiveur de testcontainers pour les tests d'intégration. Aucun motif issu des utilisateurs du produit ne lui parvient, et il n'entre dans aucune image. Le correctif n'existe qu'en 11.0.1, une version majeure que ces outils n'acceptent pas encore. Réexaminer à leur prochaine version.",
+      "source": "https://github.com/advisories/GHSA-g3hv-75wg-m249",
+      "expiration": "2026-12-03"
+    },
+    {
+      "avis": "GHSA-g3hv-75wg-m249",
+      "paquet": "minimatch",
+      "version": "10.2.6",
+      "chemin": ".>typescript-eslint>@typescript-eslint/parser>eslint>@eslint/config-array>minimatch",
+      "raison": "Minimatch n'est employé que par l'outillage de développement : ESLint et typescript-eslint pour les motifs de fichiers du dépôt, et l'archiveur de testcontainers pour les tests d'intégration. Aucun motif issu des utilisateurs du produit ne lui parvient, et il n'entre dans aucune image. Le correctif n'existe qu'en 11.0.1, une version majeure que ces outils n'acceptent pas encore. Réexaminer à leur prochaine version.",
+      "source": "https://github.com/advisories/GHSA-g3hv-75wg-m249",
+      "expiration": "2026-12-03"
+    },
+    {
+      "avis": "GHSA-g3hv-75wg-m249",
+      "paquet": "minimatch",
+      "version": "10.2.6",
+      "chemin": ".>typescript-eslint>@typescript-eslint/parser>eslint>minimatch",
+      "raison": "Minimatch n'est employé que par l'outillage de développement : ESLint et typescript-eslint pour les motifs de fichiers du dépôt, et l'archiveur de testcontainers pour les tests d'intégration. Aucun motif issu des utilisateurs du produit ne lui parvient, et il n'entre dans aucune image. Le correctif n'existe qu'en 11.0.1, une version majeure que ces outils n'acceptent pas encore. Réexaminer à leur prochaine version.",
+      "source": "https://github.com/advisories/GHSA-g3hv-75wg-m249",
+      "expiration": "2026-12-03"
+    },
+    {
+      "avis": "GHSA-g3hv-75wg-m249",
+      "paquet": "minimatch",
+      "version": "10.2.6",
+      "chemin": ".>typescript-eslint>@typescript-eslint/typescript-estree>minimatch",
+      "raison": "Minimatch n'est employé que par l'outillage de développement : ESLint et typescript-eslint pour les motifs de fichiers du dépôt, et l'archiveur de testcontainers pour les tests d'intégration. Aucun motif issu des utilisateurs du produit ne lui parvient, et il n'entre dans aucune image. Le correctif n'existe qu'en 11.0.1, une version majeure que ces outils n'acceptent pas encore. Réexaminer à leur prochaine version.",
+      "source": "https://github.com/advisories/GHSA-g3hv-75wg-m249",
+      "expiration": "2026-12-03"
+    },
+    {
+      "avis": "GHSA-g3hv-75wg-m249",
+      "paquet": "minimatch",
+      "version": "10.2.6",
+      "chemin": ".>typescript-eslint>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>@eslint/config-array>minimatch",
+      "raison": "Minimatch n'est employé que par l'outillage de développement : ESLint et typescript-eslint pour les motifs de fichiers du dépôt, et l'archiveur de testcontainers pour les tests d'intégration. Aucun motif issu des utilisateurs du produit ne lui parvient, et il n'entre dans aucune image. Le correctif n'existe qu'en 11.0.1, une version majeure que ces outils n'acceptent pas encore. Réexaminer à leur prochaine version.",
+      "source": "https://github.com/advisories/GHSA-g3hv-75wg-m249",
+      "expiration": "2026-12-03"
+    },
+    {
+      "avis": "GHSA-g3hv-75wg-m249",
+      "paquet": "minimatch",
+      "version": "10.2.6",
+      "chemin": ".>typescript-eslint>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>minimatch",
+      "raison": "Minimatch n'est employé que par l'outillage de développement : ESLint et typescript-eslint pour les motifs de fichiers du dépôt, et l'archiveur de testcontainers pour les tests d'intégration. Aucun motif issu des utilisateurs du produit ne lui parvient, et il n'entre dans aucune image. Le correctif n'existe qu'en 11.0.1, une version majeure que ces outils n'acceptent pas encore. Réexaminer à leur prochaine version.",
+      "source": "https://github.com/advisories/GHSA-g3hv-75wg-m249",
+      "expiration": "2026-12-03"
+    },
+    {
+      "avis": "GHSA-g3hv-75wg-m249",
+      "paquet": "minimatch",
+      "version": "10.2.6",
+      "chemin": ".>typescript-eslint>@typescript-eslint/utils>@typescript-eslint/typescript-estree>minimatch",
+      "raison": "Minimatch n'est employé que par l'outillage de développement : ESLint et typescript-eslint pour les motifs de fichiers du dépôt, et l'archiveur de testcontainers pour les tests d'intégration. Aucun motif issu des utilisateurs du produit ne lui parvient, et il n'entre dans aucune image. Le correctif n'existe qu'en 11.0.1, une version majeure que ces outils n'acceptent pas encore. Réexaminer à leur prochaine version.",
+      "source": "https://github.com/advisories/GHSA-g3hv-75wg-m249",
+      "expiration": "2026-12-03"
+    },
+    {
+      "avis": "GHSA-g3hv-75wg-m249",
+      "paquet": "minimatch",
+      "version": "10.2.6",
+      "chemin": ".>typescript-eslint>@typescript-eslint/utils>eslint>@eslint/config-array>minimatch",
+      "raison": "Minimatch n'est employé que par l'outillage de développement : ESLint et typescript-eslint pour les motifs de fichiers du dépôt, et l'archiveur de testcontainers pour les tests d'intégration. Aucun motif issu des utilisateurs du produit ne lui parvient, et il n'entre dans aucune image. Le correctif n'existe qu'en 11.0.1, une version majeure que ces outils n'acceptent pas encore. Réexaminer à leur prochaine version.",
+      "source": "https://github.com/advisories/GHSA-g3hv-75wg-m249",
+      "expiration": "2026-12-03"
+    },
+    {
+      "avis": "GHSA-g3hv-75wg-m249",
+      "paquet": "minimatch",
+      "version": "10.2.6",
+      "chemin": ".>typescript-eslint>@typescript-eslint/utils>eslint>minimatch",
+      "raison": "Minimatch n'est employé que par l'outillage de développement : ESLint et typescript-eslint pour les motifs de fichiers du dépôt, et l'archiveur de testcontainers pour les tests d'intégration. Aucun motif issu des utilisateurs du produit ne lui parvient, et il n'entre dans aucune image. Le correctif n'existe qu'en 11.0.1, une version majeure que ces outils n'acceptent pas encore. Réexaminer à leur prochaine version.",
+      "source": "https://github.com/advisories/GHSA-g3hv-75wg-m249",
+      "expiration": "2026-12-03"
+    },
+    {
+      "avis": "GHSA-g3hv-75wg-m249",
+      "paquet": "minimatch",
+      "version": "10.2.6",
+      "chemin": ".>typescript-eslint>eslint>@eslint/config-array>minimatch",
+      "raison": "Minimatch n'est employé que par l'outillage de développement : ESLint et typescript-eslint pour les motifs de fichiers du dépôt, et l'archiveur de testcontainers pour les tests d'intégration. Aucun motif issu des utilisateurs du produit ne lui parvient, et il n'entre dans aucune image. Le correctif n'existe qu'en 11.0.1, une version majeure que ces outils n'acceptent pas encore. Réexaminer à leur prochaine version.",
+      "source": "https://github.com/advisories/GHSA-g3hv-75wg-m249",
+      "expiration": "2026-12-03"
+    },
+    {
+      "avis": "GHSA-g3hv-75wg-m249",
+      "paquet": "minimatch",
+      "version": "10.2.6",
+      "chemin": ".>typescript-eslint>eslint>minimatch",
+      "raison": "Minimatch n'est employé que par l'outillage de développement : ESLint et typescript-eslint pour les motifs de fichiers du dépôt, et l'archiveur de testcontainers pour les tests d'intégration. Aucun motif issu des utilisateurs du produit ne lui parvient, et il n'entre dans aucune image. Le correctif n'existe qu'en 11.0.1, une version majeure que ces outils n'acceptent pas encore. Réexaminer à leur prochaine version.",
+      "source": "https://github.com/advisories/GHSA-g3hv-75wg-m249",
+      "expiration": "2026-12-03"
+    },
+    {
+      "avis": "GHSA-g3hv-75wg-m249",
+      "paquet": "minimatch",
+      "version": "9.0.9",
+      "chemin": "apps__api>@testcontainers/postgresql>testcontainers>archiver>archiver-utils>glob>minimatch",
+      "raison": "Minimatch n'est employé que par l'outillage de développement : ESLint et typescript-eslint pour les motifs de fichiers du dépôt, et l'archiveur de testcontainers pour les tests d'intégration. Aucun motif issu des utilisateurs du produit ne lui parvient, et il n'entre dans aucune image. Le correctif n'existe qu'en 11.0.1, une version majeure que ces outils n'acceptent pas encore. Réexaminer à leur prochaine version.",
+      "source": "https://github.com/advisories/GHSA-g3hv-75wg-m249",
+      "expiration": "2026-12-03"
+    },
+    {
+      "avis": "GHSA-g3hv-75wg-m249",
+      "paquet": "minimatch",
+      "version": "9.0.9",
+      "chemin": "apps__api>@testcontainers/postgresql>testcontainers>archiver>zip-stream>archiver-utils>glob>minimatch",
+      "raison": "Minimatch n'est employé que par l'outillage de développement : ESLint et typescript-eslint pour les motifs de fichiers du dépôt, et l'archiveur de testcontainers pour les tests d'intégration. Aucun motif issu des utilisateurs du produit ne lui parvient, et il n'entre dans aucune image. Le correctif n'existe qu'en 11.0.1, une version majeure que ces outils n'acceptent pas encore. Réexaminer à leur prochaine version.",
+      "source": "https://github.com/advisories/GHSA-g3hv-75wg-m249",
+      "expiration": "2026-12-03"
+    },
+    {
+      "avis": "GHSA-g3hv-75wg-m249",
+      "paquet": "minimatch",
+      "version": "9.0.9",
+      "chemin": "packages__db>@testcontainers/postgresql>testcontainers>archiver>archiver-utils>glob>minimatch",
+      "raison": "Minimatch n'est employé que par l'outillage de développement : ESLint et typescript-eslint pour les motifs de fichiers du dépôt, et l'archiveur de testcontainers pour les tests d'intégration. Aucun motif issu des utilisateurs du produit ne lui parvient, et il n'entre dans aucune image. Le correctif n'existe qu'en 11.0.1, une version majeure que ces outils n'acceptent pas encore. Réexaminer à leur prochaine version.",
+      "source": "https://github.com/advisories/GHSA-g3hv-75wg-m249",
+      "expiration": "2026-12-03"
+    },
+    {
+      "avis": "GHSA-g3hv-75wg-m249",
+      "paquet": "minimatch",
+      "version": "9.0.9",
+      "chemin": "packages__db>@testcontainers/postgresql>testcontainers>archiver>zip-stream>archiver-utils>glob>minimatch",
+      "raison": "Minimatch n'est employé que par l'outillage de développement : ESLint et typescript-eslint pour les motifs de fichiers du dépôt, et l'archiveur de testcontainers pour les tests d'intégration. Aucun motif issu des utilisateurs du produit ne lui parvient, et il n'entre dans aucune image. Le correctif n'existe qu'en 11.0.1, une version majeure que ces outils n'acceptent pas encore. Réexaminer à leur prochaine version.",
+      "source": "https://github.com/advisories/GHSA-g3hv-75wg-m249",
+      "expiration": "2026-12-03"
+    },
+    {
+      "avis": "GHSA-g3hv-75wg-m249",
+      "paquet": "minimatch",
+      "version": "9.0.9",
+      "chemin": "packages__db>testcontainers>archiver>archiver-utils>glob>minimatch",
+      "raison": "Minimatch n'est employé que par l'outillage de développement : ESLint et typescript-eslint pour les motifs de fichiers du dépôt, et l'archiveur de testcontainers pour les tests d'intégration. Aucun motif issu des utilisateurs du produit ne lui parvient, et il n'entre dans aucune image. Le correctif n'existe qu'en 11.0.1, une version majeure que ces outils n'acceptent pas encore. Réexaminer à leur prochaine version.",
+      "source": "https://github.com/advisories/GHSA-g3hv-75wg-m249",
+      "expiration": "2026-12-03"
+    },
+    {
+      "avis": "GHSA-g3hv-75wg-m249",
+      "paquet": "minimatch",
+      "version": "9.0.9",
+      "chemin": "packages__db>testcontainers>archiver>zip-stream>archiver-utils>glob>minimatch",
+      "raison": "Minimatch n'est employé que par l'outillage de développement : ESLint et typescript-eslint pour les motifs de fichiers du dépôt, et l'archiveur de testcontainers pour les tests d'intégration. Aucun motif issu des utilisateurs du produit ne lui parvient, et il n'entre dans aucune image. Le correctif n'existe qu'en 11.0.1, une version majeure que ces outils n'acceptent pas encore. Réexaminer à leur prochaine version.",
+      "source": "https://github.com/advisories/GHSA-g3hv-75wg-m249",
+      "expiration": "2026-12-03"
+    },
+    {
+      "avis": "GHSA-g3hv-75wg-m249",
+      "paquet": "minimatch",
+      "version": "5.1.9",
+      "chemin": "apps__api>@testcontainers/postgresql>testcontainers>archiver>readdir-glob>minimatch",
+      "raison": "Minimatch n'est employé que par l'outillage de développement : ESLint et typescript-eslint pour les motifs de fichiers du dépôt, et l'archiveur de testcontainers pour les tests d'intégration. Aucun motif issu des utilisateurs du produit ne lui parvient, et il n'entre dans aucune image. Le correctif n'existe qu'en 11.0.1, une version majeure que ces outils n'acceptent pas encore. Réexaminer à leur prochaine version.",
+      "source": "https://github.com/advisories/GHSA-g3hv-75wg-m249",
+      "expiration": "2026-12-03"
+    },
+    {
+      "avis": "GHSA-g3hv-75wg-m249",
+      "paquet": "minimatch",
+      "version": "5.1.9",
+      "chemin": "packages__db>@testcontainers/postgresql>testcontainers>archiver>readdir-glob>minimatch",
+      "raison": "Minimatch n'est employé que par l'outillage de développement : ESLint et typescript-eslint pour les motifs de fichiers du dépôt, et l'archiveur de testcontainers pour les tests d'intégration. Aucun motif issu des utilisateurs du produit ne lui parvient, et il n'entre dans aucune image. Le correctif n'existe qu'en 11.0.1, une version majeure que ces outils n'acceptent pas encore. Réexaminer à leur prochaine version.",
+      "source": "https://github.com/advisories/GHSA-g3hv-75wg-m249",
+      "expiration": "2026-12-03"
+    },
+    {
+      "avis": "GHSA-g3hv-75wg-m249",
+      "paquet": "minimatch",
+      "version": "5.1.9",
+      "chemin": "packages__db>testcontainers>archiver>readdir-glob>minimatch",
+      "raison": "Minimatch n'est employé que par l'outillage de développement : ESLint et typescript-eslint pour les motifs de fichiers du dépôt, et l'archiveur de testcontainers pour les tests d'intégration. Aucun motif issu des utilisateurs du produit ne lui parvient, et il n'entre dans aucune image. Le correctif n'existe qu'en 11.0.1, une version majeure que ces outils n'acceptent pas encore. Réexaminer à leur prochaine version.",
+      "source": "https://github.com/advisories/GHSA-g3hv-75wg-m249",
+      "expiration": "2026-12-03"
+    },
+    {
+      "avis": "GHSA-3g3m-2fjr-6pw4",
+      "paquet": "glob",
+      "version": "10.5.0",
+      "chemin": "apps__api>@testcontainers/postgresql>testcontainers>archiver>archiver-utils>glob",
+      "raison": "Glob n'est employé que par l'archiveur de testcontainers, pendant les tests d'intégration, sur des fichiers du dépôt. Aucune donnée issue des utilisateurs du produit ne lui parvient, et il n'entre dans aucune image. Le correctif n'existe qu'en 14.0.2, une version majeure que archiver-utils n'accepte pas encore. Réexaminer à la prochaine version de testcontainers.",
+      "source": "https://github.com/advisories/GHSA-3g3m-2fjr-6pw4",
+      "expiration": "2026-12-03"
+    },
+    {
+      "avis": "GHSA-3g3m-2fjr-6pw4",
+      "paquet": "glob",
+      "version": "10.5.0",
+      "chemin": "apps__api>@testcontainers/postgresql>testcontainers>archiver>zip-stream>archiver-utils>glob",
+      "raison": "Glob n'est employé que par l'archiveur de testcontainers, pendant les tests d'intégration, sur des fichiers du dépôt. Aucune donnée issue des utilisateurs du produit ne lui parvient, et il n'entre dans aucune image. Le correctif n'existe qu'en 14.0.2, une version majeure que archiver-utils n'accepte pas encore. Réexaminer à la prochaine version de testcontainers.",
+      "source": "https://github.com/advisories/GHSA-3g3m-2fjr-6pw4",
+      "expiration": "2026-12-03"
+    },
+    {
+      "avis": "GHSA-3g3m-2fjr-6pw4",
+      "paquet": "glob",
+      "version": "10.5.0",
+      "chemin": "packages__db>@testcontainers/postgresql>testcontainers>archiver>archiver-utils>glob",
+      "raison": "Glob n'est employé que par l'archiveur de testcontainers, pendant les tests d'intégration, sur des fichiers du dépôt. Aucune donnée issue des utilisateurs du produit ne lui parvient, et il n'entre dans aucune image. Le correctif n'existe qu'en 14.0.2, une version majeure que archiver-utils n'accepte pas encore. Réexaminer à la prochaine version de testcontainers.",
+      "source": "https://github.com/advisories/GHSA-3g3m-2fjr-6pw4",
+      "expiration": "2026-12-03"
+    },
+    {
+      "avis": "GHSA-3g3m-2fjr-6pw4",
+      "paquet": "glob",
+      "version": "10.5.0",
+      "chemin": "packages__db>@testcontainers/postgresql>testcontainers>archiver>zip-stream>archiver-utils>glob",
+      "raison": "Glob n'est employé que par l'archiveur de testcontainers, pendant les tests d'intégration, sur des fichiers du dépôt. Aucune donnée issue des utilisateurs du produit ne lui parvient, et il n'entre dans aucune image. Le correctif n'existe qu'en 14.0.2, une version majeure que archiver-utils n'accepte pas encore. Réexaminer à la prochaine version de testcontainers.",
+      "source": "https://github.com/advisories/GHSA-3g3m-2fjr-6pw4",
+      "expiration": "2026-12-03"
+    },
+    {
+      "avis": "GHSA-3g3m-2fjr-6pw4",
+      "paquet": "glob",
+      "version": "10.5.0",
+      "chemin": "packages__db>testcontainers>archiver>archiver-utils>glob",
+      "raison": "Glob n'est employé que par l'archiveur de testcontainers, pendant les tests d'intégration, sur des fichiers du dépôt. Aucune donnée issue des utilisateurs du produit ne lui parvient, et il n'entre dans aucune image. Le correctif n'existe qu'en 14.0.2, une version majeure que archiver-utils n'accepte pas encore. Réexaminer à la prochaine version de testcontainers.",
+      "source": "https://github.com/advisories/GHSA-3g3m-2fjr-6pw4",
+      "expiration": "2026-12-03"
+    },
+    {
+      "avis": "GHSA-3g3m-2fjr-6pw4",
+      "paquet": "glob",
+      "version": "10.5.0",
+      "chemin": "packages__db>testcontainers>archiver>zip-stream>archiver-utils>glob",
+      "raison": "Glob n'est employé que par l'archiveur de testcontainers, pendant les tests d'intégration, sur des fichiers du dépôt. Aucune donnée issue des utilisateurs du produit ne lui parvient, et il n'entre dans aucune image. Le correctif n'existe qu'en 14.0.2, une version majeure que archiver-utils n'accepte pas encore. Réexaminer à la prochaine version de testcontainers.",
+      "source": "https://github.com/advisories/GHSA-3g3m-2fjr-6pw4",
+      "expiration": "2026-12-03"
     }
   ],
-  "images": []
+  "images": [
+    {
+      "image": "web",
+      "avis": "CVE-2026-116587",
+      "paquet": "github.com/go-jose/go-jose/v3",
+      "version": "v3.0.5",
+      "cible": "usr/bin/caddy",
+      "raison": "La série v3 de go-jose n'a pas de version corrigée : le correctif n'existe qu'en 4.1.6, déjà appliqué au binaire recompilé. Dans Caddy, la v3 n'est tirée que par smallstep/certificates, dont le serveur ACME lit des JWK fournies par des tiers. Le Caddyfile du kit n'active pas ce serveur (aucune directive acme_server, administration coupée) : le chemin vulnérable n'est pas atteignable. Réexaminer à la prochaine version de Caddy.",
+      "source": "https://avd.aquasec.com/nvd/cve-2026-116587",
+      "expiration": "2026-12-03"
+    }
+  ]
 }

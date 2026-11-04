@@ -46,6 +46,9 @@ const CORRESPONDANCE: Record<string, string> = {
   typeTiers: "TypeTiers",
   natureClient: "NatureClient",
   dureeTachePredefinie: "DureeTachePredefinie",
+  declenchementPassage: "DeclenchementPassage",
+  etatPassage: "EtatPassage",
+  etatActionAgent: "EtatActionAgent",
 };
 
 describe("cohérence @rationarium/contracts ↔ schéma Prisma", () => {

@@ -8,6 +8,7 @@ import { Pastille } from "../../composants/pastilles.js";
 import { usePeut } from "../../session/session.js";
 import "../../composants/partages.css";
 import { retourAuPortefeuille } from "./adresse.js";
+import { useModuleAssistant } from "../assistant/module.js";
 import "./fiche.css";
 
 /**
@@ -21,7 +22,7 @@ import "./fiche.css";
  * l'action qui le débloque.
  */
 
-export type Onglet = "ensemble" | "taches" | "jalons" | "equipe" | "gantt";
+export type Onglet = "ensemble" | "taches" | "jalons" | "equipe" | "gantt" | "suivi";
 
 /**
  * ════════════════════════════════════════════════════════════════════════════
@@ -48,6 +49,12 @@ export const PERMISSION_DE_L_ONGLET = {
   equipe: "projects:read",
   /** La vue 15 lit la feuille de route autant que les tâches. */
   gantt: "milestones:read",
+  /**
+   * M22 — `assistant.controller.ts` : `@RequiertPermission("assistant:use")`
+   * sur `GET /assistant/suivis/:projectId`. L'onglet exige EN PLUS que le
+   * module soit actif (`RG-AST-01`) : désactivé, il n'existe pas.
+   */
+  suivi: "assistant:use",
 } as const satisfies Record<Onglet, Permission>;
 
 export function CadreProjet({
@@ -67,6 +74,7 @@ export function CadreProjet({
 }) {
   const { t } = useTranslation("projets");
   const peut = usePeut();
+  const assistant = useModuleAssistant();
 
   /*
    * `EX-PRJ-02`, `RG-GEN-04` — **le retour rend le portefeuille tel qu'on l'a
@@ -92,9 +100,13 @@ export function CadreProjet({
       chemin: "/projets/$id/equipe",
     },
     { cle: "gantt", libelle: t("onglets.gantt"), chemin: "/projets/$id/gantt" },
+    { cle: "suivi", libelle: t("onglets.suivi"), chemin: "/projets/$id/suivi" },
   ];
-  /* `RG-GEN-06` — masquées, pas désactivées : voir `PERMISSION_DE_L_ONGLET`. */
-  const onglets = tousLesOnglets.filter((o) => peut(PERMISSION_DE_L_ONGLET[o.cle]));
+  /* `RG-GEN-06` — masquées, pas désactivées : voir `PERMISSION_DE_L_ONGLET`.
+     L'onglet « Suivi » n'existe que si le module M22 est actif (`RG-AST-01`). */
+  const onglets = tousLesOnglets.filter(
+    (o) => peut(PERMISSION_DE_L_ONGLET[o.cle]) && (o.cle !== "suivi" || assistant.actif),
+  );
 
   /*
    * PAS DE `.page` ICI. La coquille rend déjà `<main class="page">`, et les

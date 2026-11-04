@@ -18,6 +18,7 @@ import planningFr from "../locales/fr/planning.json";
 import tableauFr from "../locales/fr/tableau.json";
 import rapportsFr from "../locales/fr/rapports.json";
 import importsFr from "../locales/fr/imports.json";
+import assistantFr from "../locales/fr/assistant.json";
 import communEn from "../locales/en/commun.json";
 import authEn from "../locales/en/auth.json";
 import accesEn from "../locales/en/acces.json";
@@ -32,6 +33,7 @@ import planningEn from "../locales/en/planning.json";
 import tableauEn from "../locales/en/tableau.json";
 import rapportsEn from "../locales/en/rapports.json";
 import importsEn from "../locales/en/imports.json";
+import assistantEn from "../locales/en/assistant.json";
 
 /**
  * Internationalisation — RG-GEN-08.
@@ -62,10 +64,10 @@ await i18next
     lng: detecter(),
     fallbackLng: "fr",
     defaultNS: "commun",
-    ns: ["commun", "auth", "acces", "coquille", "erreurs", "projets", "taches", "occupations", "referentiels", "administration", "planning", "tableau", "rapports", "imports"],
+    ns: ["commun", "auth", "acces", "coquille", "erreurs", "projets", "taches", "occupations", "referentiels", "administration", "planning", "tableau", "rapports", "imports", "assistant"],
     resources: {
-      fr: { commun: communFr, auth: authFr, acces: accesFr, coquille: coquilleFr, erreurs: erreursFr, projets: projetsFr, taches: tachesFr, occupations: occupationsFr, referentiels: referentielsFr, administration: administrationFr, planning: planningFr, tableau: tableauFr, rapports: rapportsFr, imports: importsFr },
-      en: { commun: communEn, auth: authEn, acces: accesEn, coquille: coquilleEn, erreurs: erreursEn, projets: projetsEn, taches: tachesEn, occupations: occupationsEn, referentiels: referentielsEn, administration: administrationEn, planning: planningEn, tableau: tableauEn, rapports: rapportsEn, imports: importsEn },
+      fr: { commun: communFr, auth: authFr, acces: accesFr, coquille: coquilleFr, erreurs: erreursFr, projets: projetsFr, taches: tachesFr, occupations: occupationsFr, referentiels: referentielsFr, administration: administrationFr, planning: planningFr, tableau: tableauFr, rapports: rapportsFr, imports: importsFr, assistant: assistantFr },
+      en: { commun: communEn, auth: authEn, acces: accesEn, coquille: coquilleEn, erreurs: erreursEn, projets: projetsEn, taches: tachesEn, occupations: occupationsEn, referentiels: referentielsEn, administration: administrationEn, planning: planningEn, tableau: tableauEn, rapports: rapportsEn, imports: importsEn, assistant: assistantEn },
     },
     interpolation: { escapeValue: false },
   });

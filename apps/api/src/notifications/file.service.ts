@@ -40,6 +40,8 @@ export const FILE_COURRIEL = "courriel";
 export class FileService implements OnModuleInit, OnModuleDestroy {
   private readonly journal = new Logger(FileService.name);
   private boss: PgBoss | null = null;
+  /** Les files dont un exécutant est déjà enregistré dans ce processus. */
+  private readonly travailleurs = new Set<string>();
   /** Le démarrage en cours, partagé par tous ceux qui l'attendent. */
   private demarrage: Promise<void> | null = null;
 
@@ -175,9 +177,14 @@ export class FileService implements OnModuleInit, OnModuleDestroy {
     if (!boss) return;
     try {
       await boss.createQueue(travail.nom);
-      await boss.work(travail.nom, async () => {
-        await travail.traitement();
-      });
+      // Un travail replanifié — M22 replanifie quand ses réglages changent —
+      // ne reçoit pas un second exécutant : il traiterait chaque échéance deux fois.
+      if (!this.travailleurs.has(travail.nom)) {
+        await boss.work(travail.nom, async () => {
+          await travail.traitement();
+        });
+        this.travailleurs.add(travail.nom);
+      }
       // `singletonKey` : deux instances déclarant le même travail n'en
       // exécutent qu'un. C'est `RG-NTF-02`, et il est natif.
       await boss.schedule(travail.nom, travail.cron, {} as never, {
@@ -187,6 +194,21 @@ export class FileService implements OnModuleInit, OnModuleDestroy {
       this.journal.log(`travail périodique « ${travail.nom} » planifié (${travail.cron})`);
     } catch (e) {
       this.journal.error(`planification impossible pour « ${travail.nom} » : ${String(e)}`);
+    }
+  }
+
+  /**
+   * Retire l'échéancier d'un travail périodique. M22 en a besoin : un module
+   * désactivé ne déclare aucun traitement (`RG-AST-01`), et la désactivation se
+   * fait à chaud, depuis le paramétrage.
+   */
+  async deplanifier(nom: string): Promise<void> {
+    const boss = await this.pret();
+    if (!boss) return;
+    try {
+      await boss.unschedule(nom);
+    } catch (e) {
+      this.journal.error(`retrait impossible de l'échéancier « ${nom} » : ${String(e)}`);
     }
   }
 }

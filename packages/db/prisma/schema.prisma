@@ -137,6 +137,28 @@ enum DureeTachePredefinie {
   time_slot
 }
 
+// M22 — assistant de suivi. Codes de `@rationarium/contracts` (`assistant.ts`).
+enum DeclenchementPassage {
+  planifie
+  manuel
+}
+
+enum EtatPassage {
+  en_attente
+  prise
+  en_cours
+  terminee
+  echec
+  interrompue
+  annulee
+}
+
+enum EtatActionAgent {
+  effectuee
+  refusee
+  defaite
+}
+
 // ── Structure organisationnelle — M2 ───────────────────────────────────────
 
 model Direction {
@@ -251,6 +273,11 @@ model User {
   notifications        Notification[]
   documents            Document[]
   commentaires         Comment[]
+  jetonsAgent          AgentJeton[]
+  passagesAgent        AgentPassage[] @relation("PassageProprietaire")
+  passagesDemandes     AgentPassage[] @relation("PassageDemandeur")
+  actionsAgent         AgentAction[]  @relation("ActionProprietaire")
+  actionsDefaites      AgentAction[]  @relation("ActionDefaitePar")
 
   version    Int      @default(1)
   creeLe     DateTime @default(now())
@@ -367,6 +394,8 @@ model Project {
   documents     Document[]
   commentaires  Comment[]
   instantanes   ProjectSnapshot[]
+  suivi         ProjetSuivi?
+  actionsAgent  AgentAction[]
 
   version   Int      @default(1)
   creeLe    DateTime @default(now())
@@ -1167,4 +1196,119 @@ model AuditLog {
   /// BRIN et non B-tree : le journal est écrit dans l'ordre chronologique.
   @@index([horodatage], map: "audit_log_horodatage_brin", type: Brin)
   @@map("audit_log")
+}
+
+// ── Assistant de suivi — M22 ───────────────────────────────────────────────
+//
+// `docs/assistant/SPEC-PHASE-1.md`. Un agent, sur le poste de l'utilisateur,
+// agit pour le compte du propriétaire de son jeton. Ces tables ne portent que
+// ce qui sert à le faire, à le tracer et à le défaire : le contenu des sources
+// (courriels, documents) ne vit jamais ici.
+
+/// RG-AST-02 — un jeton n'existe en base que par son empreinte.
+model AgentJeton {
+  id             String    @id @default(uuid()) @db.Uuid
+  userId         String    @db.Uuid
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  libelle        String
+  /// SHA-256 du jeton, en hexadécimal. Le jeton lui-même n'est affiché qu'une fois.
+  empreinte      String    @unique
+  /// RG-AST-05 — vide : tous les types d'action.
+  typesAutorises String[]  @default([])
+  expireLe       DateTime
+  dernierUsage   DateTime?
+  revoqueLe      DateTime?
+  creeLe         DateTime  @default(now())
+
+  passages AgentPassage[]
+  actions  AgentAction[]
+
+  @@index([userId])
+  @@map("agent_jetons")
+}
+
+/// Le plan de suivi d'un projet : ce que l'agent doit aller voir.
+model ProjetSuivi {
+  id           String   @id @default(uuid()) @db.Uuid
+  projectId    String   @unique @db.Uuid
+  project      Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  consigne     String?
+  /// Liste de sources `{ type, designation, libelle }`, validée par le contrat.
+  sources      Json     @default("[]")
+  silenceJours Int?
+  actif        Boolean  @default(true)
+  version      Int      @default(1)
+  creeLe       DateTime @default(now())
+  modifieLe    DateTime @updatedAt
+
+  @@map("projet_suivis")
+}
+
+/// Un passage de l'agent. RG-AST-15 — un seul passage actif par propriétaire,
+/// garanti par un index unique partiel posé en migration.
+model AgentPassage {
+  id             String               @id @default(uuid()) @db.Uuid
+  proprietaireId String               @db.Uuid
+  proprietaire   User                 @relation("PassageProprietaire", fields: [proprietaireId], references: [id], onDelete: Cascade)
+  declenchement  DeclenchementPassage
+  demandeurId    String?              @db.Uuid
+  demandeur      User?                @relation("PassageDemandeur", fields: [demandeurId], references: [id], onDelete: SetNull)
+  /// Portée du passage ; vide : tous les projets suivis du propriétaire.
+  projectIds     String[]             @default([]) @db.Uuid
+  etat           EtatPassage          @default(en_attente)
+  jetonId        String?              @db.Uuid
+  jeton          AgentJeton?          @relation(fields: [jetonId], references: [id], onDelete: SetNull)
+  progression    String?
+  signeDeVie     DateTime?
+  priseLe        DateTime?
+  finLe          DateTime?
+  bilan          Json?
+  erreur         String?
+  creeLe         DateTime             @default(now())
+
+  actions AgentAction[]
+
+  @@index([proprietaireId, creeLe])
+  @@index([etat])
+  @@map("agent_passages")
+}
+
+/// Une action de l'agent, effectuée ou refusée. `avant` et `apres` rendent
+/// l'action lisible et défaisable (RG-AST-18).
+model AgentAction {
+  id             String          @id @default(uuid()) @db.Uuid
+  passageId      String          @db.Uuid
+  passage        AgentPassage    @relation(fields: [passageId], references: [id], onDelete: Cascade)
+  jetonId        String?         @db.Uuid
+  jeton          AgentJeton?     @relation(fields: [jetonId], references: [id], onDelete: SetNull)
+  proprietaireId String          @db.Uuid
+  proprietaire   User            @relation("ActionProprietaire", fields: [proprietaireId], references: [id], onDelete: Cascade)
+  projectId      String?         @db.Uuid
+  project        Project?        @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  /// Code de `TYPES_ACTION_AGENT`.
+  type           String
+  /// Référence locale au lot, pour qu'une action suivante désigne l'entité créée.
+  reference      String?
+  cibleType      String?
+  cibleId        String?         @db.Uuid
+  charge         Json
+  avant          Json?
+  apres          Json?
+  versionApres   Int?
+  justification  String
+  preuves        Json
+  /// RG-AST-12 — SHA-256 du type, de la cible et de la charge normalisée.
+  empreinte      String
+  etat           EtatActionAgent
+  motifRefus     Json?
+  defaiteParId   String?         @db.Uuid
+  defaitePar     User?           @relation("ActionDefaitePar", fields: [defaiteParId], references: [id], onDelete: SetNull)
+  defaiteLe      DateTime?
+  creeLe         DateTime        @default(now())
+
+  @@index([proprietaireId, creeLe])
+  @@index([projectId, creeLe])
+  @@index([empreinte])
+  @@index([passageId])
+  @@map("agent_actions")
 }

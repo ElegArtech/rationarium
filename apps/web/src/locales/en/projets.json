@@ -16,7 +16,8 @@
     "taches": "Tasks",
     "jalons": "Milestones",
     "equipe": "Team",
-    "gantt": "Gantt"
+    "gantt": "Gantt",
+    "suivi": "Follow-up"
   },
   "portefeuille": {
     "surtitre": "Portfolio",

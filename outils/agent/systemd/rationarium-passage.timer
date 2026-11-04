@@ -1,0 +1,23 @@
+# Rationarium — planification du passage de secours (unité utilisateur d'exemple).
+#
+# Un passage les jours ouvrés à 7 h 30. Persistent=true rattrape le passage
+# manqué quand le poste était éteint : il part au démarrage suivant.
+#
+# Installation :
+#   cp rationarium-passage.service rationarium-passage.timer ~/.config/systemd/user/
+#   systemctl --user daemon-reload
+#   systemctl --user enable --now rationarium-passage.timer
+#   systemctl --user list-timers rationarium-passage.timer
+
+[Unit]
+Description=Rationarium : passage de secours, les jours ouvrés à 7 h 30
+Documentation=file://%h/.local/share/rationarium-agent/README.md
+
+[Timer]
+OnCalendar=Mon..Fri *-*-* 07:30:00
+Persistent=true
+AccuracySec=1min
+Unit=rationarium-passage.service
+
+[Install]
+WantedBy=timers.target

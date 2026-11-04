@@ -8,6 +8,7 @@ import rateLimit from "@fastify/rate-limit";
 import { AppModule } from "./app.module.js";
 import { LIMITE_CORPS_DEFAUT, poserLimitesDeCorps } from "./commun/limites-corps.js";
 import { secretDesCookies } from "./commun/secret-cookie.js";
+import { ENTETE_TICKET_INTERNE, identiteDuTicket } from "./commun/acces-agent.js";
 
 /**
  * Point d'entrée du serveur — NestJS sur adaptateur Fastify.
@@ -38,6 +39,13 @@ export async function creerApplication(): Promise<NestFastifyApplication> {
   await app.register(fastifyCookie as never, { secret: secretDesCookies() });
   await app.register(rateLimit as never, {
     max: 300,
+    /*
+     * M22 — un appel interne de l'assistant rejoue une route au nom du
+     * propriétaire d'un jeton. Il a déjà été compté à l'entrée du guichet ; le
+     * recompter imputerait un lot de cinquante actions à l'adresse locale.
+     */
+    allowList: (requete: { headers: Record<string, string | string[] | undefined> }) =>
+      identiteDuTicket(requete.headers[ENTETE_TICKET_INTERNE]) !== null,
     timeWindow: "1 minute",
     /*
      * Le refus traverse le filtre global (`commun/http.ts`) : l'erreur par

@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Param, Patch, Post, Put, Query, Req, UseInterceptors } from "@nestjs/common";
 import type { FastifyRequest } from "fastify";
 import { z } from "zod";
+import { PREFIXE_REGLAGES_ASSISTANT } from "@rationarium/contracts";
 import { CalendrierService } from "./calendrier.service.js";
 import { AuthService } from "../auth/auth.service.js";
 import { Demande, Public, RequiertPermission, type ContexteDemande } from "../commun/permissions.garde.js";
@@ -40,7 +41,11 @@ export class ParametrageController {
   @Get()
   @Public()
   async reglages(@Req() requete: FastifyRequest) {
-    const reglages = await this.calendrier.reglages();
+    // M22 — les réglages de l'assistant ne sont jamais publics : ils ont leur
+    // propre route, gardée par `assistant:configure`.
+    const reglages = Object.fromEntries(
+      Object.entries(await this.calendrier.reglages()).filter(([cle]) => !cle.startsWith(PREFIXE_REGLAGES_ASSISTANT)),
+    );
     const jeton = requete.cookies?.["rationarium_session"];
     if (jeton && (await this.auth.resoudreSession(jeton))) return reglages;
     return Object.fromEntries(Object.entries(reglages).filter(([cle]) => !cle.startsWith("auth.")));
@@ -57,7 +62,14 @@ export class ParametrageController {
   @RequiertPermission("settings:update")
   enregistrer(@Body() corps: unknown, @Demande() d: ContexteDemande) {
     const { reglages } = valider(
-      z.object({ reglages: z.record(z.string(), z.string()) }),
+      z.object({
+        reglages: z
+          .record(z.string(), z.string())
+          // M22 — les réglages de l'assistant passent par `PUT /assistant/reglages`, qui les valide.
+          .refine((r) => Object.keys(r).every((cle) => !cle.startsWith(PREFIXE_REGLAGES_ASSISTANT)), {
+            message: "les réglages de l'assistant se modifient depuis l'onglet Assistant",
+          }),
+      }),
       corps,
     );
     return this.calendrier.enregistrerReglages(reglages, d.userId);
