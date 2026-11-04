@@ -30,10 +30,10 @@
     "db:purge-volumetrie": "node dist/purge-volumetrie-cli.js"
   },
   "dependencies": {
-    "@prisma/adapter-pg": "^7.10.0",
-    "@prisma/client": "7.10.0",
+    "@prisma/adapter-pg": "^7.10.1",
+    "@prisma/client": "7.10.1",
     "@rationarium/contracts": "workspace:*",
-    "prisma": "7.10.0"
+    "prisma": "7.10.1"
   },
   "devDependencies": {
     "@testcontainers/postgresql": "12.2.0",
