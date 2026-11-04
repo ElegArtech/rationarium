@@ -79,6 +79,7 @@ agent est joignable, c'est-à-dire s'il a donné signe de vie depuis moins d'une
 | EX-AST-07 | Défaire une action de l'agent |
 | EX-AST-08 | Être notifié de la fin d'un passage : actions effectuées, actions refusées, points ouverts |
 | EX-AST-09 | Consulter l'historique des passages |
+| EX-AST-10 | Valider ou rejeter une création de projet proposée par l'agent |
 
 ### Règles de gestion
 
@@ -93,7 +94,8 @@ agent est joignable, c'est-à-dire s'il a donné signe de vie depuis moins d'une
 - **RG-AST-03** — Un jeton révoqué, expiré, ou dont le propriétaire est inactif, est refusé en 401.
   La révocation prend effet à la requête suivante.
 - **RG-AST-04** — Une action de l'agent est appliquée immédiatement par le service métier de
-  l'entité visée, avec l'identité du propriétaire du jeton. Un refus du service (droit, périmètre,
+  l'entité visée, avec l'identité du propriétaire du jeton, sauf la création de projet
+  (`RG-AST-21`). Un refus du service (droit, périmètre,
   règle métier) est rendu à l'agent avec le message métier, et rien n'est écrit.
 - **RG-AST-05** — Un jeton peut être limité à certains types d'action. Une action d'un type non
   autorisé est refusée en 403, et rien n'est écrit.
@@ -134,6 +136,14 @@ agent est joignable, c'est-à-dire s'il a donné signe de vie depuis moins d'une
 - **RG-AST-19** — Les extraits des preuves sont effacés après la durée de conservation
   `assistant.conservationJours`. La source, la référence et la date des preuves restent.
 - **RG-AST-20** — En mode `relais`, le serveur n'émet aucun appel réseau sortant pour le module.
+- **RG-AST-21** — La création d'un projet par l'agent, et elle seule, attend la validation du
+  propriétaire du jeton, quand le réglage `assistant.validationProjets` est actif (il l'est par
+  défaut). Rien n'est écrit avant la décision. Validée, la création passe par la route habituelle,
+  au nom de qui valide ; rejetée, elle n'écrit rien et n'est pas reproposée pendant 90 jours
+  (`RG-AST-12`).
+- **RG-AST-22** — Une action qui désigne par `@nom` une création de projet en attente attend avec
+  elle. À la validation, elle s'exécute après le projet, dans l'ordre de dépôt ; au rejet, elle est
+  rejetée avec lui. Une action dépendante ne se valide ni ne se rejette seule.
 
 ## 6. Droits
 
@@ -163,6 +173,7 @@ Un onglet « Assistant » s'ajoute au paramétrage. Il n'est visible qu'avec `as
 | `assistant.jalonObligatoire` | `true`, `false` | `true` |
 | `assistant.conservationJours` | Entier de 30 à 1 830 | `180` |
 | `assistant.actionsParPassage` | Entier de 1 à 1 000 | `500` |
+| `assistant.validationProjets` | `true`, `false` (`RG-AST-21`) | `true` |
 
 Aucune de ces clés n'est publique.
 
@@ -194,7 +205,7 @@ Les vocabulaires suivants sont définis une seule fois, dans `@rationarium/contr
 **État d'un passage** — `en_attente` · `prise` · `en_cours` · `terminee` · `echec` · `interrompue`
 · `annulee`
 
-**État d'une action** — `effectuee` · `refusee` · `defaite`
+**État d'une action** — `effectuee` · `refusee` · `defaite` · `a_valider` · `rejetee`
 
 **Type de source** — `courriel` · `depot` · `dossier` · `canal` · `flux` · `page` · `autre`.
 Une source porte un type, une désignation (requête, nom de dépôt, chemin, adresse) et un libellé.
@@ -269,6 +280,18 @@ figure dans le bilan et dans la notification de fin, et n'écrit rien.
   comme un import (`RG-IMP-04`).
 - La fiche d'un projet montre, dans l'onglet « Suivi », les dernières actions de l'agent sur ce
   projet.
+
+### Valider une création de projet (1.1.1)
+
+Une création de projet proposée par l'agent apparaît dans la section « À valider » de l'écran
+Activité de l'agent, avec ses actions dépendantes. `POST /assistant/actions/:id/valider` crée le
+projet, puis exécute ses dépendantes dans l'ordre ; `POST /assistant/actions/:id/rejeter` les rejette
+toutes, sans rien écrire. `GET /assistant/etat` donne le nombre de créations en attente, et la
+notification de fin de passage le rappelle.
+
+Décision du 4 novembre 2026 : des alertes de service et des quittances avaient été prises pour des
+affaires. La création d'un projet est le seul geste qui fait entrer une affaire dans le suivi ;
+c'est là qu'une erreur coûte le plus.
 
 ## 12. Traitements planifiés
 

@@ -121,6 +121,13 @@ Chaque fait daté et attesté devient une action. Les correspondances sont les s
 | Un rendez-vous daté | `evenement_creer` avec `titre`, `date`, `heureDebut` et `heureFin` ou `journeeEntiere`, et `projectId` |
 | Du temps passé, attesté | `temps_saisir`, après lecture des temps déjà déclarés |
 | Une affaire nouvelle | `projet_creer`, daté de sa première preuve, avec son plan de suivi |
+
+Une création de projet n'est pas écrite tout de suite : elle attend la validation du
+propriétaire (résultat `a_valider`), avec les jalons et les tâches qui la désignent par `@nom`.
+C'est normal ; ne la reproposez pas. Une création rejetée n'est pas reproposée pendant 90 jours.
+N'ouvrez un projet que pour un engagement réel, avec un interlocuteur, un livrable ou une
+échéance : jamais pour une alerte, une notification, un relevé ou une démarche de routine.
+
 | Un silence au-delà de `suivi.silenceJours` | `commentaire_ajouter` sur le projet, ou un point ouvert |
 | Une source du plan a changé d'adresse | `suivi_modifier` avec `projectId` et la source corrigée |
 

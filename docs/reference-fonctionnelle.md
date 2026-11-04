@@ -108,7 +108,7 @@ Au-delà des permissions, un **périmètre** limite ce qu'un utilisateur voit.
 **Mode de l'assistant** — Désactivé · Agent sur un poste
 **Déclenchement d'un passage** — Planifié · Manuel
 **État d'un passage** — En attente du poste · Pris en charge · En cours · Terminé · En échec · Interrompu · Annulé
-**État d'une action de l'agent** — Effectuée · Refusée · Défaite
+**État d'une action de l'agent** — Effectuée · Refusée · Défaite · À valider · Rejetée
 **Type de source de suivi** — Courriel · Dépôt de code · Dossier · Canal de messagerie · Flux · Page · Autre
 
 ---
@@ -864,6 +864,7 @@ module est facultatif et désactivé par défaut. La spécification détaillée 
 | EX-AST-07 | Défaire une action de l'agent |
 | EX-AST-08 | Être notifié de la fin d'un passage : actions effectuées, actions refusées, points ouverts |
 | EX-AST-09 | Consulter l'historique des passages |
+| EX-AST-10 | Valider ou rejeter une création de projet proposée par l'agent |
 
 #### Règles de gestion
 
@@ -878,7 +879,8 @@ module est facultatif et désactivé par défaut. La spécification détaillée 
 - **RG-AST-03** — Un jeton révoqué, expiré, ou dont le propriétaire est inactif, est refusé en 401.
   La révocation prend effet à la requête suivante.
 - **RG-AST-04** — Une action de l'agent est appliquée immédiatement par le service métier de
-  l'entité visée, avec l'identité du propriétaire du jeton. Un refus du service (droit, périmètre,
+  l'entité visée, avec l'identité du propriétaire du jeton, sauf la création de projet
+  (`RG-AST-21`). Un refus du service (droit, périmètre,
   règle métier) est rendu à l'agent avec le message métier, et rien n'est écrit.
 - **RG-AST-05** — Un jeton peut être limité à certains types d'action. Une action d'un type non
   autorisé est refusée en 403, et rien n'est écrit.
@@ -919,6 +921,14 @@ module est facultatif et désactivé par défaut. La spécification détaillée 
 - **RG-AST-19** — Les extraits des preuves sont effacés après la durée de conservation
   `assistant.conservationJours`. La source, la référence et la date des preuves restent.
 - **RG-AST-20** — En mode `relais`, le serveur n'émet aucun appel réseau sortant pour le module.
+- **RG-AST-21** — La création d'un projet par l'agent, et elle seule, attend la validation du
+  propriétaire du jeton, quand le réglage `assistant.validationProjets` est actif (il l'est par
+  défaut). Rien n'est écrit avant la décision. Validée, la création passe par la route habituelle,
+  au nom de qui valide ; rejetée, elle n'écrit rien et n'est pas reproposée pendant 90 jours
+  (`RG-AST-12`).
+- **RG-AST-22** — Une action qui désigne par `@nom` une création de projet en attente attend avec
+  elle. À la validation, elle s'exécute après le projet, dans l'ordre de dépôt ; au rejet, elle est
+  rejetée avec lui. Une action dépendante ne se valide ni ne se rejette seule.
 
 ---
 

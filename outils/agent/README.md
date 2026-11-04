@@ -262,6 +262,9 @@ rationarium-relais --une-fois             # ou : l'exécuter tout de suite, sans
 
 | Symptôme | Cause probable | Remède |
 | --- | --- | --- |
+| Le relais sort aussitôt en code 127 sous systemd | `node` vient de nvm et n'est pas dans le `PATH` de l'unité | Ajouter une surcharge `~/.config/systemd/user/rationarium-relais.service.d/chemin.conf` avec `[Service]` et `Environment=PATH=%h/.local/bin:<dossier de node>:/usr/local/bin:/usr/bin:/bin` (le dossier se lit par `dirname "$(command -v node)"`) |
+| Le passage échoue en une seconde : « Temp directory /tmp/claude-… is owned by uid 0 » | Le dossier temporaire de Claude Code appartient à un autre compte | Ajouter `export CLAUDE_CODE_TMPDIR=<dossier à soi> &&` en tête de `RATIONARIUM_COMMANDE`, puis redémarrer le relais |
+| Une modification de `agent.env` reste sans effet | Le relais lit sa configuration au démarrage | `systemctl --user restart rationarium-relais.service` |
 | `etat` sort en code 3, « refus HTTP 401 » | Jeton révoqué, expiré, mal copié, ou propriétaire inactif | Créer un nouveau jeton, puis le ranger de nouveau par `secret-tool store` |
 | Code 3, « refus HTTP 404 » et `erreurs:introuvable` | Module désactivé, ou adresse erronée | Activer le mode `relais` ; vérifier `RATIONARIUM_URL` |
 | Code 3, « refus HTTP 403 » | Le propriétaire n'a plus `assistant:use` | Rétablir le droit du compte |

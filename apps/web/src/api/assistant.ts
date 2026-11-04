@@ -22,8 +22,20 @@ import { appeler } from "./client.js";
  * qui décide si l'entrée de navigation et l'onglet « Suivi » existent.
  */
 
-/** Ce que l'agent a écrit dans un passage, tel que l'historique le décompte. */
-export type DecompteActions = { effectuees: number; refusees: number; defaites: number };
+/**
+ * Ce que l'agent a écrit dans un passage, tel que l'historique le décompte.
+ *
+ * `aValider` et `rejetees` comptent TOUTES les actions dans cet état, les
+ * dépendantes d'une création de projet comprises (`RG-AST-22`) : c'est un
+ * décompte d'actions, pas de projets.
+ */
+export type DecompteActions = {
+  effectuees: number;
+  refusees: number;
+  defaites: number;
+  aValider: number;
+  rejetees: number;
+};
 
 export type Passage = {
   id: string;
@@ -54,6 +66,8 @@ export type EtatAssistant = {
   agent: { joignable: boolean; dernierContact: string | null };
   jetonsValides: number;
   dernierPassage: Passage | null;
+  /** `RG-AST-21` — les créations de projet qui attendent leur propriétaire (racines seules). */
+  aValider: number;
 };
 
 export type EtatJeton = "valide" | "expire" | "revoque";
@@ -127,7 +141,29 @@ export type ActionAgent = {
   defaiteLe: string | null;
   /** Le nom de qui a défait, déjà composé par le serveur. */
   defaitePar: string | null;
+  /**
+   * `RG-AST-22` — l'action-projet en attente dont celle-ci dépend : elle désigne
+   * le futur projet par `@reference` et attend avec lui. Nul pour toute autre.
+   */
+  dependDeId: string | null;
+  /** `RG-AST-21` — qui a validé ou rejeté, nom déjà composé par le serveur. */
+  decidePar: string | null;
+  decideLe: string | null;
   creeLe: string;
+};
+
+/** Ce que devient une action à la validation de la création dont elle dépend. */
+export type ResultatDecision = {
+  actionId: string;
+  etat: EtatActionAgent;
+  cibleId: string | null;
+  motif: MotifRefus | null;
+};
+
+/** `POST /assistant/actions/:id/valider` — le projet, puis ses dépendantes dans leur ordre. */
+export type CompteRenduValidation = {
+  projet: ResultatDecision;
+  dependantes: ResultatDecision[];
 };
 
 export type CompteRenduDefaire = {
@@ -222,4 +258,18 @@ export const defaireAction = (id: string) =>
   appeler<{ actionId: string; etat: "defaite" }>(`/assistant/actions/${id}/defaire`, {
     methode: "POST",
     corps: {},
+  });
+
+/**
+ * `RG-AST-21` — valider une création de projet de l'agent : le projet est créé
+ * avec l'identité de qui valide, puis ses actions dépendantes (`RG-AST-22`).
+ */
+export const valider = (id: string) =>
+  appeler<CompteRenduValidation>(`/assistant/actions/${id}/valider`, { methode: "POST", corps: {} });
+
+/** Rejeter une création de projet : rien n'est écrit, dépendantes comprises. */
+export const rejeter = (id: string, motif?: string) =>
+  appeler<{ actionId: string; rejetees: number }>(`/assistant/actions/${id}/rejeter`, {
+    methode: "POST",
+    corps: motif && motif.trim() !== "" ? { motif: motif.trim() } : {},
   });

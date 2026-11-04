@@ -15,8 +15,10 @@ import { formaterDate, formaterNombre } from "../../formats.js";
 import { lienSur } from "./difference.js";
 import { EnTeteAssistant, IlYA, ModuleDesactive, PastilleEtatPassage, useMaintenant } from "./elements.js";
 import { horodatage, minutesEntre } from "./formes.js";
+import { SectionAValider } from "./AValider.js";
 import { LigneAction, groupesParProjet } from "./LigneAction.js";
 import { etatActif, moduleDesactive, optionsEtatAssistant, temoinAgent } from "./module.js";
+import { creationsEnAttente, horsValidation } from "./validation.js";
 import "../../composants/partages.css";
 import "../projets/fiche.css";
 import "./assistant.css";
@@ -24,10 +26,16 @@ import "./assistant.css";
 /**
  * Activité de l'agent — `docs/assistant/SPEC-PHASE-1.md § 4, § 11, § 13`.
  *
- * **L'agent agit, l'écran rend compte.** Il n'y a rien à valider ici : l'agent
- * a déjà écrit, avec les droits de son propriétaire. L'écran dit s'il est
- * joignable, ce qu'il a fait au dernier passage, ce qu'il n'a pas pu trancher,
- * et permet de défaire une action ou un passage entier.
+ * **L'agent agit, l'écran rend compte.** L'agent a déjà écrit, avec les droits
+ * de son propriétaire. L'écran dit s'il est joignable, ce qu'il a fait au
+ * dernier passage, ce qu'il n'a pas pu trancher, et permet de défaire une
+ * action ou un passage entier.
+ *
+ * **Une seule exception : la création d'un projet** (`RG-AST-21`). Elle attend
+ * la validation de l'utilisateur, avec les actions qui désignent ce futur
+ * projet (`RG-AST-22`). Ces attentes vivent dans la section « À valider », en
+ * tête, quel que soit le passage montré : une décision en suspens ne se cache
+ * pas derrière un filtre.
  *
  * `?passage=<id>` — le lien des notifications de fin de passage (`EX-AST-08`)
  * — restreint l'écran à ce passage.
@@ -37,6 +45,8 @@ import "./assistant.css";
 const RAFRAICHISSEMENT_MS = 15_000;
 const PAS_ACTIONS = 100;
 const MAX_ACTIONS = 500;
+/** Le plafond de `GET /assistant/actions` : les attentes se lisent toutes, d'un coup. */
+const MAX_A_VALIDER = 500;
 
 const estActif = (p: api.Passage | null | undefined): boolean =>
   Boolean(p && (ETATS_PASSAGE_ACTIFS as readonly string[]).includes(p.etat));
@@ -76,6 +86,19 @@ export function ActiviteAgent({ passageId }: { passageId?: string | undefined })
     refetchInterval: actif ? RAFRAICHISSEMENT_MS : false,
   });
 
+  /*
+   * `RG-AST-21` — les créations de projet en attente, et leurs dépendantes :
+   * toutes, sans filtre de passage. Lues seulement quand la sonde en annonce,
+   * et relues avec elle — la clé commence par `["assistant"]`, qu'une décision
+   * invalide.
+   */
+  const attendues = lu?.aValider ?? 0;
+  const enAttente = useQuery({
+    queryKey: ["assistant", "actions", { etat: "a_valider", limite: MAX_A_VALIDER }],
+    queryFn: () => api.actions({ etat: "a_valider", limite: MAX_A_VALIDER }),
+    enabled: disponible && attendues > 0,
+  });
+
   const rafraichir = () => client.invalidateQueries({ queryKey: ["assistant"] });
 
   const lancement = useMutation({
@@ -107,6 +130,10 @@ export function ActiviteAgent({ passageId }: { passageId?: string | undefined })
   const passageActif = estActif(e.dernierPassage) ? e.dernierPassage : null;
   const liste = actions.data ?? [];
   const sansAgent = e.jetonsValides === 0;
+  /* Une sonde à zéro l'emporte sur une liste encore en cache : la dernière
+     décision vient d'être prise, la liste sera relue au besoin. */
+  const creations = e.aValider > 0 ? creationsEnAttente(enAttente.data ?? []) : [];
+  const visibles = horsValidation(liste, creations);
 
   return (
     <>
@@ -141,6 +168,12 @@ export function ActiviteAgent({ passageId }: { passageId?: string | undefined })
       {passageId && selection.isError ? (
         <ErreurDeChargement erreur={selection.error} surReessai={() => void selection.refetch()} />
       ) : null}
+      {e.aValider > 0 && enAttente.isPending ? <Chargement quoi={t("validation.lesAttentes")} /> : null}
+      {e.aValider > 0 && enAttente.isError ? (
+        <ErreurDeChargement erreur={enAttente.error} surReessai={() => void enAttente.refetch()} />
+      ) : null}
+      <SectionAValider creations={creations} />
+
       {passageMontre ? (
         <PanneauPassage passage={passageMontre} selectionne={Boolean(passageId)} maintenant={maintenant} />
       ) : null}
@@ -161,6 +194,10 @@ export function ActiviteAgent({ passageId }: { passageId?: string | undefined })
       {actions.isPending ? <Chargement quoi={t("activite.lesActions")} /> : null}
       {actions.isError ? (
         <ErreurDeChargement erreur={actions.error} surReessai={() => void actions.refetch()} />
+      ) : null}
+
+      {actions.data && liste.length > 0 && visibles.length === 0 ? (
+        <p className="field-hint ag-espace">{t("validation.rienDAutre")}</p>
       ) : null}
 
       {actions.data && liste.length === 0 ? (
@@ -196,7 +233,7 @@ export function ActiviteAgent({ passageId }: { passageId?: string | undefined })
         </section>
       ) : null}
 
-      {groupesParProjet(liste).map((g) => (
+      {groupesParProjet(visibles).map((g) => (
         <section className="panel ag-groupe" key={g.projectId ?? "hors-projet"}>
           <div className="panel-head">
             {g.projectId ? (
@@ -273,6 +310,13 @@ function TemoinEtPlan({ etat, maintenant }: { etat: api.EtatAssistant; maintenan
           {etat.planification ? t("activite.planificationAide") : t("activite.sansPlanificationAide")}
         </span>
       </div>
+      {etat.aValider > 0 ? (
+        <div className="kpi">
+          <span className="eyebrow">{t("validation.tuile")}</span>
+          <p className="kpi-val">{etat.aValider}</p>
+          <span className="kpi-sub">{t("validation.tuileAide", { n: etat.aValider })}</span>
+        </div>
+      ) : null}
       <div className="kpi">
         <span className="eyebrow">{t("activite.dernierPassage")}</span>
         {etat.dernierPassage ? (
@@ -393,6 +437,8 @@ function PanneauPassage({
                   effectuees: passage.actions.effectuees,
                   refusees: passage.actions.refusees,
                   defaites: passage.actions.defaites,
+                  aValider: passage.actions.aValider,
+                  rejetees: passage.actions.rejetees,
                 })}
               </dd>
             </>

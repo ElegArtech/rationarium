@@ -11,7 +11,9 @@ import en from "../../locales/en/assistant.json";
  * Le contrôle compile chaque phrase avec le vrai moteur ICU et des valeurs de
  * la bonne nature — un nombre pour un pluriel, une chaîne pour le reste.
  */
-const NUMERIQUES = new Set(["n", "effectuees", "refusees", "defaites", "restees", "signaux", "h", "m", "jours", "max"]);
+const NUMERIQUES = new Set([
+  "n", "effectuees", "refusees", "defaites", "restees", "signaux", "h", "m", "jours", "max", "aValider", "rejetees",
+]);
 
 const aplatir = (o: Record<string, unknown>, prefixe = ""): [string, string][] =>
   Object.entries(o).flatMap(([k, v]) =>
@@ -47,7 +49,7 @@ describe("RG-GEN-08 — le catalogue du module se compose", () => {
     });
   }
 
-  it("les vingt et une clés d'erreur du serveur ont leur phrase", () => {
+  it("les vingt-quatre clés d'erreur du serveur ont leur phrase", () => {
     // `apps/api/src/assistant/` — `refusAssistant(…, "<clé>", …)`, préfixées
     // `assistant:erreurs.` par le serveur. Une clé absente retomberait sur la
     // phrase française du serveur, en session anglaise comprise.
@@ -57,8 +59,10 @@ describe("RG-GEN-08 — le catalogue du module se compose", () => {
       "modifieeDepuis", "defaireRefuse", "plafondActions", "actionInvalide", "typeNonAutorise",
       "referenceEnDouble", "referenceInconnue", "actionDefaite", "jalonObligatoire", "debutNonAtteste",
       "cibleIntrouvable",
+      // `RG-AST-21`, `RG-AST-22` — valider et rejeter une création de projet.
+      "actionNonValidable", "projetNonCree", "rejeteeParProprietaire",
     ];
-    expect(cles).toHaveLength(21);
+    expect(cles).toHaveLength(24);
     for (const cle of cles) {
       expect(fr.erreurs[cle as keyof typeof fr.erreurs], `fr ${cle}`).toBeTruthy();
       expect(en.erreurs[cle as keyof typeof en.erreurs], `en ${cle}`).toBeTruthy();
@@ -69,5 +73,14 @@ describe("RG-GEN-08 — le catalogue du module se compose", () => {
     const zero = (phrase: string, langue: string) => String(new IntlMessageFormat(phrase, langue).format({ n: 0 }));
     expect(zero(fr.activite.nombreActions, "fr")).toBe("0 action");
     expect(zero(en.activite.nombreActions, "en")).toBe("0 actions");
+  });
+
+  it("RG-AST-21 — un décompte à zéro attente ou zéro rejet ne laisse ni virgule ni mot", () => {
+    const decompte = (phrase: string, langue: string, aValider: number, rejetees: number) =>
+      String(new IntlMessageFormat(phrase, langue).format({ effectuees: 3, refusees: 1, defaites: 0, aValider, rejetees }));
+    expect(decompte(fr.passage.decompte, "fr", 0, 0)).toBe("3 effectuées, 1 refusée, 0 défaite");
+    expect(decompte(fr.passage.decompte, "fr", 2, 1)).toBe("3 effectuées, 1 refusée, 0 défaite, 2 à valider, 1 rejetée");
+    expect(decompte(en.passage.decompte, "en", 0, 0)).toBe("3 done, 1 refused, 0 undone");
+    expect(decompte(en.passage.decompte, "en", 1, 2)).toBe("3 done, 1 refused, 0 undone, 1 awaiting approval, 2 rejected");
   });
 });

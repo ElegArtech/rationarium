@@ -157,6 +157,8 @@ enum EtatActionAgent {
   effectuee
   refusee
   defaite
+  a_valider
+  rejetee
 }
 
 // ── Structure organisationnelle — M2 ───────────────────────────────────────
@@ -278,6 +280,7 @@ model User {
   passagesDemandes     AgentPassage[] @relation("PassageDemandeur")
   actionsAgent         AgentAction[]  @relation("ActionProprietaire")
   actionsDefaites      AgentAction[]  @relation("ActionDefaitePar")
+  actionsDecidees      AgentAction[]  @relation("ActionDecidePar")
 
   version    Int      @default(1)
   creeLe     DateTime @default(now())
@@ -1304,11 +1307,21 @@ model AgentAction {
   defaiteParId   String?         @db.Uuid
   defaitePar     User?           @relation("ActionDefaitePar", fields: [defaiteParId], references: [id], onDelete: SetNull)
   defaiteLe      DateTime?
+  /// RG-AST-22 — l'action en attente dont celle-ci dépend (un jalon d'un projet à valider).
+  dependDeId     String?         @db.Uuid
+  dependDe       AgentAction?    @relation("ActionDependance", fields: [dependDeId], references: [id], onDelete: Cascade)
+  dependantes    AgentAction[]   @relation("ActionDependance")
+  /// RG-AST-21 — qui a validé ou rejeté une création de projet, et quand.
+  decideParId    String?         @db.Uuid
+  decidePar      User?           @relation("ActionDecidePar", fields: [decideParId], references: [id], onDelete: SetNull)
+  decideLe       DateTime?
   creeLe         DateTime        @default(now())
 
   @@index([proprietaireId, creeLe])
   @@index([projectId, creeLe])
   @@index([empreinte])
   @@index([passageId])
+  @@index([proprietaireId, etat])
+  @@index([dependDeId])
   @@map("agent_actions")
 }

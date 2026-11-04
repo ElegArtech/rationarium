@@ -226,7 +226,10 @@ export class ProjetsController {
       z.object({
         nom: z.string().min(1).max(160),
         description: z.string().max(5000).optional(),
-        dateEcheance: dateSchema,
+        // Facultative : un jalon dont l'événement n'est pas encore programmé n'a
+        // pas de date (`20260816160000_jalon_sans_date`). Le service l'admettait ;
+        // la route l'exigeait seule.
+        dateEcheance: dateSchema.optional(),
       }),
       corps,
     );

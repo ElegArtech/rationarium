@@ -4,7 +4,8 @@
     "replier": "Replier la barre latérale",
     "deplier": "Déplier la barre latérale",
     "principale": "Navigation principale",
-    "allerAuContenu": "Aller au contenu principal"
+    "allerAuContenu": "Aller au contenu principal",
+    "attentes": "{n, plural, one {# projet à valider} other {# projets à valider}}"
   },
   "groupes": {
     "pilotage": "Pilotage",
@@ -75,7 +76,7 @@
     "corps_tache_en_retard": "La tâche « {tache} » a dépassé son échéance du {date}.",
     "type_assistant_passage": "Passage de l'agent de suivi",
     "type_assistant_passage_echec": "Passage de l'agent en échec",
-    "corps_assistant_passage": "L'agent a terminé son passage : {effectuees, plural, one {# action effectuée} other {# actions effectuées}}, {refusees, plural, one {# refusée} other {# refusées}}, {pointsOuverts, plural, one {# point ouvert} other {# points ouverts}}.",
+    "corps_assistant_passage": "L'agent a terminé son passage : {effectuees, plural, one {# action effectuée} other {# actions effectuées}}, {refusees, plural, one {# refusée} other {# refusées}}, {pointsOuverts, plural, one {# point ouvert} other {# points ouverts}}{aValider, plural, =0 {} one {, # projet à valider} other {, # projets à valider}}.",
     "corps_assistant_passage_echec": "Le passage de l'agent a échoué.",
     "corps_assistant_passage_echec_erreur": "Le passage de l'agent a échoué : {erreur}",
     "corps_assistant_passage_echec_interrompue": "Le passage de l'agent a été interrompu : l'agent ne donnait plus signe de vie."

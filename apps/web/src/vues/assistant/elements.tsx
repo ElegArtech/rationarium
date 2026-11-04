@@ -2,10 +2,13 @@ import { useEffect, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "@tanstack/react-router";
 import { ETATS_ACTION_AGENT, ETATS_PASSAGE, type EtatActionAgent, type EtatPassage } from "@rationarium/contracts";
+import type { PreuveAction } from "../../api/assistant.js";
 import { EtatVide } from "../../composants/etats.js";
 import { useLibelle } from "../../composants/pastilles.js";
 import { usePeut } from "../../session/session.js";
-import { ecartAuPresent } from "./formes.js";
+import { formaterDate } from "../../formats.js";
+import { lienSur } from "./difference.js";
+import { ecartAuPresent, horodatage } from "./formes.js";
 import "../../composants/partages.css";
 import "./assistant.css";
 
@@ -110,6 +113,9 @@ const JETON_ACTION: Record<EtatActionAgent, string> = {
   effectuee: "var(--st-done)",
   refusee: "var(--st-blocked)",
   defaite: "var(--muted)",
+  // `RG-AST-21` — l'attente d'une décision se lit comme une revue, le rejet s'éteint.
+  a_valider: "var(--st-review)",
+  rejetee: "var(--muted)",
 };
 
 const JETON_PASSAGE: Record<EtatPassage, string> = {
@@ -154,4 +160,42 @@ export function IlYA({ iso, maintenant }: { iso: string; maintenant: number }) {
     case "jours":
       return <>{t("temps.ilYAJours", { n })}</>;
   }
+}
+
+/**
+ * Les preuves d'une action, cliquables — `RG-AST-07`, `§ 11`.
+ *
+ * **Un lien ne mène qu'à une adresse sûre** (`lienSur` : `http`, `https`,
+ * `mailto`). Le reste s'affiche en texte : l'information demeure, le geste
+ * non. La ligne d'action et la section « À valider » partagent ce rendu : une
+ * preuve ne doit pas devenir cliquable sur un écran et rester inerte sur
+ * l'autre.
+ */
+export function ListePreuves({ preuves, id }: { preuves: PreuveAction[]; id?: string }) {
+  const { t } = useTranslation("assistant");
+  return (
+    <ul className="ag-preuves" id={id}>
+      {preuves.map((p, i) => {
+        const lien = lienSur(p.lien);
+        return (
+          <li key={`${p.reference}-${i}`} className="ag-preuve">
+            <span className="ag-preuve-head">
+              <span className="pill pill-muted">{p.source}</span>
+              <span className="ag-ref">{p.reference}</span>
+              <span className="ag-act-when">{p.date.length > 10 ? horodatage(p.date) : formaterDate(p.date)}</span>
+            </span>
+            {lien ? (
+              <a className="link-sm" href={lien} target="_blank" rel="noopener noreferrer">
+                {t("actions.ouvrirPreuve")}
+                <span className="sr-only"> {t("actions.nouvelOnglet")}</span>
+              </a>
+            ) : p.lien ? (
+              <span className="ag-ref">{p.lien}</span>
+            ) : null}
+            {p.extrait ? <blockquote className="ag-extrait">{p.extrait}</blockquote> : null}
+          </li>
+        );
+      })}
+    </ul>
+  );
 }

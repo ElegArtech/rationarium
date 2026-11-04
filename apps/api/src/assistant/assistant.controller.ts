@@ -7,6 +7,7 @@ import {
   nouveauJetonSchema,
   nouveauPassageSchema,
   planSuiviSchema,
+  rejetActionSchema,
   reglagesAssistantSchema,
 } from "@rationarium/contracts";
 import { Demande, RequiertPermission, type ContexteDemande } from "../commun/permissions.garde.js";
@@ -72,10 +73,11 @@ export class AssistantController {
   async etat(@Demande() d: ContexteDemande) {
     const reglages = await this.reglages.lire();
     if (reglages.mode === "desactive") return { actif: false as const, mode: reglages.mode };
-    const [agent, jetons, passages] = await Promise.all([
+    const [agent, jetons, passages, aValider] = await Promise.all([
       this.jetons.agentJoignable(d.userId),
       this.jetons.lister(d.userId),
       this.passages.lister(d.userId, { limite: 1 }),
+      this.passages.creationsAValider(d.userId),
     ]);
     return {
       actif: true as const,
@@ -83,6 +85,7 @@ export class AssistantController {
       planification: reglages.planification,
       agent,
       jetonsValides: jetons.filter((j) => j.etat === "valide").length,
+      aValider,
       dernierPassage: passages[0] ?? null,
     };
   }
@@ -187,6 +190,24 @@ export class AssistantController {
       requete,
     );
     return this.actions.lister(d.userId, { ...q, limite: q.limite ?? 100 });
+  }
+
+  /** `EX-AST-10`, `RG-AST-21` — valider une création de projet de l'agent. */
+  @Post("actions/:id/valider")
+  @RequiertPermission("assistant:use")
+  async validerAction(@Param("id") id: string, @Demande() d: ContexteDemande) {
+    const reglages = await this.reglages.exigerActif();
+    return this.actions.valider(id, d.userId, reglages);
+  }
+
+  /** `EX-AST-10` — rejeter une création de projet : rien n'est écrit. */
+  @Post("actions/:id/rejeter")
+  @RequiertPermission("assistant:use")
+  async rejeterAction(@Param("id") id: string, @Body() corps: unknown, @Demande() d: ContexteDemande) {
+    await this.reglages.exigerActif();
+    // Un corps vide vaut « sans motif ».
+    const motif = valider(rejetActionSchema.optional(), corps)?.motif;
+    return this.actions.rejeter(id, d.userId, motif);
   }
 
   @Post("actions/:id/defaire")

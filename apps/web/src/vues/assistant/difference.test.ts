@@ -167,6 +167,9 @@ const action = (modif: Partial<ActionAgent>): ActionAgent => ({
   motifRefus: null,
   defaiteLe: null,
   defaitePar: null,
+  dependDeId: null,
+  decidePar: null,
+  decideLe: null,
   creeLe: "2026-11-02T22:10:00.000Z",
   ...modif,
 });

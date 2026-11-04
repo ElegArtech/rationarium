@@ -206,11 +206,11 @@ describe("M22 — module désactivé", () => {
 describe("M22 — réglages et jetons", () => {
   it("EX-AST-01 — l'administrateur active le module ; un chef de projet ne le peut pas", async () => {
     const refuse = await session("PUT", "/assistant/reglages", cookieChef, {
-      mode: "relais", planification: "", jalonObligatoire: true, conservationJours: 180, actionsParPassage: 500,
+      mode: "relais", planification: "", jalonObligatoire: true, conservationJours: 180, actionsParPassage: 500, validationProjets: true,
     });
     expect(refuse.statusCode).toBe(403);
     const r = await session("PUT", "/assistant/reglages", cookieAdmin, {
-      mode: "relais", planification: "", jalonObligatoire: true, conservationJours: 180, actionsParPassage: 500,
+      mode: "relais", planification: "", jalonObligatoire: true, conservationJours: 180, actionsParPassage: 500, validationProjets: true,
     });
     expect(r.statusCode, r.body).toBe(200);
     expect(r.json()).toMatchObject({ mode: "relais" });
@@ -366,11 +366,58 @@ describe("M22 — l'agent agit", () => {
         { preuves: [preuve("2026-08-14")], reference: "affaire" },
       ),
     ]);
-    expect(atteste).toMatchObject({ etat: "effectuee" });
-    const projet = await prisma.project.findUniqueOrThrow({ where: { id: atteste!.cibleId! }, include: { suivi: true } });
+    // RG-AST-21 — la création attend la validation ; une fois validée, le projet existe.
+    expect(atteste).toMatchObject({ etat: "a_valider" });
+    const validation = await session("POST", `/assistant/actions/${atteste!.actionId}/valider`, cookieChef);
+    expect(validation.statusCode, validation.body).toBe(201);
+    const cree = (validation.json() as { projet: { cibleId: string } }).projet.cibleId;
+    const projet = await prisma.project.findUniqueOrThrow({ where: { id: cree }, include: { suivi: true } });
     expect(projet.dateDebut.toISOString().slice(0, 10)).toBe("2026-08-14");
     expect(projet.chefId).toBe(chefId);
     expect(projet.suivi?.sources).toEqual([{ type: "depot", designation: "exemple/affaire" }]);
+  });
+
+  it("RG-AST-21, RG-AST-22, EX-AST-10 — un projet proposé attend sa validation, avec ses actions dépendantes", async () => {
+    const [projet, jalon, tache] = await agir(passage, [
+      action("projet_creer", { nom: "Affaire à valider", dateDebut: "2026-10-01", dateFin: "2027-01-31", statut: "active" },
+        { preuves: [preuve("2026-10-01")], reference: "avalider" }),
+      action("jalon_creer", { projectId: "@avalider", nom: "Première échéance", dateEcheance: "2026-12-01" }, { reference: "echeance" }),
+      action("tache_creer", { projectId: "@avalider", milestoneId: "@echeance", titre: "Premier travail" }),
+    ]);
+    expect([projet!.etat, jalon!.etat, tache!.etat]).toEqual(["a_valider", "a_valider", "a_valider"]);
+    expect(await prisma.project.count({ where: { nom: "Affaire à valider" } })).toBe(0);
+    const etat = (await session("GET", "/assistant/etat", cookieChef)).json() as { aValider: number };
+    expect(etat.aValider).toBeGreaterThanOrEqual(1);
+
+    // Une dépendante ne se valide pas seule.
+    expect((await session("POST", `/assistant/actions/${jalon!.actionId}/valider`, cookieChef)).statusCode).toBe(409);
+
+    const r = await session("POST", `/assistant/actions/${projet!.actionId}/valider`, cookieChef);
+    expect(r.statusCode, r.body).toBe(201);
+    const corps = r.json() as { projet: { etat: string; cibleId: string }; dependantes: { etat: string }[] };
+    expect(corps.projet.etat).toBe("effectuee");
+    expect(corps.dependantes.map((d) => d.etat)).toEqual(["effectuee", "effectuee"]);
+    const creee = await prisma.task.findFirstOrThrow({ where: { titre: "Premier travail" }, include: { milestone: true } });
+    expect(creee.projectId).toBe(corps.projet.cibleId);
+    expect(creee.milestone?.nom).toBe("Première échéance");
+  });
+
+  it("RG-AST-21, RG-AST-12 — un projet rejeté n'écrit rien et n'est pas reproposé", async () => {
+    const proposition = action("projet_creer", { nom: "Alerte de sécurité", dateDebut: "2026-09-16", dateFin: "2026-12-31" },
+      { preuves: [preuve("2026-09-16")] });
+    const [r] = await agir(passage, [proposition]);
+    expect(r!.etat).toBe("a_valider");
+    const rejet = await session("POST", `/assistant/actions/${r!.actionId}/rejeter`, cookieChef, { motif: "Ce n'est pas une affaire." });
+    expect(rejet.statusCode, rejet.body).toBe(201);
+    expect(await prisma.project.count({ where: { nom: "Alerte de sécurité" } })).toBe(0);
+    const [encore] = await agir(passage, [proposition]);
+    expect(encore!.motif).toMatchObject({ regle: "RG-AST-12" });
+  });
+
+  it("jalon sans date — un jalon dont l'événement n'est pas programmé se crée sans échéance", async () => {
+    const [r] = await agir(passage, [action("jalon_creer", { projectId: projetChef, nom: "Troisième séance" })]);
+    expect(r, JSON.stringify(r)).toMatchObject({ etat: "effectuee" });
+    expect((await prisma.milestone.findUniqueOrThrow({ where: { id: r!.cibleId! } })).dateEcheance).toBeNull();
   });
 
   it("RG-AST-10 — une référence inconnue est refusée : rien ne se rapproche par libellé", async () => {
@@ -515,7 +562,7 @@ describe("M22 — bornes du jeton et traitements planifiés", () => {
   });
 
   it("EX-AST-05, RG-AST-16 — la planification crée un passage par propriétaire, et chaque traitement n'est planifié qu'une fois", async () => {
-    const reglages = { mode: "relais", planification: "0 7 * * 1-5", jalonObligatoire: true, conservationJours: 180, actionsParPassage: 500 };
+    const reglages = { mode: "relais", planification: "0 7 * * 1-5", jalonObligatoire: true, conservationJours: 180, actionsParPassage: 500, validationProjets: true };
     expect((await session("PUT", "/assistant/reglages", cookieAdmin, reglages)).statusCode).toBe(200);
     expect((await session("PUT", "/assistant/reglages", cookieAdmin, reglages)).statusCode).toBe(200);
     const planifies = await prisma.$queryRaw<{ name: string }[]>`SELECT name FROM pgboss.schedule WHERE name LIKE 'assistant.%' ORDER BY name`;
@@ -540,7 +587,7 @@ describe("M22 — bornes du jeton et traitements planifiés", () => {
 
   it("RG-AST-01 — désactivé à chaud, le module retire ses traitements et ferme le guichet", async () => {
     const r = await session("PUT", "/assistant/reglages", cookieAdmin, {
-      mode: "desactive", planification: "0 7 * * 1-5", jalonObligatoire: true, conservationJours: 180, actionsParPassage: 500,
+      mode: "desactive", planification: "0 7 * * 1-5", jalonObligatoire: true, conservationJours: 180, actionsParPassage: 500, validationProjets: true,
     });
     expect(r.statusCode).toBe(200);
     const planifies = await prisma.$queryRaw<{ name: string }[]>`SELECT name FROM pgboss.schedule WHERE name LIKE 'assistant.%'`;

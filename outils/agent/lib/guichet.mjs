@@ -444,7 +444,7 @@ export function decouperEnLots(actions, taille = ACTIONS_PAR_LOT, octetsMax = OC
  */
 export async function executerActions(guichet, passageId, actions, { surLot } = {}) {
   const lots = decouperEnLots(actions);
-  const bilan = { passageId, lots: lots.length, envoyees: actions.length, effectuees: 0, refusees: 0, resultats: [], interrompu: null };
+  const bilan = { passageId, lots: lots.length, envoyees: actions.length, effectuees: 0, refusees: 0, aValider: 0, resultats: [], interrompu: null };
   let decalage = 0;
   for (const [i, lot] of lots.entries()) {
     surLot?.(i + 1, lots.length, lot.length);
@@ -461,6 +461,7 @@ export async function executerActions(guichet, passageId, actions, { surLot } = 
       bilan.resultats.push(resultat);
       if (r.etat === "effectuee") bilan.effectuees += 1;
       else if (r.etat === "refusee") bilan.refusees += 1;
+      else if (r.etat === "a_valider") bilan.aValider += 1;
     }
     decalage += lot.length;
   }
