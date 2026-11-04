@@ -259,7 +259,7 @@ describe("RG-GEN-08 — chaque type émis a sa phrase au catalogue du client", (
      * ceux que les services passent en `params`.
      */
     // M22 ajoute le décompte d'un passage et son état de sortie.
-    const admis = new Set(["tache", "projet", "motif", "date", "jours", "effectuees", "refusees", "pointsOuverts", "etat", "erreur"]);
+    const admis = new Set(["tache", "projet", "motif", "date", "jours", "effectuees", "refusees", "pointsOuverts", "aValider", "etat", "erreur"]);
     const fautes: string[] = [];
     for (const [langue, table] of [["fr", fr], ["en", en]] as const) {
       for (const [cle, phrase] of Object.entries(table)) {

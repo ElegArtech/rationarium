@@ -260,7 +260,8 @@ const COMMANDES = {
       else json(bilan);
       vers(
         `${pluriel(bilan.envoyees, "action envoyée", "actions envoyées")} en ${pluriel(bilan.lots, "lot", "lots")} : ` +
-          `${bilan.effectuees} effectuée${bilan.effectuees > 1 ? "s" : ""}, ${bilan.refusees} refusée${bilan.refusees > 1 ? "s" : ""}.`,
+          `${bilan.effectuees} effectuée${bilan.effectuees > 1 ? "s" : ""}, ${bilan.refusees} refusée${bilan.refusees > 1 ? "s" : ""}` +
+          (bilan.aValider ? `, ${bilan.aValider} à valider.` : "."),
       );
       for (const r of bilan.resultats) {
         const nom = r.reference ? ` @${r.reference}` : "";

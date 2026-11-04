@@ -148,11 +148,13 @@ const CORPS: Record<string, Record<Langue, (p: Record<string, string>) => string
     fr: (p) =>
       `L'agent a terminé son passage : ${compte(p["effectuees"], "fr", ["action effectuée", "actions effectuées"], ["", ""])}, ` +
       `${compte(p["refusees"], "fr", ["action refusée", "actions refusées"], ["", ""])}, ` +
-      `${compte(p["pointsOuverts"], "fr", ["point ouvert", "points ouverts"], ["", ""])}.`,
+      `${compte(p["pointsOuverts"], "fr", ["point ouvert", "points ouverts"], ["", ""])}` +
+      (nombre(p["aValider"]) > 0 ? `, ${compte(p["aValider"], "fr", ["projet à valider", "projets à valider"], ["", ""])}.` : "."),
     en: (p) =>
       `The agent has completed its run: ${compte(p["effectuees"], "en", ["", ""], ["action done", "actions done"])}, ` +
       `${compte(p["refusees"], "en", ["", ""], ["action refused", "actions refused"])}, ` +
-      `${compte(p["pointsOuverts"], "en", ["", ""], ["open point", "open points"])}.`,
+      `${compte(p["pointsOuverts"], "en", ["", ""], ["open point", "open points"])}` +
+      (nombre(p["aValider"]) > 0 ? `, ${compte(p["aValider"], "en", ["", ""], ["project to approve", "projects to approve"])}.` : "."),
   },
   assistant_passage_echec: {
     fr: (p) =>

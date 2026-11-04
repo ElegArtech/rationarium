@@ -777,6 +777,8 @@
     "avantApres": "from {avant} to {apres}",
     "action_agent_action": "Agent action",
     "action_agent_action_undo": "Agent action undone",
+    "action_agent_action_validate": "Agent project creation approved",
+    "action_agent_action_reject": "Agent project creation rejected",
     "action_agent_token_create": "Agent token created",
     "action_agent_token_revoke": "Agent token revoked",
     "action_agent_token_refused": "Agent token refused",

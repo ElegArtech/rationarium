@@ -26,6 +26,8 @@ export type BrouillonAssistant = {
   mode: ModeAssistant;
   planification: string;
   jalonObligatoire: boolean;
+  /** `RG-AST-21` — les créations de projet de l'agent attendent une validation. */
+  validationProjets: boolean;
   conservationJours: string;
   actionsParPassage: string;
 };
@@ -36,6 +38,7 @@ export const versBrouillon = (r: ReglagesAssistant): BrouillonAssistant => ({
   mode: r.mode,
   planification: r.planification,
   jalonObligatoire: r.jalonObligatoire,
+  validationProjets: r.validationProjets,
   conservationJours: String(r.conservationJours),
   actionsParPassage: String(r.actionsParPassage),
 });
@@ -52,6 +55,7 @@ export function depuisBrouillon(b: BrouillonAssistant): { valeurs: ReglagesAssis
     mode: b.mode,
     planification: b.planification.trim().replace(/\s+/g, " "),
     jalonObligatoire: b.jalonObligatoire,
+    validationProjets: b.validationProjets,
     conservationJours: entier(b.conservationJours),
     actionsParPassage: entier(b.actionsParPassage),
   };
@@ -69,6 +73,7 @@ export const brouillonsEgaux = (a: BrouillonAssistant, b: BrouillonAssistant): b
   a.mode === b.mode &&
   a.planification.trim() === b.planification.trim() &&
   a.jalonObligatoire === b.jalonObligatoire &&
+  a.validationProjets === b.validationProjets &&
   a.conservationJours.trim() === b.conservationJours.trim() &&
   a.actionsParPassage.trim() === b.actionsParPassage.trim();
 
@@ -157,6 +162,19 @@ export function OngletAssistant({
             </label>
             <p className="field-hint" id="assistant-jalon-aide">
               {brouillon.jalonObligatoire ? t("reglages.jalonObligatoireAide") : t("reglages.jalonFacultatifAide")}
+            </p>
+
+            <label className="check ag-check ag-espace-haut">
+              <input
+                type="checkbox"
+                checked={brouillon.validationProjets}
+                aria-describedby="assistant-validation-aide"
+                onChange={(e) => ecrire({ validationProjets: e.target.checked })}
+              />
+              <span>{t("reglages.validationProjets")}</span>
+            </label>
+            <p className="field-hint" id="assistant-validation-aide">
+              {brouillon.validationProjets ? t("reglages.validationProjetsAide") : t("reglages.sansValidationAide")}
             </p>
 
             <div className="field-block ag-espace-haut">

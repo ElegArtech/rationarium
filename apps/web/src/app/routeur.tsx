@@ -406,6 +406,7 @@ function CoquilleDeSession({ surDeconnexion }: { surDeconnexion: () => void }) {
       }}
       permissions={permissions}
       modulesActifs={modulesActifs}
+      attentes={{ assistant: assistant.etat?.aValider ?? 0 }}
       surDeconnexion={surDeconnexion}
     >
       <Outlet />

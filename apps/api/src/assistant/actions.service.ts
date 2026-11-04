@@ -43,7 +43,7 @@ export type ResultatAction = {
   index: number;
   type: string;
   reference: string | null;
-  etat: "effectuee" | "refusee";
+  etat: "effectuee" | "refusee" | "a_valider";
   actionId: string;
   cibleType: TypeCible | null;
   cibleId: string | null;
@@ -54,6 +54,13 @@ export type ResultatAction = {
 };
 
 type Passage = { id: string; proprietaireId: string };
+
+/**
+ * Une référence locale : l'entité créée, ou — `RG-AST-22` — la création de projet
+ * encore en attente de validation dont elle dépend (`enAttente` : l'action-projet).
+ */
+type Reference = { cible: TypeCible; id: string | null; enAttente?: string };
+type References = Map<string, Reference>;
 
 class Refus extends Error {
   constructor(readonly motif: Motif) {
@@ -120,12 +127,16 @@ export class ActionsAgentService {
   ): Promise<ResultatAction[]> {
     // Les références déclarées par les lots précédents du même passage restent
     // valables : un agent peut créer un projet dans un lot et ses tâches dans le suivant.
-    const references = new Map<string, { cible: TypeCible; id: string }>();
+    const references: References = new Map();
     for (const a of await this.prisma.agentAction.findMany({
-      where: { passageId: passage.id, etat: "effectuee", reference: { not: null }, cibleId: { not: null } },
-      select: { reference: true, cibleType: true, cibleId: true },
+      where: { passageId: passage.id, etat: { in: ["effectuee", "a_valider"] }, reference: { not: null } },
+      select: { id: true, etat: true, reference: true, cibleType: true, cibleId: true, dependDeId: true },
     })) {
-      references.set(a.reference!, { cible: a.cibleType as TypeCible, id: a.cibleId! });
+      if (a.etat === "effectuee" && a.cibleId) {
+        references.set(a.reference!, { cible: a.cibleType as TypeCible, id: a.cibleId });
+      } else if (a.etat === "a_valider") {
+        references.set(a.reference!, { cible: "Project", id: null, enAttente: a.dependDeId ?? a.id });
+      }
     }
     let deja = await this.prisma.agentAction.count({ where: { passageId: passage.id } });
 
@@ -153,7 +164,7 @@ export class ActionsAgentService {
     index: number,
     brute: unknown,
     reglages: ReglagesAssistant,
-    references: Map<string, { cible: TypeCible; id: string }>,
+    references: References,
   ): Promise<ResultatAction> {
     // 1. La forme. `RG-AST-07` : justification et preuves sont exigées ici.
     const lue = actionAgentSchema.safeParse(brute);
@@ -181,6 +192,14 @@ export class ActionsAgentService {
         throw refus(400, "referenceEnDouble", `La référence « ${action.reference} » est déjà déclarée dans ce passage.`, "RG-AST-10");
       }
 
+      // 3 bis. `RG-AST-22` — une action qui désigne une création de projet en
+      // attente attend avec elle : elle sera exécutée à la validation.
+      const attente = this.creationEnAttenteDesignee(action.charge as Record<string, unknown>, references);
+      if (attente) {
+        this.exigerReglesDuSuivi(action, action.charge as Record<string, unknown>, reglages);
+        return await this.mettreEnAttente(passage, agent, index, action, attente, references);
+      }
+
       // 3. `RG-AST-10` — les références locales se résolvent ; rien ne se rapproche par libellé.
       const charge = this.resoudreReferences(action.charge as Record<string, unknown>, references);
 
@@ -204,42 +223,64 @@ export class ActionsAgentService {
           rejouee: true,
         };
       }
+      const depuis = new Date(Date.now() - JOURS_REFUS_ACTION_DEFAITE * JOUR_MS);
       const defaite = await this.prisma.agentAction.findFirst({
         where: {
           proprietaireId: passage.proprietaireId,
           empreinte,
-          etat: "defaite",
-          defaiteLe: { gt: new Date(Date.now() - JOURS_REFUS_ACTION_DEFAITE * JOUR_MS) },
+          OR: [
+            { etat: "defaite", defaiteLe: { gt: depuis } },
+            { etat: "rejetee", decideLe: { gt: depuis } },
+          ],
         },
-        select: { id: true },
+        select: { id: true, etat: true },
       });
       if (defaite) {
-        throw refus(409, "actionDefaite", "Cette action a été défaite par son propriétaire : elle n'est pas refaite.", "RG-AST-12", {
-          actionDefaite: defaite.id,
-        });
+        throw refus(
+          409,
+          "actionDefaite",
+          defaite.etat === "rejetee"
+            ? "Cette création de projet a été rejetée par son propriétaire : elle n'est pas reproposée."
+            : "Cette action a été défaite par son propriétaire : elle n'est pas refaite.",
+          "RG-AST-12",
+          { actionDefaite: defaite.id },
+        );
       }
 
       // 5. Les règles du suivi.
       this.exigerReglesDuSuivi(action, charge, reglages);
 
+      // 5 bis. `RG-AST-21` — une création de projet attend la validation de son propriétaire.
+      if (action.type === "projet_creer" && reglages.validationProjets) {
+        const deja = await this.prisma.agentAction.findFirst({
+          where: { proprietaireId: passage.proprietaireId, empreinte, etat: "a_valider" },
+          select: { id: true, reference: true },
+        });
+        if (deja) {
+          if (action.reference) references.set(action.reference, { cible: "Project", id: null, enAttente: deja.id });
+          return { ...this.resultatAttente(index, action.type, deja.reference, deja.id), rejouee: true };
+        }
+        return await this.mettreEnAttente(passage, agent, index, action, null, references);
+      }
+
       // 6. L'exécution, par la route existante.
       return await this.appliquer(passage, agent, index, action, charge, empreinte, references);
     } catch (e) {
-      if (e instanceof Refus) return this.consignerRefus(passage, agent, index, action, e);
+      if (e instanceof Refus) return this.consignerRefus(passage, agent, index, action, e, references);
       throw e;
     }
   }
 
   private resoudreReferences(
     charge: Record<string, unknown>,
-    references: Map<string, { cible: TypeCible; id: string }>,
+    references: References,
   ): Record<string, unknown> {
     const resolue = { ...charge };
     for (const champ of CHAMPS_IDENTIFIANTS) {
       const valeur = resolue[champ];
       if (typeof valeur !== "string" || !valeur.startsWith("@")) continue;
       const trouvee = references.get(valeur.slice(1));
-      if (!trouvee) {
+      if (!trouvee || trouvee.id === null) {
         throw refus(400, "referenceInconnue", `La référence « ${valeur} » ne désigne aucune entité créée dans ce passage.`, "RG-AST-10", {
           champ,
         });
@@ -247,6 +288,62 @@ export class ActionsAgentService {
       resolue[champ] = trouvee.id;
     }
     return resolue;
+  }
+
+  /** L'action-projet en attente que la charge désigne par `@nom`, s'il y en a une. */
+  private creationEnAttenteDesignee(charge: Record<string, unknown>, references: References): string | null {
+    for (const champ of CHAMPS_IDENTIFIANTS) {
+      const valeur = charge[champ];
+      if (typeof valeur !== "string" || !valeur.startsWith("@")) continue;
+      const trouvee = references.get(valeur.slice(1));
+      if (trouvee?.enAttente) return trouvee.enAttente;
+    }
+    return null;
+  }
+
+  private resultatAttente(index: number, type: string, reference: string | null, actionId: string): ResultatAction {
+    return {
+      index, type, reference, etat: "a_valider", actionId,
+      cibleType: null, cibleId: null, version: null, motif: null, rejouee: false,
+    };
+  }
+
+  /**
+   * `RG-AST-21`, `RG-AST-22` — consigne une action sans l'exécuter. La charge est
+   * gardée telle quelle, références comprises : elles se résolvent à la validation.
+   */
+  private async mettreEnAttente(
+    passage: Passage,
+    agent: AgentResolu,
+    index: number,
+    action: ActionAgent,
+    dependDe: string | null,
+    references: References,
+  ): Promise<ResultatAction> {
+    if (action.reference && references.has(action.reference)) {
+      throw refus(400, "referenceEnDouble", `La référence « ${action.reference} » est déjà déclarée dans ce passage.`, "RG-AST-10");
+    }
+    const consignee = await this.prisma.agentAction.create({
+      data: {
+        passageId: passage.id,
+        jetonId: agent.jetonId,
+        proprietaireId: passage.proprietaireId,
+        type: action.type,
+        reference: action.reference ?? null,
+        cibleType: RECETTES[action.type].cible,
+        charge: json(action.charge),
+        justification: action.justification,
+        preuves: json(action.preuves),
+        empreinte: empreinteDe(action.type, action.charge),
+        etat: "a_valider",
+        dependDeId: dependDe,
+      },
+      select: { id: true },
+    });
+    if (action.reference) {
+      references.set(action.reference, { cible: RECETTES[action.type].cible, id: null, enAttente: dependDe ?? consignee.id });
+    }
+    return this.resultatAttente(index, action.type, action.reference ?? null, consignee.id);
   }
 
   private exigerReglesDuSuivi(action: ActionAgent, charge: Record<string, unknown>, reglages: ReglagesAssistant): void {
@@ -279,7 +376,8 @@ export class ActionsAgentService {
     action: ActionAgent,
     charge: Record<string, unknown>,
     empreinte: string,
-    references: Map<string, { cible: TypeCible; id: string }>,
+    references: References,
+    validation?: { actionId: string; decideurId: string },
   ): Promise<ResultatAction> {
     const recette = RECETTES[action.type];
     const proprietaire = passage.proprietaireId;
@@ -331,27 +429,36 @@ export class ActionsAgentService {
     const projectId =
       recette.projet(charge, cibleId) ?? (await projetDeLEntite(this.prisma, recette.cible, cibleId!));
 
-    const consignee = await this.prisma.agentAction.create({
-      data: {
-        passageId: passage.id,
-        jetonId: agent.jetonId,
-        proprietaireId: proprietaire,
-        projectId: await this.projetExistant(projectId),
-        type: action.type,
-        reference: action.reference ?? null,
-        cibleType: recette.cible,
-        cibleId,
-        charge: json(charge),
-        ...(avant === null ? {} : { avant: json(avant) }),
-        ...(apres === null ? {} : { apres: json(apres) }),
-        versionApres,
-        justification: action.justification,
-        preuves: json(action.preuves),
-        empreinte,
-        etat: "effectuee",
-      },
-      select: { id: true },
-    });
+    const donnees = {
+      projectId: await this.projetExistant(projectId),
+      cibleType: recette.cible,
+      cibleId,
+      charge: json(charge),
+      ...(avant === null ? {} : { avant: json(avant) }),
+      ...(apres === null ? {} : { apres: json(apres) }),
+      versionApres,
+      etat: "effectuee" as const,
+    };
+    const consignee = validation
+      ? await this.prisma.agentAction.update({
+          where: { id: validation.actionId },
+          data: { ...donnees, decideParId: validation.decideurId, decideLe: new Date() },
+          select: { id: true },
+        })
+      : await this.prisma.agentAction.create({
+          data: {
+            ...donnees,
+            passageId: passage.id,
+            jetonId: agent.jetonId,
+            proprietaireId: proprietaire,
+            type: action.type,
+            reference: action.reference ?? null,
+            justification: action.justification,
+            preuves: json(action.preuves),
+            empreinte,
+          },
+          select: { id: true },
+        });
     if (action.reference) references.set(action.reference, { cible: recette.cible, id: cibleId! });
 
     // `RG-AST-17` — la route rejouée a tracé l'écriture au nom du propriétaire ;
@@ -384,14 +491,17 @@ export class ActionsAgentService {
     index: number,
     brute: unknown,
     e: Refus,
+    references?: References,
   ): Promise<ResultatAction> {
     const a = (brute ?? {}) as Partial<Record<"type" | "reference" | "justification" | "charge" | "preuves", unknown>>;
     const type = typeof a.type === "string" ? a.type.slice(0, 60) : "inconnu";
     const charge = a.charge ?? null;
-    const projectId =
+    const brut =
       charge && typeof charge === "object" && typeof (charge as Record<string, unknown>)["projectId"] === "string"
         ? ((charge as Record<string, unknown>)["projectId"] as string)
         : null;
+    // Une référence `@nom` résolue range le refus sous son projet, et non « hors projet ».
+    const projectId = brut?.startsWith("@") ? (references?.get(brut.slice(1))?.id ?? null) : brut;
     const consignee = await this.prisma.agentAction.create({
       data: {
         passageId: passage.id,
@@ -522,6 +632,120 @@ export class ActionsAgentService {
     return { defaites, restees };
   }
 
+  // ── Valider et rejeter — RG-AST-21, RG-AST-22 ──────────────────────────────
+
+  /** L'action-projet en attente, au propriétaire, sans quoi rien ne se décide. */
+  private async creationEnAttente(actionId: string, userId: string) {
+    const action = await this.prisma.agentAction.findFirst({
+      where: { id: actionId, proprietaireId: userId },
+      select: { id: true, etat: true, type: true, dependDeId: true, passageId: true, jetonId: true },
+    });
+    if (!action) throw refusAssistant(404, "actionIntrouvable", "Cette action de l'agent n'existe pas.");
+    if (action.etat !== "a_valider" || action.type !== "projet_creer" || action.dependDeId) {
+      throw refusAssistant(409, "actionNonValidable", "Seule une création de projet en attente se valide ou se rejette.");
+    }
+    return action;
+  }
+
+  /**
+   * `EX-AST-10` — valider une création de projet : le projet est créé, au nom de
+   * qui valide, puis ses actions dépendantes s'exécutent dans leur ordre de
+   * dépôt. Chacune passe par sa route, avec ses règles : une dépendante refusée
+   * l'est seule, le projet reste créé.
+   */
+  async valider(actionId: string, userId: string, reglages: ReglagesAssistant) {
+    const racine = await this.creationEnAttente(actionId, userId);
+    const passage = { id: racine.passageId, proprietaireId: userId };
+    const agent: AgentResolu = { jetonId: racine.jetonId ?? "", userId, motDePasseAChanger: false, typesAutorises: [] };
+    const dependantes = await this.prisma.agentAction.findMany({
+      where: { dependDeId: racine.id, etat: "a_valider" },
+      orderBy: { creeLe: "asc" },
+      select: { id: true },
+    });
+    const references: References = new Map();
+
+    const executer = async (id: string) => {
+      const ligne = await this.prisma.agentAction.findUniqueOrThrow({
+        where: { id },
+        select: { type: true, reference: true, charge: true, justification: true, preuves: true, empreinte: true },
+      });
+      const action = actionAgentSchema.parse({
+        type: ligne.type,
+        ...(ligne.reference ? { reference: ligne.reference } : {}),
+        justification: ligne.justification,
+        preuves: ligne.preuves,
+        charge: ligne.charge,
+      });
+      try {
+        const charge = this.resoudreReferences(action.charge as Record<string, unknown>, references);
+        this.exigerReglesDuSuivi(action, charge, reglages);
+        const r = await this.appliquer(passage, agent, 0, action, charge, ligne.empreinte, references, {
+          actionId: id,
+          decideurId: userId,
+        });
+        return { actionId: id, etat: r.etat, cibleId: r.cibleId, motif: null as Motif | null };
+      } catch (e) {
+        if (!(e instanceof Refus)) throw e;
+        await this.prisma.agentAction.update({
+          where: { id },
+          data: { etat: "refusee", motifRefus: json(e.motif), decideParId: userId, decideLe: new Date() },
+        });
+        return { actionId: id, etat: "refusee" as const, cibleId: null, motif: e.motif };
+      }
+    };
+
+    const projet = await executer(racine.id);
+    const resultats = [];
+    for (const { id } of dependantes) {
+      if (projet.etat !== "effectuee") {
+        const motif = {
+          cle: "assistant:erreurs.projetNonCree",
+          message: "Le projet dont dépend cette action n'a pas pu être créé.",
+          statut: 409,
+          regle: "RG-AST-22",
+        };
+        await this.prisma.agentAction.update({
+          where: { id },
+          data: { etat: "refusee", motifRefus: json(motif), decideParId: userId, decideLe: new Date() },
+        });
+        resultats.push({ actionId: id, etat: "refusee" as const, cibleId: null, motif });
+        continue;
+      }
+      resultats.push(await executer(id));
+    }
+    await this.audit.tracer({
+      action: "agent.action.validate",
+      typeEntite: "Project",
+      entiteId: projet.cibleId,
+      acteurId: userId,
+      detail: { actionId: racine.id, dependantes: resultats.length, passageId: racine.passageId },
+    });
+    return { projet, dependantes: resultats };
+  }
+
+  /** `EX-AST-10` — rejeter une création de projet : elle et ses dépendantes, sans rien écrire. */
+  async rejeter(actionId: string, userId: string, motif?: string) {
+    const racine = await this.creationEnAttente(actionId, userId);
+    const motifRefus = json({
+      cle: "assistant:erreurs.rejeteeParProprietaire",
+      message: motif?.trim() || "Création de projet rejetée par son propriétaire.",
+      statut: 0,
+      regle: "RG-AST-21",
+    });
+    const { count } = await this.prisma.agentAction.updateMany({
+      where: { OR: [{ id: racine.id }, { dependDeId: racine.id }], etat: "a_valider" },
+      data: { etat: "rejetee", motifRefus, decideParId: userId, decideLe: new Date() },
+    });
+    await this.audit.tracer({
+      action: "agent.action.reject",
+      typeEntite: "AgentAction",
+      entiteId: racine.id,
+      acteurId: userId,
+      detail: { rejetees: count, passageId: racine.passageId },
+    });
+    return { actionId: racine.id, rejetees: count };
+  }
+
   private inchangee(actuelle: Instantane | null, apres: Instantane | null, versionApres: number | null): boolean {
     if (!actuelle) return false;
     if (versionApres !== null) return actuelle["version"] === versionApres;
@@ -541,7 +765,7 @@ export class ActionsAgentService {
         proprietaireId: userId,
         ...(filtres.passageId ? { passageId: filtres.passageId } : {}),
         ...(filtres.projectId ? { projectId: filtres.projectId } : {}),
-        ...(filtres.etat ? { etat: filtres.etat as "effectuee" | "refusee" | "defaite" } : {}),
+        ...(filtres.etat ? { etat: filtres.etat as "effectuee" | "refusee" | "defaite" | "a_valider" | "rejetee" } : {}),
         ...(filtres.avant ? { creeLe: { lt: filtres.avant } } : {}),
       },
       orderBy: { creeLe: "desc" },
@@ -549,15 +773,17 @@ export class ActionsAgentService {
       select: {
         id: true, passageId: true, projectId: true, type: true, reference: true, cibleType: true, cibleId: true,
         charge: true, avant: true, apres: true, justification: true, preuves: true, etat: true, motifRefus: true,
-        defaiteLe: true, creeLe: true,
+        defaiteLe: true, creeLe: true, dependDeId: true, decideLe: true,
         project: { select: { nom: true } },
         defaitePar: { select: { prenom: true, nom: true } },
+        decidePar: { select: { prenom: true, nom: true } },
       },
     });
-    return actions.map(({ project, defaitePar, ...a }) => ({
+    return actions.map(({ project, defaitePar, decidePar, ...a }) => ({
       ...a,
       projetNom: project?.nom ?? null,
       defaitePar: defaitePar ? `${defaitePar.prenom} ${defaitePar.nom}` : null,
+      decidePar: decidePar ? `${decidePar.prenom} ${decidePar.nom}` : null,
     }));
   }
 }
