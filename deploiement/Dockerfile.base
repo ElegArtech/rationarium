@@ -29,7 +29,7 @@ RUN set -eux; \
       | tr ',' '\n' | sort -u \
       | awk 'NF && system("[ -e /sortie/usr/local/lib/" $1 " ]") != 0 { print "so:" $1 }' > /rundeps
 
-FROM alpine:3.24@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6
+FROM alpine:3.24@sha256:be2656061b536c1883c4034790e21d0a09c5aaaf51968b89368a3c0371ea2c9a
 COPY --from=construction /rundeps /tmp/rundeps
 RUN apk upgrade --no-cache \
  && apk add --no-cache $(cat /tmp/rundeps) bash tzdata zstd icu-data-full nss_wrapper su-exec=0.3-r0 \
