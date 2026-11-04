@@ -41,7 +41,7 @@
     "@testcontainers/postgresql": "12.2.0",
     "@types/nodemailer": "^8.0.2",
     "typescript": "6.0.3",
-    "vitest": "4.1.12"
+    "vitest": "5.0.5"
   },
   "license": "MIT",
   "author": "Alexandre Bergé",
