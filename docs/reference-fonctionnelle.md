@@ -283,7 +283,7 @@ Trois niveaux : **Direction → Département → Service**.
 | EX-JAL-06 | Importer et exporter les jalons en CSV |
 | EX-JAL-07 | Créer, modifier, supprimer une épopée |
 
-- **RG-JAL-01** — Le statut d'un jalon est **calculé automatiquement** à partir de l'avancement de ses tâches ; il n'est pas saisi. L'interface l'explique.
+- **RG-JAL-01** — Le statut d'un jalon est **calculé automatiquement** à partir de l'avancement de ses tâches ; il n'est pas saisi. L'interface l'explique. Depuis 1.1.2, ce statut est aussi **enregistré** à chaque création, modification, suppression ou import de tâche : terminer la dernière tâche d'un jalon le passe à *Terminé*, en rouvrir une le rouvre, et toute lecture de la base — assistant de suivi compris — voit le même statut que la feuille de route.
 - **RG-JAL-06** — **Un jalon SANS TÂCHE fait exception** : son statut n'a rien à calculer, il se marque donc à la main, et se rouvre de même. Dès qu'une tâche lui est rattachée, le calcul de `RG-JAL-01` reprend la main et la marque posée est effacée — elle n'est pas conservée en sommeil, sous peine de reparaître au premier détachement. Un jalon qui porte des tâches refuse d'être marqué, en disant pourquoi. **Un jalon au statut *Terminé* est à 100 % d'avancement**, marqué à la main comme calculé : la moyenne d'un ensemble vide ne vaut pas zéro pour cent, elle ne vaut rien, et un jalon atteint affichait « Terminé · 0 % » — la pastille disant l'inverse de la barre, sur la même ligne. Même implication que `RG-TSK-17`, et pour la même raison.
 
 - **RG-JAL-02** — Un jalon appartient à un et un seul projet.
