@@ -30,7 +30,7 @@ docker run --rm --network none --entrypoint bash "$image" -ec '
   minimum libuuid 2.42.3-r1 2.42.
   # Réexaminé le 27 novembre 2026 : Alpine 3.24 corrige CVE-2026-85091 en zlib 1.4-r0,
   # qui garde la même interface libz.so.1, chargée par PostgreSQL.
-  minimum zlib 1.4-r0 1.4.
+  minimum zlib 1.4-r0 1.4
   mkdir -p "$PGDATA/base/1"
   touch "$PGDATA/PG_VERSION" "$PGDATA/base/1/PG_VERSION"
   bash /usr/local/bin/entree-rationarium.sh postgres --version
