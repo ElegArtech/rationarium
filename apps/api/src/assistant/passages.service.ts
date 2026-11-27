@@ -184,16 +184,22 @@ export class PassagesService {
       });
       return;
     }
-    const [effectuees, refusees] = await Promise.all([
+    const [effectuees, refusees, aValider] = await Promise.all([
       this.prisma.agentAction.count({ where: { passageId: id, etat: { in: ["effectuee", "defaite"] } } }),
       this.prisma.agentAction.count({ where: { passageId: id, etat: "refusee" } }),
+      this.prisma.agentAction.count({ where: { passageId: id, etat: "a_valider", type: "projet_creer", dependDeId: null } }),
     ]);
     const pointsOuverts = ((passage.bilan as BilanPassage | null)?.pointsOuverts ?? []).length;
-    if (effectuees + refusees + pointsOuverts === 0) return;
+    if (effectuees + refusees + pointsOuverts + aValider === 0) return;
     await this.notifications.notifier({
       userId: passage.proprietaireId,
       type: "assistant_passage",
-      params: { effectuees: String(effectuees), refusees: String(refusees), pointsOuverts: String(pointsOuverts) },
+      params: {
+        effectuees: String(effectuees),
+        refusees: String(refusees),
+        pointsOuverts: String(pointsOuverts),
+        aValider: String(aValider),
+      },
       lien,
     });
   }
@@ -333,7 +339,23 @@ export class PassagesService {
     });
     return passages.map((p) => {
       const de = (etat: string) => decomptes.find((d) => d.passageId === p.id && d.etat === etat)?._count._all ?? 0;
-      return { ...p, actions: { effectuees: de("effectuee"), refusees: de("refusee"), defaites: de("defaite") } };
+      return {
+        ...p,
+        actions: {
+          effectuees: de("effectuee"),
+          refusees: de("refusee"),
+          defaites: de("defaite"),
+          aValider: de("a_valider"),
+          rejetees: de("rejetee"),
+        },
+      };
+    });
+  }
+
+  /** `RG-AST-21` — le nombre de créations de projet qui attendent leur propriétaire. */
+  async creationsAValider(proprietaireId: string): Promise<number> {
+    return this.prisma.agentAction.count({
+      where: { proprietaireId, etat: "a_valider", type: "projet_creer", dependDeId: null },
     });
   }
 

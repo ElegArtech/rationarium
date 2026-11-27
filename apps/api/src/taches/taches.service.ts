@@ -1,5 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma.service.js";
+import { synchroniserStatutJalons } from "../commun/statut-jalon.js";
 import { AuditService } from "../commun/audit.service.js";
 import { PerimetreService, type Perimetre } from "../commun/perimetre.service.js";
 import { nonAssignables } from "../commun/assignation.js";
@@ -321,28 +322,6 @@ export class TachesService {
   }
 
   /**
-   * `RG-JAL-06` — rattacher une tâche à un jalon EFFACE la marque posée à la
-   * main sur lui.
-   *
-   * Un jalon sans tâche se marque « atteint » à la main, faute d'avancement à
-   * calculer. Dès qu'une tâche l'accompagne, `RG-JAL-01` reprend la main — et
-   * la marque doit disparaître, pas dormir sous le calcul : conservée, elle
-   * reparaîtrait au premier détachement, et le jalon redeviendrait « atteint »
-   * sans que personne n'ait rien fait.
-   *
-   * Écrite ici plutôt qu'appelée sur `ProjetsService` : l'inverse créerait un
-   * cycle entre les deux modules pour deux lignes de Prisma. La règle est
-   * énoncée une fois, au cadrage, et les deux endroits qui la tiennent la
-   * citent.
-   */
-  private async reprendreLeCalculDuJalon(milestoneId: string | null | undefined) {
-    if (!milestoneId) return;
-    await this.prisma.milestone.updateMany({
-      where: { id: milestoneId, statut: "done" },
-      data: { statut: "pending" },
-    });
-  }
-  /**
    * `EX-TSK-04` — créer une tâche, **avec ses horaires**.
    *
    * `heureDebut` / `heureFin` existent au schéma et sont lues par le planning
@@ -531,7 +510,7 @@ export class TachesService {
     });
 
     // `RG-JAL-06` — le jalon reçoit une tâche : le calcul reprend la main.
-    await this.reprendreLeCalculDuJalon(donnees.milestoneId);
+    await synchroniserStatutJalons(this.prisma, [donnees.milestoneId]);
 
     await this.audit.tracer({
       action: "task.create", typeEntite: "Task", entiteId: tache.id, acteurId,
@@ -727,7 +706,7 @@ export class TachesService {
     const avant = await this.prisma.task.findUnique({
       where: { id: taskId },
       select: {
-        version: true, statut: true, avancement: true, projectId: true,
+        version: true, statut: true, avancement: true, projectId: true, milestoneId: true,
         heureDebut: true, heureFin: true,
       },
     });
@@ -824,8 +803,12 @@ export class TachesService {
       data: { ...champs, version: { increment: 1 } },
     });
 
-    // `RG-JAL-06` — idem au rattachement après coup.
-    await this.reprendreLeCalculDuJalon(champs.milestoneId);
+    // `RG-JAL-01` — le jalon d'arrivée suit ses tâches ; celui de départ aussi,
+    // et il se rouvre s'il vient de perdre sa dernière tâche (`RG-JAL-06`).
+    await synchroniserStatutJalons(this.prisma, [misAJour.milestoneId]);
+    if (avant.milestoneId !== misAJour.milestoneId) {
+      await synchroniserStatutJalons(this.prisma, [avant.milestoneId], { rouvrirSiVide: true });
+    }
 
     await this.audit.tracer({
       action: "task.update", typeEntite: "Task", entiteId: taskId, acteurId,
@@ -1622,7 +1605,8 @@ export class TachesService {
     await this.audit.tracer({
       action: "task.delete", typeEntite: "Task", entiteId: taskId, acteurId,
     });
-    await this.prisma.task.delete({ where: { id: taskId } });
+    const supprimee = await this.prisma.task.delete({ where: { id: taskId } });
+    await synchroniserStatutJalons(this.prisma, [supprimee.milestoneId], { rouvrirSiVide: true });
   }
 
   // ── RACI — EX-TSK-14 ─────────────────────────────────────────────────────

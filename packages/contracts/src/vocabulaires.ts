@@ -330,6 +330,8 @@ export const ETATS_ACTION_AGENT = vocabulaire([
   { code: "effectuee", fr: "Effectuée", en: "Done" },
   { code: "refusee", fr: "Refusée", en: "Refused" },
   { code: "defaite", fr: "Défaite", en: "Undone" },
+  { code: "a_valider", fr: "À valider", en: "Awaiting approval" },
+  { code: "rejetee", fr: "Rejetée", en: "Rejected" },
 ]);
 export type EtatActionAgent = (typeof ETATS_ACTION_AGENT)[number]["code"];
 

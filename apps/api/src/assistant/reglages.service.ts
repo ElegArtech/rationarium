@@ -80,6 +80,7 @@ export class ReglagesAssistantService {
 const decoder = (nom: keyof ReglagesAssistant, valeur: string): unknown => {
   switch (nom) {
     case "jalonObligatoire":
+    case "validationProjets":
       return valeur === "true" ? true : valeur === "false" ? false : valeur;
     case "conservationJours":
     case "actionsParPassage":

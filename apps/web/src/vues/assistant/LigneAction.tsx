@@ -15,13 +15,13 @@ import {
   cheminDeLaCible,
   ecarts,
   estCreation,
-  lienSur,
   nomDeLaCible,
   texteValeur,
   type ContexteValeur,
 } from "./difference.js";
-import { PastilleEtatAction } from "./elements.js";
+import { ListePreuves, PastilleEtatAction } from "./elements.js";
 import { horodatage } from "./formes.js";
+import { etatDeLaLigne } from "./validation.js";
 import "./assistant.css";
 
 /**
@@ -35,6 +35,11 @@ import "./assistant.css";
  * Elle montre ce que l'agent a fait (type, entité, différence avant → après),
  * pourquoi (justification), d'après quoi (preuves), et ce qu'il en est advenu
  * (effectuée, refusée avec son motif, défaite par qui et quand).
+ *
+ * `RG-AST-21` — une action peut aussi ATTENDRE : la création d'un projet, et
+ * les actions qui le désignent (`RG-AST-22`). Elle n'a rien écrit, donc rien
+ * ne se défait ; elle se valide ou se rejette depuis la section « À valider »
+ * de l'activité. Une fois décidée, la ligne dit qui a décidé et quand.
  */
 
 /**
@@ -43,7 +48,7 @@ import "./assistant.css";
  * de `main.tsx` couvre les vues d'agrégation ; celles-ci sont les vues de
  * l'entité elle-même.
  */
-const VUES_TOUCHEES = [["assistant"], ["projet"], ["projets"], ["tache"], ["taches"], ["evenements"], ["temps"]];
+export const VUES_TOUCHEES = [["assistant"], ["projet"], ["projets"], ["tache"], ["taches"], ["evenements"], ["temps"]];
 
 export function LigneAction({ action, avecProjet = false }: { action: api.ActionAgent; avecProjet?: boolean }) {
   const { t } = useTranslation("assistant");
@@ -60,6 +65,7 @@ export function LigneAction({ action, avecProjet = false }: { action: api.Action
   const nature = action.cibleType ? t(`cibles.${action.cibleType}`) : t("cibles.aucune");
   const element = nom ? t("actions.elementNomme", { nature, nom }) : nature;
   const chemin = cheminDeLaCible(action);
+  const etatLigne = etatDeLaLigne(action);
 
   const ctx: ContexteValeur = {
     cible: action.cibleType,
@@ -172,6 +178,34 @@ export function LigneAction({ action, avecProjet = false }: { action: api.Action
         </div>
       ) : null}
 
+      {etatLigne.attente ? (
+        <p className="field-hint">
+          {action.dependDeId ? t("actions.attenteDependante") : t("actions.attenteValidation")}
+        </p>
+      ) : null}
+
+      {etatLigne.decision?.nature === "rejetee" ? (
+        <div className="alert alert-warn" role="note">
+          <span className="alert-icon" aria-hidden="true">
+            !
+          </span>
+          <span>
+            {etatLigne.decision.qui
+              ? t("actions.rejeteePar", { qui: etatLigne.decision.qui, quand: horodatage(etatLigne.decision.quand) })
+              : t("actions.rejeteeLe", { quand: horodatage(etatLigne.decision.quand) })}
+            {action.motifRefus?.message ? ` ${t("actions.motifRejet", { motif: action.motifRefus.message })}` : null}
+          </span>
+        </div>
+      ) : null}
+
+      {etatLigne.decision?.nature === "validee" ? (
+        <p className="field-hint">
+          {etatLigne.decision.qui
+            ? t("actions.valideePar", { qui: etatLigne.decision.qui, quand: horodatage(etatLigne.decision.quand) })
+            : t("actions.valideeLe", { quand: horodatage(etatLigne.decision.quand) })}
+        </p>
+      ) : null}
+
       {action.etat === "defaite" ? (
         <p className="field-hint">
           {action.defaitePar
@@ -204,38 +238,14 @@ export function LigneAction({ action, avecProjet = false }: { action: api.Action
         ) : (
           <span className="field-hint">{t("actions.aucunePreuve")}</span>
         )}
-        {action.etat === "effectuee" ? (
+        {etatLigne.defaisable ? (
           <Button className="chip-btn chip-danger" onPress={() => setConfirmation(true)}>
             {t("actions.defaire")}
           </Button>
         ) : null}
       </div>
 
-      {preuvesOuvertes ? (
-        <ul className="ag-preuves" id={`preuves-${action.id}`}>
-          {action.preuves.map((p, i) => {
-            const lien = lienSur(p.lien);
-            return (
-              <li key={`${p.reference}-${i}`} className="ag-preuve">
-                <span className="ag-preuve-head">
-                  <span className="pill pill-muted">{p.source}</span>
-                  <span className="ag-ref">{p.reference}</span>
-                  <span className="ag-act-when">{p.date.length > 10 ? horodatage(p.date) : formaterDate(p.date)}</span>
-                </span>
-                {lien ? (
-                  <a className="link-sm" href={lien} target="_blank" rel="noopener noreferrer">
-                    {t("actions.ouvrirPreuve")}
-                    <span className="sr-only"> {t("actions.nouvelOnglet")}</span>
-                  </a>
-                ) : p.lien ? (
-                  <span className="ag-ref">{p.lien}</span>
-                ) : null}
-                {p.extrait ? <blockquote className="ag-extrait">{p.extrait}</blockquote> : null}
-              </li>
-            );
-          })}
-        </ul>
-      ) : null}
+      {preuvesOuvertes ? <ListePreuves preuves={action.preuves} id={`preuves-${action.id}`} /> : null}
 
       {/*
         `RG-GEN-01` — la confirmation NOMME l'élément et dit la conséquence.

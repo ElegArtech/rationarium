@@ -243,6 +243,23 @@ describe("RG-GEN-08 — le panneau compose ses phrases dans la langue de la sess
     expect(() => corps({}, t)).not.toThrow();
   });
 
+  it("RG-AST-21 — les créations de projet à valider s'ajoutent au décompte, et seulement s'il y en a", () => {
+    const corps = (params: Record<string, string>, tr: Traduire) =>
+      rendreNotification(entree("assistant_passage", "assistant_passage", params), tr).contenu;
+    const base = { effectuees: "3", refusees: "1", pointsOuverts: "0" };
+    expect(corps({ ...base, aValider: "2" }, t)).toBe(
+      "L'agent a terminé son passage : 3 actions effectuées, 1 refusée, 0 point ouvert, 2 projets à valider.",
+    );
+    expect(corps({ ...base, aValider: "1" }, tEn)).toBe(
+      "The agent has completed its run: 3 actions done, 1 refused, 0 open points, 1 project to approve.",
+    );
+    // Zéro, ou absent — notification d'un serveur antérieur : la phrase d'avant.
+    expect(corps({ ...base, aValider: "0" }, t)).toBe(
+      "L'agent a terminé son passage : 3 actions effectuées, 1 refusée, 0 point ouvert.",
+    );
+    expect(parametresCorps({}).aValider).toBe(0);
+  });
+
   it("M22 — l'échec d'un passage porte ses TROIS faces, comme au serveur", () => {
     const face = (params: Record<string, string>, tr: Traduire) =>
       rendreNotification(entree("assistant_passage_echec", "assistant_passage_echec", params), tr).contenu;

@@ -126,6 +126,8 @@ export function HistoriqueAgent({ etat }: { etat?: EtatPassage | undefined }) {
                       effectuees: p.actions.effectuees,
                       refusees: p.actions.refusees,
                       defaites: p.actions.defaites,
+                      aValider: p.actions.aValider,
+                      rejetees: p.actions.rejetees,
                     })}
                   </span>
                   <span className="bloc-etroit">

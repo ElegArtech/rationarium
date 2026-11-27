@@ -135,6 +135,7 @@ describe("RG-AST-01 — la sonde d'état dit le module désactivé sans échouer
       agent: { joignable: false, dernierContact: null },
       jetonsValides: 0,
       dernierPassage: null,
+      aValider: 0,
     };
     expect(etatActif(etat)).toBe(etat);
   });

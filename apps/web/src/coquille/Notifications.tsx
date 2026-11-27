@@ -154,8 +154,8 @@ export const cleCorps = (n: {
  * Trois précautions, et chacune correspond à un piège déjà payé :
  *
  *  - **Un placeholder manquant fait LEVER `intl-messageformat`**, ce qui
- *    viderait le panneau entier. Les dix noms employés par le catalogue sont
- *    donc toujours fournis — les cinq de M18, et les cinq de M22.
+ *    viderait le panneau entier. Les onze noms employés par le catalogue sont
+ *    donc toujours fournis — les cinq de M18, et les six de M22.
  *  - **`Number("")` vaut zéro** : le filtre porte sur la CHAÎNE, pas sur sa
  *    conversion, sinon un décompte absent s'afficherait « 0 jour ».
  *  - La date arrive en `AAAA-MM-JJ` du serveur (`notifications.service.ts`) et
@@ -182,6 +182,8 @@ export const parametresCorps = (
     effectuees: nombre("effectuees"),
     refusees: nombre("refusees"),
     pointsOuverts: nombre("pointsOuverts"),
+    // `RG-AST-21` — les créations de projet qui attendent leur propriétaire.
+    aValider: nombre("aValider"),
     date: params["date"] ? formaterDate(params["date"]) : "",
   };
 };

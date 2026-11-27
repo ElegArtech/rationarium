@@ -139,7 +139,8 @@ const chargeJalonCreer = z
     projectId: identifiantOuReference,
     nom: z.string().min(1).max(160),
     description: z.string().max(5000).optional(),
-    dateEcheance: date,
+    /** Facultative : un jalon dont l'événement n'est pas encore programmé n'a pas de date. */
+    dateEcheance: date.optional(),
   })
   .strict();
 
@@ -355,6 +356,10 @@ export const nouveauPassageSchema = z
   .object({ projectIds: z.array(z.uuid()).max(500).optional() })
   .strict();
 
+export const rejetActionSchema = z
+  .object({ motif: z.string().max(1000).optional() })
+  .strict();
+
 // ── Jetons ──────────────────────────────────────────────────────────────────
 
 export const nouveauJetonSchema = z
@@ -381,6 +386,8 @@ export const reglagesAssistantSchema = z
     jalonObligatoire: z.boolean(),
     conservationJours: z.number().int().min(30).max(1830),
     actionsParPassage: z.number().int().min(1).max(1000),
+    /** `RG-AST-21` — une création de projet attend la validation de son propriétaire. */
+    validationProjets: z.boolean(),
   })
   .strict();
 export type ReglagesAssistant = z.infer<typeof reglagesAssistantSchema>;
@@ -391,6 +398,7 @@ export const REGLAGES_ASSISTANT_DEFAUT: ReglagesAssistant = {
   jalonObligatoire: true,
   conservationJours: 180,
   actionsParPassage: 500,
+  validationProjets: true,
 };
 
 /** Le préfixe des clés de `settings` propres au module. */

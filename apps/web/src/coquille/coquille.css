@@ -185,6 +185,25 @@ html.dark .side-logo {
   color: var(--accent);
 }
 
+/* Ce qui attend une décision sur l'entrée — M22, créations de projet à
+   valider. Poussé au bout de la ligne ; il disparaît avec le libellé quand la
+   barre est repliée, comme lui. */
+.nav-count {
+  margin-left: auto;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .app.is-collapsed .nav-item span {
   display: none;
 }

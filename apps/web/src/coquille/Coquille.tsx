@@ -69,6 +69,7 @@ export function Coquille({
   filAriane = [],
   notificationsNonLues = 0,
   modulesActifs,
+  attentes,
   surDeconnexion,
   children,
 }: {
@@ -76,6 +77,11 @@ export function Coquille({
   permissions: ReadonlySet<string>;
   /** Les modules facultatifs que le serveur déclare actifs (`RG-AST-01`). */
   modulesActifs?: ReadonlySet<ModuleFacultatif>;
+  /**
+   * Ce qui attend une décision, par entrée de navigation : une pastille sur
+   * l'entrée. M22 y porte les créations de projet à valider (`RG-AST-21`).
+   */
+  attentes?: Partial<Record<string, number>>;
   filAriane?: { libelle: string; chemin?: string }[];
   notificationsNonLues?: number;
   surDeconnexion: () => void;
@@ -264,6 +270,18 @@ export function Coquille({
                   >
                     <Icone nom={entree.icone} />
                     <span>{t(`entrees.${entree.cle}`)}</span>
+                    {/* Le nombre est dit en toutes lettres : une pastille
+                        seule ne dit rien à une assistance technique. */}
+                    {(attentes?.[entree.cle] ?? 0) > 0 ? (
+                      <>
+                        <span className="nav-count" aria-hidden="true">
+                          {attentes?.[entree.cle]}
+                        </span>
+                        <span className="sr-only">
+                          {t("navigation.attentes", { n: attentes?.[entree.cle] ?? 0 })}
+                        </span>
+                      </>
+                    ) : null}
                   </Link>
                   );
                 })}

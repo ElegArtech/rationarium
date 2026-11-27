@@ -777,6 +777,8 @@
     "avantApres": "de {avant} à {apres}",
     "action_agent_action": "Action de l'agent",
     "action_agent_action_undo": "Action de l'agent défaite",
+    "action_agent_action_validate": "Création de projet de l'agent validée",
+    "action_agent_action_reject": "Création de projet de l'agent rejetée",
     "action_agent_token_create": "Jeton d'agent créé",
     "action_agent_token_revoke": "Jeton d'agent révoqué",
     "action_agent_token_refused": "Jeton d'agent refusé",

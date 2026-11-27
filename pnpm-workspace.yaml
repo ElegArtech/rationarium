@@ -19,6 +19,7 @@ overrides:
   '@nestjs/platform-fastify@11.2.7>fastify': '5.12.8'
   '@nestjs/swagger@11.4.6>js-yaml': '5.4.2'
   '@prisma/config@7.10.0>deepmerge-ts': '8.0.2'
+  '@prisma/config@7.10.0>effect': '3.22.5'
   'prisma@7.10.0>mysql2': '3.24.5'
   # Avis publiés après 1.0.2, corrigés dans la même série (3 novembre 2026).
   'fast-uri@>=3.0.0 <3.1.9': '3.1.9'

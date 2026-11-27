@@ -11,6 +11,7 @@ import {
   type DemiJournee,
 } from "@rationarium/contracts";
 import { PrismaService } from "../prisma.service.js";
+import { synchroniserJalonsDuProjet } from "../commun/statut-jalon.js";
 import { AuditService } from "../commun/audit.service.js";
 import { CongesService, ErreurConge } from "../conges/conges.service.js";
 import { PerimetreService, type Perimetre } from "../commun/perimetre.service.js";
@@ -818,6 +819,8 @@ export class ImportsService {
       // 2. Les tâches ensuite — elles retrouvent leur jalon par son nom, qu'il
       //    vienne du fichier ou de la base.
       await this.insererTaches(tx, projectId, tachesAdmises, parNom, rendu);
+      // `RG-JAL-01` — les jalons suivent les statuts importés.
+      await synchroniserJalonsDuProjet(tx, projectId);
     });
 
     await this.audit.tracer({
@@ -1016,6 +1019,7 @@ export class ImportsService {
     await this.prisma.$transaction(async (tx) => {
       const parNom = await this.jalonsExistants(tx, projectId);
       await this.insererTaches(tx, projectId, lignes, parNom, rendu);
+      await synchroniserJalonsDuProjet(tx, projectId);
     });
 
     await this.audit.tracer({

@@ -4,7 +4,8 @@
     "replier": "Collapse the sidebar",
     "deplier": "Expand the sidebar",
     "principale": "Main navigation",
-    "allerAuContenu": "Skip to main content"
+    "allerAuContenu": "Skip to main content",
+    "attentes": "{n, plural, one {# project to approve} other {# projects to approve}}"
   },
   "groupes": {
     "pilotage": "Steering",
@@ -75,7 +76,7 @@
     "corps_tache_en_retard": "Task “{tache}” is past its due date of {date}.",
     "type_assistant_passage": "Follow-up agent run",
     "type_assistant_passage_echec": "Follow-up agent run failed",
-    "corps_assistant_passage": "The agent has completed its run: {effectuees, plural, one {# action done} other {# actions done}}, {refusees, plural, one {# refused} other {# refused}}, {pointsOuverts, plural, one {# open point} other {# open points}}.",
+    "corps_assistant_passage": "The agent has completed its run: {effectuees, plural, one {# action done} other {# actions done}}, {refusees, plural, one {# refused} other {# refused}}, {pointsOuverts, plural, one {# open point} other {# open points}}{aValider, plural, =0 {} one {, # project to approve} other {, # projects to approve}}.",
     "corps_assistant_passage_echec": "The agent run failed.",
     "corps_assistant_passage_echec_erreur": "The agent run failed: {erreur}",
     "corps_assistant_passage_echec_interrompue": "The agent run was interrupted: the agent stopped responding."

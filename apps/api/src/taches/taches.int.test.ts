@@ -1402,3 +1402,44 @@ describe("EX-TSK-08 — le pourcentage d'avancement", () => {
     expect((await taches.fiche(t, await globalP(), toutes)).avancement).toBe(0);
   });
 });
+
+describe("RG-JAL-01 — le statut d'un jalon suit ses tâches, ENREGISTRÉ en base", () => {
+  const statutEnBase = async (id: string) =>
+    (await prisma.milestone.findUniqueOrThrow({ where: { id }, select: { statut: true } })).statut;
+
+  it("terminer la dernière tâche termine le jalon ; en rouvrir une le rouvre", async () => {
+    const jalon = await prisma.milestone.create({ data: { nom: `J-auto-${uuid()}`, projectId: projetA } });
+    const a = await taches.creer({ titre: "A", projectId: projetA, milestoneId: jalon.id }, acteur, DROITS_CREATION);
+    const b = await taches.creer({ titre: "B", projectId: projetA, milestoneId: jalon.id }, acteur, DROITS_CREATION);
+    expect(await statutEnBase(jalon.id)).toBe("pending");
+
+    await taches.modifier(a.id, { version: a.version, statut: "done" }, acteur, DROITS_CREATION);
+    expect(await statutEnBase(jalon.id)).toBe("doing");
+
+    const bFinie = await taches.modifier(b.id, { version: b.version, statut: "done" }, acteur, DROITS_CREATION);
+    expect(await statutEnBase(jalon.id)).toBe("done");
+
+    await taches.modifier(b.id, { version: bFinie.version, statut: "doing" }, acteur, DROITS_CREATION);
+    expect(await statutEnBase(jalon.id)).toBe("doing");
+  });
+
+  it("supprimer la seule tâche restante non terminée termine le jalon", async () => {
+    const jalon = await prisma.milestone.create({ data: { nom: `J-supp-${uuid()}`, projectId: projetA } });
+    const faite = await taches.creer({ titre: "Faite", projectId: projetA, milestoneId: jalon.id }, acteur, DROITS_CREATION);
+    await taches.modifier(faite.id, { version: faite.version, statut: "done" }, acteur, DROITS_CREATION);
+    const reste = await taches.creer({ titre: "Abandonnée", projectId: projetA, milestoneId: jalon.id }, acteur, DROITS_CREATION);
+    expect(await statutEnBase(jalon.id)).toBe("doing");
+
+    await taches.supprimer(reste.id, acteur, PERIMETRE_TOTAL, DROITS_SUPPRESSION);
+    expect(await statutEnBase(jalon.id)).toBe("done");
+  });
+
+  it("RG-JAL-06 — détacher la dernière tâche rouvre le jalon au lieu de laisser une marque", async () => {
+    const jalon = await prisma.milestone.create({ data: { nom: `J-det-${uuid()}`, projectId: projetA } });
+    const t = await taches.creer({ titre: "Seule", projectId: projetA, milestoneId: jalon.id, statut: "done" }, acteur, DROITS_CREATION);
+    expect(await statutEnBase(jalon.id)).toBe("done");
+
+    await taches.modifier(t.id, { version: t.version, milestoneId: null }, acteur, DROITS_CREATION);
+    expect(await statutEnBase(jalon.id)).toBe("pending");
+  });
+});

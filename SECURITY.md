@@ -4,7 +4,7 @@
 
 | Version | Correctifs de sécurité |
 | --- | --- |
-| 1.1.x | Oui, sur la dernière version publiée de la branche. |
+| 1.1.x | Oui, sur la dernière version publiée de la branche (1.1.1). |
 | 1.0.x | Non : une installation 1.0.x se met à jour vers la dernière 1.1.x, qui corrige aussi les avis de dépendances publiés après 1.0.2. |
 | 1.0.0-rc.1 | Non — préversion ; migrer vers la dernière 1.1.x par la [migration PostgreSQL](docs/migration-postgresql.md) |
 
